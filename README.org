@@ -1,0 +1,8 @@
+#+TITLE: A* Pairwise Aligner
+
+A pairwise sequence aligner using A*, extending ideas from [[https://github.com/eth-sri/astarix][Astarix]][fn::
+Ivanov, Bichsel, Vechev (2021, preprint)
+[Fast and Optimal Sequence-to-Graph Alignment Guided by Seeds](https://www.biorxiv.org/content/10.1101/2021.11.05.467453v1) -- Introduces _Seed heuristic_ which outperforms other aproaches on Illumina reads and allows to scale to long HiFi reads.].
+
+# LICENCE
+MPL-2.0
