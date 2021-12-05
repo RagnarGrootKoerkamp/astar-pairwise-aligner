@@ -4,5 +4,13 @@ A pairwise sequence aligner using A*, extending ideas from [[https://github.com/
 Ivanov, Bichsel, Vechev (2021, preprint)
 [Fast and Optimal Sequence-to-Graph Alignment Guided by Seeds](https://www.biorxiv.org/content/10.1101/2021.11.05.467453v1) -- Introduces _Seed heuristic_ which outperforms other aproaches on Illumina reads and allows to scale to long HiFi reads.].
 
+# Getting started
+
+1. Install [[https://rustup.rs/][`rustup`]].
+1. Install Rust Nightly using `rustup install nightly`
+1. Run tests in [[src/lib.rs]] using `cargo test [name_of_test]`
+1. Run benchmarks in [[src/lib.rs]] using `cargo bench`
+
+
 # LICENCE
 MPL-2.0
