@@ -54,13 +54,13 @@ pub fn align(
         .chunks_exact(l)
         .enumerate()
         .map(|(i, s)| (l * i, s))
-        .intersperse_with({
-            let mut iter = a_text[l / 2..]
-                .chunks_exact(l)
-                .enumerate()
-                .map(|(i, s)| (l * i + l / 2, s));
-            move || iter.next().unwrap()
-        })
+        // .intersperse_with({
+        //     let mut iter = a_text[l / 2..]
+        //         .chunks_exact(l)
+        //         .enumerate()
+        //         .map(|(i, s)| (l * i + l / 2, s));
+        //     move || iter.next().unwrap()
+        // })
         // A chunk of size l has exactly one qgram of length l.
         .map(|(i, seed)| (i, rank_transform.qgrams(l as u32, seed).next().unwrap()))
         .collect::<Vec<_>>();
@@ -96,15 +96,17 @@ pub fn align(
         .flatten();
 
     // potential: the number of seeds starting at or after position i.
-    let potential = |Pos(i, _)| (a.len() + l / 2) / l - min(i + l - 1, a.len()) / l;
+    //let potential = |Pos(i, _)| (a.len() + l / 2) / l - min(i + l - 1, a.len()) / l;
+    let potential = |Pos(i, _)| a.len() / l - min(i + l - 1, a.len()) / l;
 
     // Heuristics
     // 1. Always return 0. -> A* becomes Dijkstra.
     let zero_heuristic = |_: Pos| 0usize;
-    // 2. Lower bound by the distance from the main diagonal.
+    // 2. Distance from the main diagonal.
     let gap_heuristic = |Pos(i, j)| abs_diff(a.len() - i, b.len() - j);
 
-    // Seed heuristic: for Pos(i,j), the number of seeds we will not hit on the way to the end.
+    // 3. Seed heuristic: for Pos(i,j), the minimal number of seeds that a
+    // continuation of the alignment will not contain.
     let seed_heuristic = || {
         // Compute heuristic at matches.
         let mut max_matches = HashMap::new();
@@ -122,7 +124,7 @@ pub fn align(
             max_matches.insert(pos, 1 + val);
         }
 
-        move |pos @ Pos(i, j): Pos| {
+        move |pos @ Pos(i, j): Pos| -> usize {
             // TODO: Find a datastructure for log-time lookup.
             let cnt = max_matches
                 .iter()
