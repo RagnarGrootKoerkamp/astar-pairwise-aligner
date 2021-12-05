@@ -10,9 +10,10 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
 * Getting started
 
 1. Install [[https://rustup.rs/][rustup]].
-2. Install Rust Nightly using ~rustup install nightly~
-3. Run tests in [[src/lib.rs]] using ~cargo test [name_of_test]~
-4. Run benchmarks in [[src/lib.rs]] using ~cargo bench~
+1. Install Rust Nightly using ~rustup install nightly~
+1. Make it the default: ~rustup default nightly~
+1. Run tests in [[src/lib.rs]] using ~cargo test [name_of_test]~
+1. Run benchmarks in [[src/lib.rs]] using ~cargo bench~
 
 
 * LICENCE
