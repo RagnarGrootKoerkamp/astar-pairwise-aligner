@@ -1,16 +1,19 @@
 #+TITLE: A* Pairwise Aligner
 
-A pairwise sequence aligner using A*, extending ideas from [[https://github.com/eth-sri/astarix][Astarix]][fn::
+A pairwise sequence aligner using A*, extending ideas from [[https://github.com/eth-sri/astarix][Astarix]]:
+
 Ivanov, Bichsel, Vechev (2021, preprint)
-[Fast and Optimal Sequence-to-Graph Alignment Guided by Seeds](https://www.biorxiv.org/content/10.1101/2021.11.05.467453v1) -- Introduces _Seed heuristic_ which outperforms other aproaches on Illumina reads and allows to scale to long HiFi reads.].
+[[https://www.biorxiv.org/content/10.1101/2021.11.05.467453v1][Fast and Optimal Sequence-to-Graph Alignment Guided by Seeds]]
 
-# Getting started
+Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
 
-1. Install [[https://rustup.rs/][`rustup`]].
-1. Install Rust Nightly using `rustup install nightly`
-1. Run tests in [[src/lib.rs]] using `cargo test [name_of_test]`
-1. Run benchmarks in [[src/lib.rs]] using `cargo bench`
+* Getting started
+
+1. Install [[https://rustup.rs/][rustup]].
+2. Install Rust Nightly using ~rustup install nightly~
+3. Run tests in [[src/lib.rs]] using ~cargo test [name_of_test]~
+4. Run benchmarks in [[src/lib.rs]] using ~cargo bench~
 
 
-# LICENCE
+* LICENCE
 MPL-2.0
