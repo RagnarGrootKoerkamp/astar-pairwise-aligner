@@ -10,7 +10,7 @@ pub struct IncreasingFunction<K, V> {
     pub m: BTreeMap<K, V>,
 }
 
-impl<K: Ord + Copy, V: Ord + Copy> IncreasingFunction<K, V> {
+impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> IncreasingFunction<K, V> {
     pub fn new() -> Self {
         IncreasingFunction { m: BTreeMap::new() }
     }
@@ -19,8 +19,10 @@ impl<K: Ord + Copy, V: Ord + Copy> IncreasingFunction<K, V> {
     /// Only inserts if y is larger than the current value at x.
     /// Returns whether insertion took place.
     pub fn set(&mut self, x: K, y: V) -> bool {
+        //println!("Set {:?} to {:?}", x, y);
         let cur_val = self.get(x);
         if cur_val.map_or(false, |c| y <= c) {
+            //println!("Set {:?} to {:?} -> SKIP", x, y);
             return false;
         }
         // Delete elements right of x at most y.
@@ -44,10 +46,13 @@ impl<K: Ord + Copy, V: Ord + Copy> IncreasingFunction<K, V> {
 
     /// Get f(x): the y for the largest key <= x inserted into the map.
     pub fn get(&self, x: K) -> Option<V> {
-        self.m
+        let v = self
+            .m
             .range((Unbounded, Included(x)))
             .next_back()
-            .map(|(_, y)| *y)
+            .map(|(_, y)| *y);
+        //println!("Get {:?} = {:?}", x, v);
+        v
     }
 
     /// f(x') for the largest x' < x inserted into the map.
@@ -75,7 +80,7 @@ pub struct IncreasingFunction2D<T: Copy + hash::Hash + Eq> {
     root: NodeIndex,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub struct Node<T: Copy + hash::Hash + Eq> {
     pub pos: Pos,
     pub val: T,
@@ -97,7 +102,12 @@ impl IncreasingFunction2D<usize> {
             // Placeholder until properly set in build.
             root: 0,
         };
+        //println!("BUILD");
         s.build(std::iter::once(Pos(0, 0)).chain(ps), l);
+        //println!("BUILD DONE");
+        for (i, node) in s.nodes.iter().enumerate() {
+            //println!("{:>5}: {:?}", i, node);
+        }
         s
     }
 
@@ -112,21 +122,26 @@ impl IncreasingFunction2D<usize> {
         for pos in ps {
             let Pos(i, j) = pos;
             // Update lagging front.
+            //println!("Update lagging front");
             while lagging_index < self.nodes.len() {
                 let node = &self.nodes[lagging_index];
-                if node.pos <= Pos(i - l, j - l) {
+                //println!("Next lagging node index {} {:?}", lagging_index, node);
+                if node.pos.0 <= i - l {
+                    //println!("ADD");
                     lagging_front.set(node.pos.1, (node.val, lagging_index));
                     lagging_index += 1;
                 } else {
                     break;
                 }
             }
+            //println!("DONE");
 
             // Get the value for the position.
             let (val, parent) = match lagging_front.get(max(j, l) - l) {
                 None => (0, None),
                 Some((val, p)) => (val + 1, Some(p)),
             };
+            //println!("{:?} val {:>5} parent {:>8}", pos, val, parent.unwrap_or(0));
 
             let id = self.nodes.len();
 
@@ -141,7 +156,9 @@ impl IncreasingFunction2D<usize> {
             );
 
             // Only continue if the value is larger than existing.
+            //println!("Set front");
             if !front.set(j, (val, id)) {
+                //println!("Skip");
                 continue;
             }
 
@@ -193,24 +210,32 @@ impl IncreasingFunction2D<usize> {
         pos @ Pos(i, j): Pos,
         mut hint_idx: NodeIndex,
     ) -> Option<NodeIndex> {
+        //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {
+            //println!("HINT: {}", hint_idx);
             let hint = &self.nodes[hint_idx];
             if pos >= hint.pos {
+                //println!("GET JUMP {:?} {:?}", pos, Some(hint_idx));
                 return Some(hint_idx);
             }
             if let Some(next_idx) = hint.next {
                 if j >= self.nodes[next_idx].pos.1 {
                     hint_idx = next_idx;
+                    continue;
                 }
-            } else if let Some(prev_idx) = hint.prev {
+            }
+            if let Some(prev_idx) = hint.prev {
                 if i >= self.nodes[prev_idx].pos.0 {
                     hint_idx = prev_idx;
+                    continue;
                 }
-            } else if let Some(prev_idx) = hint.parent {
-                hint_idx = prev_idx;
-            } else {
-                return None;
             }
+            if let Some(prev_idx) = hint.parent {
+                hint_idx = prev_idx;
+                continue;
+            }
+            //println!("GET JUMP {:?} {:?}", pos, None::<()>);
+            return None;
         }
     }
 }

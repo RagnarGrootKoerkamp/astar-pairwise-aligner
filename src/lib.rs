@@ -191,6 +191,7 @@ pub fn align<H: Heuristic>(
 #[cfg(test)]
 mod tests {
 
+    use itertools::Itertools;
     use rand::SeedableRng;
 
     use crate::random_sequence::{random_mutate, random_sequence};
@@ -219,20 +220,20 @@ mod tests {
 
     #[test]
     fn test_heuristics() {
-        let n = 2000;
-        let es = [50, 100, 200, 400];
+        let ns = [2_000];
+        let es = [0.05f32, 0.10, 0.20, 0.30];
         let ls = 6..=6;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
-        let pattern = random_sequence(n, alphabet, &mut rng);
 
         AlignResult::print_header();
-        for e in es {
-            let text = random_mutate(&pattern, alphabet, e, &mut rng);
+        for (&n, e) in ns.iter().cartesian_product(es) {
+            let pattern = random_sequence(n, alphabet, &mut rng);
+            let text = random_mutate(&pattern, alphabet, (e * n as f32) as usize, &mut rng);
             let stats = SequenceStats {
                 len_a: pattern.len(),
                 len_b: text.len(),
-                error_rate: e as f32 / n as f32,
+                error_rate: e,
                 source: Source::Uniform,
             };
 
@@ -251,6 +252,9 @@ mod tests {
                     },
                 )
                 .print();
+            }
+            for l in ls.clone() {
+                align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
             }
             for l in ls.clone() {
                 align(
@@ -279,10 +283,6 @@ mod tests {
                 .print();
             }
         }
-        // FastSeed
-        //for l in ls.clone() {
-        //align(&pattern, &text, &alphabet, FastSeedHeuristic { l }).print();
-        //}
     }
 
     #[test]
@@ -320,6 +320,8 @@ mod tests {
             },
         )
         .write_explored_states("evals/stats/seed.csv");
+        align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l })
+            .write_explored_states("evals/stats/seed_fast.csv");
         align(
             &pattern,
             &text,
@@ -363,7 +365,7 @@ mod tests {
     }
 
     #[bench]
-    fn bench_none(b: &mut test::Bencher) {
+    fn bench_zero(b: &mut test::Bencher) {
         let (n, e, _l, repeats, ref alphabet, mut rng) = setup();
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
@@ -376,36 +378,6 @@ mod tests {
             };
 
             b.iter(|| align(&pattern, &text, &alphabet, stats, ZeroHeuristic));
-        }
-    }
-    #[bench]
-    fn bench_seeds(b: &mut test::Bencher) {
-        let (n, e, l, repeats, ref alphabet, mut rng) = setup();
-        for _ in 0..repeats {
-            let pattern = random_sequence(n, alphabet, &mut rng);
-            let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            let stats = SequenceStats {
-                len_a: pattern.len(),
-                len_b: text.len(),
-                error_rate: e as f32 / n as f32,
-                source: Source::Uniform,
-            };
-            //b.iter(|| align(&pattern, &text, &alphabet, stats, SeedHeuristic { l }));
-        }
-    }
-    #[bench]
-    fn bench_fast_seeds(b: &mut test::Bencher) {
-        let (n, e, l, repeats, ref alphabet, mut rng) = setup();
-        for _ in 0..repeats {
-            let pattern = random_sequence(n, alphabet, &mut rng);
-            let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            let stats = SequenceStats {
-                len_a: pattern.len(),
-                len_b: text.len(),
-                error_rate: e as f32 / n as f32,
-                source: Source::Uniform,
-            };
-            b.iter(|| align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }));
         }
     }
     #[bench]
@@ -424,7 +396,22 @@ mod tests {
         }
     }
     #[bench]
-    fn bench_gapped_seeds(b: &mut test::Bencher) {
+    fn bench_count(b: &mut test::Bencher) {
+        let (n, e, _l, repeats, ref alphabet, mut rng) = setup();
+        for _ in 0..repeats {
+            let pattern = random_sequence(n, alphabet, &mut rng);
+            let text = random_mutate(&pattern, alphabet, e, &mut rng);
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+            b.iter(|| align(&pattern, &text, &alphabet, stats, CountHeuristic));
+        }
+    }
+    #[bench]
+    fn bench_seeds(b: &mut test::Bencher) {
         let (n, e, l, repeats, ref alphabet, mut rng) = setup();
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
@@ -435,7 +422,94 @@ mod tests {
                 error_rate: e as f32 / n as f32,
                 source: Source::Uniform,
             };
-            //b.iter(|| align(&pattern, &text, &alphabet, stats, GappedSeedHeuristic { l }));
+            b.iter(|| {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: ZeroHeuristic,
+                    },
+                )
+            });
+        }
+    }
+    #[bench]
+    fn bench_seeds_gap(b: &mut test::Bencher) {
+        let (n, e, l, repeats, ref alphabet, mut rng) = setup();
+        for _ in 0..repeats {
+            let pattern = random_sequence(n, alphabet, &mut rng);
+            let text = random_mutate(&pattern, alphabet, e, &mut rng);
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+            b.iter(|| {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: GapHeuristic,
+                    },
+                )
+            });
+        }
+    }
+    #[bench]
+    fn bench_seeds_count(b: &mut test::Bencher) {
+        let (n, e, l, repeats, ref alphabet, mut rng) = setup();
+        for _ in 0..repeats {
+            let pattern = random_sequence(n, alphabet, &mut rng);
+            let text = random_mutate(&pattern, alphabet, e, &mut rng);
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+            b.iter(|| {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: CountHeuristic,
+                    },
+                )
+            });
+        }
+    }
+    #[bench]
+    fn bench_fast_seed(b: &mut test::Bencher) {
+        let (n, e, l, repeats, ref alphabet, mut rng) = setup();
+        let n = 400;
+        let e = 10;
+        for _ in 0..1 {
+            let pattern = random_sequence(n, alphabet, &mut rng);
+            let text = random_mutate(&pattern, alphabet, e, &mut rng);
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+            b.iter(|| align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }));
         }
     }
 }
+
+// Statistics:
+// - number of matches
+// - number of seeds
+// - greedy matching count
+// - average value of heuristic
+// - contribution to h from matches and distance heuristic
