@@ -9,10 +9,11 @@ pub use std::cmp::{max, min};
 pub use std::collections::BTreeMap;
 pub use std::collections::HashMap;
 
+use serde::Serialize;
 use std::cmp::Ordering;
 
 // A position in a pairwise matching.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub struct Pos(pub usize, pub usize);
 
 /// Partial ordering by (a,b) < (c,d) when a<c and b<d.

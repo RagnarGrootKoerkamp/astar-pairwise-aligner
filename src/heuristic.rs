@@ -4,84 +4,91 @@ use crate::{
     util::*,
 };
 
+/// An object containing the settings for a heuristic.
 pub trait Heuristic {
+    type Instance: HeuristicInstance;
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance;
+    const NAME: &'static str;
+}
+
+/// An instantiation of a heuristic for a specific pair of sequences.
+pub trait HeuristicInstance {
     fn h(&self, pos: (Pos, Self::IncrementalState)) -> usize;
 
-    type IncrementalState: std::hash::Hash + Eq + Copy + Default;
-    fn incremental_h(
-        &self,
-        parent: (Pos, Self::IncrementalState),
-        pos: Pos,
-    ) -> Self::IncrementalState;
-    fn root_state(&self) -> Self::IncrementalState;
-}
-
-pub struct ZeroHeuristic;
-impl ZeroHeuristic {
-    pub fn new() -> Self {
-        ZeroHeuristic
-    }
-}
-impl Heuristic for ZeroHeuristic {
-    fn h(&self, _: (Pos, Self::IncrementalState)) -> usize {
-        0
-    }
-
-    type IncrementalState = ();
-
+    // TODO: Simplify this, and just use a map inside the heuristic.
+    type IncrementalState: std::hash::Hash + Eq + Copy + Default = ();
     fn incremental_h(
         &self,
         _parent: (Pos, Self::IncrementalState),
         _pos: Pos,
     ) -> Self::IncrementalState {
-        ()
+        Default::default()
     }
-
     fn root_state(&self) -> Self::IncrementalState {
-        ()
+        Default::default()
     }
 }
 
-pub struct GapHeuristic {
-    target: Pos,
+// # ZERO HEURISTIC
+pub struct ZeroHeuristic;
+impl Heuristic for ZeroHeuristic {
+    type Instance = ZeroHeuristicI;
+    const NAME: &'static str = "ZeroHeuristic";
+
+    fn build(&self, _a: &Sequence, _b: &Sequence, _alphabet: &Alphabet) -> Self::Instance {
+        ZeroHeuristicI
+    }
 }
 
-impl GapHeuristic {
-    pub fn new(a: &Sequence, b: &Sequence, _text_alphabet: &Alphabet) -> Self {
-        GapHeuristic {
+pub struct ZeroHeuristicI;
+impl HeuristicInstance for ZeroHeuristicI {
+    fn h(&self, _: (Pos, Self::IncrementalState)) -> usize {
+        0
+    }
+}
+
+// # GAP HEURISTIC
+pub struct GapHeuristic;
+impl Heuristic for GapHeuristic {
+    type Instance = GapHeuristicI;
+    const NAME: &'static str = "GapHeuristic";
+
+    fn build(&self, a: &Sequence, b: &Sequence, _alphabet: &Alphabet) -> Self::Instance {
+        GapHeuristicI {
             target: Pos(a.len(), b.len()),
         }
     }
 }
+pub struct GapHeuristicI {
+    target: Pos,
+}
 
-impl Heuristic for GapHeuristic {
+impl HeuristicInstance for GapHeuristicI {
     fn h(&self, (Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
         abs_diff(self.target.0 - i, self.target.1 - j)
     }
-
-    type IncrementalState = ();
-
-    fn incremental_h(
-        &self,
-        _parent: (Pos, Self::IncrementalState),
-        _pos: Pos,
-    ) -> Self::IncrementalState {
-        ()
-    }
-
-    fn root_state(&self) -> Self::IncrementalState {
-        ()
-    }
 }
 
+// # SEED HEURISTIC
 pub struct SeedHeuristic {
+    pub l: usize,
+}
+impl Heuristic for SeedHeuristic {
+    type Instance = SeedHeuristicI;
+    const NAME: &'static str = "SeedHeuristic";
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
+        SeedHeuristicI::new(a, b, alphabet, self.l)
+    }
+}
+pub struct SeedHeuristicI {
     seed_matches: SeedMatches,
     max_matches: HashMap<Pos, usize>,
 }
 
-impl SeedHeuristic {
-    pub fn new(a: &Sequence, b: &Sequence, text_alphabet: &Alphabet, l: usize) -> Self {
-        let seed_matches = find_matches(a, b, text_alphabet, l);
+impl SeedHeuristicI {
+    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize) -> Self {
+        let seed_matches = find_matches(a, b, alphabet, l);
         // Compute heuristic at matches.
         let mut max_matches = HashMap::new();
         max_matches.insert(Pos(a.len(), b.len()), 0);
@@ -97,14 +104,14 @@ impl SeedHeuristic {
                 .unwrap();
             max_matches.insert(pos, 1 + val);
         }
-        SeedHeuristic {
+        SeedHeuristicI {
             seed_matches,
             max_matches,
         }
     }
 }
 
-impl Heuristic for SeedHeuristic {
+impl HeuristicInstance for SeedHeuristicI {
     fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
         // TODO: Find a datastructure for log-time lookup.
         let cnt = self
@@ -116,30 +123,28 @@ impl Heuristic for SeedHeuristic {
             .unwrap();
         self.seed_matches.potential(pos) - cnt
     }
-
-    type IncrementalState = ();
-
-    fn incremental_h(
-        &self,
-        _parent: (Pos, Self::IncrementalState),
-        _pos: Pos,
-    ) -> Self::IncrementalState {
-        ()
-    }
-
-    fn root_state(&self) -> Self::IncrementalState {
-        ()
-    }
 }
 
+// # GAPPED SEED HEURISTIC
 pub struct GappedSeedHeuristic {
+    pub l: usize,
+}
+impl Heuristic for GappedSeedHeuristic {
+    type Instance = GappedSeedHeuristicI;
+    const NAME: &'static str = "GappedSeedHeuristic";
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
+        GappedSeedHeuristicI::new(a, b, alphabet, self.l)
+    }
+}
+pub struct GappedSeedHeuristicI {
     seed_matches: SeedMatches,
     h_map: HashMap<Pos, isize>,
 }
 
-impl GappedSeedHeuristic {
-    pub fn new(a: &Sequence, b: &Sequence, text_alphabet: &Alphabet, l: usize) -> Self {
-        let seed_matches = find_matches(a, b, text_alphabet, l);
+impl GappedSeedHeuristicI {
+    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize) -> Self {
+        let seed_matches = find_matches(a, b, alphabet, l);
         let skipped: &mut usize = &mut 0;
 
         let mut h_map = HashMap::new();
@@ -165,14 +170,14 @@ impl GappedSeedHeuristic {
             }
             //println!("{:?} => {}", pos, val);
         }
-        println!("Skipped matches: {}", skipped);
-        GappedSeedHeuristic {
+        //println!("Skipped matches: {}", skipped);
+        GappedSeedHeuristicI {
             seed_matches,
             h_map,
         }
     }
 }
-impl Heuristic for GappedSeedHeuristic {
+impl HeuristicInstance for GappedSeedHeuristicI {
     fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
         (self.seed_matches.potential(pos) as isize
             + self
@@ -187,31 +192,28 @@ impl Heuristic for GappedSeedHeuristic {
                 .min()
                 .unwrap()) as usize
     }
-
-    type IncrementalState = ();
-
-    fn incremental_h(
-        &self,
-        _parent: (Pos, Self::IncrementalState),
-        _pos: Pos,
-    ) -> Self::IncrementalState {
-        ()
-    }
-
-    fn root_state(&self) -> Self::IncrementalState {
-        ()
-    }
 }
 
-pub struct FastSeedHeuristic<'a> {
-    a: &'a Sequence,
-    b: &'a Sequence,
+// # FAST SEED HEURISTIC
+pub struct FastSeedHeuristic {
+    pub l: usize,
+}
+impl Heuristic for FastSeedHeuristic {
+    type Instance = FastSeedHeuristicI;
+    const NAME: &'static str = "FastSeedHeuristic";
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
+        FastSeedHeuristicI::new(a, b, alphabet, self.l)
+    }
+}
+pub struct FastSeedHeuristicI {
+    target: Pos,
     f: IncreasingFunction2D<usize>,
 }
 
-impl<'a> FastSeedHeuristic<'a> {
-    pub fn new(a: &'a Sequence, b: &'a Sequence, text_alphabet: &Alphabet, l: usize) -> Self {
-        let seed_matches = find_matches(a, b, text_alphabet, l);
+impl FastSeedHeuristicI {
+    pub fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize) -> Self {
+        let seed_matches = find_matches(a, b, alphabet, l);
 
         // The increasing function goes back from the end, and uses (0,0) for the final state.
         let f = IncreasingFunction2D::new(
@@ -222,14 +224,17 @@ impl<'a> FastSeedHeuristic<'a> {
             l,
         );
 
-        FastSeedHeuristic { a, b, f }
+        FastSeedHeuristicI {
+            target: Pos(a.len(), b.len()),
+            f,
+        }
     }
 
     fn invert_pos(&self, Pos(i, j): Pos) -> Pos {
-        Pos(self.a.len() - i, self.b.len() - j)
+        Pos(self.target.0 - i, self.target.1 - j)
     }
 }
-impl Heuristic for FastSeedHeuristic<'_> {
+impl HeuristicInstance for FastSeedHeuristicI {
     fn h(&self, (_pos, parent): (Pos, Self::IncrementalState)) -> usize {
         self.f.val(parent)
     }

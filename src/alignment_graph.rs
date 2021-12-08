@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use crate::{heuristic::Heuristic, util::*};
+use crate::{heuristic::HeuristicInstance, util::*};
 use arrayvec::ArrayVec;
 use bio_types::sequence::Sequence;
 
@@ -8,7 +8,7 @@ use crate::implicit_graph::{Edge, ImplicitGraph, ImplicitGraphBase};
 
 /// AlignmentGraph that computes the heuristic
 #[derive(Clone, Copy)]
-pub struct AlignmentGraphBase<'a, H: Heuristic> {
+pub struct AlignmentGraphBase<'a, H: HeuristicInstance> {
     pattern: &'a Sequence,
     text: &'a Sequence,
     heuristic: &'a H,
@@ -16,7 +16,7 @@ pub struct AlignmentGraphBase<'a, H: Heuristic> {
 
 pub type AlignmentGraph<'a, H> = ImplicitGraph<AlignmentGraphBase<'a, H>>;
 
-impl<'a, H: Heuristic> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
+impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
     // A node directly contains the estimated distance to the end.
     type Node = (Pos, H::IncrementalState);
 
@@ -57,7 +57,7 @@ impl<'a, H: Heuristic> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
     }
 }
 
-pub fn new_alignment_graph<'a, H: Heuristic>(
+pub fn new_alignment_graph<'a, H: HeuristicInstance>(
     pattern: &'a Sequence,
     text: &'a Sequence,
     heuristic: &'a H,
