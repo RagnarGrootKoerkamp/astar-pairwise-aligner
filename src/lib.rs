@@ -11,7 +11,6 @@ extern crate test;
 
 use std::time;
 
-use bio::alphabets::Alphabet;
 use bio_types::sequence::Sequence;
 use heuristic::*;
 use util::*;
@@ -19,11 +18,7 @@ use util::*;
 /// l: seed length
 /// a: first sequence, where seeds are taken from
 /// b: second sequence
-pub fn align<H: Heuristic>(
-    a_text: &Sequence,
-    b_text: &Sequence,
-    heuristic: H,
-) -> Option<(usize, Vec<(Pos, ())>)> {
+pub fn align<H: Heuristic>(a_text: &Sequence, b_text: &Sequence, heuristic: H) {
     let start_time = time::Instant::now();
 
     let _precomputation = start_time.elapsed();
@@ -35,11 +30,12 @@ pub fn align<H: Heuristic>(
     let start_time = time::Instant::now();
 
     // Run A* with heuristic.
-    let mut astar = || -> Option<(usize, Vec<(Pos, ())>)> {
+    let mut astar = || {
+        let graph = alignment_graph::new_alignment_graph(&a_text, &b_text, &heuristic);
         petgraph::algo::astar(
-            alignment_graph::new_alignment_graph(&a_text, &b_text),
+            &graph,
             // start
-            (Pos(0, 0), ()),
+            (Pos(0, 0), heuristic.root_state()),
             // is end?
             |(Pos(i, j), _)| {
                 //make_dot(pos, '*', is_end_calls);
@@ -58,13 +54,11 @@ pub fn align<H: Heuristic>(
                     1
                 }
             },
-            |(pos, _)| {
+            |state| {
                 heuristic_calls += 1;
-                let h = heuristic.h(pos);
-                //println!("h {:?} = {}", pos, h);
-                h
+                heuristic.h(state)
             },
-        )
+        );
     };
     let path = astar();
     let _algorithm = start_time.elapsed();
@@ -96,7 +90,7 @@ mod tests {
     fn test_dijkstra() {
         let pattern = b"ACTG".to_vec();
         let text = b"AACT".to_vec();
-        let alphabet = &Alphabet::new(b"ACTG");
+        let _alphabet = &Alphabet::new(b"ACTG");
 
         let path = align(&pattern, &text, ZeroHeuristic::new());
         println!("{:?}", path);
@@ -129,6 +123,15 @@ mod tests {
                 SeedHeuristic::new(&pattern, &text, &alphabet, l),
             );
         }
+        // FastSeed
+        for l in ls.clone() {
+            println!("n={} e={} l={}", n, e, l);
+            align(
+                &pattern,
+                &text,
+                FastSeedHeuristic::new(&pattern, &text, &alphabet, l),
+            );
+        }
         // GappedSeed
         for l in ls.clone() {
             println!("n={} e={} l={}", n, e, l);
@@ -148,8 +151,8 @@ mod tests {
         Alphabet,
         rand_chacha::ChaCha8Rng,
     ) {
-        let n = 1000;
-        let e = 100;
+        let n = 100;
+        let e = 10;
         let l = 6;
         let alphabet = Alphabet::new(b"ACTG");
         let repeats = 10;
@@ -159,7 +162,7 @@ mod tests {
 
     #[bench]
     fn bench_none(b: &mut test::Bencher) {
-        let (n, e, l, repeats, ref alphabet, mut rng) = setup();
+        let (n, e, _l, repeats, ref alphabet, mut rng) = setup();
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);
@@ -182,8 +185,23 @@ mod tests {
         }
     }
     #[bench]
-    fn bench_gap(b: &mut test::Bencher) {
+    fn bench_fast_seeds(b: &mut test::Bencher) {
         let (n, e, l, repeats, ref alphabet, mut rng) = setup();
+        for _ in 0..repeats {
+            let pattern = random_sequence(n, alphabet, &mut rng);
+            let text = random_mutate(&pattern, alphabet, e, &mut rng);
+            b.iter(|| {
+                align(
+                    &pattern,
+                    &text,
+                    FastSeedHeuristic::new(&pattern, &text, alphabet, l),
+                )
+            });
+        }
+    }
+    #[bench]
+    fn bench_gap(b: &mut test::Bencher) {
+        let (n, e, _l, repeats, ref alphabet, mut rng) = setup();
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);

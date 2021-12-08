@@ -1,18 +1,18 @@
 use std::{collections::HashSet, hash, iter::Empty, ops::Deref};
 
 use petgraph::visit::{
-    Data, EdgeRef, GraphBase, GraphRef, IntoEdgeReferences, IntoEdges, IntoNeighbors, Visitable,
+    Data, EdgeRef, GraphBase, IntoEdgeReferences, IntoEdges, IntoNeighbors, Visitable,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Edge<Node>(pub Node, pub Node);
 
-pub trait ImplicitGraphBase: Clone + Copy {
+pub trait ImplicitGraphBase {
     type Node: Copy + Eq + hash::Hash;
 
     type Edges: Iterator<Item = Edge<Self::Node>>;
 
-    fn edges(self, a: Self::Node) -> Self::Edges;
+    fn edges(&self, a: Self::Node) -> Self::Edges;
 }
 pub struct ImplicitGraph<G: ImplicitGraphBase>(G);
 impl<G: ImplicitGraphBase> ImplicitGraph<G> {
@@ -55,21 +55,21 @@ impl<G: ImplicitGraphBase> Data for ImplicitGraph<G> {
     type NodeWeight = ();
     type EdgeWeight = ();
 }
+/*
 impl<G: ImplicitGraphBase> Clone for ImplicitGraph<G> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
-impl<G: ImplicitGraphBase> Copy for ImplicitGraph<G> {}
-impl<G: ImplicitGraphBase> GraphRef for ImplicitGraph<G> {}
-impl<G: ImplicitGraphBase> IntoEdgeReferences for ImplicitGraph<G> {
+*/
+impl<'a, G: ImplicitGraphBase> IntoEdgeReferences for &'a ImplicitGraph<G> {
     type EdgeRef = Edge<G::Node>;
     type EdgeReferences = Empty<Self::EdgeRef>;
     fn edge_references(self) -> Self::EdgeReferences {
         unimplemented!("We do not list all edges for an implicit graph");
     }
 }
-impl<G: ImplicitGraphBase> IntoNeighbors for ImplicitGraph<G> {
+impl<'a, G: ImplicitGraphBase> IntoNeighbors for &'a ImplicitGraph<G> {
     type Neighbors = Empty<G::Node>;
     fn neighbors(self: Self, _: Self::NodeId) -> Self::Neighbors {
         unimplemented!("Calls should be made to edges(node) instead.");
@@ -86,7 +86,7 @@ impl<G: ImplicitGraphBase> Visitable for ImplicitGraph<G> {
     }
 }
 
-impl<G: ImplicitGraphBase> IntoEdges for ImplicitGraph<G> {
+impl<'a, G: ImplicitGraphBase> IntoEdges for &'a ImplicitGraph<G> {
     type Edges = G::Edges;
 
     fn edges(self, a: Self::NodeId) -> Self::Edges {

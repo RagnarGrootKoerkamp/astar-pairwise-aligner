@@ -1,28 +1,28 @@
-use std::{hash, iter::once};
+use std::iter::once;
 
-use crate::util::*;
+use crate::{heuristic::Heuristic, util::*};
 use arrayvec::ArrayVec;
 use bio_types::sequence::Sequence;
 
 use crate::implicit_graph::{Edge, ImplicitGraph, ImplicitGraphBase};
 
 /// AlignmentGraph that computes the heuristic
-#[derive(Copy, Clone)]
-pub struct AlignmentGraphBase<'a, T> {
+#[derive(Clone, Copy)]
+pub struct AlignmentGraphBase<'a, H: Heuristic> {
     pattern: &'a Sequence,
     text: &'a Sequence,
-    h: fn((Pos, T), Pos) -> T,
+    heuristic: &'a H,
 }
 
-pub type AlignmentGraph<'a, T> = ImplicitGraph<AlignmentGraphBase<'a, T>>;
+pub type AlignmentGraph<'a, H> = ImplicitGraph<AlignmentGraphBase<'a, H>>;
 
-impl<'a, T: Copy + Eq + hash::Hash> ImplicitGraphBase for AlignmentGraphBase<'a, T> {
+impl<'a, H: Heuristic> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
     // A node directly contains the estimated distance to the end.
-    type Node = (Pos, T);
+    type Node = (Pos, H::IncrementalState);
 
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
-    fn edges(self, u @ (Pos(i, j), _): Self::Node) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
+    fn edges(&self, u @ (Pos(i, j), _): Self::Node) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
         const DELTAS: [(usize, usize); 3] = [(0, 1), (1, 0), (1, 1)];
         let nbs: ArrayVec<Edge<Self::Node>, 3> = if false
             && i + 1 <= self.pattern.len()
@@ -39,14 +39,14 @@ impl<'a, T: Copy + Eq + hash::Hash> ImplicitGraphBase for AlignmentGraphBase<'a,
                 y += 1;
             }
             let pos = Pos(x, y);
-            once(Edge(u, (pos, (self.h)(u, pos)))).collect()
+            once(Edge(u, (pos, self.heuristic.incremental_h(u, pos)))).collect()
         } else {
             DELTAS
                 .iter()
                 .filter_map(|(di, dj)| {
                     if i + di <= self.pattern.len() && j + dj <= self.text.len() {
                         let pos = Pos(i + di, j + dj);
-                        Some(Edge(u, (pos, (self.h)(u, pos))))
+                        Some(Edge(u, (pos, self.heuristic.incremental_h(u, pos))))
                     } else {
                         None
                     }
@@ -57,19 +57,16 @@ impl<'a, T: Copy + Eq + hash::Hash> ImplicitGraphBase for AlignmentGraphBase<'a,
     }
 }
 
-pub fn new_alignment_graph_with_heuristic<'a, T: Copy + Eq + hash::Hash>(
+pub fn new_alignment_graph<'a, H: Heuristic>(
     pattern: &'a Sequence,
     text: &'a Sequence,
-    h: fn((Pos, T), Pos) -> T,
-) -> AlignmentGraph<'a, T> {
-    ImplicitGraph::new(AlignmentGraphBase { pattern, text, h })
-}
-
-pub fn new_alignment_graph<'a>(
-    pattern: &'a Sequence,
-    text: &'a Sequence,
-) -> AlignmentGraph<'a, ()> {
-    new_alignment_graph_with_heuristic::<()>(pattern, text, |_, _| ())
+    heuristic: &'a H,
+) -> AlignmentGraph<'a, H> {
+    ImplicitGraph::new(AlignmentGraphBase {
+        pattern,
+        text,
+        heuristic,
+    })
 }
 
 impl From<(Pos, ())> for Pos {

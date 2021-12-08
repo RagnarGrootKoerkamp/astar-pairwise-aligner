@@ -32,8 +32,6 @@ pub fn find_matches<'a>(
 ) -> SeedMatches {
     // Convert to a binary sequences.
     let rank_transform = RankTransform::new(text_alphabet);
-    let a = rank_transform.transform(a_text);
-    let b = rank_transform.transform(b_text);
 
     // Split a into seeds of size l, which are encoded as `usize`.
     let seed_qgrams: Vec<(usize, usize)> = a_text
@@ -54,17 +52,6 @@ pub fn find_matches<'a>(
     // Find matches of the seeds of a in b.
     // NOTE: This uses O(alphabet^l) memory.
     let qgram_index = QGramIndex::new(l as u32, b_text, &text_alphabet);
-
-    // For each seed, the positions where it matches.
-    let mut num_matches = 0;
-    let match_positions: Vec<(usize, &[usize])> = seed_qgrams
-        .iter()
-        .map(|&(i, seed)| {
-            let matches = qgram_index.qgram_matches(seed);
-            num_matches += matches.len();
-            (i, matches)
-        })
-        .collect::<Vec<_>>();
 
     SeedMatches {
         l,

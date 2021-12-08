@@ -1,12 +1,19 @@
-use std::iter::{self, Empty};
-
 use crate::{
+    increasing_function::IncreasingFunction2D,
     seeds::{find_matches, SeedMatches},
     util::*,
 };
 
 pub trait Heuristic {
-    fn h(&self, pos: Pos) -> usize;
+    fn h(&self, pos: (Pos, Self::IncrementalState)) -> usize;
+
+    type IncrementalState: std::hash::Hash + Eq + Copy + Default;
+    fn incremental_h(
+        &self,
+        parent: (Pos, Self::IncrementalState),
+        pos: Pos,
+    ) -> Self::IncrementalState;
+    fn root_state(&self) -> Self::IncrementalState;
 }
 
 pub struct ZeroHeuristic;
@@ -16,8 +23,22 @@ impl ZeroHeuristic {
     }
 }
 impl Heuristic for ZeroHeuristic {
-    fn h(&self, _: Pos) -> usize {
+    fn h(&self, _: (Pos, Self::IncrementalState)) -> usize {
         0
+    }
+
+    type IncrementalState = ();
+
+    fn incremental_h(
+        &self,
+        _parent: (Pos, Self::IncrementalState),
+        _pos: Pos,
+    ) -> Self::IncrementalState {
+        ()
+    }
+
+    fn root_state(&self) -> Self::IncrementalState {
+        ()
     }
 }
 
@@ -34,8 +55,22 @@ impl GapHeuristic {
 }
 
 impl Heuristic for GapHeuristic {
-    fn h(&self, Pos(i, j): Pos) -> usize {
+    fn h(&self, (Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
         abs_diff(self.target.0 - i, self.target.1 - j)
+    }
+
+    type IncrementalState = ();
+
+    fn incremental_h(
+        &self,
+        _parent: (Pos, Self::IncrementalState),
+        _pos: Pos,
+    ) -> Self::IncrementalState {
+        ()
+    }
+
+    fn root_state(&self) -> Self::IncrementalState {
+        ()
     }
 }
 
@@ -70,7 +105,7 @@ impl SeedHeuristic {
 }
 
 impl Heuristic for SeedHeuristic {
-    fn h(&self, pos @ Pos(i, j): Pos) -> usize {
+    fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
         // TODO: Find a datastructure for log-time lookup.
         let cnt = self
             .max_matches
@@ -80,6 +115,20 @@ impl Heuristic for SeedHeuristic {
             .max()
             .unwrap();
         self.seed_matches.potential(pos) - cnt
+    }
+
+    type IncrementalState = ();
+
+    fn incremental_h(
+        &self,
+        _parent: (Pos, Self::IncrementalState),
+        _pos: Pos,
+    ) -> Self::IncrementalState {
+        ()
+    }
+
+    fn root_state(&self) -> Self::IncrementalState {
+        ()
     }
 }
 
@@ -92,11 +141,6 @@ impl GappedSeedHeuristic {
     pub fn new(a: &Sequence, b: &Sequence, text_alphabet: &Alphabet, l: usize) -> Self {
         let seed_matches = find_matches(a, b, text_alphabet, l);
         let skipped: &mut usize = &mut 0;
-
-        // TODO: Faster precomputation & querying.
-        // 1. Do precomputation using a right-to-left front. The front is just an increasing function.
-        // 2. Store which matches are at some point neighbours on the front.
-        // 3. When querying and coming from a given position linked to a given match, only consider neighbours of that match for the new position.
 
         let mut h_map = HashMap::new();
         h_map.insert(Pos(a.len(), b.len()), 0);
@@ -129,7 +173,7 @@ impl GappedSeedHeuristic {
     }
 }
 impl Heuristic for GappedSeedHeuristic {
-    fn h(&self, pos @ Pos(i, j): Pos) -> usize {
+    fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
         (self.seed_matches.potential(pos) as isize
             + self
                 .h_map
@@ -142,5 +186,66 @@ impl Heuristic for GappedSeedHeuristic {
                 })
                 .min()
                 .unwrap()) as usize
+    }
+
+    type IncrementalState = ();
+
+    fn incremental_h(
+        &self,
+        _parent: (Pos, Self::IncrementalState),
+        _pos: Pos,
+    ) -> Self::IncrementalState {
+        ()
+    }
+
+    fn root_state(&self) -> Self::IncrementalState {
+        ()
+    }
+}
+
+pub struct FastSeedHeuristic<'a> {
+    a: &'a Sequence,
+    b: &'a Sequence,
+    f: IncreasingFunction2D<usize>,
+}
+
+impl<'a> FastSeedHeuristic<'a> {
+    pub fn new(a: &'a Sequence, b: &'a Sequence, text_alphabet: &Alphabet, l: usize) -> Self {
+        let seed_matches = find_matches(a, b, text_alphabet, l);
+
+        // The increasing function goes back from the end, and uses (0,0) for the final state.
+        let f = IncreasingFunction2D::new(
+            seed_matches
+                .iter()
+                .rev()
+                .map(|Pos(i, j)| Pos(a.len() - i, b.len() - j)),
+            l,
+        );
+
+        FastSeedHeuristic { a, b, f }
+    }
+
+    fn invert_pos(&self, Pos(i, j): Pos) -> Pos {
+        Pos(self.a.len() - i, self.b.len() - j)
+    }
+}
+impl Heuristic for FastSeedHeuristic<'_> {
+    fn h(&self, (_pos, parent): (Pos, Self::IncrementalState)) -> usize {
+        self.f.val(parent)
+    }
+
+    type IncrementalState = crate::increasing_function::NodeIndex;
+
+    fn incremental_h(
+        &self,
+        parent: (Pos, Self::IncrementalState),
+        pos: Pos,
+    ) -> Self::IncrementalState {
+        // We can unwrap because (0,0) is part of the map.
+        self.f.get_jump(self.invert_pos(pos), parent.1).unwrap()
+    }
+
+    fn root_state(&self) -> Self::IncrementalState {
+        self.f.root()
     }
 }
