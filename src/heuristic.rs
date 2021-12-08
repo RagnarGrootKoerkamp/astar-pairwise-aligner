@@ -254,10 +254,7 @@ impl Heuristic for FastSeedHeuristic {
     type Instance = FastSeedHeuristicI;
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
-        //println!("build");
-        let x = FastSeedHeuristicI::new(a, b, alphabet, self.l);
-        //println!("building done");
-        x
+        FastSeedHeuristicI::new(a, b, alphabet, self.l)
     }
 }
 pub struct FastSeedHeuristicI {
