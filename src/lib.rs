@@ -16,6 +16,7 @@ extern crate test;
 
 use std::{
     collections::HashSet,
+    fmt,
     ops::Add,
     path::Path,
     time::{self, Duration},
@@ -23,18 +24,45 @@ use std::{
 
 use bio_types::sequence::Sequence;
 use heuristic::*;
+use serde::Serialize;
 use util::*;
 
+#[derive(Serialize, Clone, Copy, Debug)]
+pub enum Source {
+    Uniform,
+    Manual,
+}
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct SequenceStats {
+    len_a: usize,
+    len_b: usize,
+    error_rate: f32,
+    source: Source,
+}
+
 pub struct AlignResult {
-    pub heuristic_name: String,
+    // Input
+    pub sequence_stats: SequenceStats,
+
+    // Timing
     pub heuristic_initialization: Duration,
     pub astar_duration: Duration,
+
+    // Stats
+    pub heuristic_name: String,
     pub expanded: usize,
     pub explored: usize,
     /// Number of edges tried. More than explored states, because states can have multiple incoming edges.
     pub edges: usize,
     pub explored_states: Vec<Pos>,
-    /// A* output.
+
+    // Output
     pub distance: usize,
     pub path: Vec<Pos>,
 }
@@ -42,15 +70,30 @@ pub struct AlignResult {
 impl AlignResult {
     fn print_header() {
         println!(
-            "{:50} {:>9} {:>9} {:>9} {:>12} {:>7} {:>7} {:5}",
-            "heuristic", "expanded", "explored", "edges", "precomp", "align", "h%", "dist"
+            "{:>6} {:>6} {:>5} {:>10} {:50} {:>9} {:>9} {:>9} {:>12} {:>7} {:>7} {:>5}",
+            "len a",
+            "len b",
+            "rate",
+            "model",
+            "heuristic",
+            "expanded",
+            "explored",
+            "edges",
+            "precomp",
+            "align",
+            "h%",
+            "dist"
         );
     }
     fn print(&self) {
         let percent_h = 100. * self.heuristic_initialization.as_secs_f64()
             / (self.heuristic_initialization.as_secs_f64() + self.astar_duration.as_secs_f64());
         println!(
-            "{:50} {:>9} {:>9} {:>9} {:>12.5} {:>7.5} {:>7.3} {:5}",
+            "{:>6} {:>6} {:>5.3} {:>10} {:50} {:>9} {:>9} {:>9} {:>12.5} {:>7.5} {:>7.3} {:>5}",
+            self.sequence_stats.len_a,
+            self.sequence_stats.len_b,
+            self.sequence_stats.error_rate,
+            self.sequence_stats.source.to_string(),
             self.heuristic_name,
             self.expanded,
             self.explored,
@@ -82,6 +125,7 @@ pub fn align<H: Heuristic>(
     a: &Sequence,
     b: &Sequence,
     alphabet: &Alphabet,
+    sequence_stats: SequenceStats,
     heuristic: H,
 ) -> AlignResult {
     let mut expanded = 0;
@@ -131,6 +175,7 @@ pub fn align<H: Heuristic>(
     let path = path.into_iter().map(|(pos, _)| pos).collect();
 
     AlignResult {
+        sequence_stats,
         heuristic_name: format!("{:?}", heuristic),
         heuristic_initialization,
         astar_duration,
@@ -158,58 +203,81 @@ mod tests {
         let text = b"AACT".to_vec();
         let alphabet = &Alphabet::new(b"ACTG");
 
-        let _result = align(&pattern, &text, &alphabet, ZeroHeuristic);
+        let _result = align(
+            &pattern,
+            &text,
+            &alphabet,
+            SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: 0.,
+                source: Source::Manual,
+            },
+            ZeroHeuristic,
+        );
     }
 
     #[test]
     fn test_heuristics() {
         let n = 2000;
-        let e = 200;
+        let es = [50, 100, 200, 400];
         let ls = 6..=6;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
         let pattern = random_sequence(n, alphabet, &mut rng);
-        let text = random_mutate(&pattern, alphabet, e, &mut rng);
 
         AlignResult::print_header();
-        align(&pattern, &text, &alphabet, ZeroHeuristic).print();
-        align(&pattern, &text, &alphabet, GapHeuristic).print();
-        align(&pattern, &text, &alphabet, CountHeuristic).print();
-        for l in ls.clone() {
-            align(
-                &pattern,
-                &text,
-                &alphabet,
-                SeedHeuristic {
-                    l,
-                    distance: ZeroHeuristic,
-                },
-            )
-            .print();
-        }
-        for l in ls.clone() {
-            align(
-                &pattern,
-                &text,
-                &alphabet,
-                SeedHeuristic {
-                    l,
-                    distance: GapHeuristic,
-                },
-            )
-            .print();
-        }
-        for l in ls.clone() {
-            align(
-                &pattern,
-                &text,
-                &alphabet,
-                SeedHeuristic {
-                    l,
-                    distance: CountHeuristic,
-                },
-            )
-            .print();
+        for e in es {
+            let text = random_mutate(&pattern, alphabet, e, &mut rng);
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+
+            align(&pattern, &text, &alphabet, stats, ZeroHeuristic).print();
+            align(&pattern, &text, &alphabet, stats, GapHeuristic).print();
+            align(&pattern, &text, &alphabet, stats, CountHeuristic).print();
+            for l in ls.clone() {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: ZeroHeuristic,
+                    },
+                )
+                .print();
+            }
+            for l in ls.clone() {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: GapHeuristic,
+                    },
+                )
+                .print();
+            }
+            for l in ls.clone() {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: CountHeuristic,
+                    },
+                )
+                .print();
+            }
         }
         // FastSeed
         //for l in ls.clone() {
@@ -228,39 +296,52 @@ mod tests {
         let pattern = random_sequence(n, alphabet, &mut rng);
         let text = random_mutate(&pattern, alphabet, e, &mut rng);
 
-        align(&pattern, &text, &alphabet, ZeroHeuristic).write_explored_states("zero.csv");
-        align(&pattern, &text, &alphabet, GapHeuristic).write_explored_states("gap.csv");
-        align(&pattern, &text, &alphabet, CountHeuristic).write_explored_states("count.csv");
+        let stats = SequenceStats {
+            len_a: pattern.len(),
+            len_b: text.len(),
+            error_rate: e as f32 / n as f32,
+            source: Source::Manual,
+        };
+
+        align(&pattern, &text, &alphabet, stats, ZeroHeuristic)
+            .write_explored_states("evals/stats/zero.csv");
+        align(&pattern, &text, &alphabet, stats, GapHeuristic)
+            .write_explored_states("evals/stats/gap.csv");
+        align(&pattern, &text, &alphabet, stats, CountHeuristic)
+            .write_explored_states("evals/stats/count.csv");
         align(
             &pattern,
             &text,
             &alphabet,
+            stats,
             SeedHeuristic {
                 l,
                 distance: ZeroHeuristic,
             },
         )
-        .write_explored_states("seed.csv");
+        .write_explored_states("evals/stats/seed.csv");
         align(
             &pattern,
             &text,
             &alphabet,
+            stats,
             SeedHeuristic {
                 l,
                 distance: GapHeuristic,
             },
         )
-        .write_explored_states("seedgap.csv");
+        .write_explored_states("evals/stats/seedgap.csv");
         align(
             &pattern,
             &text,
             &alphabet,
+            stats,
             SeedHeuristic {
                 l,
                 distance: CountHeuristic,
             },
         )
-        .write_explored_states("seedcnt.csv");
+        .write_explored_states("evals/stats/seedcnt.csv");
         //align(&pattern, &text, &alphabet, FastSeedHeuristic { l }) .write_explored_states("zero.csv");
     }
 
@@ -287,7 +368,14 @@ mod tests {
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            b.iter(|| align(&pattern, &text, &alphabet, ZeroHeuristic));
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+
+            b.iter(|| align(&pattern, &text, &alphabet, stats, ZeroHeuristic));
         }
     }
     #[bench]
@@ -296,7 +384,13 @@ mod tests {
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            //b.iter(|| align(&pattern, &text, &alphabet, SeedHeuristic { l }));
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+            //b.iter(|| align(&pattern, &text, &alphabet, stats, SeedHeuristic { l }));
         }
     }
     #[bench]
@@ -305,7 +399,13 @@ mod tests {
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            b.iter(|| align(&pattern, &text, &alphabet, FastSeedHeuristic { l }));
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+            b.iter(|| align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }));
         }
     }
     #[bench]
@@ -314,7 +414,13 @@ mod tests {
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            b.iter(|| align(&pattern, &text, &alphabet, GapHeuristic));
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+            b.iter(|| align(&pattern, &text, &alphabet, stats, GapHeuristic));
         }
     }
     #[bench]
@@ -323,7 +429,13 @@ mod tests {
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            //b.iter(|| align(&pattern, &text, &alphabet, GappedSeedHeuristic { l }));
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e as f32 / n as f32,
+                source: Source::Uniform,
+            };
+            //b.iter(|| align(&pattern, &text, &alphabet, stats, GappedSeedHeuristic { l }));
         }
     }
 }
