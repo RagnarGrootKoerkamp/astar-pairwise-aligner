@@ -15,6 +15,8 @@ pub mod util;
 extern crate test;
 
 use std::{
+    collections::HashSet,
+    ops::Add,
     path::Path,
     time::{self, Duration},
 };
@@ -37,21 +39,21 @@ pub struct AlignResult {
 impl AlignResult {
     fn print_header() {
         println!(
-            "{:30} {:>9} {:>9} {:>9} {:>7} {:>7} {:>5}",
-            "Heuristic", "Expanded", "Explored", "Edges", "H ms", "A* ms", "H %"
+            "{:50} {:>9} {:>9} {:>9} {:>12} {:>7} {:>7}",
+            "heuristic", "expanded", "explored", "edges", "precomp", "align", "h%"
         );
     }
     fn print(&self) {
         let percent_h = 100. * self.heuristic_initialization.as_secs_f64()
             / (self.heuristic_initialization.as_secs_f64() + self.astar_duration.as_secs_f64());
         println!(
-            "{:30} {:>9} {:>9} {:>9} {:>7.1} {:>7.1} {:>5.1}",
+            "{:50} {:>9} {:>9} {:>9} {:>12.5} {:>7.5} {:>7.3}",
             self.heuristic_name,
             self.expanded,
             self.explored,
             self.edges,
-            self.heuristic_initialization.as_secs_f32() * 1000.,
-            self.astar_duration.as_secs_f32() * 1000.,
+            self.heuristic_initialization.as_secs_f32(),
+            self.astar_duration.as_secs_f32(),
             percent_h
         );
     }
@@ -151,7 +153,7 @@ mod tests {
     fn test_heuristics() {
         let n = 2000;
         let e = 200;
-        let ls = 5..=10;
+        let ls = 6..=6;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
         let pattern = random_sequence(n, alphabet, &mut rng);
@@ -160,18 +162,47 @@ mod tests {
         AlignResult::print_header();
         align(&pattern, &text, &alphabet, ZeroHeuristic).print();
         align(&pattern, &text, &alphabet, GapHeuristic).print();
-        // Seed
+        align(&pattern, &text, &alphabet, CountHeuristic).print();
         for l in ls.clone() {
-            align(&pattern, &text, &alphabet, SeedHeuristic { l }).print();
+            align(
+                &pattern,
+                &text,
+                &alphabet,
+                SeedHeuristic {
+                    l,
+                    distance: ZeroHeuristic,
+                },
+            )
+            .print();
+        }
+        for l in ls.clone() {
+            align(
+                &pattern,
+                &text,
+                &alphabet,
+                SeedHeuristic {
+                    l,
+                    distance: GapHeuristic,
+                },
+            )
+            .print();
+        }
+        for l in ls.clone() {
+            align(
+                &pattern,
+                &text,
+                &alphabet,
+                SeedHeuristic {
+                    l,
+                    distance: CountHeuristic,
+                },
+            )
+            .print();
         }
         // FastSeed
-        for l in ls.clone() {
-            align(&pattern, &text, &alphabet, FastSeedHeuristic { l }).print();
-        }
-        // GappedSeed
-        for l in ls.clone() {
-            align(&pattern, &text, &alphabet, GappedSeedHeuristic { l }).print();
-        }
+        //for l in ls.clone() {
+        //align(&pattern, &text, &alphabet, FastSeedHeuristic { l }).print();
+        //}
     }
 
     #[test]
@@ -187,9 +218,9 @@ mod tests {
 
         align(&pattern, &text, &alphabet, ZeroHeuristic).write_explored_states("zero.csv");
         align(&pattern, &text, &alphabet, GapHeuristic).write_explored_states("gap.csv");
-        align(&pattern, &text, &alphabet, SeedHeuristic { l: 6 }).write_explored_states("seed.csv");
-        align(&pattern, &text, &alphabet, GappedSeedHeuristic { l: 6 })
-            .write_explored_states("gappedseed.csv");
+        //align(&pattern, &text, &alphabet, SeedHeuristic { l }).write_explored_states("seed.csv");
+        //align(&pattern, &text, &alphabet, GappedSeedHeuristic { l })
+        //.write_explored_states("gappedseed.csv");
         //align(&pattern, &text, &alphabet, FastSeedHeuristic { l })
         //.write_explored_states("zero.csv");
     }
@@ -226,7 +257,7 @@ mod tests {
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            b.iter(|| align(&pattern, &text, &alphabet, SeedHeuristic { l }));
+            //b.iter(|| align(&pattern, &text, &alphabet, SeedHeuristic { l }));
         }
     }
     #[bench]
@@ -253,7 +284,7 @@ mod tests {
         for _ in 0..repeats {
             let pattern = random_sequence(n, alphabet, &mut rng);
             let text = random_mutate(&pattern, alphabet, e, &mut rng);
-            b.iter(|| align(&pattern, &text, &alphabet, GappedSeedHeuristic { l }));
+            //b.iter(|| align(&pattern, &text, &alphabet, GappedSeedHeuristic { l }));
         }
     }
 }
