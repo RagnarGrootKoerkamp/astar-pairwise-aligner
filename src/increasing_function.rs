@@ -123,7 +123,7 @@ impl IncreasingFunction2D<usize> {
             }
 
             // Get the value for the position.
-            let (val, parent) = match lagging_front.get(j - l) {
+            let (val, parent) = match lagging_front.get(max(j, l) - l) {
                 None => (0, None),
                 Some((val, p)) => (val + 1, Some(p)),
             };

@@ -16,3 +16,4 @@ block-aligner={version="*", features=["simd_avx2"]}
 arrayvec = "*"
 csv = "*"
 serde = "*"
+itertools = "*"

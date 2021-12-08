@@ -24,7 +24,7 @@ use heuristic::*;
 use util::*;
 
 pub struct AlignResult {
-    pub heuristic_name: &'static str,
+    pub heuristic_name: String,
     pub heuristic_initialization: Duration,
     pub astar_duration: Duration,
     pub expanded: usize,
@@ -37,15 +37,15 @@ pub struct AlignResult {
 impl AlignResult {
     fn print_header() {
         println!(
-            "{:15} {:9} {:9} {:9} {:5.1}ms {:5.1} {:5.1}",
+            "{:30} {:>9} {:>9} {:>9} {:>7} {:>7} {:>5}",
             "Heuristic", "Expanded", "Explored", "Edges", "H ms", "A* ms", "H %"
         );
     }
     fn print(&self) {
-        let percent_h = self.heuristic_initialization.as_secs_f64()
+        let percent_h = 100. * self.heuristic_initialization.as_secs_f64()
             / (self.heuristic_initialization.as_secs_f64() + self.astar_duration.as_secs_f64());
         println!(
-            "{:15} {:9} {:9} {:9} {:5.1} {:5.1} {:5.1}",
+            "{:30} {:>9} {:>9} {:>9} {:>7.1} {:>7.1} {:>5.1}",
             self.heuristic_name,
             self.expanded,
             self.explored,
@@ -55,7 +55,6 @@ impl AlignResult {
             percent_h
         );
     }
-
     fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
         if !self.explored_states.is_empty() {
             let mut wtr = csv::Writer::from_path(filename).unwrap();
@@ -120,7 +119,7 @@ pub fn align<H: Heuristic>(
     let _path = astar();
     let astar_duration = start_time.elapsed();
     AlignResult {
-        heuristic_name: H::NAME,
+        heuristic_name: format!("{:?}", heuristic),
         heuristic_initialization,
         astar_duration,
         expanded,
@@ -145,14 +144,14 @@ mod tests {
         let text = b"AACT".to_vec();
         let alphabet = &Alphabet::new(b"ACTG");
 
-        let result = align(&pattern, &text, &alphabet, ZeroHeuristic);
+        let _result = align(&pattern, &text, &alphabet, ZeroHeuristic);
     }
 
     #[test]
     fn test_heuristics() {
         let n = 2000;
         let e = 200;
-        let ls = 4..=10;
+        let ls = 5..=10;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
         let pattern = random_sequence(n, alphabet, &mut rng);
@@ -163,22 +162,20 @@ mod tests {
         align(&pattern, &text, &alphabet, GapHeuristic).print();
         // Seed
         for l in ls.clone() {
-            println!("n={} e={} l={}", n, e, l);
             align(&pattern, &text, &alphabet, SeedHeuristic { l }).print();
         }
         // FastSeed
         for l in ls.clone() {
-            println!("n={} e={} l={}", n, e, l);
             align(&pattern, &text, &alphabet, FastSeedHeuristic { l }).print();
         }
         // GappedSeed
         for l in ls.clone() {
-            println!("n={} e={} l={}", n, e, l);
             align(&pattern, &text, &alphabet, GappedSeedHeuristic { l }).print();
         }
     }
 
     #[test]
+    #[ignore]
     fn print_states() {
         let n = 2000;
         let e = 200;
@@ -188,8 +185,13 @@ mod tests {
         let pattern = random_sequence(n, alphabet, &mut rng);
         let text = random_mutate(&pattern, alphabet, e, &mut rng);
 
-        align(&pattern, &text, &alphabet, GappedSeedHeuristic { l })
-            .write_explored_states("explored_states.csv");
+        align(&pattern, &text, &alphabet, ZeroHeuristic).write_explored_states("zero.csv");
+        align(&pattern, &text, &alphabet, GapHeuristic).write_explored_states("gap.csv");
+        align(&pattern, &text, &alphabet, SeedHeuristic { l: 6 }).write_explored_states("seed.csv");
+        align(&pattern, &text, &alphabet, GappedSeedHeuristic { l: 6 })
+            .write_explored_states("gappedseed.csv");
+        //align(&pattern, &text, &alphabet, FastSeedHeuristic { l })
+        //.write_explored_states("zero.csv");
     }
 
     fn setup() -> (

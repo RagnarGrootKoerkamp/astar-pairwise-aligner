@@ -5,7 +5,7 @@ use crate::{
 };
 
 /// An object containing the settings for a heuristic.
-pub trait Heuristic {
+pub trait Heuristic: std::fmt::Debug {
     type Instance: HeuristicInstance;
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance;
     const NAME: &'static str;
@@ -29,7 +29,14 @@ pub trait HeuristicInstance {
     }
 }
 
+/// An O(1) heuristic that can be used to lower bound the distance between any two positions.
+/// Used to get the distance between matches, instead of only distance to the end.
+pub trait DistanceHeuristic: HeuristicInstance {
+    fn h(&self, from: (Pos, Self::IncrementalState), to: (Pos, Self::IncrementalState)) -> usize;
+}
+
 // # ZERO HEURISTIC
+#[derive(Debug)]
 pub struct ZeroHeuristic;
 impl Heuristic for ZeroHeuristic {
     type Instance = ZeroHeuristicI;
@@ -48,6 +55,7 @@ impl HeuristicInstance for ZeroHeuristicI {
 }
 
 // # GAP HEURISTIC
+#[derive(Debug)]
 pub struct GapHeuristic;
 impl Heuristic for GapHeuristic {
     type Instance = GapHeuristicI;
@@ -69,7 +77,63 @@ impl HeuristicInstance for GapHeuristicI {
     }
 }
 
+// # COUNT HEURISTIC
+// TODO: Make the 4 here variable.
+type Counts = Vec<[usize; 4]>;
+fn char_counts(a: &Sequence, alphabet: &Alphabet) -> Counts {
+    let transform = RankTransform::new(alphabet);
+    let mut counts = Counts::with_capacity(a.len() + 1);
+    counts.push([0, 0, 0, 0]);
+    for ch in transform.transform(a) {
+        counts.push(*counts.last().unwrap());
+        counts.last_mut().unwrap()[ch as usize] += 1;
+    }
+    counts
+}
+
+#[derive(Debug)]
+pub struct CountHeuristic;
+impl Heuristic for CountHeuristic {
+    type Instance = CountHeuristicI;
+    const NAME: &'static str = "CountHeuristic";
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
+        CountHeuristicI {
+            a_cnts: char_counts(a, alphabet),
+            b_cnts: char_counts(b, alphabet),
+        }
+    }
+}
+pub struct CountHeuristicI {
+    a_cnts: Counts,
+    b_cnts: Counts,
+}
+
+impl HeuristicInstance for CountHeuristicI {
+    fn h(&self, (Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
+        let mut pos = 0;
+        let mut neg = 0;
+
+        for (aold, anew, bold, bnew) in itertools::izip!(
+            self.a_cnts[i],
+            self.a_cnts[j],
+            self.b_cnts[i],
+            self.b_cnts[j],
+        ) {
+            let delta = (anew - aold) - (bnew - bold);
+            if delta > 0 {
+                pos += delta;
+            } else {
+                neg -= delta;
+            }
+        }
+
+        max(pos, neg)
+    }
+}
+
 // # SEED HEURISTIC
+#[derive(Debug)]
 pub struct SeedHeuristic {
     pub l: usize,
 }
@@ -126,6 +190,7 @@ impl HeuristicInstance for SeedHeuristicI {
 }
 
 // # GAPPED SEED HEURISTIC
+#[derive(Debug)]
 pub struct GappedSeedHeuristic {
     pub l: usize,
 }
@@ -195,6 +260,7 @@ impl HeuristicInstance for GappedSeedHeuristicI {
 }
 
 // # FAST SEED HEURISTIC
+#[derive(Debug)]
 pub struct FastSeedHeuristic {
     pub l: usize,
 }
@@ -203,7 +269,10 @@ impl Heuristic for FastSeedHeuristic {
     const NAME: &'static str = "FastSeedHeuristic";
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
-        FastSeedHeuristicI::new(a, b, alphabet, self.l)
+        println!("build");
+        let x = FastSeedHeuristicI::new(a, b, alphabet, self.l);
+        println!("building done");
+        x
     }
 }
 pub struct FastSeedHeuristicI {
