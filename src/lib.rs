@@ -17,7 +17,6 @@ extern crate test;
 use std::{
     collections::HashSet,
     fmt,
-    ops::Add,
     path::Path,
     time::{self, Duration},
 };
@@ -68,9 +67,9 @@ pub struct AlignResult {
 }
 
 impl AlignResult {
-    fn print_header() {
+    pub fn print_header() {
         println!(
-            "{:>6} {:>6} {:>5} {:>10} {:50} {:>9} {:>9} {:>9} {:>12} {:>7} {:>7} {:>5}",
+            "{:>6} {:>6} {:>5} {:>10} {:50} {:>9} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5}",
             "len a",
             "len b",
             "rate",
@@ -85,11 +84,11 @@ impl AlignResult {
             "dist"
         );
     }
-    fn print(&self) {
+    pub fn print(&self) {
         let percent_h = 100. * self.heuristic_initialization.as_secs_f64()
             / (self.heuristic_initialization.as_secs_f64() + self.astar_duration.as_secs_f64());
         println!(
-            "{:>6} {:>6} {:>5.3} {:>10} {:50} {:>9} {:>9} {:>9} {:>12.5} {:>7.5} {:>7.3} {:>5}",
+            "{:>6} {:>6} {:>5.3} {:>10} {:50} {:>9} {:>9} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5}",
             self.sequence_stats.len_a,
             self.sequence_stats.len_b,
             self.sequence_stats.error_rate,
@@ -104,7 +103,7 @@ impl AlignResult {
             self.distance
         );
     }
-    fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
+    pub fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
         if self.explored_states.is_empty() {
             return;
         }
@@ -219,8 +218,44 @@ mod tests {
     }
 
     #[test]
+    fn bugfix() {
+        let alphabet = &Alphabet::new(b"ACTG");
+
+        AlignResult::print_header();
+        let l = 3;
+        let pattern = "ACTTGG".as_bytes().to_vec();
+        let text = "ACTGG".as_bytes().to_vec();
+        let stats = SequenceStats {
+            len_a: pattern.len(),
+            len_b: text.len(),
+            error_rate: 0.,
+            source: Source::Uniform,
+        };
+
+        println!(
+            "{}\n{}\n",
+            String::from_utf8(pattern.clone()).unwrap(),
+            String::from_utf8(text.clone()).unwrap()
+        );
+
+        align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
+        align(
+            &pattern,
+            &text,
+            &alphabet,
+            stats,
+            SeedHeuristic {
+                l,
+                distance: ZeroHeuristic,
+            },
+        )
+        .print();
+        align(&pattern, &text, &alphabet, stats, MergedSeedHeuristic { l }).print();
+    }
+
+    #[test]
     fn test_heuristics() {
-        let ns = [2_000];
+        let ns = [10_000];
         let es = [0.05f32, 0.10, 0.20, 0.30];
         let ls = 6..=6;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
@@ -237,9 +272,9 @@ mod tests {
                 source: Source::Uniform,
             };
 
-            align(&pattern, &text, &alphabet, stats, ZeroHeuristic).print();
-            align(&pattern, &text, &alphabet, stats, GapHeuristic).print();
-            align(&pattern, &text, &alphabet, stats, CountHeuristic).print();
+            //align(&pattern, &text, &alphabet, stats, ZeroHeuristic).print();
+            //align(&pattern, &text, &alphabet, stats, GapHeuristic).print();
+            //align(&pattern, &text, &alphabet, stats, CountHeuristic).print();
             for l in ls.clone() {
                 align(
                     &pattern,
@@ -256,32 +291,32 @@ mod tests {
             for l in ls.clone() {
                 align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
             }
-            for l in ls.clone() {
-                align(
-                    &pattern,
-                    &text,
-                    &alphabet,
-                    stats,
-                    SeedHeuristic {
-                        l,
-                        distance: GapHeuristic,
-                    },
-                )
-                .print();
-            }
-            for l in ls.clone() {
-                align(
-                    &pattern,
-                    &text,
-                    &alphabet,
-                    stats,
-                    SeedHeuristic {
-                        l,
-                        distance: CountHeuristic,
-                    },
-                )
-                .print();
-            }
+            // for l in ls.clone() {
+            //     align(
+            //         &pattern,
+            //         &text,
+            //         &alphabet,
+            //         stats,
+            //         SeedHeuristic {
+            //             l,
+            //             distance: GapHeuristic,
+            //         },
+            //     )
+            //     .print();
+            // }
+            // for l in ls.clone() {
+            //     align(
+            //         &pattern,
+            //         &text,
+            //         &alphabet,
+            //         stats,
+            //         SeedHeuristic {
+            //             l,
+            //             distance: CountHeuristic,
+            //         },
+            //     )
+            //     .print();
+            // }
         }
     }
 

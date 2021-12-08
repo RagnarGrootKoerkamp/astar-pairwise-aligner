@@ -234,14 +234,17 @@ impl<DH: DistanceHeuristic> SeedHeuristicI<DH> {
 
 impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
     fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
-        (self.seed_matches.potential(pos) as isize
-            + self
-                .h_map
-                .iter()
-                .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-                .map(|(&to, &val)| val + self.distance.distance(pos, to) as isize)
-                .min()
-                .unwrap()) as usize
+        let min = self
+            .h_map
+            .iter()
+            .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
+            .map(|(&to, &val)| val + self.distance.distance(pos, to) as isize)
+            .min()
+            .unwrap();
+        let potential = self.seed_matches.potential(pos);
+        let v = (potential as isize + min) as usize;
+        //println!("{:?} -> {}", pos, v);
+        v
     }
 }
 
@@ -258,6 +261,7 @@ impl Heuristic for FastSeedHeuristic {
     }
 }
 pub struct FastSeedHeuristicI {
+    seed_matches: SeedMatches,
     target: Pos,
     f: IncreasingFunction2D<usize>,
 }
@@ -276,6 +280,7 @@ impl FastSeedHeuristicI {
         );
 
         FastSeedHeuristicI {
+            seed_matches,
             target: Pos(a.len(), b.len()),
             f,
         }
@@ -286,8 +291,10 @@ impl FastSeedHeuristicI {
     }
 }
 impl HeuristicInstance for FastSeedHeuristicI {
-    fn h(&self, (_pos, parent): (Pos, Self::IncrementalState)) -> usize {
-        self.f.val(parent)
+    fn h(&self, (pos, parent): (Pos, Self::IncrementalState)) -> usize {
+        let v = self.seed_matches.potential(pos) - self.f.val(parent);
+        //println!("{:?} -> {}", pos, v);
+        v
     }
 
     type IncrementalState = crate::increasing_function::NodeIndex;
@@ -303,5 +310,53 @@ impl HeuristicInstance for FastSeedHeuristicI {
 
     fn root_state(&self) -> Self::IncrementalState {
         self.f.root()
+    }
+}
+
+// MERGED, FOR TESTING THEY ARE EQUAL.
+#[derive(Debug, Clone, Copy)]
+pub struct MergedSeedHeuristic {
+    pub l: usize,
+}
+impl Heuristic for MergedSeedHeuristic {
+    type Instance = MergedSeedHeuristicI;
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
+        MergedSeedHeuristicI::new(a, b, alphabet, self.l)
+    }
+}
+pub struct MergedSeedHeuristicI {
+    seed: SeedHeuristicI<ZeroHeuristic>,
+    fast: FastSeedHeuristicI,
+}
+
+impl MergedSeedHeuristicI {
+    pub fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize) -> Self {
+        MergedSeedHeuristicI {
+            seed: SeedHeuristicI::new(a, b, alphabet, l, ZeroHeuristic),
+            fast: FastSeedHeuristicI::new(a, b, alphabet, l),
+        }
+    }
+}
+impl HeuristicInstance for MergedSeedHeuristicI {
+    fn h(&self, x: (Pos, Self::IncrementalState)) -> usize {
+        let a = self.seed.h((x.0, ()));
+        let b = self.fast.h(x);
+        assert_eq!(a, b, "Values differ at {:?}: {} vs {}", x, a, b);
+        a
+    }
+
+    type IncrementalState = crate::increasing_function::NodeIndex;
+
+    fn incremental_h(
+        &self,
+        parent: (Pos, Self::IncrementalState),
+        pos: Pos,
+    ) -> Self::IncrementalState {
+        self.fast.incremental_h(parent, pos)
+    }
+
+    fn root_state(&self) -> Self::IncrementalState {
+        self.fast.root_state()
     }
 }

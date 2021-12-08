@@ -89,6 +89,20 @@ pub struct Node<T: Copy + hash::Hash + Eq> {
     next: Option<NodeIndex>,
 }
 
+// value, nodeindex. Orders only by value.
+#[derive(Clone, Copy, Debug, Eq, Ord)]
+struct Value(usize, usize);
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
 impl IncreasingFunction2D<usize> {
     pub fn val(&self, idx: NodeIndex) -> usize {
         self.nodes[idx].val
@@ -113,8 +127,8 @@ impl IncreasingFunction2D<usize> {
 
     fn build<'a>(&'a mut self, ps: impl IntoIterator<Item = Pos>, l: usize) {
         assert!(l >= 1);
-        let mut front = IncreasingFunction::new();
-        let mut lagging_front = IncreasingFunction::new();
+        let mut front = IncreasingFunction::<usize, Value>::new();
+        let mut lagging_front = IncreasingFunction::<usize, Value>::new();
 
         // Index into self.nodes.
         let mut lagging_index = 0;
@@ -128,7 +142,7 @@ impl IncreasingFunction2D<usize> {
                 //println!("Next lagging node index {} {:?}", lagging_index, node);
                 if node.pos.0 <= i - l {
                     //println!("ADD");
-                    lagging_front.set(node.pos.1, (node.val, lagging_index));
+                    lagging_front.set(node.pos.1, Value(node.val, lagging_index));
                     lagging_index += 1;
                 } else {
                     break;
@@ -139,14 +153,14 @@ impl IncreasingFunction2D<usize> {
             // Get the value for the position.
             let (val, parent) = match lagging_front.get(max(j, l) - l) {
                 None => (0, None),
-                Some((val, p)) => (val + 1, Some(p)),
+                Some(Value(val, p)) => (val + 1, Some(p)),
             };
             //println!("{:?} val {:>5} parent {:>8}", pos, val, parent.unwrap_or(0));
 
             let id = self.nodes.len();
 
             let next = front.get_larger(j).and_then(
-                |(nextval, idx)| {
+                |Value(nextval, idx)| {
                     if nextval != val {
                         None
                     } else {
@@ -157,12 +171,13 @@ impl IncreasingFunction2D<usize> {
 
             // Only continue if the value is larger than existing.
             //println!("Set front");
-            if !front.set(j, (val, id)) {
+            if !front.set(j, Value(val, id)) {
                 //println!("Skip");
                 continue;
             }
 
             if let Some(next_idx) = next {
+                assert!(self.nodes[next_idx].prev.is_none());
                 self.nodes[next_idx].prev = Some(id);
             }
 
