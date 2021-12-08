@@ -155,17 +155,7 @@ impl DistanceHeuristicInstance for CountHeuristicI {
         let mut pos = 0;
         let mut neg = 0;
 
-        for i in 0..4 {
-            let delta = (self.a_cnts[to.0][i] - self.a_cnts[from.0][i]) as isize
-                - (self.b_cnts[to.1][i] - self.b_cnts[from.1][i]) as isize;
-            if delta > 0 {
-                pos += delta;
-            } else {
-                neg -= delta;
-            }
-        }
-
-        /*
+        // TODO: Find
         for (afrom, ato, bfrom, bto) in itertools::izip!(
             &self.a_cnts[from.0],
             &self.a_cnts[to.0],
@@ -179,7 +169,6 @@ impl DistanceHeuristicInstance for CountHeuristicI {
                 neg -= delta;
             }
         }
-        */
 
         max(pos, neg) as usize
     }

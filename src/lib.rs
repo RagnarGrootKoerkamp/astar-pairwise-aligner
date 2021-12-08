@@ -34,38 +34,47 @@ pub struct AlignResult {
     /// Number of edges tried. More than explored states, because states can have multiple incoming edges.
     pub edges: usize,
     pub explored_states: Vec<Pos>,
+    /// A* output.
+    pub distance: usize,
+    pub path: Vec<Pos>,
 }
 
 impl AlignResult {
     fn print_header() {
         println!(
-            "{:50} {:>9} {:>9} {:>9} {:>12} {:>7} {:>7}",
-            "heuristic", "expanded", "explored", "edges", "precomp", "align", "h%"
+            "{:50} {:>9} {:>9} {:>9} {:>12} {:>7} {:>7} {:5}",
+            "heuristic", "expanded", "explored", "edges", "precomp", "align", "h%", "dist"
         );
     }
     fn print(&self) {
         let percent_h = 100. * self.heuristic_initialization.as_secs_f64()
             / (self.heuristic_initialization.as_secs_f64() + self.astar_duration.as_secs_f64());
         println!(
-            "{:50} {:>9} {:>9} {:>9} {:>12.5} {:>7.5} {:>7.3}",
+            "{:50} {:>9} {:>9} {:>9} {:>12.5} {:>7.5} {:>7.3} {:5}",
             self.heuristic_name,
             self.expanded,
             self.explored,
             self.edges,
             self.heuristic_initialization.as_secs_f32(),
             self.astar_duration.as_secs_f32(),
-            percent_h
+            percent_h,
+            self.distance
         );
     }
     fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
-        if !self.explored_states.is_empty() {
-            let mut wtr = csv::Writer::from_path(filename).unwrap();
-            wtr.write_record(&["i", "j"]).unwrap();
-            for pos in &self.explored_states {
-                wtr.serialize(&pos).unwrap();
-            }
-            wtr.flush().unwrap();
+        if self.explored_states.is_empty() {
+            return;
         }
+        let mut path = HashSet::new();
+        for p in &self.path {
+            path.insert(p);
+        }
+        let mut wtr = csv::Writer::from_path(filename).unwrap();
+        wtr.write_record(&["i", "j", "inpath"]).unwrap();
+        for pos in &self.explored_states {
+            wtr.serialize((pos.0, pos.1, path.contains(pos))).unwrap();
+        }
+        wtr.flush().unwrap();
     }
 }
 
@@ -86,40 +95,41 @@ pub fn align<H: Heuristic>(
     let heuristic_initialization = start_time.elapsed();
 
     // Run A* with heuristic.
-    let mut astar = || {
-        let graph = alignment_graph::new_alignment_graph(&a, &b, &h);
-        petgraph::algo::astar(
-            &graph,
-            // start
-            (Pos(0, 0), h.root_state()),
-            // is end?
-            |(Pos(i, j), _)| {
-                //make_dot(pos, '*', is_end_calls);
-                //println!("POP {:?}", pos);
-                expanded += 1;
-                i == a.len() && j == b.len()
-            },
-            // edge cost
-            |implicit_graph::Edge((Pos(i, j), _), (Pos(x, y), _))| {
-                edges += 1;
-                // Compute the edge weight.
-                // TODO: Use different weights for indels and substitutions.
-                if x > i && y > j && a[x - 1] == b[y - 1] {
-                    0
-                } else {
-                    1
-                }
-            },
-            |state| {
-                explored += 1;
-                explored_states.push(state.0);
-                h.h(state)
-            },
-        );
-    };
     let start_time = time::Instant::now();
-    let _path = astar();
+    let graph = alignment_graph::new_alignment_graph(&a, &b, &h);
+    let (distance, path) = petgraph::algo::astar(
+        &graph,
+        // start
+        (Pos(0, 0), h.root_state()),
+        // is end?
+        |(Pos(i, j), _)| {
+            //make_dot(pos, '*', is_end_calls);
+            //println!("POP {:?}", pos);
+            expanded += 1;
+            i == a.len() && j == b.len()
+        },
+        // edge cost
+        |implicit_graph::Edge((Pos(i, j), _), (Pos(x, y), _))| {
+            edges += 1;
+            // Compute the edge weight.
+            // TODO: Use different weights for indels and substitutions.
+            if x > i && y > j && a[x - 1] == b[y - 1] {
+                0
+            } else {
+                1
+            }
+        },
+        |state| {
+            explored += 1;
+            explored_states.push(state.0);
+            h.h(state)
+        },
+    )
+    .unwrap_or((0, vec![]));
     let astar_duration = start_time.elapsed();
+
+    let path = path.into_iter().map(|(pos, _)| pos).collect();
+
     AlignResult {
         heuristic_name: format!("{:?}", heuristic),
         heuristic_initialization,
@@ -128,6 +138,8 @@ pub fn align<H: Heuristic>(
         explored,
         edges,
         explored_states,
+        distance,
+        path,
     }
 }
 
@@ -218,11 +230,38 @@ mod tests {
 
         align(&pattern, &text, &alphabet, ZeroHeuristic).write_explored_states("zero.csv");
         align(&pattern, &text, &alphabet, GapHeuristic).write_explored_states("gap.csv");
-        //align(&pattern, &text, &alphabet, SeedHeuristic { l }).write_explored_states("seed.csv");
-        //align(&pattern, &text, &alphabet, GappedSeedHeuristic { l })
-        //.write_explored_states("gappedseed.csv");
-        //align(&pattern, &text, &alphabet, FastSeedHeuristic { l })
-        //.write_explored_states("zero.csv");
+        align(&pattern, &text, &alphabet, CountHeuristic).write_explored_states("count.csv");
+        align(
+            &pattern,
+            &text,
+            &alphabet,
+            SeedHeuristic {
+                l,
+                distance: ZeroHeuristic,
+            },
+        )
+        .write_explored_states("seed.csv");
+        align(
+            &pattern,
+            &text,
+            &alphabet,
+            SeedHeuristic {
+                l,
+                distance: GapHeuristic,
+            },
+        )
+        .write_explored_states("seedgap.csv");
+        align(
+            &pattern,
+            &text,
+            &alphabet,
+            SeedHeuristic {
+                l,
+                distance: CountHeuristic,
+            },
+        )
+        .write_explored_states("seedcnt.csv");
+        //align(&pattern, &text, &alphabet, FastSeedHeuristic { l }) .write_explored_states("zero.csv");
     }
 
     fn setup() -> (
