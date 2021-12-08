@@ -5,10 +5,9 @@ use crate::{
 };
 
 /// An object containing the settings for a heuristic.
-pub trait Heuristic: std::fmt::Debug {
+pub trait Heuristic: std::fmt::Debug + Copy {
     type Instance: HeuristicInstance;
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance;
-    const NAME: &'static str;
 }
 
 /// An instantiation of a heuristic for a specific pair of sequences.
@@ -29,20 +28,32 @@ pub trait HeuristicInstance {
     }
 }
 
-/// An O(1) heuristic that can be used to lower bound the distance between any two positions.
+/// An O(1) evaluation heuristic that can be used to lower bound the distance between any two positions.
 /// Used to get the distance between matches, instead of only distance to the end.
-pub trait DistanceHeuristic: HeuristicInstance {
-    fn h(&self, from: (Pos, Self::IncrementalState), to: (Pos, Self::IncrementalState)) -> usize;
+pub trait DistanceHeuristic: Heuristic {
+    // TODO: Provide default implementations for these.
+    type DistanceInstance: DistanceHeuristicInstance;
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance;
+}
+
+pub trait DistanceHeuristicInstance: HeuristicInstance {
+    fn distance(&self, from: Pos, to: Pos) -> usize;
 }
 
 // # ZERO HEURISTIC
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ZeroHeuristic;
 impl Heuristic for ZeroHeuristic {
     type Instance = ZeroHeuristicI;
-    const NAME: &'static str = "ZeroHeuristic";
 
     fn build(&self, _a: &Sequence, _b: &Sequence, _alphabet: &Alphabet) -> Self::Instance {
+        ZeroHeuristicI
+    }
+}
+impl DistanceHeuristic for ZeroHeuristic {
+    type DistanceInstance = ZeroHeuristicI;
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance {
         ZeroHeuristicI
     }
 }
@@ -53,18 +64,29 @@ impl HeuristicInstance for ZeroHeuristicI {
         0
     }
 }
+impl DistanceHeuristicInstance for ZeroHeuristicI {
+    fn distance(&self, _from: Pos, _to: Pos) -> usize {
+        0
+    }
+}
 
 // # GAP HEURISTIC
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct GapHeuristic;
 impl Heuristic for GapHeuristic {
     type Instance = GapHeuristicI;
-    const NAME: &'static str = "GapHeuristic";
 
     fn build(&self, a: &Sequence, b: &Sequence, _alphabet: &Alphabet) -> Self::Instance {
         GapHeuristicI {
             target: Pos(a.len(), b.len()),
         }
+    }
+}
+impl DistanceHeuristic for GapHeuristic {
+    type DistanceInstance = GapHeuristicI;
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance {
+        <GapHeuristic as Heuristic>::build(self, a, b, alphabet)
     }
 }
 pub struct GapHeuristicI {
@@ -74,6 +96,11 @@ pub struct GapHeuristicI {
 impl HeuristicInstance for GapHeuristicI {
     fn h(&self, (Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
         abs_diff(self.target.0 - i, self.target.1 - j)
+    }
+}
+impl DistanceHeuristicInstance for GapHeuristicI {
+    fn distance(&self, from: Pos, to: Pos) -> usize {
+        abs_diff(to.0 - from.0, to.1 - from.1)
     }
 }
 
@@ -91,36 +118,46 @@ fn char_counts(a: &Sequence, alphabet: &Alphabet) -> Counts {
     counts
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct CountHeuristic;
 impl Heuristic for CountHeuristic {
     type Instance = CountHeuristicI;
-    const NAME: &'static str = "CountHeuristic";
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
         CountHeuristicI {
             a_cnts: char_counts(a, alphabet),
             b_cnts: char_counts(b, alphabet),
+            target: Pos(a.len(), b.len()),
         }
+    }
+}
+impl DistanceHeuristic for CountHeuristic {
+    type DistanceInstance = CountHeuristicI;
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance {
+        <CountHeuristic as Heuristic>::build(self, a, b, alphabet)
     }
 }
 pub struct CountHeuristicI {
     a_cnts: Counts,
     b_cnts: Counts,
+    target: Pos,
 }
 
 impl HeuristicInstance for CountHeuristicI {
-    fn h(&self, (Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
+    fn h(&self, (pos, _): (Pos, Self::IncrementalState)) -> usize {
+        self.distance(pos, self.target)
+    }
+}
+
+impl DistanceHeuristicInstance for CountHeuristicI {
+    fn distance(&self, from: Pos, to: Pos) -> usize {
         let mut pos = 0;
         let mut neg = 0;
 
-        for (aold, anew, bold, bnew) in itertools::izip!(
-            self.a_cnts[i],
-            self.a_cnts[j],
-            self.b_cnts[i],
-            self.b_cnts[j],
-        ) {
-            let delta = (anew - aold) - (bnew - bold);
+        for i in 0..4 {
+            let delta = (self.a_cnts[to.0][i] - self.a_cnts[from.0][i]) as isize
+                - (self.b_cnts[to.1][i] - self.b_cnts[from.1][i]) as isize;
             if delta > 0 {
                 pos += delta;
             } else {
@@ -128,89 +165,51 @@ impl HeuristicInstance for CountHeuristicI {
             }
         }
 
-        max(pos, neg)
+        /*
+        for (afrom, ato, bfrom, bto) in itertools::izip!(
+            &self.a_cnts[from.0],
+            &self.a_cnts[to.0],
+            &self.b_cnts[from.1],
+            &self.b_cnts[to.1],
+        ) {
+            let delta = (ato - afrom) as isize - (bto - bfrom) as isize;
+            if delta > 0 {
+                pos += delta;
+            } else {
+                neg -= delta;
+            }
+        }
+        */
+
+        max(pos, neg) as usize
     }
 }
 
 // # SEED HEURISTIC
-#[derive(Debug)]
-pub struct SeedHeuristic {
+#[derive(Debug, Clone, Copy)]
+pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub l: usize,
+    pub distance: DH,
 }
-impl Heuristic for SeedHeuristic {
-    type Instance = SeedHeuristicI;
-    const NAME: &'static str = "SeedHeuristic";
+impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
+    type Instance = SeedHeuristicI<DH>;
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
-        SeedHeuristicI::new(a, b, alphabet, self.l)
+        SeedHeuristicI::new(a, b, alphabet, self.l, self.distance)
     }
 }
-pub struct SeedHeuristicI {
-    seed_matches: SeedMatches,
-    max_matches: HashMap<Pos, usize>,
-}
-
-impl SeedHeuristicI {
-    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize) -> Self {
-        let seed_matches = find_matches(a, b, alphabet, l);
-        // Compute heuristic at matches.
-        let mut max_matches = HashMap::new();
-        max_matches.insert(Pos(a.len(), b.len()), 0);
-        for pos @ Pos(i, j) in seed_matches.iter().rev() {
-            // Value is 1 + max over matches bottom right of this one.
-            // TODO: Make this faster.
-            // TODO: Make sure seeds do not overlap.
-            let val = max_matches
-                .iter()
-                .filter(|&(&Pos(x, y), &_)| x >= i + l && y >= j + l)
-                .map(|(_, &val)| val)
-                .max()
-                .unwrap();
-            max_matches.insert(pos, 1 + val);
-        }
-        SeedHeuristicI {
-            seed_matches,
-            max_matches,
-        }
-    }
-}
-
-impl HeuristicInstance for SeedHeuristicI {
-    fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
-        // TODO: Find a datastructure for log-time lookup.
-        let cnt = self
-            .max_matches
-            .iter()
-            .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-            .map(|(_, &val)| val)
-            .max()
-            .unwrap();
-        self.seed_matches.potential(pos) - cnt
-    }
-}
-
-// # GAPPED SEED HEURISTIC
-#[derive(Debug)]
-pub struct GappedSeedHeuristic {
-    pub l: usize,
-}
-impl Heuristic for GappedSeedHeuristic {
-    type Instance = GappedSeedHeuristicI;
-    const NAME: &'static str = "GappedSeedHeuristic";
-
-    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
-        GappedSeedHeuristicI::new(a, b, alphabet, self.l)
-    }
-}
-pub struct GappedSeedHeuristicI {
+pub struct SeedHeuristicI<DH: DistanceHeuristic> {
     seed_matches: SeedMatches,
     h_map: HashMap<Pos, isize>,
+    distance: DH::DistanceInstance,
 }
 
-impl GappedSeedHeuristicI {
-    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize) -> Self {
+impl<DH: DistanceHeuristic> SeedHeuristicI<DH> {
+    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize, distance: DH) -> Self {
         let seed_matches = find_matches(a, b, alphabet, l);
         let skipped: &mut usize = &mut 0;
+
+        let distance = DistanceHeuristic::build(&distance, a, b, alphabet);
 
         let mut h_map = HashMap::new();
         h_map.insert(Pos(a.len(), b.len()), 0);
@@ -218,13 +217,13 @@ impl GappedSeedHeuristicI {
             let update_val = h_map
                 .iter()
                 .filter(|&(&Pos(x, y), &_)| x >= i + l && y >= j + l)
-                .map(|(&Pos(x, y), &val)| val + abs_diff(x - i, y - j) as isize - 1)
+                .map(|(&to, &val)| val + distance.distance(pos, to) as isize - 1)
                 .min()
                 .unwrap();
             let query_val = h_map
                 .iter()
                 .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-                .map(|(&Pos(x, y), &val)| val + abs_diff(x - i, y - j) as isize)
+                .map(|(&to, &val)| val + distance.distance(pos, to) as isize)
                 .min()
                 .unwrap();
 
@@ -236,42 +235,39 @@ impl GappedSeedHeuristicI {
             //println!("{:?} => {}", pos, val);
         }
         //println!("Skipped matches: {}", skipped);
-        GappedSeedHeuristicI {
+        SeedHeuristicI {
             seed_matches,
             h_map,
+            distance,
         }
     }
 }
-impl HeuristicInstance for GappedSeedHeuristicI {
+
+impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
     fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
         (self.seed_matches.potential(pos) as isize
             + self
                 .h_map
                 .iter()
                 .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-                .map(|(&Pos(x, y), &val)| {
-                    // TODO: Should there be a +- 1 here? Or take into account
-                    // whether the current position/column is a match?
-                    val + abs_diff(x - i, y - j) as isize
-                })
+                .map(|(&to, &val)| val + self.distance.distance(pos, to) as isize)
                 .min()
                 .unwrap()) as usize
     }
 }
 
 // # FAST SEED HEURISTIC
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct FastSeedHeuristic {
     pub l: usize,
 }
 impl Heuristic for FastSeedHeuristic {
     type Instance = FastSeedHeuristicI;
-    const NAME: &'static str = "FastSeedHeuristic";
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
-        println!("build");
+        //println!("build");
         let x = FastSeedHeuristicI::new(a, b, alphabet, self.l);
-        println!("building done");
+        //println!("building done");
         x
     }
 }
