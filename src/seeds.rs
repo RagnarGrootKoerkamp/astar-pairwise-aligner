@@ -22,6 +22,13 @@ impl SeedMatches {
     pub fn potential(&self, Pos(i, _): Pos) -> usize {
         self.len_a / self.l - min(i + self.l - 1, self.len_a) / self.l
     }
+
+    pub fn num_matches(&self) -> usize {
+        self.seed_qgrams
+            .iter()
+            .map(|&(i, seed)| self.qgram_index.qgram_matches(seed).len())
+            .sum()
+    }
 }
 
 pub fn find_matches<'a>(
