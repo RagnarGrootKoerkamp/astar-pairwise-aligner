@@ -1,13 +1,40 @@
+use serde::Serialize;
+
 use crate::{
     increasing_function::IncreasingFunction2D,
     seeds::{find_matches, SeedMatches},
     util::*,
 };
 
+#[derive(Serialize)]
+pub struct HeuristicParams {
+    pub name: String,
+    pub distance: Option<String>,
+    pub l: Option<usize>,
+}
+
 /// An object containing the settings for a heuristic.
 pub trait Heuristic: std::fmt::Debug + Copy {
     type Instance: HeuristicInstance;
+
+    // Heuristic properties.
+    fn name(&self) -> &'static str;
+    fn l(&self) -> Option<usize> {
+        None
+    }
+    fn distance(&self) -> Option<&'static str> {
+        None
+    }
+
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance;
+
+    fn params(&self) -> HeuristicParams {
+        HeuristicParams {
+            name: self.name().to_string(),
+            distance: self.distance().map(|x| x.to_string()),
+            l: self.l(),
+        }
+    }
 }
 
 /// An instantiation of a heuristic for a specific pair of sequences.
@@ -25,6 +52,14 @@ pub trait HeuristicInstance {
     }
     fn root_state(&self) -> Self::IncrementalState {
         Default::default()
+    }
+
+    // Some statistics of the heuristic.
+    fn num_seeds(&self) -> Option<usize> {
+        None
+    }
+    fn num_matches(&self) -> Option<usize> {
+        None
     }
 }
 
@@ -45,6 +80,10 @@ pub trait DistanceHeuristicInstance: HeuristicInstance {
 pub struct ZeroHeuristic;
 impl Heuristic for ZeroHeuristic {
     type Instance = ZeroHeuristicI;
+
+    fn name(&self) -> &'static str {
+        "Zero"
+    }
 
     fn build(&self, _a: &Sequence, _b: &Sequence, _alphabet: &Alphabet) -> Self::Instance {
         ZeroHeuristicI
@@ -75,6 +114,9 @@ impl DistanceHeuristicInstance for ZeroHeuristicI {
 pub struct GapHeuristic;
 impl Heuristic for GapHeuristic {
     type Instance = GapHeuristicI;
+    fn name(&self) -> &'static str {
+        "Gap"
+    }
 
     fn build(&self, a: &Sequence, b: &Sequence, _alphabet: &Alphabet) -> Self::Instance {
         GapHeuristicI {
@@ -109,11 +151,10 @@ impl DistanceHeuristicInstance for GapHeuristicI {
 type Counts = Vec<[usize; 4]>;
 fn char_counts(a: &Sequence, alphabet: &Alphabet) -> Counts {
     let transform = RankTransform::new(alphabet);
-    let mut counts = Counts::with_capacity(a.len() + 1);
-    counts.push([0, 0, 0, 0]);
-    for ch in transform.transform(a) {
+    let mut counts = vec![[0; 4]];
+    for idx in transform.qgrams(1, a) {
         counts.push(*counts.last().unwrap());
-        counts.last_mut().unwrap()[ch as usize] += 1;
+        counts.last_mut().unwrap()[idx] += 1;
     }
     counts
 }
@@ -122,6 +163,9 @@ fn char_counts(a: &Sequence, alphabet: &Alphabet) -> Counts {
 pub struct CountHeuristic;
 impl Heuristic for CountHeuristic {
     type Instance = CountHeuristicI;
+    fn name(&self) -> &'static str {
+        "Count"
+    }
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
         CountHeuristicI {
@@ -174,6 +218,79 @@ impl DistanceHeuristicInstance for CountHeuristicI {
     }
 }
 
+// # BICOUNT HEURISTIC
+// TODO: Make the 4 here variable.
+type BiCounts = Vec<[usize; 16]>;
+fn char_bicounts(a: &Sequence, alphabet: &Alphabet) -> BiCounts {
+    let transform = RankTransform::new(alphabet);
+    let mut counts = vec![[0; 16]];
+    for idx in transform.qgrams(2, a) {
+        counts.push(*counts.last().unwrap());
+        counts.last_mut().unwrap()[idx] += 1;
+    }
+    counts.push(*counts.last().unwrap());
+    counts
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BiCountHeuristic;
+impl Heuristic for BiCountHeuristic {
+    type Instance = BiCountHeuristicI;
+    fn name(&self) -> &'static str {
+        "BiCount"
+    }
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
+        BiCountHeuristicI {
+            a_cnts: char_bicounts(a, alphabet),
+            b_cnts: char_bicounts(b, alphabet),
+            target: Pos(a.len(), b.len()),
+        }
+    }
+}
+impl DistanceHeuristic for BiCountHeuristic {
+    type DistanceInstance = BiCountHeuristicI;
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance {
+        <BiCountHeuristic as Heuristic>::build(self, a, b, alphabet)
+    }
+}
+pub struct BiCountHeuristicI {
+    a_cnts: BiCounts,
+    b_cnts: BiCounts,
+    target: Pos,
+}
+
+impl HeuristicInstance for BiCountHeuristicI {
+    fn h(&self, (pos, _): (Pos, Self::IncrementalState)) -> usize {
+        self.distance(pos, self.target)
+    }
+}
+
+impl DistanceHeuristicInstance for BiCountHeuristicI {
+    fn distance(&self, from: Pos, to: Pos) -> usize {
+        let mut pos = 0;
+        let mut neg = 0;
+
+        // TODO: Find
+        for (afrom, ato, bfrom, bto) in itertools::izip!(
+            &self.a_cnts[from.0],
+            &self.a_cnts[max(to.0 as isize - 1, from.0 as isize) as usize],
+            &self.b_cnts[from.1],
+            &self.b_cnts[max(to.1 as isize - 1, from.1 as isize) as usize],
+        ) {
+            let delta = (ato - afrom) as isize - (bto - bfrom) as isize;
+            if delta > 0 {
+                pos += delta;
+            } else {
+                neg -= delta;
+            }
+        }
+
+        ((max(pos, neg) + 1) / 2) as usize
+    }
+}
+
 // # SEED HEURISTIC
 #[derive(Debug, Clone, Copy)]
 pub struct SeedHeuristic<DH: DistanceHeuristic> {
@@ -186,10 +303,20 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
         SeedHeuristicI::new(a, b, alphabet, self.l, self.distance)
     }
+    fn l(&self) -> Option<usize> {
+        Some(self.l)
+    }
+    fn distance(&self) -> Option<&'static str> {
+        Some(self.distance.name())
+    }
+
+    fn name(&self) -> &'static str {
+        "Seed"
+    }
 }
 pub struct SeedHeuristicI<DH: DistanceHeuristic> {
     seed_matches: SeedMatches,
-    h_map: HashMap<Pos, isize>,
+    h_map: HashMap<Pos, usize>,
     distance: DH::DistanceInstance,
 }
 
@@ -206,13 +333,25 @@ impl<DH: DistanceHeuristic> SeedHeuristicI<DH> {
             let update_val = h_map
                 .iter()
                 .filter(|&(&Pos(x, y), &_)| x >= i + l && y >= j + l)
-                .map(|(&to, &val)| val + distance.distance(pos, to) as isize - 1)
+                .map(|(&to, &val)| {
+                    val + max(
+                        distance.distance(pos, to),
+                        seed_matches.potential(pos) - seed_matches.potential(to) - 1,
+                    )
+                })
                 .min()
                 .unwrap();
             let query_val = h_map
                 .iter()
                 .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-                .map(|(&to, &val)| val + distance.distance(pos, to) as isize)
+                .map(|(&to, &val)| {
+                    // TODO: Does the -1 go in or outside the max?
+                    // Or should we leave it out at all?
+                    val + max(
+                        distance.distance(pos, to),
+                        seed_matches.potential(pos) - seed_matches.potential(to),
+                    )
+                })
                 .min()
                 .unwrap();
 
@@ -234,17 +373,23 @@ impl<DH: DistanceHeuristic> SeedHeuristicI<DH> {
 
 impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
     fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
-        let min = self
-            .h_map
+        self.h_map
             .iter()
             .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-            .map(|(&to, &val)| val + self.distance.distance(pos, to) as isize)
+            .map(|(&to, &val)| {
+                val + max(
+                    self.distance.distance(pos, to),
+                    self.seed_matches.potential(pos) - self.seed_matches.potential(to),
+                )
+            })
             .min()
-            .unwrap();
-        let potential = self.seed_matches.potential(pos);
-        let v = (potential as isize + min) as usize;
-        //println!("{:?} -> {}", pos, v);
-        v
+            .unwrap() as usize
+    }
+    fn num_seeds(&self) -> Option<usize> {
+        Some(self.seed_matches.potential(Pos(0, 0)))
+    }
+    fn num_matches(&self) -> Option<usize> {
+        Some(self.seed_matches.num_matches())
     }
 }
 
@@ -255,9 +400,18 @@ pub struct FastSeedHeuristic {
 }
 impl Heuristic for FastSeedHeuristic {
     type Instance = FastSeedHeuristicI;
+    fn name(&self) -> &'static str {
+        "FastSeed"
+    }
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
         FastSeedHeuristicI::new(a, b, alphabet, self.l)
+    }
+    fn l(&self) -> Option<usize> {
+        Some(self.l)
+    }
+    fn distance(&self) -> Option<&'static str> {
+        Some("Zero")
     }
 }
 pub struct FastSeedHeuristicI {
@@ -311,6 +465,12 @@ impl HeuristicInstance for FastSeedHeuristicI {
     fn root_state(&self) -> Self::IncrementalState {
         self.f.root()
     }
+    fn num_seeds(&self) -> Option<usize> {
+        Some(self.seed_matches.potential(Pos(0, 0)))
+    }
+    fn num_matches(&self) -> Option<usize> {
+        Some(self.seed_matches.num_matches())
+    }
 }
 
 // MERGED, FOR TESTING THEY ARE EQUAL.
@@ -320,6 +480,9 @@ pub struct MergedSeedHeuristic {
 }
 impl Heuristic for MergedSeedHeuristic {
     type Instance = MergedSeedHeuristicI;
+    fn name(&self) -> &'static str {
+        "MergedSeed"
+    }
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
         MergedSeedHeuristicI::new(a, b, alphabet, self.l)

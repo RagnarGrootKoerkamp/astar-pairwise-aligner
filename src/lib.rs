@@ -22,6 +22,7 @@ use std::{
 };
 
 use bio_types::sequence::Sequence;
+use csv::Writer;
 use heuristic::*;
 use serde::Serialize;
 use util::*;
@@ -37,74 +38,119 @@ impl fmt::Display for Source {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct SequenceStats {
-    len_a: usize,
-    len_b: usize,
-    error_rate: f32,
-    source: Source,
+    pub len_a: usize,
+    pub len_b: usize,
+    pub error_rate: f32,
+    pub source: Source,
 }
 
-pub struct AlignResult {
-    // Input
-    pub sequence_stats: SequenceStats,
+#[derive(Serialize)]
+pub struct TimingStats {
+    pub precomputation: f32,
+    pub astar: f32,
+}
 
-    // Timing
-    pub heuristic_initialization: Duration,
-    pub astar_duration: Duration,
-
-    // Stats
-    pub heuristic_name: String,
+#[derive(Serialize)]
+pub struct AStarStats {
     pub expanded: usize,
     pub explored: usize,
     /// Number of edges tried. More than explored states, because states can have multiple incoming edges.
     pub edges: usize,
+    #[serde(skip_serializing)]
     pub explored_states: Vec<Pos>,
+}
+
+#[derive(Serialize)]
+pub struct HeuristicStats {
+    pub seeds: Option<usize>,
+    pub matches: Option<usize>,
+    pub root_val: usize,
+}
+
+#[derive(Serialize)]
+pub struct AlignResult {
+    pub input: SequenceStats,
+    pub heuristic_params: HeuristicParams,
+    pub timing: TimingStats,
+    pub astar: AStarStats,
+    pub heuristic_stats: HeuristicStats,
 
     // Output
     pub distance: usize,
+    #[serde(skip_serializing)]
     pub path: Vec<Pos>,
 }
 
 impl AlignResult {
     pub fn print_header() {
         println!(
-            "{:>6} {:>6} {:>5} {:>10} {:50} {:>9} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5}",
+            "{:>6} {:>6} {:>5} {:>10} {:15} {:>3} {:15} {:>7} {:>7} {:>9} {:>9} {:>10} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5} {:>6}",
             "len a",
             "len b",
             "rate",
             "model",
-            "heuristic",
+            "h name", "l", "dist",
+            "seeds", "matches",
             "expanded",
             "explored",
+            "e/max(n,m)",
+            "e/nm",
             "edges",
             "precomp",
             "align",
             "h%",
-            "dist"
+            "dist",
+            "h(0,0)",
         );
     }
+    pub fn write(&self, writer: &mut Writer<std::fs::File>) {
+        #[derive(Serialize)]
+        struct Distance {
+            distance: usize,
+        };
+        writer
+            .serialize((
+                &self.input,
+                &self.heuristic_params,
+                &self.timing,
+                &self.astar,
+                &self.heuristic_stats,
+                Distance {
+                    distance: self.distance,
+                },
+            ))
+            .unwrap();
+    }
     pub fn print(&self) {
-        let percent_h = 100. * self.heuristic_initialization.as_secs_f64()
-            / (self.heuristic_initialization.as_secs_f64() + self.astar_duration.as_secs_f64());
+        let percent_h =
+            100. * self.timing.precomputation / (self.timing.precomputation + self.timing.astar);
         println!(
-            "{:>6} {:>6} {:>5.3} {:>10} {:50} {:>9} {:>9} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5}",
-            self.sequence_stats.len_a,
-            self.sequence_stats.len_b,
-            self.sequence_stats.error_rate,
-            self.sequence_stats.source.to_string(),
-            self.heuristic_name,
-            self.expanded,
-            self.explored,
-            self.edges,
-            self.heuristic_initialization.as_secs_f32(),
-            self.astar_duration.as_secs_f32(),
+            "{:>6} {:>6} {:>5.3} {:>10} {:15} {:>3} {:15} {:>7} {:>7} {:>9} {:>9} {:>10.2} {:>9.5} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5} {:>6}",
+            self.input.len_a,
+            self.input.len_b,
+            self.input.error_rate,
+            self.input.source.to_string(),
+            self.heuristic_params.name,
+            self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
+            self.heuristic_params.distance.as_ref().unwrap_or(&"".to_string()),
+            self.heuristic_stats.seeds.map(|x| x.to_string()).unwrap_or_default(),
+            self.heuristic_stats.matches.map(|x| x.to_string()).unwrap_or_default(),
+            self.astar.expanded,
+            self.astar.explored,
+            self.astar.explored as f32 / max(self.input.len_a, self.input.len_b)as f32 ,
+            self.astar.explored as f32 / (self.input.len_a * self.input.len_b)as f32 ,
+            self.astar.edges,
+            self.timing.precomputation,
+            self.timing.astar,
             percent_h,
-            self.distance
+            self.distance,
+            self.heuristic_stats.root_val,
         );
     }
     pub fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
-        if self.explored_states.is_empty() {
+        if self.astar.explored_states.is_empty() {
             return;
         }
         let mut path = HashSet::new();
@@ -113,7 +159,7 @@ impl AlignResult {
         }
         let mut wtr = csv::Writer::from_path(filename).unwrap();
         wtr.write_record(&["i", "j", "inpath"]).unwrap();
-        for pos in &self.explored_states {
+        for pos in &self.astar.explored_states {
             wtr.serialize((pos.0, pos.1, path.contains(pos))).unwrap();
         }
         wtr.flush().unwrap();
@@ -135,6 +181,7 @@ pub fn align<H: Heuristic>(
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
     let h = heuristic.build(a, b, alphabet);
+    let root_val = h.h((Pos(0, 0), h.root_state()));
     let heuristic_initialization = start_time.elapsed();
 
     // Run A* with heuristic.
@@ -174,14 +221,23 @@ pub fn align<H: Heuristic>(
     let path = path.into_iter().map(|(pos, _)| pos).collect();
 
     AlignResult {
-        sequence_stats,
-        heuristic_name: format!("{:?}", heuristic),
-        heuristic_initialization,
-        astar_duration,
-        expanded,
-        explored,
-        edges,
-        explored_states,
+        heuristic_params: heuristic.params(),
+        input: sequence_stats,
+        timing: TimingStats {
+            precomputation: heuristic_initialization.as_secs_f32(),
+            astar: astar_duration.as_secs_f32(),
+        },
+        astar: AStarStats {
+            expanded,
+            explored,
+            edges,
+            explored_states,
+        },
+        heuristic_stats: HeuristicStats {
+            root_val,
+            seeds: h.num_seeds(),
+            matches: h.num_matches(),
+        },
         distance,
         path,
     }
@@ -215,6 +271,33 @@ mod tests {
             },
             ZeroHeuristic,
         );
+    }
+
+    #[test]
+    fn visualize_gapped_seed() {
+        let alphabet = &Alphabet::new(b"ACTG");
+
+        AlignResult::print_header();
+        let l = 3;
+        let pattern = "ACTTGG".as_bytes().to_vec();
+        let text = "ACTGG".as_bytes().to_vec();
+
+        // Instantiate the heuristic.
+        let h = SeedHeuristic {
+            l,
+            distance: GapHeuristic,
+        }
+        .build(&pattern, &text, alphabet);
+        println!("BUILDING DONE");
+
+        for j in 0..=pattern.len() {
+            println!(
+                "{:?}",
+                (0..=text.len())
+                    .map(|i| h.h((Pos(i, j), Default::default())))
+                    .collect::<Vec<_>>()
+            );
+        }
     }
 
     #[test]
@@ -255,9 +338,9 @@ mod tests {
 
     #[test]
     fn test_heuristics() {
-        let ns = [10_000];
-        let es = [0.05f32, 0.10, 0.20, 0.30];
-        let ls = 6..=6;
+        let ns = [2_000];
+        let es = [0.05, 0.10];
+        let ls = 4..=7;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
 
@@ -276,21 +359,21 @@ mod tests {
             //align(&pattern, &text, &alphabet, stats, GapHeuristic).print();
             //align(&pattern, &text, &alphabet, stats, CountHeuristic).print();
             for l in ls.clone() {
-                align(
-                    &pattern,
-                    &text,
-                    &alphabet,
-                    stats,
-                    SeedHeuristic {
-                        l,
-                        distance: ZeroHeuristic,
-                    },
-                )
-                .print();
-            }
-            for l in ls.clone() {
                 align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
             }
+            // for l in ls.clone() {
+            //     align(
+            //         &pattern,
+            //         &text,
+            //         &alphabet,
+            //         stats,
+            //         SeedHeuristic {
+            //             l,
+            //             distance: ZeroHeuristic,
+            //         },
+            //     )
+            //     .print();
+            // }
             // for l in ls.clone() {
             //     align(
             //         &pattern,
@@ -304,6 +387,19 @@ mod tests {
             //     )
             //     .print();
             // }
+            for l in ls.clone() {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: CountHeuristic,
+                    },
+                )
+                .print();
+            }
             // for l in ls.clone() {
             //     align(
             //         &pattern,
@@ -312,11 +408,54 @@ mod tests {
             //         stats,
             //         SeedHeuristic {
             //             l,
-            //             distance: CountHeuristic,
+            //             distance: BiCountHeuristic,
             //         },
             //     )
             //     .print();
             // }
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn csv() {
+        let mut wtr = csv::WriterBuilder::new()
+            .has_headers(true)
+            .from_path("evals/stats/table.csv")
+            .unwrap();
+
+        let ns = [2_000];
+        let es = [0.05, 0.10];
+        let ls = 4..=7;
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
+        let alphabet = &Alphabet::new(b"ACTG");
+
+        for (&n, e) in ns.iter().cartesian_product(es) {
+            let pattern = random_sequence(n, alphabet, &mut rng);
+            let text = random_mutate(&pattern, alphabet, (e * n as f32) as usize, &mut rng);
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e,
+                source: Source::Uniform,
+            };
+
+            for l in ls.clone() {
+                align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).write(&mut wtr);
+            }
+            for l in ls.clone() {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: CountHeuristic,
+                    },
+                )
+                .write(&mut wtr);
+            }
         }
     }
 
@@ -338,23 +477,23 @@ mod tests {
             source: Source::Manual,
         };
 
-        align(&pattern, &text, &alphabet, stats, ZeroHeuristic)
-            .write_explored_states("evals/stats/zero.csv");
-        align(&pattern, &text, &alphabet, stats, GapHeuristic)
-            .write_explored_states("evals/stats/gap.csv");
-        align(&pattern, &text, &alphabet, stats, CountHeuristic)
-            .write_explored_states("evals/stats/count.csv");
-        align(
-            &pattern,
-            &text,
-            &alphabet,
-            stats,
-            SeedHeuristic {
-                l,
-                distance: ZeroHeuristic,
-            },
-        )
-        .write_explored_states("evals/stats/seed.csv");
+        // align(&pattern, &text, &alphabet, stats, ZeroHeuristic)
+        //     .write_explored_states("evals/stats/zero.csv");
+        // align(&pattern, &text, &alphabet, stats, GapHeuristic)
+        //     .write_explored_states("evals/stats/gap.csv");
+        // align(&pattern, &text, &alphabet, stats, CountHeuristic)
+        //     .write_explored_states("evals/stats/count.csv");
+        // align(
+        //     &pattern,
+        //     &text,
+        //     &alphabet,
+        //     stats,
+        //     SeedHeuristic {
+        //         l,
+        //         distance: ZeroHeuristic,
+        //     },
+        // )
+        // .write_explored_states("evals/stats/seed.csv");
         align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l })
             .write_explored_states("evals/stats/seed_fast.csv");
         align(
@@ -379,7 +518,6 @@ mod tests {
             },
         )
         .write_explored_states("evals/stats/seedcnt.csv");
-        //align(&pattern, &text, &alphabet, FastSeedHeuristic { l }) .write_explored_states("zero.csv");
     }
 
     fn setup() -> (
@@ -542,9 +680,17 @@ mod tests {
     }
 }
 
+// TODO:
 // Statistics:
-// - number of matches
-// - number of seeds
+// - avg heuristic
+// - number of seeds on final path
 // - greedy matching count
 // - average value of heuristic
 // - contribution to h from matches and distance heuristic
+//
+// TODO:
+// - seeds with edit distance
+// - print stats to csv
+// - fuzzing/testing that fast impls equal slow impls
+// - Remove matches from the LIS datastructure as soon as a shortest path is found.
+// - Report number of matches on the final path.
