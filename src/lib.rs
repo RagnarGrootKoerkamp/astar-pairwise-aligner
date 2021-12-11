@@ -14,12 +14,7 @@ pub mod util;
 
 extern crate test;
 
-use std::{
-    collections::HashSet,
-    fmt,
-    path::Path,
-    time::{self, Duration},
-};
+use std::{collections::HashSet, fmt, path::Path, time};
 
 use bio_types::sequence::Sequence;
 use csv::Writer;
@@ -67,6 +62,9 @@ pub struct HeuristicStats {
     pub seeds: Option<usize>,
     pub matches: Option<usize>,
     pub root_val: usize,
+    pub path_matches: Option<usize>,
+    pub explored_matches: Option<usize>,
+    pub avg_h: f32,
 }
 
 #[derive(Serialize)]
@@ -86,7 +84,7 @@ pub struct AlignResult {
 impl AlignResult {
     pub fn print_header() {
         println!(
-            "{:>6} {:>6} {:>5} {:>10} {:15} {:>3} {:15} {:>7} {:>7} {:>9} {:>9} {:>10} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5} {:>6}",
+            "{:>6} {:>6} {:>5} {:>10} {:15} {:>3} {:15} {:>7} {:>7} {:>9} {:>9} {:>10} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5} {:>6} {:>10} {:>10} {:>7}",
             "len a",
             "len b",
             "rate",
@@ -103,6 +101,9 @@ impl AlignResult {
             "h%",
             "dist",
             "h(0,0)",
+            "path_match",
+            "expl_match",
+            "avg.h"
         );
     }
     pub fn write(&self, writer: &mut Writer<std::fs::File>) {
@@ -127,7 +128,7 @@ impl AlignResult {
         let percent_h =
             100. * self.timing.precomputation / (self.timing.precomputation + self.timing.astar);
         println!(
-            "{:>6} {:>6} {:>5.3} {:>10} {:15} {:>3} {:15} {:>7} {:>7} {:>9} {:>9} {:>10.2} {:>9.5} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5} {:>6}",
+            "{:>6} {:>6} {:>5.3} {:>10} {:15} {:>3} {:15} {:>7} {:>7} {:>9} {:>9} {:>10.2} {:>9.5} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5} {:>6} {:>10} {:>10} {:>7.1}",
             self.input.len_a,
             self.input.len_b,
             self.input.error_rate,
@@ -139,14 +140,17 @@ impl AlignResult {
             self.heuristic_stats.matches.map(|x| x.to_string()).unwrap_or_default(),
             self.astar.expanded,
             self.astar.explored,
-            self.astar.explored as f32 / max(self.input.len_a, self.input.len_b)as f32 ,
-            self.astar.explored as f32 / (self.input.len_a * self.input.len_b)as f32 ,
+            self.astar.explored as f32 / max(self.input.len_a, self.input.len_b) as f32,
+            self.astar.explored as f32 / (self.input.len_a * self.input.len_b) as f32,
             self.astar.edges,
             self.timing.precomputation,
             self.timing.astar,
             percent_h,
             self.distance,
             self.heuristic_stats.root_val,
+            self.heuristic_stats.path_matches.map(|x| x.to_string()).unwrap_or_default(),
+            self.heuristic_stats.explored_matches.map(|x| x.to_string()).unwrap_or_default(),
+            self.heuristic_stats.avg_h,
         );
     }
     pub fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
@@ -164,6 +168,19 @@ impl AlignResult {
         }
         wtr.flush().unwrap();
     }
+}
+
+fn num_matches_on_path(path: &Vec<Pos>, matches: &Vec<Pos>) -> usize {
+    let matches = {
+        let mut s = HashSet::<Pos>::new();
+        for &p in matches {
+            s.insert(p);
+        }
+        s
+    };
+    path.iter()
+        .map(|p| if matches.contains(p) { 1 } else { 0 })
+        .sum()
 }
 
 pub fn align<H: Heuristic>(
@@ -187,6 +204,7 @@ pub fn align<H: Heuristic>(
     // Run A* with heuristic.
     let start_time = time::Instant::now();
     let graph = alignment_graph::new_alignment_graph(&a, &b, &h);
+    let mut h_values = HashMap::<usize, usize>::new();
     let (distance, path) = petgraph::algo::astar(
         &graph,
         // start
@@ -212,11 +230,23 @@ pub fn align<H: Heuristic>(
         |state| {
             explored += 1;
             explored_states.push(state.0);
-            h.h(state)
+            let v = h.h(state);
+            *h_values.entry(v).or_insert(0) += 1;
+            v
         },
     )
     .unwrap_or((0, vec![]));
     let astar_duration = start_time.elapsed();
+
+    let avg_h = {
+        let mut cnt = 0;
+        let mut sum = 0;
+        for (x, y) in h_values {
+            cnt += y;
+            sum += x * y;
+        }
+        sum as f32 / cnt as f32
+    };
 
     let path = path.into_iter().map(|(pos, _)| pos).collect();
 
@@ -231,12 +261,18 @@ pub fn align<H: Heuristic>(
             expanded,
             explored,
             edges,
-            explored_states,
+            explored_states: explored_states.clone(),
         },
         heuristic_stats: HeuristicStats {
             root_val,
             seeds: h.num_seeds(),
             matches: h.num_matches(),
+            path_matches: h.matches().as_ref().map(|x| num_matches_on_path(&path, x)),
+            explored_matches: h
+                .matches()
+                .as_ref()
+                .map(|x| num_matches_on_path(&explored_states, x)),
+            avg_h,
         },
         distance,
         path,
@@ -333,7 +369,6 @@ mod tests {
             },
         )
         .print();
-        align(&pattern, &text, &alphabet, stats, MergedSeedHeuristic { l }).print();
     }
 
     #[test]
@@ -683,14 +718,11 @@ mod tests {
 // TODO:
 // Statistics:
 // - avg heuristic
-// - number of seeds on final path
-// - greedy matching count
-// - average value of heuristic
+// - max number of consecutive matches
 // - contribution to h from matches and distance heuristic
 //
 // TODO:
 // - seeds with edit distance
-// - print stats to csv
-// - fuzzing/testing that fast impls equal slow impls
+// - choose seeds cleverly
 // - Remove matches from the LIS datastructure as soon as a shortest path is found.
-// - Report number of matches on the final path.
+// - fuzzing/testing that fast impls equal slow impls
