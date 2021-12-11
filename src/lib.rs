@@ -55,12 +55,16 @@ pub struct AStarStats {
     pub edges: usize,
     #[serde(skip_serializing)]
     pub explored_states: Vec<Pos>,
+    #[serde(skip_serializing)]
+    pub expanded_states: Vec<Pos>,
 }
 
 #[derive(Serialize)]
 pub struct HeuristicStats {
     pub seeds: Option<usize>,
-    pub matches: Option<usize>,
+    #[serde(skip_serializing)]
+    pub matches: Option<Vec<Pos>>,
+    pub num_matches: Option<usize>,
     pub root_h: usize,
     pub path_matches: Option<usize>,
     pub explored_matches: Option<usize>,
@@ -133,11 +137,11 @@ impl AlignResult {
             self.input.len_b,
             self.input.error_rate,
             self.input.source.to_string(),
-            self.heuristic_params.name,
+            self.heuristic_params.heuristic,
             self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
             self.heuristic_stats.seeds.map(|x| x.to_string()).unwrap_or_default(),
-            self.heuristic_stats.matches.map(|x| x.to_string()).unwrap_or_default(),
+            self.heuristic_stats.num_matches.map(|x| x.to_string()).unwrap_or_default(),
             self.astar.expanded,
             self.astar.explored,
             self.astar.explored as f32 / max(self.input.len_a, self.input.len_b) as f32,
@@ -157,14 +161,23 @@ impl AlignResult {
         if self.astar.explored_states.is_empty() {
             return;
         }
-        let mut path = HashSet::new();
-        for p in &self.path {
-            path.insert(p);
-        }
         let mut wtr = csv::Writer::from_path(filename).unwrap();
-        wtr.write_record(&["i", "j", "inpath"]).unwrap();
-        for pos in &self.astar.explored_states {
-            wtr.serialize((pos.0, pos.1, path.contains(pos))).unwrap();
+        // type: Explored, Expanded, Path, Match
+        // Match does not have step set
+        wtr.write_record(&["i", "j", "type", "step"]).unwrap();
+        for (i, pos) in self.astar.explored_states.iter().enumerate() {
+            wtr.serialize((pos.0, pos.1, "Explored", i)).unwrap();
+        }
+        for pos in &self.astar.expanded_states {
+            wtr.serialize((pos.0, pos.1, "Expanded", "")).unwrap();
+        }
+        for pos in &self.path {
+            wtr.serialize((pos.0, pos.1, "Path", "")).unwrap();
+        }
+        if let Some(matches) = &self.heuristic_stats.matches {
+            for pos in matches {
+                wtr.serialize((pos.0, pos.1, "Match", "")).unwrap();
+            }
         }
         wtr.flush().unwrap();
     }
@@ -194,6 +207,7 @@ pub fn align<H: Heuristic>(
     let mut explored = 0;
     let mut edges = 0;
     let mut explored_states = Vec::new();
+    let mut expanded_states = Vec::new();
 
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
@@ -214,6 +228,7 @@ pub fn align<H: Heuristic>(
         |(pos @ Pos(i, j), _)| {
             //make_dot(pos, '*', is_end_calls);
             expanded += 1;
+            expanded_states.push(pos);
             h.borrow_mut().expand(pos);
             i == a.len() && j == b.len()
         },
@@ -252,6 +267,11 @@ pub fn align<H: Heuristic>(
     let path = path.into_iter().map(|(pos, _)| pos).collect();
     let h = h.into_inner();
 
+    let path_matches = h.matches().as_ref().map(|x| num_matches_on_path(&path, x));
+    let explored_matches = h
+        .matches()
+        .as_ref()
+        .map(|x| num_matches_on_path(&explored_states, x));
     AlignResult {
         heuristic_params: heuristic.params(),
         input: sequence_stats,
@@ -263,17 +283,16 @@ pub fn align<H: Heuristic>(
             expanded,
             explored,
             edges,
-            explored_states: explored_states.clone(),
+            explored_states,
+            expanded_states,
         },
         heuristic_stats: HeuristicStats {
             root_h: root_val,
             seeds: h.num_seeds(),
-            matches: h.num_matches(),
-            path_matches: h.matches().as_ref().map(|x| num_matches_on_path(&path, x)),
-            explored_matches: h
-                .matches()
-                .as_ref()
-                .map(|x| num_matches_on_path(&explored_states, x)),
+            matches: h.matches(),
+            num_matches: h.num_matches(),
+            path_matches,
+            explored_matches,
             avg_h,
         },
         answer_cost: distance,
@@ -600,6 +619,17 @@ mod tests {
             },
         )
         .write_explored_states("evals/stats/seedcnt.csv");
+        align(
+            &pattern,
+            &text,
+            &alphabet,
+            stats,
+            PruningSeedHeuristic {
+                l,
+                distance: CountHeuristic,
+            },
+        )
+        .write_explored_states("evals/stats/pruningseedcnt.csv");
     }
 
     fn setup() -> (
