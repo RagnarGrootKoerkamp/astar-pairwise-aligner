@@ -14,7 +14,7 @@ pub mod util;
 
 extern crate test;
 
-use std::{collections::HashSet, fmt, path::Path, time};
+use std::{cell::RefCell, collections::HashSet, fmt, path::Path, time};
 
 use bio_types::sequence::Sequence;
 use csv::Writer;
@@ -61,7 +61,7 @@ pub struct AStarStats {
 pub struct HeuristicStats {
     pub seeds: Option<usize>,
     pub matches: Option<usize>,
-    pub root_val: usize,
+    pub root_h: usize,
     pub path_matches: Option<usize>,
     pub explored_matches: Option<usize>,
     pub avg_h: f32,
@@ -76,7 +76,7 @@ pub struct AlignResult {
     pub heuristic_stats: HeuristicStats,
 
     // Output
-    pub distance: usize,
+    pub answer_cost: usize,
     #[serde(skip_serializing)]
     pub path: Vec<Pos>,
 }
@@ -119,7 +119,7 @@ impl AlignResult {
                 &self.astar,
                 &self.heuristic_stats,
                 Distance {
-                    distance: self.distance,
+                    distance: self.answer_cost,
                 },
             ))
             .unwrap();
@@ -135,7 +135,7 @@ impl AlignResult {
             self.input.source.to_string(),
             self.heuristic_params.name,
             self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
-            self.heuristic_params.distance.as_ref().unwrap_or(&"".to_string()),
+            self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
             self.heuristic_stats.seeds.map(|x| x.to_string()).unwrap_or_default(),
             self.heuristic_stats.matches.map(|x| x.to_string()).unwrap_or_default(),
             self.astar.expanded,
@@ -146,8 +146,8 @@ impl AlignResult {
             self.timing.precomputation,
             self.timing.astar,
             percent_h,
-            self.distance,
-            self.heuristic_stats.root_val,
+            self.answer_cost,
+            self.heuristic_stats.root_h,
             self.heuristic_stats.path_matches.map(|x| x.to_string()).unwrap_or_default(),
             self.heuristic_stats.explored_matches.map(|x| x.to_string()).unwrap_or_default(),
             self.heuristic_stats.avg_h,
@@ -197,8 +197,10 @@ pub fn align<H: Heuristic>(
 
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
-    let h = heuristic.build(a, b, alphabet);
-    let root_val = h.h((Pos(0, 0), h.root_state()));
+    let h = RefCell::new(heuristic.build(a, b, alphabet));
+    let root_state = (Pos(0, 0), h.borrow().root_state());
+    let root_val = h.borrow().h(root_state);
+    //let _ = h.borrow_mut();
     let heuristic_initialization = start_time.elapsed();
 
     // Run A* with heuristic.
@@ -207,13 +209,12 @@ pub fn align<H: Heuristic>(
     let mut h_values = HashMap::<usize, usize>::new();
     let (distance, path) = petgraph::algo::astar(
         &graph,
-        // start
-        (Pos(0, 0), h.root_state()),
+        root_state,
         // is end?
-        |(Pos(i, j), _)| {
+        |(pos @ Pos(i, j), _)| {
             //make_dot(pos, '*', is_end_calls);
-            //println!("POP {:?}", pos);
             expanded += 1;
+            h.borrow_mut().expand(pos);
             i == a.len() && j == b.len()
         },
         // edge cost
@@ -230,7 +231,7 @@ pub fn align<H: Heuristic>(
         |state| {
             explored += 1;
             explored_states.push(state.0);
-            let v = h.h(state);
+            let v = h.borrow().h(state);
             *h_values.entry(v).or_insert(0) += 1;
             v
         },
@@ -249,6 +250,7 @@ pub fn align<H: Heuristic>(
     };
 
     let path = path.into_iter().map(|(pos, _)| pos).collect();
+    let h = h.into_inner();
 
     AlignResult {
         heuristic_params: heuristic.params(),
@@ -264,7 +266,7 @@ pub fn align<H: Heuristic>(
             explored_states: explored_states.clone(),
         },
         heuristic_stats: HeuristicStats {
-            root_val,
+            root_h: root_val,
             seeds: h.num_seeds(),
             matches: h.num_matches(),
             path_matches: h.matches().as_ref().map(|x| num_matches_on_path(&path, x)),
@@ -274,7 +276,7 @@ pub fn align<H: Heuristic>(
                 .map(|x| num_matches_on_path(&explored_states, x)),
             avg_h,
         },
-        distance,
+        answer_cost: distance,
         path,
     }
 }
@@ -395,34 +397,28 @@ mod tests {
             //align(&pattern, &text, &alphabet, stats, CountHeuristic).print();
             for l in ls.clone() {
                 align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
-            }
-            // for l in ls.clone() {
-            //     align(
-            //         &pattern,
-            //         &text,
-            //         &alphabet,
-            //         stats,
-            //         SeedHeuristic {
-            //             l,
-            //             distance: ZeroHeuristic,
-            //         },
-            //     )
-            //     .print();
-            // }
-            // for l in ls.clone() {
-            //     align(
-            //         &pattern,
-            //         &text,
-            //         &alphabet,
-            //         stats,
-            //         SeedHeuristic {
-            //             l,
-            //             distance: GapHeuristic,
-            //         },
-            //     )
-            //     .print();
-            // }
-            for l in ls.clone() {
+                //     align(
+                //         &pattern,
+                //         &text,
+                //         &alphabet,
+                //         stats,
+                //         SeedHeuristic {
+                //             l,
+                //             distance: ZeroHeuristic,
+                //         },
+                //     )
+                //     .print();
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: GapHeuristic,
+                    },
+                )
+                .print();
                 align(
                     &pattern,
                     &text,
@@ -434,20 +430,29 @@ mod tests {
                     },
                 )
                 .print();
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    PruningSeedHeuristic {
+                        l,
+                        distance: CountHeuristic,
+                    },
+                )
+                .print();
+                //     align(
+                //         &pattern,
+                //         &text,
+                //         &alphabet,
+                //         stats,
+                //         SeedHeuristic {
+                //             l,
+                //             distance: BiCountHeuristic,
+                //         },
+                //     )
+                //     .print();
             }
-            // for l in ls.clone() {
-            //     align(
-            //         &pattern,
-            //         &text,
-            //         &alphabet,
-            //         stats,
-            //         SeedHeuristic {
-            //             l,
-            //             distance: BiCountHeuristic,
-            //         },
-            //     )
-            //     .print();
-            // }
         }
     }
 
@@ -477,8 +482,28 @@ mod tests {
 
             for l in ls.clone() {
                 align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).write(&mut wtr);
-            }
-            for l in ls.clone() {
+                //     align(
+                //         &pattern,
+                //         &text,
+                //         &alphabet,
+                //         stats,
+                //         SeedHeuristic {
+                //             l,
+                //             distance: ZeroHeuristic,
+                //         },
+                //     )
+                //     .print();
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        distance: GapHeuristic,
+                    },
+                )
+                .write(&mut wtr);
                 align(
                     &pattern,
                     &text,
@@ -490,6 +515,28 @@ mod tests {
                     },
                 )
                 .write(&mut wtr);
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    PruningSeedHeuristic {
+                        l,
+                        distance: CountHeuristic,
+                    },
+                )
+                .write(&mut wtr);
+                //     align(
+                //         &pattern,
+                //         &text,
+                //         &alphabet,
+                //         stats,
+                //         SeedHeuristic {
+                //             l,
+                //             distance: BiCountHeuristic,
+                //         },
+                //     )
+                //     .print();
             }
         }
     }
@@ -717,12 +764,19 @@ mod tests {
 
 // TODO:
 // Statistics:
-// - avg heuristic
+// - avg total estimated distance
 // - max number of consecutive matches
 // - contribution to h from matches and distance heuristic
+// - heuristic time
 //
 // TODO:
+// - print matches
 // - seeds with edit distance
 // - choose seeds cleverly
 // - Remove matches from the LIS datastructure as soon as a shortest path is found.
 // - fuzzing/testing that fast impls equal slow impls
+//
+// TODO:
+// - removing visited matches
+// - inexact matches
+// - choosing seeds bases on guessed alignment

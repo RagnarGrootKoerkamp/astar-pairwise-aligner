@@ -9,7 +9,7 @@ use crate::{
 #[derive(Serialize)]
 pub struct HeuristicParams {
     pub name: String,
-    pub distance: Option<String>,
+    pub distance_function: Option<String>,
     pub l: Option<usize>,
 }
 
@@ -31,7 +31,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name().to_string(),
-            distance: self.distance().map(|x| x.to_string()),
+            distance_function: self.distance().map(|x| x.to_string()),
             l: self.l(),
         }
     }
@@ -40,6 +40,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance {
     fn h(&self, pos: (Pos, Self::IncrementalState)) -> usize;
+    fn expand(&mut self, pos: Pos) {}
 
     // TODO: Simplify this, and just use a map inside the heuristic.
     type IncrementalState: std::hash::Hash + Eq + Copy + Default = ();
@@ -68,6 +69,7 @@ pub trait HeuristicInstance {
 
 /// An O(1) evaluation heuristic that can be used to lower bound the distance between any two positions.
 /// Used to get the distance between matches, instead of only distance to the end.
+// TODO: Can we get away with only one of these two traits?
 pub trait DistanceHeuristic: Heuristic {
     // TODO: Provide default implementations for these.
     type DistanceInstance: DistanceHeuristicInstance;
@@ -400,6 +402,8 @@ impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
 }
 
 // # FAST SEED HEURISTIC
+// TODO: Make this work for the other distance functions.
+// TODO: Inherit this from SeedHeuristic
 #[derive(Debug, Clone, Copy)]
 pub struct FastSeedHeuristic {
     pub l: usize,
@@ -479,7 +483,8 @@ impl HeuristicInstance for FastSeedHeuristicI {
     }
 }
 
-// # EDITSEED HEURISTIC
+// # TODO: EDITSEED HEURISTIC
+// TODO: Inherit this from SeedHeuristic
 #[derive(Debug, Clone, Copy)]
 pub struct EditSeedHeuristic<DH: DistanceHeuristic> {
     pub l: usize,
@@ -572,6 +577,161 @@ impl<DH: DistanceHeuristic> HeuristicInstance for EditSeedHeuristicI<DH> {
             })
             .min()
             .unwrap() as usize
+    }
+    fn num_seeds(&self) -> Option<usize> {
+        Some(self.seed_matches.potential(Pos(0, 0)))
+    }
+    fn matches(&self) -> Option<Vec<Pos>> {
+        Some(self.seed_matches.iter().collect())
+    }
+    fn num_matches(&self) -> Option<usize> {
+        Some(self.seed_matches.num_matches())
+    }
+}
+
+// # PRUNING SEED HEURISTIC
+// TODO: Inherit this from SeedHeuristic
+#[derive(Debug, Clone, Copy)]
+pub struct PruningSeedHeuristic<DH: DistanceHeuristic> {
+    pub l: usize,
+    pub distance: DH,
+}
+impl<DH: DistanceHeuristic> Heuristic for PruningSeedHeuristic<DH> {
+    type Instance = PruningSeedHeuristicI<DH>;
+
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
+        PruningSeedHeuristicI::new(a, b, alphabet, self.l, self.distance)
+    }
+    fn l(&self) -> Option<usize> {
+        Some(self.l)
+    }
+    fn distance(&self) -> Option<&'static str> {
+        Some(self.distance.name())
+    }
+
+    fn name(&self) -> &'static str {
+        "PruningSeed"
+    }
+}
+pub struct PruningSeedHeuristicI<DH: DistanceHeuristic> {
+    seed_matches: SeedMatches,
+    h_map: HashMap<Pos, usize>,
+    distance: DH::DistanceInstance,
+    target: Pos,
+    l: usize,
+}
+
+impl<DH: DistanceHeuristic> PruningSeedHeuristicI<DH> {
+    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize, distance: DH) -> Self {
+        let seed_matches = find_matches(a, b, alphabet, l);
+        let skipped: &mut usize = &mut 0;
+
+        let distance = DistanceHeuristic::build(&distance, a, b, alphabet);
+
+        let mut h_map = HashMap::new();
+        let target = Pos(a.len(), b.len());
+        h_map.insert(target, 0);
+        for pos @ Pos(i, j) in seed_matches.iter().rev() {
+            let update_val = h_map
+                .iter()
+                .filter(|&(&Pos(x, y), &_)| x >= i + l && y >= j + l)
+                .map(|(&to, &val)| {
+                    val + max(
+                        distance.distance(pos, to),
+                        seed_matches.potential(pos) - seed_matches.potential(to) - 1,
+                    )
+                })
+                .min()
+                .unwrap();
+            let query_val = h_map
+                .iter()
+                .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
+                .map(|(&to, &val)| {
+                    // TODO: Does the -1 go in or outside the max?
+                    // Or should we leave it out at all?
+                    val + max(
+                        distance.distance(pos, to),
+                        seed_matches.potential(pos) - seed_matches.potential(to),
+                    )
+                })
+                .min()
+                .unwrap();
+
+            if update_val < query_val {
+                h_map.insert(pos, update_val);
+            } else {
+                *skipped += 1;
+            }
+            //println!("{:?} => {}", pos, val);
+        }
+        //println!("Skipped matches: {}", skipped);
+        PruningSeedHeuristicI {
+            seed_matches,
+            h_map,
+            distance,
+            target,
+            l,
+        }
+    }
+}
+
+impl<DH: DistanceHeuristic> HeuristicInstance for PruningSeedHeuristicI<DH> {
+    fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
+        self.h_map
+            .iter()
+            .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
+            .map(|(&to, &val)| {
+                val + max(
+                    self.distance.distance(pos, to),
+                    self.seed_matches.potential(pos) - self.seed_matches.potential(to),
+                )
+            })
+            .min()
+            .unwrap() as usize
+    }
+    fn expand(&mut self, pos: Pos) {
+        // If this is a matching position, rebuild the heuristic.
+        if self.h_map.remove(&pos).is_none() {
+            return;
+        }
+        // Rebuild the entire thing.
+        let mut h_map = HashMap::new();
+        h_map.insert(self.target, 0);
+        for pos @ Pos(i, j) in self.seed_matches.iter().rev() {
+            if !self.h_map.contains_key(&pos) {
+                continue;
+            }
+            let update_val = h_map
+                .iter()
+                .filter(|&(&Pos(x, y), &_)| x >= i + self.l && y >= j + self.l)
+                .map(|(&to, &val)| {
+                    val + max(
+                        self.distance.distance(pos, to),
+                        self.seed_matches.potential(pos) - self.seed_matches.potential(to) - 1,
+                    )
+                })
+                .min()
+                .unwrap();
+            let query_val = h_map
+                .iter()
+                .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
+                .map(|(&to, &val)| {
+                    // TODO: Does the -1 go in or outside the max?
+                    // Or should we leave it out at all?
+                    val + max(
+                        self.distance.distance(pos, to),
+                        self.seed_matches.potential(pos) - self.seed_matches.potential(to),
+                    )
+                })
+                .min()
+                .unwrap();
+
+            if update_val < query_val {
+                h_map.insert(pos, update_val);
+            }
+            //println!("{:?} => {}", pos, val);
+        }
+        self.h_map = h_map;
     }
     fn num_seeds(&self) -> Option<usize> {
         Some(self.seed_matches.potential(Pos(0, 0)))

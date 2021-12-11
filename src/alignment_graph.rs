@@ -1,4 +1,7 @@
-use std::iter::once;
+use std::{
+    cell::{Ref, RefCell},
+    iter::once,
+};
 
 use crate::{heuristic::HeuristicInstance, util::*};
 use arrayvec::ArrayVec;
@@ -7,11 +10,11 @@ use bio_types::sequence::Sequence;
 use crate::implicit_graph::{Edge, ImplicitGraph, ImplicitGraphBase};
 
 /// AlignmentGraph that computes the heuristic
-#[derive(Clone, Copy)]
+//#[derive(Clone)]
 pub struct AlignmentGraphBase<'a, H: HeuristicInstance> {
     pattern: &'a Sequence,
     text: &'a Sequence,
-    heuristic: &'a H,
+    heuristic: &'a RefCell<H>,
 }
 
 pub type AlignmentGraph<'a, H> = ImplicitGraph<AlignmentGraphBase<'a, H>>;
@@ -39,14 +42,21 @@ impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
                 y += 1;
             }
             let pos = Pos(x, y);
-            once(Edge(u, (pos, self.heuristic.incremental_h(u, pos)))).collect()
+            once(Edge(
+                u,
+                (pos, self.heuristic.borrow().incremental_h(u, pos)),
+            ))
+            .collect()
         } else {
             DELTAS
                 .iter()
                 .filter_map(|(di, dj)| {
                     if i + di <= self.pattern.len() && j + dj <= self.text.len() {
                         let pos = Pos(i + di, j + dj);
-                        Some(Edge(u, (pos, self.heuristic.incremental_h(u, pos))))
+                        Some(Edge(
+                            u,
+                            (pos, self.heuristic.borrow().incremental_h(u, pos)),
+                        ))
                     } else {
                         None
                     }
@@ -60,7 +70,7 @@ impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
 pub fn new_alignment_graph<'a, H: HeuristicInstance>(
     pattern: &'a Sequence,
     text: &'a Sequence,
-    heuristic: &'a H,
+    heuristic: &'a RefCell<H>,
 ) -> AlignmentGraph<'a, H> {
     ImplicitGraph::new(AlignmentGraphBase {
         pattern,
