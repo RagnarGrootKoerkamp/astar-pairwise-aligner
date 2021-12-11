@@ -1,33 +1,27 @@
 use crate::util::*;
 
+#[derive(Clone, Debug)]
+pub struct Match {
+    pub start: Pos,
+    pub end: Pos,
+    pub match_distance: usize,
+}
+
 pub struct SeedMatches {
-    l: usize,
-    len_a: usize,
-    seed_qgrams: Vec<(usize, usize)>,
-    qgram_index: QGramIndex,
+    // Sorted by (i, j)
+    pub num_seeds: usize,
+    pub matches: Vec<Match>,
+    potential: Vec<usize>,
 }
 
 impl SeedMatches {
-    pub fn iter<'a>(&'a self) -> impl DoubleEndedIterator<Item = Pos> + 'a {
-        self.seed_qgrams
-            .iter()
-            .map(move |&(i, seed)| {
-                let matches = self.qgram_index.qgram_matches(seed);
-                (i, matches)
-            })
-            .map(|(x, ys)| ys.iter().map(move |&y| Pos(x, y)))
-            .flatten()
+    pub fn iter(&self) -> std::slice::Iter<Match> {
+        self.matches.iter()
     }
 
+    // The potential at p is the cost of going from p to the end, without hitting any matches.
     pub fn potential(&self, Pos(i, _): Pos) -> usize {
-        self.len_a / self.l - min(i + self.l - 1, self.len_a) / self.l
-    }
-
-    pub fn num_matches(&self) -> usize {
-        self.seed_qgrams
-            .iter()
-            .map(|&(i, seed)| self.qgram_index.qgram_matches(seed).len())
-            .sum()
+        self.potential[i]
     }
 }
 
@@ -36,7 +30,9 @@ pub fn find_matches<'a>(
     b_text: &'a Sequence,
     text_alphabet: &Alphabet,
     l: usize,
+    match_distance: usize,
 ) -> SeedMatches {
+    assert!(match_distance == 0 || match_distance == 1);
     // Convert to a binary sequences.
     let rank_transform = RankTransform::new(text_alphabet);
 
@@ -45,25 +41,79 @@ pub fn find_matches<'a>(
         .chunks_exact(l)
         .enumerate()
         .map(|(i, s)| (l * i, s))
-        // .intersperse_with({
-        //     let mut iter = a_text[l / 2..]
-        //         .chunks_exact(l)
-        //         .enumerate()
-        //         .map(|(i, s)| (l * i + l / 2, s));
-        //     move || iter.next().unwrap()
-        // })
         // A chunk of size l has exactly one qgram of length l.
         .map(|(i, seed)| (i, rank_transform.qgrams(l as u32, seed).next().unwrap()))
         .collect::<Vec<_>>();
 
+    let num_seeds = seed_qgrams.len();
+
+    let n = a_text.len();
+    let mut potential = Vec::with_capacity(n + 1);
+    for i in 0..=n {
+        potential.push((match_distance + 1) * (n / l - min(i + l - 1, n) / l));
+    }
+
     // Find matches of the seeds of a in b.
     // NOTE: This uses O(alphabet^l) memory.
+    let mut matches = Vec::<Match>::new();
+
     let qgram_index = QGramIndex::new(l as u32, b_text, &text_alphabet);
+    let qgram_index_deletions = QGramIndex::new(l as u32 - 1, b_text, &text_alphabet);
+    let qgram_index_insertions = QGramIndex::new(l as u32 + 1, b_text, &text_alphabet);
+
+    for (i, seed) in seed_qgrams {
+        // Exact matches
+        for &j in qgram_index.qgram_matches(seed) {
+            matches.push(Match {
+                start: Pos(i, j),
+                end: Pos(i + l, j + l),
+                match_distance: 0,
+            });
+        }
+        // Inexact matches.
+        if match_distance == 1 {
+            let mutations = mutations(l, seed);
+            for mutation in mutations.deletions {
+                for &j in qgram_index_deletions.qgram_matches(mutation) {
+                    matches.push(Match {
+                        start: Pos(i, j),
+                        end: Pos(i + l, j + l - 1),
+                        match_distance: 1,
+                    });
+                }
+            }
+            for mutation in mutations.substitutions {
+                for &j in qgram_index.qgram_matches(mutation) {
+                    matches.push(Match {
+                        start: Pos(i, j),
+                        end: Pos(i + l, j + l),
+                        match_distance: 1,
+                    });
+                }
+            }
+            for mutation in mutations.insertions {
+                for &j in qgram_index_insertions.qgram_matches(mutation) {
+                    matches.push(Match {
+                        start: Pos(i, j),
+                        end: Pos(i + l, j + l + 1),
+                        match_distance: 1,
+                    });
+                }
+            }
+        }
+    }
+
+    matches.sort_by_key(
+        |&Match {
+             start,
+             end: _,
+             match_distance: _,
+         }| (start.0, start.1),
+    );
 
     SeedMatches {
-        l,
-        len_a: a_text.len(),
-        seed_qgrams,
-        qgram_index,
+        num_seeds,
+        matches,
+        potential,
     }
 }
