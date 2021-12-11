@@ -38,34 +38,48 @@ pub fn abs_diff(i: usize, j: usize) -> usize {
     (i as isize - j as isize).abs() as usize
 }
 
-// TODO: Unit tests
-pub fn mutations(k: usize, kmer: usize) -> Vec<usize> {
+#[derive(Debug, PartialEq, Eq)]
+pub struct Mutations {
+    pub deletions: Vec<usize>,
+    pub substitutions: Vec<usize>,
+    pub insertions: Vec<usize>,
+}
+
+pub fn mutations(k: usize, kmer: usize) -> Mutations {
     // This assumes the alphabet size is 4.
-    let mut ms = Vec::new();
+    let mut deletions = Vec::new();
+    let mut substitutions = Vec::new();
+    let mut insertions = Vec::new();
     // Substitutions
     for i in 0..k {
         let mask = !(3 << (2 * i));
         for s in 0..4 {
-            ms.push((kmer & mask) | s << (2 * i));
+            substitutions.push((kmer & mask) | s << (2 * i));
         }
     }
     // Insertions
     for i in 0..=k {
         let mask = (1 << (2 * i)) - 1;
         for s in 0..4 {
-            ms.push((kmer & mask) | (s << (2 * i)) | ((kmer & !mask) << 2));
+            insertions.push((kmer & mask) | (s << (2 * i)) | ((kmer & !mask) << 2));
         }
     }
     // Deletions
     for i in 0..k {
         let mask = (1 << (2 * i)) - 1;
-        ms.push((kmer & mask) | ((kmer & (!mask << 2)) >> 2));
+        deletions.push((kmer & mask) | ((kmer & (!mask << 2)) >> 2));
     }
-    ms.sort();
-    ms.dedup();
+    for v in [&mut deletions, &mut substitutions, &mut insertions] {
+        v.sort();
+        v.dedup();
+    }
     // Remove original
-    ms.retain(|&x| x != kmer);
-    ms
+    substitutions.retain(|&x| x != kmer);
+    Mutations {
+        deletions,
+        substitutions,
+        insertions,
+    }
 }
 
 #[cfg(test)]
@@ -76,19 +90,32 @@ mod tests {
         let kmer = 0b00011011usize;
         let k = 4;
         let ms = mutations(k, kmer);
-        // sub
-        assert!(ms.contains(&0b11011011));
-        // ins
-        assert!(ms.contains(&0b0011011011));
-        // del
-        assert!(ms.contains(&0b000111));
-        assert!(!ms.contains(&kmer));
+        // substitution
+        assert!(ms.substitutions.contains(&0b11011011));
+        // insertion
+        assert!(ms.insertions.contains(&0b0011011011));
+        // deletion
+        assert!(ms.deletions.contains(&0b000111));
         assert_eq!(
             ms,
-            [
-                6, 7, 11, 19, 23, 24, 25, 26, 31, 43, 59, 75, 91, 99, 103, 107, 108, 109, 110, 111,
-                123, 155, 219, 283, 539, 795
-            ]
+            Mutations {
+                deletions: [6, 7, 11].to_vec(),
+                substitutions: [11, 19, 23, 24, 25, 26, 31, 43, 59, 91, 155, 219].to_vec(),
+                insertions: [
+                    75, 91, 99, 103, 107, 108, 109, 110, 111, 123, 155, 219, 283, 539, 795
+                ]
+                .to_vec(),
+            }
         );
+    }
+
+    #[test]
+    fn kmer_removal() {
+        let kmer = 0b00011011usize;
+        let k = 4;
+        let ms = mutations(k, kmer);
+        assert!(!ms.substitutions.contains(&kmer));
+        assert!(ms.deletions.contains(&kmer));
+        assert!(ms.insertions.contains(&kmer));
     }
 }

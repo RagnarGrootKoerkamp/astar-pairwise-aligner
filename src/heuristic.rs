@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::{
     increasing_function::IncreasingFunction2D,
-    seeds::{find_matches, SeedMatches},
+    seeds::{find_matches, Match, SeedMatches},
     util::*,
 };
 
@@ -11,6 +11,7 @@ pub struct HeuristicParams {
     pub heuristic: String,
     pub distance_function: Option<String>,
     pub l: Option<usize>,
+    pub match_distance: Option<usize>,
 }
 
 /// An object containing the settings for a heuristic.
@@ -20,6 +21,9 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     // Heuristic properties.
     fn name(&self) -> &'static str;
     fn l(&self) -> Option<usize> {
+        None
+    }
+    fn match_distance(&self) -> Option<usize> {
         None
     }
     fn distance(&self) -> Option<&'static str> {
@@ -33,6 +37,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
             heuristic: self.name().to_string(),
             distance_function: self.distance().map(|x| x.to_string()),
             l: self.l(),
+            match_distance: self.match_distance(),
         }
     }
 }
@@ -40,7 +45,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance {
     fn h(&self, pos: (Pos, Self::IncrementalState)) -> usize;
-    fn expand(&mut self, pos: Pos) {}
+    fn expand(&mut self, _pos: Pos) {}
 
     // TODO: Simplify this, and just use a map inside the heuristic.
     type IncrementalState: std::hash::Hash + Eq + Copy + Default = ();
@@ -59,7 +64,7 @@ pub trait HeuristicInstance {
     fn num_seeds(&self) -> Option<usize> {
         None
     }
-    fn matches(&self) -> Option<Vec<Pos>> {
+    fn matches(&self) -> Option<&Vec<Match>> {
         None
     }
     fn num_matches(&self) -> Option<usize> {
@@ -300,21 +305,24 @@ impl DistanceHeuristicInstance for BiCountHeuristicI {
 #[derive(Debug, Clone, Copy)]
 pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub l: usize,
-    pub distance: DH,
+    pub match_distance: usize,
+    pub distance_function: DH,
 }
 impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
     type Instance = SeedHeuristicI<DH>;
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
-        SeedHeuristicI::new(a, b, alphabet, self.l, self.distance)
+        SeedHeuristicI::new(a, b, alphabet, &self)
     }
     fn l(&self) -> Option<usize> {
         Some(self.l)
     }
-    fn distance(&self) -> Option<&'static str> {
-        Some(self.distance.name())
+    fn match_distance(&self) -> Option<usize> {
+        Some(self.match_distance)
     }
-
+    fn distance(&self) -> Option<&'static str> {
+        Some(self.distance_function.name())
+    }
     fn name(&self) -> &'static str {
         "Seed"
     }
@@ -322,68 +330,72 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
 pub struct SeedHeuristicI<DH: DistanceHeuristic> {
     seed_matches: SeedMatches,
     h_map: HashMap<Pos, usize>,
-    distance: DH::DistanceInstance,
+    distance_function: DH::DistanceInstance,
 }
 
 impl<DH: DistanceHeuristic> SeedHeuristicI<DH> {
-    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize, distance: DH) -> Self {
-        let seed_matches = find_matches(a, b, alphabet, l);
+    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, params: &SeedHeuristic<DH>) -> Self {
+        let seed_matches = find_matches(a, b, alphabet, params.l, params.match_distance);
         let skipped: &mut usize = &mut 0;
 
-        let distance = DistanceHeuristic::build(&distance, a, b, alphabet);
+        let distance_function = DistanceHeuristic::build(&params.distance_function, a, b, alphabet);
 
         let mut h_map = HashMap::new();
         h_map.insert(Pos(a.len(), b.len()), 0);
-        for pos @ Pos(i, j) in seed_matches.iter().rev() {
+        for Match {
+            start,
+            end,
+            match_distance,
+        } in seed_matches.iter().rev()
+        {
             let update_val = h_map
                 .iter()
-                .filter(|&(&Pos(x, y), &_)| x >= i + l && y >= j + l)
-                .map(|(&to, &val)| {
+                .filter(|&(parent, _)| parent >= end)
+                .map(|(&parent, &val)| {
                     val + max(
-                        distance.distance(pos, to),
-                        seed_matches.potential(pos) - seed_matches.potential(to) - 1,
+                        distance_function.distance(*start, parent),
+                        seed_matches.potential(*start) - seed_matches.potential(parent)
+                            + match_distance
+                            - (params.match_distance + 1),
                     )
                 })
                 .min()
                 .unwrap();
             let query_val = h_map
                 .iter()
-                .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-                .map(|(&to, &val)| {
-                    // TODO: Does the -1 go in or outside the max?
-                    // Or should we leave it out at all?
+                .filter(|&(parent, _)| parent >= start)
+                .map(|(&parent, &val)| {
                     val + max(
-                        distance.distance(pos, to),
-                        seed_matches.potential(pos) - seed_matches.potential(to),
+                        distance_function.distance(*start, parent),
+                        seed_matches.potential(*start) - seed_matches.potential(parent),
                     )
                 })
                 .min()
                 .unwrap();
 
+            // TODO: Report number of inserted and skipped matches
             if update_val < query_val {
-                h_map.insert(pos, update_val);
+                h_map.insert(*start, update_val);
             } else {
                 *skipped += 1;
             }
-            //println!("{:?} => {}", pos, val);
         }
-        //println!("Skipped matches: {}", skipped);
         SeedHeuristicI {
             seed_matches,
             h_map,
-            distance,
+            distance_function,
         }
     }
 }
 
 impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
-    fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
+    fn h(&self, (pos, _): (Pos, Self::IncrementalState)) -> usize {
         self.h_map
             .iter()
-            .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
+            .filter(|&(&parent, &_)| parent >= pos)
             .map(|(&to, &val)| {
                 val + max(
-                    self.distance.distance(pos, to),
+                    self.distance_function.distance(pos, to),
                     self.seed_matches.potential(pos) - self.seed_matches.potential(to),
                 )
             })
@@ -391,16 +403,17 @@ impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
             .unwrap() as usize
     }
     fn num_seeds(&self) -> Option<usize> {
-        Some(self.seed_matches.potential(Pos(0, 0)))
+        Some(self.seed_matches.num_seeds)
     }
-    fn matches(&self) -> Option<Vec<Pos>> {
-        Some(self.seed_matches.iter().collect())
+    fn matches(&self) -> Option<&Vec<Match>> {
+        Some(&self.seed_matches.matches)
     }
     fn num_matches(&self) -> Option<usize> {
-        Some(self.seed_matches.num_matches())
+        Some(self.seed_matches.matches.len())
     }
 }
 
+/*
 // # FAST SEED HEURISTIC
 // TODO: Make this work for the other distance functions.
 // TODO: Inherit this from SeedHeuristic
@@ -485,113 +498,9 @@ impl HeuristicInstance for FastSeedHeuristicI {
         Some(self.seed_matches.num_matches())
     }
 }
+*/
 
-// # TODO: EDITSEED HEURISTIC
-// TODO: Inherit this from SeedHeuristic
-#[derive(Debug, Clone, Copy)]
-pub struct EditSeedHeuristic<DH: DistanceHeuristic> {
-    pub l: usize,
-    pub distance: DH,
-}
-impl<DH: DistanceHeuristic> Heuristic for EditSeedHeuristic<DH> {
-    type Instance = EditSeedHeuristicI<DH>;
-
-    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
-        EditSeedHeuristicI::new(a, b, alphabet, self.l, self.distance)
-    }
-    fn l(&self) -> Option<usize> {
-        Some(self.l)
-    }
-    fn distance(&self) -> Option<&'static str> {
-        Some(self.distance.name())
-    }
-
-    fn name(&self) -> &'static str {
-        "EditSeed1"
-    }
-}
-pub struct EditSeedHeuristicI<DH: DistanceHeuristic> {
-    seed_matches: SeedMatches,
-    h_map: HashMap<Pos, usize>,
-    distance: DH::DistanceInstance,
-}
-
-impl<DH: DistanceHeuristic> EditSeedHeuristicI<DH> {
-    fn new(a: &Sequence, b: &Sequence, alphabet: &Alphabet, l: usize, distance: DH) -> Self {
-        let seed_matches = find_matches(a, b, alphabet, l);
-        let skipped: &mut usize = &mut 0;
-
-        let distance = DistanceHeuristic::build(&distance, a, b, alphabet);
-
-        let mut h_map = HashMap::new();
-        h_map.insert(Pos(a.len(), b.len()), 0);
-        for pos @ Pos(i, j) in seed_matches.iter().rev() {
-            let update_val = h_map
-                .iter()
-                .filter(|&(&Pos(x, y), &_)| x >= i + l && y >= j + l)
-                .map(|(&to, &val)| {
-                    val + max(
-                        distance.distance(pos, to),
-                        seed_matches.potential(pos) - seed_matches.potential(to) - 1,
-                    )
-                })
-                .min()
-                .unwrap();
-            let query_val = h_map
-                .iter()
-                .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-                .map(|(&to, &val)| {
-                    // TODO: Does the -1 go in or outside the max?
-                    // Or should we leave it out at all?
-                    val + max(
-                        distance.distance(pos, to),
-                        seed_matches.potential(pos) - seed_matches.potential(to),
-                    )
-                })
-                .min()
-                .unwrap();
-
-            if update_val < query_val {
-                h_map.insert(pos, update_val);
-            } else {
-                *skipped += 1;
-            }
-            //println!("{:?} => {}", pos, val);
-        }
-        //println!("Skipped matches: {}", skipped);
-        EditSeedHeuristicI {
-            seed_matches,
-            h_map,
-            distance,
-        }
-    }
-}
-
-impl<DH: DistanceHeuristic> HeuristicInstance for EditSeedHeuristicI<DH> {
-    fn h(&self, (pos @ Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
-        self.h_map
-            .iter()
-            .filter(|&(&Pos(x, y), &_)| x >= i && y >= j)
-            .map(|(&to, &val)| {
-                val + max(
-                    self.distance.distance(pos, to),
-                    self.seed_matches.potential(pos) - self.seed_matches.potential(to),
-                )
-            })
-            .min()
-            .unwrap() as usize
-    }
-    fn num_seeds(&self) -> Option<usize> {
-        Some(self.seed_matches.potential(Pos(0, 0)))
-    }
-    fn matches(&self) -> Option<Vec<Pos>> {
-        Some(self.seed_matches.iter().collect())
-    }
-    fn num_matches(&self) -> Option<usize> {
-        Some(self.seed_matches.num_matches())
-    }
-}
-
+/*
 // # PRUNING SEED HEURISTIC
 // TODO: Inherit this from SeedHeuristic
 #[derive(Debug, Clone, Copy)]
@@ -746,3 +655,4 @@ impl<DH: DistanceHeuristic> HeuristicInstance for PruningSeedHeuristicI<DH> {
         Some(self.seed_matches.num_matches())
     }
 }
+*/
