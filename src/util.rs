@@ -37,3 +37,42 @@ impl PartialOrd for Pos {
 pub fn abs_diff(i: usize, j: usize) -> usize {
     (i as isize - j as isize).abs() as usize
 }
+
+// TODO: Unit tests
+pub fn mutations(k: usize, kmer: usize) -> Vec<usize> {
+    // This assumes the alphabet size is 4.
+    let mut ms = Vec::new();
+    // Substitutions
+    for i in 0..k {
+        let mask = !(3 << (2 * i));
+        for s in 0..4 {
+            ms.push((kmer & mask) | s << (2 * i));
+        }
+    }
+    // Insertions
+    for i in 0..=k {
+        let mask = (1 << (2 * i)) - 1;
+        for s in 0..4 {
+            ms.push((kmer & mask) | (s << (2 * i)) | ((kmer & !mask) << 2));
+        }
+    }
+    // Deletions
+    for i in 0..k {
+        let mask = (1 << (2 * i)) - 1;
+        ms.push((kmer & mask) | ((kmer & (!mask << 2)) >> 2));
+    }
+    ms.sort();
+    ms.dedup();
+    // Remove original
+    ms.remove(kmer);
+    ms
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_mutations() {
+        let kmer = 0b00011011usize;
+        let k = 4;
+    }
+}
