@@ -8,7 +8,7 @@ use crate::{
 
 #[derive(Serialize)]
 pub struct HeuristicParams {
-    pub name: String,
+    pub heuristic: String,
     pub distance_function: Option<String>,
     pub l: Option<usize>,
 }
@@ -30,7 +30,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
-            name: self.name().to_string(),
+            heuristic: self.name().to_string(),
             distance_function: self.distance().map(|x| x.to_string()),
             l: self.l(),
         }
