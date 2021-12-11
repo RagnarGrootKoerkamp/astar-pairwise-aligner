@@ -169,14 +169,14 @@ impl AlignResult {
             wtr.serialize((pos.0, pos.1, "Explored", i)).unwrap();
         }
         for pos in &self.astar.expanded_states {
-            wtr.serialize((pos.0, pos.1, "Expanded", "")).unwrap();
+            wtr.serialize((pos.0, pos.1, "Expanded", -1)).unwrap();
         }
         for pos in &self.path {
-            wtr.serialize((pos.0, pos.1, "Path", "")).unwrap();
+            wtr.serialize((pos.0, pos.1, "Path", -1)).unwrap();
         }
         if let Some(matches) = &self.heuristic_stats.matches {
             for pos in matches {
-                wtr.serialize((pos.0, pos.1, "Match", "")).unwrap();
+                wtr.serialize((pos.0, pos.1, "Match", -1)).unwrap();
             }
         }
         wtr.flush().unwrap();
@@ -471,6 +471,7 @@ mod tests {
                 //         },
                 //     )
                 //     .print();
+                println!("");
             }
         }
     }
@@ -799,14 +800,9 @@ mod tests {
 // - contribution to h from matches and distance heuristic
 // - heuristic time
 //
-// TODO:
-// - print matches
-// - seeds with edit distance
-// - choose seeds cleverly
-// - Remove matches from the LIS datastructure as soon as a shortest path is found.
+// Code:
 // - fuzzing/testing that fast impls equal slow impls
 //
-// TODO:
-// - removing visited matches
+// Heuristics:
 // - inexact matches
 // - choosing seeds bases on guessed alignment

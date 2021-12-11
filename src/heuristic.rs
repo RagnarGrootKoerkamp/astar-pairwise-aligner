@@ -478,6 +478,9 @@ impl HeuristicInstance for FastSeedHeuristicI {
     fn num_seeds(&self) -> Option<usize> {
         Some(self.seed_matches.potential(Pos(0, 0)))
     }
+    fn matches(&self) -> Option<Vec<Pos>> {
+        Some(self.seed_matches.iter().collect())
+    }
     fn num_matches(&self) -> Option<usize> {
         Some(self.seed_matches.num_matches())
     }
