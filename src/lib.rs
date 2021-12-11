@@ -168,8 +168,8 @@ impl AlignResult {
         for (i, pos) in self.astar.explored_states.iter().enumerate() {
             wtr.serialize((pos.0, pos.1, "Explored", i)).unwrap();
         }
-        for pos in &self.astar.expanded_states {
-            wtr.serialize((pos.0, pos.1, "Expanded", -1)).unwrap();
+        for (i, pos) in self.astar.expanded_states.iter().enumerate() {
+            wtr.serialize((pos.0, pos.1, "Expanded", i)).unwrap();
         }
         for pos in &self.path {
             wtr.serialize((pos.0, pos.1, "Path", -1)).unwrap();
@@ -802,6 +802,7 @@ mod tests {
 //
 // Code:
 // - fuzzing/testing that fast impls equal slow impls
+// - pruning: skip explored states that have outdated heuristic value
 //
 // Heuristics:
 // - inexact matches
