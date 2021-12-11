@@ -64,15 +64,31 @@ pub fn mutations(k: usize, kmer: usize) -> Vec<usize> {
     ms.sort();
     ms.dedup();
     // Remove original
-    ms.remove(kmer);
+    ms.retain(|&x| x != kmer);
     ms
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     #[test]
     fn test_mutations() {
         let kmer = 0b00011011usize;
         let k = 4;
+        let ms = mutations(k, kmer);
+        // sub
+        assert!(ms.contains(&0b11011011));
+        // ins
+        assert!(ms.contains(&0b0011011011));
+        // del
+        assert!(ms.contains(&0b000111));
+        assert!(!ms.contains(&kmer));
+        assert_eq!(
+            ms,
+            [
+                6, 7, 11, 19, 23, 24, 25, 26, 31, 43, 59, 75, 91, 99, 103, 107, 108, 109, 110, 111,
+                123, 155, 219, 283, 539, 795
+            ]
+        );
     }
 }
