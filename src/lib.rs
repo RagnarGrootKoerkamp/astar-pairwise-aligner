@@ -89,12 +89,12 @@ pub struct AlignResult {
 impl AlignResult {
     pub fn print_header() {
         println!(
-            "{:>6} {:>6} {:>5} {:>10} {:15} {:>3} {:>9} {:15} {:>7} {:>7} {:>9} {:>9} {:>10} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5} {:>6} {:>10} {:>10} {:>7}",
+            "{:>6} {:>6} {:>5} {:>10} {:15} {:>3} {:>9} {:>7} {:15} {:>7} {:>7} {:>9} {:>9} {:>10} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5} {:>6} {:>10} {:>10} {:>7}",
             "len a",
             "len b",
             "rate",
             "model",
-            "h name", "l", "matchdist", "dist",
+            "h name", "l", "matchdist", "pruning", "dist",
             "seeds", "matches",
             "expanded",
             "explored",
@@ -133,7 +133,7 @@ impl AlignResult {
         let percent_h =
             100. * self.timing.precomputation / (self.timing.precomputation + self.timing.astar);
         println!(
-            "{:>6} {:>6} {:>5.3} {:>10} {:15} {:>3} {:>9} {:15} {:>7} {:>7} {:>9} {:>9} {:>10.2} {:>9.5} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5} {:>6} {:>10} {:>10} {:>7.1}",
+            "{:>6} {:>6} {:>5.3} {:>10} {:15} {:>3} {:>9} {:>7} {:15} {:>7} {:>7} {:>9} {:>9} {:>10.2} {:>9.5} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5} {:>6} {:>10} {:>10} {:>7.1}",
             self.input.len_a,
             self.input.len_b,
             self.input.error_rate,
@@ -141,12 +141,13 @@ impl AlignResult {
             self.heuristic_params.heuristic,
             self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.match_distance.map_or("".into(), |x| x.to_string()),
+            self.heuristic_params.pruning.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
             self.heuristic_stats.seeds.map(|x| x.to_string()).unwrap_or_default(),
             self.heuristic_stats.num_matches.map(|x| x.to_string()).unwrap_or_default(),
             self.astar.expanded,
             self.astar.explored,
-            self.astar.explored as f32 / max(self.input.len_a, self.input.len_b) as f32,
+            self.astar.expanded as f32 / max(self.input.len_a, self.input.len_b) as f32,
             self.astar.explored as f32 / (self.input.len_a * self.input.len_b) as f32,
             self.astar.edges,
             self.timing.precomputation,
@@ -355,6 +356,7 @@ mod tests {
             l,
             match_distance: 0,
             distance_function: GapHeuristic,
+            pruning: false,
         }
         .build(&pattern, &text, alphabet);
 
@@ -399,6 +401,7 @@ mod tests {
                 l,
                 match_distance: 0,
                 distance_function: ZeroHeuristic,
+                pruning: false,
             },
         )
         .print();
@@ -406,8 +409,8 @@ mod tests {
 
     #[test]
     fn test_heuristics() {
-        let ns = [2_000];
-        let es = [0.05, 0.10, 0.20, 0.30, 0.40];
+        let ns = [2_000, 4_000];
+        let es = [0.05, 0.10, 0.20, 0.30];
         let lm = [
             (4, 0),
             (5, 0),
@@ -435,67 +438,30 @@ mod tests {
             //align(&pattern, &text, &alphabet, stats, ZeroHeuristic).print();
             //align(&pattern, &text, &alphabet, stats, GapHeuristic).print();
             //align(&pattern, &text, &alphabet, stats, CountHeuristic).print();
-            for (l, match_distance) in lm {
-                //align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
-                //     align(
-                //         &pattern,
-                //         &text,
-                //         &alphabet,
-                //         stats,
-                //         SeedHeuristic {
-                //             l,
-                //             distance_function: ZeroHeuristic,
-                //         },
-                //     )
-                //     .print();
-                // align(
-                //     &pattern,
-                //     &text,
-                //     &alphabet,
-                //     stats,
-                //     SeedHeuristic {
-                //         l,
-                //         distance_function: GapHeuristic,
-                //     },
-                // )
-                // .print();
-                align(
-                    &pattern,
-                    &text,
-                    &alphabet,
-                    stats,
-                    SeedHeuristic {
-                        l,
-                        match_distance,
-                        distance_function: CountHeuristic,
-                    },
-                )
-                .print();
-                // align(
-                //     &pattern,
-                //     &text,
-                //     &alphabet,
-                //     stats,
-                //     PruningSeedHeuristic {
-                //         l,
-                //         distance_function: CountHeuristic,
-                //     },
-                // )
-                // .print();
-                //     align(
-                //         &pattern,
-                //         &text,
-                //         &alphabet,
-                //         stats,
-                //         SeedHeuristic {
-                //             l,
-                //             distance_function: BiCountHeuristic,
-                //         },
-                //     )
-                //     .print();
+            for pruning in [false, true] {
+                for (l, match_distance) in lm {
+                    //align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
+                    align(
+                        &pattern,
+                        &text,
+                        &alphabet,
+                        stats,
+                        SeedHeuristic {
+                            l,
+                            match_distance,
+                            //      distance_function: ZeroHeuristic,
+                            //      distance_function: GapHeuristic,
+                            distance_function: CountHeuristic,
+                            //      distance_function: BiCountHeuristic,
+                            pruning,
+                        },
+                    )
+                    .print();
+                }
             }
             println!("");
         }
+        AlignResult::print_header();
     }
 
     #[test]
@@ -506,9 +472,18 @@ mod tests {
             .from_path("evals/stats/table.csv")
             .unwrap();
 
-        let ns = [2_000];
-        let es = [0.05, 0.10];
-        let ls = 4..=7;
+        let ns = [2_000, 4_000];
+        let es = [0.05, 0.10, 0.20, 0.30];
+        let lm = [
+            (4, 0),
+            (5, 0),
+            (6, 0),
+            (7, 0),
+            (6, 1),
+            (7, 1),
+            (8, 1),
+            (9, 1),
+        ];
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
 
@@ -522,66 +497,22 @@ mod tests {
                 source: Source::Uniform,
             };
 
-            for l in ls.clone() {
-                // align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).write(&mut wtr);
-                //     align(
-                //         &pattern,
-                //         &text,
-                //         &alphabet,
-                //         stats,
-                //         SeedHeuristic {
-                //             l,
-                //             distance_function: ZeroHeuristic,
-                //         },
-                //     )
-                //     .print();
-                align(
-                    &pattern,
-                    &text,
-                    &alphabet,
-                    stats,
-                    SeedHeuristic {
-                        l,
-                        match_distance: 0,
-                        distance_function: GapHeuristic,
-                    },
-                )
-                .write(&mut wtr);
-                align(
-                    &pattern,
-                    &text,
-                    &alphabet,
-                    stats,
-                    SeedHeuristic {
-                        l,
-                        match_distance: 0,
-                        distance_function: CountHeuristic,
-                    },
-                )
-                .write(&mut wtr);
-                // align(
-                //     &pattern,
-                //     &text,
-                //     &alphabet,
-                //     stats,
-                //     PruningSeedHeuristic {
-                //         l,
-                //         match_distance: 0,
-                //         distance_function: CountHeuristic,
-                //     },
-                // )
-                // .write(&mut wtr);
-                //     align(
-                //         &pattern,
-                //         &text,
-                //         &alphabet,
-                //         stats,
-                //         SeedHeuristic {
-                //             l,
-                //             distance_function: BiCountHeuristic,
-                //         },
-                //     )
-                //     .print();
+            for pruning in [false, true] {
+                for (l, match_distance) in lm {
+                    align(
+                        &pattern,
+                        &text,
+                        &alphabet,
+                        stats,
+                        SeedHeuristic {
+                            l,
+                            match_distance,
+                            distance_function: CountHeuristic,
+                            pruning,
+                        },
+                    )
+                    .write(&mut wtr);
+                }
             }
         }
     }
@@ -590,7 +521,7 @@ mod tests {
     #[ignore]
     fn print_states() {
         let n = 2000;
-        let e = 200;
+        let e = 400;
         let l = 6;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
@@ -601,66 +532,61 @@ mod tests {
             len_a: pattern.len(),
             len_b: text.len(),
             error_rate: e as f32 / n as f32,
-            source: Source::Manual,
+            source: Source::Uniform,
         };
 
-        // align(&pattern, &text, &alphabet, stats, ZeroHeuristic)
-        //     .write_explored_states("evals/stats/zero.csv");
-        // align(&pattern, &text, &alphabet, stats, GapHeuristic)
-        //     .write_explored_states("evals/stats/gap.csv");
-        // align(&pattern, &text, &alphabet, stats, CountHeuristic)
-        //     .write_explored_states("evals/stats/count.csv");
-        // align(
-        //     &pattern,
-        //     &text,
-        //     &alphabet,
-        //     stats,
-        //     SeedHeuristic {
-        //         l,
-        //         distance: ZeroHeuristic,
-        //     },
-        // )
-        // .write_explored_states("evals/stats/seed.csv");
-        //align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l })
-        //.write_explored_states("evals/stats/seed_fast.csv");
         align(
             &pattern,
             &text,
             &alphabet,
             stats,
             SeedHeuristic {
-                l,
-                match_distance: 0,
-                distance_function: GapHeuristic,
-            },
-        )
-        .write_explored_states("evals/stats/seedgap.csv");
-        align(
-            &pattern,
-            &text,
-            &alphabet,
-            stats,
-            SeedHeuristic {
-                l,
+                l: 4,
                 match_distance: 0,
                 distance_function: CountHeuristic,
+                pruning: false,
             },
         )
-        .write_explored_states("evals/stats/seedcnt.csv");
-        /*
+        .write_explored_states("evals/stats/exact.csv");
         align(
             &pattern,
             &text,
             &alphabet,
             stats,
-            PruningSeedHeuristic {
-                l,
-                match_distance: 0,
-                distance: CountHeuristic,
+            SeedHeuristic {
+                l: 6,
+                match_distance: 1,
+                distance_function: CountHeuristic,
+                pruning: false,
             },
         )
-        .write_explored_states("evals/stats/pruningseedcnt.csv");
-        */
+        .write_explored_states("evals/stats/inexact.csv");
+        align(
+            &pattern,
+            &text,
+            &alphabet,
+            stats,
+            SeedHeuristic {
+                l: 4,
+                match_distance: 0,
+                distance_function: CountHeuristic,
+                pruning: true,
+            },
+        )
+        .write_explored_states("evals/stats/exact_pruning.csv");
+        align(
+            &pattern,
+            &text,
+            &alphabet,
+            stats,
+            SeedHeuristic {
+                l: 6,
+                match_distance: 1,
+                distance_function: CountHeuristic,
+                pruning: true,
+            },
+        )
+        .write_explored_states("evals/stats/inexact_pruning.csv");
     }
 
     fn setup() -> (
@@ -748,6 +674,7 @@ mod tests {
                         l,
                         match_distance: 0,
                         distance_function: ZeroHeuristic,
+                        pruning: false,
                     },
                 )
             });
@@ -775,6 +702,7 @@ mod tests {
                         l,
                         match_distance: 0,
                         distance_function: GapHeuristic,
+                        pruning: false,
                     },
                 )
             });
@@ -802,6 +730,7 @@ mod tests {
                         l,
                         match_distance: 0,
                         distance_function: CountHeuristic,
+                        pruning: false,
                     },
                 )
             });
@@ -840,3 +769,4 @@ mod tests {
 //
 // Heuristics:
 // - choosing seeds bases on guessed alignment
+// - BiCount is not admissible
