@@ -1,7 +1,4 @@
-use std::{
-    cell::{Ref, RefCell},
-    iter::once,
-};
+use std::{cell::RefCell, iter::once};
 
 use crate::{heuristic::HeuristicInstance, util::*};
 use arrayvec::ArrayVec;

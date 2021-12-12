@@ -119,9 +119,9 @@ impl IncreasingFunction2D<usize> {
         //println!("BUILD");
         s.build(std::iter::once(Pos(0, 0)).chain(ps), l);
         //println!("BUILD DONE");
-        for (i, node) in s.nodes.iter().enumerate() {
-            //println!("{:>5}: {:?}", i, node);
-        }
+        //for (i, node) in s.nodes.iter().enumerate() {
+        //println!("{:>5}: {:?}", i, node);
+        //}
         s
     }
 

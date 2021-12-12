@@ -1,7 +1,6 @@
 use serde::Serialize;
 
 use crate::{
-    increasing_function::IncreasingFunction2D,
     seeds::{find_matches, Match, SeedMatches},
     util::*,
 };
@@ -107,7 +106,7 @@ impl Heuristic for ZeroHeuristic {
 impl DistanceHeuristic for ZeroHeuristic {
     type DistanceInstance = ZeroHeuristicI;
 
-    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance {
+    fn build(&self, _a: &Sequence, _b: &Sequence, _alphabet: &Alphabet) -> Self::DistanceInstance {
         ZeroHeuristicI
     }
 }
@@ -490,6 +489,7 @@ impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
                 h_map.insert(*start, update_val);
             }
         }
+        self.h_map = h_map;
     }
 }
 
