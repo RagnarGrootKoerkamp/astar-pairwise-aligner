@@ -371,13 +371,20 @@ mod tests {
     }
 
     #[test]
-    fn bugfix() {
+    fn bicount_admissible() {
         let alphabet = &Alphabet::new(b"ACTG");
 
-        AlignResult::print_header();
-        let l = 3;
-        let pattern = "ACTTGG".as_bytes().to_vec();
-        let text = "ACTGG".as_bytes().to_vec();
+        let n = 25;
+        let e = 0.2;
+        let l = 4;
+        let pattern = "AGACGTCC".as_bytes().to_vec();
+        let ___text = "AGACGTCCA".as_bytes().to_vec();
+        let text = ___text;
+
+        //let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
+        //let pattern = random_sequence(n, alphabet, &mut rng);
+        //let text = random_mutate(&pattern, alphabet, (e * n as f32) as usize, &mut rng);
+
         let stats = SequenceStats {
             len_a: pattern.len(),
             len_b: text.len(),
@@ -391,20 +398,19 @@ mod tests {
             String::from_utf8(text.clone()).unwrap()
         );
 
-        //align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
-        align(
+        let r = align(
             &pattern,
             &text,
             &alphabet,
             stats,
             SeedHeuristic {
                 l,
-                match_distance: 0,
-                distance_function: ZeroHeuristic,
+                match_distance: 1,
+                distance_function: BiCountHeuristic,
                 pruning: false,
             },
-        )
-        .print();
+        );
+        assert!(r.heuristic_stats.root_h <= r.answer_cost);
     }
 
     #[test]
@@ -435,12 +441,8 @@ mod tests {
                 source: Source::Uniform,
             };
 
-            //align(&pattern, &text, &alphabet, stats, ZeroHeuristic).print();
-            //align(&pattern, &text, &alphabet, stats, GapHeuristic).print();
-            //align(&pattern, &text, &alphabet, stats, CountHeuristic).print();
             for pruning in [false, true] {
                 for (l, match_distance) in lm {
-                    //align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }).print();
                     align(
                         &pattern,
                         &text,
@@ -449,10 +451,25 @@ mod tests {
                         SeedHeuristic {
                             l,
                             match_distance,
-                            //      distance_function: ZeroHeuristic,
-                            //      distance_function: GapHeuristic,
                             distance_function: CountHeuristic,
-                            //      distance_function: BiCountHeuristic,
+                            pruning,
+                        },
+                    )
+                    .print();
+                }
+            }
+            println!("");
+            for pruning in [false, true] {
+                for (l, match_distance) in lm {
+                    align(
+                        &pattern,
+                        &text,
+                        &alphabet,
+                        stats,
+                        SeedHeuristic {
+                            l,
+                            match_distance,
+                            distance_function: BiCountHeuristic,
                             pruning,
                         },
                     )
@@ -750,7 +767,6 @@ mod tests {
                 error_rate: e as f32 / n as f32,
                 source: Source::Uniform,
             };
-            //b.iter(|| align(&pattern, &text, &alphabet, stats, FastSeedHeuristic { l }));
         }
     }
 }
@@ -765,8 +781,5 @@ mod tests {
 //
 // Code:
 // - fuzzing/testing that fast impls equal slow impls
-// - pruning: skip explored states that have outdated heuristic value
-//
-// Heuristics:
+// - efficient pruning: skip explored states that have outdated heuristic value
 // - choosing seeds bases on guessed alignment
-// - BiCount is not admissible
