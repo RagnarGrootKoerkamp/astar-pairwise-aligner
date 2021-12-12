@@ -167,24 +167,26 @@ impl AlignResult {
         let mut wtr = csv::Writer::from_path(filename).unwrap();
         // type: Explored, Expanded, Path, Match
         // Match does not have step set
-        wtr.write_record(&["i", "j", "type", "step"]).unwrap();
+        wtr.write_record(&["i", "j", "type", "step", "match_distance"])
+            .unwrap();
         for (i, pos) in self.astar.explored_states.iter().enumerate() {
-            wtr.serialize((pos.0, pos.1, "Explored", i)).unwrap();
+            wtr.serialize((pos.0, pos.1, "Explored", i, -1)).unwrap();
         }
         for (i, pos) in self.astar.expanded_states.iter().enumerate() {
-            wtr.serialize((pos.0, pos.1, "Expanded", i)).unwrap();
+            wtr.serialize((pos.0, pos.1, "Expanded", i, -1)).unwrap();
         }
         for pos in &self.path {
-            wtr.serialize((pos.0, pos.1, "Path", -1)).unwrap();
+            wtr.serialize((pos.0, pos.1, "Path", -1, -1)).unwrap();
         }
         if let Some(matches) = &self.heuristic_stats.matches {
             for Match {
                 start,
                 end: _,
-                match_distance: _,
+                match_distance,
             } in matches
             {
-                wtr.serialize((start.0, start.1, "Match", -1)).unwrap();
+                wtr.serialize((start.0, start.1, "Match", -1, match_distance))
+                    .unwrap();
             }
         }
         wtr.flush().unwrap();
@@ -374,8 +376,8 @@ mod tests {
     fn bicount_admissible() {
         let alphabet = &Alphabet::new(b"ACTG");
 
-        let n = 25;
-        let e = 0.2;
+        let _n = 25;
+        let _e = 0.2;
         let l = 4;
         let pattern = "AGACGTCC".as_bytes().to_vec();
         let ___text = "AGACGTCCA".as_bytes().to_vec();
@@ -415,18 +417,9 @@ mod tests {
 
     #[test]
     fn test_heuristics() {
-        let ns = [2_000, 4_000];
+        let ns = [2_000];
         let es = [0.05, 0.10, 0.20, 0.30];
-        let lm = [
-            (4, 0),
-            (5, 0),
-            (6, 0),
-            (7, 0),
-            (6, 1),
-            (7, 1),
-            (8, 1),
-            (9, 1),
-        ];
+        let lm = [(4, 0), (6, 1), (7, 1)];
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
 
@@ -441,7 +434,7 @@ mod tests {
                 source: Source::Uniform,
             };
 
-            for pruning in [false, true] {
+            for pruning in [true] {
                 for (l, match_distance) in lm {
                     align(
                         &pattern,
@@ -452,24 +445,6 @@ mod tests {
                             l,
                             match_distance,
                             distance_function: CountHeuristic,
-                            pruning,
-                        },
-                    )
-                    .print();
-                }
-            }
-            println!("");
-            for pruning in [false, true] {
-                for (l, match_distance) in lm {
-                    align(
-                        &pattern,
-                        &text,
-                        &alphabet,
-                        stats,
-                        SeedHeuristic {
-                            l,
-                            match_distance,
-                            distance_function: BiCountHeuristic,
                             pruning,
                         },
                     )
@@ -539,7 +514,7 @@ mod tests {
     fn print_states() {
         let n = 2000;
         let e = 400;
-        let l = 6;
+        let _l = 6;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
         let pattern = random_sequence(n, alphabet, &mut rng);
