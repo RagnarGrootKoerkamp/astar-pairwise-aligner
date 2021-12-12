@@ -234,11 +234,16 @@ impl DistanceHeuristicInstance for CountHeuristicI {
 }
 
 // # BICOUNT HEURISTIC
-// TODO: Make the 4 here variable.
+// Index i gives the bi-mer counts on a[0..i) (The half open interval.)
+// NOTE: This is probably broken currently, since the triangle inequality
+//   dist(A,C) <= dist(A, B) + dist(B, C)
+// does not always hold, while that is assumed by the current implementation of SeedHeuristic.
+// Maybe this can be fixed by returning floating point distances.
+// TODO: Make the 4^2 here variable.
 type BiCounts = Vec<[usize; 16]>;
 fn char_bicounts(a: &Sequence, alphabet: &Alphabet) -> BiCounts {
     let transform = RankTransform::new(alphabet);
-    let mut counts = vec![[0; 16]];
+    let mut counts = vec![[0; 16]; 2];
     for idx in transform.qgrams(2, a) {
         counts.push(*counts.last().unwrap());
         counts.last_mut().unwrap()[idx] += 1;
@@ -257,6 +262,7 @@ impl Heuristic for BiCountHeuristic {
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance {
         BiCountHeuristicI {
+            cnt: DistanceHeuristic::build(&CountHeuristic, a, b, alphabet),
             a_cnts: char_bicounts(a, alphabet),
             b_cnts: char_bicounts(b, alphabet),
             target: Pos(a.len(), b.len()),
@@ -271,6 +277,7 @@ impl DistanceHeuristic for BiCountHeuristic {
     }
 }
 pub struct BiCountHeuristicI {
+    cnt: CountHeuristicI,
     a_cnts: BiCounts,
     b_cnts: BiCounts,
     target: Pos,
@@ -287,12 +294,13 @@ impl DistanceHeuristicInstance for BiCountHeuristicI {
         let mut pos = 0;
         let mut neg = 0;
 
-        // TODO: Find
+        // TODO: It should be possible to do some clever things here and use the
+        // actual types of bimers to get a better lower bound.
         for (afrom, ato, bfrom, bto) in itertools::izip!(
-            &self.a_cnts[from.0],
-            &self.a_cnts[max(to.0 as isize - 1, from.0 as isize) as usize],
-            &self.b_cnts[from.1],
-            &self.b_cnts[max(to.1 as isize - 1, from.1 as isize) as usize],
+            &self.a_cnts[min(from.0 + 1, to.0)],
+            &self.a_cnts[to.0],
+            &self.b_cnts[min(from.1 + 1, to.1)],
+            &self.b_cnts[to.1],
         ) {
             let delta = (ato - afrom) as isize - (bto - bfrom) as isize;
             if delta > 0 {
@@ -302,7 +310,11 @@ impl DistanceHeuristicInstance for BiCountHeuristicI {
             }
         }
 
-        ((max(pos, neg) + 1) / 2) as usize
+        max(
+            self.cnt.distance(from, to),
+            // TODO: Why does rounding up give an error here?
+            ((max(pos, neg) + 1) / 2) as usize,
+        )
     }
 }
 
@@ -377,7 +389,7 @@ impl<DH: DistanceHeuristic> SeedHeuristicI<DH> {
             let query_val = h_map
                 .iter()
                 .filter(|&(parent, _)| parent >= start)
-                .map(|(&parent, &val)| {
+                .map(|(&parent, &val)| -> usize {
                     val + max(
                         distance_function.distance(*start, parent),
                         seed_matches.potential(*start) - seed_matches.potential(parent),
@@ -409,10 +421,10 @@ impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
         self.h_map
             .iter()
             .filter(|&(&parent, &_)| parent >= pos)
-            .map(|(&to, &val)| {
+            .map(|(&parent, &val)| {
                 val + max(
-                    self.distance_function.distance(pos, to),
-                    self.seed_matches.potential(pos) - self.seed_matches.potential(to),
+                    self.distance_function.distance(pos, parent),
+                    self.seed_matches.potential(pos) - self.seed_matches.potential(parent),
                 )
             })
             .min()
@@ -537,9 +549,7 @@ impl FastSeedHeuristicI {
 }
 impl HeuristicInstance for FastSeedHeuristicI {
     fn h(&self, (pos, parent): (Pos, Self::IncrementalState)) -> usize {
-        let v = self.seed_matches.potential(pos) - self.f.val(parent);
-        //println!("{:?} -> {}", pos, v);
-        v
+        self.seed_matches.potential(pos) - self.f.val(parent)
     }
 
     type IncrementalState = crate::increasing_function::NodeIndex;

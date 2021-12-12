@@ -45,6 +45,8 @@ pub struct Mutations {
     pub insertions: Vec<usize>,
 }
 
+// TODO: Do not generate insertions at the end. (Also do not generate similar
+// sequences by inserting elsewhere.)
 pub fn mutations(k: usize, kmer: usize) -> Mutations {
     // This assumes the alphabet size is 4.
     let mut deletions = Vec::new();
