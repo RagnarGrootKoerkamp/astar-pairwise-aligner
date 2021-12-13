@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use crate::{
+    alignment_graph::Node,
     seeds::{find_matches, Match, SeedMatches},
     util::*,
 };
@@ -48,14 +49,14 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance {
-    fn h(&self, pos: (Pos, Self::IncrementalState)) -> usize;
+    fn h(&self, pos: Node<Self::IncrementalState>) -> usize;
     fn expand(&mut self, _pos: Pos) {}
 
     // TODO: Simplify this, and just use a map inside the heuristic.
     type IncrementalState: std::hash::Hash + Eq + Copy + Default = ();
     fn incremental_h(
         &self,
-        _parent: (Pos, Self::IncrementalState),
+        _parent: Node<Self::IncrementalState>,
         _pos: Pos,
     ) -> Self::IncrementalState {
         Default::default()
@@ -113,7 +114,7 @@ impl DistanceHeuristic for ZeroHeuristic {
 
 pub struct ZeroHeuristicI;
 impl HeuristicInstance for ZeroHeuristicI {
-    fn h(&self, _: (Pos, Self::IncrementalState)) -> usize {
+    fn h(&self, _: Node<Self::IncrementalState>) -> usize {
         0
     }
 }
@@ -150,7 +151,7 @@ pub struct GapHeuristicI {
 }
 
 impl HeuristicInstance for GapHeuristicI {
-    fn h(&self, (Pos(i, j), _): (Pos, Self::IncrementalState)) -> usize {
+    fn h(&self, Node(Pos(i, j), _): Node<Self::IncrementalState>) -> usize {
         abs_diff(self.target.0 - i, self.target.1 - j)
     }
 }
@@ -203,7 +204,7 @@ pub struct CountHeuristicI {
 }
 
 impl HeuristicInstance for CountHeuristicI {
-    fn h(&self, (pos, _): (Pos, Self::IncrementalState)) -> usize {
+    fn h(&self, Node(pos, _): Node<Self::IncrementalState>) -> usize {
         self.distance(pos, self.target)
     }
 }
@@ -283,7 +284,7 @@ pub struct BiCountHeuristicI {
 }
 
 impl HeuristicInstance for BiCountHeuristicI {
-    fn h(&self, (pos, _): (Pos, Self::IncrementalState)) -> usize {
+    fn h(&self, Node(pos, _): Node<Self::IncrementalState>) -> usize {
         self.distance(pos, self.target)
     }
 }
@@ -416,7 +417,7 @@ impl<DH: DistanceHeuristic> SeedHeuristicI<DH> {
 }
 
 impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
-    fn h(&self, (pos, _): (Pos, Self::IncrementalState)) -> usize {
+    fn h(&self, Node(pos, _): Node<Self::IncrementalState>) -> usize {
         self.h_map
             .iter()
             .filter(|&(&parent, &_)| parent >= pos)
@@ -548,7 +549,7 @@ impl FastSeedHeuristicI {
     }
 }
 impl HeuristicInstance for FastSeedHeuristicI {
-    fn h(&self, (pos, parent): (Pos, Self::IncrementalState)) -> usize {
+    fn h(&self, Node(pos, parent): Node<Self::IncrementalState>) -> usize {
         self.seed_matches.potential(pos) - self.f.val(parent)
     }
 

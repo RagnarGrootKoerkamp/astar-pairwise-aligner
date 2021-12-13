@@ -75,7 +75,7 @@ pub fn astar<G, F, H, K, IsGoal, ExpandFn, ExploreFn>(
 where
     G: IntoEdges + Visitable,
     IsGoal: FnMut(G::NodeId) -> bool,
-    G::NodeId: Eq + Hash,
+    G::NodeId: Eq + Hash + Ord,
     F: FnMut(G::EdgeRef) -> K,
     H: FnMut(G::NodeId) -> K,
     K: Measure + Copy,

@@ -18,6 +18,7 @@ extern crate test;
 
 use std::{cell::RefCell, collections::HashSet, fmt, path::Path, time};
 
+use alignment_graph::Node;
 use bio_types::sequence::Sequence;
 use csv::Writer;
 use heuristic::*;
@@ -229,7 +230,7 @@ pub fn align<H: Heuristic>(
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
     let h = RefCell::new(heuristic.build(a, b, alphabet));
-    let root_state = (Pos(0, 0), h.borrow().root_state());
+    let root_state = Node(Pos(0, 0), h.borrow().root_state());
     let root_val = h.borrow().h(root_state);
     //let _ = h.borrow_mut();
     let heuristic_initialization = start_time.elapsed();
@@ -242,9 +243,9 @@ pub fn align<H: Heuristic>(
         &graph,
         root_state,
         // is end?
-        |(Pos(i, j), _)| i == a.len() && j == b.len(),
+        |Node(Pos(i, j), _)| i == a.len() && j == b.len(),
         // edge cost
-        |implicit_graph::Edge((Pos(i, j), _), (Pos(x, y), _))| {
+        |implicit_graph::Edge(Node(Pos(i, j), _), Node(Pos(x, y), _))| {
             edges += 1;
             // Compute the edge weight.
             // TODO: Use different weights for indels and substitutions.
@@ -261,14 +262,14 @@ pub fn align<H: Heuristic>(
             v
         },
         // Expand
-        |(pos, _)| {
+        |Node(pos, _)| {
             //make_dot(pos, '*', is_end_calls);
             expanded += 1;
             expanded_states.push(pos);
             h.borrow_mut().expand(pos);
         },
         // Explore
-        |(pos, _)| {
+        |Node(pos, _)| {
             explored += 1;
             explored_states.push(pos);
         },
@@ -286,7 +287,7 @@ pub fn align<H: Heuristic>(
         sum as f32 / cnt as f32
     };
 
-    let path = path.into_iter().map(|(pos, _)| pos).collect();
+    let path = path.into_iter().map(|Node(pos, _)| pos).collect();
     let h = h.into_inner();
 
     let path_matches = h.matches().map(|x| num_matches_on_path(&path, x));
@@ -373,7 +374,7 @@ mod tests {
             println!(
                 "{:?}",
                 (0..=text.len())
-                    .map(|i| h.h((Pos(i, j), Default::default())))
+                    .map(|i| h.h(Node(Pos(i, j), Default::default())))
                     .collect::<Vec<_>>()
             );
         }
@@ -441,7 +442,7 @@ mod tests {
                 source: Source::Uniform,
             };
 
-            for pruning in [true] {
+            for pruning in [false, true] {
                 for (l, match_distance) in lm {
                     align(
                         &pattern,
@@ -602,3 +603,12 @@ mod tests {
 // - efficient pruning: skip explored states that have outdated heuristic value
 // - choosing seeds bases on guessed alignment
 // - Expanded count counts identical nodes once for each pop
+// - Why is pruning worse for 0.05 edit distance?
+
+// NOTE: Optimizations done:
+// - Seed Heuristic
+// - Count Heuristic
+// - Inexact matches
+// - Pruning
+// - sort nodes closer to target first, among those with equal distance+h estimate
+//   - this almost halves the part of the bandwidth above 1.

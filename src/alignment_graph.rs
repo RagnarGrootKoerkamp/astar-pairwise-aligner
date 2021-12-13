@@ -15,14 +15,26 @@ pub struct AlignmentGraphBase<'a, H: HeuristicInstance> {
 }
 
 pub type AlignmentGraph<'a, H> = ImplicitGraph<AlignmentGraphBase<'a, H>>;
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct Node<T>(pub Pos, pub T);
+impl<T: Eq> PartialOrd for Node<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl<T: Eq> Ord for Node<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (self.0 .0, self.0 .1).cmp(&(other.0 .0, other.0 .1))
+    }
+}
 
 impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
     // A node directly contains the estimated distance to the end.
-    type Node = (Pos, H::IncrementalState);
+    type Node = Node<H::IncrementalState>;
 
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
-    fn edges(&self, u @ (Pos(i, j), _): Self::Node) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
+    fn edges(&self, u @ Node(Pos(i, j), _): Self::Node) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
         const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
         let nbs: ArrayVec<Edge<Self::Node>, 3> = if false
             && i + 1 <= self.pattern.len()
@@ -41,7 +53,7 @@ impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
             let pos = Pos(x, y);
             once(Edge(
                 u,
-                (pos, self.heuristic.borrow().incremental_h(u, pos)),
+                Node(pos, self.heuristic.borrow().incremental_h(u, pos)),
             ))
             .collect()
         } else {
@@ -52,7 +64,7 @@ impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
                         let pos = Pos(i + di, j + dj);
                         Some(Edge(
                             u,
-                            (pos, self.heuristic.borrow().incremental_h(u, pos)),
+                            Node(pos, self.heuristic.borrow().incremental_h(u, pos)),
                         ))
                     } else {
                         None
