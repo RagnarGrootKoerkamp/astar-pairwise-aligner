@@ -5,10 +5,12 @@
     associated_type_defaults
 )]
 pub mod alignment_graph;
+pub mod astar;
 pub mod heuristic;
 pub mod implicit_graph;
 pub mod increasing_function;
 pub mod random_sequence;
+pub mod scored;
 pub mod seeds;
 pub mod util;
 
@@ -236,17 +238,11 @@ pub fn align<H: Heuristic>(
     let start_time = time::Instant::now();
     let graph = alignment_graph::new_alignment_graph(&a, &b, &h);
     let mut h_values = HashMap::<usize, usize>::new();
-    let (distance, path) = petgraph::algo::astar(
+    let (distance, path) = astar::astar(
         &graph,
         root_state,
         // is end?
-        |(pos @ Pos(i, j), _)| {
-            //make_dot(pos, '*', is_end_calls);
-            expanded += 1;
-            expanded_states.push(pos);
-            h.borrow_mut().expand(pos);
-            i == a.len() && j == b.len()
-        },
+        |(Pos(i, j), _)| i == a.len() && j == b.len(),
         // edge cost
         |implicit_graph::Edge((Pos(i, j), _), (Pos(x, y), _))| {
             edges += 1;
@@ -258,12 +254,23 @@ pub fn align<H: Heuristic>(
                 1
             }
         },
+        // heuristic function
         |state| {
-            explored += 1;
-            explored_states.push(state.0);
             let v = h.borrow().h(state);
             *h_values.entry(v).or_insert(0) += 1;
             v
+        },
+        // Expand
+        |(pos, _)| {
+            //make_dot(pos, '*', is_end_calls);
+            expanded += 1;
+            expanded_states.push(pos);
+            h.borrow_mut().expand(pos);
+        },
+        // Explore
+        |(pos, _)| {
+            explored += 1;
+            explored_states.push(pos);
         },
     )
     .unwrap_or((0, vec![]));
@@ -594,3 +601,4 @@ mod tests {
 // - fuzzing/testing that fast impls equal slow impls
 // - efficient pruning: skip explored states that have outdated heuristic value
 // - choosing seeds bases on guessed alignment
+// - Expanded count counts identical nodes once for each pop

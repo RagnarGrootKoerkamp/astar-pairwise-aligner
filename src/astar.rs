@@ -3,7 +3,7 @@ use std::collections::{BinaryHeap, HashMap};
 
 use std::hash::Hash;
 
-use petgraph::scored::MinScored;
+use crate::scored::MinScored;
 use petgraph::visit::{EdgeRef, GraphBase, IntoEdges, Visitable};
 
 use petgraph::algo::Measure;
@@ -63,12 +63,14 @@ use petgraph::algo::Measure;
 ///
 /// Returns the total cost + the path of subsequent `NodeId` from start to finish, if one was
 /// found.
-pub fn astar<G, F, H, K, IsGoal>(
+pub fn astar<G, F, H, K, IsGoal, ExpandFn, ExploreFn>(
     graph: G,
     start: G::NodeId,
     mut is_goal: IsGoal,
     mut edge_cost: F,
     mut estimate_cost: H,
+    mut on_expand: ExpandFn,
+    mut on_explore: ExploreFn,
 ) -> Option<(K, Vec<G::NodeId>)>
 where
     G: IntoEdges + Visitable,
@@ -77,6 +79,8 @@ where
     F: FnMut(G::EdgeRef) -> K,
     H: FnMut(G::NodeId) -> K,
     K: Measure + Copy,
+    ExpandFn: FnMut(G::NodeId),
+    ExploreFn: FnMut(G::NodeId),
 {
     let mut visit_next = BinaryHeap::new();
     let mut scores = HashMap::new(); // g-values, cost to reach the node
@@ -112,6 +116,9 @@ where
             }
         }
 
+        // Number of times we compute the neighbours of a node.
+        on_expand(node);
+
         for edge in graph.edges(node) {
             let next = edge.target();
             let next_score = node_score + edge_cost(edge);
@@ -129,6 +136,9 @@ where
                     entry.insert(next_score);
                 }
             }
+
+            // Number of pushes on the stack.
+            on_explore(next);
 
             path_tracker.set_predecessor(next, node);
             let next_estimate_score = next_score + estimate_cost(next);
