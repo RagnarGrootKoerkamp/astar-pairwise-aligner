@@ -443,7 +443,7 @@ impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
         if !self.pruning {
             return;
         }
-        // If this is a matching position, rebuild the heuristic.
+        // If this is not a matching position, no need to rebuild the heuristic.
         if self.h_map.remove(&pos).is_none() {
             return;
         }
@@ -456,7 +456,7 @@ impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
             match_distance,
         } in self.seed_matches.matches.iter().rev()
         {
-            if !self.h_map.contains_key(&pos) {
+            if !self.h_map.contains_key(&start) {
                 continue;
             }
 
@@ -485,7 +485,6 @@ impl<DH: DistanceHeuristic> HeuristicInstance for SeedHeuristicI<DH> {
                 .min()
                 .unwrap();
 
-            // TODO: Report number of inserted and skipped matches
             if update_val < query_val {
                 h_map.insert(*start, update_val);
             }
