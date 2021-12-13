@@ -464,6 +464,47 @@ mod tests {
         AlignResult::print_header();
     }
 
+    // Compare with block aligner:
+    // len 10k
+    // dist 10%
+    // They do 10k of these pairs in 2s!
+    #[test]
+    fn block_aligner() {
+        let ns = [10_000];
+        let es = [0.10];
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
+        let alphabet = &Alphabet::new(b"ACTG");
+
+        AlignResult::print_header();
+        for (&n, e) in ns.iter().cartesian_product(es) {
+            let pattern = random_sequence(n, alphabet, &mut rng);
+            let text = random_mutate(&pattern, alphabet, (e * n as f32) as usize, &mut rng);
+            let stats = SequenceStats {
+                len_a: pattern.len(),
+                len_b: text.len(),
+                error_rate: e,
+                source: Source::Uniform,
+            };
+
+            for l in [8, 9, 10, 11, 12] {
+                align(
+                    &pattern,
+                    &text,
+                    &alphabet,
+                    stats,
+                    SeedHeuristic {
+                        l,
+                        match_distance: 1,
+                        distance_function: CountHeuristic,
+                        pruning: true,
+                    },
+                )
+                .print();
+            }
+        }
+        AlignResult::print_header();
+    }
+
     #[test]
     #[ignore]
     fn csv() {
@@ -612,3 +653,6 @@ mod tests {
 // - Pruning
 // - sort nodes closer to target first, among those with equal distance+h estimate
 //   - this almost halves the part of the bandwidth above 1.
+
+// NOTE: Expanded states is counted as:
+// -
