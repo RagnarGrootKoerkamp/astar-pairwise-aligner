@@ -23,7 +23,7 @@ impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
     fn edges(&self, u @ (Pos(i, j), _): Self::Node) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
-        const DELTAS: [(usize, usize); 3] = [(0, 1), (1, 0), (1, 1)];
+        const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
         let nbs: ArrayVec<Edge<Self::Node>, 3> = if false
             && i + 1 <= self.pattern.len()
             && j + 1 <= self.text.len()
