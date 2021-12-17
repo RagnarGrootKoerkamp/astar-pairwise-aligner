@@ -103,13 +103,7 @@ pub fn find_matches<'a>(
         }
     }
 
-    matches.sort_by_key(
-        |&Match {
-             start,
-             end: _,
-             match_distance: _,
-         }| (start.0, start.1),
-    );
+    matches.sort_by_key(|&Match { start, .. }| (start.0, start.1));
 
     SeedMatches {
         num_seeds,
