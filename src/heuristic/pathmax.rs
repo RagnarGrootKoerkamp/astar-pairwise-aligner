@@ -10,7 +10,7 @@ impl<H: Heuristic> Heuristic for PathMax<H> {
     type Instance<'a> = PathMaxI<'a, H::Instance<'a>>;
 
     fn name(&self) -> String {
-        self.heuristic.name() + "-PathMax"
+        self.heuristic.name() + "-PM"
     }
 
     fn build<'a>(

@@ -122,7 +122,7 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
                 )
             })
             .min()
-            .unwrap() as usize
+            .unwrap_or(self.distance_function.distance(pos, self.target)) as usize
     }
     fn num_seeds(&self) -> Option<usize> {
         Some(self.seed_matches.num_seeds)

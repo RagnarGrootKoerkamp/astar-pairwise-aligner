@@ -17,15 +17,22 @@ pub mod util;
 
 extern crate test;
 
+pub mod prelude {
+    pub use bio_types::sequence::Sequence;
+
+    pub use crate::alignment_graph::Node;
+    pub use crate::heuristic::*;
+    pub use crate::seeds::Match;
+    pub use crate::util::*;
+}
+
+use csv::Writer;
+use rand::SeedableRng;
+use serde::Serialize;
 use std::{cell::RefCell, collections::HashSet, fmt, path::Path, time};
 
-use alignment_graph::Node;
-use bio_types::sequence::Sequence;
-use csv::Writer;
-use heuristic::*;
-use seeds::Match;
-use serde::Serialize;
-use util::*;
+use crate::random_sequence::{random_mutate, random_sequence};
+use prelude::*;
 
 #[derive(Serialize, Clone, Copy, Debug)]
 pub enum Source {
@@ -190,8 +197,8 @@ impl AlignResult {
         if let Some(matches) = &self.heuristic_stats.matches {
             for Match {
                 start,
-                end: _,
                 match_distance,
+                ..
             } in matches
             {
                 wtr.serialize((start.0, start.1, "Match", -1, match_distance))
@@ -205,12 +212,7 @@ impl AlignResult {
 fn num_matches_on_path(path: &Vec<Pos>, matches: &Vec<Match>) -> usize {
     let matches = {
         let mut s = HashSet::<Pos>::new();
-        for &Match {
-            start,
-            end: _,
-            match_distance: _,
-        } in matches
-        {
+        for &Match { start, .. } in matches {
             s.insert(start);
         }
         s
@@ -335,13 +337,32 @@ pub fn align<'a, H: Heuristic>(
     }
 }
 
+// For quick testing
+fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) {
+    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
+    let alphabet = Alphabet::new(b"ACTG");
+    let a = random_sequence(n, &alphabet, &mut rng);
+    let b = random_mutate(&a, &alphabet, (n as f32 * e) as usize, &mut rng);
+
+    let sequence_stats = SequenceStats {
+        len_a: a.len(),
+        len_b: b.len(),
+        error_rate: e as f32 / n as f32,
+        source: Source::Uniform,
+    };
+    (a, b, alphabet, sequence_stats)
+}
+
+pub fn test_heuristic<H: Heuristic>(n: usize, e: f32, h: H) -> AlignResult {
+    let (a, b, alphabet, stats) = setup(n, e);
+    align(&a, &b, &alphabet, stats, h)
+}
+
 #[cfg(test)]
 mod tests {
 
     use itertools::Itertools;
     use rand::SeedableRng;
-
-    use crate::random_sequence::{random_mutate, random_sequence};
 
     use super::*;
 
@@ -371,8 +392,8 @@ mod tests {
 
         AlignResult::print_header();
         let l = 3;
-        let pattern = "ACTTGG".as_bytes().to_vec();
-        let text = "ACTGG".as_bytes().to_vec();
+        let a = "ACTTGG".as_bytes().to_vec();
+        let b = "ACTGG".as_bytes().to_vec();
 
         // Instantiate the heuristic.
         let h = SeedHeuristic {
@@ -381,12 +402,12 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: false,
         }
-        .build(&pattern, &text, alphabet);
+        .build(&a, &b, alphabet);
 
-        for j in 0..=pattern.len() {
+        for j in 0..=b.len() {
             println!(
                 "{:?}",
-                (0..=text.len())
+                (0..=a.len())
                     .map(|i| h.h(Node(Pos(i, j), Default::default())))
                     .collect::<Vec<_>>()
             );
@@ -434,237 +455,6 @@ mod tests {
             },
         );
         assert!(r.heuristic_stats.root_h <= r.answer_cost);
-    }
-
-    #[test]
-    fn test_heuristics() {
-        let ns = [2_000];
-        let es = [0.20];
-        let lm = [(4, 0), (5, 0), (6, 1), (7, 1), (8, 1)];
-        let prunings = [false, true];
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
-        let alphabet = &Alphabet::new(b"ACTG");
-
-        AlignResult::print_header();
-        for (&n, e) in ns.iter().cartesian_product(es) {
-            let pattern = random_sequence(n, alphabet, &mut rng);
-            let text = random_mutate(&pattern, alphabet, (e * n as f32) as usize, &mut rng);
-            let stats = SequenceStats {
-                len_a: pattern.len(),
-                len_b: text.len(),
-                error_rate: e,
-                source: Source::Uniform,
-            };
-
-            for pruning in prunings {
-                for (l, match_distance) in lm {
-                    align(
-                        &pattern,
-                        &text,
-                        &alphabet,
-                        stats,
-                        PathMax {
-                            heuristic: SeedHeuristic {
-                                l,
-                                match_distance,
-                                distance_function: GapHeuristic,
-                                pruning,
-                            },
-                        },
-                    )
-                    .print();
-                }
-            }
-            println!("");
-        }
-        AlignResult::print_header();
-    }
-
-    // Compare with block aligner:
-    // len 10k
-    // dist 10%
-    // They do 10k of these pairs in 2s!
-    #[test]
-    fn block_aligner() {
-        let ns = [10_000];
-        let es = [0.10];
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
-        let alphabet = &Alphabet::new(b"ACTG");
-
-        AlignResult::print_header();
-        for (&n, e) in ns.iter().cartesian_product(es) {
-            let pattern = random_sequence(n, alphabet, &mut rng);
-            let text = random_mutate(&pattern, alphabet, (e * n as f32) as usize, &mut rng);
-            let stats = SequenceStats {
-                len_a: pattern.len(),
-                len_b: text.len(),
-                error_rate: e,
-                source: Source::Uniform,
-            };
-
-            for l in [8, 9, 10, 11, 12] {
-                align(
-                    &pattern,
-                    &text,
-                    &alphabet,
-                    stats,
-                    SeedHeuristic {
-                        l,
-                        match_distance: 1,
-                        distance_function: CountHeuristic,
-                        pruning: true,
-                    },
-                )
-                .print();
-            }
-        }
-        AlignResult::print_header();
-    }
-
-    #[test]
-    #[ignore]
-    fn csv() {
-        let mut wtr = csv::WriterBuilder::new()
-            .has_headers(true)
-            .from_path("evals/stats/table.csv")
-            .unwrap();
-
-        let ns = [2_000, 4_000];
-        let es = [0.05, 0.10, 0.20, 0.30];
-        let lm = [
-            (4, 0),
-            (5, 0),
-            (6, 0),
-            (7, 0),
-            (6, 1),
-            (7, 1),
-            (8, 1),
-            (9, 1),
-        ];
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
-        let alphabet = &Alphabet::new(b"ACTG");
-
-        for (&n, e) in ns.iter().cartesian_product(es) {
-            let pattern = random_sequence(n, alphabet, &mut rng);
-            let text = random_mutate(&pattern, alphabet, (e * n as f32) as usize, &mut rng);
-            let stats = SequenceStats {
-                len_a: pattern.len(),
-                len_b: text.len(),
-                error_rate: e,
-                source: Source::Uniform,
-            };
-
-            for pruning in [false, true] {
-                for (l, match_distance) in lm {
-                    align(
-                        &pattern,
-                        &text,
-                        &alphabet,
-                        stats,
-                        SeedHeuristic {
-                            l,
-                            match_distance,
-                            distance_function: CountHeuristic,
-                            pruning,
-                        },
-                    )
-                    .write(&mut wtr);
-                }
-            }
-        }
-    }
-
-    #[test]
-    #[ignore]
-    fn print_states() {
-        let n = 2000;
-        let e = 600;
-        let _l = 6;
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
-        let alphabet = &Alphabet::new(b"ACTG");
-        let pattern = random_sequence(n, alphabet, &mut rng);
-        let text = random_mutate(&pattern, alphabet, e, &mut rng);
-
-        let stats = SequenceStats {
-            len_a: pattern.len(),
-            len_b: text.len(),
-            error_rate: e as f32 / n as f32,
-            source: Source::Uniform,
-        };
-
-        align(
-            &pattern,
-            &text,
-            &alphabet,
-            stats,
-            SeedHeuristic {
-                l: 4,
-                match_distance: 0,
-                distance_function: CountHeuristic,
-                pruning: false,
-            },
-        )
-        .write_explored_states("evals/stats/exact.csv");
-        align(
-            &pattern,
-            &text,
-            &alphabet,
-            stats,
-            SeedHeuristic {
-                l: 6,
-                match_distance: 1,
-                distance_function: CountHeuristic,
-                pruning: false,
-            },
-        )
-        .write_explored_states("evals/stats/inexact.csv");
-        align(
-            &pattern,
-            &text,
-            &alphabet,
-            stats,
-            SeedHeuristic {
-                l: 4,
-                match_distance: 0,
-                distance_function: CountHeuristic,
-                pruning: true,
-            },
-        )
-        .write_explored_states("evals/stats/exact_pruning.csv");
-        let r = align(
-            &pattern,
-            &text,
-            &alphabet,
-            stats,
-            SeedHeuristic {
-                l: 6,
-                match_distance: 1,
-                distance_function: ZeroHeuristic,
-                pruning: true,
-            },
-        );
-        r.write_explored_states("evals/stats/inexact_pruning_zero.csv");
-        println!(
-            "BAND ZERO: {}",
-            r.astar.expanded as f32 / r.input.len_a as f32
-        );
-        let r = align(
-            &pattern,
-            &text,
-            &alphabet,
-            stats,
-            SeedHeuristic {
-                l: 6,
-                match_distance: 1,
-                distance_function: CountHeuristic,
-                pruning: true,
-            },
-        );
-        r.write_explored_states("evals/stats/inexact_pruning.csv");
-        println!(
-            "BAND COUNT: {}",
-            r.astar.expanded as f32 / r.input.len_a as f32
-        );
     }
 }
 
