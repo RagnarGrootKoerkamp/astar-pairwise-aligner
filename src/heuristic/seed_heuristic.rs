@@ -13,7 +13,6 @@ pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub pruning: bool,
 }
 impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
-    // Seedheuristic by itself is not consistent, so we make it.
     type Instance<'a> = SeedHeuristicI<'a, DH>;
 
     fn build<'a>(
