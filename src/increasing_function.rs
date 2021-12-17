@@ -1,9 +1,10 @@
-use std::cmp::Ord;
+use std::cmp::{Ord, Reverse};
 use std::collections::BTreeMap;
 use std::hash;
 use std::ops::Bound::{Excluded, Included, Unbounded};
 use std::ops::RangeFull;
 
+use crate::seeds::Match;
 use crate::util::*;
 
 pub struct IncreasingFunction<K, V> {
@@ -110,39 +111,48 @@ impl IncreasingFunction2D<usize> {
 
     /// Build the increasing function over the given points. `l` must be at least 1.
     /// `ps` must be sorted increasing by (x,y), first on x and then on y.
-    pub fn new(ps: impl IntoIterator<Item = Pos>, l: usize) -> Self {
+    pub fn new(target: Pos, ps: impl IntoIterator<Item = Match>) -> Self {
         let mut s = Self {
             nodes: Vec::new(),
             // Placeholder until properly set in build.
             root: 0,
         };
-        //println!("BUILD");
-        s.build(std::iter::once(Pos(0, 0)).chain(ps), l);
-        //println!("BUILD DONE");
-        //for (i, node) in s.nodes.iter().enumerate() {
-        //println!("{:>5}: {:?}", i, node);
-        //}
+        s.build(target, ps);
         s
     }
 
-    fn build<'a>(&'a mut self, ps: impl IntoIterator<Item = Pos>, l: usize) {
-        assert!(l >= 1);
-        let mut front = IncreasingFunction::<usize, Value>::new();
-        let mut lagging_front = IncreasingFunction::<usize, Value>::new();
+    fn build<'a>(&'a mut self, target: Pos, ps: impl IntoIterator<Item = Match>) {
+        let mut front = IncreasingFunction::<Reverse<usize>, Value>::new();
+        let mut lagging_front = IncreasingFunction::<Reverse<usize>, Value>::new();
 
         // Index into self.nodes.
         let mut lagging_index = 0;
 
-        for pos in ps {
-            let Pos(i, j) = pos;
+        // Push the root.
+        self.nodes.push(Node {
+            pos: target,
+            val: 0,
+            parent: None,
+            prev: None,
+            next: None,
+        });
+        front.set(Reverse(0), Value(0, 0));
+
+        for Match {
+            start,
+            end,
+            // TODO
+            match_distance,
+        } in ps
+        {
             // Update lagging front.
             //println!("Update lagging front");
             while lagging_index < self.nodes.len() {
                 let node = &self.nodes[lagging_index];
                 //println!("Next lagging node index {} {:?}", lagging_index, node);
-                if node.pos.0 <= i - l {
+                if node.pos.0 >= end.0 {
                     //println!("ADD");
-                    lagging_front.set(node.pos.1, Value(node.val, lagging_index));
+                    lagging_front.set(Reverse(node.pos.1), Value(node.val, lagging_index));
                     lagging_index += 1;
                 } else {
                     break;
@@ -151,7 +161,7 @@ impl IncreasingFunction2D<usize> {
             //println!("DONE");
 
             // Get the value for the position.
-            let (val, parent) = match lagging_front.get(max(j, l) - l) {
+            let (val, parent) = match lagging_front.get(Reverse(end.1)) {
                 None => (0, None),
                 Some(Value(val, p)) => (val + 1, Some(p)),
             };
@@ -159,19 +169,21 @@ impl IncreasingFunction2D<usize> {
 
             let id = self.nodes.len();
 
-            let next = front.get_larger(j).and_then(
-                |Value(nextval, idx)| {
-                    if nextval != val {
-                        None
-                    } else {
-                        Some(idx)
-                    }
-                },
-            );
+            let next = front
+                .get_larger(Reverse(start.1))
+                .and_then(
+                    |Value(nextval, idx)| {
+                        if nextval != val {
+                            None
+                        } else {
+                            Some(idx)
+                        }
+                    },
+                );
 
             // Only continue if the value is larger than existing.
             //println!("Set front");
-            if !front.set(j, Value(val, id)) {
+            if !front.set(Reverse(start.1), Value(val, id)) {
                 //println!("Skip");
                 continue;
             }
@@ -182,7 +194,7 @@ impl IncreasingFunction2D<usize> {
             }
 
             self.nodes.push(Node {
-                pos,
+                pos: start,
                 val,
                 parent,
                 prev: None,

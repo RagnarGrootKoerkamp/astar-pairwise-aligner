@@ -1,4 +1,4 @@
-use std::{cell::RefCell, iter::once};
+use std::{cell::RefCell, hash, iter::once};
 
 use crate::{heuristic::HeuristicInstance, util::*};
 use arrayvec::ArrayVec;
@@ -8,27 +8,44 @@ use crate::implicit_graph::{Edge, ImplicitGraph, ImplicitGraphBase};
 
 /// AlignmentGraph that computes the heuristic
 //#[derive(Clone)]
-pub struct AlignmentGraphBase<'a, H: HeuristicInstance> {
+pub struct AlignmentGraphBase<'a, 'b, H: HeuristicInstance<'a>> {
     pattern: &'a Sequence,
     text: &'a Sequence,
-    heuristic: &'a RefCell<H>,
+    heuristic: &'b RefCell<H>,
 }
 
-pub type AlignmentGraph<'a, H> = ImplicitGraph<AlignmentGraphBase<'a, H>>;
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub type AlignmentGraph<'a, 'b, H> = ImplicitGraph<AlignmentGraphBase<'a, 'b, H>>;
+
+// Nodes can carry extra data T, which is ignored for their identity.
+#[derive(Copy, Clone)]
 pub struct Node<T>(pub Pos, pub T);
-impl<T: Eq> PartialOrd for Node<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+
+impl<T> PartialEq for Node<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
 }
-impl<T: Eq> Ord for Node<T> {
+impl<T> Eq for Node<T> {}
+
+impl<T> hash::Hash for Node<T> {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+// Order nodes by position on increasing x.
+impl<T> Ord for Node<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         (self.0 .0, self.0 .1).cmp(&(other.0 .0, other.0 .1))
     }
 }
+impl<T> PartialOrd for Node<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
-impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
+impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase for AlignmentGraphBase<'a, 'b, H> {
     // A node directly contains the estimated distance to the end.
     type Node = Node<H::IncrementalState>;
 
@@ -76,11 +93,11 @@ impl<'a, H: HeuristicInstance> ImplicitGraphBase for AlignmentGraphBase<'a, H> {
     }
 }
 
-pub fn new_alignment_graph<'a, H: HeuristicInstance>(
+pub fn new_alignment_graph<'a, 'b, H: HeuristicInstance<'a>>(
     pattern: &'a Sequence,
     text: &'a Sequence,
-    heuristic: &'a RefCell<H>,
-) -> AlignmentGraph<'a, H> {
+    heuristic: &'b RefCell<H>,
+) -> AlignmentGraph<'a, 'b, H> {
     ImplicitGraph::new(AlignmentGraphBase {
         pattern,
         text,
