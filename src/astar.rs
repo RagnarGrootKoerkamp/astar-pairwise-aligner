@@ -71,6 +71,9 @@ pub fn astar<G, F, H, K, IsGoal, ExpandFn, ExploreFn>(
     mut estimate_cost: H,
     mut on_expand: ExpandFn,
     mut on_explore: ExploreFn,
+    retry_outdated: bool,
+    double_expands: &mut usize,
+    retries: &mut usize,
 ) -> Option<(K, Vec<G::NodeId>)>
 where
     G: IntoEdges + Visitable,
@@ -82,7 +85,7 @@ where
     ExpandFn: FnMut(G::NodeId),
     ExploreFn: FnMut(G::NodeId),
 {
-    let mut visit_next = BinaryHeap::new();
+    let mut visit_next = BinaryHeap::new(); // f-values, cost to reach + estimate cost to goal, and the node itself
     let mut scores = HashMap::new(); // g-values, cost to reach the node
     let mut estimate_scores = HashMap::new(); // f-values, cost to reach + estimate cost to goal
     let mut path_tracker = PathTracker::<G>::new();
@@ -102,6 +105,16 @@ where
         // before adding it to `visit_next`.
         let node_score = scores[&node];
 
+        // If the heuristic value is outdated, skip the node and re-push it with the updated value.
+        if retry_outdated {
+            let current_estimate_score = node_score + estimate_cost(node);
+            if current_estimate_score > estimate_score {
+                *retries += 1;
+                visit_next.push(MinScored(current_estimate_score, node));
+                continue;
+            }
+        }
+
         match estimate_scores.entry(node) {
             Occupied(mut entry) => {
                 // If the node has already been visited with an equal or lower score than now, then
@@ -109,6 +122,7 @@ where
                 if *entry.get() <= estimate_score {
                     continue;
                 }
+                *double_expands += 1;
                 entry.insert(estimate_score);
             }
             Vacant(entry) => {

@@ -2,7 +2,8 @@
     test,
     iter_intersperse,
     exclusive_range_pattern,
-    associated_type_defaults
+    associated_type_defaults,
+    generic_associated_types
 )]
 pub mod alignment_graph;
 pub mod astar;
@@ -55,6 +56,8 @@ pub struct TimingStats {
 pub struct AStarStats {
     pub expanded: usize,
     pub explored: usize,
+    pub double_expanded: usize,
+    pub retries: usize,
     /// Number of edges tried. More than explored states, because states can have multiple incoming edges.
     pub edges: usize,
     #[serde(skip_serializing)]
@@ -92,7 +95,7 @@ pub struct AlignResult {
 impl AlignResult {
     pub fn print_header() {
         println!(
-            "{:>6} {:>6} {:>5} {:>10} {:15} {:>3} {:>9} {:>7} {:15} {:>7} {:>7} {:>9} {:>9} {:>10} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5} {:>6} {:>10} {:>10} {:>7}",
+            "{:>6} {:>6} {:>5} {:>10} {:10} {:>3} {:>9} {:>7} {:10} {:>7} {:>7} {:>9} {:>9} {:>9} {:>9} {:>10} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5} {:>6} {:>10} {:>10} {:>7}",
             "len a",
             "len b",
             "rate",
@@ -101,6 +104,7 @@ impl AlignResult {
             "seeds", "matches",
             "expanded",
             "explored",
+            "do expa", "retried",
             "e/max(n,m)",
             "e/nm",
             "edges",
@@ -136,7 +140,7 @@ impl AlignResult {
         let percent_h =
             100. * self.timing.precomputation / (self.timing.precomputation + self.timing.astar);
         println!(
-            "{:>6} {:>6} {:>5.3} {:>10} {:15} {:>3} {:>9} {:>7} {:15} {:>7} {:>7} {:>9} {:>9} {:>10.2} {:>9.5} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5} {:>6} {:>10} {:>10} {:>7.1}",
+            "{:>6} {:>6} {:>5.3} {:>10} {:10} {:>3} {:>9} {:>7} {:10} {:>7} {:>7} {:>9} {:>9} {:>9} {:>9} {:>10.2} {:>9.5} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5} {:>6} {:>10} {:>10} {:>7.1}",
             self.input.len_a,
             self.input.len_b,
             self.input.error_rate,
@@ -150,6 +154,8 @@ impl AlignResult {
             self.heuristic_stats.num_matches.map(|x| x.to_string()).unwrap_or_default(),
             self.astar.expanded,
             self.astar.explored,
+            self.astar.double_expanded,
+            self.astar.retries,
             self.astar.expanded as f32 / max(self.input.len_a, self.input.len_b) as f32,
             self.astar.explored as f32 / (self.input.len_a * self.input.len_b) as f32,
             self.astar.edges,
@@ -214,7 +220,7 @@ fn num_matches_on_path(path: &Vec<Pos>, matches: &Vec<Match>) -> usize {
         .sum()
 }
 
-pub fn align<H: Heuristic>(
+pub fn align<'a, H: Heuristic>(
     a: &Sequence,
     b: &Sequence,
     alphabet: &Alphabet,
@@ -226,6 +232,8 @@ pub fn align<H: Heuristic>(
     let mut edges = 0;
     let mut explored_states = Vec::new();
     let mut expanded_states = Vec::new();
+    let mut double_expanded = 0;
+    let mut retries = 0;
 
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
@@ -273,6 +281,9 @@ pub fn align<H: Heuristic>(
             explored += 1;
             explored_states.push(pos);
         },
+        false,
+        &mut double_expanded,
+        &mut retries,
     )
     .unwrap_or((0, vec![]));
     let astar_duration = start_time.elapsed();
@@ -288,7 +299,7 @@ pub fn align<H: Heuristic>(
     };
 
     let path = path.into_iter().map(|Node(pos, _)| pos).collect();
-    let h = h.into_inner();
+    let h = h.borrow();
 
     let path_matches = h.matches().map(|x| num_matches_on_path(&path, x));
     let explored_matches = h
@@ -304,9 +315,11 @@ pub fn align<H: Heuristic>(
         astar: AStarStats {
             expanded,
             explored,
+            retries,
             edges,
             explored_states,
             expanded_states,
+            double_expanded,
         },
         heuristic_stats: HeuristicStats {
             root_h: root_val,
@@ -426,8 +439,9 @@ mod tests {
     #[test]
     fn test_heuristics() {
         let ns = [2_000];
-        let es = [0.05, 0.10, 0.20, 0.30];
-        let lm = [(4, 0), (6, 1), (7, 1)];
+        let es = [0.20];
+        let lm = [(4, 0), (5, 0), (6, 1), (7, 1), (8, 1)];
+        let prunings = [false, true];
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
 
@@ -442,18 +456,20 @@ mod tests {
                 source: Source::Uniform,
             };
 
-            for pruning in [false, true] {
+            for pruning in prunings {
                 for (l, match_distance) in lm {
                     align(
                         &pattern,
                         &text,
                         &alphabet,
                         stats,
-                        SeedHeuristic {
-                            l,
-                            match_distance,
-                            distance_function: CountHeuristic,
-                            pruning,
+                        PathMax {
+                            heuristic: SeedHeuristic {
+                                l,
+                                match_distance,
+                                distance_function: GapHeuristic,
+                                pruning,
+                            },
                         },
                     )
                     .print();
@@ -562,7 +578,7 @@ mod tests {
     #[ignore]
     fn print_states() {
         let n = 2000;
-        let e = 400;
+        let e = 600;
         let _l = 6;
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let alphabet = &Alphabet::new(b"ACTG");
@@ -615,7 +631,24 @@ mod tests {
             },
         )
         .write_explored_states("evals/stats/exact_pruning.csv");
-        align(
+        let r = align(
+            &pattern,
+            &text,
+            &alphabet,
+            stats,
+            SeedHeuristic {
+                l: 6,
+                match_distance: 1,
+                distance_function: ZeroHeuristic,
+                pruning: true,
+            },
+        );
+        r.write_explored_states("evals/stats/inexact_pruning_zero.csv");
+        println!(
+            "BAND ZERO: {}",
+            r.astar.expanded as f32 / r.input.len_a as f32
+        );
+        let r = align(
             &pattern,
             &text,
             &alphabet,
@@ -626,8 +659,12 @@ mod tests {
                 distance_function: CountHeuristic,
                 pruning: true,
             },
-        )
-        .write_explored_states("evals/stats/inexact_pruning.csv");
+        );
+        r.write_explored_states("evals/stats/inexact_pruning.csv");
+        println!(
+            "BAND COUNT: {}",
+            r.astar.expanded as f32 / r.input.len_a as f32
+        );
     }
 }
 
@@ -640,11 +677,16 @@ mod tests {
 // - number of skipped matches
 //
 // Code:
+// - TODO: Pruning heuristic requires consistency, which we don't have currently.
 // - fuzzing/testing that fast impls equal slow impls
 // - efficient pruning: skip explored states that have outdated heuristic value
 // - choosing seeds bases on guessed alignment
 // - Expanded count counts identical nodes once for each pop
 // - Why is pruning worse for 0.05 edit distance?
+// - Pruning with offset
+//   - Need to figure out when all previous vertices depend on the current match
+// - Simulate efficient pruning by re-pushing explored states with outdated heuristic value
+// - TODO: Do not make jumps along equal diagonals: in-between edges are going to be explored anyway, so better do that directly.
 
 // NOTE: Optimizations done:
 // - Seed Heuristic
@@ -656,3 +698,5 @@ mod tests {
 
 // NOTE: Expanded states is counted as:
 // -
+
+// TODO: FIGURE OUT WHY CONSISTENT HEURISTIC IS NOT ADMISSIBLE ANYMORE
