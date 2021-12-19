@@ -1,5 +1,9 @@
 use super::heuristic::*;
-use crate::{alignment_graph::Node, seeds::Match, util::*};
+use crate::{
+    alignment_graph::{AlignmentGraph, Node},
+    seeds::Match,
+    util::*,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct PathMax<H: Heuristic> {
@@ -18,11 +22,12 @@ impl<H: Heuristic> Heuristic for PathMax<H> {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
+        graph: &AlignmentGraph<'a>,
     ) -> Self::Instance<'a> {
         PathMaxI {
             a,
             b,
-            heuristic: self.heuristic.build(a, b, alphabet),
+            heuristic: self.heuristic.build(a, b, alphabet, graph),
         }
     }
 
@@ -56,8 +61,8 @@ impl<'a, HI: HeuristicInstance<'a>> HeuristicInstance<'a> for PathMaxI<'a, HI> {
 
     type IncrementalState = (usize, HI::IncrementalState);
 
-    fn expand(&mut self, pos: Pos) {
-        self.heuristic.expand(pos);
+    fn prune(&mut self, pos: Pos) {
+        self.heuristic.prune(pos);
     }
 
     fn incremental_h(
