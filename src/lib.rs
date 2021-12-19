@@ -154,7 +154,7 @@ impl AlignResult {
             self.input.source.to_string(),
             self.heuristic_params.heuristic,
             self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
-            self.heuristic_params.match_distance.map_or("".into(), |x| x.to_string()),
+            self.heuristic_params.max_match_distance.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.pruning.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
             self.heuristic_stats.seeds.map(|x| x.to_string()).unwrap_or_default(),
@@ -237,9 +237,12 @@ pub fn align<'a, H: Heuristic>(
     let mut double_expanded = 0;
     let mut retries = 0;
 
+    // The base graph.
+    let graph = alignment_graph::new_alignment_graph(&a, &b);
+
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
-    let h = RefCell::new(heuristic.build(a, b, alphabet));
+    let h = RefCell::new(heuristic.build(a, b, alphabet, &graph));
     let root_state = Node(Pos(0, 0), h.borrow().root_state());
     let root_val = h.borrow().h(root_state);
     //let _ = h.borrow_mut();
@@ -247,23 +250,17 @@ pub fn align<'a, H: Heuristic>(
 
     // Run A* with heuristic.
     let start_time = time::Instant::now();
-    let graph = alignment_graph::new_alignment_graph(&a, &b, &h);
+    let incremental_graph = alignment_graph::new_incremental_alignment_graph(&graph, &h);
     let mut h_values = HashMap::<usize, usize>::new();
     let (distance, path) = astar::astar(
-        &graph,
+        &incremental_graph,
         root_state,
         // is end?
         |Node(Pos(i, j), _)| i == a.len() && j == b.len(),
         // edge cost
-        |implicit_graph::Edge(Node(Pos(i, j), _), Node(Pos(x, y), _))| {
+        |implicit_graph::Edge(_, _, cost)| {
             edges += 1;
-            // Compute the edge weight.
-            // TODO: Use different weights for indels and substitutions.
-            if x > i && y > j && a[x - 1] == b[y - 1] {
-                0
-            } else {
-                1
-            }
+            cost
         },
         // heuristic function
         |state| {
@@ -276,7 +273,7 @@ pub fn align<'a, H: Heuristic>(
             //make_dot(pos, '*', is_end_calls);
             expanded += 1;
             expanded_states.push(pos);
-            h.borrow_mut().expand(pos);
+            h.borrow_mut().prune(pos);
         },
         // Explore
         |Node(pos, _)| {
@@ -289,6 +286,8 @@ pub fn align<'a, H: Heuristic>(
     )
     .unwrap_or((0, vec![]));
     let astar_duration = start_time.elapsed();
+
+    assert!(distance >= root_val);
 
     let avg_h = {
         let mut cnt = 0;
@@ -338,7 +337,7 @@ pub fn align<'a, H: Heuristic>(
 }
 
 // For quick testing
-fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) {
+pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) {
     let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
     let alphabet = Alphabet::new(b"ACTG");
     let a = random_sequence(n, &alphabet, &mut rng);
@@ -347,7 +346,7 @@ fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) {
     let sequence_stats = SequenceStats {
         len_a: a.len(),
         len_b: b.len(),
-        error_rate: e as f32 / n as f32,
+        error_rate: e,
         source: Source::Uniform,
     };
     (a, b, alphabet, sequence_stats)
@@ -360,9 +359,6 @@ pub fn test_heuristic<H: Heuristic>(n: usize, e: f32, h: H) -> AlignResult {
 
 #[cfg(test)]
 mod tests {
-
-    use itertools::Itertools;
-    use rand::SeedableRng;
 
     use super::*;
 
@@ -395,6 +391,8 @@ mod tests {
         let a = "ACTTGG".as_bytes().to_vec();
         let b = "ACTGG".as_bytes().to_vec();
 
+        let graph = alignment_graph::new_alignment_graph(&a, &b);
+
         // Instantiate the heuristic.
         let h = SeedHeuristic {
             l,
@@ -402,7 +400,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: false,
         }
-        .build(&a, &b, alphabet);
+        .build(&a, &b, alphabet, &graph);
 
         for j in 0..=b.len() {
             println!(
@@ -455,6 +453,22 @@ mod tests {
             },
         );
         assert!(r.heuristic_stats.root_h <= r.answer_cost);
+    }
+
+    #[test]
+    fn consistency() {
+        let h = SeedHeuristic {
+            l: 6,
+            match_distance: 1,
+            distance_function: GapHeuristic,
+            pruning: false,
+        };
+        let (a, b, alphabet, stats) = setup(2000, 0.10);
+        let a = &a[360..376].to_vec();
+        let b = &b[362..378].to_vec();
+
+        println!("{}\n{}\n", to_string(&a), to_string(&b));
+        align(a, b, &alphabet, stats, h);
     }
 }
 

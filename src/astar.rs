@@ -81,9 +81,10 @@ where
     G::NodeId: Eq + Hash + Ord,
     F: FnMut(G::EdgeRef) -> K,
     H: FnMut(G::NodeId) -> K,
-    K: Measure + Copy,
+    K: Measure + Copy + std::fmt::Display,
     ExpandFn: FnMut(G::NodeId),
     ExploreFn: FnMut(G::NodeId),
+    <G as GraphBase>::NodeId: std::fmt::Debug,
 {
     let mut visit_next = BinaryHeap::new(); // f-values, cost to reach + estimate cost to goal, and the node itself
     let mut scores = HashMap::new(); // g-values, cost to reach the node
@@ -156,6 +157,15 @@ where
 
             path_tracker.set_predecessor(next, node);
             let next_estimate_score = next_score + estimate_cost(next);
+            // FIXME: Enable this assert
+            assert!(
+                estimate_score <= next_estimate_score + edge_cost(edge),
+                "Heuristic is not consistent. {:?}: {} -> {:?}: {}",
+                node,
+                estimate_score,
+                next,
+                next_estimate_score
+            );
             visit_next.push(MinScored(next_estimate_score, next));
         }
     }

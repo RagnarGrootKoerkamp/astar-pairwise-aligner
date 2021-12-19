@@ -1,6 +1,9 @@
+use std::cell::RefCell;
+
 use super::{distance::*, heuristic::*};
 use crate::{
-    alignment_graph::Node,
+    alignment_graph::{AlignmentGraph, Node},
+    implicit_graph::{Edge, ImplicitGraphBase},
     seeds::{find_matches, Match, SeedMatches},
     util::*,
 };
@@ -20,8 +23,9 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
+        graph: &AlignmentGraph<'a>,
     ) -> Self::Instance<'a> {
-        SeedHeuristicI::new(a, b, alphabet, &self)
+        SeedHeuristicI::new(a, b, alphabet, graph, &self)
     }
     fn l(&self) -> Option<usize> {
         Some(self.l)
@@ -46,7 +50,8 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     target: Pos,
     // TODO: Replace this by params: SeedHeuristic
     pruning: bool,
-    match_distance: usize,
+    max_match_distance: usize,
+    graph: AlignmentGraph<'a>,
 }
 
 impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
@@ -54,11 +59,13 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
+        graph: &AlignmentGraph<'a>,
         params: &SeedHeuristic<DH>,
     ) -> Self {
         let seed_matches = find_matches(a, b, alphabet, params.l, params.match_distance);
 
-        let distance_function = DistanceHeuristic::build(&params.distance_function, a, b, alphabet);
+        let distance_function =
+            DistanceHeuristic::build(&params.distance_function, a, b, alphabet, graph);
 
         let mut h_map = HashMap::new();
         h_map.insert(Pos(a.len(), b.len()), 0);
@@ -98,13 +105,14 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                 h_map.insert(*start, update_val);
             }
         }
-        SeedHeuristicI {
+        SeedHeuristicI::<'a> {
             seed_matches,
             h_map,
             distance_function,
             target: Pos(a.len(), b.len()),
             pruning: params.pruning,
-            match_distance: params.match_distance,
+            max_match_distance: params.match_distance,
+            graph: graph.clone(),
         }
     }
 }
@@ -132,7 +140,7 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
     fn num_matches(&self) -> Option<usize> {
         Some(self.seed_matches.matches.len())
     }
-    fn expand(&mut self, pos: Pos) {
+    fn prune(&mut self, pos: Pos) {
         if !self.pruning {
             return;
         }
@@ -162,7 +170,7 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
                         self.distance_function.distance(*start, parent),
                         self.seed_matches.potential(*start) - self.seed_matches.potential(parent)
                             + match_distance
-                            - (self.match_distance + 1),
+                            - (self.max_match_distance + 1),
                     )
                 })
                 .min()

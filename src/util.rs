@@ -84,6 +84,10 @@ pub fn mutations(k: usize, kmer: usize) -> Mutations {
     }
 }
 
+pub fn to_string(seq: &[u8]) -> String {
+    String::from_utf8(seq.to_vec()).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
