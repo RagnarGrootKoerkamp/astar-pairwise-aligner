@@ -35,8 +35,8 @@ impl<H: Heuristic> Heuristic for PathMax<H> {
         self.heuristic.l()
     }
 
-    fn match_distance(&self) -> Option<usize> {
-        self.heuristic.match_distance()
+    fn max_match_cost(&self) -> Option<usize> {
+        self.heuristic.max_match_cost()
     }
 
     fn pruning(&self) -> Option<bool> {

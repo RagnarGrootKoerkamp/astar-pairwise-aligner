@@ -9,7 +9,7 @@ fn main() {
         e,
         SeedHeuristic {
             l: 4,
-            match_distance: 0,
+            max_match_cost: 0,
             distance_function: CountHeuristic,
             pruning: false,
         },
@@ -20,7 +20,7 @@ fn main() {
         e,
         SeedHeuristic {
             l: 6,
-            match_distance: 1,
+            max_match_cost: 1,
             distance_function: CountHeuristic,
             pruning: false,
         },
@@ -31,7 +31,7 @@ fn main() {
         e,
         SeedHeuristic {
             l: 4,
-            match_distance: 0,
+            max_match_cost: 0,
             distance_function: CountHeuristic,
             pruning: true,
         },
@@ -42,7 +42,7 @@ fn main() {
         e,
         SeedHeuristic {
             l: 6,
-            match_distance: 1,
+            max_match_cost: 1,
             distance_function: ZeroHeuristic,
             pruning: true,
         },
@@ -57,7 +57,7 @@ fn main() {
         e,
         SeedHeuristic {
             l: 6,
-            match_distance: 1,
+            max_match_cost: 1,
             distance_function: CountHeuristic,
             pruning: true,
         },

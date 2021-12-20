@@ -154,7 +154,7 @@ impl AlignResult {
             self.input.source.to_string(),
             self.heuristic_params.heuristic,
             self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
-            self.heuristic_params.max_match_distance.map_or("".into(), |x| x.to_string()),
+            self.heuristic_params.max_match_cost.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.pruning.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
             self.heuristic_stats.seeds.map(|x| x.to_string()).unwrap_or_default(),
@@ -196,12 +196,10 @@ impl AlignResult {
         }
         if let Some(matches) = &self.heuristic_stats.matches {
             for Match {
-                start,
-                match_distance,
-                ..
+                start, match_cost, ..
             } in matches
             {
-                wtr.serialize((start.0, start.1, "Match", -1, match_distance))
+                wtr.serialize((start.0, start.1, "Match", -1, match_cost))
                     .unwrap();
             }
         }
@@ -396,7 +394,7 @@ mod tests {
         // Instantiate the heuristic.
         let h = SeedHeuristic {
             l,
-            match_distance: 0,
+            max_match_cost: 0,
             distance_function: GapHeuristic,
             pruning: false,
         }
@@ -447,7 +445,7 @@ mod tests {
             stats,
             SeedHeuristic {
                 l,
-                match_distance: 1,
+                max_match_cost: 1,
                 distance_function: BiCountHeuristic,
                 pruning: false,
             },

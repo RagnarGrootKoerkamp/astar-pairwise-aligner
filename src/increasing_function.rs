@@ -142,7 +142,7 @@ impl IncreasingFunction2D<usize> {
             start,
             end,
             // TODO
-            match_distance,
+            match_cost: match_distance,
         } in ps
         {
             // Update lagging front.

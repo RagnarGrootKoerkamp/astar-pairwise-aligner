@@ -15,13 +15,13 @@ fn main() {
     AlignResult::print_header();
     for (&n, e) in ns.iter().cartesian_product(es) {
         for pruning in prunings {
-            for (l, match_distance) in lm {
+            for (l, max_match_cost) in lm {
                 let result = test_heuristic(
                     n,
                     e,
                     SeedHeuristic {
                         l,
-                        match_distance,
+                        max_match_cost,
                         distance_function: GapHeuristic,
                         pruning,
                     },
