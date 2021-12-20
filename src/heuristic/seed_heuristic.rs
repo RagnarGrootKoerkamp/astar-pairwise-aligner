@@ -70,35 +70,55 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         let distance_function =
             DistanceHeuristic::build(&params.distance_function, a, b, alphabet, graph);
 
-        let mut h_map = HashMap::new();
-        h_map.insert(Pos(a.len(), b.len()), 0);
-        for m @ Match {
+        let mut h = SeedHeuristicI::<'a> {
+            params,
+            distance_function,
+            target: Pos(a.len(), b.len()),
+            seed_matches,
+            h_at_seeds: HashMap::default(),
+            h_cache: RefCell::new(HashMap::new()),
+            graph: graph.clone(),
+            pruned_positions: HashSet::new(),
+        };
+        h.build();
+        h
+    }
+
+    fn build(&mut self) {
+        if self.params.build_fast {
+            return self.build_fast();
+        }
+        let mut h_at_seeds = HashMap::new();
+        h_at_seeds.insert(self.target, 0);
+        for Match {
             start,
             end,
             match_cost,
-        } in seed_matches.iter().rev()
+        } in self.seed_matches.iter().rev()
         {
-            println!("Match {:?}", m);
-            let update_val = h_map
+            if self.pruned_positions.contains(start) {
+                continue;
+            }
+            let update_val = h_at_seeds
                 .iter()
                 .filter(|&(parent, _)| parent >= end)
                 .map(|(&parent, &val)| {
                     val + max(
-                        distance_function.distance(*start, parent),
-                        seed_matches.potential(*start) - seed_matches.potential(parent)
+                        self.distance_function.distance(*start, parent),
+                        self.seed_matches.potential(*start) - self.seed_matches.potential(parent)
                             + match_cost
-                            - (params.max_match_cost + 1),
+                            - (self.params.max_match_cost + 1),
                     )
                 })
                 .min()
                 .unwrap();
-            let query_val = h_map
+            let query_val = h_at_seeds
                 .iter()
                 .filter(|&(parent, _)| parent >= start)
                 .map(|(&parent, &val)| -> usize {
                     val + max(
-                        distance_function.distance(*start, parent),
-                        seed_matches.potential(*start) - seed_matches.potential(parent),
+                        self.distance_function.distance(*start, parent),
+                        self.seed_matches.potential(*start) - self.seed_matches.potential(parent),
                     )
                 })
                 .min()
@@ -106,33 +126,73 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
 
             // TODO: Report number of inserted and skipped matches
             assert!(
-                update_val <= query_val + params.max_match_cost,
+                update_val <= query_val + self.params.max_match_cost,
                 "At {:?} update {} query {}",
                 start,
                 update_val,
                 query_val
             );
-            if params.max_match_cost == 0 {
-                if update_val < query_val {
-                    h_map.insert(*start, update_val);
-                }
-            } else {
-                // NOTE: This inequality can not be strict when inexact matches and pruning are enabled.
-                // For pruning, when a better query_val is pruned, we should still keep the update_val.
-                if update_val < query_val {
-                    h_map.insert(*start, update_val);
-                }
+            if update_val < query_val {
+                h_at_seeds.insert(*start, update_val);
             }
         }
-        SeedHeuristicI::<'a> {
-            params,
-            distance_function,
-            target: Pos(a.len(), b.len()),
-            seed_matches,
-            h_at_seeds: h_map,
-            h_cache: RefCell::new(HashMap::new()),
-            graph: graph.clone(),
+        self.h_at_seeds = h_at_seeds;
+    }
+
+    /// Build the `h_at_seeds` map in roughly O(#seeds).
+    // Implementation:
+    // - Loop over seeds from right to left.
+    // - Keep a second
+    fn build_fast(&mut self) {
+        let mut h_at_seeds = HashMap::new();
+        h_at_seeds.insert(self.target, 0);
+        for Match {
+            start,
+            end,
+            match_cost,
+        } in self.seed_matches.iter().rev()
+        {
+            if self.pruned_positions.contains(start) {
+                continue;
+            }
+            let update_val = h_at_seeds
+                .iter()
+                .filter(|&(parent, _)| parent >= end)
+                .map(|(&parent, &val)| {
+                    val + max(
+                        self.distance_function.distance(*start, parent),
+                        self.seed_matches.potential(*start) - self.seed_matches.potential(parent)
+                            + match_cost
+                            - (self.params.max_match_cost + 1),
+                    )
+                })
+                .min()
+                .unwrap();
+            let query_val = h_at_seeds
+                .iter()
+                .filter(|&(parent, _)| parent >= start)
+                .map(|(&parent, &val)| -> usize {
+                    val + max(
+                        self.distance_function.distance(*start, parent),
+                        self.seed_matches.potential(*start) - self.seed_matches.potential(parent),
+                    )
+                })
+                .min()
+                .unwrap();
+
+            // TODO: Report number of inserted and skipped matches
+            assert!(
+                update_val <= query_val + self.params.max_match_cost,
+                "At {:?} update {} query {}",
+                start,
+                update_val,
+                query_val
+            );
+            if update_val < query_val {
+                h_at_seeds.insert(*start, update_val);
+            }
         }
+        self.h_at_seeds = h_at_seeds;
     }
 
     // The base heuristic function, which is not consistent in the following case:
@@ -156,9 +216,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // The distance from the start of the current seed to the current position, capped at `match_cost+1`
     // TODO: Generalize this for overlapping seeds.
     fn consistent_h(&self, pos: Pos) -> usize {
-        let h = self.consistent_h_acc(pos, 0);
-        println!("Consistent h {:?}: {}", pos, h);
-        h
+        self.consistent_h_acc(pos, 0)
     }
 
     // Internal function that also takes the cost already accumulated, and returns early when the total cost is larger than the max_match_cost.
@@ -200,7 +258,6 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         if delta == 0 {
             self.h_cache.borrow_mut().insert(pos, h);
         }
-        println!("Consistent h acc {:?}: {}", pos, h);
         h
     }
 }
@@ -222,61 +279,13 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
         if !self.params.pruning {
             return;
         }
-        // TODO: Efficient pruning
-        // TODO: Merge this code with the code in `new()`.
-        // If this is not a matching position, no need to rebuild the heuristic.
+        // Prune the current position.
+        self.pruned_positions.insert(pos);
+
+        // If the current position is not on a Pareto front, there is no need to rebuild.
         if self.h_at_seeds.remove(&pos).is_none() {
             return;
         }
-        println!("--------------------------------- Prune for {:?}", pos);
-
-        let mut h_map = HashMap::new();
-        h_map.insert(self.target, 0);
-        for Match {
-            start,
-            end,
-            match_cost,
-        } in self.seed_matches.iter().rev()
-        {
-            if !self.h_at_seeds.contains_key(&start) {
-                continue;
-            }
-
-            let update_val = h_map
-                .iter()
-                .filter(|&(parent, _)| parent >= end)
-                .map(|(&parent, &val)| {
-                    val + max(
-                        self.distance_function.distance(*start, parent),
-                        self.seed_matches.potential(*start) - self.seed_matches.potential(parent)
-                            + match_cost
-                            - (self.params.max_match_cost + 1),
-                    )
-                })
-                .min()
-                .unwrap();
-            let query_val = h_map
-                .iter()
-                .filter(|&(parent, _)| parent >= start)
-                .map(|(&parent, &val)| {
-                    val + max(
-                        self.distance_function.distance(*start, parent),
-                        self.seed_matches.potential(*start) - self.seed_matches.potential(parent),
-                    )
-                })
-                .min()
-                .unwrap();
-
-            if self.params.max_match_cost == 0 {
-                if update_val < query_val {
-                    h_map.insert(*start, update_val);
-                }
-            } else {
-                if update_val < query_val {
-                    h_map.insert(*start, update_val);
-                }
-            }
-        }
-        self.h_at_seeds = h_map;
+        self.build();
     }
 }
