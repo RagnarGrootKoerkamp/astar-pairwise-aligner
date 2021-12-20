@@ -26,7 +26,7 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
         graph: &AlignmentGraph<'a>,
     ) -> Self::Instance<'a> {
         assert!(self.max_match_cost < self.l);
-        SeedHeuristicI::new(a, b, alphabet, graph, &self)
+        SeedHeuristicI::new(a, b, alphabet, graph, *self)
     }
     fn l(&self) -> Option<usize> {
         Some(self.l)
@@ -45,14 +45,13 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
     }
 }
 pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
+    params: SeedHeuristic<DH>,
+    distance_function: DH::DistanceInstance<'a>,
+    target: Pos,
+
     seed_matches: SeedMatches,
     h_at_seeds: HashMap<Pos, usize>,
     h_cache: RefCell<HashMap<Pos, usize>>,
-    distance_function: DH::DistanceInstance<'a>,
-    target: Pos,
-    // TODO: Replace this by params: SeedHeuristic
-    pruning: bool,
-    max_match_cost: usize,
     graph: AlignmentGraph<'a>,
 }
 
@@ -62,7 +61,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         b: &'a Sequence,
         alphabet: &Alphabet,
         graph: &AlignmentGraph<'a>,
-        params: &SeedHeuristic<DH>,
+        params: SeedHeuristic<DH>,
     ) -> Self {
         let seed_matches = find_matches(a, b, alphabet, params.l, params.max_match_cost);
 
@@ -124,13 +123,12 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             }
         }
         SeedHeuristicI::<'a> {
+            params,
+            distance_function,
+            target: Pos(a.len(), b.len()),
             seed_matches,
             h_at_seeds: h_map,
             h_cache: RefCell::new(HashMap::new()),
-            distance_function,
-            target: Pos(a.len(), b.len()),
-            pruning: params.pruning,
-            max_match_cost: params.max_match_cost,
             graph: graph.clone(),
         }
     }
@@ -182,7 +180,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                         } else {
                             // Do not explore states that are too much edit distance away.
                             let new_delta = edge_cost + delta;
-                            if new_delta >= self.max_match_cost + 1 {
+                            if new_delta >= self.params.max_match_cost + 1 {
                                 None
                             } else {
                                 Some(
@@ -219,7 +217,7 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
         Some(self.seed_matches.matches.len())
     }
     fn prune(&mut self, pos: Pos) {
-        if !self.pruning {
+        if !self.params.pruning {
             return;
         }
         // TODO: Efficient pruning
@@ -250,7 +248,7 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
                         self.distance_function.distance(*start, parent),
                         self.seed_matches.potential(*start) - self.seed_matches.potential(parent)
                             + match_cost
-                            - (self.max_match_cost + 1),
+                            - (self.params.max_match_cost + 1),
                     )
                 })
                 .min()
@@ -267,7 +265,7 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
                 .min()
                 .unwrap();
 
-            if self.max_match_cost == 0 {
+            if self.params.max_match_cost == 0 {
                 if update_val < query_val {
                     h_map.insert(*start, update_val);
                 }
