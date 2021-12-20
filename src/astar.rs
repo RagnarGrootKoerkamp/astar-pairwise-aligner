@@ -124,6 +124,13 @@ where
                     continue;
                 }
                 *double_expands += 1;
+                assert!(
+                    false,
+                    "Double expand of {:?} first {} now {}",
+                    node,
+                    *entry.get(),
+                    estimate_score
+                );
                 entry.insert(estimate_score);
             }
             Vacant(entry) => {
@@ -159,8 +166,8 @@ where
             let next_estimate_score = next_score + estimate_cost(next);
             // FIXME: Enable this assert
             assert!(
-                estimate_score <= next_estimate_score + edge_cost(edge),
-                "Heuristic is not consistent. {:?}: {} -> {:?}: {}",
+                estimate_score <= next_estimate_score,
+                "Heuristic is not path consistent. {:?}: {} -> {:?}: {}",
                 node,
                 estimate_score,
                 next,
