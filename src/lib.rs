@@ -397,6 +397,7 @@ mod tests {
             max_match_cost: 0,
             distance_function: GapHeuristic,
             pruning: false,
+            build_fast: false,
         }
         .build(&a, &b, alphabet, &graph);
 
@@ -448,6 +449,7 @@ mod tests {
                 max_match_cost: 1,
                 distance_function: BiCountHeuristic,
                 pruning: false,
+                build_fast: false,
             },
         );
         assert!(r.heuristic_stats.root_h <= r.answer_cost);
@@ -461,6 +463,7 @@ mod tests {
             max_match_cost: 1,
             distance_function: GapHeuristic,
             pruning: false,
+            build_fast: false,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[361..369].to_vec();
@@ -478,6 +481,7 @@ mod tests {
             max_match_cost: 1,
             distance_function: GapHeuristic,
             pruning: false,
+            build_fast: false,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[236..246].to_vec();
@@ -495,6 +499,7 @@ mod tests {
             max_match_cost: 0,
             distance_function: GapHeuristic,
             pruning: true,
+            build_fast: false,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a.to_vec();
@@ -512,12 +517,31 @@ mod tests {
             max_match_cost: 1,
             distance_function: GapHeuristic,
             pruning: true,
+            build_fast: false,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[846..870].to_vec();
         let b = &b[856..880].to_vec();
         // TTGTGGGCCCTCTTAACTTCCAAC
         // TTTTTGGGCCCTTTAACTTCCAAC
+
+        println!("{}\n{}\n", to_string(&a), to_string(&b));
+        align(a, b, &alphabet, stats, h);
+    }
+
+    // Failed because of pruning and large edit distance
+    #[test]
+    fn consistency_5() {
+        let h = SeedHeuristic {
+            l: 4,
+            max_match_cost: 0,
+            distance_function: GapHeuristic,
+            pruning: true,
+            build_fast: false,
+        };
+        let (a, b, alphabet, stats) = setup(2000, 0.20);
+        let a = &a[200..310].to_vec();
+        let b = &b[203..313].to_vec();
 
         println!("{}\n{}\n", to_string(&a), to_string(&b));
         align(a, b, &alphabet, stats, h);
@@ -539,7 +563,7 @@ mod tests {
 // - Pruning with offset
 //   - Need to figure out when all previous vertices depend on the current match
 // - Simulate efficient pruning by re-pushing explored states with outdated heuristic value
-// - TODO: Do not make jumps along equal diagonals: in-between edges are going to be explored anyway, so better do that directly.
+// - Investigate doing long jumps on matching diagonals.
 //
 // TODO: Seeds
 // - Dynamic seeding, either greedy or using some DP[i, j, distance].

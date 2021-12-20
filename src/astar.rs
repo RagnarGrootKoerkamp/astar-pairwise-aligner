@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::{BinaryHeap, HashMap};
 
 use std::hash::Hash;
+use std::ops::Sub;
 
 use crate::scored::MinScored;
 use petgraph::visit::{EdgeRef, GraphBase, IntoEdges, Visitable};
@@ -82,6 +83,7 @@ where
     F: FnMut(G::EdgeRef) -> K,
     H: FnMut(G::NodeId) -> K,
     K: Measure + Copy + std::fmt::Display,
+    K: Sub<K, Output = K>,
     ExpandFn: FnMut(G::NodeId),
     ExploreFn: FnMut(G::NodeId),
     <G as GraphBase>::NodeId: std::fmt::Debug,
@@ -124,13 +126,13 @@ where
                     continue;
                 }
                 *double_expands += 1;
-                assert!(
-                    false,
-                    "Double expand of {:?} first {} now {}",
-                    node,
-                    *entry.get(),
-                    estimate_score
-                );
+                // assert!(
+                //     false,
+                //     "Double expand of {:?} first {} now {}",
+                //     node,
+                //     *entry.get(),
+                //     estimate_score
+                // );
                 entry.insert(estimate_score);
             }
             Vacant(entry) => {
@@ -165,14 +167,16 @@ where
             path_tracker.set_predecessor(next, node);
             let next_estimate_score = next_score + estimate_cost(next);
             // FIXME: Enable this assert
-            assert!(
-                estimate_score <= next_estimate_score,
-                "Heuristic is not path consistent. {:?}: {} -> {:?}: {}",
-                node,
-                estimate_score,
-                next,
-                next_estimate_score
-            );
+            // assert!(
+            //     estimate_score <= next_estimate_score,
+            //     "Heuristic is not path consistent. {:?}: {}+{} -> {:?}: {}+{}",
+            //     node,
+            //     node_score,
+            //     estimate_score - node_score,
+            //     next,
+            //     next_score,
+            //     next_estimate_score - next_score
+            // );
             visit_next.push(MinScored(next_estimate_score, next));
         }
     }

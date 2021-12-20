@@ -12,6 +12,7 @@ fn main() {
             max_match_cost: 0,
             distance_function: CountHeuristic,
             pruning: false,
+            build_fast: false,
         },
     )
     .write_explored_states("evals/stats/exact.csv");
@@ -23,6 +24,7 @@ fn main() {
             max_match_cost: 1,
             distance_function: CountHeuristic,
             pruning: false,
+            build_fast: false,
         },
     )
     .write_explored_states("evals/stats/inexact.csv");
@@ -34,6 +36,7 @@ fn main() {
             max_match_cost: 0,
             distance_function: CountHeuristic,
             pruning: true,
+            build_fast: false,
         },
     )
     .write_explored_states("evals/stats/exact_pruning.csv");
@@ -45,6 +48,7 @@ fn main() {
             max_match_cost: 1,
             distance_function: ZeroHeuristic,
             pruning: true,
+            build_fast: false,
         },
     );
     r.write_explored_states("evals/stats/inexact_pruning_zero.csv");
@@ -60,6 +64,7 @@ fn main() {
             max_match_cost: 1,
             distance_function: CountHeuristic,
             pruning: true,
+            build_fast: false,
         },
     );
     r.write_explored_states("evals/stats/inexact_pruning.csv");
