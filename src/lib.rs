@@ -453,42 +453,103 @@ mod tests {
         assert!(r.heuristic_stats.root_h <= r.answer_cost);
     }
 
+    // Failed because of match distance > 0
     #[test]
-    fn consistency() {
+    fn consistency_1() {
         let h = SeedHeuristic {
-            l: 6,
-            match_distance: 1,
+            l: 4,
+            max_match_cost: 1,
             distance_function: GapHeuristic,
             pruning: false,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
-        let a = &a[360..376].to_vec();
-        let b = &b[362..378].to_vec();
+        let a = &a[361..369].to_vec();
+        let b = &b[363..371].to_vec();
+
+        println!("{}\n{}\n", to_string(&a), to_string(&b));
+        align(a, b, &alphabet, stats, h);
+    }
+
+    // Failed because of match distance > 0 and stricter consistency check
+    #[test]
+    fn consistency_2() {
+        let h = SeedHeuristic {
+            l: 5,
+            max_match_cost: 1,
+            distance_function: GapHeuristic,
+            pruning: false,
+        };
+        let (a, b, alphabet, stats) = setup(2000, 0.10);
+        let a = &a[236..246].to_vec();
+        let b = &b[236..246].to_vec();
+
+        println!("{}\n{}\n", to_string(&a), to_string(&b));
+        align(a, b, &alphabet, stats, h);
+    }
+
+    // Failed because of pruning
+    #[test]
+    fn consistency_3() {
+        let h = SeedHeuristic {
+            l: 4,
+            max_match_cost: 0,
+            distance_function: GapHeuristic,
+            pruning: true,
+        };
+        let (a, b, alphabet, stats) = setup(2000, 0.10);
+        let a = &a.to_vec();
+        let b = &b.to_vec();
+
+        println!("{}\n{}\n", to_string(&a), to_string(&b));
+        align(a, b, &alphabet, stats, h);
+    }
+
+    // Failed because of pruning and match distance
+    #[test]
+    fn consistency_4() {
+        let h = SeedHeuristic {
+            l: 6,
+            max_match_cost: 1,
+            distance_function: GapHeuristic,
+            pruning: true,
+        };
+        let (a, b, alphabet, stats) = setup(2000, 0.10);
+        let a = &a[846..870].to_vec();
+        let b = &b[856..880].to_vec();
+        // TTGTGGGCCCTCTTAACTTCCAAC
+        // TTTTTGGGCCCTTTAACTTCCAAC
 
         println!("{}\n{}\n", to_string(&a), to_string(&b));
         align(a, b, &alphabet, stats, h);
     }
 }
 
-// TODO:
-// Statistics:
+// TODO: Statistics
 // - avg total estimated distance
 // - max number of consecutive matches
 // - contribution to h from matches and distance heuristic
 // - heuristic time
 // - number of skipped matches
 //
-// Code:
-// - TODO: Pruning heuristic requires consistency, which we don't have currently.
+// TODO: Code
 // - fuzzing/testing that fast impls equal slow impls
-// - efficient pruning: skip explored states that have outdated heuristic value
-// - choosing seeds bases on guessed alignment
+// - efficient pruning: skip explored states that have outdated heuristic value (aka pruning with offset)
 // - Expanded count counts identical nodes once for each pop
 // - Why is pruning worse for 0.05 edit distance?
 // - Pruning with offset
 //   - Need to figure out when all previous vertices depend on the current match
 // - Simulate efficient pruning by re-pushing explored states with outdated heuristic value
 // - TODO: Do not make jumps along equal diagonals: in-between edges are going to be explored anyway, so better do that directly.
+//
+// TODO: Seeds
+// - Dynamic seeding, either greedy or using some DP[i, j, distance].
+//   - Maximize h(0,0) or (max_match_cost+1)/l
+//   - Minimize number of extra seeds.
+// - choosing seeds bases on guessed alignment
+//
+// TODO: Fast Seed+Gap heuristic implementation:
+// - Bruteforce from bottom right to top left, fully processing everything all
+//   matches that are 'shadowed', i.e. only matter for going left/up, but not diagonally anymore.
 
 // NOTE: Optimizations done:
 // - Seed Heuristic
@@ -499,6 +560,3 @@ mod tests {
 //   - this almost halves the part of the bandwidth above 1.
 
 // NOTE: Expanded states is counted as:
-// -
-
-// TODO: FIGURE OUT WHY CONSISTENT HEURISTIC IS NOT ADMISSIBLE ANYMORE
