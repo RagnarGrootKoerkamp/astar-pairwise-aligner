@@ -24,6 +24,7 @@ fn main() {
                         max_match_cost,
                         distance_function: GapHeuristic,
                         pruning,
+                        build_fast: false,
                     },
                 );
                 result.print();

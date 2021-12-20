@@ -1,4 +1,4 @@
-use std::{cell::RefCell, iter::once};
+use std::{cell::RefCell, collections::HashSet, iter::once};
 
 use super::{distance::*, heuristic::*};
 use crate::{
@@ -14,6 +14,7 @@ pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub max_match_cost: usize,
     pub distance_function: DH,
     pub pruning: bool,
+    pub build_fast: bool,
 }
 impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
     type Instance<'a> = SeedHeuristicI<'a, DH>;
@@ -53,6 +54,7 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     h_at_seeds: HashMap<Pos, usize>,
     h_cache: RefCell<HashMap<Pos, usize>>,
     graph: AlignmentGraph<'a>,
+    pruned_positions: HashSet<Pos>,
 }
 
 impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {

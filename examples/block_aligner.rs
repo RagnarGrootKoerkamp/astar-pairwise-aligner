@@ -18,6 +18,7 @@ fn main() {
                     max_match_cost: 1,
                     distance_function: CountHeuristic,
                     pruning: true,
+                    build_fast: false,
                 },
             )
             .print();
