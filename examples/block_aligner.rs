@@ -15,7 +15,7 @@ fn main() {
                 e,
                 SeedHeuristic {
                     l,
-                    match_distance: 1,
+                    max_match_cost: 1,
                     distance_function: CountHeuristic,
                     pruning: true,
                 },

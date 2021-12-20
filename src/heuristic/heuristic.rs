@@ -11,7 +11,7 @@ pub struct HeuristicParams {
     pub heuristic: String,
     pub distance_function: Option<String>,
     pub l: Option<usize>,
-    pub max_match_distance: Option<usize>,
+    pub max_match_cost: Option<usize>,
     pub pruning: Option<bool>,
 }
 
@@ -24,7 +24,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     fn l(&self) -> Option<usize> {
         None
     }
-    fn match_distance(&self) -> Option<usize> {
+    fn max_match_cost(&self) -> Option<usize> {
         None
     }
     fn pruning(&self) -> Option<bool> {
@@ -47,7 +47,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
             heuristic: self.name().to_string(),
             distance_function: self.distance().map(|x| x.to_string()),
             l: self.l(),
-            max_match_distance: self.match_distance(),
+            max_match_cost: self.max_match_cost(),
             pruning: self.pruning(),
         }
     }

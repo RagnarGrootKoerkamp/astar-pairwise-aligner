@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, iter::once};
 
 use super::{distance::*, heuristic::*};
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub l: usize,
-    pub match_distance: usize,
+    pub max_match_cost: usize,
     pub distance_function: DH,
     pub pruning: bool,
 }
@@ -25,13 +25,14 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
         alphabet: &Alphabet,
         graph: &AlignmentGraph<'a>,
     ) -> Self::Instance<'a> {
+        assert!(self.max_match_cost < self.l);
         SeedHeuristicI::new(a, b, alphabet, graph, &self)
     }
     fn l(&self) -> Option<usize> {
         Some(self.l)
     }
-    fn match_distance(&self) -> Option<usize> {
-        Some(self.match_distance)
+    fn max_match_cost(&self) -> Option<usize> {
+        Some(self.max_match_cost)
     }
     fn pruning(&self) -> Option<bool> {
         Some(self.pruning)
@@ -45,12 +46,13 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
 }
 pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     seed_matches: SeedMatches,
-    h_map: HashMap<Pos, usize>,
+    h_at_seeds: HashMap<Pos, usize>,
+    h_cache: RefCell<HashMap<Pos, usize>>,
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
     // TODO: Replace this by params: SeedHeuristic
     pruning: bool,
-    max_match_distance: usize,
+    max_match_cost: usize,
     graph: AlignmentGraph<'a>,
 }
 

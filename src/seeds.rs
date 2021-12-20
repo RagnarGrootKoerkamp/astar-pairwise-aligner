@@ -4,7 +4,7 @@ use crate::util::*;
 pub struct Match {
     pub start: Pos,
     pub end: Pos,
-    pub match_distance: usize,
+    pub match_cost: usize,
 }
 
 pub struct SeedMatches {
@@ -23,6 +23,11 @@ impl SeedMatches {
     pub fn potential(&self, Pos(i, _): Pos) -> usize {
         self.potential[i]
     }
+
+    // TODO: Generalize this for overlapping seeds.
+    pub fn is_start_of_seed(&self, Pos(i, _): Pos) -> bool {
+        i + 1 < self.potential.len() && self.potential[i] > self.potential[i + 1]
+    }
 }
 
 pub fn find_matches<'a>(
@@ -30,9 +35,9 @@ pub fn find_matches<'a>(
     b_text: &'a Sequence,
     text_alphabet: &Alphabet,
     l: usize,
-    match_distance: usize,
+    max_match_cost: usize,
 ) -> SeedMatches {
-    assert!(match_distance == 0 || match_distance == 1);
+    assert!(max_match_cost == 0 || max_match_cost == 1);
     // Convert to a binary sequences.
     let rank_transform = RankTransform::new(text_alphabet);
 
@@ -50,7 +55,7 @@ pub fn find_matches<'a>(
     let n = a_text.len();
     let mut potential = Vec::with_capacity(n + 1);
     for i in 0..=n {
-        potential.push((match_distance + 1) * (n / l - min(i + l - 1, n) / l));
+        potential.push((max_match_cost + 1) * (n / l - min(i + l - 1, n) / l));
     }
 
     // Find matches of the seeds of a in b.
@@ -67,18 +72,18 @@ pub fn find_matches<'a>(
             matches.push(Match {
                 start: Pos(i, j),
                 end: Pos(i + l, j + l),
-                match_distance: 0,
+                match_cost: 0,
             });
         }
         // Inexact matches.
-        if match_distance == 1 {
+        if max_match_cost == 1 {
             let mutations = mutations(l, seed);
             for mutation in mutations.deletions {
                 for &j in qgram_index_deletions.qgram_matches(mutation) {
                     matches.push(Match {
                         start: Pos(i, j),
                         end: Pos(i + l, j + l - 1),
-                        match_distance: 1,
+                        match_cost: 1,
                     });
                 }
             }
@@ -87,7 +92,7 @@ pub fn find_matches<'a>(
                     matches.push(Match {
                         start: Pos(i, j),
                         end: Pos(i + l, j + l),
-                        match_distance: 1,
+                        match_cost: 1,
                     });
                 }
             }
@@ -96,7 +101,7 @@ pub fn find_matches<'a>(
                     matches.push(Match {
                         start: Pos(i, j),
                         end: Pos(i + l, j + l + 1),
-                        match_distance: 1,
+                        match_cost: 1,
                     });
                 }
             }
