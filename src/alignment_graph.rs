@@ -35,65 +35,79 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
         dir: petgraph::EdgeDirection,
     ) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
         const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
+        const DIAGONAL_DELTAS: [(usize, usize); 1] = [(1, 1)];
+        const LONG_DIAGONALS: bool = false;
 
-        // TODO: Compare between:
+        // TODO: Compare edge strategies:
         // - always walk 1 step any direction.
-        // - in case of match, only walk 1 step diagonal.
+        // - in case of match, only walk 1 step diagonal. [current choice]
         // - in case of match, only walk as far on diagonal as possible.
 
-        let nbs: ArrayVec<Edge<Self::Node>, 3> =
-            if false && i + 1 <= self.a.len() && j + 1 <= self.b.len() && self.a[i] == self.b[j] {
-                // Walk multiple steps at once.
-                let mut x = i + 1;
-                let mut y = j + 1;
-                while x + 1 <= self.a.len() && y + 1 <= self.b.len() && self.a[x] == self.b[y] {
-                    x += 1;
-                    y += 1;
-                }
-                let pos = Pos(x, y);
+        let diagonal_match = match dir {
+            petgraph::EdgeDirection::Outgoing => {
+                i < self.a.len() && j <= self.b.len() && self.a[i] == self.b[j]
+            }
+            petgraph::EdgeDirection::Incoming => i > 0 && j > 0 && self.a[i - 1] == self.b[j - 1],
+        };
 
-                // TODO: Update for reverse edges.
-                todo!();
-                once(Edge(u, pos, 0)).collect()
+        let nbs: ArrayVec<Edge<Self::Node>, 3> = if diagonal_match && LONG_DIAGONALS {
+            // Only walk diagonally when there is
+
+            // Walk multiple steps at once.
+            let mut x = i + 1;
+            let mut y = j + 1;
+            while x + 1 <= self.a.len() && y + 1 <= self.b.len() && self.a[x] == self.b[y] {
+                x += 1;
+                y += 1;
+            }
+            //let pos = Pos(x, y);
+
+            // TODO: Update for reverse edges.
+            //once(Edge(u, pos, 0)).collect();
+            todo!();
+        } else {
+            (if diagonal_match {
+                &DIAGONAL_DELTAS[..]
             } else {
-                DELTAS
-                    .iter()
-                    .filter_map(|&(di, dj)| match dir {
-                        petgraph::EdgeDirection::Outgoing => {
-                            if i + di <= self.a.len() && j + dj <= self.b.len() {
-                                let pos = Pos(i + di, j + dj);
-                                Some(Edge(
-                                    u,
-                                    pos,
-                                    if (di, dj) == (1, 1) && self.a[i] == self.b[j] {
-                                        0
-                                    } else {
-                                        1
-                                    },
-                                ))
+                &DELTAS[..]
+            })
+            .iter()
+            .filter_map(|&(di, dj)| match dir {
+                petgraph::EdgeDirection::Outgoing => {
+                    if i + di <= self.a.len() && j + dj <= self.b.len() {
+                        let pos = Pos(i + di, j + dj);
+                        Some(Edge(
+                            u,
+                            pos,
+                            if (di, dj) == (1, 1) && self.a[i] == self.b[j] {
+                                0
                             } else {
-                                None
-                            }
-                        }
-                        petgraph::EdgeDirection::Incoming => {
-                            if di <= i && dj <= j {
-                                let pos = Pos(i - di, j - dj);
-                                Some(Edge(
-                                    pos,
-                                    u,
-                                    if (di, dj) == (1, 1) && self.a[i - di] == self.b[j - dj] {
-                                        0
-                                    } else {
-                                        1
-                                    },
-                                ))
+                                1
+                            },
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                petgraph::EdgeDirection::Incoming => {
+                    if di <= i && dj <= j {
+                        let pos = Pos(i - di, j - dj);
+                        Some(Edge(
+                            pos,
+                            u,
+                            if (di, dj) == (1, 1) && self.a[i - di] == self.b[j - dj] {
+                                0
                             } else {
-                                None
-                            }
-                        }
-                    })
-                    .collect()
-            };
+                                1
+                            },
+                        ))
+                    } else {
+                        None
+                    }
+                }
+            })
+            .collect()
+        };
         nbs.into_iter()
     }
 }
