@@ -1,12 +1,12 @@
 use crate::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
-struct EqualHeuristic<H1: Heuristic, H2: Heuristic> {
-    h1: H1,
-    h2: H2,
+pub struct EqualHeuristic<H1: Heuristic, H2: Heuristic> {
+    pub h1: H1,
+    pub h2: H2,
 }
 
-struct EqualHeuristicI<'a, H1: Heuristic, H2: Heuristic> {
+pub struct EqualHeuristicI<'a, H1: Heuristic, H2: Heuristic> {
     h1: H1::Instance<'a>,
     h2: H2::Instance<'a>,
 }

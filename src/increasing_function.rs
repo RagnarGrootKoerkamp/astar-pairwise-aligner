@@ -109,6 +109,7 @@ impl IncreasingFunction2D<usize> {
         self.nodes[idx].val
     }
 
+    // TODO: Support max_match_cost > 0
     /// Build the increasing function over the given points. `l` must be at least 1.
     /// `ps` must be sorted increasing by (x,y), first on x and then on y.
     pub fn new(target: Pos, ps: impl IntoIterator<Item = Match>) -> Self {
@@ -141,10 +142,10 @@ impl IncreasingFunction2D<usize> {
         for Match {
             start,
             end,
-            // TODO
             match_cost,
         } in ps
         {
+            assert_eq!(match_cost, 0);
             // Update lagging front.
             //println!("Update lagging front");
             while lagging_index < self.nodes.len() {

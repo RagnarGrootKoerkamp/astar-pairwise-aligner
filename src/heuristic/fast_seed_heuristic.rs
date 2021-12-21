@@ -7,12 +7,12 @@ use crate::{
 };
 
 // TODO: Make this work for the other distance functions.
-// TODO: Inherit this from SeedHeuristic
+// TODO: Inherit this from SeedHeuristic.
+// TODO: Support pruning.
+// TODO: Support inexact matches.
 #[derive(Debug, Clone, Copy)]
 pub struct FastSeedHeuristic {
     pub l: usize,
-    pub pruning: bool,
-    pub max_match_cost: usize,
 }
 impl Heuristic for FastSeedHeuristic {
     type Instance<'a> = FastSeedHeuristicI;
@@ -38,11 +38,8 @@ impl Heuristic for FastSeedHeuristic {
 }
 pub struct FastSeedHeuristicI {
     seed_matches: SeedMatches,
-    target: Pos,
     f: IncreasingFunction2D<usize>,
     // TODO: Replace this by params: SeedHeuristic
-    pruning: bool,
-    max_match_cost: usize,
 }
 
 impl FastSeedHeuristicI {
@@ -53,19 +50,13 @@ impl FastSeedHeuristicI {
         _graph: &AlignmentGraph,
         params: &FastSeedHeuristic,
     ) -> Self {
-        let seed_matches = find_matches(a, b, alphabet, params.l, params.max_match_cost);
+        let seed_matches = find_matches(a, b, alphabet, params.l, 0);
 
         // The increasing function goes back from the end, and uses (0,0) for the final state.
         let f =
             IncreasingFunction2D::new(Pos(a.len(), b.len()), seed_matches.iter().rev().cloned());
 
-        FastSeedHeuristicI {
-            seed_matches,
-            target: Pos(a.len(), b.len()),
-            f,
-            pruning: params.pruning,
-            max_match_cost: params.max_match_cost,
-        }
+        FastSeedHeuristicI { seed_matches, f }
     }
 }
 impl HeuristicInstance<'_> for FastSeedHeuristicI {
