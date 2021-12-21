@@ -12,7 +12,7 @@ use crate::{
 pub struct FastSeedHeuristic {
     pub l: usize,
     pub pruning: bool,
-    pub match_distance: usize,
+    pub max_match_cost: usize,
 }
 impl Heuristic for FastSeedHeuristic {
     type Instance<'a> = FastSeedHeuristicI;
@@ -42,7 +42,7 @@ pub struct FastSeedHeuristicI {
     f: IncreasingFunction2D<usize>,
     // TODO: Replace this by params: SeedHeuristic
     pruning: bool,
-    match_distance: usize,
+    max_match_cost: usize,
 }
 
 impl FastSeedHeuristicI {
@@ -53,7 +53,7 @@ impl FastSeedHeuristicI {
         _graph: &AlignmentGraph,
         params: &FastSeedHeuristic,
     ) -> Self {
-        let seed_matches = find_matches(a, b, alphabet, params.l, params.match_distance);
+        let seed_matches = find_matches(a, b, alphabet, params.l, params.max_match_cost);
 
         // The increasing function goes back from the end, and uses (0,0) for the final state.
         let f =
@@ -64,7 +64,7 @@ impl FastSeedHeuristicI {
             target: Pos(a.len(), b.len()),
             f,
             pruning: params.pruning,
-            match_distance: params.match_distance,
+            max_match_cost: params.max_match_cost,
         }
     }
 }
