@@ -16,19 +16,21 @@ fn main() {
     for (&n, e) in ns.iter().cartesian_product(es) {
         for pruning in prunings {
             for (l, max_match_cost) in lm {
-                let result = test_heuristic(
-                    n,
-                    e,
-                    SeedHeuristic {
-                        l,
-                        max_match_cost,
-                        distance_function: GapHeuristic,
-                        pruning,
-                        build_fast: false,
-                    },
-                );
-                result.print();
-                result.write(&mut wtr);
+                for build_fast in [true, false] {
+                    let result = test_heuristic(
+                        n,
+                        e,
+                        SeedHeuristic {
+                            l,
+                            max_match_cost,
+                            distance_function: GapHeuristic,
+                            pruning,
+                            build_fast,
+                        },
+                    );
+                    result.print();
+                    result.write(&mut wtr);
+                }
             }
         }
         println!("");

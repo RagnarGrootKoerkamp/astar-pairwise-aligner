@@ -33,7 +33,7 @@ impl SeedMatches {
 }
 
 impl<'a> HeuristicInstance<'a> for SeedMatches {
-    fn h(&self, pos: Node<Self::IncrementalState>) -> usize {
+    fn h(&self, _: Node<Self::IncrementalState>) -> usize {
         unimplemented!("SeedMatches can only be used as a distance, not as a heuristic!");
     }
 }

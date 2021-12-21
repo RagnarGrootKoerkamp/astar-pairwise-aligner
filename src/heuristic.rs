@@ -6,6 +6,7 @@ pub mod pathmax;
 pub mod seed_heuristic;
 
 pub use distance::*;
+pub use equal_heuristic::*;
 pub use fast_seed_heuristic::*;
 pub use heuristic::*;
 pub use pathmax::*;
