@@ -3,7 +3,8 @@
     iter_intersperse,
     exclusive_range_pattern,
     associated_type_defaults,
-    generic_associated_types
+    generic_associated_types,
+    hash_drain_filter
 )]
 pub mod alignment_graph;
 pub mod astar;
@@ -183,7 +184,7 @@ impl AlignResult {
         let mut wtr = csv::Writer::from_path(filename).unwrap();
         // type: Explored, Expanded, Path, Match
         // Match does not have step set
-        wtr.write_record(&["i", "j", "type", "step", "match_distance"])
+        wtr.write_record(&["i", "j", "type", "step", "match_cost"])
             .unwrap();
         for (i, pos) in self.astar.explored_states.iter().enumerate() {
             wtr.serialize((pos.0, pos.1, "Explored", i, -1)).unwrap();
