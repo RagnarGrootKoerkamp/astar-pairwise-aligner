@@ -9,7 +9,7 @@ fn main() {
 
     let ns = [2_000];
     let es = [0.10, 0.20, 0.30];
-    let lm = [(4, 0), (5, 0), (6, 1), (7, 1), (8, 1)];
+    let lm = [(4, 0), (5, 0), (7, 1), (8, 1)];
     let prunings = [false, true];
 
     AlignResult::print_header();

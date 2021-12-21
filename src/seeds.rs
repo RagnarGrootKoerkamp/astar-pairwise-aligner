@@ -1,4 +1,4 @@
-use crate::util::*;
+use crate::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct Match {
@@ -11,6 +11,8 @@ pub struct SeedMatches {
     // Sorted by (i, j)
     pub num_seeds: usize,
     pub matches: Vec<Match>,
+    // Index of the start of the rightmost seed covering the given position.
+    pub start_of_seed: Vec<usize>,
     potential: Vec<usize>,
 }
 
@@ -26,7 +28,21 @@ impl SeedMatches {
 
     // TODO: Generalize this for overlapping seeds.
     pub fn is_start_of_seed(&self, Pos(i, _): Pos) -> bool {
-        i + 1 < self.potential.len() && self.potential[i] > self.potential[i + 1]
+        self.start_of_seed[i] == i
+    }
+}
+
+impl<'a> HeuristicInstance<'a> for SeedMatches {
+    fn h(&self, pos: Node<Self::IncrementalState>) -> usize {
+        unimplemented!("SeedMatches can only be used as a distance, not as a heuristic!");
+    }
+}
+impl<'a> DistanceHeuristicInstance<'a> for SeedMatches {
+    /// The minimal distance is the potential of the seeds entirely within the `[from, to)` interval.
+    /// NOTE: Assumes disjoint seeds.
+    fn distance(&self, from: Pos, to: Pos) -> usize {
+        assert!(from.0 <= to.0);
+        self.potential[from.0] - (self.potential[self.start_of_seed[to.0]])
     }
 }
 
@@ -42,6 +58,7 @@ pub fn find_matches<'a>(
     let rank_transform = RankTransform::new(text_alphabet);
 
     // Split a into seeds of size l, which are encoded as `usize`.
+    // (pos, ngram value)
     let seed_qgrams: Vec<(usize, usize)> = a_text
         .chunks_exact(l)
         .enumerate()
@@ -54,9 +71,13 @@ pub fn find_matches<'a>(
 
     let n = a_text.len();
     let mut potential = Vec::with_capacity(n + 1);
+    let mut start_of_seed = Vec::with_capacity(n + 1);
     for i in 0..=n {
         potential.push((max_match_cost + 1) * (n / l - min(i + l - 1, n) / l));
+        start_of_seed.push(i / l * l);
     }
+    let potential = potential;
+    let start_of_seed = start_of_seed;
 
     // Find matches of the seeds of a in b.
     // NOTE: This uses O(alphabet^l) memory.
@@ -113,6 +134,7 @@ pub fn find_matches<'a>(
     SeedMatches {
         num_seeds,
         matches,
+        start_of_seed,
         potential,
     }
 }
