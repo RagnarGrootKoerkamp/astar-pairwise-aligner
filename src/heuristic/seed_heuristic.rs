@@ -1,13 +1,11 @@
 use std::{cell::RefCell, cmp::Reverse, collections::HashSet, iter::once};
 
-use itertools::Itertools;
-
 use super::{distance::*, heuristic::*};
 use crate::{
     alignment_graph::{AlignmentGraph, Node},
     implicit_graph::{Edge, ImplicitGraphBase},
+    prelude::*,
     seeds::{find_matches, Match, SeedMatches},
-    util::*,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -59,14 +57,18 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     pruned_positions: HashSet<Pos>,
 }
 
-/// The seed heuristic implies a distance function as the maximum of the provided distance function and the potential difference between the two positions.
-/// Assumes that the current position is not a match, and no matches are visited in between `from` and `to`.
+/// The seed heuristic implies a distance function as the maximum of the
+/// provided distance function and the potential difference between the two
+/// positions.  Assumes that the current position is not a match, and no matches
+/// are visited in between `from` and `to`.
 impl<'a, DH: DistanceHeuristic> DistanceHeuristicInstance<'a> for SeedHeuristicI<'a, DH> {
     fn distance(&self, from: Pos, to: Pos) -> usize {
-        max(
+        let v = max(
             self.distance_function.distance(from, to),
             self.seed_matches.distance(from, to),
-        )
+        );
+        println!("Distance from {:?} to {:?} = {}", from, to, v);
+        v
     }
 }
 
@@ -97,7 +99,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         h
     }
 
-    fn best_distance<'b, T: IntoIterator<Item = (&'b Pos, &'b usize)>>(
+    fn best_distance<'b, T: Iterator<Item = (&'b Pos, &'b usize)>>(
         &self,
         pos: Pos,
         parents: T,
@@ -127,10 +129,12 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                 continue;
             }
             // Use the match.
-            let update_val = match_cost + self.best_distance(*end, &h_at_seeds);
+            let update_val = match_cost + self.best_distance(*end, h_at_seeds.iter());
             // Skip the match.
-            let query_val = self.best_distance(*start, &h_at_seeds);
+            let query_val = self.best_distance(*start, h_at_seeds.iter());
             // Update if using is better than skipping.
+
+            println!("{:?} {:?}  {} {}", end, start, update_val, query_val);
             if update_val < query_val {
                 h_at_seeds.insert(*start, update_val);
             }
@@ -143,106 +147,171 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // - Loop over seeds from right to left.
     // - Keep a second sorted list going from the bottom to the top.
     // - Keep a front over all match-starts with i>=x-l and j>=y-l, for some x,y.
-    // - Drop matches from the front when there are strictly better seeds and
-    //   they are more than l from the active region.
-    // - When a match A 'shadows' another match B so that B is never optimal
-    //   when A is reachable, we process all matches that reach B but not A, and then drop B.
-    //
     // - To determine the value at a position, simply loop over all matches in the front.
+    //
+    // - Matches B(x,y) are dropped from the front when we are sure they are superseeded:
+    //   - The diagonal is covered by another match A, with !(start(A) < start(B))
+    //     This ensures that everything that can reach B on the side of A can also reach A.
+    //   - That match A is to the left at (i,*) or above at (*,j)
+    //   - We have processed all matches M with end(M).0 > i or end(M).1 > j.
     //
     // When the diagonal has sufficiently many matches, this process should lead to
     // a front containing O(1) matches.
     fn build_fast(&mut self) {
-        // TODO: < or <=?
-        // All matches with !(end < front_pos) should be processed, so that everything with !(start < front_pos) can be pruned.
-        let front_pos = self.target;
         let mut h_at_seeds = HashMap::new();
         h_at_seeds.insert(self.target, 0);
-        // Start-of-match position -> (heuristic, superseeded)
-        // `superseeded` is set to true when a strictly better match A has been
-        // added to the front, but this match B can not yet be removed because
-        // there may be other matches that can reach B but not A.
-        let mut front = HashMap::<Pos, (usize, bool)>::new();
-        front.insert(self.target, (0, false));
 
-        // Sort by decreasing end.0.
-        let matches_by_end_i = {
+        // Start-of-match position -> (heuristic, (max_i, max_j))
+        // where max_{i,j} are as defined above.
+        let mut front = HashMap::<Pos, (usize, Pos)>::new();
+        front.insert(self.target, (0, Pos(0, 0)));
+
+        // Iterate over the front without the metadata.
+        fn front_as_h<'b>(
+            front: &'b HashMap<Pos, (usize, Pos)>,
+        ) -> impl Iterator<Item = (&'b Pos, &'b usize)> {
+            front.iter().map(|(pos, (h, _))| (pos, h))
+        }
+
+        fn ord_i(Match { start, end, .. }: &Match) -> Reverse<(usize, usize, usize, usize)> {
+            Reverse((end.0, end.1, start.0, start.1))
+        }
+        fn ord_j(Match { start, end, .. }: &Match) -> Reverse<(usize, usize, usize, usize)> {
+            Reverse((end.1, end.0, start.1, start.0))
+        }
+        // Sorted by decreasing i=end.0.
+        let matches_i = {
             let mut matches = self.seed_matches.matches.clone();
-            matches.sort_unstable_by_key(|Match { end, .. }| Reverse((end.0, end.1)));
+            matches.sort_unstable_by_key(ord_i);
             matches
         };
-        // Sort by decreasing end.1.
-        let matches_by_end_j = {
+        let mut matches_i = matches_i.iter().peekable();
+        // Sorted by decreasing j=end.1.
+        let matches_j = {
             let mut matches = self.seed_matches.matches.clone();
-            matches.sort_unstable_by_key(|Match { end, .. }| Reverse((end.1, end.0)));
+            matches.sort_unstable_by_key(ord_j);
             matches
         };
-        let mj_iter = matches_by_end_j.iter();
+        let mut matches_j = matches_j.iter().peekable();
+
+        // When adding a point to the front:
+        // 1. Update superseeded state for other points.
+        // 2. Push the point.
+        // Always:
+        // 3. Remove superseeded points.
 
         // TODO: Better ordering of matches.
-        for Match {
-            start,
-            end,
-            match_cost,
-        } in matches_by_end_i.iter().interleave(matches_by_end_j.iter())
-        {
+        let mut i_next = true;
+        let mut max_front_size = 0;
+        loop {
+            let (
+                Match {
+                    start,
+                    end,
+                    match_cost,
+                },
+                side,
+            ) = if let (true, Some(m)) = (i_next, matches_i.peek()) {
+                let m = *m;
+                matches_i.next();
+                // Check that m was not already processed from matches_j.
+                if let Some(mj) = matches_j.peek() {
+                    if ord_j(m) < ord_j(mj) {
+                        continue;
+                    }
+                }
+                (m, "i")
+            } else if let Some(m) = matches_j.next() {
+                // Check that m was not already processed from matches_i.
+                if let Some(mi) = matches_i.peek() {
+                    if ord_i(m) < ord_i(mi) {
+                        continue;
+                    }
+                }
+                (m, "j")
+            } else {
+                break;
+            };
+            i_next = !i_next;
+
             if self.pruned_positions.contains(&start) {
                 continue;
             }
-            let update_val = front
-                .iter()
-                .filter(|&(parent, _)| parent >= end)
-                .map(|(&parent, &(val, _))| {
-                    val + max(
-                        self.distance_function.distance(*start, parent),
-                        match_cost + self.seed_matches.potential(*end)
-                            - self.seed_matches.potential(parent),
-                    )
-                })
-                .min()
-                .unwrap();
-            let query_val = front
-                .iter()
-                .filter(|&(parent, _)| parent >= start)
-                .map(|(&parent, &(val, _))| -> usize {
-                    val + max(
-                        self.distance_function.distance(*start, parent),
-                        self.seed_matches.potential(*start) - self.seed_matches.potential(parent),
-                    )
-                })
-                .min()
-                .unwrap();
+            let update_val = match_cost + self.best_distance(*end, front_as_h(&front));
+            let query_val = self.best_distance(*start, front_as_h(&front));
 
-            // TODO: Report number of inserted and skipped matches
-            // TODO: Update front_pos.0.
+            println!(
+                "{}: {:?} {:?}  {} {}",
+                side, end, start, update_val, query_val
+            );
+
             if update_val < query_val {
+                // 1. Update superseeded for other points.
                 // Find matches B that are superseeded by the new match A.
-                // A match B is superseeded when the just inserted match A is at least as good on the diagonal of B.
-                for (start_b, (h, superseeded)) in &mut front {
-                    // Extend `pos`, the front of match B, diagonally towards (0,0) until we can reach it from A.
+                // A match B is superseeded when the just inserted match A is at
+                // least as good on the diagonal of B.
+                for (start_b, (h, best_cover)) in &mut front {
+                    // Extend `pos`, the front of match B, diagonally towards
+                    // (0,0) until we can reach it from A.
+                    let smaller_i = start.0 <= start_b.0;
+                    let smaller_j = start.1 <= start_b.1;
+                    assert!(smaller_i || smaller_j);
+
                     let delta = max(
                         start_b.0.saturating_sub(start.0),
                         start_b.1.saturating_sub(start.1),
                     );
-                    let cover_pos = Pos(start_b.0 - delta, start_b.1 - delta);
+                    let cover_pos = Pos(
+                        start_b.0.saturating_sub(delta),
+                        start_b.1.saturating_sub(delta),
+                    );
+                    // println!(
+                    //     "A {:?} B {:?} delta {} cover {:?}",
+                    //     start, start_b, delta, cover_pos
+                    // );
 
                     let val_a = update_val + self.distance(cover_pos, *start);
                     let val_b = *h + self.distance(cover_pos, *start_b);
                     if val_a <= val_b {
-                        *superseeded = true;
+                        if smaller_i && smaller_j {
+                            best_cover.0 = max(best_cover.0, start.0);
+                            best_cover.1 = max(best_cover.1, start.1);
+                        } else if smaller_i {
+                            best_cover.0 = max(best_cover.0, start.0);
+                            best_cover.1 = self.target.1;
+                        } else {
+                            best_cover.0 = self.target.0;
+                            best_cover.1 = max(best_cover.1, start.1);
+                        }
+                        println!(
+                            "{:?}={} covers {:?}={} at {:?} value {} <= {} -> new cover {:?}",
+                            start, update_val, start_b, h, cover_pos, val_a, val_b, best_cover
+                        );
                     }
                 }
 
-                // TODO: Update front_pos.1.
                 // Add to the front.
                 h_at_seeds.insert(*start, update_val);
-                front.insert(*start, (update_val, false));
+                front.insert(*start, (update_val, Pos(0, 0)));
             }
-            // Prune superseeded matches.
-            // TODO: Make this work for variable length l.
-            front.drain_filter(|pos, (_, superseeded)| *superseeded && *pos >= front_pos);
+
+            // 3. Remove superseeded matches.
+            let done = Pos(
+                matches_i.peek().map_or(0, |m| m.end.0),
+                matches_j.peek().map_or(0, |m| m.end.1),
+            );
+
+            front.drain_filter(|start, &mut (_, pos)| {
+                let v = done < pos;
+                if v {
+                    println!("Prune {:?} covered at {:?}", start, pos);
+                }
+                v
+            });
+            max_front_size = max(max_front_size, front.len());
         }
         self.h_at_seeds = h_at_seeds;
+        //println!("Front size end {} max {}", front.len(), max_front_size);
     }
 
     // The base heuristic function, which is not consistent in the following case:
@@ -250,17 +319,20 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // In this case h(A) = P(A)-P(X) <= d(A,B) + h(B) = 0 + P(B)-P(X) = P(A)-P(X)-1
     // is false. consistent_h below fixes this.
     fn base_h(&self, pos: Pos) -> usize {
-        self.best_distance(pos, &self.h_at_seeds)
+        self.best_distance(pos, self.h_at_seeds.iter())
     }
 
-    // The distance from the start of the current seed to the current position, capped at `match_cost+1`
+    // The distance from the start of the current seed to the current position,
+    // capped at `match_cost+1`
     // TODO: Generalize this for overlapping seeds.
     fn consistent_h(&self, pos: Pos) -> usize {
         self.consistent_h_acc(pos, 0)
     }
 
-    // Internal function that also takes the cost already accumulated, and returns early when the total cost is larger than the max_match_cost.
-    // Delta is the cost form `pos` to the positions where we are currently evaluating `consistent_h`.
+    // Internal function that also takes the cost already accumulated, and
+    // returns early when the total cost is larger than the max_match_cost.
+    // Delta is the cost form `pos` to the positions where we are currently
+    // evaluating `consistent_h`.
     // TODO: Benchmark whether a full DP is faster than the DFS we do currently.
     fn consistent_h_acc(&self, pos: Pos, delta: usize) -> usize {
         if let Some(h) = self.h_cache.borrow().get(&pos) {
@@ -268,7 +340,8 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         }
         // If we are currently at the start of a seed, we do not move to the left.
         let is_start_of_seed = self.seed_matches.is_start_of_seed(pos);
-        // H is the maximum of the heuristic at this point, and the minimum value implied by consistency.
+        // H is the maximum of the heuristic at this point, and the minimum
+        // value implied by consistency.
         let h = once(self.base_h(pos))
             .chain(
                 self.graph
@@ -278,7 +351,8 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                         if is_start_of_seed && start.0 < pos.0 {
                             None
                         } else {
-                            // Do not explore states that are too much edit distance away.
+                            // Do not explore states that are too much edit
+                            // distance away.
                             let new_delta = edge_cost + delta;
                             if new_delta >= self.params.max_match_cost + 1 {
                                 None
@@ -293,7 +367,8 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             )
             .max()
             .unwrap();
-        // We can only store the computed value if we are sure the computed value was not capped.
+        // We can only store the computed value if we are sure the computed
+        // value was not capped.
         // TODO: Reuse the computed value more often.
         if delta == 0 {
             self.h_cache.borrow_mut().insert(pos, h);
@@ -322,10 +397,68 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
         // Prune the current position.
         self.pruned_positions.insert(pos);
 
-        // If the current position is not on a Pareto front, there is no need to rebuild.
+        // If the current position is not on a Pareto front, there is no need to
+        // rebuild.
         if self.h_at_seeds.remove(&pos).is_none() {
             return;
         }
         self.build();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use itertools::Itertools;
+
+    use super::*;
+    use crate::setup;
+    use crate::{align, alignment_graph};
+
+    #[test]
+    fn fast_build() {
+        for pruning in [false, true] {
+            for (l, max_match_cost) in [(4, 0), (7, 1)] {
+                let h_slow = SeedHeuristic {
+                    l,
+                    max_match_cost,
+                    distance_function: GapHeuristic,
+                    pruning,
+                    build_fast: false,
+                };
+                let h_fast = SeedHeuristic {
+                    l,
+                    max_match_cost,
+                    distance_function: GapHeuristic,
+                    pruning,
+                    build_fast: true,
+                };
+
+                let (a, b, alphabet, stats) = setup(100, 0.20);
+
+                println!("Testing: {:?}", h_fast);
+                {
+                    let graph = alignment_graph::new_alignment_graph(&a, &b);
+                    let h_slow = h_slow.build(&a, &b, &alphabet, &graph);
+                    let h_fast = h_fast.build(&a, &b, &alphabet, &graph);
+                    let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
+                    let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
+                    h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                    h_fast_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                    assert_eq!(h_slow_map, h_fast_map);
+                }
+
+                align(
+                    &a,
+                    &b,
+                    &alphabet,
+                    stats,
+                    EqualHeuristic {
+                        h1: h_slow,
+                        h2: h_fast,
+                    },
+                );
+            }
+        }
     }
 }
