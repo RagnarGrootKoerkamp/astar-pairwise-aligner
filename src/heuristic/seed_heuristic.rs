@@ -1,4 +1,3 @@
-use petgraph::visit::IntoEdgesDirected;
 use std::{cell::RefCell, cmp::Reverse, collections::HashSet, iter::once};
 
 use itertools::Itertools;
@@ -49,6 +48,8 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
     }
 }
 pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
+    a: &'a Sequence,
+    b: &'a Sequence,
     params: SeedHeuristic<DH>,
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
@@ -57,6 +58,10 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     h_at_seeds: HashMap<Pos, usize>,
     h_cache: RefCell<HashMap<Pos, usize>>,
     pruned_positions: HashSet<Pos>,
+
+    // For the fast version
+    transform_target: Pos,
+    increasing_function: IncreasingFunction2D<usize>,
 }
 
 /// The seed heuristic implies a distance function as the maximum of the
@@ -86,6 +91,8 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         let distance_function = DistanceHeuristic::build(&params.distance_function, a, b, alphabet);
 
         let mut h = SeedHeuristicI::<'a> {
+            a,
+            b,
             params,
             distance_function,
             target: Pos(a.len(), b.len()),
@@ -93,6 +100,14 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             h_at_seeds: HashMap::default(),
             h_cache: RefCell::new(HashMap::new()),
             pruned_positions: HashSet::new(),
+            increasing_function: Default::default(),
+            // Filled below.
+            transform_target: Pos(0, 0),
+        };
+        h.transform_target = if h.params.build_fast {
+            h.transform(h.target)
+        } else {
+            h.target
         };
         h.build();
         h
@@ -109,20 +124,6 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             .map(|(parent, val)| self.distance(pos, *parent) + val)
             .min()
             .unwrap_or_else(|| self.distance(pos, self.target))
-    }
-
-    // Returns the best distance, and the parent position where this is obtained.
-    fn best_distance_with_parent<'b, T: Iterator<Item = (&'b Pos, &'b usize)>>(
-        &self,
-        pos: Pos,
-        parents: T,
-    ) -> (usize, Pos) {
-        parents
-            .into_iter()
-            .filter(|&(parent, _)| *parent >= pos)
-            .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
-            .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
-            .unwrap_or_else(|| (self.distance(pos, self.target), self.target))
     }
 
     // TODO: Report some metrics on skipped states.
@@ -155,6 +156,18 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         self.h_at_seeds = h_at_seeds;
     }
 
+    fn transform(&self, Pos(i, j): Pos) -> Pos {
+        let a = self.target.0;
+        let b = self.target.1;
+        let l = self.params.l;
+        let max_match_cost = self.params.max_match_cost;
+        //println!("transform {} {}", i, j);
+        Pos(
+            i + b - j + (i + l - 1) / l * (max_match_cost + 1),
+            j + a - i + (i + l - 1) / l * (max_match_cost + 1),
+        )
+    }
+
     /// Build the `h_at_seeds` map in roughly O(#seeds).
     // Implementation:
     // - Loop over seeds from right to left.
@@ -171,30 +184,138 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // When the diagonal has sufficiently many matches, this process should lead to
     // a front containing O(1) matches.
     fn build_fast(&mut self) {
-        let mut h_at_seeds = HashMap::new();
-        h_at_seeds.insert(self.target, 0);
+        let a = self.target.0;
+        let b = self.target.1;
+        let l = self.params.l;
+        let max_match_cost = self.params.max_match_cost;
 
-        todo!();
+        // The bottom right of the transformed region.
+        let mut transform_target = self.transform(self.target);
+        let leftover_at_end = self.seed_matches.start_of_seed[self.target.0] < self.target.0;
 
-        self.h_at_seeds = h_at_seeds;
+        // The top left of the transformed region, computed as the bounding box
+        // of the two points of interest in the first row and column.
+        #[allow(unused_variables)]
+        let transform_start = {
+            // The bounding point of interest on the top row.
+            let start_i = Pos(
+                b * (max_match_cost + 1) / (l + max_match_cost + 1) + a - b,
+                0,
+            );
+            // The bounding point of interest in the left column.
+            let start_j = Pos(0, a * (max_match_cost + 1) / l + b - a);
+            Pos(self.transform(start_j).0, self.transform(start_i).1)
+        };
+        // println!("Bot ri: xxx / {:?}", transform_target);
+        // println!(
+        //     "Target: {:?} / {:?}",
+        //     self.target,
+        //     self.transform(self.target)
+        // );
+        // println!("Start : {:?} / {:?}", Pos(0, 0), transform_start);
+
+        let mut transformed_matches = self
+            .seed_matches
+            .iter()
+            .filter(|Match { start, end, .. }| {
+                self.transform(*end) <= transform_target && !self.pruned_positions.contains(start)
+            })
+            .map(
+                |m @ &Match {
+                     start,
+                     end,
+                     match_cost,
+                 }| {
+                    //println!("Match: {:?}", m);
+                    Match {
+                        start: self.transform(start),
+                        end: self.transform(end),
+                        match_cost,
+                    }
+                },
+            )
+            .collect_vec();
+        transformed_matches
+            .sort_by_key(|Match { end, start, .. }| (start.0, start.1, end.0, end.1));
+        // for x in &transformed_matches {
+        //     println!("Match: {:?}", x);
+        // }
+        //dbg!(&transformed_matches);
+        let f = IncreasingFunction2D::new(
+            transform_target,
+            self.params.max_match_cost,
+            leftover_at_end,
+            transformed_matches.into_iter().rev(),
+        );
+        self.h_at_seeds = f.to_map();
+
+        let mut h_map = self.h_at_seeds.iter().collect_vec();
+        h_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+        //println!("H: {:?}", h_map);
     }
 
     // The base heuristic function, which is not consistent in the following case:
     // pos A is the start of a seed, and pos B is A+(1,1), with edge cost 0.
     // In this case h(A) = P(A)-P(X) <= d(A,B) + h(B) = 0 + P(B)-P(X) = P(A)-P(X)-1
     // is false. consistent_h below fixes this.
-    fn base_h(&self, pos: Pos) -> usize {
-        self.best_distance(pos, self.h_at_seeds.iter())
+    fn base_h(&self, pos: HNode<'a, Self>) -> usize {
+        if self.params.build_fast {
+            let pos_transformed = self.transform(pos.0);
+            let p = self.seed_matches.potential(pos.0);
+            self.h_at_seeds
+                .iter()
+                .filter(|&(parent, _)| *parent >= pos_transformed)
+                .map(|(_parent, val)| p - *val)
+                .min()
+                .unwrap_or(self.distance(pos.0, self.target))
+        } else {
+            self.best_distance(pos.0, self.h_at_seeds.iter())
+        }
     }
 
     pub fn base_h_with_parent(&self, pos: Pos) -> (usize, Pos) {
-        self.best_distance_with_parent(pos, self.h_at_seeds.iter())
+        if self.params.build_fast {
+            let pos_transformed = self.transform(pos);
+            let to_end = (self.distance(pos, self.target), self.target);
+            let (val, parent) = self
+                .h_at_seeds
+                .iter()
+                .filter(|&(parent, _)| *parent >= pos_transformed)
+                .map(|(parent, val)| {
+                    // println!(
+                    //     "pos {:?} parent {:?} pot {} val {}",
+                    //     pos,
+                    //     parent,
+                    //     self.seed_matches.potential(pos),
+                    //     val
+                    // );
+                    (self.seed_matches.potential(pos) - *val, *parent)
+                })
+                .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
+                .unwrap_or(to_end);
+            (val, parent)
+            // println!(
+            //     "H at {:?} / {:?}: {} - {} \t for parent {:?}",
+            //     pos,
+            //     pos_transformed,
+            //     self.seed_matches.potential(pos),
+            //     val,
+            //     parent,
+            // );
+        } else {
+            self.h_at_seeds
+                .iter()
+                .filter(|&(parent, _)| *parent >= pos)
+                .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
+                .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
+                .unwrap_or_else(|| (self.distance(pos, self.target), self.target))
+        }
     }
 
     // The distance from the start of the current seed to the current position,
     // capped at `match_cost+1`
     // TODO: Generalize this for overlapping seeds.
-    fn consistent_h(&self, pos: Pos) -> usize {
+    fn consistent_h(&self, pos: HNode<'a, Self>) -> usize {
         self.consistent_h_acc(pos, 0)
     }
 
@@ -203,36 +324,41 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // Delta is the cost form `pos` to the positions where we are currently
     // evaluating `consistent_h`.
     // TODO: Benchmark whether a full DP is faster than the DFS we do currently.
-    fn consistent_h_acc(&self, pos: Pos, delta: usize) -> usize {
-        if let Some(h) = self.h_cache.borrow().get(&pos) {
+    fn consistent_h_acc(&self, pos: HNode<'a, Self>, delta: usize) -> usize {
+        if let Some(h) = self.h_cache.borrow().get(&pos.0) {
             return *h;
         }
         // If we are currently at the start of a seed, we do not move to the left.
-        let is_start_of_seed = self.seed_matches.is_start_of_seed(pos);
+        let is_start_of_seed = self.seed_matches.is_start_of_seed(pos.0);
         // H is the maximum of the heuristic at this point, and the minimum
         // value implied by consistency.
         let h = once(self.base_h(pos))
             .chain(
-                self.graph
-                    .edges_directed(pos, petgraph::EdgeDirection::Incoming)
-                    .filter_map(|Edge(start, _, edge_cost)| {
-                        // Do not move further left from the start of a seed.
-                        if is_start_of_seed && start.0 < pos.0 {
+                alignment_graph::incremental_edges(
+                    &self.a,
+                    &self.b,
+                    self,
+                    pos,
+                    petgraph::EdgeDirection::Incoming,
+                )
+                .filter_map(|Edge(start, _, edge_cost)| {
+                    // Do not move further left from the start of a seed.
+                    if is_start_of_seed && start.0 .0 < pos.0 .0 {
+                        None
+                    } else {
+                        // Do not explore states that are too much edit
+                        // distance away.
+                        let new_delta = edge_cost + delta;
+                        if new_delta >= self.params.max_match_cost + 1 {
                             None
                         } else {
-                            // Do not explore states that are too much edit
-                            // distance away.
-                            let new_delta = edge_cost + delta;
-                            if new_delta >= self.params.max_match_cost + 1 {
-                                None
-                            } else {
-                                Some(
-                                    self.consistent_h_acc(start, new_delta)
-                                        .saturating_sub(edge_cost),
-                                )
-                            }
+                            Some(
+                                self.consistent_h_acc(start, new_delta)
+                                    .saturating_sub(edge_cost),
+                            )
                         }
-                    }),
+                    }
+                }),
             )
             .max()
             .unwrap();
@@ -240,16 +366,38 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         // value was not capped.
         // TODO: Reuse the computed value more often.
         if delta == 0 {
-            self.h_cache.borrow_mut().insert(pos, h);
+            self.h_cache.borrow_mut().insert(pos.0, h);
         }
         h
     }
 }
 
 impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH> {
-    fn h(&self, Node(pos, _): Node<Self::IncrementalState>) -> usize {
+    fn h(&self, pos: Node<Self::IncrementalState>) -> usize {
         self.consistent_h(pos)
     }
+
+    type IncrementalState = crate::increasing_function::NodeIndex;
+
+    fn incremental_h(
+        &self,
+        parent: Node<Self::IncrementalState>,
+        _pos: Pos,
+    ) -> Self::IncrementalState {
+        if self.params.build_fast {
+            parent.1
+            // self.increasing_function
+            //     .get_jump(self.transform(pos), parent.1)
+            //     .expect(&format!("{:?} {:?}", pos, parent))
+        } else {
+            parent.1
+        }
+    }
+
+    fn root_state(&self) -> Self::IncrementalState {
+        self.increasing_function.root()
+    }
+
     fn num_seeds(&self) -> Option<usize> {
         Some(self.seed_matches.num_seeds)
     }
@@ -286,46 +434,51 @@ mod tests {
 
     #[test]
     fn fast_build() {
-        for pruning in [false, true] {
-            for (l, max_match_cost) in [(4, 0), (7, 1)] {
-                let h_slow = SeedHeuristic {
-                    l,
-                    max_match_cost,
-                    distance_function: GapHeuristic,
-                    pruning,
-                    build_fast: false,
-                };
-                let h_fast = SeedHeuristic {
-                    l,
-                    max_match_cost,
-                    distance_function: GapHeuristic,
-                    pruning,
-                    build_fast: true,
-                };
+        // TODO: check pruning
+        for (l, max_match_cost) in [(4, 0), (7, 1)] {
+            for n in [100, 200, 500] {
+                for e in [0.1, 0.3, 1.0] {
+                    for pruning in [false] {
+                        let h_slow = SeedHeuristic {
+                            l,
+                            max_match_cost,
+                            distance_function: GapHeuristic,
+                            pruning,
+                            build_fast: false,
+                        };
+                        let h_fast = SeedHeuristic {
+                            l,
+                            max_match_cost,
+                            distance_function: GapHeuristic,
+                            pruning,
+                            build_fast: true,
+                        };
 
-                let (a, b, alphabet, stats) = setup(100, 0.20);
+                        let (a, b, alphabet, stats) = setup(n, e);
 
-                println!("Testing: {:?}", h_fast);
-                {
-                    let h_slow = h_slow.build(&a, &b, &alphabet);
-                    let h_fast = h_fast.build(&a, &b, &alphabet);
-                    let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
-                    let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
-                    h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
-                    h_fast_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
-                    assert_eq!(h_slow_map, h_fast_map);
+                        println!("Testing n {} e {}: {:?}", n, e, h_fast);
+                        if false {
+                            let h_slow = h_slow.build(&a, &b, &alphabet);
+                            let h_fast = h_fast.build(&a, &b, &alphabet);
+                            let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
+                            let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
+                            h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                            h_fast_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                            assert_eq!(h_slow_map, h_fast_map);
+                        }
+
+                        align(
+                            &a,
+                            &b,
+                            &alphabet,
+                            stats,
+                            EqualHeuristic {
+                                h1: h_slow,
+                                h2: h_fast,
+                            },
+                        );
+                    }
                 }
-
-                align(
-                    &a,
-                    &b,
-                    &alphabet,
-                    stats,
-                    EqualHeuristic {
-                        h1: h_slow,
-                        h2: h_fast,
-                    },
-                );
             }
         }
     }
