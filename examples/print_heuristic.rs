@@ -12,6 +12,8 @@ fn main() {
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast: false,
+                    query_fast: build_fast,
+                    make_consistent: true,
                 };
                 let h_fast = SeedHeuristic {
                     l,
@@ -19,22 +21,24 @@ fn main() {
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,
+                    query_fast: build_fast,
+                    make_consistent: true,
                 };
 
                 let n = 100;
                 let e: f32 = 0.3;
-                let (mut a, mut b, alphabet, stats) = setup(n, e);
+                let (a, b, alphabet, stats) = setup(n, e);
                 let a = &a[63..85].to_vec();
                 let b = &b[63..90].to_vec();
 
                 //let a = &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
                 //let b = &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
 
-                let prunes = [Pos(8, 5), Pos(12, 6)];
+                //let prunes = [Pos(8, 5), Pos(12, 6)];
                 //let prunes = [];
 
                 println!("\n\n\nTESTING: {:?}", h_fast);
-                let mut h = h_fast.build(&a, &b, &alphabet);
+                let h = h_fast.build(&a, &b, &alphabet);
                 // for p in prunes {
                 //     h.prune(p);
                 // }

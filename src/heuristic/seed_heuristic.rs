@@ -18,6 +18,8 @@ pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub distance_function: DH,
     pub pruning: bool,
     pub build_fast: bool,
+    pub query_fast: bool,
+    pub make_consistent: bool,
 }
 impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
     type Instance<'a> = SeedHeuristicI<'a, DH>;
@@ -90,6 +92,16 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         let seed_matches = find_matches(a, b, alphabet, params.l, params.max_match_cost);
 
         let distance_function = DistanceHeuristic::build(&params.distance_function, a, b, alphabet);
+
+        if params.build_fast {
+            assert!(params.distance_function.name() == "Gap");
+        }
+        if params.query_fast {
+            assert!(
+                params.build_fast,
+                "Query_fast only works when build_fast is enabled"
+            );
+        }
 
         let mut h = SeedHeuristicI::<'a> {
             a,
@@ -188,11 +200,6 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // When the diagonal has sufficiently many matches, this process should lead to
     // a front containing O(1) matches.
     fn build_fast(&mut self) {
-        let a = self.target.0;
-        let b = self.target.1;
-        let l = self.params.l;
-        let max_match_cost = self.params.max_match_cost;
-
         // The bottom right of the transformed region.
         let transform_target = self.transform(self.target);
         let leftover_at_end = self.seed_matches.start_of_seed[self.target.0] < self.target.0;
@@ -208,7 +215,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         let filtered_matches = self
             .seed_matches
             .iter()
-            .filter(|Match { start, end, .. }| self.transform(*end) <= transform_target)
+            .filter(|Match { end, .. }| self.transform(*end) <= transform_target)
             // Filter matches by transformed start position.
             .filter(|Match { start, .. }| !self.pruned_positions.contains(start))
             .collect_vec();
@@ -381,21 +388,27 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
 
 impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH> {
     fn h(&self, pos: Node<Self::IncrementalState>) -> usize {
-        self.consistent_h(pos)
+        if self.params.make_consistent {
+            self.consistent_h(pos)
+        } else {
+            self.base_h(pos)
+        }
     }
 
+    // TODO: Get rid of Option here?
     type IncrementalState = crate::increasing_function::NodeIndex;
 
     fn incremental_h(
         &self,
         parent: Node<Self::IncrementalState>,
-        _pos: Pos,
+        pos: Pos,
     ) -> Self::IncrementalState {
-        if self.params.build_fast {
-            parent.1
-            // self.increasing_function
-            //     .get_jump(self.transform(pos), parent.1)
-            //     .expect(&format!("{:?} {:?}", pos, parent))
+        if self.params.query_fast {
+            self.increasing_function.incremental(
+                self.transform(pos),
+                parent.1,
+                self.transform(parent.0),
+            )
         } else {
             parent.1
         }
@@ -428,7 +441,8 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
             //pos,
             //self.transform(pos)
             //);
-            let tpos = self.transform(pos);
+            // This doesn't work after all...
+            //let tpos = self.transform(pos);
             // Prune the current position.
             self.pruned_positions.insert(pos);
             // NOTE: This still has a small bug/difference with the bruteforce implementation:
@@ -476,6 +490,8 @@ mod tests {
                             distance_function: GapHeuristic,
                             pruning,
                             build_fast: false,
+                            query_fast: false,
+                            make_consistent: true,
                         };
                         let h_fast = SeedHeuristic {
                             l,
@@ -483,6 +499,8 @@ mod tests {
                             distance_function: GapHeuristic,
                             pruning,
                             build_fast: true,
+                            query_fast: false,
+                            make_consistent: true,
                         };
 
                         let (a, b, alphabet, stats) = setup(n, e);
@@ -540,6 +558,8 @@ mod tests {
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,
+                    query_fast: build_fast,
+                    make_consistent: true,
                 };
                 let h_fast = SeedHeuristic {
                     l,
@@ -547,6 +567,8 @@ mod tests {
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,
+                    query_fast: build_fast,
+                    make_consistent: true,
                 };
 
                 let (_, _, alphabet, stats) = setup(0, 0.0);

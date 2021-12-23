@@ -17,19 +17,23 @@ fn main() {
         for pruning in prunings {
             for (l, max_match_cost) in lm {
                 for build_fast in [false, true] {
-                    let result = test_heuristic(
-                        n,
-                        e,
-                        SeedHeuristic {
-                            l,
-                            max_match_cost,
-                            distance_function: GapHeuristic,
-                            pruning,
-                            build_fast,
-                        },
-                    );
-                    result.print();
-                    result.write(&mut wtr);
+                    for make_consistent in [true, false] {
+                        let result = test_heuristic(
+                            n,
+                            e,
+                            SeedHeuristic {
+                                l,
+                                max_match_cost,
+                                distance_function: GapHeuristic,
+                                pruning,
+                                build_fast,
+                                query_fast: build_fast,
+                                make_consistent,
+                            },
+                        );
+                        result.print();
+                        result.write(&mut wtr);
+                    }
                 }
             }
         }
