@@ -11,13 +11,13 @@ use crate::{
 // TODO: Support pruning.
 // TODO: Support inexact matches.
 #[derive(Debug, Clone, Copy)]
-pub struct FastSeedHeuristic {
+pub struct FastZeroSeedHeuristic {
     pub l: usize,
 }
-impl Heuristic for FastSeedHeuristic {
-    type Instance<'a> = FastSeedHeuristicI;
+impl Heuristic for FastZeroSeedHeuristic {
+    type Instance<'a> = FastZeroSeedHeuristicI;
     fn name(&self) -> String {
-        "FastSeed".into()
+        "FastZeroSeed".into()
     }
 
     fn build<'a>(
@@ -27,7 +27,7 @@ impl Heuristic for FastSeedHeuristic {
         alphabet: &Alphabet,
         graph: &'a AlignmentGraph,
     ) -> Self::Instance<'_> {
-        FastSeedHeuristicI::new(a, b, alphabet, graph, self)
+        FastZeroSeedHeuristicI::new(a, b, alphabet, graph, self)
     }
     fn l(&self) -> Option<usize> {
         Some(self.l)
@@ -36,19 +36,19 @@ impl Heuristic for FastSeedHeuristic {
         Some("Zero".into())
     }
 }
-pub struct FastSeedHeuristicI {
+pub struct FastZeroSeedHeuristicI {
     seed_matches: SeedMatches,
     f: IncreasingFunction2D<usize>,
     // TODO: Replace this by params: SeedHeuristic
 }
 
-impl FastSeedHeuristicI {
+impl FastZeroSeedHeuristicI {
     pub fn new(
         a: &Sequence,
         b: &Sequence,
         alphabet: &Alphabet,
         _graph: &AlignmentGraph,
-        params: &FastSeedHeuristic,
+        params: &FastZeroSeedHeuristic,
     ) -> Self {
         let seed_matches = find_matches(a, b, alphabet, params.l, 0);
 
@@ -56,10 +56,10 @@ impl FastSeedHeuristicI {
         let f =
             IncreasingFunction2D::new(Pos(a.len(), b.len()), seed_matches.iter().rev().cloned());
 
-        FastSeedHeuristicI { seed_matches, f }
+        FastZeroSeedHeuristicI { seed_matches, f }
     }
 }
-impl HeuristicInstance<'_> for FastSeedHeuristicI {
+impl HeuristicInstance<'_> for FastZeroSeedHeuristicI {
     fn h(&self, Node(pos, parent): Node<Self::IncrementalState>) -> usize {
         self.seed_matches.potential(pos) - self.f.val(parent)
     }
