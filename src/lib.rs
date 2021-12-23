@@ -276,7 +276,7 @@ pub fn align<'a, H: Heuristic>(
             explored += 1;
             explored_states.push(pos);
         },
-        false,
+        /*retry_outdated*/ true,
         &mut double_expanded,
         &mut retries,
     )
