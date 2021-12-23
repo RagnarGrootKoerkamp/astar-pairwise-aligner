@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::heuristic::*;
 use crate::{
     alignment_graph::Node,
@@ -56,7 +58,7 @@ impl FastZeroSeedHeuristicI {
             Pos(a.len(), b.len()),
             params.max_match_cost,
             false,
-            seed_matches.iter().rev().cloned(),
+            seed_matches.iter().cloned().collect_vec(),
         );
 
         FastZeroSeedHeuristicI { seed_matches, f }

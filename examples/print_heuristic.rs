@@ -11,14 +11,24 @@ fn main() {
                     max_match_cost,
                     distance_function: GapHeuristic,
                     pruning,
+                    build_fast: false,
+                };
+                let h_fast = SeedHeuristic {
+                    l,
+                    max_match_cost,
+                    distance_function: GapHeuristic,
+                    pruning,
                     build_fast,
                 };
 
-                let n = 500;
-                let e = 1.0;
-                let (mut a, mut b, alphabet, _stats) = setup(n, e);
-                let a = &a[301..].to_vec();
-                let b = &b[301..].to_vec();
+                let n = 100;
+                let e = 0.3;
+                let (mut a, mut b, alphabet, stats) = setup(n, e);
+                let a = &a[70..].to_vec();
+                let b = &b[70..].to_vec();
+                let a = &"GATCGCAGCAGAACTGTGCCCATTTTGTGCCT".as_bytes().to_vec();
+                let b = &"GCGCAGAACATGTGGTCCAATTTTGCTGCC".as_bytes().to_vec();
+                println!("{}\n{}\n", to_string(a), to_string(b));
                 /*
                 let (mut x, mut y, _alphabet, _stats) = setup_with_seed(10, 1.0, 363);
                 let mut a = a[93..].to_vec();
@@ -35,9 +45,8 @@ fn main() {
                 b = y;
                 */
 
-                println!("Testing: {:?}", h_slow);
-                let h_slow = h_slow.build(&a, &b, &alphabet);
-                let h = h_slow;
+                println!("Testing: {:?}", h_fast);
+                let h = h_fast.build(&a, &b, &alphabet);
                 let mut ps = HashMap::new();
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3145);
                 let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
@@ -148,6 +157,24 @@ fn main() {
                         print!("{}", termion::color::Fg(termion::color::Reset));
                         print!("{}", termion::color::Bg(termion::color::Reset));
                         print!("\n");
+                    }
+                }
+
+                if do_transform {
+                    println!("DEBUG");
+                    let h_slow = h_slow.build(&a, &b, &alphabet);
+                    let h_fast = h_fast.build(&a, &b, &alphabet);
+                    for i in 0..=a.len() {
+                        for j in 0..=b.len() {
+                            let p = Pos(i, j);
+                            let val_1 = h_slow.h(Node(p, 0));
+                            let val_2 = h_fast.h(Node(p, 0));
+                            assert_eq!(
+                                val_1, val_2,
+                                "Difference at {:?}: {} vs {}",
+                                p, val_1, val_2
+                            );
+                        }
                     }
                 }
             }
