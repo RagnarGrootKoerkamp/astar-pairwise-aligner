@@ -252,13 +252,13 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         //     println!("Match: {:?}", x);
         // }
         //dbg!(&transformed_matches);
-        let f = IncreasingFunction2D::new(
+        self.increasing_function = IncreasingFunction2D::new(
             transform_target,
             self.params.max_match_cost,
             leftover_at_end,
             transformed_matches,
         );
-        self.h_at_seeds = f.to_map();
+        self.h_at_seeds = self.increasing_function.to_map();
 
         let mut h_map = self.h_at_seeds.iter().collect_vec();
         h_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
@@ -269,18 +269,26 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // pos A is the start of a seed, and pos B is A+(1,1), with edge cost 0.
     // In this case h(A) = P(A)-P(X) <= d(A,B) + h(B) = 0 + P(B)-P(X) = P(A)-P(X)-1
     // is false. consistent_h below fixes this.
-    fn base_h(&self, pos: HNode<'a, Self>) -> usize {
-        let d = if self.params.build_fast {
-            let pos_transformed = self.transform(pos.0);
-            let p = self.seed_matches.potential(pos.0);
+    fn base_h(&self, Node(pos, parent): HNode<'a, Self>) -> usize {
+        let d = if self.params.query_fast {
+            let p = self.seed_matches.potential(pos);
+            let val = self.increasing_function.val(parent);
+            if parent == 0 {
+                self.distance(pos, self.target)
+            } else {
+                p - val
+            }
+        } else if self.params.build_fast {
+            let pos_transformed = self.transform(pos);
+            let p = self.seed_matches.potential(pos);
             self.h_at_seeds
                 .iter()
                 .filter(|&(parent, _)| *parent >= pos_transformed)
                 .map(|(_parent, val)| p - *val)
                 .min()
-                .unwrap_or(self.distance(pos.0, self.target))
+                .unwrap_or(self.distance(pos, self.target))
         } else {
-            self.best_distance(pos.0, self.h_at_seeds.iter())
+            self.best_distance(pos, self.h_at_seeds.iter())
         };
         //println!("h {:?} -> {:?}", pos, self.base_h_with_parent(pos.0));
         d
