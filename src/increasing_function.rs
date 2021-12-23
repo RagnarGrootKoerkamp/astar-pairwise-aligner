@@ -80,6 +80,7 @@ pub type NodeIndex = usize;
 pub struct IncreasingFunction2D<T: Copy + hash::Hash + Eq> {
     nodes: Vec<Node<T>>,
     root: NodeIndex,
+    leftover_at_end: bool,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
@@ -113,17 +114,28 @@ impl IncreasingFunction2D<usize> {
     // TODO: Support max_match_cost > 0
     /// Build the increasing function over the given points. `l` must be at least 1.
     /// `ps` must be sorted increasing by (x,y), first on x and then on y.
-    pub fn new(target: Pos, ps: impl IntoIterator<Item = Match>) -> Self {
+    pub fn new(
+        target: Pos,
+        max_match_cost: usize,
+        leftover_at_end: bool,
+        ps: impl IntoIterator<Item = Match>,
+    ) -> Self {
         let mut s = Self {
             nodes: Vec::new(),
             // Placeholder until properly set in build.
             root: 0,
+            leftover_at_end,
         };
-        s.build(target, ps);
+        s.build(target, max_match_cost, ps);
         s
     }
 
-    fn build<'a>(&'a mut self, target: Pos, ps: impl IntoIterator<Item = Match>) {
+    fn build<'a>(
+        &'a mut self,
+        target: Pos,
+        max_match_cost: usize,
+        ps: impl IntoIterator<Item = Match>,
+    ) {
         // j -> (max gain, nodeindex ps).
         let mut front = IncreasingFunction::<Reverse<usize>, Value>::new();
         let mut lagging_front = IncreasingFunction::<Reverse<usize>, Value>::new();
@@ -132,6 +144,7 @@ impl IncreasingFunction2D<usize> {
         let mut lagging_index = 0;
 
         // Push the root.
+        /*
         self.nodes.push(Node {
             pos: target,
             val: 0,
@@ -140,14 +153,15 @@ impl IncreasingFunction2D<usize> {
             next: None,
         });
         front.set(Reverse(0), Value(0, 0));
+        */
 
-        for Match {
+        for m @ Match {
             start,
             end,
             match_cost,
         } in ps
         {
-            assert_eq!(match_cost, 0);
+            println!("Match: {:?}", m);
             // Update lagging front.
             //println!("Update lagging front");
             while lagging_index < self.nodes.len() {
@@ -165,12 +179,48 @@ impl IncreasingFunction2D<usize> {
 
             // Get the value for the position.
             let (val, parent) = match lagging_front.get(Reverse(end.1)) {
-                None => (0, None),
-                Some(Value(val, p)) => (val + 1, Some(p)),
+                // For matches to the end, also subtract the gap when needed.
+                None => (
+                    ((max_match_cost + 1) - match_cost).saturating_sub({
+                        // gap cost between `end` and `target`
+                        // This will only have effect when leftover_at_end is true
+                        let di = target.0 - end.0;
+                        let dj = target.1 - end.1;
+                        let pot = (di + dj) / (max_match_cost + 1)
+                            - (if self.leftover_at_end {
+                                max_match_cost + 1
+                            } else {
+                                0
+                            });
+                        let g = abs_diff(di, dj) / 2;
+                        // println!(
+                        //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {})",
+                        //     end,
+                        //     target,
+                        //     di,
+                        //     dj,
+                        //     g,
+                        //     pot,
+                        //     g.saturating_sub(pot)
+                        // );
+                        g.saturating_sub(pot)
+                    }),
+                    None,
+                ),
+                Some(Value(val, p)) => (val + (max_match_cost + 1) - match_cost, Some(p)),
             };
             //println!("{:?} val {:>5} parent {:>8}", pos, val, parent.unwrap_or(0));
 
             let id = self.nodes.len();
+
+            //println!("Try to set {:?} to {} with parent {:?}", start, val, parent);
+
+            // Only continue if the value is larger than existing.
+            //println!("Set front");
+            if val == 0 || !front.set(Reverse(start.1), Value(val, id)) {
+                //println!("Skip");
+                continue;
+            }
 
             let next = front
                 .get_larger(Reverse(start.1))
@@ -183,13 +233,6 @@ impl IncreasingFunction2D<usize> {
                         }
                     },
                 );
-
-            // Only continue if the value is larger than existing.
-            //println!("Set front");
-            if !front.set(Reverse(start.1), Value(val, id)) {
-                //println!("Skip");
-                continue;
-            }
 
             if let Some(next_idx) = next {
                 assert!(self.nodes[next_idx].prev.is_none());
@@ -204,8 +247,10 @@ impl IncreasingFunction2D<usize> {
                 next,
             });
         }
+        //dbg!(&self.nodes);
         // The root is the now largest value in the front.
-        self.root = front.max().unwrap().1
+        // Need to handle the case where pruning has removed all points from the front
+        self.root = front.max().map(|x| x.1).unwrap_or(0)
     }
 
     pub fn root<'a>(&'a self) -> NodeIndex {
@@ -267,5 +312,12 @@ impl IncreasingFunction2D<usize> {
             //println!("GET JUMP {:?} {:?}", pos, None::<()>);
             return None;
         }
+    }
+
+    pub fn to_map(&self) -> HashMap<Pos, usize> {
+        self.nodes
+            .iter()
+            .map(|&Node { pos, val, .. }| (pos, val))
+            .collect()
     }
 }

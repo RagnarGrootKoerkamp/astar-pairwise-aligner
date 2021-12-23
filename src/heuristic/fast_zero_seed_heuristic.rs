@@ -13,6 +13,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct FastZeroSeedHeuristic {
     pub l: usize,
+    pub max_match_cost: usize,
 }
 impl Heuristic for FastZeroSeedHeuristic {
     type Instance<'a> = FastZeroSeedHeuristicI;
@@ -51,8 +52,12 @@ impl FastZeroSeedHeuristicI {
         let seed_matches = find_matches(a, b, alphabet, params.l, 0);
 
         // The increasing function goes back from the end, and uses (0,0) for the final state.
-        let f =
-            IncreasingFunction2D::new(Pos(a.len(), b.len()), seed_matches.iter().rev().cloned());
+        let f = IncreasingFunction2D::new(
+            Pos(a.len(), b.len()),
+            params.max_match_cost,
+            false,
+            seed_matches.iter().rev().cloned(),
+        );
 
         FastZeroSeedHeuristicI { seed_matches, f }
     }
