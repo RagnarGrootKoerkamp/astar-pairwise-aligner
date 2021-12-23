@@ -406,6 +406,8 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
+            query_fast: false,
+            make_consistent: true,
         }
         .build(&a, &b, alphabet);
 
@@ -458,6 +460,8 @@ mod tests {
                 distance_function: BiCountHeuristic,
                 pruning: false,
                 build_fast: false,
+                query_fast: false,
+                make_consistent: true,
             },
         );
         assert!(r.heuristic_stats.root_h <= r.answer_cost);
@@ -472,6 +476,8 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
+            query_fast: false,
+            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[361..369].to_vec();
@@ -490,6 +496,8 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
+            query_fast: false,
+            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[236..246].to_vec();
@@ -509,6 +517,8 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
+            query_fast: false,
+            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a.to_vec();
@@ -527,6 +537,8 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
+            query_fast: false,
+            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[846..870].to_vec();
@@ -547,6 +559,8 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
+            query_fast: false,
+            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.20);
         let a = &a[200..310].to_vec();
