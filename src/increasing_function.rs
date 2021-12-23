@@ -219,7 +219,7 @@ impl IncreasingFunction2D<usize> {
             // Find the parent for the end of this match.
             let parent_idx = front
                 .get(ValuedPos(m.end.1, usize::MAX))
-                .and_then(|Value(_, hint)| self.get_jump(m.end, hint));
+                .and_then(|Value(_, hint)| self.get(m.end, hint));
             //println!("Parent: {:?}", parent_idx);
             let val = match parent_idx {
                 // The distance to the parent
@@ -270,34 +270,10 @@ impl IncreasingFunction2D<usize> {
         self.root
     }
 
-    /// hint: Node index of the heuristic value at the direct predecessor of `pos`.
-    /// If Pos(x,y) is where hint was obtained, pos should be one of Pos(x-1,y-1), Pos(x-1,y), Pos(x,y-1).
-    /// Use `get_jump` if `pos` is _somewhere_ below the previous position.
-    pub fn get<'a>(&'a self, pos: Pos, hint: NodeIndex) -> Option<NodeIndex> {
-        let hint_node = self.nodes[hint];
-        if pos >= hint_node.pos {
-            return Some(hint);
-        } else {
-            // Maybe we can keep the same hint value, by moving to hint.next or hint.prev.
-            for node in [hint_node.next, hint_node.prev, hint_node.parent]
-                .iter()
-                .filter_map(|&x| x)
-            {
-                if pos >= self.nodes[node].pos {
-                    return Some(node);
-                }
-            }
-            None
-        }
-    }
-
     /// Same as get, but can handle larger jumps of position.
     /// Moves to the next/prev neighbour as long as needed, and then goes to parents.
-    pub fn get_jump<'a>(
-        &'a self,
-        pos @ Pos(i, j): Pos,
-        mut hint_idx: NodeIndex,
-    ) -> Option<NodeIndex> {
+    /// TODO: Allow backwards moves as well, which may need a child pointer alongside the parent pointer.
+    pub fn get<'a>(&'a self, pos @ Pos(i, j): Pos, mut hint_idx: NodeIndex) -> Option<NodeIndex> {
         //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {
             //println!("HINT: {}", hint_idx);
@@ -443,9 +419,9 @@ mod tests {
         assert_eq!(f.nodes.len(), 9);
 
         // Test Jump
-        assert_eq!(f.get_jump(Pos(4, 9), 0), None);
-        assert_eq!(f.get_jump(Pos(7, 5), 4), Some(2));
-        assert_eq!(f.get_jump(Pos(3, 9), 1), Some(8));
-        assert_eq!(f.get_jump(Pos(3, 7), 1), Some(7));
+        assert_eq!(f.get(Pos(4, 9), 0), None);
+        assert_eq!(f.get(Pos(7, 5), 4), Some(2));
+        assert_eq!(f.get(Pos(3, 9), 1), Some(8));
+        assert_eq!(f.get(Pos(3, 7), 1), Some(7));
     }
 }
