@@ -2,9 +2,9 @@ use pairwise_aligner::{prelude::*, *};
 use rand::{prelude::Distribution, SeedableRng};
 
 fn main() {
-    let pruning = false;
+    let pruning = true;
     for (l, max_match_cost) in [(7, 1)] {
-        for do_transform in [false, true] {
+        for do_transform in [true] {
             for build_fast in [false, true] {
                 let h_slow = SeedHeuristic {
                     l,
@@ -21,33 +21,24 @@ fn main() {
                     build_fast,
                 };
 
-                let n = 500;
-                let e: f32 = 0.1;
+                let n = 100;
+                let e: f32 = 0.3;
                 let (mut a, mut b, alphabet, stats) = setup(n, e);
-                let a = &a.to_vec();
-                let b = &b.to_vec();
+                let a = &a[63..85].to_vec();
+                let b = &b[63..90].to_vec();
 
-                let a = &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
-                let b = &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
+                //let a = &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
+                //let b = &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
 
-                /*
-                let (mut x, mut y, _alphabet, _stats) = setup_with_seed(10, 1.0, 363);
-                let mut a = a[93..].to_vec();
-                let mut b = b[50..].to_vec();
-                //let a = a[72..].to_vec();
-                //let b = b[66..].to_vec();
-                let mut a2 = a.clone();
-                let mut b2 = b.clone();
-                a.append(&mut b2);
-                b.append(&mut a2);
-                x.append(&mut a);
-                y.append(&mut b);
-                a = x;
-                b = y;
-                */
+                let prunes = [Pos(8, 5), Pos(12, 6)];
+                //let prunes = [];
 
                 println!("\n\n\nTESTING: {:?}", h_fast);
-                let h = h_fast.build(&a, &b, &alphabet);
+                let mut h = h_fast.build(&a, &b, &alphabet);
+                // for p in prunes {
+                //     h.prune(p);
+                // }
+
                 let mut ps = HashMap::new();
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3145);
                 let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
@@ -161,22 +152,43 @@ fn main() {
                     }
                 }
 
-                if do_transform {
-                    println!("DEBUG");
-                    let h_slow = h_slow.build(&a, &b, &alphabet);
-                    let h_fast = h_fast.build(&a, &b, &alphabet);
-                    for i in 0..=a.len() {
-                        for j in 0..=b.len() {
-                            let p = Pos(i, j);
-                            let val_1 = h_slow.h(Node(p, 0));
-                            let val_2 = h_fast.h(Node(p, 0));
-                            assert_eq!(
-                                val_1, val_2,
-                                "Difference at {:?}: {} vs {}",
-                                p, val_1, val_2
-                            );
+                if do_transform || true {
+                    /*
+                    println!("\n\n\nDEBUG");
+
+                    {
+                        let mut h_slow = h_slow.build(&a, &b, &alphabet);
+                        let mut h_fast = h_fast.build(&a, &b, &alphabet);
+                        for p in prunes {
+                            h_slow.prune(p);
+                            h_fast.prune(p);
+                        }
+                        for i in 0..=a.len() {
+                            for j in 0..=b.len() {
+                                let p = Pos(i, j);
+                                let val_1 = h_slow.h(Node(p, 0));
+                                let val_2 = h_fast.h(Node(p, 0));
+                                assert_eq!(
+                                    val_1, val_2,
+                                    "Difference at {:?}: {} vs {}",
+                                    p, val_1, val_2
+                                );
+                            }
                         }
                     }
+                    */
+
+                    println!("\n\n\nALIGN");
+                    align(
+                        &a,
+                        &b,
+                        &alphabet,
+                        stats,
+                        EqualHeuristic {
+                            h1: h_slow,
+                            h2: h_fast,
+                        },
+                    );
                 }
             }
         }

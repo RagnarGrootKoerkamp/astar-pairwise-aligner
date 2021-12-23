@@ -232,7 +232,7 @@ impl IncreasingFunction2D<usize> {
                     // This will only have effect when leftover_at_end is true
                     let di = target.0 - m.end.0;
                     let dj = target.1 - m.end.1;
-                    let pot = (di + dj) / (max_match_cost + 1)
+                    let pot = (di + dj) / 2
                         - (if self.leftover_at_end {
                             max_match_cost + 1
                         } else {
@@ -240,14 +240,15 @@ impl IncreasingFunction2D<usize> {
                         });
                     let g = abs_diff(di, dj) / 2;
                     // println!(
-                    //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {})",
-                    //     end,
+                    //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
+                    //     m.end,
                     //     target,
                     //     di,
                     //     dj,
                     //     g,
                     //     pot,
-                    //     g.saturating_sub(pot)
+                    //     g.saturating_sub(pot),
+                    //     self.leftover_at_end
                     // );
                     g.saturating_sub(pot)
                 }),

@@ -55,6 +55,7 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     target: Pos,
 
     pub seed_matches: SeedMatches,
+    active_matches: HashSet<Pos>,
     h_at_seeds: HashMap<Pos, usize>,
     h_cache: RefCell<HashMap<Pos, usize>>,
     pruned_positions: HashSet<Pos>,
@@ -98,6 +99,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             target: Pos(a.len(), b.len()),
             seed_matches,
             h_at_seeds: HashMap::default(),
+            active_matches: HashSet::default(),
             h_cache: RefCell::new(HashMap::new()),
             pruned_positions: HashSet::new(),
             increasing_function: Default::default(),
@@ -110,6 +112,8 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             h.target
         };
         h.build();
+        //println!("{:?}", h.h_at_seeds);
+        //println!("{:?}", h.active_matches);
         h
     }
 
@@ -201,10 +205,19 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         // );
         // println!("Start : {:?} / {:?}", Pos(0, 0), transform_start);
 
-        let mut transformed_matches = self
+        let filtered_matches = self
             .seed_matches
             .iter()
             .filter(|Match { start, end, .. }| self.transform(*end) <= transform_target)
+            // Filter matches by transformed start position.
+            .filter(|Match { start, .. }| !self.pruned_positions.contains(start))
+            .collect_vec();
+        self.active_matches = filtered_matches
+            .iter()
+            .map(|Match { start, .. }| *start)
+            .collect();
+        let mut transformed_matches = filtered_matches
+            .into_iter()
             .map(
                 |&Match {
                      start,
@@ -212,6 +225,12 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                      match_cost,
                  }| {
                     //println!("Match: {:?}", m);
+                    // println!(
+                    //     "Filter match {:?} / {:?}: {}",
+                    //     start,
+                    //     self.transform(start),
+                    //     !self.pruned_positions.contains(&self.transform(start))
+                    // );
                     Match {
                         start: self.transform(start),
                         end: self.transform(end),
@@ -219,8 +238,6 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                     }
                 },
             )
-            // Filter matches by transformed start position.
-            .filter(|Match { start, .. }| !self.pruned_positions.contains(start))
             .collect_vec();
         transformed_matches
             .sort_by_key(|Match { end, start, .. }| (start.0, start.1, end.0, end.1));
@@ -246,7 +263,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // In this case h(A) = P(A)-P(X) <= d(A,B) + h(B) = 0 + P(B)-P(X) = P(A)-P(X)-1
     // is false. consistent_h below fixes this.
     fn base_h(&self, pos: HNode<'a, Self>) -> usize {
-        if self.params.build_fast {
+        let d = if self.params.build_fast {
             let pos_transformed = self.transform(pos.0);
             let p = self.seed_matches.potential(pos.0);
             self.h_at_seeds
@@ -257,7 +274,9 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                 .unwrap_or(self.distance(pos.0, self.target))
         } else {
             self.best_distance(pos.0, self.h_at_seeds.iter())
-        }
+        };
+        //println!("h {:?} -> {:?}", pos, self.base_h_with_parent(pos.0));
+        d
     }
 
     pub fn base_h_with_parent(&self, pos: Pos) -> (usize, Pos) {
@@ -352,9 +371,10 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         // We can only store the computed value if we are sure the computed
         // value was not capped.
         // TODO: Reuse the computed value more often.
-        if delta == 0 {
-            self.h_cache.borrow_mut().insert(pos.0, h);
-        }
+        // if delta == 0 {
+        //     self.h_cache.borrow_mut().insert(pos.0, h);
+        // }
+        //println!("{:?} {} -> {}", pos, delta, h);
         h
     }
 }
@@ -402,21 +422,27 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
         // If the current position is not on a Pareto front, there is no need to
         // rebuild.
         if self.params.build_fast {
-            // println!(
-            //     "{} PRUNE POINT {:?} / {:?}",
-            //     self.params.build_fast as u8,
-            //     pos,
-            //     self.transform(pos)
-            // );
+            //println!(
+            //"{} PRUNE POINT {:?} / {:?}",
+            //self.params.build_fast as u8,
+            //pos,
+            //self.transform(pos)
+            //);
             let tpos = self.transform(pos);
             // Prune the current position.
-            self.pruned_positions.insert(tpos);
-            if !self.seed_matches.is_start_of_seed(pos) || self.h_at_seeds.remove(&tpos).is_none() {
+            self.pruned_positions.insert(pos);
+            // NOTE: This still has a small bug/difference with the bruteforce implementation:
+            // When two exact matches are neighbours, it can happen that one
+            // suffices as parent/root for the region, but the fast implementation doesn't detect this and uses both.
+            // This means that the spurious match will be prunes in the fast
+            // case, and not in the slow case, leading to small differences.
+            // Either way, both behaviours are correct.
+            if !self.seed_matches.is_start_of_seed(pos) || !self.active_matches.remove(&pos) {
                 return;
             }
         } else {
             //println!("{} PRUNE POINT {:?}", self.params.build_fast as u8, pos);
-            // Prune the current position.
+            //Prune the current position.
             self.pruned_positions.insert(pos);
             if self.h_at_seeds.remove(&pos).is_none() {
                 return;
@@ -424,6 +450,7 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
         }
         //println!("REBUILD");
         self.build();
+        //println!("{:?}", self.h_at_seeds);
     }
 }
 
@@ -442,7 +469,7 @@ mod tests {
         for (l, max_match_cost) in [(4, 0), (5, 0), (7, 1), (8, 1)] {
             for n in [100, 200, 500, 1000] {
                 for e in [0.1, 0.3, 1.0] {
-                    for pruning in [false] {
+                    for pruning in [false, true] {
                         let h_slow = SeedHeuristic {
                             l,
                             max_match_cost,
