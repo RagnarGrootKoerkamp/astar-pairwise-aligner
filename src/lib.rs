@@ -283,7 +283,12 @@ pub fn align<'a, H: Heuristic>(
     .unwrap_or((0, vec![]));
     let astar_duration = start_time.elapsed();
 
-    assert!(distance >= root_val);
+    assert!(
+        root_val <= distance,
+        "Distance {} H0 {}",
+        distance,
+        root_val
+    );
 
     let avg_h = {
         let mut cnt = 0;

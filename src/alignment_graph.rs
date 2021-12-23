@@ -46,7 +46,7 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
 
         let diagonal_match = match dir {
             petgraph::EdgeDirection::Outgoing => {
-                i < self.a.len() && j <= self.b.len() && self.a[i] == self.b[j]
+                i < self.a.len() && j < self.b.len() && self.a[i] == self.b[j]
             }
             petgraph::EdgeDirection::Incoming => i > 0 && j > 0 && self.a[i - 1] == self.b[j - 1],
         };
