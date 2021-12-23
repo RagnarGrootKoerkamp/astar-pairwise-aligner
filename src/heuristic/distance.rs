@@ -1,10 +1,7 @@
 /// An O(1) evaluation heuristic that can be used to lower bound the distance between any two positions.
 /// Used to get the distance between matches, instead of only distance to the end.
 use super::heuristic::*;
-use crate::{
-    alignment_graph::{AlignmentGraph, Node},
-    util::*,
-};
+use crate::prelude::*;
 
 // TODO: Can we get away with only one of these two traits?
 pub trait DistanceHeuristic: Heuristic {
@@ -15,7 +12,6 @@ pub trait DistanceHeuristic: Heuristic {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        graph: &AlignmentGraph,
     ) -> Self::DistanceInstance<'a>;
 }
 
@@ -38,7 +34,6 @@ impl Heuristic for ZeroHeuristic {
         _a: &'a Sequence,
         _b: &'a Sequence,
         _alphabet: &Alphabet,
-        _graph: &'a AlignmentGraph,
     ) -> Self::Instance<'a> {
         ZeroHeuristicI
     }
@@ -51,7 +46,6 @@ impl DistanceHeuristic for ZeroHeuristic {
         _a: &'a Sequence,
         _b: &'a Sequence,
         _alphabet: &Alphabet,
-        _graph: &'a AlignmentGraph,
     ) -> Self::DistanceInstance<'a> {
         ZeroHeuristicI
     }
@@ -83,7 +77,6 @@ impl Heuristic for GapHeuristic {
         a: &'a Sequence,
         b: &'a Sequence,
         _alphabet: &Alphabet,
-        _graph: &'a AlignmentGraph,
     ) -> Self::Instance<'a> {
         GapHeuristicI {
             target: Pos(a.len(), b.len()),
@@ -98,9 +91,8 @@ impl DistanceHeuristic for GapHeuristic {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        graph: &'a AlignmentGraph,
     ) -> Self::DistanceInstance<'a> {
-        <GapHeuristic as Heuristic>::build(self, a, b, alphabet, graph)
+        <GapHeuristic as Heuristic>::build(self, a, b, alphabet)
     }
 }
 pub struct GapHeuristicI {
@@ -144,7 +136,6 @@ impl Heuristic for CountHeuristic {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        _graph: &'a AlignmentGraph,
     ) -> Self::Instance<'a> {
         CountHeuristicI {
             a_cnts: char_counts(a, alphabet),
@@ -161,9 +152,8 @@ impl DistanceHeuristic for CountHeuristic {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        _graph: &'a AlignmentGraph,
     ) -> Self::DistanceInstance<'a> {
-        <CountHeuristic as Heuristic>::build(self, a, b, alphabet, _graph)
+        <CountHeuristic as Heuristic>::build(self, a, b, alphabet)
     }
 }
 pub struct CountHeuristicI {
@@ -229,15 +219,9 @@ impl Heuristic for BiCountHeuristic {
         "BiCount".into()
     }
 
-    fn build(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        alphabet: &Alphabet,
-        graph: &AlignmentGraph,
-    ) -> Self::Instance<'_> {
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance<'_> {
         BiCountHeuristicI {
-            cnt: DistanceHeuristic::build(&CountHeuristic, a, b, alphabet, graph),
+            cnt: DistanceHeuristic::build(&CountHeuristic, a, b, alphabet),
             a_cnts: char_bicounts(a, alphabet),
             b_cnts: char_bicounts(b, alphabet),
             target: Pos(a.len(), b.len()),
@@ -247,14 +231,8 @@ impl Heuristic for BiCountHeuristic {
 impl DistanceHeuristic for BiCountHeuristic {
     type DistanceInstance<'a> = BiCountHeuristicI;
 
-    fn build(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        alphabet: &Alphabet,
-        graph: &AlignmentGraph,
-    ) -> Self::DistanceInstance<'_> {
-        <BiCountHeuristic as Heuristic>::build(self, a, b, alphabet, graph)
+    fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance<'_> {
+        <BiCountHeuristic as Heuristic>::build(self, a, b, alphabet)
     }
 }
 pub struct BiCountHeuristicI {

@@ -30,7 +30,7 @@ pub mod prelude {
 use csv::Writer;
 use rand::SeedableRng;
 use serde::Serialize;
-use std::{cell::RefCell, collections::HashSet, fmt, path::Path, time};
+use std::{borrow::Borrow, cell::RefCell, collections::HashSet, fmt, path::Path, time};
 
 use crate::random_sequence::{random_mutate, random_sequence};
 use prelude::*;
@@ -236,12 +236,9 @@ pub fn align<'a, H: Heuristic>(
     let mut double_expanded = 0;
     let mut retries = 0;
 
-    // The base graph.
-    let graph = alignment_graph::new_alignment_graph(&a, &b);
-
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
-    let h = RefCell::new(heuristic.build(a, b, alphabet, &graph));
+    let h = RefCell::new(heuristic.build(a, b, alphabet));
     let root_state = Node(Pos(0, 0), h.borrow().root_state());
     let root_val = h.borrow().h(root_state);
     //let _ = h.borrow_mut();
@@ -249,7 +246,7 @@ pub fn align<'a, H: Heuristic>(
 
     // Run A* with heuristic.
     let start_time = time::Instant::now();
-    let incremental_graph = alignment_graph::new_incremental_alignment_graph(&graph, &h);
+    let incremental_graph = alignment_graph::new_incremental_alignment_graph(&a, &b, &h);
     let mut h_values = HashMap::<usize, usize>::new();
     let (distance, path) = astar::astar(
         &incremental_graph,
@@ -397,8 +394,6 @@ mod tests {
         let a = "ACTTGG".as_bytes().to_vec();
         let b = "ACTGG".as_bytes().to_vec();
 
-        let graph = alignment_graph::new_alignment_graph(&a, &b);
-
         // Instantiate the heuristic.
         let h = SeedHeuristic {
             l,
@@ -407,7 +402,7 @@ mod tests {
             pruning: false,
             build_fast: false,
         }
-        .build(&a, &b, alphabet, &graph);
+        .build(&a, &b, alphabet);
 
         for j in 0..=b.len() {
             println!(

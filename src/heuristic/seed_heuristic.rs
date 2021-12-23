@@ -1,9 +1,13 @@
+use petgraph::visit::IntoEdgesDirected;
 use std::{cell::RefCell, cmp::Reverse, collections::HashSet, iter::once};
+
+use itertools::Itertools;
 
 use super::{distance::*, heuristic::*};
 use crate::{
-    alignment_graph::{AlignmentGraph, Node},
-    implicit_graph::{Edge, ImplicitGraphBase},
+    alignment_graph::{self, Node},
+    implicit_graph::Edge,
+    increasing_function::IncreasingFunction2D,
     prelude::*,
     seeds::{find_matches, Match, SeedMatches},
 };
@@ -24,10 +28,9 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        graph: &AlignmentGraph<'a>,
     ) -> Self::Instance<'a> {
         assert!(self.max_match_cost < self.l);
-        SeedHeuristicI::new(a, b, alphabet, graph, *self)
+        SeedHeuristicI::new(a, b, alphabet, *self)
     }
     fn l(&self) -> Option<usize> {
         Some(self.l)
@@ -53,7 +56,6 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     pub seed_matches: SeedMatches,
     h_at_seeds: HashMap<Pos, usize>,
     h_cache: RefCell<HashMap<Pos, usize>>,
-    graph: AlignmentGraph<'a>,
     pruned_positions: HashSet<Pos>,
 }
 
@@ -77,13 +79,11 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        graph: &AlignmentGraph<'a>,
         params: SeedHeuristic<DH>,
     ) -> Self {
         let seed_matches = find_matches(a, b, alphabet, params.l, params.max_match_cost);
 
-        let distance_function =
-            DistanceHeuristic::build(&params.distance_function, a, b, alphabet, graph);
+        let distance_function = DistanceHeuristic::build(&params.distance_function, a, b, alphabet);
 
         let mut h = SeedHeuristicI::<'a> {
             params,
@@ -92,7 +92,6 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             seed_matches,
             h_at_seeds: HashMap::default(),
             h_cache: RefCell::new(HashMap::new()),
-            graph: graph.clone(),
             pruned_positions: HashSet::new(),
         };
         h.build();
@@ -282,8 +281,8 @@ mod tests {
     use itertools::Itertools;
 
     use super::*;
+    use crate::align;
     use crate::setup;
-    use crate::{align, alignment_graph};
 
     #[test]
     fn fast_build() {
@@ -308,9 +307,8 @@ mod tests {
 
                 println!("Testing: {:?}", h_fast);
                 {
-                    let graph = alignment_graph::new_alignment_graph(&a, &b);
-                    let h_slow = h_slow.build(&a, &b, &alphabet, &graph);
-                    let h_fast = h_fast.build(&a, &b, &alphabet, &graph);
+                    let h_slow = h_slow.build(&a, &b, &alphabet);
+                    let h_fast = h_fast.build(&a, &b, &alphabet);
                     let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
                     let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
                     h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));

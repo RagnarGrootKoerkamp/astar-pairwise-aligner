@@ -1,6 +1,6 @@
 use super::heuristic::*;
 use crate::{
-    alignment_graph::{AlignmentGraph, Node},
+    alignment_graph::Node,
     increasing_function::IncreasingFunction2D,
     seeds::{find_matches, Match, SeedMatches},
     util::*,
@@ -25,9 +25,8 @@ impl Heuristic for FastZeroSeedHeuristic {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        graph: &'a AlignmentGraph,
     ) -> Self::Instance<'_> {
-        FastZeroSeedHeuristicI::new(a, b, alphabet, graph, self)
+        FastZeroSeedHeuristicI::new(a, b, alphabet, self)
     }
     fn l(&self) -> Option<usize> {
         Some(self.l)
@@ -47,7 +46,6 @@ impl FastZeroSeedHeuristicI {
         a: &Sequence,
         b: &Sequence,
         alphabet: &Alphabet,
-        _graph: &AlignmentGraph,
         params: &FastZeroSeedHeuristic,
     ) -> Self {
         let seed_matches = find_matches(a, b, alphabet, params.l, 0);

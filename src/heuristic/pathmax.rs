@@ -1,9 +1,5 @@
 use super::heuristic::*;
-use crate::{
-    alignment_graph::{AlignmentGraph, Node},
-    seeds::Match,
-    util::*,
-};
+use crate::{alignment_graph::Node, seeds::Match, util::*};
 
 #[derive(Debug, Copy, Clone)]
 pub struct PathMax<H: Heuristic> {
@@ -22,12 +18,11 @@ impl<H: Heuristic> Heuristic for PathMax<H> {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        graph: &AlignmentGraph<'a>,
     ) -> Self::Instance<'a> {
         PathMaxI {
             a,
             b,
-            heuristic: self.heuristic.build(a, b, alphabet, graph),
+            heuristic: self.heuristic.build(a, b, alphabet),
         }
     }
 

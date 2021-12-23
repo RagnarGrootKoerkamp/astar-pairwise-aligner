@@ -23,11 +23,10 @@ impl<H1: Heuristic, H2: Heuristic> Heuristic for EqualHeuristic<H1, H2> {
         a: &'a bio_types::sequence::Sequence,
         b: &'a bio_types::sequence::Sequence,
         alphabet: &bio::alphabets::Alphabet,
-        graph: &crate::alignment_graph::AlignmentGraph<'a>,
     ) -> Self::Instance<'a> {
         EqualHeuristicI {
-            h1: self.h1.build(a, b, alphabet, graph),
-            h2: self.h2.build(a, b, alphabet, graph),
+            h1: self.h1.build(a, b, alphabet),
+            h2: self.h2.build(a, b, alphabet),
         }
     }
 
