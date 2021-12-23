@@ -48,7 +48,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     }
 }
 
-pub type HNode<'a, H: HeuristicInstance<'a>> = Node<H::IncrementalState>;
+pub type HNode<'a, H> = Node<<H as HeuristicInstance<'a>>::IncrementalState>;
 
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
