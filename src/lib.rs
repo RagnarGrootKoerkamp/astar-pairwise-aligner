@@ -336,8 +336,12 @@ pub fn align<'a, H: Heuristic>(
 }
 
 // For quick testing
-pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) {
-    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
+pub fn setup_with_seed(
+    n: usize,
+    e: f32,
+    seed: u64,
+) -> (Sequence, Sequence, Alphabet, SequenceStats) {
+    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
     let alphabet = Alphabet::new(b"ACTG");
     let a = random_sequence(n, &alphabet, &mut rng);
     let b = random_mutate(&a, &alphabet, (n as f32 * e) as usize, &mut rng);
@@ -349,6 +353,9 @@ pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) 
         source: Source::Uniform,
     };
     (a, b, alphabet, sequence_stats)
+}
+pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) {
+    setup_with_seed(n, e, 31415)
 }
 
 pub fn test_heuristic<H: Heuristic>(n: usize, e: f32, h: H) -> AlignResult {
