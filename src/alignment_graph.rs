@@ -7,19 +7,20 @@ use bio_types::sequence::Sequence;
 use crate::implicit_graph::{Edge, ImplicitGraph, ImplicitGraphBase};
 
 /// AlignmentGraph that computes the heuristic on the fly.
+#[derive(Clone)]
 pub struct AlignmentGraphBase<'a> {
     a: &'a Sequence,
     b: &'a Sequence,
 }
 
-impl<'a> Clone for AlignmentGraphBase<'a> {
-    fn clone(&self) -> Self {
-        Self {
-            a: self.a,
-            b: self.b,
-        }
-    }
-}
+// impl<'a> Clone for AlignmentGraphBase<'a> {
+//     fn clone(&self) -> Self {
+//         Self {
+//             a: self.a,
+//             b: self.b,
+//         }
+//     }
+// }
 
 pub type AlignmentGraph<'a> = ImplicitGraph<AlignmentGraphBase<'a>>;
 
@@ -145,16 +146,16 @@ impl<T: Debug> PartialOrd for Node<T> {
 }
 
 /// AlignmentGraph that computes the heuristic on the fly.
-pub struct IncrementalAlignmentGraphBase<'a, 'b, 'c, H: HeuristicInstance<'a>> {
-    graph: &'c AlignmentGraph<'a>,
+pub struct IncrementalAlignmentGraphBase<'a, 'b, H: HeuristicInstance<'a>> {
+    graph: AlignmentGraph<'a>,
     heuristic: &'b RefCell<H>,
 }
 
-pub type IncrementalAlignmentGraph<'a, 'b, 'c, H> =
-    ImplicitGraph<IncrementalAlignmentGraphBase<'a, 'b, 'c, H>>;
+pub type IncrementalAlignmentGraph<'a, 'b, H> =
+    ImplicitGraph<IncrementalAlignmentGraphBase<'a, 'b, H>>;
 
-impl<'a, 'b, 'c, H: HeuristicInstance<'a>> ImplicitGraphBase
-    for IncrementalAlignmentGraphBase<'a, 'b, 'c, H>
+impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
+    for IncrementalAlignmentGraphBase<'a, 'b, H>
 {
     // A node directly contains the estimated distance to the end.
     type Node = Node<H::IncrementalState>;
@@ -246,11 +247,15 @@ pub fn new_alignment_graph<'a>(a: &'a Sequence, b: &'a Sequence) -> AlignmentGra
     ImplicitGraph::new(AlignmentGraphBase { a, b })
 }
 
-pub fn new_incremental_alignment_graph<'a, 'b, 'c, H: HeuristicInstance<'a>>(
-    graph: &'c AlignmentGraph<'a>,
+pub fn new_incremental_alignment_graph<'a, 'b, H: HeuristicInstance<'a>>(
+    a: &'a Sequence,
+    b: &'a Sequence,
     heuristic: &'b RefCell<H>,
-) -> IncrementalAlignmentGraph<'a, 'b, 'c, H> {
-    ImplicitGraph::new(IncrementalAlignmentGraphBase { graph, heuristic })
+) -> IncrementalAlignmentGraph<'a, 'b, H> {
+    ImplicitGraph::new(IncrementalAlignmentGraphBase {
+        graph: new_alignment_graph(a, b),
+        heuristic,
+    })
 }
 
 impl From<(Pos, ())> for Pos {

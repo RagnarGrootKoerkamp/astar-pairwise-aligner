@@ -1,10 +1,6 @@
 use serde::Serialize;
 
-use crate::{
-    alignment_graph::{AlignmentGraph, Node},
-    seeds::Match,
-    util::*,
-};
+use crate::{alignment_graph::Node, seeds::Match, util::*};
 
 #[derive(Serialize)]
 pub struct HeuristicParams {
@@ -39,7 +35,6 @@ pub trait Heuristic: std::fmt::Debug + Copy {
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        graph: &AlignmentGraph<'a>,
     ) -> Self::Instance<'a>;
 
     fn params(&self) -> HeuristicParams {
@@ -53,6 +48,8 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     }
 }
 
+pub type HNode<'a, H: HeuristicInstance<'a>> = Node<H::IncrementalState>;
+
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
     fn h(&self, pos: Node<Self::IncrementalState>) -> usize;
@@ -60,11 +57,7 @@ pub trait HeuristicInstance<'a> {
 
     // TODO: Simplify this, and just use a map inside the heuristic.
     type IncrementalState: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug = ();
-    fn incremental_h(
-        &self,
-        _parent: Node<Self::IncrementalState>,
-        _pos: Pos,
-    ) -> Self::IncrementalState {
+    fn incremental_h(&self, _parent: HNode<'a, Self>, _pos: Pos) -> Self::IncrementalState {
         Default::default()
     }
     fn root_state(&self) -> Self::IncrementalState {

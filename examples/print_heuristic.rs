@@ -26,8 +26,8 @@ fn main() {
 
             println!("Testing: {:?}", h_fast);
             let graph = alignment_graph::new_alignment_graph(&a, &b);
-            let h_slow = h_slow.build(&a, &b, &alphabet, &graph);
-            let h_fast = h_fast.build(&a, &b, &alphabet, &graph);
+            let h_slow = h_slow.build(&a, &b, &alphabet);
+            let h_fast = h_fast.build(&a, &b, &alphabet);
             let h = h_slow;
             let mut ps = HashMap::new();
             let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3145);
