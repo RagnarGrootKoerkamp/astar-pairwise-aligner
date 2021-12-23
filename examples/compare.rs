@@ -16,7 +16,7 @@ fn main() {
     for (&n, e) in ns.iter().cartesian_product(es) {
         for pruning in prunings {
             for (l, max_match_cost) in lm {
-                for build_fast in [true, false] {
+                for build_fast in [false, true] {
                     let result = test_heuristic(
                         n,
                         e,

@@ -21,14 +21,15 @@ fn main() {
                     build_fast,
                 };
 
-                let n = 100;
-                let e = 0.3;
+                let n = 500;
+                let e: f32 = 0.1;
                 let (mut a, mut b, alphabet, stats) = setup(n, e);
-                let a = &a[70..].to_vec();
-                let b = &b[70..].to_vec();
-                let a = &"GATCGCAGCAGAACTGTGCCCATTTTGTGCCT".as_bytes().to_vec();
-                let b = &"GCGCAGAACATGTGGTCCAATTTTGCTGCC".as_bytes().to_vec();
-                println!("{}\n{}\n", to_string(a), to_string(b));
+                let a = &a.to_vec();
+                let b = &b.to_vec();
+
+                let a = &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
+                let b = &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
+
                 /*
                 let (mut x, mut y, _alphabet, _stats) = setup_with_seed(10, 1.0, 363);
                 let mut a = a[93..].to_vec();
@@ -45,7 +46,7 @@ fn main() {
                 b = y;
                 */
 
-                println!("Testing: {:?}", h_fast);
+                println!("\n\n\nTESTING: {:?}", h_fast);
                 let h = h_fast.build(&a, &b, &alphabet);
                 let mut ps = HashMap::new();
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3145);
