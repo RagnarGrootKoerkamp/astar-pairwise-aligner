@@ -22,12 +22,11 @@ fn main() {
                 build_fast: true,
             };
 
-            let (a, b, alphabet, stats) = setup_with_seed(n, e, 36);
+            let (a, b, alphabet, _stats) = setup_with_seed(n, e, 36);
 
             println!("Testing: {:?}", h_fast);
-            let graph = alignment_graph::new_alignment_graph(&a, &b);
             let h_slow = h_slow.build(&a, &b, &alphabet);
-            let h_fast = h_fast.build(&a, &b, &alphabet);
+            let _h_fast = h_fast.build(&a, &b, &alphabet);
             let h = h_slow;
             let mut ps = HashMap::new();
             let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3145);
@@ -73,7 +72,7 @@ fn main() {
 
                     let (val, parent_pos) = h.base_h_with_parent(p);
                     let l = ps.len();
-                    let (parent_id, color) = ps.entry(parent_pos).or_insert((
+                    let (_parent_id, color) = ps.entry(parent_pos).or_insert((
                         l,
                         termion::color::Rgb(
                             dist.sample(&mut rng),

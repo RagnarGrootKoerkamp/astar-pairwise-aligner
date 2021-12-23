@@ -30,7 +30,7 @@ pub mod prelude {
 use csv::Writer;
 use rand::SeedableRng;
 use serde::Serialize;
-use std::{borrow::Borrow, cell::RefCell, collections::HashSet, fmt, path::Path, time};
+use std::{cell::RefCell, collections::HashSet, fmt, path::Path, time};
 
 use crate::random_sequence::{random_mutate, random_sequence};
 use prelude::*;

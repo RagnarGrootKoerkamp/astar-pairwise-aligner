@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Debug, hash, iter::once};
+use std::{cell::RefCell, fmt::Debug, hash, ops::Deref};
 
 use crate::{heuristic::HeuristicInstance, util::*};
 use arrayvec::ArrayVec;
@@ -154,6 +154,27 @@ pub struct IncrementalAlignmentGraphBase<'a, 'b, H: HeuristicInstance<'a>> {
 pub type IncrementalAlignmentGraph<'a, 'b, H> =
     ImplicitGraph<IncrementalAlignmentGraphBase<'a, 'b, H>>;
 
+pub fn incremental_edges<'a, R: Deref<Target = H>, H: HeuristicInstance<'a>>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    heuristic: R,
+    u @ Node(cur_pos, _): Node<H::IncrementalState>,
+    dir: petgraph::EdgeDirection,
+) -> arrayvec::IntoIter<Edge<Node<H::IncrementalState>>, 3> {
+    let edges = new_alignment_graph(a, b).edges_directed(cur_pos, dir);
+    let nbs: ArrayVec<Edge<Node<H::IncrementalState>>, 3> = match dir {
+        petgraph::EdgeDirection::Outgoing => edges
+            .map(|Edge(.., end, cost)| Edge(u, Node(end, (*heuristic).incremental_h(u, end)), cost))
+            .collect(),
+        petgraph::EdgeDirection::Incoming => edges
+            .map(|Edge(start, .., cost)| {
+                Edge(Node(start, (*heuristic).incremental_h(u, start)), u, cost)
+            })
+            .collect(),
+    };
+    nbs.into_iter()
+}
+
 impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
     for IncrementalAlignmentGraphBase<'a, 'b, H>
 {
@@ -164,82 +185,10 @@ impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
 
     fn edges_directed(
         &self,
-        u @ Node(Pos(i, j), _): Self::Node,
+        u: Self::Node,
         dir: petgraph::EdgeDirection,
     ) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
-        const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
-
-        // TODO: Compare between:
-        // - always walk 1 step any direction.
-        // - in case of match, only walk 1 step diagonal.
-        // - in case of match, only walk as far on diagonal as possible.
-
-        let nbs: ArrayVec<Edge<Self::Node>, 3> = if false
-            && i + 1 <= self.graph.a.len()
-            && j + 1 <= self.graph.b.len()
-            && self.graph.a[i] == self.graph.b[j]
-        {
-            // Walk multiple steps at once.
-            let mut x = i + 1;
-            let mut y = j + 1;
-            while x + 1 <= self.graph.a.len()
-                && y + 1 <= self.graph.b.len()
-                && self.graph.a[x] == self.graph.b[y]
-            {
-                x += 1;
-                y += 1;
-            }
-            let pos = Pos(x, y);
-
-            // TODO: Update for reverse edges.
-            once(Edge(
-                u,
-                Node(pos, self.heuristic.borrow().incremental_h(u, pos)),
-                0,
-            ))
-            .collect()
-        } else {
-            DELTAS
-                .iter()
-                .filter_map(|&(di, dj)| match dir {
-                    petgraph::EdgeDirection::Outgoing => {
-                        if i + di <= self.graph.a.len() && j + dj <= self.graph.b.len() {
-                            let pos = Pos(i + di, j + dj);
-                            Some(Edge(
-                                u,
-                                Node(pos, self.heuristic.borrow().incremental_h(u, pos)),
-                                if (di, dj) == (1, 1) && self.graph.a[i] == self.graph.b[j] {
-                                    0
-                                } else {
-                                    1
-                                },
-                            ))
-                        } else {
-                            None
-                        }
-                    }
-                    petgraph::EdgeDirection::Incoming => {
-                        if di <= i && dj <= j {
-                            let pos = Pos(i - di, j - dj);
-                            Some(Edge(
-                                Node(pos, self.heuristic.borrow().incremental_h(u, pos)),
-                                u,
-                                if (di, dj) == (1, 1)
-                                    && self.graph.a[i - di] == self.graph.b[j - dj]
-                                {
-                                    0
-                                } else {
-                                    1
-                                },
-                            ))
-                        } else {
-                            None
-                        }
-                    }
-                })
-                .collect()
-        };
-        nbs.into_iter()
+        incremental_edges(self.graph.a, self.graph.b, self.heuristic.borrow(), u, dir)
     }
 }
 
