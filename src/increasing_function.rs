@@ -114,12 +114,7 @@ impl IncreasingFunction2D<usize> {
     // TODO: Support max_match_cost > 0
     /// Build the increasing function over the given points. `l` must be at least 1.
     /// `ps` must be sorted increasing by (x,y), first on x and then on y.
-    pub fn new(
-        target: Pos,
-        max_match_cost: usize,
-        leftover_at_end: bool,
-        ps: impl IntoIterator<Item = Match>,
-    ) -> Self {
+    pub fn new(target: Pos, max_match_cost: usize, leftover_at_end: bool, ps: Vec<Match>) -> Self {
         let mut s = Self {
             nodes: Vec::new(),
             // Placeholder until properly set in build.
@@ -130,12 +125,7 @@ impl IncreasingFunction2D<usize> {
         s
     }
 
-    fn build<'a>(
-        &'a mut self,
-        target: Pos,
-        max_match_cost: usize,
-        ps: impl IntoIterator<Item = Match>,
-    ) {
+    fn build<'a>(&'a mut self, target: Pos, max_match_cost: usize, ps: Vec<Match>) {
         // j -> (max gain, nodeindex ps).
         let mut front = IncreasingFunction::<Reverse<usize>, Value>::new();
         let mut lagging_front = IncreasingFunction::<Reverse<usize>, Value>::new();
