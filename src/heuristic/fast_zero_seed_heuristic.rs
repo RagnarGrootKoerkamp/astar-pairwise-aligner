@@ -60,8 +60,8 @@ impl FastZeroSeedHeuristicI {
     }
 }
 impl HeuristicInstance<'_> for FastZeroSeedHeuristicI {
-    fn h(&self, Node(pos, parent): Node<Self::IncrementalState>) -> usize {
-        self.seed_matches.potential(pos) - self.f.val(parent)
+    fn h(&self, Node(pos, parent_state): Node<Self::IncrementalState>) -> usize {
+        self.seed_matches.potential(pos) - self.f.val(parent_state)
     }
 
     type IncrementalState = crate::increasing_function::NodeIndex;
