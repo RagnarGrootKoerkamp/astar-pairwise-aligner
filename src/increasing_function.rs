@@ -76,6 +76,7 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
 pub type NodeIndex = usize;
 
 // We guarantee that the function always contains (0,0), so lookup will always succeed.
+#[derive(Default)]
 pub struct IncreasingFunction2D<T: Copy + hash::Hash + Eq> {
     nodes: Vec<Node<T>>,
     root: NodeIndex,
@@ -90,7 +91,7 @@ pub struct Node<T: Copy + hash::Hash + Eq> {
     next: Option<NodeIndex>,
 }
 
-// value, nodeindex. Orders only by value.
+// (value, nodeindex). Orders only by increasing value.
 #[derive(Clone, Copy, Debug, Eq, Ord)]
 struct Value(usize, usize);
 impl PartialEq for Value {
@@ -123,6 +124,7 @@ impl IncreasingFunction2D<usize> {
     }
 
     fn build<'a>(&'a mut self, target: Pos, ps: impl IntoIterator<Item = Match>) {
+        // j -> (max gain, nodeindex ps).
         let mut front = IncreasingFunction::<Reverse<usize>, Value>::new();
         let mut lagging_front = IncreasingFunction::<Reverse<usize>, Value>::new();
 
