@@ -50,7 +50,7 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
 
-    seed_matches: SeedMatches,
+    pub seed_matches: SeedMatches,
     h_at_seeds: HashMap<Pos, usize>,
     h_cache: RefCell<HashMap<Pos, usize>>,
     graph: AlignmentGraph<'a>,
@@ -67,7 +67,7 @@ impl<'a, DH: DistanceHeuristic> DistanceHeuristicInstance<'a> for SeedHeuristicI
             self.distance_function.distance(from, to),
             self.seed_matches.distance(from, to),
         );
-        println!("Distance from {:?} to {:?} = {}", from, to, v);
+        //println!("Distance from {:?} to {:?} = {}", from, to, v);
         v
     }
 }
@@ -112,6 +112,20 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             .unwrap_or_else(|| self.distance(pos, self.target))
     }
 
+    // Returns the best distance, and the parent position where this is obtained.
+    fn best_distance_with_parent<'b, T: Iterator<Item = (&'b Pos, &'b usize)>>(
+        &self,
+        pos: Pos,
+        parents: T,
+    ) -> (usize, Pos) {
+        parents
+            .into_iter()
+            .filter(|&(parent, _)| *parent >= pos)
+            .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
+            .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
+            .unwrap_or_else(|| (self.distance(pos, self.target), self.target))
+    }
+
     // TODO: Report some metrics on skipped states.
     fn build(&mut self) {
         if self.params.build_fast {
@@ -134,7 +148,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             let query_val = self.best_distance(*start, h_at_seeds.iter());
             // Update if using is better than skipping.
 
-            println!("{:?} {:?}  {} {}", end, start, update_val, query_val);
+            // println!("{:?} {:?}  {} {}", end, start, update_val, query_val);
             if update_val < query_val {
                 h_at_seeds.insert(*start, update_val);
             }
@@ -240,10 +254,10 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             let update_val = match_cost + self.best_distance(*end, front_as_h(&front));
             let query_val = self.best_distance(*start, front_as_h(&front));
 
-            println!(
-                "{}: {:?} {:?}  {} {}",
-                side, end, start, update_val, query_val
-            );
+            // println!(
+            //     "{}: {:?} {:?}  {} {}",
+            //     side, end, start, update_val, query_val
+            // );
 
             if update_val < query_val {
                 // 1. Update superseeded for other points.
@@ -283,10 +297,10 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                             best_cover.0 = self.target.0;
                             best_cover.1 = max(best_cover.1, start.1);
                         }
-                        println!(
-                            "{:?}={} covers {:?}={} at {:?} value {} <= {} -> new cover {:?}",
-                            start, update_val, start_b, h, cover_pos, val_a, val_b, best_cover
-                        );
+                        // println!(
+                        //     "{:?}={} covers {:?}={} at {:?} value {} <= {} -> new cover {:?}",
+                        //     start, update_val, start_b, h, cover_pos, val_a, val_b, best_cover
+                        // );
                     }
                 }
 
@@ -304,7 +318,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             front.drain_filter(|start, &mut (_, pos)| {
                 let v = done < pos;
                 if v {
-                    println!("Prune {:?} covered at {:?}", start, pos);
+                    //println!("Prune {:?} covered at {:?}", start, pos);
                 }
                 v
             });
@@ -320,6 +334,10 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // is false. consistent_h below fixes this.
     fn base_h(&self, pos: Pos) -> usize {
         self.best_distance(pos, self.h_at_seeds.iter())
+    }
+
+    pub fn base_h_with_parent(&self, pos: Pos) -> (usize, Pos) {
+        self.best_distance_with_parent(pos, self.h_at_seeds.iter())
     }
 
     // The distance from the start of the current seed to the current position,
