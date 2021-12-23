@@ -90,6 +90,7 @@ pub struct Node<T: Copy + hash::Hash + Eq> {
     parent: Option<NodeIndex>,
     prev: Option<NodeIndex>,
     next: Option<NodeIndex>,
+    child: Option<NodeIndex>,
 }
 
 // (value, nodeindex). Orders only by increasing value.
@@ -200,7 +201,12 @@ impl IncreasingFunction2D<usize> {
                     parent,
                     prev: None,
                     next,
+                    child: None,
                 });
+                // Update the child for our parent.
+                if let Some(parent) = parent {
+                    nodes[parent].child = Some(id);
+                }
 
                 assert!(front.set(ValuedPos(start.1, val), Value(val, id)));
 
@@ -270,8 +276,32 @@ impl IncreasingFunction2D<usize> {
         //println!("{:?}", n);
         //}
         // The root is the now largest value in the front.
-        // Need to handle the case where pruning has removed all points from the front
-        self.root = front.max().map(|x| x.1).unwrap_or(0);
+        let Value(_, mut layer) = front.max().unwrap();
+        self.root = layer;
+
+        // Fill children pointers, layer by layer.
+        while let Some(u) = self.nodes[layer].parent {
+            // Since u is the parent of some node, it is guaranteed that is has a child.
+            // Move left of u and copy over the parent.
+            {
+                let mut u = u;
+                while let Some(v) = self.nodes[u].prev {
+                    let c = self.nodes[u].child.unwrap();
+                    self.nodes[v].child.get_or_insert(c);
+                    u = v;
+                }
+            }
+            // Move right of u and copy over the parent.
+            {
+                let mut u = u;
+                while let Some(v) = self.nodes[u].next {
+                    let c = self.nodes[u].child.unwrap();
+                    self.nodes[v].child.get_or_insert(c);
+                    u = v;
+                }
+            }
+            layer = u;
+        }
     }
 
     pub fn root<'a>(&'a self) -> NodeIndex {
@@ -320,11 +350,20 @@ impl IncreasingFunction2D<usize> {
         &'a self,
         pos @ Pos(i, j): Pos,
         mut hint_idx: NodeIndex,
+        // TODO: Use this.
         _hint_pos: Pos,
     ) -> NodeIndex {
         if self.nodes.is_empty() {
             return hint_idx;
         }
+        // TODO: This is ugly, but it should work for now as backward steps are small.
+        if let Some(x) = self.nodes[hint_idx].child {
+            hint_idx = x;
+        }
+        if let Some(x) = self.nodes[hint_idx].child {
+            hint_idx = x;
+        }
+
         //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {
             //println!("HINT: {}", hint_idx);
