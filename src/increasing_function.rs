@@ -145,20 +145,31 @@ impl IncreasingFunction2D<usize> {
         front.set(Reverse(0), Value(0, 0));
         */
 
+        // Sort by end, the order in which we will process them
+        let ps_by_end = {
+            let mut ps = ps;
+            ps.sort_by_key(|Match { start, end, .. }| Reverse((end.0, end.1, start.0, start.1)));
+            ps
+        };
+        // Sort by start, the order in which we will add them to the front.
+        let ps_by_start = {
+            let mut ps = ps.clone();
+            ps.sort_by_key(|Match { start, end, .. }| Reverse((start.0, start.1, end.0, end.1)));
+            ps
+        };
         for m @ Match {
             start,
             end,
             match_cost,
-        } in ps
+        } in ps_by_end
         {
             println!("Match: {:?}", m);
             // Update lagging front.
             //println!("Update lagging front");
-            while lagging_index < self.nodes.len() {
-                let node = &self.nodes[lagging_index];
-                //println!("Next lagging node index {} {:?}", lagging_index, node);
+            while let Some(node) = self.nodes.get(lagging_index) {
+                println!("Next lagging node index {} {:?}", lagging_index, node);
                 if node.pos.0 >= end.0 {
-                    //println!("ADD");
+                    println!("ADD");
                     lagging_front.set(Reverse(node.pos.1), Value(node.val, lagging_index));
                     lagging_index += 1;
                 } else {
