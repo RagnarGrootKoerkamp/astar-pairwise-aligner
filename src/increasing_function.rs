@@ -106,6 +106,22 @@ impl PartialOrd for Value {
     }
 }
 
+// (Coordinate, value at coordinate)
+// This allows having multiple values in each coordinate, which is useful to
+// keep the pareto fronts clean.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ValuedPos(usize, usize);
+impl PartialOrd for ValuedPos {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for ValuedPos {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (Reverse(self.0), self.1).cmp(&(Reverse(other.0), other.1))
+    }
+}
+
 impl IncreasingFunction2D<usize> {
     pub fn val(&self, idx: NodeIndex) -> usize {
         self.nodes[idx].val
@@ -126,129 +142,125 @@ impl IncreasingFunction2D<usize> {
     }
 
     fn build<'a>(&'a mut self, target: Pos, max_match_cost: usize, ps: Vec<Match>) {
-        // j -> (max gain, nodeindex ps).
-        let mut front = IncreasingFunction::<Reverse<usize>, Value>::new();
-        let mut lagging_front = IncreasingFunction::<Reverse<usize>, Value>::new();
+        // ValuedPos(j, value) -> Value(max walk to target, parent idx).
+        type F = IncreasingFunction<ValuedPos, Value>;
+        let mut front = F::new();
 
-        // Index into self.nodes.
-        let mut lagging_index = 0;
-
-        // Push the root.
-        /*
-        self.nodes.push(Node {
-            pos: target,
-            val: 0,
-            parent: None,
-            prev: None,
-            next: None,
-        });
-        front.set(Reverse(0), Value(0, 0));
-        */
-
-        // Sort by end, the order in which we will process them
-        let ps_by_end = {
-            let mut ps = ps;
-            ps.sort_by_key(|Match { start, end, .. }| Reverse((end.0, end.1, start.0, start.1)));
-            ps
-        };
-        // Sort by start, the order in which we will add them to the front.
-        let ps_by_start = {
-            let mut ps = ps.clone();
-            ps.sort_by_key(|Match { start, end, .. }| Reverse((start.0, start.1, end.0, end.1)));
-            ps
-        };
-        for m @ Match {
-            start,
-            end,
-            match_cost,
-        } in ps_by_end
-        {
-            println!("Match: {:?}", m);
-            // Update lagging front.
-            //println!("Update lagging front");
-            while let Some(node) = self.nodes.get(lagging_index) {
-                println!("Next lagging node index {} {:?}", lagging_index, node);
-                if node.pos.0 >= end.0 {
-                    println!("ADD");
-                    lagging_front.set(Reverse(node.pos.1), Value(node.val, lagging_index));
-                    lagging_index += 1;
-                } else {
-                    break;
-                }
-            }
-            //println!("DONE");
-
-            // Get the value for the position.
-            let (val, parent) = match lagging_front.get(Reverse(end.1)) {
-                // For matches to the end, also subtract the gap when needed.
-                None => (
-                    ((max_match_cost + 1) - match_cost).saturating_sub({
-                        // gap cost between `end` and `target`
-                        // This will only have effect when leftover_at_end is true
-                        let di = target.0 - end.0;
-                        let dj = target.1 - end.1;
-                        let pot = (di + dj) / (max_match_cost + 1)
-                            - (if self.leftover_at_end {
-                                max_match_cost + 1
-                            } else {
-                                0
-                            });
-                        let g = abs_diff(di, dj) / 2;
-                        // println!(
-                        //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {})",
-                        //     end,
-                        //     target,
-                        //     di,
-                        //     dj,
-                        //     g,
-                        //     pot,
-                        //     g.saturating_sub(pot)
-                        // );
-                        g.saturating_sub(pot)
-                    }),
-                    None,
-                ),
-                Some(Value(val, p)) => (val + (max_match_cost + 1) - match_cost, Some(p)),
-            };
-            //println!("{:?} val {:>5} parent {:>8}", pos, val, parent.unwrap_or(0));
-
-            let id = self.nodes.len();
-
-            //println!("Try to set {:?} to {} with parent {:?}", start, val, parent);
-
-            // Only continue if the value is larger than existing.
-            //println!("Set front");
-            if val == 0 || !front.set(Reverse(start.1), Value(val, id)) {
-                //println!("Skip");
-                continue;
+        let push_node = |start: Pos, val: usize, front: &mut F, nodes: &mut Vec<Node<usize>>| {
+            //println!("Bump {:?} to {}", start, val);
+            // 1. Check if the value is still large enough.
+            // 1b. If not, continue.
+            let (current_val, mut parent) = front
+                .get(ValuedPos(start.1, usize::MAX))
+                .map_or((0, None), |Value(current_val, parent_idx)| {
+                    (current_val, Some(parent_idx))
+                });
+            if val <= current_val {
+                return;
             }
 
-            let next = front
-                .get_larger(Reverse(start.1))
-                .and_then(
-                    |Value(nextval, idx)| {
-                        if nextval != val {
-                            None
-                        } else {
-                            Some(idx)
-                        }
+            // The value shouldn't grow much when using 1 extra seed. This makes
+            // sure we add at most max_match_distance epsilon nodes.
+            // TODO: Replace 1 by match distance
+            assert!(
+                val <= current_val + max_match_cost + 1,
+                "{} <= {}",
+                val,
+                current_val + max_match_cost + 1
+            );
+
+            // 2. Insert nodes for all values up to the current value, to have consistent pareto fronts.
+            for val in current_val + 1..=val {
+                // The id of the node we're adding here.
+                let id = nodes.len();
+
+                // 3. Find `next`: The index of the node with this value, if present.
+                // This should just be the first incremental value after the current position.
+                let next = front.get_larger(ValuedPos(start.1, val)).and_then(
+                    |Value(nextval, next_idx)| {
+                        // Since we keep clean pareto fronts, this must always exist.
+                        // We can never skip a value.
+                        assert_eq!(nextval, val);
+                        // Prev/Next nodes are in direct correspondence.
+                        assert!(nodes[next_idx].prev.is_none());
+                        nodes[next_idx].prev = Some(id);
+                        Some(next_idx)
                     },
                 );
 
-            if let Some(next_idx) = next {
-                assert!(self.nodes[next_idx].prev.is_none());
-                self.nodes[next_idx].prev = Some(id);
-            }
+                //println!(
+                //"Push id {}: {:?} => {}, parent {:?} next {:?}",
+                //id, start, val, parent, next
+                //);
+                nodes.push(Node {
+                    pos: start,
+                    val,
+                    parent,
+                    prev: None,
+                    next,
+                });
 
-            self.nodes.push(Node {
-                pos: start,
-                val,
-                parent,
-                prev: None,
-                next,
-            });
+                assert!(front.set(ValuedPos(start.1, val), Value(val, id)));
+
+                parent = Some(id);
+            }
+        };
+
+        // Sort by start, the order in which we will add them to the front.
+        let ps_by_start = {
+            let mut ps = ps;
+            ps.sort_by_key(|Match { start, end, .. }| Reverse((start.0, start.1, end.0, end.1)));
+            ps
+        };
+        //let mut best_per_pos = HashMap::new();
+        for m in ps_by_start {
+            //println!("Match: {:?}", m);
+
+            // Find the parent for the end of this match.
+            let parent_idx = front
+                .get(ValuedPos(m.end.1, usize::MAX))
+                .and_then(|Value(_, hint)| self.get_jump(m.end, hint));
+            //println!("Parent: {:?}", parent_idx);
+            let val = match parent_idx {
+                // The distance to the parent
+                Some(parent_idx) => {
+                    self.nodes[parent_idx].val + (max_match_cost + 1) - m.match_cost
+                }
+                // For matches to the end, take into account the gap penalty.
+                None => ((max_match_cost + 1) - m.match_cost).saturating_sub({
+                    // gap cost between `end` and `target`
+                    // This will only have effect when leftover_at_end is true
+                    let di = target.0 - m.end.0;
+                    let dj = target.1 - m.end.1;
+                    let pot = (di + dj) / (max_match_cost + 1)
+                        - (if self.leftover_at_end {
+                            max_match_cost + 1
+                        } else {
+                            0
+                        });
+                    let g = abs_diff(di, dj) / 2;
+                    // println!(
+                    //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {})",
+                    //     end,
+                    //     target,
+                    //     di,
+                    //     dj,
+                    //     g,
+                    //     pot,
+                    //     g.saturating_sub(pot)
+                    // );
+                    g.saturating_sub(pot)
+                }),
+            };
+
+            push_node(m.start, val, &mut front, &mut self.nodes);
         }
-        //dbg!(&self.nodes);
+        //for n in &self.nodes {
+        //println!("{:?}", n);
+        //}
+        //for n in &front.m {
+        //println!("{:?}", n);
+        //}
         // The root is the now largest value in the front.
         // Need to handle the case where pruning has removed all points from the front
         self.root = front.max().map(|x| x.1).unwrap_or(0)
@@ -290,18 +302,18 @@ impl IncreasingFunction2D<usize> {
         loop {
             //println!("HINT: {}", hint_idx);
             let hint = &self.nodes[hint_idx];
-            if pos >= hint.pos {
+            if pos <= hint.pos {
                 //println!("GET JUMP {:?} {:?}", pos, Some(hint_idx));
                 return Some(hint_idx);
             }
             if let Some(next_idx) = hint.next {
-                if j >= self.nodes[next_idx].pos.1 {
+                if j <= self.nodes[next_idx].pos.1 {
                     hint_idx = next_idx;
                     continue;
                 }
             }
             if let Some(prev_idx) = hint.prev {
-                if i >= self.nodes[prev_idx].pos.0 {
+                if i <= self.nodes[prev_idx].pos.0 {
                     hint_idx = prev_idx;
                     continue;
                 }
@@ -320,5 +332,120 @@ impl IncreasingFunction2D<usize> {
             .iter()
             .map(|&Node { pos, val, .. }| (pos, val))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn to_map(f: &IncreasingFunction2D<usize>) -> HashMap<Pos, Node<usize>> {
+        f.nodes
+            .iter()
+            .copied()
+            .map(|n @ Node { pos, .. }| (pos, n))
+            .collect()
+    }
+
+    #[test]
+    fn test_cross() {
+        for start_x in [7, 6] {
+            println!("\n\nRUN: {}", start_x);
+            let f = IncreasingFunction2D::new(
+                Pos(10, 10),
+                1,
+                false,
+                vec![
+                    Match {
+                        start: Pos(start_x, 9),
+                        end: Pos(10, 10),
+                        match_cost: 1,
+                    },
+                    Match {
+                        start: Pos(4, 4),
+                        end: Pos(6, 6),
+                        match_cost: 0,
+                    },
+                    Match {
+                        start: Pos(4, 4),
+                        end: Pos(5, 7),
+                        match_cost: 1,
+                    },
+                    Match {
+                        start: Pos(4, 4),
+                        end: Pos(7, 5),
+                        match_cost: 1,
+                    },
+                    Match {
+                        start: Pos(3, 5),
+                        end: Pos(6, 6),
+                        match_cost: 1,
+                    },
+                    Match {
+                        start: Pos(5, 3),
+                        end: Pos(6, 6),
+                        match_cost: 1,
+                    },
+                ],
+            );
+            for x in &f.nodes {
+                println!("{:?}", x);
+            }
+            let m = to_map(&f);
+            assert!(m[&Pos(4, 4)].val == m[&Pos(3, 5)].val + 1);
+            assert!(m[&Pos(4, 4)].val == m[&Pos(5, 3)].val + 1);
+        }
+    }
+
+    #[test]
+    fn broken_pareto_front() {
+        let f = IncreasingFunction2D::new(
+            Pos(10, 10),
+            1,
+            false,
+            vec![
+                Match {
+                    start: Pos(3, 9),
+                    end: Pos(10, 10),
+                    match_cost: 1,
+                },
+                Match {
+                    start: Pos(4, 8),
+                    end: Pos(10, 10),
+                    match_cost: 0,
+                },
+                Match {
+                    start: Pos(5, 7),
+                    end: Pos(10, 10),
+                    match_cost: 1,
+                },
+                Match {
+                    start: Pos(6, 6),
+                    end: Pos(10, 10),
+                    match_cost: 0,
+                },
+                Match {
+                    start: Pos(7, 5),
+                    end: Pos(10, 10),
+                    match_cost: 1,
+                },
+                Match {
+                    start: Pos(8, 4),
+                    end: Pos(10, 10),
+                    match_cost: 0,
+                },
+            ],
+        );
+        println!("\n\nRUN:");
+        for x in &f.nodes {
+            println!("{:?}", x);
+        }
+        assert_eq!(f.nodes.len(), 9);
+
+        // Test Jump
+        assert_eq!(f.get_jump(Pos(4, 9), 0), None);
+        assert_eq!(f.get_jump(Pos(7, 5), 4), Some(2));
+        assert_eq!(f.get_jump(Pos(3, 9), 1), Some(8));
+        assert_eq!(f.get_jump(Pos(3, 7), 1), Some(7));
     }
 }
