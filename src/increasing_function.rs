@@ -138,6 +138,7 @@ impl IncreasingFunction2D<usize> {
             leftover_at_end,
         };
         s.build(target, max_match_cost, ps);
+        assert!(s.nodes.len() > 0);
         s
     }
 
@@ -145,17 +146,18 @@ impl IncreasingFunction2D<usize> {
         // ValuedPos(j, value) -> Value(max walk to target, parent idx).
         type F = IncreasingFunction<ValuedPos, Value>;
         let mut front = F::new();
+        let root = Pos(usize::MAX, usize::MAX);
 
         let push_node = |start: Pos, val: usize, front: &mut F, nodes: &mut Vec<Node<usize>>| {
             //println!("Bump {:?} to {}", start, val);
             // 1. Check if the value is still large enough.
             // 1b. If not, continue.
-            let (current_val, mut parent) = front
+            let (next_val, mut parent) = front
                 .get(ValuedPos(start.1, usize::MAX))
                 .map_or((0, None), |Value(current_val, parent_idx)| {
-                    (current_val, Some(parent_idx))
+                    (current_val + 1, Some(parent_idx))
                 });
-            if val <= current_val {
+            if val < next_val {
                 return;
             }
 
@@ -163,14 +165,14 @@ impl IncreasingFunction2D<usize> {
             // sure we add at most max_match_distance epsilon nodes.
             // TODO: Replace 1 by match distance
             assert!(
-                val <= current_val + max_match_cost + 1,
+                val <= next_val + max_match_cost,
                 "{} <= {}",
                 val,
-                current_val + max_match_cost + 1
+                next_val + max_match_cost
             );
 
             // 2. Insert nodes for all values up to the current value, to have consistent pareto fronts.
-            for val in current_val + 1..=val {
+            for val in next_val..=val {
                 // The id of the node we're adding here.
                 let id = nodes.len();
 
@@ -206,6 +208,11 @@ impl IncreasingFunction2D<usize> {
             }
         };
 
+        // Push the global root.
+        push_node(root, 0, &mut front, &mut self.nodes);
+        //dbg!(&front.m);
+        //dbg!(&self.nodes);
+
         // Sort by start, the order in which we will add them to the front.
         let ps_by_start = {
             let mut ps = ps;
@@ -219,15 +226,13 @@ impl IncreasingFunction2D<usize> {
             // Find the parent for the end of this match.
             let parent_idx = front
                 .get(ValuedPos(m.end.1, usize::MAX))
-                .and_then(|Value(_, hint)| self.get(m.end, hint));
+                .map(|Value(_, hint)| self.incremental_forward(m.end, hint))
+                .unwrap();
             //println!("Parent: {:?}", parent_idx);
             let val = match parent_idx {
-                // The distance to the parent
-                Some(parent_idx) => {
-                    self.nodes[parent_idx].val + (max_match_cost + 1) - m.match_cost
-                }
                 // For matches to the end, take into account the gap penalty.
-                None => ((max_match_cost + 1) - m.match_cost).saturating_sub({
+                // NOTE: This assumes that the global root is at index 0.
+                0 => ((max_match_cost + 1) - m.match_cost).saturating_sub({
                     // gap cost between `end` and `target`
                     // This will only have effect when leftover_at_end is true
                     let di = target.0 - m.end.0;
@@ -252,6 +257,8 @@ impl IncreasingFunction2D<usize> {
                     // );
                     g.saturating_sub(pot)
                 }),
+                // The distance to the parent
+                parent_idx => self.nodes[parent_idx].val + (max_match_cost + 1) - m.match_cost,
             };
 
             push_node(m.start, val, &mut front, &mut self.nodes);
@@ -264,24 +271,28 @@ impl IncreasingFunction2D<usize> {
         //}
         // The root is the now largest value in the front.
         // Need to handle the case where pruning has removed all points from the front
-        self.root = front.max().map(|x| x.1).unwrap_or(0)
+        self.root = front.max().map(|x| x.1).unwrap_or(0);
     }
 
     pub fn root<'a>(&'a self) -> NodeIndex {
         self.root
     }
 
-    /// Same as get, but can handle larger jumps of position.
+    /// NOTE: This only works if pos is right-below (larger) than the position where hint_idx was obtained.
+    /// Use `incremental` below otherwise.
     /// Moves to the next/prev neighbour as long as needed, and then goes to parents.
-    /// TODO: Allow backwards moves as well, which may need a child pointer alongside the parent pointer.
-    pub fn get<'a>(&'a self, pos @ Pos(i, j): Pos, mut hint_idx: NodeIndex) -> Option<NodeIndex> {
+    pub fn incremental_forward<'a>(
+        &'a self,
+        pos @ Pos(i, j): Pos,
+        mut hint_idx: NodeIndex,
+    ) -> NodeIndex {
         //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {
             //println!("HINT: {}", hint_idx);
             let hint = &self.nodes[hint_idx];
             if pos <= hint.pos {
                 //println!("GET JUMP {:?} {:?}", pos, Some(hint_idx));
-                return Some(hint_idx);
+                return hint_idx;
             }
             if let Some(next_idx) = hint.next {
                 if j <= self.nodes[next_idx].pos.1 {
@@ -300,7 +311,46 @@ impl IncreasingFunction2D<usize> {
                 continue;
             }
             //println!("GET JUMP {:?} {:?}", pos, None::<()>);
-            return None;
+            unreachable!("Pos {:?} is not covered by botright maximum", pos);
+        }
+    }
+
+    // This also handles steps in the (1,-1) and (-1,1) quadrants.
+    pub fn incremental<'a>(
+        &'a self,
+        pos @ Pos(i, j): Pos,
+        mut hint_idx: NodeIndex,
+        _hint_pos: Pos,
+    ) -> NodeIndex {
+        if self.nodes.is_empty() {
+            return hint_idx;
+        }
+        //println!("GET JUMP {:?} {}", pos, hint_idx);
+        loop {
+            //println!("HINT: {}", hint_idx);
+            let hint = &self.nodes[hint_idx];
+            if pos <= hint.pos {
+                //println!("GET JUMP {:?} {:?}", pos, Some(hint_idx));
+                return hint_idx;
+            }
+            if let Some(next_idx) = hint.next {
+                if j <= self.nodes[next_idx].pos.1 {
+                    hint_idx = next_idx;
+                    continue;
+                }
+            }
+            if let Some(prev_idx) = hint.prev {
+                if i <= self.nodes[prev_idx].pos.0 {
+                    hint_idx = prev_idx;
+                    continue;
+                }
+            }
+            if let Some(prev_idx) = hint.parent {
+                hint_idx = prev_idx;
+                continue;
+            }
+            //println!("GET JUMP {:?} {:?}", pos, None::<()>);
+            unreachable!("Pos {:?} is not covered by botright maximum", pos);
         }
     }
 
@@ -315,6 +365,12 @@ impl IncreasingFunction2D<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty() {
+        let f = IncreasingFunction2D::new(Pos(10, 10), 1, false, vec![]);
+        assert_eq!(f.nodes.len(), 1);
+    }
 
     fn to_map(f: &IncreasingFunction2D<usize>) -> HashMap<Pos, Node<usize>> {
         f.nodes
@@ -417,12 +473,12 @@ mod tests {
         for x in &f.nodes {
             println!("{:?}", x);
         }
-        assert_eq!(f.nodes.len(), 9);
+        assert_eq!(f.nodes.len(), 10);
 
         // Test Jump
-        assert_eq!(f.get(Pos(4, 9), 0), None);
-        assert_eq!(f.get(Pos(7, 5), 4), Some(2));
-        assert_eq!(f.get(Pos(3, 9), 1), Some(8));
-        assert_eq!(f.get(Pos(3, 7), 1), Some(7));
+        assert_eq!(f.incremental_forward(Pos(4, 9), 1), 0);
+        assert_eq!(f.incremental_forward(Pos(7, 5), 5), 3);
+        assert_eq!(f.incremental_forward(Pos(3, 9), 2), 9);
+        assert_eq!(f.incremental_forward(Pos(3, 7), 2), 8);
     }
 }

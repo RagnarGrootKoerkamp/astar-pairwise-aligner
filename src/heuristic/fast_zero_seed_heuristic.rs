@@ -77,7 +77,7 @@ impl HeuristicInstance<'_> for FastZeroSeedHeuristicI {
         pos: Pos,
     ) -> Self::IncrementalState {
         // We can unwrap because (0,0) is part of the map.
-        self.f.get(pos, parent.1).unwrap()
+        self.f.incremental_forward(pos, parent.1)
     }
 
     fn root_state(&self) -> Self::IncrementalState {
