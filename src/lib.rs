@@ -11,6 +11,7 @@ pub mod astar;
 pub mod heuristic;
 pub mod implicit_graph;
 pub mod increasing_function;
+pub mod msa;
 pub mod random_sequence;
 pub mod scored;
 pub mod seeds;
@@ -588,13 +589,22 @@ mod tests {
 // - Simulate efficient pruning by re-pushing explored states with outdated heuristic value
 // - Investigate doing long jumps on matching diagonals.
 //
+// TODO: MSA
+// - instantiate one heuristic per pair of sequences
+// - run A* on the one-by-one step graph
+//
 // TODO: Seeds
 // - Dynamic seeding, either greedy or using some DP[i, j, distance].
 //   - Maximize h(0,0) or (max_match_cost+1)/l
 //   - Minimize number of extra seeds.
 // - choosing seeds bases on guessed alignment
+// - Fix the gap heuristic transpose to take the seeds into account.
 //
-// TODO: Fast Seed+Gap heuristic implementation:
+// TODO: Pruning for fast gap heuristic
+// - Allow rebuilding the IncreasingFunction after pruning.
+// - Lazy pruning with offset.
+//
+// DONE: Fast Seed+Gap heuristic implementation:
 // - Bruteforce from bottom right to top left, fully processing everything all
 //   matches that are 'shadowed', i.e. only matter for going left/up, but not diagonally anymore.
 
