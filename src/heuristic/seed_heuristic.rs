@@ -172,15 +172,13 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         self.h_at_seeds = h_at_seeds;
     }
 
-    fn transform(&self, Pos(i, j): Pos) -> Pos {
+    pub fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
         let a = self.target.0;
         let b = self.target.1;
-        let l = self.params.l;
-        let max_match_cost = self.params.max_match_cost;
-        //println!("transform {} {}", i, j);
+        let pot = |pos| self.seed_matches.potential(pos);
         Pos(
-            i + b - j + (i + l - 1) / l * (max_match_cost + 1),
-            j + a - i + (i + l - 1) / l * (max_match_cost + 1),
+            i + b - j + pot(Pos(0, 0)) - pot(pos),
+            j + a - i + pot(Pos(0, 0)) - pot(pos),
         )
     }
 
