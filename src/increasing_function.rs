@@ -235,36 +235,38 @@ impl IncreasingFunction2D<usize> {
                 .map(|Value(_, hint)| self.incremental_forward(m.end, hint))
                 .unwrap();
             //println!("Parent: {:?}", parent_idx);
-            let val = match parent_idx {
+            let val = match self.nodes[parent_idx] {
                 // For matches to the end, take into account the gap penalty.
                 // NOTE: This assumes that the global root is at index 0.
-                0 => ((max_match_cost + 1) - m.match_cost).saturating_sub({
-                    // gap cost between `end` and `target`
-                    // This will only have effect when leftover_at_end is true
-                    let di = target.0 - m.end.0;
-                    let dj = target.1 - m.end.1;
-                    let pot = (di + dj) / 2
-                        - (if self.leftover_at_end {
-                            max_match_cost + 1
-                        } else {
-                            0
-                        });
-                    let g = abs_diff(di, dj) / 2;
-                    // println!(
-                    //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
-                    //     m.end,
-                    //     target,
-                    //     di,
-                    //     dj,
-                    //     g,
-                    //     pot,
-                    //     g.saturating_sub(pot),
-                    //     self.leftover_at_end
-                    // );
-                    g.saturating_sub(pot)
-                }),
+                Node { pos, .. } if pos == root => {
+                    ((max_match_cost + 1) - m.match_cost).saturating_sub({
+                        // gap cost between `end` and `target`
+                        // This will only have effect when leftover_at_end is true
+                        let di = target.0 - m.end.0;
+                        let dj = target.1 - m.end.1;
+                        let pot = (di + dj) / 2
+                            - (if self.leftover_at_end {
+                                max_match_cost + 1
+                            } else {
+                                0
+                            });
+                        let g = abs_diff(di, dj) / 2;
+                        // println!(
+                        //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
+                        //     m.end,
+                        //     target,
+                        //     di,
+                        //     dj,
+                        //     g,
+                        //     pot,
+                        //     g.saturating_sub(pot),
+                        //     self.leftover_at_end
+                        // );
+                        g.saturating_sub(pot)
+                    })
+                }
                 // The distance to the parent
-                parent_idx => self.nodes[parent_idx].val + (max_match_cost + 1) - m.match_cost,
+                n => n.val + (max_match_cost + 1) - m.match_cost,
             };
 
             push_node(m.start, val, &mut front, &mut self.nodes);
@@ -396,7 +398,10 @@ impl IncreasingFunction2D<usize> {
     pub fn to_map(&self) -> HashMap<Pos, usize> {
         self.nodes
             .iter()
-            .map(|&Node { pos, val, .. }| (pos, val))
+            .filter_map(|&Node { pos, val, .. }| match pos {
+                Pos(usize::MAX, usize::MAX) => None,
+                _ => Some((pos, val)),
+            })
             .collect()
     }
 }
