@@ -153,6 +153,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             start,
             end,
             match_cost,
+            ..
         } in self.seed_matches.iter().rev()
         {
             if self.pruned_positions.contains(start) {
@@ -210,24 +211,27 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         // );
         // println!("Start : {:?} / {:?}", Pos(0, 0), transform_start);
 
+        println!("Target: {:?} / {:?}", self.target, transform_target);
+        //println!("MATCHES: {:?}", self.seed_matches.iter().collect_vec());
         let filtered_matches = self
             .seed_matches
             .iter()
-            .filter(|Match { end, .. }| self.transform(*end) <= transform_target)
             // Filter matches by transformed start position.
             .filter(|Match { start, .. }| !self.pruned_positions.contains(start))
             .collect_vec();
+        //println!("FLT MS : {:?}", filtered_matches);
         self.active_matches = filtered_matches
             .iter()
             .map(|Match { start, .. }| *start)
             .collect();
-        let mut transformed_matches = filtered_matches
+        let transformed_matches = filtered_matches
             .into_iter()
             .map(
                 |&Match {
                      start,
                      end,
                      match_cost,
+                     max_match_cost,
                  }| {
                     //println!("Match: {:?}", m);
                     // println!(
@@ -240,22 +244,25 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                         start: self.transform(start),
                         end: self.transform(end),
                         match_cost,
+                        max_match_cost,
                     }
                 },
             )
             .collect_vec();
+        //println!("TRS MS : {:?}", transformed_matches);
+        let mut transformed_matches = transformed_matches
+            .into_iter()
+            .filter(|Match { end, .. }| *end <= transform_target)
+            .collect_vec();
+        //println!("FILTER: {:?}", transformed_matches);
         transformed_matches
             .sort_by_key(|Match { end, start, .. }| (start.0, start.1, end.0, end.1));
         // for x in &transformed_matches {
         //     println!("Match: {:?}", x);
         // }
         //dbg!(&transformed_matches);
-        self.increasing_function = IncreasingFunction2D::new(
-            transform_target,
-            self.params.max_match_cost,
-            leftover_at_end,
-            transformed_matches,
-        );
+        self.increasing_function =
+            IncreasingFunction2D::new(transform_target, leftover_at_end, transformed_matches);
         self.h_at_seeds = self.increasing_function.to_map();
 
         let mut h_map = self.h_at_seeds.iter().collect_vec();
@@ -368,6 +375,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                         // Do not explore states that are too much edit
                         // distance away.
                         let new_delta = edge_cost + delta;
+                        // FIXME: Remove this usage of max_match_cost and replace it by the cost of the current seed.
                         if new_delta >= self.params.max_match_cost + 1 {
                             None
                         } else {
@@ -497,7 +505,7 @@ mod tests {
                             pruning,
                             build_fast: false,
                             query_fast: false,
-                            make_consistent: true,
+                            make_consistent: false,
                         };
                         let h_fast = SeedHeuristic {
                             l,
@@ -506,7 +514,7 @@ mod tests {
                             pruning,
                             build_fast: true,
                             query_fast: false,
-                            make_consistent: true,
+                            make_consistent: false,
                         };
 
                         let (a, b, alphabet, stats) = setup(n, e);
@@ -549,56 +557,60 @@ mod tests {
                 "GCCTAAATGCGAACGTAGATTCGTTGTTCC",
                 "GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC",
             ),
+            // Fails with alternating [(4,0),(7,1)] seeds on something to do with leftover_at_end.
+            ("GAAGGGTAACAGTGCTCG", "AGGGTAACAGTGCTCGTA"),
         ];
-        for build_fast in [false, true] {
-            for (a, b) in tests {
-                println!("TEST:\n{}\n{}", a, b);
-                let a = a.as_bytes().to_vec();
-                let b = b.as_bytes().to_vec();
-                let l = 7;
-                let max_match_cost = 1;
-                let pruning = true;
-                let h_slow = SeedHeuristic {
-                    l,
-                    max_match_cost,
-                    distance_function: GapHeuristic,
-                    pruning,
-                    build_fast,
-                    query_fast: build_fast,
-                    make_consistent: true,
-                };
-                let h_fast = SeedHeuristic {
-                    l,
-                    max_match_cost,
-                    distance_function: GapHeuristic,
-                    pruning,
-                    build_fast,
-                    query_fast: build_fast,
-                    make_consistent: true,
-                };
+        for make_consistent in [false, true] {
+            for build_fast in [false, true] {
+                for (a, b) in tests {
+                    println!("TEST:\n{}\n{}", a, b);
+                    let a = a.as_bytes().to_vec();
+                    let b = b.as_bytes().to_vec();
+                    let l = 7;
+                    let max_match_cost = 1;
+                    let pruning = false;
+                    let h_slow = SeedHeuristic {
+                        l,
+                        max_match_cost,
+                        distance_function: GapHeuristic,
+                        pruning,
+                        build_fast,
+                        query_fast: build_fast,
+                        make_consistent,
+                    };
+                    let h_fast = SeedHeuristic {
+                        l,
+                        max_match_cost,
+                        distance_function: GapHeuristic,
+                        pruning,
+                        build_fast,
+                        query_fast: build_fast,
+                        make_consistent,
+                    };
 
-                let (_, _, alphabet, stats) = setup(0, 0.0);
+                    let (_, _, alphabet, stats) = setup(0, 0.0);
 
-                if false {
-                    let h_slow = h_slow.build(&a, &b, &alphabet);
-                    let h_fast = h_fast.build(&a, &b, &alphabet);
-                    let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
-                    let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
-                    h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
-                    h_fast_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
-                    assert_eq!(h_slow_map, h_fast_map);
+                    if false {
+                        let h_slow = h_slow.build(&a, &b, &alphabet);
+                        let h_fast = h_fast.build(&a, &b, &alphabet);
+                        let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
+                        let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
+                        h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                        h_fast_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                        assert_eq!(h_slow_map, h_fast_map);
+                    }
+
+                    align(
+                        &a,
+                        &b,
+                        &alphabet,
+                        stats,
+                        EqualHeuristic {
+                            h1: h_slow,
+                            h2: h_fast,
+                        },
+                    );
                 }
-
-                align(
-                    &a,
-                    &b,
-                    &alphabet,
-                    stats,
-                    EqualHeuristic {
-                        h1: h_slow,
-                        h2: h_fast,
-                    },
-                );
             }
         }
     }

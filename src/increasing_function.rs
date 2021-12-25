@@ -128,7 +128,6 @@ impl IncreasingFunction2D<usize> {
         self.nodes[idx].val
     }
 
-    // TODO: Support max_match_cost > 0
     /// Build the increasing function over the given points. `l` must be at least 1.
     /// `ps` must be sorted increasing by (x,y), first on x and then on y.
     pub fn new(target: Pos, max_match_cost: usize, leftover_at_end: bool, ps: Vec<Match>) -> Self {
@@ -138,12 +137,12 @@ impl IncreasingFunction2D<usize> {
             root: 0,
             leftover_at_end,
         };
-        s.build(target, max_match_cost, ps);
+        s.build(target, ps);
         assert!(s.nodes.len() > 0);
         s
     }
 
-    fn build<'a>(&'a mut self, target: Pos, max_match_cost: usize, ps: Vec<Match>) {
+    fn build<'a>(&'a mut self, target: Pos, ps: Vec<Match>) {
         // ValuedPos(j, value) -> Value(max walk to target, parent idx).
         type F = IncreasingFunction<ValuedPos, Value>;
         let mut front = F::new();
@@ -164,13 +163,13 @@ impl IncreasingFunction2D<usize> {
 
             // The value shouldn't grow much when using 1 extra seed. This makes
             // sure we add at most max_match_distance epsilon nodes.
-            // TODO: Replace 1 by match distance
-            assert!(
-                val <= next_val + max_match_cost,
-                "{} <= {}",
-                val,
-                next_val + max_match_cost
-            );
+            // TODO: Pass the max_match_cost for the match we're using into this function.
+            // assert!(
+            //     val <= next_val + max_match_cost,
+            //     "{} <= {}",
+            //     val,
+            //     next_val + max_match_cost
+            // );
 
             // 2. Insert nodes for all values up to the current value, to have consistent pareto fronts.
             for val in next_val..=val {
@@ -227,8 +226,6 @@ impl IncreasingFunction2D<usize> {
         };
         //let mut best_per_pos = HashMap::new();
         for m in ps_by_start {
-            //println!("Match: {:?}", m);
-
             // Find the parent for the end of this match.
             let parent_idx = front
                 .get(ValuedPos(m.end.1, usize::MAX))
@@ -239,7 +236,7 @@ impl IncreasingFunction2D<usize> {
                 // For matches to the end, take into account the gap penalty.
                 // NOTE: This assumes that the global root is at index 0.
                 Node { pos, .. } if pos == root => {
-                    ((max_match_cost + 1) - m.match_cost).saturating_sub({
+                    ((m.max_match_cost + 1) - m.match_cost).saturating_sub({
                         // gap cost between `end` and `target`
                         // This will only have effect when leftover_at_end is true
                         let di = target.0 - m.end.0;
@@ -251,23 +248,24 @@ impl IncreasingFunction2D<usize> {
                                 0
                             });
                         let g = abs_diff(di, dj) / 2;
-                        // println!(
-                        //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
-                        //     m.end,
-                        //     target,
-                        //     di,
-                        //     dj,
-                        //     g,
-                        //     pot,
-                        //     g.saturating_sub(pot),
-                        //     self.leftover_at_end
-                        // );
+                        println!(
+                            "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
+                            m.end,
+                            target,
+                            di,
+                            dj,
+                            g,
+                            pot,
+                            g.saturating_sub(pot),
+                            self.seed_matches
+                        );
                         g.saturating_sub(pot)
                     })
                 }
                 // The distance to the parent
-                n => n.val + (max_match_cost + 1) - m.match_cost,
+                n => n.val + (m.max_match_cost + 1) - m.match_cost,
             };
+            //println!("{:?} {}", m, val);
 
             push_node(m.start, val, &mut front, &mut self.nodes);
         }
@@ -412,7 +410,7 @@ mod tests {
 
     #[test]
     fn empty() {
-        let f = IncreasingFunction2D::new(Pos(10, 10), 1, false, vec![]);
+        let f = IncreasingFunction2D::new(Pos(10, 10), false, vec![]);
         assert_eq!(f.nodes.len(), 1);
     }
 
@@ -430,38 +428,43 @@ mod tests {
             println!("\n\nRUN: {}", start_x);
             let f = IncreasingFunction2D::new(
                 Pos(10, 10),
-                1,
                 false,
                 vec![
                     Match {
                         start: Pos(start_x, 9),
                         end: Pos(10, 10),
                         match_cost: 1,
+                        max_match_cost: 1,
                     },
                     Match {
                         start: Pos(4, 4),
                         end: Pos(6, 6),
                         match_cost: 0,
+                        max_match_cost: 1,
                     },
                     Match {
                         start: Pos(4, 4),
                         end: Pos(5, 7),
                         match_cost: 1,
+                        max_match_cost: 1,
                     },
                     Match {
                         start: Pos(4, 4),
                         end: Pos(7, 5),
                         match_cost: 1,
+                        max_match_cost: 1,
                     },
                     Match {
                         start: Pos(3, 5),
                         end: Pos(6, 6),
                         match_cost: 1,
+                        max_match_cost: 1,
                     },
                     Match {
                         start: Pos(5, 3),
                         end: Pos(6, 6),
                         match_cost: 1,
+                        max_match_cost: 1,
                     },
                 ],
             );
@@ -478,38 +481,43 @@ mod tests {
     fn broken_pareto_front() {
         let f = IncreasingFunction2D::new(
             Pos(10, 10),
-            1,
             false,
             vec![
                 Match {
                     start: Pos(3, 9),
                     end: Pos(10, 10),
                     match_cost: 1,
+                    max_match_cost: 1,
                 },
                 Match {
                     start: Pos(4, 8),
                     end: Pos(10, 10),
                     match_cost: 0,
+                    max_match_cost: 1,
                 },
                 Match {
                     start: Pos(5, 7),
                     end: Pos(10, 10),
                     match_cost: 1,
+                    max_match_cost: 1,
                 },
                 Match {
                     start: Pos(6, 6),
                     end: Pos(10, 10),
                     match_cost: 0,
+                    max_match_cost: 1,
                 },
                 Match {
                     start: Pos(7, 5),
                     end: Pos(10, 10),
                     match_cost: 1,
+                    max_match_cost: 1,
                 },
                 Match {
                     start: Pos(8, 4),
                     end: Pos(10, 10),
                     match_cost: 0,
+                    max_match_cost: 1,
                 },
             ],
         );

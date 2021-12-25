@@ -588,6 +588,7 @@ mod tests {
 //   - Need to figure out when all previous vertices depend on the current match
 // - Simulate efficient pruning by re-pushing explored states with outdated heuristic value
 // - Investigate doing long jumps on matching diagonals.
+// - Rename max_match_cost to something that includes the +1 that's present everywhere.
 //
 // TODO: MSA
 // - instantiate one heuristic per pair of sequences

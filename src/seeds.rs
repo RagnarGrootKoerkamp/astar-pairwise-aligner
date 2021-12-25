@@ -1,3 +1,5 @@
+use std::iter::repeat;
+
 use crate::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -5,8 +7,10 @@ pub struct Match {
     pub start: Pos,
     pub end: Pos,
     pub match_cost: usize,
+    pub max_match_cost: usize,
 }
 
+#[derive(Default)]
 pub struct SeedMatches {
     // Sorted by (i, j)
     pub num_seeds: usize,
@@ -47,8 +51,8 @@ impl<'a> DistanceHeuristicInstance<'a> for SeedMatches {
 }
 
 pub fn find_matches<'a>(
-    a_text: &'a Sequence,
-    b_text: &'a Sequence,
+    a: &'a Sequence,
+    b: &'a Sequence,
     text_alphabet: &Alphabet,
     l: usize,
     max_match_cost: usize,
@@ -57,79 +61,116 @@ pub fn find_matches<'a>(
     // Convert to a binary sequences.
     let rank_transform = RankTransform::new(text_alphabet);
 
-    // Split a into seeds of size l, which are encoded as `usize`.
-    // (pos, ngram value)
-    let seed_qgrams: Vec<(usize, usize)> = a_text
-        .chunks_exact(l)
-        .enumerate()
-        .map(|(i, s)| (l * i, s))
-        // A chunk of size l has exactly one qgram of length l.
-        .map(|(i, seed)| (i, rank_transform.qgrams(l as u32, seed).next().unwrap()))
-        .collect::<Vec<_>>();
+    // Split a into seeds of size l and l+1 alternating, which are bit-encoded.
+    // (start, end, max_match_cost, ngram value)
+    let seed_qgrams = {
+        // TODO: Make a dedicated struct for seeds, apart from Matches.
+        let mut v: Vec<(usize, usize, usize, usize)> = Vec::default();
+        let mut a = &a[..];
+        let mut long = false;
+        let mut pos = 0;
+        loop {
+            let seed_len = if long { l } else { l };
+            let max_match_cost = if long { max_match_cost } else { max_match_cost };
+            if seed_len > a.len() {
+                break;
+            }
 
+            let (seed, tail) = a.split_at(seed_len);
+            a = tail;
+
+            v.push((
+                pos,
+                pos + seed_len,
+                max_match_cost,
+                rank_transform.qgrams(seed_len as u32, seed).next().unwrap(),
+            ));
+            pos += seed_len;
+
+            long = !long;
+        }
+        v
+    };
     let num_seeds = seed_qgrams.len();
 
-    let n = a_text.len();
+    let n = a.len();
     let mut potential = Vec::with_capacity(n + 1);
     let mut start_of_seed = Vec::with_capacity(n + 1);
-    for i in 0..=n {
-        potential.push((max_match_cost + 1) * (n / l - min(i + l - 1, n) / l));
-        start_of_seed.push(i / l * l);
-    }
-    let potential = potential;
-    let start_of_seed = start_of_seed;
 
     // Find matches of the seeds of a in b.
     // NOTE: This uses O(alphabet^l) memory.
     let mut matches = Vec::<Match>::new();
 
-    let qgram_index = QGramIndex::new(l as u32, b_text, &text_alphabet);
-    let qgram_index_deletions = QGramIndex::new(l as u32 - 1, b_text, &text_alphabet);
-    let qgram_index_insertions = QGramIndex::new(l as u32 + 1, b_text, &text_alphabet);
+    let mut qgrams = HashMap::<usize, QGramIndex>::default();
+    for l in [l - 1, l, l + 1, l + 2, l + 3, l + 4] {
+        // TODO: Profile this index and possibly use something more efficient for large l.
+        qgrams.insert(l, QGramIndex::new(l as u32, b, &text_alphabet));
+    }
 
-    for (i, seed) in seed_qgrams {
+    let mut cur_potential = seed_qgrams.iter().map(|(_, _, cost, _)| cost + 1).sum();
+    potential.push(cur_potential);
+    //println!("{:?}", seed_qgrams);
+    for &(start, end, max_match_cost, seed) in &seed_qgrams {
+        let len = end - start;
+        cur_potential -= max_match_cost + 1;
+        potential.extend(repeat(cur_potential).take(len));
+        start_of_seed.extend(repeat(start).take(len));
+
         // Exact matches
-        for &j in qgram_index.qgram_matches(seed) {
+        for &j in qgrams[&len].qgram_matches(seed) {
             matches.push(Match {
-                start: Pos(i, j),
-                end: Pos(i + l, j + l),
+                start: Pos(start, j),
+                end: Pos(end, j + len),
                 match_cost: 0,
+                max_match_cost,
             });
         }
         // Inexact matches.
         if max_match_cost == 1 {
-            let mutations = mutations(l, seed);
+            let mutations = mutations(len, seed);
             for mutation in mutations.deletions {
-                for &j in qgram_index_deletions.qgram_matches(mutation) {
+                for &j in qgrams[&(len - 1)].qgram_matches(mutation) {
                     matches.push(Match {
-                        start: Pos(i, j),
-                        end: Pos(i + l, j + l - 1),
+                        start: Pos(start, j),
+                        end: Pos(end, j + len - 1),
                         match_cost: 1,
+                        max_match_cost,
                     });
                 }
             }
             for mutation in mutations.substitutions {
-                for &j in qgram_index.qgram_matches(mutation) {
+                for &j in qgrams[&len].qgram_matches(mutation) {
                     matches.push(Match {
-                        start: Pos(i, j),
-                        end: Pos(i + l, j + l),
+                        start: Pos(start, j),
+                        end: Pos(end, j + len),
                         match_cost: 1,
+                        max_match_cost,
                     });
                 }
             }
             for mutation in mutations.insertions {
-                for &j in qgram_index_insertions.qgram_matches(mutation) {
+                for &j in qgrams[&(len + 1)].qgram_matches(mutation) {
                     matches.push(Match {
-                        start: Pos(i, j),
-                        end: Pos(i + l, j + l + 1),
+                        start: Pos(start, j),
+                        end: Pos(end, j + len + 1),
                         match_cost: 1,
+                        max_match_cost,
                     });
                 }
             }
         }
     }
+    // Backfill a potential gap after the last seed.
+    potential.extend(repeat(0).take(n + 1 - potential.len()));
+    start_of_seed.extend(repeat(seed_qgrams.last().unwrap().1).take(n + 1 - start_of_seed.len()));
+
+    //println!("{:?}", potential);
+    //println!("{:?}", start_of_seed);
 
     matches.sort_by_key(|&Match { start, .. }| (start.0, start.1));
+    //for m in &matches {
+    //println!("{:?}", m);
+    //}
 
     SeedMatches {
         num_seeds,
