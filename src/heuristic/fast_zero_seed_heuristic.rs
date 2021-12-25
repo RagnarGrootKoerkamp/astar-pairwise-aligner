@@ -56,7 +56,6 @@ impl FastZeroSeedHeuristicI {
         // The increasing function goes back from the end, and uses (0,0) for the final state.
         let f = IncreasingFunction2D::new(
             Pos(a.len(), b.len()),
-            params.max_match_cost,
             false,
             seed_matches.iter().cloned().collect_vec(),
         );
