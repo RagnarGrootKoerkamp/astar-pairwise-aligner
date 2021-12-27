@@ -48,6 +48,15 @@ impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
     fn name(&self) -> String {
         "Seed".into()
     }
+    fn consistent(&self) -> Option<bool> {
+        Some(self.make_consistent)
+    }
+    fn build_fast(&self) -> Option<bool> {
+        Some(self.build_fast)
+    }
+    fn query_fast(&self) -> Option<bool> {
+        Some(self.query_fast)
+    }
 }
 pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     a: &'a Sequence,
@@ -57,7 +66,8 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     target: Pos,
 
     pub seed_matches: SeedMatches,
-    active_matches: HashSet<Pos>,
+    // The lowest cost match starting at each position.
+    active_matches: HashMap<Pos, Match>,
     h_at_seeds: HashMap<Pos, usize>,
     h_cache: RefCell<HashMap<Pos, usize>>,
     pruned_positions: HashSet<Pos>,
@@ -65,6 +75,9 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     // For the fast version
     transform_target: Pos,
     increasing_function: IncreasingFunction2D<usize>,
+
+    // For debugging
+    expanded: HashSet<Pos>,
 }
 
 /// The seed heuristic implies a distance function as the maximum of the
@@ -111,12 +124,13 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             target: Pos(a.len(), b.len()),
             seed_matches,
             h_at_seeds: HashMap::default(),
-            active_matches: HashSet::default(),
+            active_matches: HashMap::default(),
             h_cache: RefCell::new(HashMap::new()),
             pruned_positions: HashSet::new(),
             increasing_function: Default::default(),
             // Filled below.
             transform_target: Pos(0, 0),
+            expanded: HashSet::new(),
         };
         h.transform_target = if h.params.build_fast {
             h.transform(h.target)
@@ -211,7 +225,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         // );
         // println!("Start : {:?} / {:?}", Pos(0, 0), transform_start);
 
-        println!("Target: {:?} / {:?}", self.target, transform_target);
+        //println!("Target: {:?} / {:?}", self.target, transform_target);
         //println!("MATCHES: {:?}", self.seed_matches.iter().collect_vec());
         let filtered_matches = self
             .seed_matches
@@ -220,10 +234,18 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             .filter(|Match { start, .. }| !self.pruned_positions.contains(start))
             .collect_vec();
         //println!("FLT MS : {:?}", filtered_matches);
-        self.active_matches = filtered_matches
-            .iter()
-            .map(|Match { start, .. }| *start)
-            .collect();
+        for &m in &filtered_matches {
+            match self.active_matches.entry(m.start) {
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    if m.match_cost < entry.get().match_cost {
+                        entry.insert(m.clone());
+                    }
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(m.clone());
+                }
+            }
+        }
         let transformed_matches = filtered_matches
             .into_iter()
             .map(
@@ -446,15 +468,21 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
             return;
         }
 
+        // Check that we don't double expand start-of-seed states.
+        if self.seed_matches.is_start_of_seed(pos) {
+            // When we don't ensure consistency, starts of seeds should still only be expanded once.
+            if !self.params.make_consistent {
+                assert!(
+                    self.expanded.insert(pos),
+                    "Double expanded start of seed {:?}",
+                    pos
+                );
+            }
+        }
+
         // If the current position is not on a Pareto front, there is no need to
         // rebuild.
         if self.params.build_fast {
-            //println!(
-            //"{} PRUNE POINT {:?} / {:?}",
-            //self.params.build_fast as u8,
-            //pos,
-            //self.transform(pos)
-            //);
             // This doesn't work after all...
             //let tpos = self.transform(pos);
             // Prune the current position.
@@ -465,9 +493,47 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
             // This means that the spurious match will be prunes in the fast
             // case, and not in the slow case, leading to small differences.
             // Either way, both behaviours are correct.
-            if !self.seed_matches.is_start_of_seed(pos) || !self.active_matches.remove(&pos) {
+            if !self.seed_matches.is_start_of_seed(pos) {
                 return;
             }
+
+            let m = if let Some(m) = self.active_matches.get(&pos) {
+                m
+            } else {
+                return;
+            };
+
+            // Skip pruning when this is an inexact match neighbouring a still active exact match.
+            // TODO: This feels hacky doing the manual position manipulation, but oh well... .
+            let nbs = {
+                let mut nbs = Vec::new();
+                if pos.1 > 0 {
+                    nbs.push(Pos(pos.0, pos.1 - 1));
+                }
+                if pos.1 < self.target.1 {
+                    nbs.push(Pos(pos.0, pos.1 + 1));
+                }
+                nbs
+            };
+            for nb in nbs {
+                if self
+                    .active_matches
+                    .get(&nb)
+                    .map_or(false, |m2| m2.match_cost < m.match_cost)
+                {
+                    return;
+                }
+            }
+
+            self.active_matches
+                .remove(&pos)
+                .expect("Already checked that this positions is a match.");
+            // println!(
+            //     "{} PRUNE POINT {:?} / {:?}",
+            //     self.params.build_fast as u8,
+            //     pos,
+            //     self.transform(pos)
+            // );
         } else {
             //println!("{} PRUNE POINT {:?}", self.params.build_fast as u8, pos);
             //Prune the current position.
