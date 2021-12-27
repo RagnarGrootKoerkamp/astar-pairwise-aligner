@@ -12,43 +12,29 @@ use std::cmp::Ordering;
 #[derive(Copy, Clone, Debug)]
 pub struct MinScored<K, T>(pub K, pub T);
 
-impl<K: PartialOrd, T: Ord> PartialEq for MinScored<K, T> {
+impl<K: Ord, T: Ord> PartialEq for MinScored<K, T> {
     #[inline]
     fn eq(&self, other: &MinScored<K, T>) -> bool {
         self.cmp(other) == Ordering::Equal
     }
 }
 
-impl<K: PartialOrd, T: Ord> Eq for MinScored<K, T> {}
+impl<K: Ord, T: Ord> Eq for MinScored<K, T> {}
 
-impl<K: PartialOrd, T: Ord> PartialOrd for MinScored<K, T> {
+impl<K: Ord, T: Ord> PartialOrd for MinScored<K, T> {
     #[inline]
     fn partial_cmp(&self, other: &MinScored<K, T>) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<K: PartialOrd, T: Ord> Ord for MinScored<K, T> {
+impl<K: Ord, T: Ord> Ord for MinScored<K, T> {
     #[inline]
     fn cmp(&self, other: &MinScored<K, T>) -> Ordering {
-        let a = &self.0;
-        let b = &other.0;
-        if a == b {
-            // NOTE: This is an optimization over just returning Equal, making
-            // sure that nodes closer to the end are expanded first.
-            self.1.cmp(&other.1)
-        } else if a < b {
-            Ordering::Greater
-        } else if a > b {
-            Ordering::Less
-        } else if a.ne(a) && b.ne(b) {
-            // these are the NaN cases
-            Ordering::Equal
-        } else if a.ne(a) {
-            // Order NaN less, so that it is last in the MinScore order
-            Ordering::Less
-        } else {
-            Ordering::Greater
+        match self.0.cmp(&other.0) {
+            Ordering::Less => Ordering::Greater,
+            Ordering::Equal => self.1.cmp(&other.1),
+            Ordering::Greater => Ordering::Less,
         }
     }
 }
