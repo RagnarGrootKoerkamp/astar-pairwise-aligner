@@ -22,22 +22,30 @@ extern crate test;
 
 // Include one of these to swtich to the faster FxHashMap hashing algorithm.
 mod hash_map {
+    #[allow(dead_code)]
     pub type HashMap<K, V> =
         std::collections::HashMap<K, V, std::collections::hash_map::RandomState>;
+    #[allow(dead_code)]
     pub type HashSet<K> = std::collections::HashSet<K, std::collections::hash_map::RandomState>;
 }
 mod fx_hash_map {
+    #[allow(dead_code)]
     pub use rustc_hash::FxHashMap as HashMap;
+    #[allow(dead_code)]
     pub use rustc_hash::FxHashSet as HashSet;
 }
 
 // Include one of these to switch between hashmap and diagonalmap.
 mod diagonal_hash_map {
+    #[allow(dead_code)]
     pub type DiagonalMap<V> = std::collections::hash_map::HashMap<super::Pos, V>;
+    #[allow(dead_code)]
     pub type Entry<'a, V> = std::collections::hash_map::Entry<'a, super::Pos, V>;
 }
 mod diagonal_vector_map {
+    #[allow(dead_code)]
     pub type DiagonalMap<V> = crate::diagonal_map::DiagonalMap<V>;
+    #[allow(dead_code)]
     pub use crate::diagonal_map::Entry;
 }
 
@@ -46,7 +54,7 @@ pub mod prelude {
 
     pub use super::fx_hash_map::*;
 
-    pub(crate) use super::diagonal_hash_map as diagonal_map;
+    pub(crate) use super::diagonal_vector_map as diagonal_map;
 
     pub use crate::alignment_graph::Node;
     pub use crate::heuristic::*;
@@ -635,6 +643,7 @@ mod tests {
 // - Use Pos(u32,u32) instead of Pos(usize,usize)
 // - HashMap<Pos, T> -> Deque<Vector<Option<T>>> indexed by (i-j, i+j) instead of HashMap.
 // - Use Vector<Vector> or so instead of priority queue
+// - Use array + sorting + binary search to find optimal path.
 //
 // DONE: Fast Seed+Gap heuristic implementation:
 // - Bruteforce from bottom right to top left, fully processing everything all
