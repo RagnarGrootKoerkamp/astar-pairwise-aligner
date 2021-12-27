@@ -18,6 +18,7 @@ pub struct Pos(pub usize, pub usize);
 
 /// Partial ordering by (a,b) < (c,d) when a<c and b<d.
 impl PartialOrd for Pos {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let a = self.0.partial_cmp(&other.0);
         let b = self.1.partial_cmp(&other.1);
