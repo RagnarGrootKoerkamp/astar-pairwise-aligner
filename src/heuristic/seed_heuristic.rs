@@ -69,7 +69,7 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     // The lowest cost match starting at each position.
     active_matches: HashMap<Pos, Match>,
     h_at_seeds: HashMap<Pos, usize>,
-    h_cache: RefCell<HashMap<Pos, usize>>,
+    h_cache: RefCell<diagonal_map::DiagonalMap<usize>>,
     pruned_positions: HashSet<Pos>,
 
     // For the fast version
@@ -123,10 +123,10 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             distance_function,
             target: Pos(a.len(), b.len()),
             seed_matches,
-            active_matches: HashMap::default(),
-            h_at_seeds: HashMap::default(),
-            h_cache: RefCell::new(HashMap::default()),
-            pruned_positions: HashSet::default(),
+            active_matches: Default::default(),
+            h_at_seeds: Default::default(),
+            h_cache: RefCell::new(Default::default()),
+            pruned_positions: Default::default(),
             transform_target: Pos(0, 0),
             // Filled below.
             increasing_function: Default::default(),
@@ -285,10 +285,12 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         //dbg!(&transformed_matches);
         self.increasing_function =
             IncreasingFunction2D::new(transform_target, leftover_at_end, transformed_matches);
-        self.h_at_seeds = self.increasing_function.to_map();
+        if !self.params.query_fast {
+            self.h_at_seeds = self.increasing_function.to_map();
+        }
 
-        let mut h_map = self.h_at_seeds.iter().collect_vec();
-        h_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+        //let mut h_map = self.h_at_seeds.iter().collect_vec();
+        //h_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
         //println!("H: {:?}", h_map);
     }
 

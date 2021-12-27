@@ -1,9 +1,9 @@
-use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::BinaryHeap;
 
 use std::hash::Hash;
 use std::ops::Sub;
 
+use crate::diagonal_map::ToPos;
 use crate::prelude::*;
 use crate::scored::MinScored;
 use petgraph::visit::{EdgeRef, GraphBase, IntoEdges, Visitable};
@@ -80,7 +80,7 @@ pub fn astar<G, F, H, K, IsGoal, ExpandFn, ExploreFn>(
 where
     G: IntoEdges + Visitable,
     IsGoal: FnMut(G::NodeId) -> bool,
-    G::NodeId: Eq + Hash + Ord,
+    G::NodeId: Eq + Hash + Ord + ToPos,
     F: FnMut(G::EdgeRef) -> K,
     H: FnMut(G::NodeId) -> K,
     K: Measure + Copy + std::fmt::Display,
@@ -90,18 +90,18 @@ where
     <G as GraphBase>::NodeId: std::fmt::Debug,
 {
     let mut visit_next = BinaryHeap::new(); // f-values, cost to reach + estimate cost to goal, and the node itself
-    let mut scores = HashMap::default(); // g-values, cost to reach the node
-    let mut estimate_scores = HashMap::default(); // f-values, cost to reach + estimate cost to goal
+    let mut scores = diagonal_map::DiagonalMap::default(); // g-values, cost to reach the node
+    let mut estimate_scores = diagonal_map::DiagonalMap::default(); // f-values, cost to reach + estimate cost to goal
     let mut path_tracker = PathTracker::<G>::new();
 
     let zero_score = K::default();
-    scores.insert(start, zero_score);
+    scores.insert(start.to_pos(), zero_score);
     visit_next.push(MinScored(estimate_cost(start), start));
 
     while let Some(MinScored(estimate_score, node)) = visit_next.pop() {
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
-        let node_score = scores[&node];
+        let node_score = scores[&node.to_pos()];
 
         if is_goal(node) {
             let path = path_tracker.reconstruct_path_to(node);
@@ -118,8 +118,8 @@ where
             }
         }
 
-        match estimate_scores.entry(node) {
-            Occupied(mut entry) => {
+        match estimate_scores.entry(node.to_pos()) {
+            diagonal_map::Entry::Occupied(mut entry) => {
                 // If the node has already been visited with an equal or lower score than now, then
                 // we do not need to re-visit it.
                 if *entry.get() <= estimate_score {
@@ -135,7 +135,7 @@ where
                 // );
                 entry.insert(estimate_score);
             }
-            Vacant(entry) => {
+            diagonal_map::Entry::Vacant(entry) => {
                 entry.insert(estimate_score);
             }
         }
@@ -147,16 +147,16 @@ where
             let next = edge.target();
             let next_score = node_score + edge_cost(edge);
 
-            match scores.entry(next) {
-                Occupied(mut entry) => {
-                    // No need to add neighbors that we have already reached through a shorter path
+            match scores.entry(next.to_pos()) {
+                diagonal_map::Entry::Occupied(mut entry) => {
+                    // No need to add neighbours that we have already reached through a shorter path
                     // than now.
                     if *entry.get() <= next_score {
                         continue;
                     }
                     entry.insert(next_score);
                 }
-                Vacant(entry) => {
+                diagonal_map::Entry::Vacant(entry) => {
                     entry.insert(next_score);
                 }
             }

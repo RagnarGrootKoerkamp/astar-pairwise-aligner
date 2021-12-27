@@ -8,6 +8,7 @@
 )]
 pub mod alignment_graph;
 pub mod astar;
+pub mod diagonal_map;
 pub mod heuristic;
 pub mod implicit_graph;
 pub mod increasing_function;
@@ -19,14 +20,33 @@ pub mod util;
 
 extern crate test;
 
-pub mod prelude {
-    pub use bio_types::sequence::Sequence;
-    // FxHashMap gives a 25% smaller runtime.
-    // pub type HashMap<K, V> =
-    //     std::collections::HashMap<K, V, std::collections::hash_map::RandomState>;
-    // pub type HashSet<K> = std::collections::HashSet<K, std::collections::hash_map::RandomState>;
+// Include one of these to swtich to the faster FxHashMap hashing algorithm.
+mod hash_map {
+    pub type HashMap<K, V> =
+        std::collections::HashMap<K, V, std::collections::hash_map::RandomState>;
+    pub type HashSet<K> = std::collections::HashSet<K, std::collections::hash_map::RandomState>;
+}
+mod fx_hash_map {
     pub use rustc_hash::FxHashMap as HashMap;
     pub use rustc_hash::FxHashSet as HashSet;
+}
+
+// Include one of these to switch between hashmap and diagonalmap.
+mod diagonal_hash_map {
+    pub type DiagonalMap<V> = std::collections::hash_map::HashMap<super::Pos, V>;
+    pub type Entry<'a, V> = std::collections::hash_map::Entry<'a, super::Pos, V>;
+}
+mod diagonal_vector_map {
+    pub type DiagonalMap<V> = crate::diagonal_map::DiagonalMap<V>;
+    pub use crate::diagonal_map::Entry;
+}
+
+pub mod prelude {
+    pub use bio_types::sequence::Sequence;
+
+    pub use super::fx_hash_map::*;
+
+    pub(crate) use super::diagonal_hash_map as diagonal_map;
 
     pub use crate::alignment_graph::Node;
     pub use crate::heuristic::*;
@@ -609,6 +629,12 @@ mod tests {
 // - Lazy pruning with offset.
 // - FIXME Make sure that pruning doesn't interact badly with consistency
 //   - Pruning should not interact with points on the right. When checking consistency, act like the current point wasn't pruned.
+//
+// TODO: Performance
+// - DONE: HashMap -> hasher from FxHashMap
+// - Use Pos(u32,u32) instead of Pos(usize,usize)
+// - HashMap<Pos, T> -> Deque<Vector<Option<T>>> indexed by (i-j, i+j) instead of HashMap.
+// - Use Vector<Vector> or so instead of priority queue
 //
 // DONE: Fast Seed+Gap heuristic implementation:
 // - Bruteforce from bottom right to top left, fully processing everything all

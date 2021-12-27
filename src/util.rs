@@ -7,7 +7,6 @@ pub use bio::{
 pub use bio_types::sequence::Sequence;
 pub use std::cmp::{max, min};
 pub use std::collections::BTreeMap;
-pub use std::collections::HashMap;
 
 use serde::Serialize;
 use std::cmp::Ordering;
