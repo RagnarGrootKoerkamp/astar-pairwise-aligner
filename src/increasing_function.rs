@@ -130,7 +130,7 @@ impl IncreasingFunction2D<usize> {
 
     /// Build the increasing function over the given points. `l` must be at least 1.
     /// `ps` must be sorted increasing by (x,y), first on x and then on y.
-    pub fn new(target: Pos, max_match_cost: usize, leftover_at_end: bool, ps: Vec<Match>) -> Self {
+    pub fn new(target: Pos, leftover_at_end: bool, ps: Vec<Match>) -> Self {
         let mut s = Self {
             nodes: Vec::new(),
             // Placeholder until properly set in build.
@@ -243,22 +243,24 @@ impl IncreasingFunction2D<usize> {
                         let dj = target.1 - m.end.1;
                         let pot = (di + dj) / 2
                             - (if self.leftover_at_end {
-                                max_match_cost + 1
+                                // TODO: This should be the cost of the first remaining match.
+                                m.max_match_cost + 1;
+                                0
                             } else {
                                 0
                             });
                         let g = abs_diff(di, dj) / 2;
-                        println!(
-                            "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
-                            m.end,
-                            target,
-                            di,
-                            dj,
-                            g,
-                            pot,
-                            g.saturating_sub(pot),
-                            self.seed_matches
-                        );
+                        // println!(
+                        //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
+                        //     m.end,
+                        //     target,
+                        //     di,
+                        //     dj,
+                        //     g,
+                        //     pot,
+                        //     g.saturating_sub(pot),
+                        //     self.leftover_at_end
+                        // );
                         g.saturating_sub(pot)
                     })
                 }
