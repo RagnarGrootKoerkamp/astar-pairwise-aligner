@@ -104,27 +104,24 @@ pub struct AlignResult {
 impl AlignResult {
     pub fn print_header() {
         println!(
-            "{:>6} {:>6} {:>5} {:>10} {:10} {:>3} {:>9} {:>7} {:10} {:>7} {:>7} {:>9} {:>9} {:>9} {:>9} {:>10} {:>9} {:>9} {:>12} {:>9} {:>7} {:>5} {:>6} {:>10} {:>10} {:>7}",
-            "len a",
-            "len b",
-            "rate",
-            "model",
-            "h name", "l", "matchdist", "pruning", "dist",
+            "{:>6} {:>6} {:>4} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6} {:>8} {:>8} {:>7} {:>5} {:>6} {:>5} {:>5}",
+            "|a|",
+            "|b|",
+            "r",
+            "H", "l", "md", "pr", "cs", "bf", "qf",
+            "dist",
             "seeds", "matches",
             "expanded",
             "explored",
-            "do expa", "retried",
-            "e/max(n,m)",
-            "e/nm",
-            "edges",
-            "precomp",
+            "dbl", "retr",
+            "band",
+            "precom",
             "align",
             "h%",
             "dist",
             "h(0,0)",
-            "path_match",
-            "expl_match",
-            "avg.h"
+            "m_pat",
+            "m_exp",
         );
     }
     pub fn write(&self, writer: &mut Writer<std::fs::File>) {
@@ -149,15 +146,17 @@ impl AlignResult {
         let percent_h =
             100. * self.timing.precomputation / (self.timing.precomputation + self.timing.astar);
         println!(
-            "{:>6} {:>6} {:>5.3} {:>10} {:10} {:>3} {:>9} {:>7} {:10} {:>7} {:>7} {:>9} {:>9} {:>9} {:>9} {:>10.2} {:>9.5} {:>9} {:>12.5} {:>9.5} {:>7.3} {:>5} {:>6} {:>10} {:>10} {:>7.1}",
+            "{:>6} {:>6} {:>4.2} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6.2} {:>8.5} {:>8.5} {:>7.3} {:>5} {:>6} {:>5} {:>5}",
             self.input.len_a,
             self.input.len_b,
             self.input.error_rate,
-            self.input.source.to_string(),
             self.heuristic_params.heuristic,
             self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.max_match_cost.map_or("".into(), |x| x.to_string()),
-            self.heuristic_params.pruning.map_or("".into(), |x| x.to_string()),
+            self.heuristic_params.pruning.map_or("".into(), |x| (x as u8) .to_string()),
+            self.heuristic_params.consistent.map_or("".into(), |x| (x as u8) .to_string()),
+            self.heuristic_params.build_fast.map_or("".into(), |x| (x as u8) .to_string()),
+            self.heuristic_params.query_fast.map_or("".into(), |x| (x as u8) .to_string()),
             self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
             self.heuristic_stats.seeds.map(|x| x.to_string()).unwrap_or_default(),
             self.heuristic_stats.num_matches.map(|x| x.to_string()).unwrap_or_default(),
@@ -166,8 +165,6 @@ impl AlignResult {
             self.astar.double_expanded,
             self.astar.retries,
             self.astar.expanded as f32 / max(self.input.len_a, self.input.len_b) as f32,
-            self.astar.explored as f32 / (self.input.len_a * self.input.len_b) as f32,
-            self.astar.edges,
             self.timing.precomputation,
             self.timing.astar,
             percent_h,
@@ -175,7 +172,6 @@ impl AlignResult {
             self.heuristic_stats.root_h,
             self.heuristic_stats.path_matches.map(|x| x.to_string()).unwrap_or_default(),
             self.heuristic_stats.explored_matches.map(|x| x.to_string()).unwrap_or_default(),
-            self.heuristic_stats.avg_h,
         );
     }
     pub fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
@@ -267,6 +263,7 @@ pub fn align<'a, H: Heuristic>(
         },
         // Expand
         |Node(pos, _)| {
+            //println!("EXPAND {:?}", pos);
             //make_dot(pos, '*', is_end_calls);
             expanded += 1;
             expanded_states.push(pos);
@@ -604,6 +601,8 @@ mod tests {
 // TODO: Pruning for fast gap heuristic
 // - Allow rebuilding the IncreasingFunction after pruning.
 // - Lazy pruning with offset.
+// - FIXME Make sure that pruning doesn't interact badly with consistency
+//   - Pruning should not interact with points on the right. When checking consistency, act like the current point wasn't pruned.
 //
 // DONE: Fast Seed+Gap heuristic implementation:
 // - Bruteforce from bottom right to top left, fully processing everything all
@@ -616,5 +615,6 @@ mod tests {
 // - Pruning
 // - sort nodes closer to target first, among those with equal distance+h estimate
 //   - this almost halves the part of the bandwidth above 1.
+// - Pruning correctness: Do not prune matches that are next to a better match.
 
 // NOTE: Expanded states is counted as:

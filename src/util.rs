@@ -47,6 +47,7 @@ pub struct Mutations {
 
 // TODO: Do not generate insertions at the end. (Also do not generate similar
 // sequences by inserting elsewhere.)
+// TODO: Move to seeds.rs.
 pub fn mutations(k: usize, kmer: usize) -> Mutations {
     // This assumes the alphabet size is 4.
     let mut deletions = Vec::new();
@@ -60,6 +61,7 @@ pub fn mutations(k: usize, kmer: usize) -> Mutations {
         }
     }
     // Insertions
+    // TODO: Test that excluding insertions at the start and end doesn't matter.
     for i in 0..=k {
         let mask = (1 << (2 * i)) - 1;
         for s in 0..4 {
