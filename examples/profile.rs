@@ -6,7 +6,7 @@ fn main() {
         .from_path("evals/stats/table.csv")
         .unwrap();
 
-    let n = 8_000;
+    let n = 32_000;
     let e = 0.20;
     let l = 7;
     let max_match_cost = 1;

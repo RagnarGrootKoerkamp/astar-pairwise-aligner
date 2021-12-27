@@ -4,8 +4,8 @@ use std::hash;
 use std::ops::Bound::{Excluded, Included, Unbounded};
 use std::ops::RangeFull;
 
+use crate::prelude::*;
 use crate::seeds::Match;
-use crate::util::*;
 
 pub struct IncreasingFunction<K, V> {
     pub m: BTreeMap<K, V>,

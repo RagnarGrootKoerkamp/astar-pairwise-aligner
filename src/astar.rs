@@ -1,9 +1,10 @@
 use std::collections::hash_map::Entry::{Occupied, Vacant};
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 
 use std::hash::Hash;
 use std::ops::Sub;
 
+use crate::prelude::*;
 use crate::scored::MinScored;
 use petgraph::visit::{EdgeRef, GraphBase, IntoEdges, Visitable};
 
@@ -89,8 +90,8 @@ where
     <G as GraphBase>::NodeId: std::fmt::Debug,
 {
     let mut visit_next = BinaryHeap::new(); // f-values, cost to reach + estimate cost to goal, and the node itself
-    let mut scores = HashMap::new(); // g-values, cost to reach the node
-    let mut estimate_scores = HashMap::new(); // f-values, cost to reach + estimate cost to goal
+    let mut scores = HashMap::default(); // g-values, cost to reach the node
+    let mut estimate_scores = HashMap::default(); // f-values, cost to reach + estimate cost to goal
     let mut path_tracker = PathTracker::<G>::new();
 
     let zero_score = K::default();
@@ -98,15 +99,14 @@ where
     visit_next.push(MinScored(estimate_cost(start), start));
 
     while let Some(MinScored(estimate_score, node)) = visit_next.pop() {
-        if is_goal(node) {
-            let path = path_tracker.reconstruct_path_to(node);
-            let cost = scores[&node];
-            return Some((cost, path));
-        }
-
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
         let node_score = scores[&node];
+
+        if is_goal(node) {
+            let path = path_tracker.reconstruct_path_to(node);
+            return Some((node_score, path));
+        }
 
         // If the heuristic value is outdated, skip the node and re-push it with the updated value.
         if retry_outdated {
@@ -199,7 +199,7 @@ where
 {
     fn new() -> PathTracker<G> {
         PathTracker {
-            came_from: HashMap::new(),
+            came_from: HashMap::default(),
         }
     }
 

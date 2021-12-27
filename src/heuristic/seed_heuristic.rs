@@ -1,4 +1,4 @@
-use std::{cell::RefCell, cmp::Reverse, collections::HashSet, iter::once};
+use std::{cell::RefCell, cmp::Reverse, iter::once};
 
 use itertools::Itertools;
 
@@ -123,14 +123,14 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
             distance_function,
             target: Pos(a.len(), b.len()),
             seed_matches,
-            h_at_seeds: HashMap::default(),
             active_matches: HashMap::default(),
-            h_cache: RefCell::new(HashMap::new()),
-            pruned_positions: HashSet::new(),
-            increasing_function: Default::default(),
-            // Filled below.
+            h_at_seeds: HashMap::default(),
+            h_cache: RefCell::new(HashMap::default()),
+            pruned_positions: HashSet::default(),
             transform_target: Pos(0, 0),
-            expanded: HashSet::new(),
+            // Filled below.
+            increasing_function: Default::default(),
+            expanded: HashSet::default(),
         };
         h.transform_target = if h.params.build_fast {
             h.transform(h.target)
@@ -161,7 +161,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         if self.params.build_fast {
             return self.build_fast();
         }
-        let mut h_at_seeds = HashMap::<Pos, usize>::new();
+        let mut h_at_seeds = HashMap::<Pos, usize>::default();
         h_at_seeds.insert(self.target, 0);
         for Match {
             start,
