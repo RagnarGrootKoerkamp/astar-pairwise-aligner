@@ -58,7 +58,7 @@ fn main() {
                 h.prune(p);
             }
 
-            let mut ps = HashMap::new();
+            let mut ps = HashMap::default();
             let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3144);
             let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
 

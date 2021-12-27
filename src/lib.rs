@@ -21,6 +21,12 @@ extern crate test;
 
 pub mod prelude {
     pub use bio_types::sequence::Sequence;
+    // FxHashMap gives a 25% smaller runtime.
+    // pub type HashMap<K, V> =
+    //     std::collections::HashMap<K, V, std::collections::hash_map::RandomState>;
+    // pub type HashSet<K> = std::collections::HashSet<K, std::collections::hash_map::RandomState>;
+    pub use rustc_hash::FxHashMap as HashMap;
+    pub use rustc_hash::FxHashSet as HashSet;
 
     pub use crate::alignment_graph::Node;
     pub use crate::heuristic::*;
@@ -244,7 +250,7 @@ pub fn align<'a, H: Heuristic>(
     // Run A* with heuristic.
     let start_time = time::Instant::now();
     let incremental_graph = alignment_graph::new_incremental_alignment_graph(&a, &b, &h);
-    let mut h_values = HashMap::<usize, usize>::new();
+    let mut h_values = HashMap::<usize, usize>::default();
     let (distance, path) = astar::astar(
         &incremental_graph,
         root_state,
