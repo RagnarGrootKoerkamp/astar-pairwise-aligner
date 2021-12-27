@@ -680,4 +680,173 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn no_leftover() {
+        let pruning = true;
+        let make_consistent = false;
+        let build_fast = true;
+        let (l, max_match_cost) = (7, 1);
+        let h_slow = SeedHeuristic {
+            l,
+            max_match_cost,
+            distance_function: GapHeuristic,
+            pruning,
+            build_fast: false,
+            query_fast: false,
+            make_consistent,
+        };
+        let h_fast = SeedHeuristic {
+            l,
+            max_match_cost,
+            distance_function: GapHeuristic,
+            pruning,
+            build_fast,
+            query_fast: false,
+            make_consistent,
+        };
+
+        let n = 1000;
+        let e: f32 = 0.3;
+        let (a, b, alphabet, stats) = setup(n, e);
+        let start = 679;
+        let end = 750;
+        let a = &a[start..end].to_vec();
+        let b = &b[start..end].to_vec();
+
+        println!("\n\n\nALIGN");
+        align(
+            &a,
+            &b,
+            &alphabet,
+            stats,
+            EqualHeuristic {
+                h1: h_slow,
+                h2: h_fast,
+            },
+        );
+    }
+
+    #[test]
+    fn needs_leftover() {
+        let pruning = true;
+        let make_consistent = false;
+        let (l, max_match_cost) = (7, 1);
+        let build_fast = true;
+        let h_slow = SeedHeuristic {
+            l,
+            max_match_cost,
+            distance_function: GapHeuristic,
+            pruning,
+            build_fast: false,
+            query_fast: false,
+            make_consistent,
+        };
+        let h_fast = SeedHeuristic {
+            l,
+            max_match_cost,
+            distance_function: GapHeuristic,
+            pruning,
+            build_fast,
+            query_fast: false,
+            make_consistent,
+        };
+
+        let n = 1000;
+        let e: f32 = 0.3;
+        let (a, b, alphabet, stats) = setup(n, e);
+        let start = 909;
+        let end = 989;
+        let a = &a[start..end].to_vec();
+        let b = &b[start..end].to_vec();
+        // let a = &"GAAGGGTAACAGTGCTCG".as_bytes().to_vec();
+        // let b = &"AGGGTAACAGTGCTCGTA".as_bytes().to_vec();
+        // let (a, b) = (
+        //     &"GATCGCAGCAGAACTGTGCCCATTTTGTGCCT".as_bytes().to_vec(),
+        //     &"CGGATCGGCGCAGAACATGTGGTCCAATTTTGCTGCC".as_bytes().to_vec(),
+        // );
+        // let (a, b) = (
+        //     &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec(),
+        //     &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec(),
+        // );
+
+        println!("\n\n\nTESTING: {:?}", h_fast);
+        println!("{}\n{}", to_string(a), to_string(b));
+
+        println!("\n\n\nALIGN");
+        align(
+            &a,
+            &b,
+            &alphabet,
+            stats,
+            EqualHeuristic {
+                h1: h_slow,
+                h2: h_fast,
+            },
+        );
+    }
+
+    #[test]
+    fn pruning_and_inexact_matches() {
+        let pruning = true;
+        let make_consistent = false;
+        let (l, max_match_cost) = (7, 1);
+        for do_transform in [false, true] {
+            for build_fast in [false, true] {
+                let h_slow = SeedHeuristic {
+                    l,
+                    max_match_cost,
+                    distance_function: GapHeuristic,
+                    pruning,
+                    build_fast: false,
+                    query_fast: false,
+                    make_consistent,
+                };
+                let h_fast = SeedHeuristic {
+                    l,
+                    max_match_cost,
+                    distance_function: GapHeuristic,
+                    pruning,
+                    build_fast,
+                    query_fast: false,
+                    make_consistent,
+                };
+
+                let n = 1000;
+                let e: f32 = 0.3;
+                let (a, b, alphabet, stats) = setup(n, e);
+                let start = 951;
+                let end = 986;
+                let a = &a[start..end].to_vec();
+                let b = &b[start..end].to_vec();
+                // let a = &"GAAGGGTAACAGTGCTCG".as_bytes().to_vec();
+                // let b = &"AGGGTAACAGTGCTCGTA".as_bytes().to_vec();
+                // let (a, b) = (
+                //     &"GATCGCAGCAGAACTGTGCCCATTTTGTGCCT".as_bytes().to_vec(),
+                //     &"CGGATCGGCGCAGAACATGTGGTCCAATTTTGCTGCC".as_bytes().to_vec(),
+                // );
+                // let (a, b) = (
+                //     &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec(),
+                //     &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec(),
+                // );
+
+                println!("\n\n\nTESTING: {:?}", h_fast);
+                println!("{}\n{}", to_string(a), to_string(b));
+
+                if do_transform {
+                    println!("\n\n\nALIGN");
+                    align(
+                        &a,
+                        &b,
+                        &alphabet,
+                        stats,
+                        EqualHeuristic {
+                            h1: h_slow,
+                            h2: h_fast,
+                        },
+                    );
+                }
+            }
+        }
+    }
 }
