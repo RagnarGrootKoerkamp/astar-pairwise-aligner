@@ -9,6 +9,9 @@ pub struct HeuristicParams {
     pub l: Option<usize>,
     pub max_match_cost: Option<usize>,
     pub pruning: Option<bool>,
+    pub consistent: Option<bool>,
+    pub build_fast: Option<bool>,
+    pub query_fast: Option<bool>,
 }
 
 /// An object containing the settings for a heuristic.
@@ -29,6 +32,15 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     fn distance(&self) -> Option<String> {
         None
     }
+    fn consistent(&self) -> Option<bool> {
+        None
+    }
+    fn build_fast(&self) -> Option<bool> {
+        None
+    }
+    fn query_fast(&self) -> Option<bool> {
+        None
+    }
 
     fn build<'a>(
         &self,
@@ -44,6 +56,9 @@ pub trait Heuristic: std::fmt::Debug + Copy {
             l: self.l(),
             max_match_cost: self.max_match_cost(),
             pruning: self.pruning(),
+            consistent: self.consistent(),
+            build_fast: self.build_fast(),
+            query_fast: self.query_fast(),
         }
     }
 }
