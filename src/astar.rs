@@ -189,29 +189,29 @@ where
     G: GraphBase,
     G::NodeId: Eq + Hash,
 {
-    came_from: HashMap<G::NodeId, G::NodeId>,
+    came_from: diagonal_map::DiagonalMap<G::NodeId>,
 }
 
 impl<G> PathTracker<G>
 where
     G: GraphBase,
-    G::NodeId: Eq + Hash,
+    G::NodeId: Eq + Hash + ToPos,
 {
     fn new() -> PathTracker<G> {
         PathTracker {
-            came_from: HashMap::default(),
+            came_from: Default::default(),
         }
     }
 
     fn set_predecessor(&mut self, node: G::NodeId, previous: G::NodeId) {
-        self.came_from.insert(node, previous);
+        self.came_from.insert(node.to_pos(), previous);
     }
 
     fn reconstruct_path_to(&self, last: G::NodeId) -> Vec<G::NodeId> {
         let mut path = vec![last];
 
         let mut current = last;
-        while let Some(&previous) = self.came_from.get(&current) {
+        while let Some(&previous) = self.came_from.get(&current.to_pos()) {
             path.push(previous);
             current = previous;
         }
