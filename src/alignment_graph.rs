@@ -1,6 +1,6 @@
 use std::{cell::RefCell, fmt::Debug, hash, ops::Deref};
 
-use crate::{heuristic::HeuristicInstance, util::*};
+use crate::{diagonal_map::ToPos, heuristic::HeuristicInstance, util::*};
 use arrayvec::ArrayVec;
 use bio_types::sequence::Sequence;
 
@@ -119,6 +119,12 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
 /// Nodes can carry extra data T for incremental heuristic computation, which is ignored for their identity.
 #[derive(Copy, Clone, Debug)]
 pub struct Node<T: Debug>(pub Pos, pub T);
+
+impl<T: Debug> ToPos for Node<T> {
+    fn to_pos(&self) -> Pos {
+        self.0
+    }
+}
 
 impl<T: Debug> PartialEq for Node<T> {
     fn eq(&self, other: &Self) -> bool {
