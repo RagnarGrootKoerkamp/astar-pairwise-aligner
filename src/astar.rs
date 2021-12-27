@@ -83,7 +83,7 @@ where
     G::NodeId: Eq + Hash + Ord + ToPos,
     F: FnMut(G::EdgeRef) -> K,
     H: FnMut(G::NodeId) -> K,
-    K: Measure + Copy + std::fmt::Display,
+    K: Measure + Copy + std::fmt::Display + Ord,
     K: Sub<K, Output = K>,
     ExpandFn: FnMut(G::NodeId),
     ExploreFn: FnMut(G::NodeId),
