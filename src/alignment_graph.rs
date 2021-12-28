@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Debug, hash, ops::Deref};
+use std::{cell::RefCell, fmt::Debug, hash};
 
 use crate::{diagonal_map::ToPos, heuristic::HeuristicInstance, util::*};
 use arrayvec::ArrayVec;
@@ -14,14 +14,53 @@ pub struct AlignmentGraphBase<'a> {
     target: Pos,
 }
 
-// impl<'a> Clone for AlignmentGraphBase<'a> {
-//     fn clone(&self) -> Self {
-//         Self {
-//             a: self.a,
-//             b: self.b,
-//         }
-//     }
-// }
+impl<'a> AlignmentGraphBase<'a> {
+    /// Internal iterator to get the edges from a position.
+    #[inline]
+    fn edges_directed_map<F, T>(&'a self, u @ Pos(i, j): Pos, f: F) -> ArrayVec<T, 3>
+    where
+        F: Fn((Pos, usize)) -> T,
+    {
+        const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
+        const DIAGONAL_DELTAS: [(usize, usize); 1] = [(1, 1)];
+        // Take any of the 3 edges, and then walk as much diagonally as possible.
+        const GREEDY_AT_END: bool = false;
+        let is_match = |pos @ Pos(i, j): Pos| {
+            pos.0 < self.target.0 && pos.1 < self.target.1 && self.a[i] == self.b[j]
+        };
+        let extend_diagonally = |mut pos: Pos| -> Pos {
+            if GREEDY_AT_END {
+                while is_match(pos) {
+                    pos = Pos(pos.0 + 1, pos.1 + 1)
+                }
+            }
+            pos
+        };
+        (if is_match(u) {
+            &DIAGONAL_DELTAS[..]
+        } else {
+            &DELTAS[..]
+        })
+        .iter()
+        .filter_map(|&(di, dj)| {
+            let pos = Pos(i + di, j + dj);
+            if pos <= self.target {
+                Some((
+                    extend_diagonally(pos),
+                    if (di, dj) == (1, 1) && self.a[i] == self.b[j] {
+                        0
+                    } else {
+                        1
+                    },
+                ))
+            } else {
+                None
+            }
+        })
+        .map(f)
+        .collect()
+    }
+}
 
 pub type AlignmentGraph<'a> = ImplicitGraph<AlignmentGraphBase<'a>>;
 
@@ -31,82 +70,13 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
 
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
-    fn edges_directed(
-        &self,
-        u @ Pos(i, j): Self::Node,
-        dir: petgraph::EdgeDirection,
-    ) -> Self::Edges {
+    fn edges_directed(&self, u: Self::Node, dir: petgraph::EdgeDirection) -> Self::Edges {
         // We don't need incoming edges.
         // This should help the compiler.
-        assert!(dir == petgraph::EdgeDirection::Outgoing);
+        assert_eq!(dir, petgraph::EdgeDirection::Outgoing);
 
-        const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
-        const DIAGONAL_DELTAS: [(usize, usize); 1] = [(1, 1)];
-        // Walk as much diagonally as possible if we start with a match.
-        const LONG_DIAGONALS: bool = false;
-        // Take any of the 3 edges, and then walk as much diagonally as possible.
-        const GREEDY_AT_END: bool = false;
-
-        // TODO: Compare edge strategies:
-        // - always walk 1 step any direction.
-        // - in case of match, only walk 1 step diagonal. [current choice]
-        // - in case of match, only walk as far on diagonal as possible.
-        // TODO: More greedy: After indel edge, we can still eat more exact matches.
-
-        let is_match = |pos @ Pos(i, j): Pos| {
-            pos.0 < self.target.0 && pos.1 < self.target.1 && self.a[i] == self.b[j]
-        };
-
-        let extend_diagonally = |mut pos: Pos| -> Pos {
-            if GREEDY_AT_END {
-                while is_match(pos) {
-                    pos = Pos(pos.0 + 1, pos.1 + 1)
-                }
-            }
-            pos
-        };
-
-        let nbs: ArrayVec<Edge<Self::Node>, 3> = if LONG_DIAGONALS && is_match(u) {
-            // Only walk diagonally when there is
-
-            // Walk multiple steps at once.
-            let mut x = i + 1;
-            let mut y = j + 1;
-            while x + 1 <= self.a.len() && y + 1 <= self.b.len() && self.a[x] == self.b[y] {
-                x += 1;
-                y += 1;
-            }
-            //let pos = Pos(x, y);
-
-            // TODO: Update for reverse edges.
-            //once(Edge(u, pos, 0)).collect();
-            todo!();
-        } else {
-            (if is_match(u) {
-                &DIAGONAL_DELTAS[..]
-            } else {
-                &DELTAS[..]
-            })
-            .iter()
-            .filter_map(|&(di, dj)| {
-                let pos = Pos(i + di, j + dj);
-                if pos <= self.target {
-                    Some(Edge(
-                        u,
-                        extend_diagonally(pos),
-                        if (di, dj) == (1, 1) && self.a[i] == self.b[j] {
-                            0
-                        } else {
-                            1
-                        },
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect()
-        };
-        nbs.into_iter()
+        self.edges_directed_map(u, |(v, len)| Edge(u, v, len))
+            .into_iter()
     }
 }
 
@@ -162,24 +132,6 @@ pub struct IncrementalAlignmentGraphBase<'a, 'b, H: HeuristicInstance<'a>> {
 pub type IncrementalAlignmentGraph<'a, 'b, H> =
     ImplicitGraph<IncrementalAlignmentGraphBase<'a, 'b, H>>;
 
-// NOTE: This function is not a member of IncrementalAlignmentGraph so it can be
-// reused within the heuristic computation to make it consistent.
-#[inline]
-pub fn incremental_edges<'a, R: Deref<Target = H>, H: HeuristicInstance<'a>>(
-    a: &'a Sequence,
-    b: &'a Sequence,
-    heuristic: R,
-    u @ Node(cur_pos, _): Node<H::IncrementalState>,
-    dir: petgraph::EdgeDirection,
-) -> arrayvec::IntoIter<Edge<Node<H::IncrementalState>>, 3> {
-    assert_eq!(dir, petgraph::EdgeDirection::Outgoing);
-    let edges = new_alignment_graph(a, b).edges_directed(cur_pos, dir);
-    let nbs: ArrayVec<Edge<Node<H::IncrementalState>>, 3> = edges
-        .map(|Edge(.., end, cost)| Edge(u, Node(end, (*heuristic).incremental_h(u, end)), cost))
-        .collect();
-    nbs.into_iter()
-}
-
 impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
     for IncrementalAlignmentGraphBase<'a, 'b, H>
 {
@@ -191,10 +143,16 @@ impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
     #[inline]
     fn edges_directed(
         &self,
-        u: Self::Node,
+        u @ Node(pos, _): Self::Node,
         dir: petgraph::EdgeDirection,
     ) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
-        incremental_edges(self.graph.a, self.graph.b, self.heuristic.borrow(), u, dir)
+        assert_eq!(dir, petgraph::EdgeDirection::Outgoing);
+        let heuristic = &*self.heuristic.borrow();
+        new_alignment_graph(self.graph.a, self.graph.b)
+            .edges_directed_map(pos, |(v, cost)| {
+                Edge(u, Node(v, heuristic.incremental_h(u, v)), cost)
+            })
+            .into_iter()
     }
 }
 
