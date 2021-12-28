@@ -141,11 +141,13 @@ impl<T: Debug> hash::Hash for Node<T> {
 
 // Order nodes by position on increasing x.
 impl<T: Debug> Ord for Node<T> {
+    #[inline]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         (self.0 .0, self.0 .1).cmp(&(other.0 .0, other.0 .1))
     }
 }
 impl<T: Debug> PartialOrd for Node<T> {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
