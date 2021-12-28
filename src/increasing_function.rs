@@ -97,11 +97,13 @@ pub struct Node<T: Copy + hash::Hash + Eq> {
 #[derive(Clone, Copy, Debug, Eq, Ord)]
 struct Value(usize, usize);
 impl PartialEq for Value {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 impl PartialOrd for Value {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.0.partial_cmp(&other.0)
     }
@@ -113,17 +115,20 @@ impl PartialOrd for Value {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct ValuedPos(usize, usize);
 impl PartialOrd for ValuedPos {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 impl Ord for ValuedPos {
+    #[inline]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         (Reverse(self.0), self.1).cmp(&(Reverse(other.0), other.1))
     }
 }
 
 impl IncreasingFunction2D<usize> {
+    #[inline]
     pub fn val(&self, idx: NodeIndex) -> usize {
         self.nodes[idx].val
     }
@@ -244,7 +249,7 @@ impl IncreasingFunction2D<usize> {
                         let pot = (di + dj) / 2
                             - (if self.leftover_at_end {
                                 // TODO: This should be the cost of the first remaining match.
-                                m.max_match_cost + 1;
+                                let _ = m.max_match_cost + 1;
                                 0
                             } else {
                                 0
@@ -306,6 +311,7 @@ impl IncreasingFunction2D<usize> {
         }
     }
 
+    #[inline]
     pub fn root<'a>(&'a self) -> NodeIndex {
         self.root
     }
@@ -313,6 +319,7 @@ impl IncreasingFunction2D<usize> {
     /// NOTE: This only works if pos is right-below (larger) than the position where hint_idx was obtained.
     /// Use `incremental` below otherwise.
     /// Moves to the next/prev neighbour as long as needed, and then goes to parents.
+    #[inline]
     pub fn incremental_forward<'a>(
         &'a self,
         pos @ Pos(i, j): Pos,
@@ -348,6 +355,7 @@ impl IncreasingFunction2D<usize> {
     }
 
     // This also handles steps in the (1,-1) and (-1,1) quadrants.
+    #[inline]
     pub fn incremental<'a>(
         &'a self,
         pos @ Pos(i, j): Pos,

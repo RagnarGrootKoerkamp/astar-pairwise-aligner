@@ -19,14 +19,17 @@ pub struct OccupiedEntry<'a, V>(&'a mut V);
 pub struct VacantEntry<'a, V>(&'a mut DiagonalMap<V>, DIndex);
 
 impl<'a, V> OccupiedEntry<'a, V> {
+    #[inline]
     pub fn get(&self) -> &V {
         self.0
     }
+    #[inline]
     pub fn insert(&mut self, value: V) -> V {
         std::mem::replace(self.0, value)
     }
 }
 impl<'a, V> VacantEntry<'a, V> {
+    #[inline]
     pub fn insert(self, value: V) -> &'a V {
         self.0.grow(&self.1);
         match self.1 {
@@ -42,6 +45,7 @@ pub enum Entry<'a, V> {
 }
 
 impl<V> DiagonalMap<V> {
+    #[inline]
     fn get_index(&self, &Pos(i, j): &Pos) -> DIndex {
         if i >= j {
             Above(i - j, j)
@@ -50,6 +54,7 @@ impl<V> DiagonalMap<V> {
         }
     }
 
+    #[inline]
     fn insert_index(&mut self, idx: DIndex, v: V) -> Option<V> {
         self.grow(&idx);
         match idx {
@@ -58,6 +63,7 @@ impl<V> DiagonalMap<V> {
         }
     }
 
+    #[inline]
     fn grow(&mut self, idx: &DIndex) {
         match *idx {
             // TODO: the diagonal map should be aware of the sequence lengths and reserve accordingly.
@@ -80,6 +86,7 @@ impl<V> DiagonalMap<V> {
         }
     }
 
+    #[inline]
     pub fn get(&self, pos: &Pos) -> Option<&V> {
         match self.get_index(pos) {
             Above(i, j) => self.above.get(i)?.get(j)?.as_ref(),
@@ -87,6 +94,7 @@ impl<V> DiagonalMap<V> {
         }
     }
 
+    #[inline]
     pub fn get_mut<'a>(&'a mut self, pos: &Pos) -> Option<&'a mut V> {
         match self.get_index(pos) {
             Above(i, j) => self.above.get_mut(i)?.get_mut(j)?.as_mut(),
@@ -94,11 +102,13 @@ impl<V> DiagonalMap<V> {
         }
     }
 
+    #[inline]
     pub fn insert(&mut self, pos: Pos, v: V) -> Option<V> {
         let idx = self.get_index(&pos);
         self.insert_index(idx, v)
     }
 
+    #[inline]
     pub fn entry<'a>(&'a mut self, pos: Pos) -> Entry<'a, V> {
         if let Some(x) = self.get_mut(&pos) {
             // SAFE: This will be fixed by Polonius.
@@ -114,6 +124,7 @@ impl<V> DiagonalMap<V> {
 impl<V: std::fmt::Debug> Index<&Pos> for DiagonalMap<V> {
     type Output = V;
 
+    #[inline]
     fn index(&self, pos: &Pos) -> &Self::Output {
         match self.get_index(&pos) {
             Above(i, j) => &self.above[i][j].as_ref().unwrap(),
@@ -136,6 +147,7 @@ pub trait ToPos {
 }
 
 impl ToPos for Pos {
+    #[inline]
     fn to_pos(&self) -> Pos {
         *self
     }
