@@ -16,7 +16,7 @@ enum DIndex {
 use DIndex::*;
 
 pub struct OccupiedEntry<'a, V>(&'a mut V);
-pub struct VacantEntry<'a, V>(&'a mut DiagonalMap<V>, DIndex);
+pub struct VacantEntry<'a, V>(&'a mut Option<V>);
 
 impl<'a, V> OccupiedEntry<'a, V> {
     #[inline]
@@ -31,11 +31,7 @@ impl<'a, V> OccupiedEntry<'a, V> {
 impl<'a, V> VacantEntry<'a, V> {
     #[inline]
     pub fn insert(self, value: V) -> &'a V {
-        self.0.grow(&self.1);
-        match self.1 {
-            Above(i, j) => self.0.above[i][j].insert(value),
-            Below(i, j) => self.0.below[i][j].insert(value),
-        }
+        self.0.insert(value)
     }
 }
 
@@ -96,7 +92,12 @@ impl<V> DiagonalMap<V> {
 
     #[inline]
     pub fn get_mut<'a>(&'a mut self, pos: &Pos) -> Option<&'a mut V> {
-        match self.get_index(pos) {
+        self.get_mut_index(&self.get_index(pos))
+    }
+
+    #[inline]
+    fn get_mut_index<'a>(&'a mut self, idx: &DIndex) -> Option<&'a mut V> {
+        match *idx {
             Above(i, j) => self.above.get_mut(i)?.get_mut(j)?.as_mut(),
             Below(i, j) => self.below.get_mut(i)?.get_mut(j)?.as_mut(),
         }
@@ -108,16 +109,20 @@ impl<V> DiagonalMap<V> {
         self.insert_index(idx, v)
     }
 
+    /// We assume an insertion will happen, so grow the vector in advance.
     #[inline]
     pub fn entry<'a>(&'a mut self, pos: Pos) -> Entry<'a, V> {
-        if let Some(x) = self.get_mut(&pos) {
-            // SAFE: This will be fixed by Polonius.
-            // The 2nd borrow below this if statement won't happen because we return here.
-            let x = unsafe { &mut (*(x as *mut V)) };
-            return Entry::Occupied(OccupiedEntry(x));
-        }
         let idx = self.get_index(&pos);
-        Entry::Vacant(VacantEntry(self, idx))
+        self.grow(&idx);
+        let option = match idx {
+            Above(i, j) => &mut self.above[i][j],
+            Below(i, j) => &mut self.below[i][j],
+        };
+
+        match option {
+            Some(ref mut v) => Entry::Occupied(OccupiedEntry(v)),
+            None => Entry::Vacant(VacantEntry(option)),
+        }
     }
 }
 
