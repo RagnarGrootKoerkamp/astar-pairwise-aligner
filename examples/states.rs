@@ -14,7 +14,6 @@ fn main() {
             pruning: false,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         },
     )
     .write_explored_states("evals/stats/exact.csv");
@@ -28,7 +27,6 @@ fn main() {
             pruning: false,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         },
     )
     .write_explored_states("evals/stats/inexact.csv");
@@ -42,7 +40,6 @@ fn main() {
             pruning: true,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         },
     )
     .write_explored_states("evals/stats/exact_pruning.csv");
@@ -56,7 +53,6 @@ fn main() {
             pruning: true,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         },
     );
     r.write_explored_states("evals/stats/inexact_pruning_zero.csv");
@@ -74,7 +70,6 @@ fn main() {
             pruning: true,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         },
     );
     r.write_explored_states("evals/stats/inexact_pruning.csv");

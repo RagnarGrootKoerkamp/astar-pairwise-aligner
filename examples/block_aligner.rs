@@ -20,7 +20,6 @@ fn main() {
                     pruning: true,
                     build_fast: false,
                     query_fast: false,
-                    make_consistent: true,
                 },
             )
             .print();

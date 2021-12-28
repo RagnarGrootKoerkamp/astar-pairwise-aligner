@@ -3,7 +3,6 @@ use rand::{prelude::Distribution, SeedableRng};
 
 fn main() {
     let pruning = true;
-    let make_consistent = false;
     let (l, max_match_cost) = (7, 1);
     for do_transform in [false, true] {
         for build_fast in [false, true] {
@@ -14,7 +13,6 @@ fn main() {
                 pruning,
                 build_fast: false,
                 query_fast: false,
-                make_consistent,
             };
             let h_fast = SeedHeuristic {
                 l,
@@ -23,7 +21,6 @@ fn main() {
                 pruning,
                 build_fast,
                 query_fast: false,
-                make_consistent,
             };
 
             let n = 1000;

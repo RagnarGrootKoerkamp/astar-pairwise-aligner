@@ -156,11 +156,11 @@ pub struct AlignResult {
 impl AlignResult {
     pub fn print_header() {
         println!(
-            "{:>6} {:>6} {:>4} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6} {:>8} {:>8} {:>7} {:>5} {:>6} {:>5} {:>5}",
+            "{:>6} {:>6} {:>4} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6} {:>8} {:>8} {:>7} {:>5} {:>6} {:>5} {:>5}",
             "|a|",
             "|b|",
             "r",
-            "H", "l", "md", "pr", "cs", "bf", "qf",
+            "H", "l", "md", "pr", "bf", "qf",
             "dist",
             "seeds", "matches",
             "expanded",
@@ -198,7 +198,7 @@ impl AlignResult {
         let percent_h =
             100. * self.timing.precomputation / (self.timing.precomputation + self.timing.astar);
         println!(
-            "{:>6} {:>6} {:>4.2} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6.2} {:>8.5} {:>8.5} {:>7.3} {:>5} {:>6} {:>5} {:>5}",
+            "{:>6} {:>6} {:>4.2} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6.2} {:>8.5} {:>8.5} {:>7.3} {:>5} {:>6} {:>5} {:>5}",
             self.input.len_a,
             self.input.len_b,
             self.input.error_rate,
@@ -206,7 +206,6 @@ impl AlignResult {
             self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.max_match_cost.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.pruning.map_or("".into(), |x| (x as u8) .to_string()),
-            self.heuristic_params.consistent.map_or("".into(), |x| (x as u8) .to_string()),
             self.heuristic_params.build_fast.map_or("".into(), |x| (x as u8) .to_string()),
             self.heuristic_params.query_fast.map_or("".into(), |x| (x as u8) .to_string()),
             self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
@@ -474,7 +473,6 @@ mod tests {
             pruning: false,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         }
         .build(&a, &b, alphabet);
 
@@ -528,7 +526,6 @@ mod tests {
                 pruning: false,
                 build_fast: false,
                 query_fast: false,
-                make_consistent: true,
             },
         );
         assert!(r.heuristic_stats.root_h <= r.answer_cost);
@@ -544,7 +541,6 @@ mod tests {
             pruning: false,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[361..369].to_vec();
@@ -564,7 +560,6 @@ mod tests {
             pruning: false,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[236..246].to_vec();
@@ -585,7 +580,6 @@ mod tests {
             pruning: true,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a.to_vec();
@@ -605,7 +599,6 @@ mod tests {
             pruning: true,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[846..870].to_vec();
@@ -627,7 +620,6 @@ mod tests {
             pruning: true,
             build_fast: false,
             query_fast: false,
-            make_consistent: true,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.20);
         let a = &a[200..310].to_vec();
