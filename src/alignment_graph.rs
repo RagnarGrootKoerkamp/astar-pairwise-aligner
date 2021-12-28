@@ -11,6 +11,7 @@ use crate::implicit_graph::{Edge, ImplicitGraph, ImplicitGraphBase};
 pub struct AlignmentGraphBase<'a> {
     a: &'a Sequence,
     b: &'a Sequence,
+    target: Pos,
 }
 
 // impl<'a> Clone for AlignmentGraphBase<'a> {
@@ -35,23 +36,42 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
         u @ Pos(i, j): Self::Node,
         dir: petgraph::EdgeDirection,
     ) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
+        // We don't need incoming edges.
+        // This should help the compiler.
+        assert!(dir == petgraph::EdgeDirection::Outgoing);
+
         const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
         const DIAGONAL_DELTAS: [(usize, usize); 1] = [(1, 1)];
+        // Walk as much diagonally as possible if we start with a match.
         const LONG_DIAGONALS: bool = false;
+        // Take any of the 3 edges, and then walk as much diagonally as possible.
+        const GREEDY_AT_END: bool = false;
 
         // TODO: Compare edge strategies:
         // - always walk 1 step any direction.
         // - in case of match, only walk 1 step diagonal. [current choice]
         // - in case of match, only walk as far on diagonal as possible.
+        // TODO: More greedy: After indel edge, we can still eat more exact matches.
 
-        let diagonal_match = match dir {
+        let is_match = |pos @ Pos(i, j): Pos| match dir {
             petgraph::EdgeDirection::Outgoing => {
-                i < self.a.len() && j < self.b.len() && self.a[i] == self.b[j]
+                pos.0 < self.target.0 && pos.1 < self.target.1 && self.a[i] == self.b[j]
             }
-            petgraph::EdgeDirection::Incoming => i > 0 && j > 0 && self.a[i - 1] == self.b[j - 1],
+            petgraph::EdgeDirection::Incoming => {
+                0 < pos.0 && 0 < pos.1 && self.a[i - 1] == self.b[j - 1]
+            }
         };
 
-        let nbs: ArrayVec<Edge<Self::Node>, 3> = if diagonal_match && LONG_DIAGONALS {
+        let extend_diagonally = |mut pos: Pos| -> Pos {
+            if GREEDY_AT_END {
+                while is_match(pos) {
+                    pos = Pos(pos.0 + 1, pos.1 + 1)
+                }
+            }
+            pos
+        };
+
+        let nbs: ArrayVec<Edge<Self::Node>, 3> = if LONG_DIAGONALS && is_match(u) {
             // Only walk diagonally when there is
 
             // Walk multiple steps at once.
@@ -67,7 +87,7 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
             //once(Edge(u, pos, 0)).collect();
             todo!();
         } else {
-            (if diagonal_match {
+            (if is_match(u) {
                 &DIAGONAL_DELTAS[..]
             } else {
                 &DELTAS[..]
@@ -75,11 +95,11 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
             .iter()
             .filter_map(|&(di, dj)| match dir {
                 petgraph::EdgeDirection::Outgoing => {
-                    if i + di <= self.a.len() && j + dj <= self.b.len() {
-                        let pos = Pos(i + di, j + dj);
+                    let pos = Pos(i + di, j + dj);
+                    if pos <= self.target {
                         Some(Edge(
                             u,
-                            pos,
+                            extend_diagonally(pos),
                             if (di, dj) == (1, 1) && self.a[i] == self.b[j] {
                                 0
                             } else {
@@ -94,6 +114,7 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
                     if di <= i && dj <= j {
                         let pos = Pos(i - di, j - dj);
                         Some(Edge(
+                            // TODO: Extend incoming edges.
                             pos,
                             u,
                             if (di, dj) == (1, 1) && self.a[i - di] == self.b[j - dj] {
@@ -201,7 +222,11 @@ impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
 }
 
 pub fn new_alignment_graph<'a>(a: &'a Sequence, b: &'a Sequence) -> AlignmentGraph<'a> {
-    ImplicitGraph::new(AlignmentGraphBase { a, b })
+    ImplicitGraph::new(AlignmentGraphBase {
+        a,
+        b,
+        target: Pos(a.len(), b.len()),
+    })
 }
 
 pub fn new_incremental_alignment_graph<'a, 'b, H: HeuristicInstance<'a>>(
