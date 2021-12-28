@@ -675,6 +675,7 @@ mod tests {
 // - Do Greedy extending of edges along diagonals
 //   - NOTE: This should also expand (and prune) all in-between states.
 //     Tight coupling with A* is needed to do this.
+// - Do Internal Iteration over outgoing edges, so they don't need to be collected.
 //
 //
 // DONE: Fast Seed+Gap heuristic implementation:
@@ -694,5 +695,8 @@ mod tests {
 //   - HashMap -> DiagonalMap: for expanded/explored states, since these are dense on the diagonal.
 //   - BinaryHeap -> BucketHeap: much much faster; turns log(n) pop into O(1) push&pop
 //     - For unknown reasons, sorting positions before popping them makes more expanded states, but faster code.
+// - delete consistency code
+// - delete incoming edges code
+// - more efficient edges iteration
 
 // NOTE: Expanded states is counted as:
