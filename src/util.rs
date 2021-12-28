@@ -19,16 +19,16 @@ pub struct Pos(pub usize, pub usize);
 impl PartialOrd for Pos {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let a = self.0.partial_cmp(&other.0);
-        let b = self.1.partial_cmp(&other.1);
+        let a = self.0.cmp(&other.0);
+        let b = self.1.cmp(&other.1);
         if a == b {
-            return a;
+            return Some(a);
         }
-        if a == Some(Ordering::Equal) {
-            return b;
+        if a == Ordering::Equal {
+            return Some(b);
         }
-        if b == Some(Ordering::Equal) {
-            return a;
+        if b == Ordering::Equal {
+            return Some(a);
         }
         return None;
     }
