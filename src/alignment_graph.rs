@@ -35,7 +35,7 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
         &self,
         u @ Pos(i, j): Self::Node,
         dir: petgraph::EdgeDirection,
-    ) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
+    ) -> Self::Edges {
         // We don't need incoming edges.
         // This should help the compiler.
         assert!(dir == petgraph::EdgeDirection::Outgoing);
@@ -142,12 +142,14 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
 pub struct Node<T: Debug>(pub Pos, pub T);
 
 impl<T: Debug> ToPos for Node<T> {
+    #[inline]
     fn to_pos(&self) -> Pos {
         self.0
     }
 }
 
 impl<T: Debug> PartialEq for Node<T> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
@@ -155,6 +157,7 @@ impl<T: Debug> PartialEq for Node<T> {
 impl<T: Debug> Eq for Node<T> {}
 
 impl<T: Debug> hash::Hash for Node<T> {
+    #[inline]
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.0.hash(state);
     }
@@ -183,6 +186,9 @@ pub struct IncrementalAlignmentGraphBase<'a, 'b, H: HeuristicInstance<'a>> {
 pub type IncrementalAlignmentGraph<'a, 'b, H> =
     ImplicitGraph<IncrementalAlignmentGraphBase<'a, 'b, H>>;
 
+// NOTE: This function is not a member of IncrementalAlignmentGraph so it can be
+// reused within the heuristic computation to make it consistent.
+#[inline]
 pub fn incremental_edges<'a, R: Deref<Target = H>, H: HeuristicInstance<'a>>(
     a: &'a Sequence,
     b: &'a Sequence,
@@ -212,6 +218,7 @@ impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
 
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
+    #[inline]
     fn edges_directed(
         &self,
         u: Self::Node,
@@ -238,10 +245,4 @@ pub fn new_incremental_alignment_graph<'a, 'b, H: HeuristicInstance<'a>>(
         graph: new_alignment_graph(a, b),
         heuristic,
     })
-}
-
-impl From<(Pos, ())> for Pos {
-    fn from((a, _): (Pos, ())) -> Self {
-        a
-    }
 }

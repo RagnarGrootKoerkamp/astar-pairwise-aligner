@@ -12,6 +12,7 @@ pub struct BucketHeap<T> {
 }
 
 impl<T: std::cmp::Ord> BucketHeap<T> {
+    #[inline]
     pub fn push(&mut self, MinScored(k, v): MinScored<usize, T>) {
         if self.layers.len() <= k {
             self.layers.resize_with(k + 1, || Vec::default());
