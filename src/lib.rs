@@ -21,12 +21,12 @@ pub mod util;
 extern crate test;
 
 #[cfg(debug_assertions)]
-const DEBUG: bool = true;
+pub const DEBUG: bool = true;
 
 #[cfg(not(debug_assertions))]
 const DEBUG: bool = false;
 
-// Include one of these to swtich to the faster FxHashMap hashing algorithm.
+// Include one of these to switch to the faster FxHashMap hashing algorithm.
 mod hash_map {
     #[allow(dead_code)]
     pub type HashMap<K, V> =
@@ -77,6 +77,7 @@ pub mod prelude {
     pub use crate::heuristic::*;
     pub use crate::seeds::Match;
     pub use crate::util::*;
+    pub(crate) use crate::DEBUG;
 }
 
 use csv::Writer;
@@ -701,5 +702,7 @@ mod tests {
 // - more efficient edges iteration
 // - Pre-allocate DiagonalMap edges
 // - Do internal iteration over outgoing edges, instead of collecting them.
+// - Sort nodes in IncreasingFunction for better caching
+// - incremental_h is slowly becoming more efficient (move fewer steps backwards)
 
 // NOTE: Expanded states is counted as:

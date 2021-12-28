@@ -4,6 +4,8 @@ use std::hash;
 use std::ops::Bound::{Excluded, Included, Unbounded};
 use std::ops::RangeFull;
 
+use itertools::Itertools;
+
 use crate::prelude::*;
 use crate::seeds::Match;
 
@@ -83,6 +85,9 @@ pub type NodeIndex = usize;
 #[derive(Default)]
 pub struct IncreasingFunction2D<T: Copy + hash::Hash + Eq> {
     nodes: Vec<Node<T>>,
+    // val=0
+    pub bot: NodeIndex,
+    // val=max
     root: NodeIndex,
     leftover_at_end: bool,
 }
@@ -148,6 +153,7 @@ impl IncreasingFunction2D<usize> {
     pub fn new(target: Pos, leftover_at_end: bool, ps: Vec<Match>) -> Self {
         let mut s = Self {
             nodes: Vec::new(),
+            bot: 0,
             // Placeholder until properly set in build.
             root: 0,
             leftover_at_end,
@@ -320,6 +326,33 @@ impl IncreasingFunction2D<usize> {
             }
             layer = u;
         }
+
+        // Sorting the nodes improves cache locality.
+        self.sort_nodes();
+    }
+
+    // Sort the nodes by (layer, position) and update all pointers.
+    // This should improve cache locality.
+    fn sort_nodes(&mut self) {
+        let mut perm = (0..self.nodes.len()).collect_vec();
+        perm.sort_by_key(|i| (Reverse(self.nodes[*i].val), (self.nodes[*i].pos.0)));
+        let mut inv = vec![0; self.nodes.len()];
+        for (i, x) in perm.iter().enumerate() {
+            inv[*x] = i;
+        }
+
+        // Update pointers.
+        self.nodes.iter_mut().for_each(|node| {
+            node.child.as_mut().map(|c| *c = inv[*c]);
+            node.parent.as_mut().map(|c| *c = inv[*c]);
+            node.next.as_mut().map(|c| *c = inv[*c]);
+            node.prev.as_mut().map(|c| *c = inv[*c]);
+        });
+        self.bot = inv[self.bot];
+        self.root = inv[self.root];
+
+        // Reorder elements.
+        self.nodes = perm.into_iter().map(|idx| self.nodes[idx]).collect_vec();
     }
 
     #[inline]
@@ -379,7 +412,9 @@ impl IncreasingFunction2D<usize> {
                 hint_idx = x;
             }
             if let Some(x) = self.nodes[hint_idx].child {
-                hint_idx = x;
+                if self.nodes[hint_idx].pos == self.nodes[x].pos {
+                    hint_idx = x;
+                }
             }
         }
 
