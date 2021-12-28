@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use super::heuristic::*;
+use super::*;
 use crate::{
     alignment_graph::Node,
     increasing_function::IncreasingFunction2D,

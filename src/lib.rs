@@ -256,7 +256,7 @@ impl AlignResult {
     }
 }
 
-fn num_matches_on_path(path: &Vec<Pos>, matches: &Vec<Match>) -> usize {
+fn num_matches_on_path(path: &[Pos], matches: &[Match]) -> usize {
     let matches = {
         let mut s = HashSet::<Pos>::new();
         for &Match { start, .. } in matches {
@@ -269,7 +269,7 @@ fn num_matches_on_path(path: &Vec<Pos>, matches: &Vec<Match>) -> usize {
         .sum()
 }
 
-pub fn align<'a, H: Heuristic>(
+pub fn align<H: Heuristic>(
     a: &Sequence,
     b: &Sequence,
     alphabet: &Alphabet,
@@ -294,7 +294,7 @@ pub fn align<'a, H: Heuristic>(
 
     // Run A* with heuristic.
     let start_time = time::Instant::now();
-    let incremental_graph = alignment_graph::new_incremental_alignment_graph(&a, &b, &h);
+    let incremental_graph = alignment_graph::new_incremental_alignment_graph(a, b, &h);
     let mut h_values = HashMap::<usize, usize>::default();
     let target = Pos(a.len(), b.len());
     let (distance, path) = astar::astar(
@@ -355,7 +355,7 @@ pub fn align<'a, H: Heuristic>(
         sum as f32 / cnt as f32
     };
 
-    let path = if DEBUG {
+    let path: Vec<Pos> = if DEBUG {
         path.into_iter().collect()
     } else {
         Default::default()

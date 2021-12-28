@@ -76,7 +76,7 @@ impl<'a, G: ImplicitGraphBase> IntoEdgeReferences for &'a ImplicitGraph<G> {
 }
 impl<'a, G: ImplicitGraphBase> IntoNeighbors for &'a ImplicitGraph<G> {
     type Neighbors = Empty<G::Node>;
-    fn neighbors(self: Self, _: Self::NodeId) -> Self::Neighbors {
+    fn neighbors(self, _: Self::NodeId) -> Self::Neighbors {
         unimplemented!("Calls should be made to edges(node) instead.");
     }
 }

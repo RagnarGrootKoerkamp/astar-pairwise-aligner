@@ -125,7 +125,7 @@ impl<V> DiagonalMap<V> {
 
     /// We assume an insertion will happen, so grow the vector in advance.
     #[inline]
-    pub fn entry<'a>(&'a mut self, pos: Pos) -> Entry<'a, V> {
+    pub fn entry(&mut self, pos: Pos) -> Entry<'_, V> {
         let idx = self.get_index(&pos);
         self.grow(&idx);
         let option = match idx {
@@ -145,9 +145,9 @@ impl<V: std::fmt::Debug> Index<&Pos> for DiagonalMap<V> {
 
     #[inline]
     fn index(&self, pos: &Pos) -> &Self::Output {
-        match self.get_index(&pos) {
-            Above(i, j) => &self.above[i][j].as_ref().unwrap(),
-            Below(i, j) => &self.below[i][j].as_ref().unwrap(),
+        match self.get_index(pos) {
+            Above(i, j) => self.above[i][j].as_ref().unwrap(),
+            Below(i, j) => self.below[i][j].as_ref().unwrap(),
         }
     }
 }

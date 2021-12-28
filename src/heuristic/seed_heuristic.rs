@@ -2,7 +2,7 @@ use std::cmp::Reverse;
 
 use itertools::Itertools;
 
-use super::{distance::*, heuristic::*};
+use super::{distance::*, *};
 use crate::{
     alignment_graph::Node,
     increasing_function::IncreasingFunction2D,
@@ -78,12 +78,10 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
 /// are visited in between `from` and `to`.
 impl<'a, DH: DistanceHeuristic> DistanceHeuristicInstance<'a> for SeedHeuristicI<'a, DH> {
     fn distance(&self, from: Pos, to: Pos) -> usize {
-        let v = max(
+        max(
             self.distance_function.distance(from, to),
             self.seed_matches.distance(from, to),
-        );
-        //println!("Distance from {:?} to {:?} = {}", from, to, v);
-        v
+        )
     }
 }
 
@@ -304,7 +302,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
                 .filter(|&(parent, _)| *parent >= pos_transformed)
                 .map(|(_parent, val)| p - *val)
                 .min()
-                .unwrap_or(self.distance(pos, self.target))
+                .unwrap_or_else(|| self.distance(pos, self.target))
         } else {
             self.best_distance(pos, self.h_at_seeds.iter())
         };
