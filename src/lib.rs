@@ -296,11 +296,11 @@ pub fn align<'a, H: Heuristic>(
     let start_time = time::Instant::now();
     let incremental_graph = alignment_graph::new_incremental_alignment_graph(&a, &b, &h);
     let mut h_values = HashMap::<usize, usize>::default();
+    let target = Pos(a.len(), b.len());
     let (distance, path) = astar::astar(
+        target,
         &incremental_graph,
         root_state,
-        // is end?
-        |Node(Pos(i, j), _)| i == a.len() && j == b.len(),
         // edge cost
         |implicit_graph::Edge(_, _, cost)| {
             edges += 1;

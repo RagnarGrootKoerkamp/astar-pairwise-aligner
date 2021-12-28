@@ -6,8 +6,10 @@ pub struct DiagonalMap<V> {
     // TODO: Move from Option to a separate bit vector.
     above: Vec<Vec<Option<V>>>,
     below: Vec<Vec<Option<V>>>,
+    target: Pos,
 }
 
+// TODO: Use some NonZero types to make this type smaller.
 #[derive(Debug)]
 enum DIndex {
     Above(usize, usize),
@@ -41,6 +43,14 @@ pub enum Entry<'a, V> {
 }
 
 impl<V> DiagonalMap<V> {
+    pub fn new(target: Pos) -> DiagonalMap<V> {
+        DiagonalMap {
+            above: Default::default(),
+            below: Default::default(),
+            target,
+        }
+    }
+
     #[inline]
     fn get_index(&self, &Pos(i, j): &Pos) -> DIndex {
         if i >= j {
@@ -62,21 +72,25 @@ impl<V> DiagonalMap<V> {
     #[inline]
     fn grow(&mut self, idx: &DIndex) {
         match *idx {
-            // TODO: the diagonal map should be aware of the sequence lengths and reserve accordingly.
-            Above(i, j) => {
-                if self.above.len() <= i {
-                    self.above.resize_with(i + 1, || Vec::default());
-                }
-                if self.above[i].len() <= j {
-                    self.above[i].resize_with(j + 1, || None);
+            // TODO: Reserving could be slightly more optimal.
+            Above(i, _j) => {
+                while self.above.len() <= i {
+                    let len = max(self.target.0, self.target.1);
+                    self.above.resize_with(i + 1, || {
+                        let mut vec = Vec::new();
+                        vec.resize_with(len, || None);
+                        vec
+                    });
                 }
             }
-            Below(i, j) => {
+            Below(i, _j) => {
                 if self.below.len() <= i {
-                    self.below.resize_with(i + 1, || Vec::default());
-                }
-                if self.below[i].len() <= j {
-                    self.below[i].resize_with(j + 1, || None);
+                    let len = max(self.target.0, self.target.1);
+                    self.below.resize_with(i + 1, || {
+                        let mut vec = Vec::new();
+                        vec.resize_with(len, || None);
+                        vec
+                    });
                 }
             }
         }
@@ -134,15 +148,6 @@ impl<V: std::fmt::Debug> Index<&Pos> for DiagonalMap<V> {
         match self.get_index(&pos) {
             Above(i, j) => &self.above[i][j].as_ref().unwrap(),
             Below(i, j) => &self.below[i][j].as_ref().unwrap(),
-        }
-    }
-}
-
-impl<V> Default for DiagonalMap<V> {
-    fn default() -> Self {
-        Self {
-            above: Default::default(),
-            below: Default::default(),
         }
     }
 }
