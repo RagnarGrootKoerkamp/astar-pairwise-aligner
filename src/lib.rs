@@ -13,7 +13,6 @@ pub mod diagonal_map;
 pub mod heuristic;
 pub mod implicit_graph;
 pub mod increasing_function;
-pub mod msa;
 pub mod random_sequence;
 pub mod scored;
 pub mod seeds;
