@@ -61,10 +61,10 @@ use crate::scored::MinScored;
 ///
 /// Returns the total cost + the path of subsequent `NodeId` from start to finish, if one was
 /// found.
-pub fn astar<G, F, H, IsGoal, ExpandFn, ExploreFn>(
+pub fn astar<G, F, H, ExpandFn, ExploreFn>(
+    target: Pos,
     graph: G,
     start: G::NodeId,
-    mut is_goal: IsGoal,
     mut edge_cost: F,
     mut estimate_cost: H,
     mut on_expand: ExpandFn,
@@ -75,7 +75,6 @@ pub fn astar<G, F, H, IsGoal, ExpandFn, ExploreFn>(
 ) -> Option<(usize, Vec<Pos>)>
 where
     G: IntoEdges + Visitable,
-    IsGoal: FnMut(G::NodeId) -> bool,
     G::NodeId: Eq + Hash + Ord + ToPos,
     F: FnMut(G::EdgeRef) -> usize,
     H: FnMut(G::NodeId) -> usize,
@@ -84,9 +83,9 @@ where
     <G as GraphBase>::NodeId: std::fmt::Debug,
 {
     let mut visit_next = heap::Heap::default(); // f-values, cost to reach + estimate cost to goal, and the node itself
-    let mut scores = diagonal_map::DiagonalMap::default(); // g-values, cost to reach the node
-    let mut estimate_scores = diagonal_map::DiagonalMap::default(); // f-values, cost to reach + estimate cost to goal
-    let mut path_tracker = PathTracker::new();
+    let mut scores = diagonal_map::DiagonalMap::new(target); // g-values, cost to reach the node
+    let mut estimate_scores = diagonal_map::DiagonalMap::new(target); // f-values, cost to reach + estimate cost to goal
+    let mut path_tracker = PathTracker::new(target);
 
     let zero_score = 0usize;
     scores.insert(start.to_pos(), zero_score);
@@ -97,7 +96,7 @@ where
         // before adding it to `visit_next`.
         let node_score = scores[&node.to_pos()];
 
-        if is_goal(node) {
+        if node.to_pos() == target {
             let path = path_tracker.reconstruct_path_to(node.to_pos());
             return Some((node_score, path));
         }
@@ -183,9 +182,9 @@ struct PathTracker {
 }
 
 impl PathTracker {
-    fn new() -> PathTracker {
+    fn new(target: Pos) -> PathTracker {
         PathTracker {
-            came_from: Default::default(),
+            came_from: diagonal_map::DiagonalMap::new(target),
         }
     }
 
