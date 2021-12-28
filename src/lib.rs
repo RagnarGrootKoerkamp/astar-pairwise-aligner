@@ -77,6 +77,7 @@ pub mod prelude {
     pub use crate::heuristic::*;
     pub use crate::seeds::Match;
     pub use crate::util::*;
+    #[allow(unused_imports)]
     pub(crate) use crate::DEBUG;
 }
 
