@@ -69,6 +69,7 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
 
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
+    #[inline]
     fn iterate_edges_directed<F>(&self, u: Self::Node, dir: petgraph::EdgeDirection, mut f: F)
     where
         F: FnMut(Edge<Self::Node>),
@@ -77,6 +78,7 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
         self.iterate_edges_directed(u, |(v, cost)| f(Edge(u, v, cost)))
     }
 
+    #[inline]
     fn edges_directed(&self, u: Self::Node, dir: petgraph::EdgeDirection) -> Self::Edges {
         // We don't need incoming edges.
         // This should help the compiler.
@@ -148,6 +150,7 @@ impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
 
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
+    #[inline]
     fn iterate_edges_directed<F>(&self, u: Self::Node, dir: petgraph::EdgeDirection, mut f: F)
     where
         F: FnMut(Edge<Self::Node>),
@@ -161,6 +164,7 @@ impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
             });
     }
 
+    #[inline]
     fn edges_directed(&self, u: Self::Node, dir: petgraph::EdgeDirection) -> Self::Edges {
         assert_eq!(dir, petgraph::EdgeDirection::Outgoing);
 
