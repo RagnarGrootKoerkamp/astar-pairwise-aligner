@@ -14,6 +14,10 @@ pub trait ImplicitGraphBase {
 
     type Edges: Iterator<Item = Edge<Self::Node>>;
 
+    fn iterate_edges_directed<F>(&self, u: Self::Node, dir: petgraph::EdgeDirection, f: F)
+    where
+        F: FnMut(Edge<Self::Node>);
+
     fn edges_directed(&self, a: Self::Node, dir: petgraph::EdgeDirection) -> Self::Edges;
 }
 pub struct ImplicitGraph<G: ImplicitGraphBase>(G);
@@ -38,6 +42,7 @@ impl<G: ImplicitGraphBase> Deref for ImplicitGraph<G> {
     }
 }
 
+// TODO: inline?
 impl<Node: Copy> EdgeRef for Edge<Node> {
     type NodeId = Node;
     type EdgeId = ();

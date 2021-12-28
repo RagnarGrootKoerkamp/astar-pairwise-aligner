@@ -17,9 +17,9 @@ pub struct AlignmentGraphBase<'a> {
 impl<'a> AlignmentGraphBase<'a> {
     /// Internal iterator to get the edges from a position.
     #[inline]
-    fn edges_directed_map<F, T>(&'a self, u @ Pos(i, j): Pos, f: F) -> ArrayVec<T, 3>
+    fn iterate_edges_directed<F>(&'a self, u @ Pos(i, j): Pos, f: F)
     where
-        F: Fn((Pos, usize)) -> T,
+        F: FnMut((Pos, usize)),
     {
         const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
         const DIAGONAL_DELTAS: [(usize, usize); 1] = [(1, 1)];
@@ -57,8 +57,7 @@ impl<'a> AlignmentGraphBase<'a> {
                 None
             }
         })
-        .map(f)
-        .collect()
+        .for_each(f)
     }
 }
 
@@ -70,13 +69,22 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
 
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
+    fn iterate_edges_directed<F>(&self, u: Self::Node, dir: petgraph::EdgeDirection, mut f: F)
+    where
+        F: FnMut(Edge<Self::Node>),
+    {
+        assert!(dir == petgraph::EdgeDirection::Outgoing);
+        self.iterate_edges_directed(u, |(v, cost)| f(Edge(u, v, cost)))
+    }
+
     fn edges_directed(&self, u: Self::Node, dir: petgraph::EdgeDirection) -> Self::Edges {
         // We don't need incoming edges.
         // This should help the compiler.
         assert_eq!(dir, petgraph::EdgeDirection::Outgoing);
 
-        self.edges_directed_map(u, |(v, len)| Edge(u, v, len))
-            .into_iter()
+        let mut edges = ArrayVec::default();
+        self.iterate_edges_directed(u, |(v, cost)| edges.push(Edge(u, v, cost)));
+        edges.into_iter()
     }
 }
 
@@ -140,19 +148,25 @@ impl<'a, 'b, H: HeuristicInstance<'a>> ImplicitGraphBase
 
     type Edges = arrayvec::IntoIter<Edge<Self::Node>, 3>;
 
-    #[inline]
-    fn edges_directed(
-        &self,
-        u @ Node(pos, _): Self::Node,
-        dir: petgraph::EdgeDirection,
-    ) -> arrayvec::IntoIter<Edge<Self::Node>, 3> {
+    fn iterate_edges_directed<F>(&self, u: Self::Node, dir: petgraph::EdgeDirection, mut f: F)
+    where
+        F: FnMut(Edge<Self::Node>),
+    {
         assert_eq!(dir, petgraph::EdgeDirection::Outgoing);
-        let heuristic = &*self.heuristic.borrow();
-        new_alignment_graph(self.graph.a, self.graph.b)
-            .edges_directed_map(pos, |(v, cost)| {
-                Edge(u, Node(v, heuristic.incremental_h(u, v)), cost)
-            })
-            .into_iter()
+
+        let h = &*self.heuristic.borrow();
+        self.graph
+            .iterate_edges_directed(u.to_pos(), move |(v, cost)| {
+                f(Edge(u, Node(v, h.incremental_h(u, v)), cost))
+            });
+    }
+
+    fn edges_directed(&self, u: Self::Node, dir: petgraph::EdgeDirection) -> Self::Edges {
+        assert_eq!(dir, petgraph::EdgeDirection::Outgoing);
+
+        let mut edges = ArrayVec::default();
+        self.iterate_edges_directed(u, dir, |edge| edges.push(edge));
+        edges.into_iter()
     }
 }
 
