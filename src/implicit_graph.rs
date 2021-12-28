@@ -119,3 +119,18 @@ impl<'a, G: ImplicitGraphBase> IntoEdgesDirected for &'a ImplicitGraph<G> {
         self.0.edges_directed(a, dir)
     }
 }
+
+pub trait IterateEdgesDirected: GraphBase + IntoEdgeReferences {
+    fn iterate_edges_directed<F>(&self, u: Self::NodeId, dir: petgraph::EdgeDirection, f: F)
+    where
+        F: FnMut(Self::EdgeRef);
+}
+
+impl<'a, G: ImplicitGraphBase> IterateEdgesDirected for &'a ImplicitGraph<G> {
+    fn iterate_edges_directed<F>(&self, u: Self::NodeId, dir: petgraph::EdgeDirection, f: F)
+    where
+        F: FnMut(Self::EdgeRef),
+    {
+        self.0.iterate_edges_directed(u, dir, f);
+    }
+}
