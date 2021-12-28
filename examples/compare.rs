@@ -12,33 +12,29 @@ fn main() {
     let lm = [(5, 0), (6, 0), (7, 1), (8, 1), (9, 1)];
     let prunings = [false, true];
     let build_fast = [(false, false), (true, false), (true, true)];
-    let consistent = [false];
 
     AlignResult::print_header();
     for (&n, e) in ns.iter().cartesian_product(es) {
         for (l, max_match_cost) in lm {
             for pruning in prunings {
-                for make_consistent in consistent {
-                    for (build_fast, query_fast) in build_fast {
-                        if pruning && query_fast {
-                            continue;
-                        }
-                        let result = test_heuristic(
-                            n,
-                            e,
-                            SeedHeuristic {
-                                l,
-                                max_match_cost,
-                                distance_function: GapHeuristic,
-                                pruning,
-                                build_fast,
-                                query_fast,
-                                make_consistent,
-                            },
-                        );
-                        result.print();
-                        result.write(&mut wtr);
+                for (build_fast, query_fast) in build_fast {
+                    if pruning && query_fast {
+                        continue;
                     }
+                    let result = test_heuristic(
+                        n,
+                        e,
+                        SeedHeuristic {
+                            l,
+                            max_match_cost,
+                            distance_function: GapHeuristic,
+                            pruning,
+                            build_fast,
+                            query_fast,
+                        },
+                    );
+                    result.print();
+                    result.write(&mut wtr);
                 }
             }
         }

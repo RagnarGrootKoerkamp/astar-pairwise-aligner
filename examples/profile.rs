@@ -13,7 +13,6 @@ fn main() {
     let pruning = false;
     let build_fast = true;
     let query_fast = true;
-    let make_consistent = false;
 
     AlignResult::print_header();
     let result = test_heuristic(
@@ -26,7 +25,6 @@ fn main() {
             pruning,
             build_fast,
             query_fast,
-            make_consistent,
         },
     );
     result.print();
