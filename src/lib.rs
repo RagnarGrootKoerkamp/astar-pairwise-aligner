@@ -658,18 +658,21 @@ mod tests {
 // - choosing seeds bases on guessed alignment
 // - Fix the gap heuristic transpose to take the seeds into account.
 //
-// TODO: Pruning for fast gap heuristic
-// - Allow rebuilding the IncreasingFunction after pruning.
+// TODO: Pruning
+// - In-place bruteforce pruning for IncreasingFunction datastructure
+// - Partial pruning: only prune matches where it is cheap to do so
 // - Lazy pruning with offset.
-// - FIXME Make sure that pruning doesn't interact badly with consistency
-//   - Pruning should not interact with points on the right. When checking consistency, act like the current point wasn't pruned.
+// - Proof that pruning doesn't interact badly with consistency
+// - Implementation for fast partial pruning:
+//   - If the current match has no prev/next on the pareto front, *all* previous points must have optimal paths through this match.
+//   - Removing this match decreases h for *all* previous matches
+//   - Either bruteforce decrement the value at previous nodes, or keep some log-time datastructure for this.
+//   - Most of the time, the match will be at the very front and there are going
+//     to be very few expanded states in front, so we can do an offset and only
+//     update h for those expanded states beyond this match.
 //
 // TODO: Performance
-// - DONE: HashMap -> hasher from FxHashMap
 // - Use Pos(u32,u32) instead of Pos(usize,usize)
-// - HashMap<Pos, T> -> Deque<Vector<Option<T>>> indexed by (i-j, i+j) instead of HashMap.
-// - Use Vector<Vector> or so instead of priority queue
-//   - Compare with radix_heap rust crate
 // - Use array + sorting + binary search to find optimal path.
 // - Do Greedy extending of edges along diagonals
 //   - NOTE: This should also expand (and prune) all in-between states.
