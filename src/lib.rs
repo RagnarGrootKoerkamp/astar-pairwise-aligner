@@ -8,6 +8,7 @@
 )]
 pub mod alignment_graph;
 pub mod astar;
+pub mod bucket_heap;
 pub mod diagonal_map;
 pub mod heuristic;
 pub mod implicit_graph;
@@ -49,11 +50,22 @@ mod diagonal_vector_map {
     pub use crate::diagonal_map::Entry;
 }
 
+// Include one of these heap implementations.
+mod binary_heap_impl {
+    #[allow(dead_code)]
+    pub use std::collections::BinaryHeap as Heap;
+}
+mod bucket_heap_impl {
+    #[allow(dead_code)]
+    pub use crate::bucket_heap::BucketHeap as Heap;
+}
+
 pub mod prelude {
     pub use bio_types::sequence::Sequence;
 
     pub use super::fx_hash_map::*;
 
+    pub(crate) use super::bucket_heap_impl as heap;
     pub(crate) use super::diagonal_vector_map as diagonal_map;
 
     pub use crate::alignment_graph::Node;
@@ -643,7 +655,12 @@ mod tests {
 // - Use Pos(u32,u32) instead of Pos(usize,usize)
 // - HashMap<Pos, T> -> Deque<Vector<Option<T>>> indexed by (i-j, i+j) instead of HashMap.
 // - Use Vector<Vector> or so instead of priority queue
+//   - Compare with radix_heap rust crate
 // - Use array + sorting + binary search to find optimal path.
+// - Do Greedy extending of edges along diagonals
+//   - NOTE: This should also expand (and prune) all in-between states.
+//     Tight coupling with A* is needed to do this.
+//
 //
 // DONE: Fast Seed+Gap heuristic implementation:
 // - Bruteforce from bottom right to top left, fully processing everything all

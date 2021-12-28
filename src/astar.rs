@@ -1,14 +1,10 @@
-use std::collections::BinaryHeap;
-
 use std::hash::Hash;
-use std::ops::Sub;
+
+use petgraph::visit::{EdgeRef, GraphBase, IntoEdges, Visitable};
 
 use crate::diagonal_map::ToPos;
 use crate::prelude::*;
 use crate::scored::MinScored;
-use petgraph::visit::{EdgeRef, GraphBase, IntoEdges, Visitable};
-
-use petgraph::algo::Measure;
 
 /// \[Generic\] A* shortest path algorithm.
 ///
@@ -65,7 +61,7 @@ use petgraph::algo::Measure;
 ///
 /// Returns the total cost + the path of subsequent `NodeId` from start to finish, if one was
 /// found.
-pub fn astar<G, F, H, K, IsGoal, ExpandFn, ExploreFn>(
+pub fn astar<G, F, H, IsGoal, ExpandFn, ExploreFn>(
     graph: G,
     start: G::NodeId,
     mut is_goal: IsGoal,
@@ -76,25 +72,23 @@ pub fn astar<G, F, H, K, IsGoal, ExpandFn, ExploreFn>(
     retry_outdated: bool,
     double_expands: &mut usize,
     retries: &mut usize,
-) -> Option<(K, Vec<G::NodeId>)>
+) -> Option<(usize, Vec<G::NodeId>)>
 where
     G: IntoEdges + Visitable,
     IsGoal: FnMut(G::NodeId) -> bool,
     G::NodeId: Eq + Hash + Ord + ToPos,
-    F: FnMut(G::EdgeRef) -> K,
-    H: FnMut(G::NodeId) -> K,
-    K: Measure + Copy + std::fmt::Display + Ord,
-    K: Sub<K, Output = K>,
+    F: FnMut(G::EdgeRef) -> usize,
+    H: FnMut(G::NodeId) -> usize,
     ExpandFn: FnMut(G::NodeId),
     ExploreFn: FnMut(G::NodeId),
     <G as GraphBase>::NodeId: std::fmt::Debug,
 {
-    let mut visit_next = BinaryHeap::new(); // f-values, cost to reach + estimate cost to goal, and the node itself
+    let mut visit_next = heap::Heap::default(); // f-values, cost to reach + estimate cost to goal, and the node itself
     let mut scores = diagonal_map::DiagonalMap::default(); // g-values, cost to reach the node
     let mut estimate_scores = diagonal_map::DiagonalMap::default(); // f-values, cost to reach + estimate cost to goal
     let mut path_tracker = PathTracker::<G>::new();
 
-    let zero_score = K::default();
+    let zero_score = 0usize;
     scores.insert(start.to_pos(), zero_score);
     visit_next.push(MinScored(estimate_cost(start), start));
 
