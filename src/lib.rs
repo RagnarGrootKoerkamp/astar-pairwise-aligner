@@ -675,7 +675,6 @@ mod tests {
 // - Do Greedy extending of edges along diagonals
 //   - NOTE: This should also expand (and prune) all in-between states.
 //     Tight coupling with A* is needed to do this.
-// - Do Internal Iteration over outgoing edges, so they don't need to be collected.
 //
 //
 // DONE: Fast Seed+Gap heuristic implementation:
@@ -698,5 +697,7 @@ mod tests {
 // - delete consistency code
 // - delete incoming edges code
 // - more efficient edges iteration
+// - Pre-allocate DiagonalMap edges
+// - Do internal iteration over outgoing edges, instead of collecting them.
 
 // NOTE: Expanded states is counted as:
