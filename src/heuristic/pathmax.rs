@@ -1,4 +1,4 @@
-use super::heuristic::*;
+use super::*;
 use crate::{alignment_graph::Node, seeds::Match, util::*};
 
 #[derive(Debug, Copy, Clone)]
@@ -70,21 +70,16 @@ impl<'a, HI: HeuristicInstance<'a>> HeuristicInstance<'a> for PathMaxI<'a, HI> {
         let d = if pos.1 - parent.1 != pos.0 - parent.0 {
             assert!(pos.0 <= parent.0 + 1 && pos.1 <= parent.1 + 1);
             1
+        } else if self.a[parent.0] == self.b[parent.1] {
+            1 //0
         } else {
-            if self.a[parent.0] == self.b[parent.1] {
-                1 //0
-            } else {
-                assert!(pos.0 == parent.0 + 1 && pos.1 == parent.1 + 1);
-                1
-            }
+            assert!(pos.0 == parent.0 + 1 && pos.1 == parent.1 + 1);
+            1
         };
         let cur_state = self.heuristic.incremental_h(Node(parent, state), pos);
 
         (
-            max(
-                1 * (max(parent_h, d) - d),
-                self.heuristic.h(Node(pos, cur_state)),
-            ),
+            max(max(parent_h, d) - d, self.heuristic.h(Node(pos, cur_state))),
             cur_state,
         )
     }

@@ -70,8 +70,8 @@ pub fn find_matches<'a>(
         let mut long = false;
         let mut pos = 0;
         loop {
-            let seed_len = if long { l } else { l };
-            let max_match_cost = if long { max_match_cost } else { max_match_cost };
+            // TODO: Clever seed choice, using variable l and m.
+            let seed_len = l;
             if seed_len > a.len() {
                 break;
             }
@@ -104,7 +104,7 @@ pub fn find_matches<'a>(
     let mut qgrams = HashMap::<usize, QGramIndex>::default();
     for l in [l - 1, l, l + 1, l + 2, l + 3, l + 4] {
         // TODO: Profile this index and possibly use something more efficient for large l.
-        qgrams.insert(l, QGramIndex::new(l as u32, b, &text_alphabet));
+        qgrams.insert(l, QGramIndex::new(l as u32, b, text_alphabet));
     }
 
     let mut cur_potential = seed_qgrams.iter().map(|(_, _, cost, _)| cost + 1).sum();

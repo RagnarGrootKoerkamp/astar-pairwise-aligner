@@ -11,11 +11,15 @@ pub struct IncreasingFunction<K, V> {
     pub m: BTreeMap<K, V>,
 }
 
-impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> IncreasingFunction<K, V> {
-    pub fn new() -> Self {
-        IncreasingFunction { m: BTreeMap::new() }
+impl<K, V> Default for IncreasingFunction<K, V> {
+    fn default() -> Self {
+        Self {
+            m: Default::default(),
+        }
     }
+}
 
+impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> IncreasingFunction<K, V> {
     /// Set f(x) = y.
     /// Only inserts if y is larger than the current value at x.
     /// Returns whether insertion took place.
@@ -94,7 +98,7 @@ pub struct Node<T: Copy + hash::Hash + Eq> {
 }
 
 // (value, nodeindex). Orders only by increasing value.
-#[derive(Clone, Copy, Debug, Eq, Ord)]
+#[derive(Clone, Copy, Debug, Eq)]
 struct Value(usize, usize);
 impl PartialEq for Value {
     #[inline]
@@ -105,7 +109,13 @@ impl PartialEq for Value {
 impl PartialOrd for Value {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Value {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
     }
 }
 
@@ -143,14 +153,14 @@ impl IncreasingFunction2D<usize> {
             leftover_at_end,
         };
         s.build(target, ps);
-        assert!(s.nodes.len() > 0);
+        assert!(!s.nodes.is_empty());
         s
     }
 
-    fn build<'a>(&'a mut self, target: Pos, ps: Vec<Match>) {
+    fn build(&mut self, target: Pos, ps: Vec<Match>) {
         // ValuedPos(j, value) -> Value(max walk to target, parent idx).
         type F = IncreasingFunction<ValuedPos, Value>;
-        let mut front = F::new();
+        let mut front = F::default();
         let root = Pos(usize::MAX, usize::MAX);
 
         let push_node = |start: Pos, val: usize, front: &mut F, nodes: &mut Vec<Node<usize>>| {
@@ -183,17 +193,18 @@ impl IncreasingFunction2D<usize> {
 
                 // 3. Find `next`: The index of the node with this value, if present.
                 // This should just be the first incremental value after the current position.
-                let next = front.get_larger(ValuedPos(start.1, val)).and_then(
-                    |Value(nextval, next_idx)| {
-                        // Since we keep clean pareto fronts, this must always exist.
-                        // We can never skip a value.
-                        assert_eq!(nextval, val);
-                        // Prev/Next nodes are in direct correspondence.
-                        assert!(nodes[next_idx].prev.is_none());
-                        nodes[next_idx].prev = Some(id);
-                        Some(next_idx)
-                    },
-                );
+                let next =
+                    front
+                        .get_larger(ValuedPos(start.1, val))
+                        .map(|Value(nextval, next_idx)| {
+                            // Since we keep clean pareto fronts, this must always exist.
+                            // We can never skip a value.
+                            assert_eq!(nextval, val);
+                            // Prev/Next nodes are in direct correspondence.
+                            assert!(nodes[next_idx].prev.is_none());
+                            nodes[next_idx].prev = Some(id);
+                            next_idx
+                        });
 
                 //println!(
                 //"Push id {}: {:?} => {}, parent {:?} next {:?}",
@@ -312,7 +323,7 @@ impl IncreasingFunction2D<usize> {
     }
 
     #[inline]
-    pub fn root<'a>(&'a self) -> NodeIndex {
+    pub fn root(&self) -> NodeIndex {
         self.root
     }
 
@@ -320,11 +331,7 @@ impl IncreasingFunction2D<usize> {
     /// Use `incremental` below otherwise.
     /// Moves to the next/prev neighbour as long as needed, and then goes to parents.
     #[inline]
-    pub fn incremental_forward<'a>(
-        &'a self,
-        pos @ Pos(i, j): Pos,
-        mut hint_idx: NodeIndex,
-    ) -> NodeIndex {
+    pub fn incremental_forward(&self, pos @ Pos(i, j): Pos, mut hint_idx: NodeIndex) -> NodeIndex {
         //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {
             //println!("HINT: {}", hint_idx);
@@ -356,8 +363,8 @@ impl IncreasingFunction2D<usize> {
 
     // This also handles steps in the (1,-1) and (-1,1) quadrants.
     #[inline]
-    pub fn incremental<'a>(
-        &'a self,
+    pub fn incremental(
+        &self,
         pos @ Pos(i, j): Pos,
         mut hint_idx: NodeIndex,
         // TODO: Use this.

@@ -30,7 +30,7 @@ impl PartialOrd for Pos {
         if b == Ordering::Equal {
             return Some(a);
         }
-        return None;
+        None
     }
 }
 
@@ -74,7 +74,7 @@ pub fn mutations(k: usize, kmer: usize) -> Mutations {
         deletions.push((kmer & mask) | ((kmer & (!mask << 2)) >> 2));
     }
     for v in [&mut deletions, &mut substitutions, &mut insertions] {
-        v.sort();
+        v.sort_unstable();
         v.dedup();
     }
     // Remove original

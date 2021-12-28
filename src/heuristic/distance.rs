@@ -1,7 +1,6 @@
 /// An O(1) evaluation heuristic that can be used to lower bound the distance between any two positions.
 /// Used to get the distance between matches, instead of only distance to the end.
-use super::heuristic::*;
-use crate::prelude::*;
+use super::*;
 
 // TODO: Can we get away with only one of these two traits?
 pub trait DistanceHeuristic: Heuristic {
