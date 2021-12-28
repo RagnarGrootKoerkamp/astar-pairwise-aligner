@@ -75,7 +75,7 @@ impl<V> DiagonalMap<V> {
             // TODO: Reserving could be slightly more optimal.
             Above(i, _j) => {
                 while self.above.len() <= i {
-                    let len = max(self.target.0, self.target.1);
+                    let len = max(self.target.0, self.target.1) + 1;
                     self.above.resize_with(i + 1, || {
                         let mut vec = Vec::new();
                         vec.resize_with(len, || None);
@@ -85,7 +85,7 @@ impl<V> DiagonalMap<V> {
             }
             Below(i, _j) => {
                 if self.below.len() <= i {
-                    let len = max(self.target.0, self.target.1);
+                    let len = max(self.target.0, self.target.1) + 1;
                     self.below.resize_with(i + 1, || {
                         let mut vec = Vec::new();
                         vec.resize_with(len, || None);
