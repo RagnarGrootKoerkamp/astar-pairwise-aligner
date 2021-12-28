@@ -1,8 +1,8 @@
-use std::{collections::HashSet, hash, iter::Empty, ops::Deref};
+use std::{hash, iter::Empty, ops::Deref};
 
 use petgraph::visit::{
     Data, EdgeRef, GraphBase, IntoEdgeReferences, IntoEdges, IntoEdgesDirected, IntoNeighbors,
-    IntoNeighborsDirected, Visitable,
+    IntoNeighborsDirected,
 };
 
 /// Source, Target, Cost
@@ -22,12 +22,6 @@ pub trait ImplicitGraphBase {
 }
 pub struct ImplicitGraph<G: ImplicitGraphBase>(G);
 
-impl<G: ImplicitGraphBase + Clone> Clone for ImplicitGraph<G> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
 impl<G: ImplicitGraphBase> ImplicitGraph<G> {
     pub fn new(g: G) -> ImplicitGraph<G> {
         ImplicitGraph(g)
@@ -37,6 +31,7 @@ impl<G: ImplicitGraphBase> ImplicitGraph<G> {
 impl<G: ImplicitGraphBase> Deref for ImplicitGraph<G> {
     type Target = G;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -47,12 +42,15 @@ impl<Node: Copy> EdgeRef for Edge<Node> {
     type NodeId = Node;
     type EdgeId = ();
     type Weight = ();
+    #[inline]
     fn source(&self) -> Self::NodeId {
         self.0
     }
+    #[inline]
     fn target(&self) -> Self::NodeId {
         self.1
     }
+    #[inline]
     fn weight(&self) -> &Self::Weight {
         &()
     }
@@ -93,20 +91,11 @@ impl<'a, G: ImplicitGraphBase> IntoNeighborsDirected for &'a ImplicitGraph<G> {
         unimplemented!("Calls should be made to edges_directed(node) instead.");
     }
 }
-impl<G: ImplicitGraphBase> Visitable for ImplicitGraph<G> {
-    type Map = HashSet<Self::NodeId>;
-    fn visit_map(&self) -> Self::Map {
-        HashSet::new()
-    }
-
-    fn reset_map(&self, map: &mut Self::Map) {
-        map.clear();
-    }
-}
 
 impl<'a, G: ImplicitGraphBase> IntoEdges for &'a ImplicitGraph<G> {
     type Edges = G::Edges;
 
+    #[inline]
     fn edges(self, a: Self::NodeId) -> Self::Edges {
         self.0.edges_directed(a, petgraph::EdgeDirection::Outgoing)
     }
@@ -115,6 +104,7 @@ impl<'a, G: ImplicitGraphBase> IntoEdges for &'a ImplicitGraph<G> {
 impl<'a, G: ImplicitGraphBase> IntoEdgesDirected for &'a ImplicitGraph<G> {
     type EdgesDirected = G::Edges;
 
+    #[inline]
     fn edges_directed(self, a: Self::NodeId, dir: petgraph::EdgeDirection) -> Self::EdgesDirected {
         self.0.edges_directed(a, dir)
     }
@@ -127,6 +117,7 @@ pub trait IterateEdgesDirected: GraphBase + IntoEdgeReferences {
 }
 
 impl<'a, G: ImplicitGraphBase> IterateEdgesDirected for &'a ImplicitGraph<G> {
+    #[inline]
     fn iterate_edges_directed<F>(&self, u: Self::NodeId, dir: petgraph::EdgeDirection, f: F)
     where
         F: FnMut(Self::EdgeRef),

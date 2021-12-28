@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use petgraph::visit::{EdgeRef, GraphBase, IntoEdges, Visitable};
+use petgraph::visit::{EdgeRef, GraphBase, IntoEdges};
 
 use crate::diagonal_map::ToPos;
 use crate::implicit_graph::IterateEdgesDirected;
@@ -75,7 +75,7 @@ pub fn astar<G, F, H, ExpandFn, ExploreFn>(
     retries: &mut usize,
 ) -> Option<(usize, Vec<Pos>)>
 where
-    G: IntoEdges + Visitable + IterateEdgesDirected,
+    G: IntoEdges + IterateEdgesDirected,
     G::NodeId: Eq + Hash + Ord + ToPos,
     F: FnMut(G::EdgeRef) -> usize,
     H: FnMut(G::NodeId) -> usize,
