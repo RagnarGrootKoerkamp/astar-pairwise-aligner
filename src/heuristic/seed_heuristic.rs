@@ -289,7 +289,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         let d = if self.params.query_fast {
             let p = self.seed_matches.potential(pos);
             let val = self.increasing_function.val(parent);
-            if parent == 0 {
+            if parent == self.increasing_function.bot {
                 self.distance(pos, self.target)
             } else {
                 p - val
