@@ -3,6 +3,7 @@ use std::hash::Hash;
 use petgraph::visit::{EdgeRef, GraphBase, IntoEdges, Visitable};
 
 use crate::diagonal_map::ToPos;
+use crate::implicit_graph::IterateEdgesDirected;
 use crate::prelude::*;
 use crate::scored::MinScored;
 
@@ -74,7 +75,7 @@ pub fn astar<G, F, H, ExpandFn, ExploreFn>(
     retries: &mut usize,
 ) -> Option<(usize, Vec<Pos>)>
 where
-    G: IntoEdges + Visitable,
+    G: IntoEdges + Visitable + IterateEdgesDirected,
     G::NodeId: Eq + Hash + Ord + ToPos,
     F: FnMut(G::EdgeRef) -> usize,
     H: FnMut(G::NodeId) -> usize,
@@ -136,7 +137,7 @@ where
         // Number of times we compute the neighbours of a node.
         on_expand(node);
 
-        for edge in graph.edges(node) {
+        graph.iterate_edges_directed(node, petgraph::EdgeDirection::Outgoing, |edge| {
             let next = edge.target();
             let next_score = node_score + edge_cost(edge);
 
@@ -145,7 +146,7 @@ where
                     // No need to add neighbours that we have already reached through a shorter path
                     // than now.
                     if *entry.get() <= next_score {
-                        continue;
+                        return;
                     }
                     entry.insert(next_score);
                 }
@@ -171,7 +172,7 @@ where
             //     next_estimate_score - next_score
             // );
             visit_next.push(MinScored(next_estimate_score, next));
-        }
+        });
     }
 
     None
