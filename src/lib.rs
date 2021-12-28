@@ -21,6 +21,12 @@ pub mod util;
 
 extern crate test;
 
+#[cfg(debug_assertions)]
+const DEBUG: bool = true;
+
+#[cfg(not(debug_assertions))]
+const DEBUG: bool = false;
+
 // Include one of these to swtich to the faster FxHashMap hashing algorithm.
 mod hash_map {
     #[allow(dead_code)]
@@ -304,7 +310,9 @@ pub fn align<'a, H: Heuristic>(
         // heuristic function
         |state| {
             let v = h.borrow().h(state);
-            *h_values.entry(v).or_insert(0) += 1;
+            if DEBUG {
+                *h_values.entry(v).or_insert(0) += 1;
+            }
             v
         },
         // Expand
@@ -312,13 +320,17 @@ pub fn align<'a, H: Heuristic>(
             //println!("EXPAND {:?}", pos);
             //make_dot(pos, '*', is_end_calls);
             expanded += 1;
-            expanded_states.push(pos);
+            if DEBUG {
+                expanded_states.push(pos);
+            }
             h.borrow_mut().prune(pos);
         },
         // Explore
         |Node(pos, _)| {
             explored += 1;
-            explored_states.push(pos);
+            if DEBUG {
+                explored_states.push(pos);
+            }
         },
         /*retry_outdated*/ true,
         &mut double_expanded,
@@ -344,13 +356,24 @@ pub fn align<'a, H: Heuristic>(
         sum as f32 / cnt as f32
     };
 
-    let path = path.into_iter().map(|Node(pos, _)| pos).collect();
+    let path = if DEBUG {
+        path.into_iter().collect()
+    } else {
+        Default::default()
+    };
     let h = h.borrow();
 
-    let path_matches = h.matches().map(|x| num_matches_on_path(&path, x));
-    let explored_matches = h
-        .matches()
-        .map(|x| num_matches_on_path(&explored_states, x));
+    let path_matches = if DEBUG {
+        h.matches().map(|x| num_matches_on_path(&path, x))
+    } else {
+        Default::default()
+    };
+    let explored_matches = if DEBUG {
+        h.matches()
+            .map(|x| num_matches_on_path(&explored_states, x))
+    } else {
+        Default::default()
+    };
     AlignResult {
         heuristic_params: heuristic.params(),
         input: sequence_stats,
@@ -674,5 +697,10 @@ mod tests {
 // - sort nodes closer to target first, among those with equal distance+h estimate
 //   - this almost halves the part of the bandwidth above 1.
 // - Pruning correctness: Do not prune matches that are next to a better match.
+// - A* optimizations: together 4x speedup
+//   - HashMap -> FxHashMap: a faster hash function for ints
+//   - HashMap -> DiagonalMap: for expanded/explored states, since these are dense on the diagonal.
+//   - BinaryHeap -> BucketHeap: much much faster; turns log(n) pop into O(1) push&pop
+//     - For unknown reasons, sorting positions before popping them makes more expanded states, but faster code.
 
 // NOTE: Expanded states is counted as:

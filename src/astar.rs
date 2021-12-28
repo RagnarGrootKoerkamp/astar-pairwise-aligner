@@ -72,7 +72,7 @@ pub fn astar<G, F, H, IsGoal, ExpandFn, ExploreFn>(
     retry_outdated: bool,
     double_expands: &mut usize,
     retries: &mut usize,
-) -> Option<(usize, Vec<G::NodeId>)>
+) -> Option<(usize, Vec<Pos>)>
 where
     G: IntoEdges + Visitable,
     IsGoal: FnMut(G::NodeId) -> bool,
@@ -86,7 +86,7 @@ where
     let mut visit_next = heap::Heap::default(); // f-values, cost to reach + estimate cost to goal, and the node itself
     let mut scores = diagonal_map::DiagonalMap::default(); // g-values, cost to reach the node
     let mut estimate_scores = diagonal_map::DiagonalMap::default(); // f-values, cost to reach + estimate cost to goal
-    let mut path_tracker = PathTracker::<G>::new();
+    let mut path_tracker = PathTracker::new();
 
     let zero_score = 0usize;
     scores.insert(start.to_pos(), zero_score);
@@ -98,7 +98,7 @@ where
         let node_score = scores[&node.to_pos()];
 
         if is_goal(node) {
-            let path = path_tracker.reconstruct_path_to(node);
+            let path = path_tracker.reconstruct_path_to(node.to_pos());
             return Some((node_score, path));
         }
 
@@ -158,7 +158,7 @@ where
             // Number of pushes on the stack.
             on_explore(next);
 
-            path_tracker.set_predecessor(next, node);
+            path_tracker.set_predecessor(next.to_pos(), node.to_pos());
             let next_estimate_score = next_score + estimate_cost(next);
             // FIXME: Enable this assert
             // assert!(
@@ -178,30 +178,22 @@ where
     None
 }
 
-struct PathTracker<G>
-where
-    G: GraphBase,
-    G::NodeId: Eq + Hash,
-{
-    came_from: diagonal_map::DiagonalMap<G::NodeId>,
+struct PathTracker {
+    came_from: diagonal_map::DiagonalMap<Pos>,
 }
 
-impl<G> PathTracker<G>
-where
-    G: GraphBase,
-    G::NodeId: Eq + Hash + ToPos,
-{
-    fn new() -> PathTracker<G> {
+impl PathTracker {
+    fn new() -> PathTracker {
         PathTracker {
             came_from: Default::default(),
         }
     }
 
-    fn set_predecessor(&mut self, node: G::NodeId, previous: G::NodeId) {
-        self.came_from.insert(node.to_pos(), previous);
+    fn set_predecessor(&mut self, node: Pos, previous: Pos) {
+        self.came_from.insert(node, previous);
     }
 
-    fn reconstruct_path_to(&self, last: G::NodeId) -> Vec<G::NodeId> {
+    fn reconstruct_path_to(&self, last: Pos) -> Vec<Pos> {
         let mut path = vec![last];
 
         let mut current = last;
