@@ -78,7 +78,7 @@ pub trait HeuristicInstance<'a> {
     fn prune(&mut self, _pos: Pos) {}
 
     // TODO: Simplify this, and just use a map inside the heuristic.
-    type IncrementalState: std::hash::Hash + Eq + Copy + Default + std::fmt::Debug = ();
+    type IncrementalState: Eq + Copy + Default + std::fmt::Debug = ();
     fn incremental_h(&self, _parent: HNode<'a, Self>, _pos: Pos) -> Self::IncrementalState {
         Default::default()
     }

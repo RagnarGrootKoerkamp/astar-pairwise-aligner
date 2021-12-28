@@ -79,7 +79,9 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
     }
 }
 
-pub type NodeIndex = usize;
+// A private wrapper type. Indices should be hidden to the outside world.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct NodeIndex(usize);
 
 // We guarantee that the function always contains (0,0), so lookup will always succeed.
 #[derive(Default)]
@@ -92,7 +94,7 @@ pub struct IncreasingFunction2D<T: Copy + hash::Hash + Eq> {
     leftover_at_end: bool,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Node<T: Copy + hash::Hash + Eq> {
     pub pos: Pos,
     pub val: T,
@@ -102,9 +104,22 @@ pub struct Node<T: Copy + hash::Hash + Eq> {
     child: Option<NodeIndex>,
 }
 
+impl<T: Copy + hash::Hash + Eq> std::ops::Index<NodeIndex> for Vec<Node<T>> {
+    type Output = Node<T>;
+
+    fn index(&self, index: NodeIndex) -> &Self::Output {
+        &self[index.0 as usize]
+    }
+}
+impl<T: Copy + hash::Hash + Eq> std::ops::IndexMut<NodeIndex> for Vec<Node<T>> {
+    fn index_mut(&mut self, index: NodeIndex) -> &mut Self::Output {
+        &mut self[index.0 as usize]
+    }
+}
+
 // (value, nodeindex). Orders only by increasing value.
 #[derive(Clone, Copy, Debug, Eq)]
-struct Value(usize, usize);
+struct Value(usize, NodeIndex);
 impl PartialEq for Value {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -153,9 +168,9 @@ impl IncreasingFunction2D<usize> {
     pub fn new(target: Pos, leftover_at_end: bool, ps: Vec<Match>) -> Self {
         let mut s = Self {
             nodes: Vec::new(),
-            bot: 0,
+            bot: NodeIndex(0),
             // Placeholder until properly set in build.
-            root: 0,
+            root: NodeIndex(0),
             leftover_at_end,
         };
         s.build(target, ps);
@@ -195,7 +210,7 @@ impl IncreasingFunction2D<usize> {
             // 2. Insert nodes for all values up to the current value, to have consistent pareto fronts.
             for val in next_val..=val {
                 // The id of the node we're adding here.
-                let id = nodes.len();
+                let id = NodeIndex(nodes.len());
 
                 // 3. Find `next`: The index of the node with this value, if present.
                 // This should just be the first incremental value after the current position.
@@ -337,19 +352,19 @@ impl IncreasingFunction2D<usize> {
         let mut perm = (0..self.nodes.len()).collect_vec();
         perm.sort_by_key(|i| (Reverse(self.nodes[*i].val), (self.nodes[*i].pos.0)));
         let mut inv = vec![0; self.nodes.len()];
-        for (i, x) in perm.iter().enumerate() {
-            inv[*x] = i;
+        for (i, &x) in perm.iter().enumerate() {
+            inv[x] = i;
         }
 
         // Update pointers.
         self.nodes.iter_mut().for_each(|node| {
-            node.child.as_mut().map(|c| *c = inv[*c]);
-            node.parent.as_mut().map(|c| *c = inv[*c]);
-            node.next.as_mut().map(|c| *c = inv[*c]);
-            node.prev.as_mut().map(|c| *c = inv[*c]);
+            node.child.as_mut().map(|c| c.0 = inv[c.0]);
+            node.parent.as_mut().map(|c| c.0 = inv[c.0]);
+            node.next.as_mut().map(|c| c.0 = inv[c.0]);
+            node.prev.as_mut().map(|c| c.0 = inv[c.0]);
         });
-        self.bot = inv[self.bot];
-        self.root = inv[self.root];
+        self.bot.0 = inv[self.bot.0];
+        self.root.0 = inv[self.root.0];
 
         // Reorder elements.
         self.nodes = perm.into_iter().map(|idx| self.nodes[idx]).collect_vec();
@@ -582,9 +597,9 @@ mod tests {
         assert_eq!(f.nodes.len(), 10);
 
         // Test Jump
-        assert_eq!(f.incremental_forward(Pos(4, 9), 1), 0);
-        assert_eq!(f.incremental_forward(Pos(7, 5), 5), 3);
-        assert_eq!(f.incremental_forward(Pos(3, 9), 2), 9);
-        assert_eq!(f.incremental_forward(Pos(3, 7), 2), 8);
+        assert_eq!(f.incremental_forward(Pos(4, 9), NodeIndex(1)), NodeIndex(0));
+        assert_eq!(f.incremental_forward(Pos(7, 5), NodeIndex(5)), NodeIndex(3));
+        assert_eq!(f.incremental_forward(Pos(3, 9), NodeIndex(2)), NodeIndex(9));
+        assert_eq!(f.incremental_forward(Pos(3, 7), NodeIndex(2)), NodeIndex(8));
     }
 }
