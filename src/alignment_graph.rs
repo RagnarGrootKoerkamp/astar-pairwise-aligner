@@ -53,13 +53,8 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
         // - in case of match, only walk as far on diagonal as possible.
         // TODO: More greedy: After indel edge, we can still eat more exact matches.
 
-        let is_match = |pos @ Pos(i, j): Pos| match dir {
-            petgraph::EdgeDirection::Outgoing => {
-                pos.0 < self.target.0 && pos.1 < self.target.1 && self.a[i] == self.b[j]
-            }
-            petgraph::EdgeDirection::Incoming => {
-                0 < pos.0 && 0 < pos.1 && self.a[i - 1] == self.b[j - 1]
-            }
+        let is_match = |pos @ Pos(i, j): Pos| {
+            pos.0 < self.target.0 && pos.1 < self.target.1 && self.a[i] == self.b[j]
         };
 
         let extend_diagonally = |mut pos: Pos| -> Pos {
@@ -93,39 +88,20 @@ impl<'a> ImplicitGraphBase for AlignmentGraphBase<'a> {
                 &DELTAS[..]
             })
             .iter()
-            .filter_map(|&(di, dj)| match dir {
-                petgraph::EdgeDirection::Outgoing => {
-                    let pos = Pos(i + di, j + dj);
-                    if pos <= self.target {
-                        Some(Edge(
-                            u,
-                            extend_diagonally(pos),
-                            if (di, dj) == (1, 1) && self.a[i] == self.b[j] {
-                                0
-                            } else {
-                                1
-                            },
-                        ))
-                    } else {
-                        None
-                    }
-                }
-                petgraph::EdgeDirection::Incoming => {
-                    if di <= i && dj <= j {
-                        let pos = Pos(i - di, j - dj);
-                        Some(Edge(
-                            // TODO: Extend incoming edges.
-                            pos,
-                            u,
-                            if (di, dj) == (1, 1) && self.a[i - di] == self.b[j - dj] {
-                                0
-                            } else {
-                                1
-                            },
-                        ))
-                    } else {
-                        None
-                    }
+            .filter_map(|&(di, dj)| {
+                let pos = Pos(i + di, j + dj);
+                if pos <= self.target {
+                    Some(Edge(
+                        u,
+                        extend_diagonally(pos),
+                        if (di, dj) == (1, 1) && self.a[i] == self.b[j] {
+                            0
+                        } else {
+                            1
+                        },
+                    ))
+                } else {
+                    None
                 }
             })
             .collect()
@@ -196,17 +172,11 @@ pub fn incremental_edges<'a, R: Deref<Target = H>, H: HeuristicInstance<'a>>(
     u @ Node(cur_pos, _): Node<H::IncrementalState>,
     dir: petgraph::EdgeDirection,
 ) -> arrayvec::IntoIter<Edge<Node<H::IncrementalState>>, 3> {
+    assert_eq!(dir, petgraph::EdgeDirection::Outgoing);
     let edges = new_alignment_graph(a, b).edges_directed(cur_pos, dir);
-    let nbs: ArrayVec<Edge<Node<H::IncrementalState>>, 3> = match dir {
-        petgraph::EdgeDirection::Outgoing => edges
-            .map(|Edge(.., end, cost)| Edge(u, Node(end, (*heuristic).incremental_h(u, end)), cost))
-            .collect(),
-        petgraph::EdgeDirection::Incoming => edges
-            .map(|Edge(start, .., cost)| {
-                Edge(Node(start, (*heuristic).incremental_h(u, start)), u, cost)
-            })
-            .collect(),
-    };
+    let nbs: ArrayVec<Edge<Node<H::IncrementalState>>, 3> = edges
+        .map(|Edge(.., end, cost)| Edge(u, Node(end, (*heuristic).incremental_h(u, end)), cost))
+        .collect();
     nbs.into_iter()
 }
 
