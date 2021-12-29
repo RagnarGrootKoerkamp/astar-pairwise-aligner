@@ -30,7 +30,7 @@ impl<T: std::cmp::Ord> BucketHeap<T> {
             if self.next == self.next_sort {
                 if let Some(layer) = self.layers.get_mut(self.next_sort) {
                     // TODO: Use sort_unstable here?
-                    layer.sort();
+                    layer.sort_unstable();
                 }
                 self.next_sort += 1;
             }

@@ -50,13 +50,14 @@ pub struct Mutations {
 // TODO: Move to seeds.rs.
 pub fn mutations(k: usize, kmer: usize) -> Mutations {
     // This assumes the alphabet size is 4.
-    let mut deletions = Vec::new();
-    let mut substitutions = Vec::new();
-    let mut insertions = Vec::new();
+    let mut deletions = Vec::with_capacity(k);
+    let mut substitutions = Vec::with_capacity(4 * k);
+    let mut insertions = Vec::with_capacity(4 * (k + 1));
     // Substitutions
     for i in 0..k {
         let mask = !(3 << (2 * i));
         for s in 0..4 {
+            // TODO: Skip the identity substitution.
             substitutions.push((kmer & mask) | s << (2 * i));
         }
     }
@@ -74,6 +75,7 @@ pub fn mutations(k: usize, kmer: usize) -> Mutations {
         deletions.push((kmer & mask) | ((kmer & (!mask << 2)) >> 2));
     }
     for v in [&mut deletions, &mut substitutions, &mut insertions] {
+        // TODO: This sorting is slow; maybe we can work around it.
         v.sort_unstable();
         v.dedup();
     }
