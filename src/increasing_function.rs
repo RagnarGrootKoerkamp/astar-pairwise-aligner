@@ -25,6 +25,7 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
     /// Set f(x) = y.
     /// Only inserts if y is larger than the current value at x.
     /// Returns whether insertion took place.
+    #[inline]
     pub fn set(&mut self, x: K, y: V) -> bool {
         //println!("Set {:?} to {:?}", x, y);
         let cur_val = self.get(x);
@@ -47,11 +48,13 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
     }
 
     /// Get the largest value in the map.
+    #[inline]
     pub fn max(&self) -> Option<V> {
         self.m.range(RangeFull).next_back().map(|(_, y)| *y)
     }
 
     /// Get f(x): the y for the largest key <= x inserted into the map.
+    #[inline]
     pub fn get(&self, x: K) -> Option<V> {
         let v = self
             .m
@@ -63,6 +66,7 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
     }
 
     /// f(x') for the largest x' < x inserted into the map.
+    #[inline]
     pub fn get_smaller(&self, x: K) -> Option<V> {
         self.m
             .range((Unbounded, Excluded(x)))
@@ -71,6 +75,7 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
     }
 
     /// f(x') for the smallest x' > x inserted into the map.
+    #[inline]
     pub fn get_larger(&self, x: K) -> Option<V> {
         self.m
             .range((Excluded(x), Unbounded))
@@ -88,7 +93,7 @@ pub struct NodeIndex(usize);
 pub struct IncreasingFunction2D<T: Copy + hash::Hash + Eq> {
     nodes: Vec<Node<T>>,
     // val=0
-    pub bot: NodeIndex,
+    bot: NodeIndex,
     // val=max
     root: NodeIndex,
     leftover_at_end: bool,
@@ -371,6 +376,11 @@ impl IncreasingFunction2D<usize> {
     }
 
     #[inline]
+    pub fn bot(&self) -> NodeIndex {
+        self.bot
+    }
+
+    #[inline]
     pub fn root(&self) -> NodeIndex {
         self.root
     }
@@ -422,16 +432,16 @@ impl IncreasingFunction2D<usize> {
             return hint_idx;
         }
         // TODO: This is ugly, but it should work for now as backward steps are small.
-        if !(pos >= hint_pos) {
-            if let Some(x) = self.nodes[hint_idx].child {
-                hint_idx = x;
-            }
-            if let Some(x) = self.nodes[hint_idx].child {
-                if self.nodes[hint_idx].pos == self.nodes[x].pos {
-                    hint_idx = x;
-                }
-            }
+        //if !(pos >= hint_pos) {
+        if let Some(x) = self.nodes[hint_idx].child {
+            hint_idx = x;
         }
+        if let Some(x) = self.nodes[hint_idx].child {
+            //if self.nodes[hint_idx].pos == self.nodes[x].pos {
+            hint_idx = x;
+            //}
+        }
+        //}
 
         //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {

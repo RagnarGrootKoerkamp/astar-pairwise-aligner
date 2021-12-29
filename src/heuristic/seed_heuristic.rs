@@ -289,7 +289,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
         let d = if self.params.query_fast {
             let p = self.seed_matches.potential(pos);
             let val = self.increasing_function.val(parent);
-            if parent == self.increasing_function.bot {
+            if parent == self.increasing_function.bot() {
                 self.distance(pos, self.target)
             } else {
                 p - val
@@ -511,8 +511,8 @@ mod tests {
                             let h_fast = h_fast.build(&a, &b, &alphabet);
                             let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
                             let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
-                            h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
-                            h_fast_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                            h_slow_map.sort_unstable_by_key(|&(Pos(i, j), _)| (i, j));
+                            h_fast_map.sort_unstable_by_key(|&(Pos(i, j), _)| (i, j));
                             assert_eq!(h_slow_map, h_fast_map);
                         }
 

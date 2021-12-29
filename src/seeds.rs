@@ -102,7 +102,7 @@ pub fn find_matches<'a>(
     let mut matches = Vec::<Match>::new();
 
     let mut qgrams = HashMap::<usize, QGramIndex>::default();
-    for l in [l - 1, l, l + 1, l + 2, l + 3, l + 4] {
+    for l in [l - 1, l, l + 1] {
         // TODO: Profile this index and possibly use something more efficient for large l.
         qgrams.insert(l, QGramIndex::new(l as u32, b, text_alphabet));
     }
@@ -167,7 +167,8 @@ pub fn find_matches<'a>(
     //println!("{:?}", potential);
     //println!("{:?}", start_of_seed);
 
-    matches.sort_by_key(|&Match { start, .. }| (start.0, start.1));
+    // TODO: This sorting could be a no-op if we generate matches in order.
+    matches.sort_unstable_by_key(|&Match { start, .. }| (start.0, start.1));
     //for m in &matches {
     //println!("{:?}", m);
     //}

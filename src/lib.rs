@@ -679,6 +679,8 @@ mod tests {
 // - Do Greedy extending of edges along diagonals
 //   - NOTE: This should also expand (and prune) all in-between states.
 //     Tight coupling with A* is needed to do this.
+// - Replace QGramIndex by something less memory hungry
+// - Skip insertions at the start/end of seeds.
 //
 //
 // DONE: Fast Seed+Gap heuristic implementation:
