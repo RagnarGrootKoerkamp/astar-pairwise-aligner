@@ -5,7 +5,7 @@ use crate::{prelude::*, seeds::Match};
 
 #[derive(Debug, Copy, Clone)]
 pub struct PathMax<H: Heuristic> {
-    pub heuristic: H,
+    heuristic: H,
 }
 
 impl<H: Heuristic> Heuristic for PathMax<H> {
