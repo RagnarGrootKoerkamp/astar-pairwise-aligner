@@ -72,45 +72,40 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
     type Data = ();
     type DiagonalMap<T> = DiagonalMap<T>;
 
+    #[inline]
     fn root(&self) -> Self::Pos {
         Pos(0, 0)
     }
 
+    #[inline]
     fn target(&self) -> Self::Pos {
         self.target
     }
 
+    #[inline]
+    fn is_match(&self, Node(Pos(i, j), _): NodeG<Self>) -> Option<NodeG<Self>> {
+        if i < self.target.0 && j < self.target.1 && self.a[i] == self.b[j] {
+            Some(Node(Pos(i + 1, j + 1), ()))
+        } else {
+            None
+        }
+    }
+
     /// Internal iterator to get the edges from a position.
     #[inline]
-    fn iterate_outgoing_edges<F>(&self, Node(u @ Pos(i, j), _): NodeG<Self>, mut f: F)
+    fn iterate_outgoing_edges<F>(&self, n @ Node(Pos(i, j), _): NodeG<Self>, mut f: F)
     where
         F: FnMut(NodeG<Self>, usize),
     {
-        const DELTAS: [(usize, usize); 3] = [(1, 1), (1, 0), (0, 1)];
-        const DIAGONAL_DELTAS: [(usize, usize); 1] = [(1, 1)];
         // Take any of the 3 edges, and then walk as much diagonally as possible.
-        const GREEDY_AT_END: bool = false;
-        let is_match = |pos @ Pos(i, j): Pos| {
-            pos.0 < self.target.0 && pos.1 < self.target.1 && self.a[i] == self.b[j]
-        };
-        let extend_diagonally = |mut pos: Pos| -> Pos {
-            if GREEDY_AT_END {
-                while is_match(pos) {
-                    pos = Pos(pos.0 + 1, pos.1 + 1)
-                }
-            }
-            pos
-        };
-        let is_match = is_match(u);
-        for &(di, dj) in if is_match {
-            &DIAGONAL_DELTAS[..]
+        if let Some(n) = self.is_match(n) {
+            f(n, 0);
         } else {
-            &DELTAS[..]
-        } {
-            let pos = Pos(i + di, j + dj);
-            if pos <= self.target {
-                let cost = if is_match { 0 } else { 1 };
-                f(Node(extend_diagonally(pos), ()), cost)
+            for (di, dj) in [(1, 0), (0, 1), (1, 1)] {
+                let pos = Pos(i + di, j + dj);
+                if pos <= self.target {
+                    f(Node(pos, ()), 1)
+                }
             }
         }
     }
@@ -144,12 +139,24 @@ where
     type Data = H::IncrementalState;
     type DiagonalMap<T> = DiagonalMap<T>;
 
+    #[inline]
     fn root(&self) -> Self::Pos {
-        Pos(0, 0)
+        self.graph.root()
     }
 
+    #[inline]
     fn target(&self) -> Self::Pos {
-        self.graph.target
+        self.graph.target()
+    }
+
+    #[inline]
+    fn is_match(&self, u: NodeG<Self>) -> Option<NodeG<Self>> {
+        self.graph.is_match(Node(u.to_pos(), ())).map(|v| {
+            Node(
+                v.to_pos(),
+                self.heuristic.borrow().incremental_h(u, v.to_pos(), 0),
+            )
+        })
     }
 
     #[inline]

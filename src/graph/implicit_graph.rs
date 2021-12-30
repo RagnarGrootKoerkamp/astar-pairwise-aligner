@@ -62,6 +62,10 @@ pub trait ImplicitGraph {
     fn root(&self) -> Self::Pos;
     fn target(&self) -> Self::Pos;
 
+    fn is_match(&self, _u: NodeG<Self>) -> Option<NodeG<Self>> {
+        None
+    }
+
     fn iterate_outgoing_edges<F>(&self, u: NodeG<Self>, f: F)
     where
         F: FnMut(NodeG<Self>, usize),
