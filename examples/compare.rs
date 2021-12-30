@@ -9,9 +9,9 @@ fn main() {
 
     let ns = [4_000, 8_000, 16_000, 32_000];
     let es = [0.20];
-    let lm = [(8, 1), (9, 1)];
-    let prunings = [false, true];
-    let build_fast = [(true, false), (true, true)];
+    let lm = [(8, 1)];
+    let prunings = [false];
+    let build_fast = [(false, false), (true, false), (true, true)];
 
     AlignResult::print_header();
     for (&n, e) in ns.iter().cartesian_product(es) {
@@ -19,9 +19,6 @@ fn main() {
             for pruning in prunings {
                 for (build_fast, query_fast) in build_fast {
                     if pruning && query_fast {
-                        continue;
-                    }
-                    if !pruning && !query_fast {
                         continue;
                     }
                     let result = {
