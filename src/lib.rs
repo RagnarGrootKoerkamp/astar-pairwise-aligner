@@ -624,7 +624,6 @@ mod tests {
 //
 // TODO: Heuristics / Correctness
 // - Investigate double start of seed expansion
-// - Investigate (Fast build, Slow query) producing incorrect values
 //
 // TODO: Code
 // - fuzzing/testing that fast impls equal slow impls

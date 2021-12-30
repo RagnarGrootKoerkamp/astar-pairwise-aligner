@@ -1,4 +1,5 @@
 use std::cmp::{Ord, Reverse};
+use std::collections::btree_map::{OccupiedEntry, VacantEntry};
 use std::collections::BTreeMap;
 use std::hash;
 use std::ops::Bound::{Excluded, Included, Unbounded};
@@ -473,13 +474,25 @@ impl IncreasingFunction2D<usize> {
     }
 
     pub fn to_map(&self) -> HashMap<Pos, usize> {
-        self.nodes
-            .iter()
-            .filter_map(|&Node { pos, val, .. }| match pos {
-                Pos(usize::MAX, usize::MAX) => None,
-                _ => Some((pos, val)),
-            })
-            .collect()
+        // There can be multiple nodes at the same position. In that case we take the maximum value.
+        let mut m = HashMap::default();
+        for &Node { pos, val, .. } in &self.nodes {
+            if pos == Pos(usize::MAX, usize::MAX) {
+                continue;
+            }
+
+            match m.entry(pos) {
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(val);
+                }
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    if *entry.get() < val {
+                        entry.insert(val);
+                    }
+                }
+            }
+        }
+        m
     }
 }
 
