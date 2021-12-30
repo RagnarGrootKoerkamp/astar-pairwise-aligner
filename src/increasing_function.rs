@@ -426,22 +426,26 @@ impl IncreasingFunction2D<usize> {
         pos @ Pos(i, j): Pos,
         mut hint_idx: NodeIndex,
         // TODO: Use this.
-        _hint_pos: Pos,
+        hint_pos: Pos,
     ) -> NodeIndex {
         if self.nodes.is_empty() {
             return hint_idx;
         }
+        // Small optimization, since this is the common case after transformation.
+        if pos == hint_pos {
+            return hint_idx;
+        }
         // TODO: This is ugly, but it should work for now as backward steps are small.
-        //if !(pos >= hint_pos) {
-        if let Some(x) = self.nodes[hint_idx].child {
-            hint_idx = x;
+        if !(pos >= hint_pos) {
+            if let Some(x) = self.nodes[hint_idx].child {
+                hint_idx = x;
+            }
+            if let Some(x) = self.nodes[hint_idx].child {
+                //if self.nodes[hint_idx].pos == self.nodes[x].pos {
+                hint_idx = x;
+                //}
+            }
         }
-        if let Some(x) = self.nodes[hint_idx].child {
-            //if self.nodes[hint_idx].pos == self.nodes[x].pos {
-            hint_idx = x;
-            //}
-        }
-        //}
 
         //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {
