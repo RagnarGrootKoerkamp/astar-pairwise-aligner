@@ -1,5 +1,4 @@
 use std::cmp::{Ord, Reverse};
-use std::collections::btree_map::{OccupiedEntry, VacantEntry};
 use std::collections::BTreeMap;
 use std::hash;
 use std::ops::Bound::{Excluded, Included, Unbounded};
@@ -506,14 +505,6 @@ mod tests {
         assert_eq!(f.nodes.len(), 1);
     }
 
-    fn to_map(f: &IncreasingFunction2D<usize>) -> HashMap<Pos, super::Node<usize>> {
-        f.nodes
-            .iter()
-            .copied()
-            .map(|n @ super::Node { pos, .. }| (pos, n))
-            .collect()
-    }
-
     #[test]
     fn test_cross() {
         for start_x in [7, 6] {
@@ -563,9 +554,12 @@ mod tests {
             for x in &f.nodes {
                 println!("{:?}", x);
             }
-            let m = to_map(&f);
-            assert!(m[&Pos(4, 4)].val == m[&Pos(3, 5)].val + 1);
-            assert!(m[&Pos(4, 4)].val == m[&Pos(5, 3)].val + 1);
+            let m = f.to_map();
+            for x in &m {
+                println!("{:?}", x);
+            }
+            assert!(m[&Pos(4, 4)] == m[&Pos(3, 5)] + 1);
+            assert!(m[&Pos(4, 4)] == m[&Pos(5, 3)] + 1);
         }
     }
 
@@ -613,16 +607,12 @@ mod tests {
                 },
             ],
         );
-        println!("\n\nRUN:");
-        for x in &f.nodes {
-            println!("{:?}", x);
-        }
         assert_eq!(f.nodes.len(), 10);
 
         // Test Jump
-        assert_eq!(f.incremental_forward(Pos(4, 9), NodeIndex(1)), NodeIndex(0));
-        assert_eq!(f.incremental_forward(Pos(7, 5), NodeIndex(5)), NodeIndex(3));
-        assert_eq!(f.incremental_forward(Pos(3, 9), NodeIndex(2)), NodeIndex(9));
-        assert_eq!(f.incremental_forward(Pos(3, 7), NodeIndex(2)), NodeIndex(8));
+        assert_eq!(f.incremental_forward(Pos(4, 9), NodeIndex(2)), NodeIndex(9));
+        assert_eq!(f.incremental_forward(Pos(7, 5), NodeIndex(1)), NodeIndex(7));
+        assert_eq!(f.incremental_forward(Pos(3, 9), NodeIndex(2)), NodeIndex(3));
+        assert_eq!(f.incremental_forward(Pos(3, 7), NodeIndex(2)), NodeIndex(0));
     }
 }
