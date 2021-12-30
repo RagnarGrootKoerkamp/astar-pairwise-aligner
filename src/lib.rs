@@ -6,12 +6,12 @@
     generic_associated_types,
     hash_drain_filter
 )]
-pub mod alignment_graph;
+
 pub mod astar;
 pub mod bucket_heap;
 pub mod diagonal_map;
+pub mod graph;
 pub mod heuristic;
-pub mod implicit_graph;
 pub mod increasing_function;
 pub mod random_sequence;
 pub mod scored;
@@ -41,20 +41,6 @@ mod fx_hash_map {
     pub use rustc_hash::FxHashSet as HashSet;
 }
 
-// Include one of these to switch between hashmap and diagonalmap.
-mod diagonal_hash_map {
-    #[allow(dead_code)]
-    pub type DiagonalMap<V> = std::collections::hash_map::HashMap<super::Pos, V>;
-    #[allow(dead_code)]
-    pub type Entry<'a, V> = std::collections::hash_map::Entry<'a, super::Pos, V>;
-}
-mod diagonal_vector_map {
-    #[allow(dead_code)]
-    pub type DiagonalMap<V> = crate::diagonal_map::DiagonalMap<V>;
-    #[allow(dead_code)]
-    pub use crate::diagonal_map::Entry;
-}
-
 // Include one of these heap implementations.
 mod binary_heap_impl {
     #[allow(dead_code)]
@@ -71,9 +57,8 @@ pub mod prelude {
     pub use super::fx_hash_map::*;
 
     pub(crate) use super::bucket_heap_impl as heap;
-    pub(crate) use super::diagonal_vector_map as diagonal_map;
 
-    pub use crate::alignment_graph::Node;
+    pub use crate::graph::*;
     pub use crate::heuristic::*;
     pub use crate::seeds::Match;
     pub use crate::util::*;
@@ -120,8 +105,6 @@ pub struct AStarStats {
     pub explored: usize,
     pub double_expanded: usize,
     pub retries: usize,
-    /// Number of edges tried. More than explored states, because states can have multiple incoming edges.
-    pub edges: usize,
     #[serde(skip_serializing)]
     pub explored_states: Vec<Pos>,
     #[serde(skip_serializing)]
@@ -270,16 +253,18 @@ fn num_matches_on_path(path: &[Pos], matches: &[Match]) -> usize {
         .sum()
 }
 
-pub fn align<H: Heuristic>(
-    a: &Sequence,
-    b: &Sequence,
+pub fn align<'a, H: Heuristic>(
+    a: &'a Sequence,
+    b: &'a Sequence,
     alphabet: &Alphabet,
     sequence_stats: SequenceStats,
     heuristic: H,
-) -> AlignResult {
+) -> AlignResult
+where
+    H::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
+{
     let mut expanded = 0;
     let mut explored = 0;
-    let mut edges = 0;
     let mut explored_states = Vec::new();
     let mut expanded_states = Vec::new();
     let mut double_expanded = 0;
@@ -288,25 +273,21 @@ pub fn align<H: Heuristic>(
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
     let h = RefCell::new(heuristic.build(a, b, alphabet));
-    let root_state = Node(Pos(0, 0), h.borrow().root_state());
+    let root_pos = Pos(0, 0);
+    let root_state = Node(root_pos, h.borrow().root_state(root_pos));
     let root_val = h.borrow().h(root_state);
     //let _ = h.borrow_mut();
     let heuristic_initialization = start_time.elapsed();
 
     // Run A* with heuristic.
     let start_time = time::Instant::now();
-    let incremental_graph = alignment_graph::new_incremental_alignment_graph(a, b, &h);
+    let incremental_graph = IncrementalAlignmentGraph::new(a, b, &h);
     let mut h_values = HashMap::<usize, usize>::default();
     let target = Pos(a.len(), b.len());
     let (distance, path) = astar::astar(
-        target,
         &incremental_graph,
         root_state,
-        // edge cost
-        |implicit_graph::Edge(_, _, cost)| {
-            edges += 1;
-            cost
-        },
+        target,
         // heuristic function
         |state| {
             let v = h.borrow().h(state);
@@ -315,6 +296,7 @@ pub fn align<H: Heuristic>(
             }
             v
         },
+        /*retry_outdated*/ true,
         // Expand
         |Node(pos, _)| {
             //println!("EXPAND {:?}", pos);
@@ -332,7 +314,6 @@ pub fn align<H: Heuristic>(
                 explored_states.push(pos);
             }
         },
-        /*retry_outdated*/ true,
         &mut double_expanded,
         &mut retries,
     )
@@ -385,7 +366,6 @@ pub fn align<H: Heuristic>(
             expanded,
             explored,
             retries,
-            edges,
             explored_states,
             expanded_states,
             double_expanded,
@@ -427,7 +407,11 @@ pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) 
     setup_with_seed(n, e, 31415)
 }
 
-pub fn test_heuristic<H: Heuristic>(n: usize, e: f32, h: H) -> AlignResult {
+pub fn test_heuristic<H: Heuristic, HI>(n: usize, e: f32, h: H) -> AlignResult
+where
+    H: for<'a> Heuristic<Instance<'a> = HI>,
+    HI: for<'a> HeuristicInstance<'a, Pos = Pos>,
+{
     let (a, b, alphabet, stats) = setup(n, e);
     align(&a, &b, &alphabet, stats, h)
 }

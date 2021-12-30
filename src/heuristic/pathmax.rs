@@ -1,5 +1,7 @@
+use std::marker::PhantomData;
+
 use super::*;
-use crate::{alignment_graph::Node, seeds::Match, util::*};
+use crate::{prelude::*, seeds::Match};
 
 #[derive(Debug, Copy, Clone)]
 pub struct PathMax<H: Heuristic> {
@@ -20,9 +22,8 @@ impl<H: Heuristic> Heuristic for PathMax<H> {
         alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
         PathMaxI {
-            a,
-            b,
             heuristic: self.heuristic.build(a, b, alphabet),
+            phantom: &PhantomData,
         }
     }
 
@@ -44,49 +45,46 @@ impl<H: Heuristic> Heuristic for PathMax<H> {
 }
 
 pub struct PathMaxI<'a, HI: HeuristicInstance<'a>> {
-    a: &'a Sequence,
-    b: &'a Sequence,
     heuristic: HI,
+    #[allow(dead_code)]
+    phantom: &'a PhantomData<()>,
 }
 
 impl<'a, HI: HeuristicInstance<'a>> HeuristicInstance<'a> for PathMaxI<'a, HI> {
-    fn h(&self, Node(_, state): Node<Self::IncrementalState>) -> usize {
+    type IncrementalState = (usize, HI::IncrementalState);
+    type Pos = HI::Pos;
+
+    fn h(&self, Node(_, state): NodeH<'a, Self>) -> usize {
         state.0
     }
 
-    type IncrementalState = (usize, HI::IncrementalState);
-
-    fn prune(&mut self, pos: Pos) {
+    fn prune(&mut self, pos: Self::Pos) {
         self.heuristic.prune(pos);
     }
 
     fn incremental_h(
         &self,
-        Node(parent, (parent_h, state)): Node<Self::IncrementalState>,
-        pos: Pos,
+        Node(parent, (parent_h, state)): NodeH<'a, Self>,
+        pos: Self::Pos,
+        cost: usize,
     ) -> Self::IncrementalState {
-        assert!(parent.0 <= pos.0 && parent.1 <= pos.1);
-        // The length of the edge. Supports edges of length 1, and longer diagonals are assumed to be all equal value.
-        let d = if pos.1 - parent.1 != pos.0 - parent.0 {
-            assert!(pos.0 <= parent.0 + 1 && pos.1 <= parent.1 + 1);
-            1
-        } else if self.a[parent.0] == self.b[parent.1] {
-            1 //0
-        } else {
-            assert!(pos.0 == parent.0 + 1 && pos.1 == parent.1 + 1);
-            1
-        };
-        let cur_state = self.heuristic.incremental_h(Node(parent, state), pos);
+        let cur_state = self.heuristic.incremental_h(Node(parent, state), pos, cost);
 
         (
-            max(max(parent_h, d) - d, self.heuristic.h(Node(pos, cur_state))),
+            max(
+                max(parent_h, cost) - cost,
+                self.heuristic.h(Node(pos, cur_state)),
+            ),
             cur_state,
         )
     }
 
-    fn root_state(&self) -> Self::IncrementalState {
-        let cur_state = self.heuristic.root_state();
-        (self.heuristic.h(Node(Pos(0, 0), cur_state)), cur_state)
+    fn root_state(&self, root_pos: Self::Pos) -> Self::IncrementalState {
+        let cur_state = self.heuristic.root_state(root_pos);
+        (
+            self.heuristic.h(crate::graph::Node(root_pos, cur_state)),
+            cur_state,
+        )
     }
 
     fn num_seeds(&self) -> Option<usize> {

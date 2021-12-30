@@ -426,7 +426,7 @@ impl IncreasingFunction2D<usize> {
         pos @ Pos(i, j): Pos,
         mut hint_idx: NodeIndex,
         // TODO: Use this.
-        hint_pos: Pos,
+        _hint_pos: Pos,
     ) -> NodeIndex {
         if self.nodes.is_empty() {
             return hint_idx;
@@ -493,11 +493,11 @@ mod tests {
         assert_eq!(f.nodes.len(), 1);
     }
 
-    fn to_map(f: &IncreasingFunction2D<usize>) -> HashMap<Pos, Node<usize>> {
+    fn to_map(f: &IncreasingFunction2D<usize>) -> HashMap<Pos, super::Node<usize>> {
         f.nodes
             .iter()
             .copied()
-            .map(|n @ Node { pos, .. }| (pos, n))
+            .map(|n @ super::Node { pos, .. }| (pos, n))
             .collect()
     }
 

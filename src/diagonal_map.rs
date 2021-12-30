@@ -1,5 +1,22 @@
 use crate::prelude::*;
-use std::ops::Index;
+use std::{collections::hash_map::Entry, ops::Index};
+
+#[derive(PartialEq, Eq)]
+pub enum InsertIfSmallerResult {
+    New,
+    Smaller,
+    Larger,
+}
+
+/// Trait that wraps DiagonalMap or Hashmap for entries along a diagonal.
+pub trait DiagonalMapTrait<Pos, V>: Index<Pos, Output = V> {
+    fn new(target: Pos) -> Self;
+    fn get(&self, pos: &Pos) -> Option<&V>;
+    fn insert(&mut self, pos: Pos, v: V) -> Option<V>;
+    fn insert_if_smaller(&mut self, pos: Pos, v: V) -> InsertIfSmallerResult
+    where
+        V: Ord;
+}
 
 /// A HashMap drop-in replacement for 2D data that's dense around the diagonal.
 pub struct DiagonalMap<V> {
@@ -17,42 +34,9 @@ enum DIndex {
 }
 use DIndex::*;
 
-pub struct OccupiedEntry<'a, V>(&'a mut V);
-pub struct VacantEntry<'a, V>(&'a mut Option<V>);
-
-impl<'a, V> OccupiedEntry<'a, V> {
-    #[inline]
-    pub fn get(&self) -> &V {
-        self.0
-    }
-    #[inline]
-    pub fn insert(&mut self, value: V) -> V {
-        std::mem::replace(self.0, value)
-    }
-}
-impl<'a, V> VacantEntry<'a, V> {
-    #[inline]
-    pub fn insert(self, value: V) -> &'a V {
-        self.0.insert(value)
-    }
-}
-
-pub enum Entry<'a, V> {
-    Occupied(OccupiedEntry<'a, V>),
-    Vacant(VacantEntry<'a, V>),
-}
-
 impl<V> DiagonalMap<V> {
-    pub fn new(target: Pos) -> DiagonalMap<V> {
-        DiagonalMap {
-            above: Default::default(),
-            below: Default::default(),
-            target,
-        }
-    }
-
     #[inline]
-    fn get_index(&self, &Pos(i, j): &Pos) -> DIndex {
+    fn index_of(&self, &Pos(i, j): &Pos) -> DIndex {
         if i >= j {
             Above(i - j, j)
         } else {
@@ -61,11 +45,11 @@ impl<V> DiagonalMap<V> {
     }
 
     #[inline]
-    fn insert_index(&mut self, idx: DIndex, v: V) -> Option<V> {
-        self.grow(&idx);
-        match idx {
-            Above(i, j) => self.above[i][j].replace(v),
-            Below(i, j) => self.below[i][j].replace(v),
+    fn get_mut_entry<'a>(&'a mut self, idx: &DIndex) -> &'a mut Option<V> {
+        self.grow(idx);
+        match *idx {
+            Above(i, j) => &mut self.above[i][j],
+            Below(i, j) => &mut self.below[i][j],
         }
     }
 
@@ -95,70 +79,102 @@ impl<V> DiagonalMap<V> {
             }
         }
     }
+}
+
+impl<V> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
+    fn new(target: Pos) -> DiagonalMap<V> {
+        DiagonalMap {
+            above: Default::default(),
+            below: Default::default(),
+            target,
+        }
+    }
 
     #[inline]
-    pub fn get(&self, pos: &Pos) -> Option<&V> {
-        match self.get_index(pos) {
+    fn get(&self, pos: &Pos) -> Option<&V> {
+        match self.index_of(pos) {
             Above(i, j) => self.above.get(i)?.get(j)?.as_ref(),
             Below(i, j) => self.below.get(i)?.get(j)?.as_ref(),
         }
     }
 
     #[inline]
-    pub fn get_mut<'a>(&'a mut self, pos: &Pos) -> Option<&'a mut V> {
-        self.get_mut_index(&self.get_index(pos))
+    fn insert(&mut self, pos: Pos, v: V) -> Option<V> {
+        let idx = self.index_of(&pos);
+        self.get_mut_entry(&idx).replace(v)
     }
-
+    /// Insert the given value if it is smaller than the current value.
+    /// Returns true when inserted successfully.
     #[inline]
-    fn get_mut_index<'a>(&'a mut self, idx: &DIndex) -> Option<&'a mut V> {
-        match *idx {
-            Above(i, j) => self.above.get_mut(i)?.get_mut(j)?.as_mut(),
-            Below(i, j) => self.below.get_mut(i)?.get_mut(j)?.as_mut(),
-        }
-    }
-
-    #[inline]
-    pub fn insert(&mut self, pos: Pos, v: V) -> Option<V> {
-        let idx = self.get_index(&pos);
-        self.insert_index(idx, v)
-    }
-
-    /// We assume an insertion will happen, so grow the vector in advance.
-    #[inline]
-    pub fn entry(&mut self, pos: Pos) -> Entry<'_, V> {
-        let idx = self.get_index(&pos);
-        self.grow(&idx);
-        let option = match idx {
-            Above(i, j) => &mut self.above[i][j],
-            Below(i, j) => &mut self.below[i][j],
-        };
-
-        match option {
-            Some(ref mut v) => Entry::Occupied(OccupiedEntry(v)),
-            None => Entry::Vacant(VacantEntry(option)),
+    fn insert_if_smaller(&mut self, pos: Pos, v: V) -> InsertIfSmallerResult
+    where
+        V: Ord,
+    {
+        let idx = self.index_of(&pos);
+        match self.get_mut_entry(&idx) {
+            x @ None => {
+                *x = Some(v);
+                InsertIfSmallerResult::New
+            }
+            Some(cur_v) if v < *cur_v => {
+                *cur_v = v;
+                InsertIfSmallerResult::Smaller
+            }
+            Some(_) => InsertIfSmallerResult::Larger,
         }
     }
 }
 
-impl<V: std::fmt::Debug> Index<&Pos> for DiagonalMap<V> {
+impl<V> Index<Pos> for DiagonalMap<V> {
     type Output = V;
 
     #[inline]
-    fn index(&self, pos: &Pos) -> &Self::Output {
-        match self.get_index(pos) {
+    fn index(&self, pos: Pos) -> &Self::Output {
+        match self.index_of(&pos) {
             Above(i, j) => self.above[i][j].as_ref().unwrap(),
             Below(i, j) => self.below[i][j].as_ref().unwrap(),
         }
     }
 }
 
-pub trait ToPos {
-    fn to_pos(&self) -> Pos;
-}
+/// Implement DiagonalMapTrait for HashMap.
+impl<V> Index<Pos> for HashMap<Pos, V> {
+    type Output = V;
 
-impl ToPos for Pos {
     #[inline]
-    fn to_pos(&self) -> Pos {
-        *self
+    fn index(&self, pos: Pos) -> &Self::Output {
+        &self[&pos]
+    }
+}
+impl<V> DiagonalMapTrait<Pos, V> for HashMap<Pos, V> {
+    fn new(_target: Pos) -> Self {
+        Default::default()
+    }
+
+    fn get(&self, pos: &Pos) -> Option<&V> {
+        self.get(pos)
+    }
+
+    fn insert(&mut self, pos: Pos, v: V) -> Option<V> {
+        self.insert(pos, v)
+    }
+    fn insert_if_smaller(&mut self, pos: Pos, v: V) -> InsertIfSmallerResult
+    where
+        V: Ord,
+    {
+        match self.entry(pos) {
+            Entry::Vacant(entry) => {
+                entry.insert(v);
+                InsertIfSmallerResult::New
+            }
+            Entry::Occupied(mut entry) => {
+                if v < *entry.get() {
+                    entry.insert(v);
+                    InsertIfSmallerResult::Smaller
+                } else {
+                    InsertIfSmallerResult::Larger
+                }
+            }
+        }
     }
 }

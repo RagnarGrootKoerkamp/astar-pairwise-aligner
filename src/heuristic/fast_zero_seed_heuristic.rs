@@ -2,10 +2,9 @@ use itertools::Itertools;
 
 use super::*;
 use crate::{
-    alignment_graph::Node,
     increasing_function::IncreasingFunction2D,
+    prelude::*,
     seeds::{find_matches, Match, SeedMatches},
-    util::*,
 };
 
 // TODO: Make this work for the other distance functions.
@@ -64,7 +63,7 @@ impl FastZeroSeedHeuristicI {
     }
 }
 impl HeuristicInstance<'_> for FastZeroSeedHeuristicI {
-    fn h(&self, Node(pos, parent_state): Node<Self::IncrementalState>) -> usize {
+    fn h(&self, Node(pos, parent_state): NodeH<Self>) -> usize {
         self.seed_matches.potential(pos) - self.f.val(parent_state)
     }
 
@@ -72,14 +71,15 @@ impl HeuristicInstance<'_> for FastZeroSeedHeuristicI {
 
     fn incremental_h(
         &self,
-        parent: Node<Self::IncrementalState>,
-        pos: Pos,
+        parent: NodeH<Self>,
+        pos: Self::Pos,
+        _cost: usize,
     ) -> Self::IncrementalState {
-        // We can unwrap because (0,0) is part of the map.
+        // TODO: Forward the cost of the edge.
         self.f.incremental_forward(pos, parent.1)
     }
 
-    fn root_state(&self) -> Self::IncrementalState {
+    fn root_state(&self, _: Self::Pos) -> Self::IncrementalState {
         self.f.root()
     }
     fn num_seeds(&self) -> Option<usize> {

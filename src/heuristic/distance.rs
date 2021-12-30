@@ -1,9 +1,12 @@
 /// An O(1) evaluation heuristic that can be used to lower bound the distance between any two positions.
 /// Used to get the distance between matches, instead of only distance to the end.
-use super::*;
+use crate::prelude::*;
 
 // TODO: Can we get away with only one of these two traits?
-pub trait DistanceHeuristic: Heuristic {
+pub trait DistanceHeuristic: Heuristic
+//where
+//for<'a> Self::Instance<'a>: DistanceHeuristicInstance<'a>,
+{
     // TODO: Provide default implementations for these.
     type DistanceInstance<'a>: DistanceHeuristicInstance<'a>;
     fn build<'a>(
@@ -15,7 +18,7 @@ pub trait DistanceHeuristic: Heuristic {
 }
 
 pub trait DistanceHeuristicInstance<'a>: HeuristicInstance<'a> {
-    fn distance(&self, from: Pos, to: Pos) -> usize;
+    fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize;
 }
 
 // # ZERO HEURISTIC
@@ -52,7 +55,7 @@ impl DistanceHeuristic for ZeroHeuristic {
 
 pub struct ZeroHeuristicI;
 impl HeuristicInstance<'_> for ZeroHeuristicI {
-    fn h(&self, _: Node<Self::IncrementalState>) -> usize {
+    fn h(&self, _: NodeH<Self>) -> usize {
         0
     }
 }
@@ -99,7 +102,7 @@ pub struct GapHeuristicI {
 }
 
 impl HeuristicInstance<'_> for GapHeuristicI {
-    fn h(&self, Node(Pos(i, j), _): Node<Self::IncrementalState>) -> usize {
+    fn h(&self, Node(Pos(i, j), _): NodeH<Self>) -> usize {
         abs_diff(self.target.0 - i, self.target.1 - j)
     }
 }
@@ -162,7 +165,7 @@ pub struct CountHeuristicI {
 }
 
 impl HeuristicInstance<'_> for CountHeuristicI {
-    fn h(&self, Node(pos, _): Node<Self::IncrementalState>) -> usize {
+    fn h(&self, Node(pos, _): NodeH<Self>) -> usize {
         self.distance(pos, self.target)
     }
 }
@@ -242,7 +245,7 @@ pub struct BiCountHeuristicI {
 }
 
 impl<'a> HeuristicInstance<'a> for BiCountHeuristicI {
-    fn h(&self, Node(pos, _): Node<Self::IncrementalState>) -> usize {
+    fn h(&self, Node(pos, _): NodeH<Self>) -> usize {
         self.distance(pos, self.target)
     }
 }

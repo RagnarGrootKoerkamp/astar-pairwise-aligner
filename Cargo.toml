@@ -13,7 +13,6 @@ debug = true
 [dependencies]
 bio-types = "*"
 bio = "*"
-petgraph = ">=0.6"
 rand = "*"
 rand_chacha = "*"
 # TODO: Only used for generating random sequences. Replace with own/more generic standalone implementation?
