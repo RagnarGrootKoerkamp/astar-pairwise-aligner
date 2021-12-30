@@ -10,18 +10,18 @@ fn main() {
     AlignResult::print_header();
     for (&n, e) in ns.iter().cartesian_product(es) {
         for l in [8, 9, 10, 11, 12] {
-            test_heuristic(
-                n,
-                e,
-                SeedHeuristic {
+            {
+                let h = SeedHeuristic {
                     l,
                     max_match_cost: 1,
                     distance_function: CountHeuristic,
                     pruning: true,
                     build_fast: false,
                     query_fast: false,
-                },
-            )
+                };
+                let (a, b, alphabet, stats) = setup(n, e);
+                align(&a, &b, &alphabet, stats, h)
+            }
             .print();
         }
     }
