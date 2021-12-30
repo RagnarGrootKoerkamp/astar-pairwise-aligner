@@ -101,21 +101,16 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
             }
             pos
         };
-        for &(di, dj) in if is_match(u) {
+        let is_match = is_match(u);
+        for &(di, dj) in if is_match {
             &DIAGONAL_DELTAS[..]
         } else {
             &DELTAS[..]
         } {
             let pos = Pos(i + di, j + dj);
             if pos <= self.target {
-                f(
-                    Node(extend_diagonally(pos), ()),
-                    if (di, dj) == (1, 1) && self.a[i] == self.b[j] {
-                        0
-                    } else {
-                        1
-                    },
-                )
+                let cost = if is_match { 0 } else { 1 };
+                f(Node(extend_diagonally(pos), ()), cost)
             }
         }
     }
