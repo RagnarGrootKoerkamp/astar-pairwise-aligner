@@ -15,18 +15,18 @@ fn main() {
     let query_fast = true;
 
     AlignResult::print_header();
-    let result = test_heuristic(
-        n,
-        e,
-        SeedHeuristic {
+    let result = {
+        let h = SeedHeuristic {
             l,
             max_match_cost,
             distance_function: GapHeuristic,
             pruning,
             build_fast,
             query_fast,
-        },
-    );
+        };
+        let (a, b, alphabet, stats) = setup(n, e);
+        align(&a, &b, &alphabet, stats, h)
+    };
     result.print();
     result.write(&mut wtr);
     AlignResult::print_header();
