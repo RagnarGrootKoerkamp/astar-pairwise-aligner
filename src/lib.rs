@@ -773,3 +773,4 @@ mod tests {
 // - Do internal iteration over outgoing edges, instead of collecting them.
 // - Sort nodes in IncreasingFunction for better caching
 // - incremental_h is slowly becoming more efficient (move fewer steps backwards)
+// - incremental_h: Add Pos==Hint check to incremental_h
