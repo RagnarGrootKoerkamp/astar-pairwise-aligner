@@ -14,7 +14,6 @@ fn main() {
     let build_fast = true;
     let query_fast = true;
 
-    AlignResult::print_header();
     let result = {
         let h = SeedHeuristic {
             l,
@@ -29,5 +28,4 @@ fn main() {
     };
     result.print();
     result.write(&mut wtr);
-    AlignResult::print_header();
 }

@@ -13,7 +13,6 @@ fn main() {
     let prunings = [false];
     let build_fast = [(false, false), (true, false), (true, true)];
 
-    AlignResult::print_header();
     for (&n, e) in ns.iter().cartesian_product(es) {
         for (l, max_match_cost) in lm {
             for pruning in prunings {
@@ -40,5 +39,4 @@ fn main() {
         }
         println!("");
     }
-    AlignResult::print_header();
 }

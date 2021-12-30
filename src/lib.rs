@@ -69,7 +69,13 @@ pub mod prelude {
 use csv::Writer;
 use rand::SeedableRng;
 use serde::Serialize;
-use std::{cell::RefCell, collections::HashSet, fmt, path::Path, time};
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    fmt::{self, Display},
+    path::Path,
+    time,
+};
 
 use crate::random_sequence::{random_mutate, random_sequence};
 use prelude::*;
@@ -135,28 +141,136 @@ pub struct AlignResult {
 }
 
 impl AlignResult {
-    pub fn print_header() {
-        println!(
-            "{:>6} {:>6} {:>4} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6} {:>8} {:>8} {:>8} {:>7} {:>5} {:>6} {:>5} {:>5}",
-            "|a|",
-            "|b|",
-            "r",
-            "H", "l", "md", "pr", "bf", "qf",
-            "dist",
-            "seeds", "matches",
-            "expanded",
-            "explored",
-            "dbl", "retr",
-            "band",
-            "precom",
-            "align",
-            "prune",
-            "h%",
-            "dist",
-            "h(0,0)",
-            "m_pat",
-            "m_exp",
-        );
+    fn print_opt<T: Display>(o: Option<T>) -> String {
+        o.map_or("".into(), |x| x.to_string())
+    }
+    fn print_opt_bool(o: Option<bool>) -> String {
+        o.map_or("".into(), |x| (x as u8).to_string())
+    }
+    pub fn print(&self) {
+        static mut PRINTED_HEADER: bool = false;
+        let columns: [(String, fn(&AlignResult) -> String); 24] = [
+            (format!("{:>6}", "|a|"), |this: &AlignResult| {
+                format!("{:>6}", this.input.len_a)
+            }),
+            (format!("{:>6}", "|b|"), |this: &AlignResult| {
+                format!("{:>6}", this.input.len_b)
+            }),
+            (format!("{:>4}", "r"), |this: &AlignResult| {
+                format!("{:>4.2}", this.input.error_rate)
+            }),
+            (format!("{:<5}", "H"), |this: &AlignResult| {
+                format!("{:<5}", this.heuristic_params.name)
+            }),
+            (format!("{:>2}", "l"), |this: &AlignResult| {
+                format!("{:>2}", AlignResult::print_opt(this.heuristic_params.l))
+            }),
+            (format!("{:>2}", "md"), |this: &AlignResult| {
+                format!(
+                    "{:>2}",
+                    AlignResult::print_opt(this.heuristic_params.max_match_cost)
+                )
+            }),
+            (format!("{:>2}", "pr"), |this: &AlignResult| {
+                format!(
+                    "{:>2}",
+                    AlignResult::print_opt_bool(this.heuristic_params.pruning)
+                )
+            }),
+            (format!("{:>2}", "bf"), |this: &AlignResult| {
+                format!(
+                    "{:>2}",
+                    AlignResult::print_opt_bool(this.heuristic_params.build_fast)
+                )
+            }),
+            (format!("{:>2}", "qf"), |this: &AlignResult| {
+                format!(
+                    "{:>2}",
+                    AlignResult::print_opt_bool(this.heuristic_params.query_fast)
+                )
+            }),
+            (format!("{:<5}", "dist"), |this: &AlignResult| {
+                format!(
+                    "{:<5}",
+                    AlignResult::print_opt(this.heuristic_params.distance_function.as_ref())
+                )
+            }),
+            (format!("{:>7}", "seeds"), |this: &AlignResult| {
+                format!(
+                    "{:>7}",
+                    AlignResult::print_opt(this.heuristic_stats.num_seeds)
+                )
+            }),
+            (format!("{:>7}", "matches"), |this: &AlignResult| {
+                format!(
+                    "{:>7}",
+                    AlignResult::print_opt(this.heuristic_stats.num_matches)
+                )
+            }),
+            (format!("{:>9}", "expanded"), |this: &AlignResult| {
+                format!("{:>9}", this.astar.expanded)
+            }),
+            (format!("{:>9}", "explored"), |this: &AlignResult| {
+                format!("{:>9}", this.astar.explored)
+            }),
+            (format!("{:>6}", "dbl"), |this: &AlignResult| {
+                format!("{:>6}", this.astar.double_expanded)
+            }),
+            (format!("{:>7}", "ret"), |this: &AlignResult| {
+                format!("{:>7}", this.astar.retries)
+            }),
+            (format!("{:>6}", "band"), |this: &AlignResult| {
+                format!(
+                    "{:>6.2}",
+                    this.astar.expanded as f32 / max(this.input.len_a, this.input.len_b) as f32
+                )
+            }),
+            (format!("{:>8}", "precom"), |this: &AlignResult| {
+                format!("{:>8.5}", this.timing.precomputation)
+            }),
+            (format!("{:>8}", "align"), |this: &AlignResult| {
+                format!("{:>8.5}", this.timing.astar)
+            }),
+            (format!("{:>8}", "prune"), |this: &AlignResult| {
+                format!(
+                    "{:>8.5}",
+                    AlignResult::print_opt(this.heuristic_stats.pruning_duration)
+                )
+            }),
+            (format!("{:>5}", "dist"), |this: &AlignResult| {
+                format!("{:>5}", this.answer_cost)
+            }),
+            (format!("{:>6}", "h(0,0)"), |this: &AlignResult| {
+                format!("{:>6}", this.heuristic_stats2.root_h)
+            }),
+            (format!("{:>5}", "m_pat"), |this: &AlignResult| {
+                format!(
+                    "{:>5}",
+                    AlignResult::print_opt(this.heuristic_stats2.path_matches)
+                )
+            }),
+            (format!("{:>5}", "m_exp"), |this: &AlignResult| {
+                format!(
+                    "{:>5}",
+                    AlignResult::print_opt(this.heuristic_stats2.explored_matches)
+                )
+            }),
+        ];
+
+        if unsafe { !PRINTED_HEADER } {
+            for (hdr, _) in &columns {
+                print!("{} ", hdr);
+            }
+            // SAFE: We're single threaded anyway.
+            unsafe {
+                PRINTED_HEADER = true;
+            }
+            println!();
+        }
+        for (_, col) in &columns {
+            print!("{} ", col(self));
+        }
+        println!();
     }
     pub fn write(&self, writer: &mut Writer<std::fs::File>) {
         #[derive(Serialize)]
@@ -175,38 +289,6 @@ impl AlignResult {
                 },
             ))
             .unwrap();
-    }
-    pub fn print(&self) {
-        let percent_h =
-            100. * self.timing.precomputation / (self.timing.precomputation + self.timing.astar);
-        println!(
-            "{:>6} {:>6} {:>4.2} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6.2} {:>8.5} {:>8.5} {:>8.5} {:>7.3} {:>5} {:>6} {:>5} {:>5}",
-            self.input.len_a,
-            self.input.len_b,
-            self.input.error_rate,
-            self.heuristic_params.name,
-            self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
-            self.heuristic_params.max_match_cost.map_or("".into(), |x| x.to_string()),
-            self.heuristic_params.pruning.map_or("".into(), |x| (x as u8) .to_string()),
-            self.heuristic_params.build_fast.map_or("".into(), |x| (x as u8) .to_string()),
-            self.heuristic_params.query_fast.map_or("".into(), |x| (x as u8) .to_string()),
-            self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
-            self.heuristic_stats.num_seeds.map(|x| x.to_string()).unwrap_or_default(),
-            self.heuristic_stats.num_matches.map(|x| x.to_string()).unwrap_or_default(),
-            self.astar.expanded,
-            self.astar.explored,
-            self.astar.double_expanded,
-            self.astar.retries,
-            self.astar.expanded as f32 / max(self.input.len_a, self.input.len_b) as f32,
-            self.timing.precomputation,
-            self.timing.astar,
-            self.heuristic_stats.pruning_duration.map(|x| x.to_string()).unwrap_or_default(),
-            percent_h,
-            self.answer_cost,
-            self.heuristic_stats2.root_h,
-            self.heuristic_stats2.path_matches.map(|x| x.to_string()).unwrap_or_default(),
-            self.heuristic_stats2.explored_matches.map(|x| x.to_string()).unwrap_or_default(),
-        );
     }
     pub fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
         if self.astar.explored_states.is_empty() {
@@ -448,7 +530,6 @@ mod tests {
     fn visualize_gapped_seed() {
         let alphabet = &Alphabet::new(b"ACTG");
 
-        AlignResult::print_header();
         let l = 3;
         let a = "ACTTGG".as_bytes().to_vec();
         let b = "ACTGG".as_bytes().to_vec();
