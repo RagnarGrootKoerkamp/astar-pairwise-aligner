@@ -9,17 +9,8 @@ use std::cmp::Ordering;
 ///
 /// **Note:** `MinScored` implements a total order (`Ord`), so that it is
 /// possible to use float types as scores.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct MinScored<K, T>(pub K, pub T);
-
-impl<K: Ord, T: Ord> PartialEq for MinScored<K, T> {
-    #[inline]
-    fn eq(&self, other: &MinScored<K, T>) -> bool {
-        self.cmp(other) == Ordering::Equal
-    }
-}
-
-impl<K: Ord, T: Ord> Eq for MinScored<K, T> {}
 
 impl<K: Ord, T: Ord> PartialOrd for MinScored<K, T> {
     #[inline]

@@ -11,7 +11,12 @@ pub struct EqualHeuristicI<'a, H1: Heuristic, H2: Heuristic> {
     h2: H2::Instance<'a>,
 }
 
-impl<H1: Heuristic, H2: Heuristic> Heuristic for EqualHeuristic<H1, H2> {
+impl<H1: Heuristic, H2: Heuristic, Pos> Heuristic for EqualHeuristic<H1, H2>
+where
+    for<'a> H1::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
+    for<'a> H2::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
+    Pos: Copy + Eq + std::fmt::Debug,
+{
     type Instance<'a> = EqualHeuristicI<'a, H1, H2>;
 
     fn name(&self) -> String {
@@ -47,8 +52,15 @@ impl<H1: Heuristic, H2: Heuristic> Heuristic for EqualHeuristic<H1, H2> {
     }
 }
 
-impl<'a, H1: Heuristic, H2: Heuristic> HeuristicInstance<'a> for EqualHeuristicI<'a, H1, H2> {
-    fn h(&self, Node(pos, (s1, s2)): Node<Self::IncrementalState>) -> usize {
+impl<'a, H1: Heuristic, H2: Heuristic, Pos> HeuristicInstance<'a> for EqualHeuristicI<'a, H1, H2>
+where
+    H1::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
+    H2::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
+    Pos: Eq + Copy + std::fmt::Debug,
+{
+    type Pos = Pos;
+
+    fn h(&self, Node(pos, (s1, s2)): NodeH<'a, Self>) -> usize {
         let h1 = self.h1.h(Node(pos, s1));
         let h2 = self.h2.h(Node(pos, s2));
         // h1 is the slow accurate one, h2 the fast inaccurate one.
@@ -74,17 +86,18 @@ impl<'a, H1: Heuristic, H2: Heuristic> HeuristicInstance<'a> for EqualHeuristicI
 
     fn incremental_h(
         &self,
-        Node(parent, (s1, s2)): Node<Self::IncrementalState>,
+        Node(parent, (s1, s2)): NodeH<'a, Self>,
         pos: Pos,
+        cost: usize,
     ) -> Self::IncrementalState {
         (
-            self.h1.incremental_h(Node(parent, s1), pos),
-            self.h2.incremental_h(Node(parent, s2), pos),
+            self.h1.incremental_h(Node(parent, s1), pos, cost),
+            self.h2.incremental_h(Node(parent, s2), pos, cost),
         )
     }
 
-    fn root_state(&self) -> Self::IncrementalState {
-        (self.h1.root_state(), self.h2.root_state())
+    fn root_state(&self, root_pos: Self::Pos) -> Self::IncrementalState {
+        (self.h1.root_state(root_pos), self.h2.root_state(root_pos))
     }
 
     fn num_seeds(&self) -> Option<usize> {

@@ -6,8 +6,8 @@ fn main() {
         .from_path("evals/stats/table.csv")
         .unwrap();
 
-    let n = 32_000;
-    let e = 0.20;
+    let n = 10_000;
+    let e = 0.10;
     let l = 7;
     let max_match_cost = 1;
     let pruning = false;

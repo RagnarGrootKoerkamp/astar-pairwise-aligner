@@ -4,7 +4,6 @@ use itertools::Itertools;
 
 use super::{distance::*, *};
 use crate::{
-    alignment_graph::Node,
     increasing_function::IncreasingFunction2D,
     prelude::*,
     seeds::{find_matches, Match, SeedMatches},
@@ -19,7 +18,10 @@ pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub build_fast: bool,
     pub query_fast: bool,
 }
-impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH> {
+impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH>
+where
+    for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a, Pos = Pos>,
+{
     type Instance<'a> = SeedHeuristicI<'a, DH>;
 
     fn build<'a>(
@@ -76,8 +78,11 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
 /// provided distance function and the potential difference between the two
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
-impl<'a, DH: DistanceHeuristic> DistanceHeuristicInstance<'a> for SeedHeuristicI<'a, DH> {
-    fn distance(&self, from: Pos, to: Pos) -> usize {
+impl<'a, DH: DistanceHeuristic> DistanceHeuristicInstance<'a> for SeedHeuristicI<'a, DH>
+where
+    DH::DistanceInstance<'a>: DistanceHeuristicInstance<'a, Pos = Pos>,
+{
+    fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
         max(
             self.distance_function.distance(from, to),
             self.seed_matches.distance(from, to),
@@ -85,7 +90,10 @@ impl<'a, DH: DistanceHeuristic> DistanceHeuristicInstance<'a> for SeedHeuristicI
     }
 }
 
-impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
+impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH>
+where
+    DH::DistanceInstance<'a>: DistanceHeuristicInstance<'a, Pos = Pos>,
+{
     fn new(
         a: &'a Sequence,
         b: &'a Sequence,
@@ -285,7 +293,7 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     // pos A is the start of a seed, and pos B is A+(1,1), with edge cost 0.
     // In this case h(A) = P(A)-P(X) <= d(A,B) + h(B) = 0 + P(B)-P(X) = P(A)-P(X)-1
     // is false.
-    fn base_h(&self, Node(pos, parent): HNode<'a, Self>) -> usize {
+    fn base_h(&self, Node(pos, parent): NodeH<'a, Self>) -> usize {
         let d = if self.params.query_fast {
             let p = self.seed_matches.potential(pos);
             let val = self.increasing_function.val(parent);
@@ -350,18 +358,24 @@ impl<'a, DH: DistanceHeuristic> SeedHeuristicI<'a, DH> {
     }
 }
 
-impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH> {
-    fn h(&self, pos: Node<Self::IncrementalState>) -> usize {
+impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
+where
+    DH::DistanceInstance<'a>: DistanceHeuristicInstance<'a, Pos = Pos>,
+{
+    type Pos = crate::graph::Pos;
+    fn h(&self, pos: NodeH<'a, Self>) -> usize {
         self.base_h(pos)
     }
 
     // TODO: Get rid of Option here?
     type IncrementalState = crate::increasing_function::NodeIndex;
 
+    // TODO: Use cost for more efficient incremental function.
     fn incremental_h(
         &self,
-        parent: Node<Self::IncrementalState>,
+        parent: NodeH<'a, Self>,
         pos: Pos,
+        _cost: usize,
     ) -> Self::IncrementalState {
         if self.params.query_fast {
             self.increasing_function.incremental(
@@ -374,7 +388,7 @@ impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
         }
     }
 
-    fn root_state(&self) -> Self::IncrementalState {
+    fn root_state(&self, _root_pos: Self::Pos) -> Self::IncrementalState {
         self.increasing_function.root()
     }
 

@@ -8,32 +8,6 @@ pub use bio_types::sequence::Sequence;
 pub use std::cmp::{max, min};
 pub use std::collections::BTreeMap;
 
-use serde::Serialize;
-use std::cmp::Ordering;
-
-// A position in a pairwise matching.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
-pub struct Pos(pub usize, pub usize);
-
-/// Partial ordering by (a,b) < (c,d) when a<c and b<d.
-impl PartialOrd for Pos {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let a = self.0.cmp(&other.0);
-        let b = self.1.cmp(&other.1);
-        if a == b {
-            return Some(a);
-        }
-        if a == Ordering::Equal {
-            return Some(b);
-        }
-        if b == Ordering::Equal {
-            return Some(a);
-        }
-        None
-    }
-}
-
 pub fn abs_diff(i: usize, j: usize) -> usize {
     (i as isize - j as isize).abs() as usize
 }

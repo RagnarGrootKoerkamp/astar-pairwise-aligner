@@ -26,8 +26,10 @@ fn main() {
             let n = 1000;
             let e: f32 = 0.3;
             let (ref a, ref b, alphabet, stats) = setup(n, e);
-            let start = 658;
-            let end = 756;
+            //let start = 658;
+            //let end = 756;
+            let start = 0;
+            let end = 150;
             let a = &a[start..end].to_vec();
             let b = &b[start..end].to_vec();
             // let a = &"GAAGGGTAACAGTGCTCG".as_bytes().to_vec();
