@@ -35,20 +35,11 @@ where
         }
     }
 
-    fn l(&self) -> Option<usize> {
-        self.h1.l()
-    }
-
-    fn max_match_cost(&self) -> Option<usize> {
-        self.h1.max_match_cost()
-    }
-
-    fn pruning(&self) -> Option<bool> {
-        self.h1.pruning()
-    }
-
-    fn distance(&self) -> Option<String> {
-        self.h1.distance()
+    fn params(&self) -> HeuristicParams {
+        HeuristicParams {
+            name: self.name(),
+            ..self.h1.params()
+        }
     }
 }
 
@@ -100,15 +91,7 @@ where
         (self.h1.root_state(root_pos), self.h2.root_state(root_pos))
     }
 
-    fn num_seeds(&self) -> Option<usize> {
-        self.h1.num_seeds()
-    }
-
-    fn matches(&self) -> Option<&Vec<Match>> {
-        self.h1.matches()
-    }
-
-    fn num_matches(&self) -> Option<usize> {
-        self.h1.num_matches()
+    fn stats(&self) -> HeuristicStats {
+        self.h1.stats()
     }
 }

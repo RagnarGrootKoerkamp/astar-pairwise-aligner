@@ -112,11 +112,7 @@ pub struct AStarStats {
 }
 
 #[derive(Serialize)]
-pub struct HeuristicStats {
-    pub seeds: Option<usize>,
-    #[serde(skip_serializing)]
-    pub matches: Option<Vec<Match>>,
-    pub num_matches: Option<usize>,
+pub struct HeuristicStats2 {
     pub root_h: usize,
     pub path_matches: Option<usize>,
     pub explored_matches: Option<usize>,
@@ -129,6 +125,7 @@ pub struct AlignResult {
     pub heuristic_params: HeuristicParams,
     pub timing: TimingStats,
     pub astar: AStarStats,
+    pub heuristic_stats2: HeuristicStats2,
     pub heuristic_stats: HeuristicStats,
 
     // Output
@@ -140,7 +137,7 @@ pub struct AlignResult {
 impl AlignResult {
     pub fn print_header() {
         println!(
-            "{:>6} {:>6} {:>4} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6} {:>8} {:>8} {:>7} {:>5} {:>6} {:>5} {:>5}",
+            "{:>6} {:>6} {:>4} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6} {:>8} {:>8} {:>8} {:>7} {:>5} {:>6} {:>5} {:>5}",
             "|a|",
             "|b|",
             "r",
@@ -153,6 +150,7 @@ impl AlignResult {
             "band",
             "precom",
             "align",
+            "prune",
             "h%",
             "dist",
             "h(0,0)",
@@ -171,7 +169,7 @@ impl AlignResult {
                 &self.heuristic_params,
                 &self.timing,
                 &self.astar,
-                &self.heuristic_stats,
+                &self.heuristic_stats2,
                 Distance {
                     distance: self.answer_cost,
                 },
@@ -182,18 +180,18 @@ impl AlignResult {
         let percent_h =
             100. * self.timing.precomputation / (self.timing.precomputation + self.timing.astar);
         println!(
-            "{:>6} {:>6} {:>4.2} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6.2} {:>8.5} {:>8.5} {:>7.3} {:>5} {:>6} {:>5} {:>5}",
+            "{:>6} {:>6} {:>4.2} {:5} {:>2} {:>2} {:>2} {:>2} {:>2} {:5} {:>7} {:>7} {:>9} {:>9} {:>6} {:>7} {:>6.2} {:>8.5} {:>8.5} {:>8.5} {:>7.3} {:>5} {:>6} {:>5} {:>5}",
             self.input.len_a,
             self.input.len_b,
             self.input.error_rate,
-            self.heuristic_params.heuristic,
+            self.heuristic_params.name,
             self.heuristic_params.l.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.max_match_cost.map_or("".into(), |x| x.to_string()),
             self.heuristic_params.pruning.map_or("".into(), |x| (x as u8) .to_string()),
             self.heuristic_params.build_fast.map_or("".into(), |x| (x as u8) .to_string()),
             self.heuristic_params.query_fast.map_or("".into(), |x| (x as u8) .to_string()),
             self.heuristic_params.distance_function.as_ref().unwrap_or(&"".to_string()),
-            self.heuristic_stats.seeds.map(|x| x.to_string()).unwrap_or_default(),
+            self.heuristic_stats.num_seeds.map(|x| x.to_string()).unwrap_or_default(),
             self.heuristic_stats.num_matches.map(|x| x.to_string()).unwrap_or_default(),
             self.astar.expanded,
             self.astar.explored,
@@ -202,11 +200,12 @@ impl AlignResult {
             self.astar.expanded as f32 / max(self.input.len_a, self.input.len_b) as f32,
             self.timing.precomputation,
             self.timing.astar,
+            self.heuristic_stats.pruning_duration.map(|x| x.to_string()).unwrap_or_default(),
             percent_h,
             self.answer_cost,
-            self.heuristic_stats.root_h,
-            self.heuristic_stats.path_matches.map(|x| x.to_string()).unwrap_or_default(),
-            self.heuristic_stats.explored_matches.map(|x| x.to_string()).unwrap_or_default(),
+            self.heuristic_stats2.root_h,
+            self.heuristic_stats2.path_matches.map(|x| x.to_string()).unwrap_or_default(),
+            self.heuristic_stats2.explored_matches.map(|x| x.to_string()).unwrap_or_default(),
         );
     }
     pub fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
@@ -343,14 +342,20 @@ where
         Default::default()
     };
     let h = h.borrow();
+    let h_stats = h.stats();
 
     let path_matches = if DEBUG {
-        h.matches().map(|x| num_matches_on_path(&path, x))
+        h_stats
+            .matches
+            .as_ref()
+            .map(|x| num_matches_on_path(&path, &x))
     } else {
         Default::default()
     };
     let explored_matches = if DEBUG {
-        h.matches()
+        h_stats
+            .matches
+            .as_ref()
             .map(|x| num_matches_on_path(&explored_states, x))
     } else {
         Default::default()
@@ -370,11 +375,9 @@ where
             expanded_states,
             double_expanded,
         },
-        heuristic_stats: HeuristicStats {
+        heuristic_stats: h_stats,
+        heuristic_stats2: HeuristicStats2 {
             root_h: root_val,
-            seeds: h.num_seeds(),
-            matches: h.matches().cloned(),
-            num_matches: h.num_matches(),
             path_matches,
             explored_matches,
             avg_h,
@@ -513,7 +516,7 @@ mod tests {
                 query_fast: false,
             },
         );
-        assert!(r.heuristic_stats.root_h <= r.answer_cost);
+        assert!(r.heuristic_stats2.root_h <= r.answer_cost);
     }
 
     // Failed because of match distance > 0
@@ -621,22 +624,15 @@ mod tests {
 // - contribution to h from matches and distance heuristic
 // - heuristic time
 // - number of skipped matches
-//
-// TODO: Heuristics / Correctness
-// - Investigate double start of seed expansion
+// - pruning time
 //
 // TODO: Code
 // - fuzzing/testing that fast impls equal slow impls
 // - efficient pruning: skip explored states that have outdated heuristic value (aka pruning with offset)
-// - Expanded count counts identical nodes once for each pop
-// - Why is pruning worse for 0.05 edit distance?
-// - Pruning with offset
-//   - Need to figure out when all previous vertices depend on the current match
-// - Simulate efficient pruning by re-pushing explored states with outdated heuristic value
 // - Investigate doing long jumps on matching diagonals.
 // - Rename max_match_cost to something that includes the +1 that's present everywhere.
 //
-// TODO: MSA
+// TODO: MSA (delayed; pruning complications)
 // - instantiate one heuristic per pair of sequences
 // - run A* on the one-by-one step graph
 //
@@ -659,6 +655,8 @@ mod tests {
 //   - Most of the time, the match will be at the very front and there are going
 //     to be very few expanded states in front, so we can do an offset and only
 //     update h for those expanded states beyond this match.
+// - Pruning with offset
+//   - Need to figure out when all previous vertices depend on the current match
 //
 // TODO: Performance
 // - Use Pos(u32,u32) instead of Pos(usize,usize)
@@ -694,5 +692,3 @@ mod tests {
 // - Do internal iteration over outgoing edges, instead of collecting them.
 // - Sort nodes in IncreasingFunction for better caching
 // - incremental_h is slowly becoming more efficient (move fewer steps backwards)
-
-// NOTE: Expanded states is counted as:

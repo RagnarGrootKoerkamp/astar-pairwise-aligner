@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use super::*;
-use crate::{prelude::*, seeds::Match};
+use crate::prelude::*;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PathMax<H: Heuristic> {
@@ -27,20 +27,11 @@ impl<H: Heuristic> Heuristic for PathMax<H> {
         }
     }
 
-    fn l(&self) -> Option<usize> {
-        self.heuristic.l()
-    }
-
-    fn max_match_cost(&self) -> Option<usize> {
-        self.heuristic.max_match_cost()
-    }
-
-    fn pruning(&self) -> Option<bool> {
-        self.heuristic.pruning()
-    }
-
-    fn distance(&self) -> Option<String> {
-        self.heuristic.distance()
+    fn params(&self) -> HeuristicParams {
+        HeuristicParams {
+            name: self.name(),
+            ..self.heuristic.params()
+        }
     }
 }
 
@@ -87,15 +78,7 @@ impl<'a, HI: HeuristicInstance<'a>> HeuristicInstance<'a> for PathMaxI<'a, HI> {
         )
     }
 
-    fn num_seeds(&self) -> Option<usize> {
-        self.heuristic.num_seeds()
-    }
-
-    fn matches(&self) -> Option<&Vec<Match>> {
-        self.heuristic.matches()
-    }
-
-    fn num_matches(&self) -> Option<usize> {
-        self.heuristic.num_matches()
+    fn stats(&self) -> HeuristicStats {
+        self.heuristic.stats()
     }
 }

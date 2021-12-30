@@ -1,4 +1,7 @@
-use std::cmp::Reverse;
+use std::{
+    cmp::Reverse,
+    time::{self, Duration},
+};
 
 use itertools::Itertools;
 
@@ -33,26 +36,22 @@ where
         assert!(self.max_match_cost < self.l);
         SeedHeuristicI::new(a, b, alphabet, *self)
     }
-    fn l(&self) -> Option<usize> {
-        Some(self.l)
-    }
-    fn max_match_cost(&self) -> Option<usize> {
-        Some(self.max_match_cost)
-    }
-    fn pruning(&self) -> Option<bool> {
-        Some(self.pruning)
-    }
-    fn distance(&self) -> Option<String> {
-        Some(self.distance_function.name())
-    }
+
     fn name(&self) -> String {
         "Seed".into()
     }
-    fn build_fast(&self) -> Option<bool> {
-        Some(self.build_fast)
-    }
-    fn query_fast(&self) -> Option<bool> {
-        Some(self.query_fast)
+
+    fn params(&self) -> HeuristicParams {
+        HeuristicParams {
+            name: self.name(),
+            l: Some(self.l),
+            max_match_cost: Some(self.max_match_cost),
+            pruning: Some(self.pruning),
+            distance_function: Some(self.distance_function.name()),
+            build_fast: Some(self.build_fast),
+            query_fast: Some(self.query_fast),
+            ..Default::default()
+        }
     }
 }
 pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
@@ -72,6 +71,7 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
 
     // For debugging
     expanded: HashSet<Pos>,
+    pub pruning_duration: Duration,
 }
 
 /// The seed heuristic implies a distance function as the maximum of the
@@ -126,6 +126,7 @@ where
             // Filled below.
             increasing_function: Default::default(),
             expanded: HashSet::default(),
+            pruning_duration: Default::default(),
         };
         h.transform_target = if h.params.build_fast {
             h.transform(h.target)
@@ -392,15 +393,15 @@ where
         self.increasing_function.root()
     }
 
-    fn num_seeds(&self) -> Option<usize> {
-        Some(self.seed_matches.num_seeds)
+    fn stats(&self) -> HeuristicStats {
+        HeuristicStats {
+            num_seeds: Some(self.seed_matches.num_seeds),
+            num_matches: Some(self.seed_matches.matches.len()),
+            matches: Some(self.seed_matches.matches.clone()),
+            pruning_duration: Some(self.pruning_duration.as_secs_f32()),
+        }
     }
-    fn matches(&self) -> Option<&Vec<Match>> {
-        Some(&self.seed_matches.matches)
-    }
-    fn num_matches(&self) -> Option<usize> {
-        Some(self.seed_matches.matches.len())
-    }
+
     fn prune(&mut self, pos: Pos) {
         if !self.params.pruning {
             return;
@@ -439,7 +440,7 @@ where
                 return;
             };
 
-            // Skip pruning when this is an inexact match neighbouring a still active exact match.
+            // Skip pruning when this is an inexact match neighbouring a strictly better still active exact match.
             // TODO: This feels hacky doing the manual position manipulation, but oh well... .
             let nbs = {
                 let mut nbs = Vec::new();
@@ -479,7 +480,9 @@ where
             }
         }
         //println!("REBUILD");
+        let start = time::Instant::now();
         self.build();
+        self.pruning_duration += start.elapsed();
         //println!("{:?}", self.h_at_seeds);
     }
 }

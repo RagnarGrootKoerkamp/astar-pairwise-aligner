@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     increasing_function::IncreasingFunction2D,
     prelude::*,
-    seeds::{find_matches, Match, SeedMatches},
+    seeds::{find_matches, SeedMatches},
 };
 
 // TODO: Make this work for the other distance functions.
@@ -30,11 +30,14 @@ impl Heuristic for FastZeroSeedHeuristic {
     ) -> Self::Instance<'_> {
         FastZeroSeedHeuristicI::new(a, b, alphabet, self)
     }
-    fn l(&self) -> Option<usize> {
-        Some(self.l)
-    }
-    fn distance(&self) -> Option<String> {
-        Some("Zero".into())
+
+    fn params(&self) -> HeuristicParams {
+        HeuristicParams {
+            name: self.name(),
+            l: Some(self.l),
+            distance_function: Some("Zero".into()),
+            ..Default::default()
+        }
     }
 }
 pub struct FastZeroSeedHeuristicI {
@@ -82,13 +85,13 @@ impl HeuristicInstance<'_> for FastZeroSeedHeuristicI {
     fn root_state(&self, _: Self::Pos) -> Self::IncrementalState {
         self.f.root()
     }
-    fn num_seeds(&self) -> Option<usize> {
-        Some(self.seed_matches.num_seeds)
-    }
-    fn matches(&self) -> Option<&Vec<Match>> {
-        Some(&self.seed_matches.matches)
-    }
-    fn num_matches(&self) -> Option<usize> {
-        Some(self.seed_matches.matches.len())
+
+    fn stats(&self) -> HeuristicStats {
+        HeuristicStats {
+            num_seeds: Some(self.seed_matches.num_seeds),
+            num_matches: Some(self.seed_matches.matches.len()),
+            matches: Some(self.seed_matches.matches.clone()),
+            ..Default::default()
+        }
     }
 }

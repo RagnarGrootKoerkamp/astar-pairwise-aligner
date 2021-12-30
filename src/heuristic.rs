@@ -14,9 +14,9 @@ use serde::Serialize;
 
 use crate::{seeds::Match, util::*};
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct HeuristicParams {
-    pub heuristic: String,
+    pub name: String,
     pub distance_function: Option<String>,
     pub l: Option<usize>,
     pub max_match_cost: Option<usize>,
@@ -25,30 +25,18 @@ pub struct HeuristicParams {
     pub query_fast: Option<bool>,
 }
 
+#[derive(Serialize, Default)]
+pub struct HeuristicStats {
+    pub num_seeds: Option<usize>,
+    pub num_matches: Option<usize>,
+    #[serde(skip_serializing)]
+    pub matches: Option<Vec<Match>>,
+    pub pruning_duration: Option<f32>,
+}
+
 /// An object containing the settings for a heuristic.
 pub trait Heuristic: std::fmt::Debug + Copy {
     type Instance<'a>: HeuristicInstance<'a>;
-
-    // Heuristic properties.
-    fn name(&self) -> String;
-    fn l(&self) -> Option<usize> {
-        None
-    }
-    fn max_match_cost(&self) -> Option<usize> {
-        None
-    }
-    fn pruning(&self) -> Option<bool> {
-        None
-    }
-    fn distance(&self) -> Option<String> {
-        None
-    }
-    fn build_fast(&self) -> Option<bool> {
-        None
-    }
-    fn query_fast(&self) -> Option<bool> {
-        None
-    }
 
     fn build<'a>(
         &self,
@@ -57,15 +45,13 @@ pub trait Heuristic: std::fmt::Debug + Copy {
         alphabet: &Alphabet,
     ) -> Self::Instance<'a>;
 
+    // Heuristic properties.
+    fn name(&self) -> String;
+
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
-            heuristic: self.name(),
-            distance_function: self.distance(),
-            l: self.l(),
-            max_match_cost: self.max_match_cost(),
-            pruning: self.pruning(),
-            build_fast: self.build_fast(),
-            query_fast: self.query_fast(),
+            name: self.name(),
+            ..Default::default()
         }
     }
 }
@@ -95,15 +81,7 @@ pub trait HeuristicInstance<'a> {
 
     fn prune(&mut self, _pos: Self::Pos) {}
 
-    // Some statistics of the heuristic.
-    // TODO: Clean this up.
-    fn num_seeds(&self) -> Option<usize> {
-        None
-    }
-    fn matches(&self) -> Option<&Vec<Match>> {
-        None
-    }
-    fn num_matches(&self) -> Option<usize> {
-        None
+    fn stats(&self) -> HeuristicStats {
+        Default::default()
     }
 }
