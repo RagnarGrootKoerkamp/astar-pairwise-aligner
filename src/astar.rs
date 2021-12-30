@@ -53,10 +53,10 @@ where
             }
         }
 
-        if estimate_scores.insert_if_smaller(node.to_pos(), estimate_score)
-            == InsertIfSmallerResult::Smaller
-        {
-            *double_expands += 1;
+        match estimate_scores.insert_if_smaller(node.to_pos(), estimate_score) {
+            InsertIfSmallerResult::New => {}
+            InsertIfSmallerResult::Smaller => *double_expands += 1,
+            InsertIfSmallerResult::Larger => continue,
         }
 
         // Number of times we compute the neighbours of a node.
@@ -65,7 +65,11 @@ where
         graph.iterate_outgoing_edges(node, |next, cost| {
             let next_score = node_score + cost;
 
-            scores.insert_if_smaller(next.to_pos(), next_score);
+            if let InsertIfSmallerResult::Larger =
+                scores.insert_if_smaller(next.to_pos(), next_score)
+            {
+                return;
+            }
 
             // Number of pushes on the stack.
             on_explore(next);

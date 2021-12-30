@@ -622,6 +622,10 @@ mod tests {
 // - heuristic time
 // - number of skipped matches
 //
+// TODO: Heuristics / Correctness
+// - Investigate double start of seed expansion
+// - Investigate (Fast build, Slow query) producing incorrect values
+//
 // TODO: Code
 // - fuzzing/testing that fast impls equal slow impls
 // - efficient pruning: skip explored states that have outdated heuristic value (aka pruning with offset)
