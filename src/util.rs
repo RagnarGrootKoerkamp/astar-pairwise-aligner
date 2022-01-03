@@ -19,10 +19,29 @@ pub struct Mutations {
     pub insertions: Vec<usize>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct MutationConfig {
+    pub insert_at_start: bool,
+    pub insert_at_end: bool,
+    pub delete_at_start: bool,
+    pub delete_at_end: bool,
+}
+
+impl Default for MutationConfig {
+    fn default() -> Self {
+        Self {
+            insert_at_start: true,
+            insert_at_end: true,
+            delete_at_start: true,
+            delete_at_end: true,
+        }
+    }
+}
+
 // TODO: Do not generate insertions at the end. (Also do not generate similar
 // sequences by inserting elsewhere.)
 // TODO: Move to seeds.rs.
-pub fn mutations(k: usize, kmer: usize) -> Mutations {
+pub fn mutations(k: usize, kmer: usize, config: MutationConfig) -> Mutations {
     // This assumes the alphabet size is 4.
     let mut deletions = Vec::with_capacity(k);
     let mut substitutions = Vec::with_capacity(4 * k);
@@ -37,14 +56,23 @@ pub fn mutations(k: usize, kmer: usize) -> Mutations {
     }
     // Insertions
     // TODO: Test that excluding insertions at the start and end doesn't matter.
-    for i in 0..=k {
+    // NOTE: Apparently skipping insertions at the start is fine, but skipping at the end is not.
+    for i in (if config.insert_at_start { 0 } else { 1 })..=(if config.insert_at_end {
+        k
+    } else {
+        k - 1
+    }) {
         let mask = (1 << (2 * i)) - 1;
         for s in 0..4 {
             insertions.push((kmer & mask) | (s << (2 * i)) | ((kmer & !mask) << 2));
         }
     }
     // Deletions
-    for i in 0..k {
+    for i in (if config.delete_at_start { 0 } else { 1 })..=(if config.delete_at_end {
+        k - 1
+    } else {
+        k - 2
+    }) {
         let mask = (1 << (2 * i)) - 1;
         deletions.push((kmer & mask) | ((kmer & (!mask << 2)) >> 2));
     }
@@ -73,7 +101,7 @@ mod tests {
     fn test_mutations() {
         let kmer = 0b00011011usize;
         let k = 4;
-        let ms = mutations(k, kmer);
+        let ms = mutations(k, kmer, MutationConfig::default());
         // substitution
         assert!(ms.substitutions.contains(&0b11011011));
         // insertion
@@ -97,7 +125,7 @@ mod tests {
     fn kmer_removal() {
         let kmer = 0b00011011usize;
         let k = 4;
-        let ms = mutations(k, kmer);
+        let ms = mutations(k, kmer, MutationConfig::default());
         assert!(!ms.substitutions.contains(&kmer));
         assert!(ms.deletions.contains(&kmer));
         assert!(ms.insertions.contains(&kmer));

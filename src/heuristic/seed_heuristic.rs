@@ -9,13 +9,12 @@ use super::{distance::*, *};
 use crate::{
     increasing_function::IncreasingFunction2D,
     prelude::*,
-    seeds::{find_matches, Match, SeedMatches},
+    seeds::{find_matches, Match, MatchConfig, SeedMatches},
 };
 
 #[derive(Debug, Clone, Copy)]
 pub struct SeedHeuristic<DH: DistanceHeuristic> {
-    pub l: usize,
-    pub max_match_cost: usize,
+    pub match_config: MatchConfig,
     pub distance_function: DH,
     pub pruning: bool,
     pub build_fast: bool,
@@ -33,7 +32,7 @@ where
         b: &'a Sequence,
         alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
-        assert!(self.max_match_cost < self.l);
+        assert!(self.match_config.max_match_cost < self.match_config.l);
         SeedHeuristicI::new(a, b, alphabet, *self)
     }
 
@@ -44,8 +43,8 @@ where
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name(),
-            l: Some(self.l),
-            max_match_cost: Some(self.max_match_cost),
+            l: Some(self.match_config.l),
+            max_match_cost: Some(self.match_config.max_match_cost),
             pruning: Some(self.pruning),
             distance_function: Some(self.distance_function.name()),
             build_fast: Some(self.build_fast),
@@ -100,7 +99,7 @@ where
         alphabet: &Alphabet,
         params: SeedHeuristic<DH>,
     ) -> Self {
-        let seed_matches = find_matches(a, b, alphabet, params.l, params.max_match_cost);
+        let seed_matches = find_matches(a, b, alphabet, params.match_config);
 
         let distance_function = DistanceHeuristic::build(&params.distance_function, a, b, alphabet);
 
@@ -504,16 +503,22 @@ mod tests {
                 for e in [0.1, 0.3, 1.0] {
                     for pruning in [false, true] {
                         let h_slow = SeedHeuristic {
-                            l,
-                            max_match_cost,
+                            match_config: MatchConfig {
+                                l,
+                                max_match_cost,
+                                ..MatchConfig::default()
+                            },
                             distance_function: GapHeuristic,
                             pruning,
                             build_fast: false,
                             query_fast: false,
                         };
                         let h_fast = SeedHeuristic {
-                            l,
-                            max_match_cost,
+                            match_config: MatchConfig {
+                                l,
+                                max_match_cost,
+                                ..MatchConfig::default()
+                            },
                             distance_function: GapHeuristic,
                             pruning,
                             build_fast: true,
@@ -572,16 +577,22 @@ mod tests {
                 let max_match_cost = 1;
                 let pruning = false;
                 let h_slow = SeedHeuristic {
-                    l,
-                    max_match_cost,
+                    match_config: MatchConfig {
+                        l,
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,
                     query_fast: build_fast,
                 };
                 let h_fast = SeedHeuristic {
-                    l,
-                    max_match_cost,
+                    match_config: MatchConfig {
+                        l,
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,
@@ -620,16 +631,22 @@ mod tests {
         let build_fast = true;
         let (l, max_match_cost) = (7, 1);
         let h_slow = SeedHeuristic {
-            l,
-            max_match_cost,
+            match_config: MatchConfig {
+                l,
+                max_match_cost,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning,
             build_fast: false,
             query_fast: false,
         };
         let h_fast = SeedHeuristic {
-            l,
-            max_match_cost,
+            match_config: MatchConfig {
+                l,
+                max_match_cost,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning,
             build_fast,
@@ -663,16 +680,22 @@ mod tests {
         let (l, max_match_cost) = (7, 1);
         let build_fast = true;
         let h_slow = SeedHeuristic {
-            l,
-            max_match_cost,
+            match_config: MatchConfig {
+                l,
+                max_match_cost,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning,
             build_fast: false,
             query_fast: false,
         };
         let h_fast = SeedHeuristic {
-            l,
-            max_match_cost,
+            match_config: MatchConfig {
+                l,
+                max_match_cost,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning,
             build_fast,
@@ -720,16 +743,22 @@ mod tests {
         for do_transform in [false, true] {
             for build_fast in [false, true] {
                 let h_slow = SeedHeuristic {
-                    l,
-                    max_match_cost,
+                    match_config: MatchConfig {
+                        l,
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast: false,
                     query_fast: false,
                 };
                 let h_fast = SeedHeuristic {
-                    l,
-                    max_match_cost,
+                    match_config: MatchConfig {
+                        l,
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,

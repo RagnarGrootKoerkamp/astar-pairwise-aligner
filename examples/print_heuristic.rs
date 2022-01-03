@@ -7,16 +7,22 @@ fn main() {
     for do_transform in [false, true] {
         for build_fast in [false, true] {
             let h_slow = SeedHeuristic {
-                l,
-                max_match_cost,
+                match_config: MatchConfig {
+                    l,
+                    max_match_cost,
+                    ..MatchConfig::default()
+                },
                 distance_function: GapHeuristic,
                 pruning,
                 build_fast: false,
                 query_fast: false,
             };
             let h_fast = SeedHeuristic {
-                l,
-                max_match_cost,
+                match_config: MatchConfig {
+                    l,
+                    max_match_cost,
+                    ..MatchConfig::default()
+                },
                 distance_function: GapHeuristic,
                 pruning,
                 build_fast,

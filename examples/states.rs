@@ -6,8 +6,11 @@ fn main() {
 
     {
         let h = SeedHeuristic {
-            l: 4,
-            max_match_cost: 0,
+            match_config: MatchConfig {
+                l: 4,
+                max_match_cost: 0,
+                ..MatchConfig::default()
+            },
             distance_function: CountHeuristic,
             pruning: false,
             build_fast: false,
@@ -19,8 +22,11 @@ fn main() {
     .write_explored_states("evals/stats/exact.csv");
     {
         let h = SeedHeuristic {
-            l: 6,
-            max_match_cost: 1,
+            match_config: MatchConfig {
+                l: 6,
+                max_match_cost: 1,
+                ..MatchConfig::default()
+            },
             distance_function: CountHeuristic,
             pruning: false,
             build_fast: false,
@@ -32,8 +38,11 @@ fn main() {
     .write_explored_states("evals/stats/inexact.csv");
     {
         let h = SeedHeuristic {
-            l: 4,
-            max_match_cost: 0,
+            match_config: MatchConfig {
+                l: 4,
+                max_match_cost: 0,
+                ..MatchConfig::default()
+            },
             distance_function: CountHeuristic,
             pruning: true,
             build_fast: false,
@@ -45,8 +54,11 @@ fn main() {
     .write_explored_states("evals/stats/exact_pruning.csv");
     let r = {
         let h = SeedHeuristic {
-            l: 6,
-            max_match_cost: 1,
+            match_config: MatchConfig {
+                l: 6,
+                max_match_cost: 1,
+                ..MatchConfig::default()
+            },
             distance_function: ZeroHeuristic,
             pruning: true,
             build_fast: false,
@@ -62,8 +74,11 @@ fn main() {
     );
     let r = {
         let h = SeedHeuristic {
-            l: 6,
-            max_match_cost: 1,
+            match_config: MatchConfig {
+                l: 6,
+                max_match_cost: 1,
+                ..MatchConfig::default()
+            },
             distance_function: CountHeuristic,
             pruning: true,
             build_fast: false,

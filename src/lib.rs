@@ -60,7 +60,7 @@ pub mod prelude {
 
     pub use crate::graph::*;
     pub use crate::heuristic::*;
-    pub use crate::seeds::Match;
+    pub use crate::seeds::{Match, MatchConfig};
     pub use crate::util::*;
     #[allow(unused_imports)]
     pub(crate) use crate::DEBUG;
@@ -536,8 +536,11 @@ mod tests {
 
         // Instantiate the heuristic.
         let h = SeedHeuristic {
-            l,
-            max_match_cost: 0,
+            match_config: MatchConfig {
+                l,
+                max_match_cost: 0,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
@@ -589,8 +592,11 @@ mod tests {
             &alphabet,
             stats,
             SeedHeuristic {
-                l,
-                max_match_cost: 1,
+                match_config: MatchConfig {
+                    l,
+                    max_match_cost: 1,
+                    ..MatchConfig::default()
+                },
                 distance_function: BiCountHeuristic,
                 pruning: false,
                 build_fast: false,
@@ -604,8 +610,11 @@ mod tests {
     #[test]
     fn consistency_1() {
         let h = SeedHeuristic {
-            l: 4,
-            max_match_cost: 1,
+            match_config: MatchConfig {
+                l: 4,
+                max_match_cost: 1,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
@@ -623,8 +632,11 @@ mod tests {
     #[test]
     fn consistency_2() {
         let h = SeedHeuristic {
-            l: 5,
-            max_match_cost: 1,
+            match_config: MatchConfig {
+                l: 5,
+                max_match_cost: 1,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
@@ -643,8 +655,11 @@ mod tests {
     #[ignore]
     fn consistency_3() {
         let h = SeedHeuristic {
-            l: 4,
-            max_match_cost: 0,
+            match_config: MatchConfig {
+                l: 4,
+                max_match_cost: 0,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
@@ -662,8 +677,11 @@ mod tests {
     #[test]
     fn consistency_4() {
         let h = SeedHeuristic {
-            l: 6,
-            max_match_cost: 1,
+            match_config: MatchConfig {
+                l: 6,
+                max_match_cost: 1,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
@@ -683,8 +701,11 @@ mod tests {
     #[test]
     fn consistency_5() {
         let h = SeedHeuristic {
-            l: 4,
-            max_match_cost: 0,
+            match_config: MatchConfig {
+                l: 4,
+                max_match_cost: 0,
+                ..MatchConfig::default()
+            },
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
@@ -747,6 +768,14 @@ mod tests {
 //     Tight coupling with A* is needed to do this.
 // - Replace QGramIndex by something less memory hungry
 // - Skip insertions at the start/end of seeds.
+// - Prune only half (some fixed %) of matches. This should result in O(matches) total pruning time.
+// - Prune only matches at (or close to) the 'front': with so far maximal i and j, for not having to update the priority queue.
+// - Do not generate dist-1 matches with insertions at the start and/or end.
+// - Do not generate dist-1 matches with deletions at the end.
+//   - Can deletions at the start also be pruned? It may screw up heuristic values right next to it. Does that matter?
+//   - Definitely cannot skip deletions at both start and end.
+// - Replace IncreasingFunction by a vector: value -> position, instead of the current position->value map.
+//   This is sufficient, because values only increase by 1 or 2 at a time anyway, and set lookup becomes binary search.
 //
 //
 // DONE: Fast Seed+Gap heuristic implementation:
