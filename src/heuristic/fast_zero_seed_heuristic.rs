@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     increasing_function::IncreasingFunction2D,
     prelude::*,
-    seeds::{find_matches, SeedMatches},
+    seeds::{find_matches, MatchConfig, SeedMatches},
 };
 
 // TODO: Make this work for the other distance functions.
@@ -53,7 +53,15 @@ impl FastZeroSeedHeuristicI {
         alphabet: &Alphabet,
         params: &FastZeroSeedHeuristic,
     ) -> Self {
-        let seed_matches = find_matches(a, b, alphabet, params.l, 0);
+        let seed_matches = find_matches(
+            a,
+            b,
+            alphabet,
+            MatchConfig {
+                l: params.l,
+                ..Default::default()
+            },
+        );
 
         // The increasing function goes back from the end, and uses (0,0) for the final state.
         let f = IncreasingFunction2D::new(

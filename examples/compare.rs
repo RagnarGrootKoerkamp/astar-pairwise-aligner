@@ -20,10 +20,16 @@ fn main() {
                     if pruning && query_fast {
                         continue;
                     }
+                    if !pruning && !query_fast {
+                        continue;
+                    }
                     let result = {
                         let h = SeedHeuristic {
-                            l,
-                            max_match_cost,
+                            match_config: MatchConfig {
+                                l,
+                                max_match_cost,
+                                ..MatchConfig::default()
+                            },
                             distance_function: GapHeuristic,
                             pruning,
                             build_fast,

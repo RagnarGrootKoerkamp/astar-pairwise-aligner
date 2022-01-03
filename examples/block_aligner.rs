@@ -11,8 +11,11 @@ fn main() {
         for l in [8, 9, 10, 11, 12] {
             {
                 let h = SeedHeuristic {
-                    l,
-                    max_match_cost: 1,
+                    match_config: MatchConfig {
+                        l,
+                        max_match_cost: 1,
+                        ..MatchConfig::default()
+                    },
                     distance_function: CountHeuristic,
                     pruning: true,
                     build_fast: false,

@@ -50,12 +50,23 @@ impl<'a> DistanceHeuristicInstance<'a> for SeedMatches {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct MatchConfig {
+    // TODO: Add settings for variable length matches in here.
+    pub l: usize,
+    pub max_match_cost: usize,
+    pub mutation_config: MutationConfig,
+}
+
 pub fn find_matches<'a>(
     a: &'a Sequence,
     b: &'a Sequence,
     text_alphabet: &Alphabet,
-    l: usize,
-    max_match_cost: usize,
+    MatchConfig {
+        l,
+        max_match_cost,
+        mutation_config,
+    }: MatchConfig,
 ) -> SeedMatches {
     assert!(max_match_cost == 0 || max_match_cost == 1);
     // Convert to a binary sequences.
@@ -127,7 +138,7 @@ pub fn find_matches<'a>(
         }
         // Inexact matches.
         if max_match_cost == 1 {
-            let mutations = mutations(len, seed);
+            let mutations = mutations(len, seed, mutation_config);
             for mutation in mutations.deletions {
                 for &j in qgrams[&(len - 1)].qgram_matches(mutation) {
                     matches.push(Match {
