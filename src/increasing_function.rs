@@ -9,11 +9,15 @@ use itertools::Itertools;
 use crate::prelude::*;
 use crate::seeds::Match;
 
-pub struct IncreasingFunction<K, V> {
-    pub m: BTreeMap<K, V>,
+// Type for values of contours
+type Layer = usize;
+pub struct ThresholdsMap<K, V> {
+    pub m: BTreeMap<K, (Layer, V)>,
 }
 
-impl<K, V> Default for IncreasingFunction<K, V> {
+// K: y-coordinate
+// V: Layer metadata
+impl<K, V> Default for ThresholdsMap<K, V> {
     fn default() -> Self {
         Self {
             m: Default::default(),
@@ -21,15 +25,15 @@ impl<K, V> Default for IncreasingFunction<K, V> {
     }
 }
 
-impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> IncreasingFunction<K, V> {
+impl<K: Ord + Copy + std::fmt::Debug, V: Copy + std::fmt::Debug> ThresholdsMap<K, V> {
     /// Set f(x) = y.
     /// Only inserts if y is larger than the current value at x.
     /// Returns whether insertion took place.
     #[inline]
-    pub fn set(&mut self, x: K, y: V) -> bool {
+    pub fn set(&mut self, x: K, y: (Layer, V)) -> bool {
         //println!("Set {:?} to {:?}", x, y);
         let cur_val = self.get(x);
-        if cur_val.map_or(false, |c| y <= c) {
+        if cur_val.map_or(false, |c| y.0 <= c.0) {
             //println!("Set {:?} to {:?} -> SKIP", x, y);
             return false;
         }
@@ -37,7 +41,7 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
         let to_remove = self
             .m
             .range((Excluded(x), Unbounded))
-            .take_while(|&(_, &value)| value <= y)
+            .take_while(|&(_, &value)| value.0 <= y.0)
             .map(|(&key, _)| key)
             .collect::<Vec<_>>();
         for key in to_remove {
@@ -49,13 +53,13 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
 
     /// Get the largest value in the map.
     #[inline]
-    pub fn max(&self) -> Option<V> {
+    pub fn max(&self) -> Option<(Layer, V)> {
         self.m.range(RangeFull).next_back().map(|(_, y)| *y)
     }
 
     /// Get f(x): the y for the largest key <= x inserted into the map.
     #[inline]
-    pub fn get(&self, x: K) -> Option<V> {
+    pub fn get(&self, x: K) -> Option<(Layer, V)> {
         let v = self
             .m
             .range((Unbounded, Included(x)))
@@ -67,7 +71,7 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
 
     /// f(x') for the largest x' < x inserted into the map.
     #[inline]
-    pub fn get_smaller(&self, x: K) -> Option<V> {
+    pub fn get_smaller(&self, x: K) -> Option<(Layer, V)> {
         self.m
             .range((Unbounded, Excluded(x)))
             .next_back()
@@ -76,7 +80,7 @@ impl<K: Ord + Copy + std::fmt::Debug, V: Ord + Copy + std::fmt::Debug> Increasin
 
     /// f(x') for the smallest x' > x inserted into the map.
     #[inline]
-    pub fn get_larger(&self, x: K) -> Option<V> {
+    pub fn get_larger(&self, x: K) -> Option<(Layer, V)> {
         self.m
             .range((Excluded(x), Unbounded))
             .next()
@@ -90,7 +94,7 @@ pub struct NodeIndex(usize);
 
 // We guarantee that the function always contains (0,0), so lookup will always succeed.
 #[derive(Default)]
-pub struct IncreasingFunction2D<T: Copy + hash::Hash + Eq> {
+pub struct ContourGraph<T: Copy + hash::Hash + Eq> {
     nodes: Vec<Node<T>>,
     // val=0
     bot: NodeIndex,
@@ -122,28 +126,6 @@ impl<T: Copy + hash::Hash + Eq> std::ops::IndexMut<NodeIndex> for Vec<Node<T>> {
     }
 }
 
-// (value, nodeindex). Orders only by increasing value.
-#[derive(Clone, Copy, Debug, Eq)]
-struct Value(usize, NodeIndex);
-impl PartialEq for Value {
-    #[inline]
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-impl PartialOrd for Value {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for Value {
-    #[inline]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
-    }
-}
-
 // (Coordinate, value at coordinate)
 // This allows having multiple values in each coordinate, which is useful to
 // keep the pareto fronts clean.
@@ -162,7 +144,7 @@ impl Ord for ValuedPos {
     }
 }
 
-impl IncreasingFunction2D<usize> {
+impl ContourGraph<usize> {
     #[inline]
     pub fn val(&self, idx: NodeIndex) -> usize {
         self.nodes[idx].val
@@ -184,8 +166,8 @@ impl IncreasingFunction2D<usize> {
     }
 
     fn build(&mut self, target: Pos, ps: Vec<Match>) {
-        // ValuedPos(j, value) -> Value(max walk to target, parent idx).
-        type F = IncreasingFunction<ValuedPos, Value>;
+        // ValuedPos(j, value) -> (layer, parent idx).
+        type F = ThresholdsMap<ValuedPos, NodeIndex>;
         let mut front = F::default();
         let root = Pos(usize::MAX, usize::MAX);
 
@@ -195,7 +177,7 @@ impl IncreasingFunction2D<usize> {
             // 1b. If not, continue.
             let (next_val, mut parent) = front
                 .get(ValuedPos(start.1, usize::MAX))
-                .map_or((0, None), |Value(current_val, parent_idx)| {
+                .map_or((0, None), |(current_val, parent_idx)| {
                     (current_val + 1, Some(parent_idx))
                 });
             if val < next_val {
@@ -219,18 +201,17 @@ impl IncreasingFunction2D<usize> {
 
                 // 3. Find `next`: The index of the node with this value, if present.
                 // This should just be the first incremental value after the current position.
-                let next =
-                    front
-                        .get_larger(ValuedPos(start.1, val))
-                        .map(|Value(nextval, next_idx)| {
-                            // Since we keep clean pareto fronts, this must always exist.
-                            // We can never skip a value.
-                            assert_eq!(nextval, val);
-                            // Prev/Next nodes are in direct correspondence.
-                            assert!(nodes[next_idx].prev.is_none());
-                            nodes[next_idx].prev = Some(id);
-                            next_idx
-                        });
+                let next = front
+                    .get_larger(ValuedPos(start.1, val))
+                    .map(|(nextval, next_idx)| {
+                        // Since we keep clean pareto fronts, this must always exist.
+                        // We can never skip a value.
+                        assert_eq!(nextval, val);
+                        // Prev/Next nodes are in direct correspondence.
+                        assert!(nodes[next_idx].prev.is_none());
+                        nodes[next_idx].prev = Some(id);
+                        next_idx
+                    });
 
                 //println!(
                 //"Push id {}: {:?} => {}, parent {:?} next {:?}",
@@ -249,7 +230,7 @@ impl IncreasingFunction2D<usize> {
                     nodes[parent].child = Some(id);
                 }
 
-                assert!(front.set(ValuedPos(start.1, val), Value(val, id)));
+                assert!(front.set(ValuedPos(start.1, val), (val, id)));
 
                 parent = Some(id);
             }
@@ -271,7 +252,7 @@ impl IncreasingFunction2D<usize> {
             // Find the parent for the end of this match.
             let parent_idx = front
                 .get(ValuedPos(m.end.1, usize::MAX))
-                .map(|Value(_, hint)| self.incremental_forward(m.end, hint))
+                .map(|(_, hint)| self.incremental_forward(m.end, hint))
                 .unwrap();
             //println!("Parent: {:?}", parent_idx);
             let val = match self.nodes[parent_idx] {
@@ -320,7 +301,7 @@ impl IncreasingFunction2D<usize> {
         //println!("{:?}", n);
         //}
         // The root is the now largest value in the front.
-        let Value(_, mut layer) = front.max().unwrap();
+        let (_, mut layer) = front.max().unwrap();
         self.root = layer;
 
         // Fill children pointers, layer by layer.
@@ -436,6 +417,7 @@ impl IncreasingFunction2D<usize> {
             return hint_idx;
         }
         // TODO: This is ugly, but it should work for now as backward steps are small.
+        // TODO: Add an assertion to make sure we've walked backwards far enough.
         if !(pos >= hint_pos) {
             if let Some(x) = self.nodes[hint_idx].child {
                 hint_idx = x;
@@ -505,7 +487,7 @@ mod tests {
 
     #[test]
     fn empty() {
-        let f = IncreasingFunction2D::new(Pos(10, 10), false, vec![]);
+        let f = ContourGraph::new(Pos(10, 10), false, vec![]);
         assert_eq!(f.nodes.len(), 1);
     }
 
@@ -513,7 +495,7 @@ mod tests {
     fn test_cross() {
         for start_x in [7, 6] {
             println!("\n\nRUN: {}", start_x);
-            let f = IncreasingFunction2D::new(
+            let f = ContourGraph::new(
                 Pos(10, 10),
                 false,
                 vec![
@@ -569,7 +551,7 @@ mod tests {
 
     #[test]
     fn broken_pareto_front() {
-        let f = IncreasingFunction2D::new(
+        let f = ContourGraph::new(
             Pos(10, 10),
             false,
             vec![

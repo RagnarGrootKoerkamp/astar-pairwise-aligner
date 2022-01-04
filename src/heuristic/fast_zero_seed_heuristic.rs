@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use super::*;
 use crate::{
-    increasing_function::IncreasingFunction2D,
+    increasing_function::ContourGraph,
     prelude::*,
     seeds::{find_matches, MatchConfig, SeedMatches},
 };
@@ -42,7 +42,7 @@ impl Heuristic for FastZeroSeedHeuristic {
 }
 pub struct FastZeroSeedHeuristicI {
     seed_matches: SeedMatches,
-    f: IncreasingFunction2D<usize>,
+    f: ContourGraph<usize>,
     // TODO: Replace this by params: SeedHeuristic
 }
 
@@ -64,7 +64,7 @@ impl FastZeroSeedHeuristicI {
         );
 
         // The increasing function goes back from the end, and uses (0,0) for the final state.
-        let f = IncreasingFunction2D::new(
+        let f = ContourGraph::new(
             Pos(a.len(), b.len()),
             false,
             seed_matches.iter().cloned().collect_vec(),
