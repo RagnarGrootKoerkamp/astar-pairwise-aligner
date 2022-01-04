@@ -16,6 +16,7 @@ pub mod increasing_function;
 pub mod random_sequence;
 pub mod scored;
 pub mod seeds;
+pub mod thresholds;
 pub mod util;
 
 extern crate test;

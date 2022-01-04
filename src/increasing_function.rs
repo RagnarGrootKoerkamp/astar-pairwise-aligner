@@ -1,92 +1,11 @@
-use std::cmp::{Ord, Reverse};
-use std::collections::BTreeMap;
+use std::cmp::{Ord, Ordering, Reverse};
 use std::hash;
-use std::ops::Bound::{Excluded, Included, Unbounded};
-use std::ops::RangeFull;
 
 use itertools::Itertools;
 
 use crate::prelude::*;
 use crate::seeds::Match;
-
-// Type for values of contours
-type Layer = usize;
-pub struct ThresholdsMap<K, V> {
-    pub m: BTreeMap<K, (Layer, V)>,
-}
-
-// K: y-coordinate
-// V: Layer metadata
-impl<K, V> Default for ThresholdsMap<K, V> {
-    fn default() -> Self {
-        Self {
-            m: Default::default(),
-        }
-    }
-}
-
-impl<K: Ord + Copy + std::fmt::Debug, V: Copy + std::fmt::Debug> ThresholdsMap<K, V> {
-    /// Set f(x) = y.
-    /// Only inserts if y is larger than the current value at x.
-    /// Returns whether insertion took place.
-    #[inline]
-    pub fn set(&mut self, x: K, y: (Layer, V)) -> bool {
-        //println!("Set {:?} to {:?}", x, y);
-        let cur_val = self.get(x);
-        if cur_val.map_or(false, |c| y.0 <= c.0) {
-            //println!("Set {:?} to {:?} -> SKIP", x, y);
-            return false;
-        }
-        // Delete elements right of x at most y.
-        let to_remove = self
-            .m
-            .range((Excluded(x), Unbounded))
-            .take_while(|&(_, &value)| value.0 <= y.0)
-            .map(|(&key, _)| key)
-            .collect::<Vec<_>>();
-        for key in to_remove {
-            self.m.remove(&key);
-        }
-        self.m.insert(x, y);
-        true
-    }
-
-    /// Get the largest value in the map.
-    #[inline]
-    pub fn max(&self) -> Option<(Layer, V)> {
-        self.m.range(RangeFull).next_back().map(|(_, y)| *y)
-    }
-
-    /// Get f(x): the y for the largest key <= x inserted into the map.
-    #[inline]
-    pub fn get(&self, x: K) -> Option<(Layer, V)> {
-        let v = self
-            .m
-            .range((Unbounded, Included(x)))
-            .next_back()
-            .map(|(_, y)| *y);
-        //println!("Get {:?} = {:?}", x, v);
-        v
-    }
-
-    /// f(x') for the largest x' < x inserted into the map.
-    #[inline]
-    pub fn get_smaller(&self, x: K) -> Option<(Layer, V)> {
-        self.m
-            .range((Unbounded, Excluded(x)))
-            .next_back()
-            .map(|(_, y)| *y)
-    }
-
-    /// f(x') for the smallest x' > x inserted into the map.
-    #[inline]
-    pub fn get_larger(&self, x: K) -> Option<(Layer, V)> {
-        self.m
-            .range((Excluded(x), Unbounded))
-            .next()
-            .map(|(_, y)| *y)
-    }
-}
+use crate::thresholds::vec::Thresholds;
 
 // A private wrapper type. Indices should be hidden to the outside world.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -133,13 +52,13 @@ impl<T: Copy + hash::Hash + Eq> std::ops::IndexMut<NodeIndex> for Vec<Node<T>> {
 struct ValuedPos(usize, usize);
 impl PartialOrd for ValuedPos {
     #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 impl Ord for ValuedPos {
     #[inline]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         (Reverse(self.0), self.1).cmp(&(Reverse(other.0), other.1))
     }
 }
@@ -167,7 +86,7 @@ impl ContourGraph<usize> {
 
     fn build(&mut self, target: Pos, ps: Vec<Match>) {
         // ValuedPos(j, value) -> (layer, parent idx).
-        type F = ThresholdsMap<ValuedPos, NodeIndex>;
+        type F = Thresholds<ValuedPos, NodeIndex>;
         let mut front = F::default();
         let root = Pos(usize::MAX, usize::MAX);
 
