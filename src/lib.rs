@@ -733,6 +733,7 @@ mod tests {
 // - efficient pruning: skip explored states that have outdated heuristic value (aka pruning with offset)
 // - Investigate doing long jumps on matching diagonals.
 // - Rename max_match_cost to something that includes the +1 that's present everywhere.
+// - Make a separate type for transformed positions
 //
 // TODO: MSA (delayed; pruning complications)
 // - instantiate one heuristic per pair of sequences
@@ -744,6 +745,13 @@ mod tests {
 //   - Minimize number of extra seeds.
 // - choosing seeds bases on guessed alignment
 // - Fix the gap heuristic transpose to take the seeds into account.
+// - Strategies for choosing seeds:
+//   - A: Each seed does not match, and covers exactly max_dist+1 mutations.
+//     - This way, no pruning is needed because there are no matches on the
+//     diagonal, and h(0,0) exactly equals the actual distance, so that only a
+//     very narrow region is expanded.
+//   - B: Maximize the number of seeds that matches exactly (at most 10 times).
+//   - Experiment: make one mutation every l positions, and make seeds of length l.
 //
 // TODO: Pruning
 // - In-place bruteforce pruning for IncreasingFunction datastructure
@@ -759,6 +767,7 @@ mod tests {
 //     update h for those expanded states beyond this match.
 // - Pruning with offset
 //   - Need to figure out when all previous vertices depend on the current match
+// - Remove matches from indels at the start and ends of seeds. Replace by doing a wider lookup along the diagonal.
 //
 // TODO: Performance
 // - Use Pos(u32,u32) instead of Pos(usize,usize)
@@ -776,6 +785,9 @@ mod tests {
 //   - Definitely cannot skip deletions at both start and end.
 // - Replace IncreasingFunction by a vector: value -> position, instead of the current position->value map.
 //   This is sufficient, because values only increase by 1 or 2 at a time anyway, and set lookup becomes binary search.
+// - ContourGraph: Add child pointer to incremental state, for faster moving diagonally.
+// - Investigate gap between h(0,0) and the actual distance.
+//   - For exact matches, do we want exactly 1 mutation per seed? That way h(0,0) is as large as possible, and we don't have any matches.
 //
 //
 // DONE: Fast Seed+Gap heuristic implementation:

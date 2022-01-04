@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 use super::{distance::*, *};
 use crate::{
-    increasing_function::IncreasingFunction2D,
+    increasing_function::ContourGraph,
     prelude::*,
     seeds::{find_matches, Match, MatchConfig, SeedMatches},
 };
@@ -66,7 +66,7 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
 
     // For the fast version
     transform_target: Pos,
-    increasing_function: IncreasingFunction2D<usize>,
+    contour_graph: ContourGraph<usize>,
 
     // For debugging
     expanded: HashSet<Pos>,
@@ -123,7 +123,7 @@ where
             pruned_positions: Default::default(),
             transform_target: Pos(0, 0),
             // Filled below.
-            increasing_function: Default::default(),
+            contour_graph: Default::default(),
             expanded: HashSet::default(),
             pruning_duration: Default::default(),
         };
@@ -278,10 +278,10 @@ where
         //     println!("Match: {:?}", x);
         // }
         //dbg!(&transformed_matches);
-        self.increasing_function =
-            IncreasingFunction2D::new(transform_target, leftover_at_end, transformed_matches);
+        self.contour_graph =
+            ContourGraph::new(transform_target, leftover_at_end, transformed_matches);
         if !self.params.query_fast {
-            self.h_at_seeds = self.increasing_function.to_map();
+            self.h_at_seeds = self.contour_graph.to_map();
         }
 
         //let mut h_map = self.h_at_seeds.iter().collect_vec();
@@ -296,8 +296,8 @@ where
     fn base_h(&self, Node(pos, parent): NodeH<'a, Self>) -> usize {
         let d = if self.params.query_fast {
             let p = self.seed_matches.potential(pos);
-            let val = self.increasing_function.val(parent);
-            if parent == self.increasing_function.bot() {
+            let val = self.contour_graph.val(parent);
+            if parent == self.contour_graph.bot() {
                 self.distance(pos, self.target)
             } else {
                 p - val
@@ -378,18 +378,15 @@ where
         _cost: usize,
     ) -> Self::IncrementalState {
         if self.params.query_fast {
-            self.increasing_function.incremental(
-                self.transform(pos),
-                parent.1,
-                self.transform(parent.0),
-            )
+            self.contour_graph
+                .incremental(self.transform(pos), parent.1, self.transform(parent.0))
         } else {
             parent.1
         }
     }
 
     fn root_state(&self, _root_pos: Self::Pos) -> Self::IncrementalState {
-        self.increasing_function.root()
+        self.contour_graph.root()
     }
 
     fn stats(&self) -> HeuristicStats {
