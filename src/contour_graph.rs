@@ -18,7 +18,7 @@ pub struct ContourGraph<T: Copy + hash::Hash + Eq> {
     // val=0
     bot: NodeIndex,
     // val=max
-    root: NodeIndex,
+    max: NodeIndex,
     leftover_at_end: bool,
 }
 
@@ -76,7 +76,7 @@ impl ContourGraph<usize> {
             nodes: Vec::new(),
             bot: NodeIndex(0),
             // Placeholder until properly set in build.
-            root: NodeIndex(0),
+            max: NodeIndex(0),
             leftover_at_end,
         };
         s.build(target, ps);
@@ -221,7 +221,7 @@ impl ContourGraph<usize> {
         //}
         // The root is the now largest value in the front.
         let (_, mut layer) = front.max().unwrap();
-        self.root = layer;
+        self.max = layer;
 
         // Fill children pointers, layer by layer.
         while let Some(u) = self.nodes[layer].parent {
@@ -269,7 +269,7 @@ impl ContourGraph<usize> {
             node.prev.as_mut().map(|c| c.0 = inv[c.0]);
         });
         self.bot.0 = inv[self.bot.0];
-        self.root.0 = inv[self.root.0];
+        self.max.0 = inv[self.max.0];
 
         // Reorder elements.
         self.nodes = perm.into_iter().map(|idx| self.nodes[idx]).collect_vec();
@@ -281,8 +281,8 @@ impl ContourGraph<usize> {
     }
 
     #[inline]
-    pub fn root(&self) -> NodeIndex {
-        self.root
+    pub fn max(&self) -> NodeIndex {
+        self.max
     }
 
     /// NOTE: This only works if pos is right-below (larger) than the position where hint_idx was obtained.

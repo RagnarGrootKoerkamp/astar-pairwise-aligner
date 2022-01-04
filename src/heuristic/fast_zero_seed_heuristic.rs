@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use super::*;
 use crate::{
-    increasing_function::ContourGraph,
+    contour_graph::ContourGraph,
     prelude::*,
     seeds::{find_matches, MatchConfig, SeedMatches},
 };
@@ -78,7 +78,7 @@ impl HeuristicInstance<'_> for FastZeroSeedHeuristicI {
         self.seed_matches.potential(pos) - self.f.val(parent_state)
     }
 
-    type IncrementalState = crate::increasing_function::NodeIndex;
+    type IncrementalState = crate::contour_graph::NodeIndex;
 
     fn incremental_h(
         &self,
@@ -91,7 +91,7 @@ impl HeuristicInstance<'_> for FastZeroSeedHeuristicI {
     }
 
     fn root_state(&self, _: Self::Pos) -> Self::IncrementalState {
-        self.f.root()
+        self.f.max()
     }
 
     fn stats(&self) -> HeuristicStats {

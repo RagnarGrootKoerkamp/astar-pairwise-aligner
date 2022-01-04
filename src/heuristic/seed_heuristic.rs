@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 use super::{distance::*, *};
 use crate::{
-    increasing_function::ContourGraph,
+    contour_graph::ContourGraph,
     prelude::*,
     seeds::{find_matches, Match, MatchConfig, SeedMatches},
 };
@@ -368,7 +368,7 @@ where
     }
 
     // TODO: Get rid of Option here?
-    type IncrementalState = crate::increasing_function::NodeIndex;
+    type IncrementalState = crate::contour_graph::NodeIndex;
 
     // TODO: Use cost for more efficient incremental function.
     fn incremental_h(
@@ -386,7 +386,7 @@ where
     }
 
     fn root_state(&self, _root_pos: Self::Pos) -> Self::IncrementalState {
-        self.contour_graph.root()
+        self.contour_graph.max()
     }
 
     fn stats(&self) -> HeuristicStats {
