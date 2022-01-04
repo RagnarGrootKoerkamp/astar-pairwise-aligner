@@ -9,10 +9,10 @@
 
 pub mod astar;
 pub mod bucket_heap;
+pub mod contour_graph;
 pub mod diagonal_map;
 pub mod graph;
 pub mod heuristic;
-pub mod increasing_function;
 pub mod random_sequence;
 pub mod scored;
 pub mod seeds;
