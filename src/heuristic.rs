@@ -22,7 +22,7 @@ pub struct HeuristicParams {
     pub max_match_cost: Option<usize>,
     pub pruning: Option<bool>,
     pub build_fast: Option<bool>,
-    pub query_fast: Option<bool>,
+    pub query_fast: Option<QueryMode>,
 }
 
 #[derive(Serialize, Default)]

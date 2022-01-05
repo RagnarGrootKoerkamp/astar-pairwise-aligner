@@ -11,16 +11,16 @@ fn main() {
     let es = [0.20];
     let lm = [(8, 1)];
     let prunings = [false];
-    let build_fast = [(false, false), (true, false), (true, true)];
+    let build_fast = [(true, QueryMode::On)];
 
     for (&n, e) in ns.iter().cartesian_product(es) {
         for (l, max_match_cost) in lm {
             for pruning in prunings {
                 for (build_fast, query_fast) in build_fast {
-                    if pruning && query_fast {
+                    if pruning && query_fast.enabled() {
                         continue;
                     }
-                    if !pruning && !query_fast {
+                    if !pruning && !query_fast.enabled() {
                         continue;
                     }
                     let result = {
