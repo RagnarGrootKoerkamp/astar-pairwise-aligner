@@ -65,6 +65,53 @@ impl DistanceHeuristicInstance<'_> for ZeroHeuristicI {
     }
 }
 
+// # MAX HEURISTIC
+#[derive(Debug, Clone, Copy)]
+pub struct MaxHeuristic;
+impl Heuristic for MaxHeuristic {
+    type Instance<'a> = MaxHeuristicI;
+    fn name(&self) -> String {
+        "Max".into()
+    }
+
+    fn build<'a>(
+        &self,
+        a: &'a Sequence,
+        b: &'a Sequence,
+        _alphabet: &Alphabet,
+    ) -> Self::Instance<'a> {
+        MaxHeuristicI {
+            target: Pos(a.len(), b.len()),
+        }
+    }
+}
+impl DistanceHeuristic for MaxHeuristic {
+    type DistanceInstance<'a> = MaxHeuristicI;
+
+    fn build<'a>(
+        &self,
+        a: &'a Sequence,
+        b: &'a Sequence,
+        alphabet: &Alphabet,
+    ) -> Self::DistanceInstance<'a> {
+        <MaxHeuristic as Heuristic>::build(self, a, b, alphabet)
+    }
+}
+pub struct MaxHeuristicI {
+    target: Pos,
+}
+
+impl HeuristicInstance<'_> for MaxHeuristicI {
+    fn h(&self, Node(Pos(i, j), _): NodeH<Self>) -> usize {
+        max(self.target.0 - i, self.target.1 - j)
+    }
+}
+impl DistanceHeuristicInstance<'_> for MaxHeuristicI {
+    fn distance(&self, from: Pos, to: Pos) -> usize {
+        max(to.0 - from.0, to.1 - from.1)
+    }
+}
+
 // # GAP HEURISTIC
 #[derive(Debug, Clone, Copy)]
 pub struct GapHeuristic;
