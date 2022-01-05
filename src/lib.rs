@@ -187,7 +187,9 @@ impl AlignResult {
             (format!("{:>2}", "qf"), |this: &AlignResult| {
                 format!(
                     "{:>2}",
-                    AlignResult::print_opt_bool(this.heuristic_params.query_fast)
+                    AlignResult::print_opt_bool(
+                        this.heuristic_params.query_fast.map(|x| x.enabled())
+                    )
                 )
             }),
             (format!("{:<5}", "dist"), |this: &AlignResult| {
@@ -214,8 +216,8 @@ impl AlignResult {
             (format!("{:>9}", "explored"), |this: &AlignResult| {
                 format!("{:>9}", this.astar.explored)
             }),
-            (format!("{:>6}", "dbl"), |this: &AlignResult| {
-                format!("{:>6}", this.astar.double_expanded)
+            (format!("{:>7}", "dbl"), |this: &AlignResult| {
+                format!("{:>7}", this.astar.double_expanded)
             }),
             (format!("{:>7}", "ret"), |this: &AlignResult| {
                 format!("{:>7}", this.astar.retries)
@@ -545,7 +547,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         }
         .build(&a, &b, alphabet);
 
@@ -601,7 +603,7 @@ mod tests {
                 distance_function: BiCountHeuristic,
                 pruning: false,
                 build_fast: false,
-                query_fast: false,
+                query_fast: QueryMode::Off,
             },
         );
         assert!(r.heuristic_stats2.root_h <= r.answer_cost);
@@ -619,7 +621,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[361..369].to_vec();
@@ -641,7 +643,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: false,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[236..246].to_vec();
@@ -664,7 +666,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a.to_vec();
@@ -686,7 +688,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[846..870].to_vec();
@@ -710,7 +712,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning: true,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(2000, 0.20);
         let a = &a[200..310].to_vec();
@@ -739,6 +741,11 @@ mod tests {
 // TODO: MSA (delayed; pruning complications)
 // - instantiate one heuristic per pair of sequences
 // - run A* on the one-by-one step graph
+//
+// TODO: Edit Distance
+// - Run SeedHeuristic with l=1 as edit distance computation algorithm.
+//   - This generalizes the LCS Contours algorithm to edit distance.
+//   - For l>1, it generalizes the LCS_{k[+]}  algorithm and provides a lower bound.
 //
 // TODO: Seeds
 // - Dynamic seeding, either greedy or using some DP[i, j, distance].
@@ -789,6 +796,10 @@ mod tests {
 // - ContourGraph: Add child pointer to incremental state, for faster moving diagonally.
 // - Investigate gap between h(0,0) and the actual distance.
 //   - For exact matches, do we want exactly 1 mutation per seed? That way h(0,0) is as large as possible, and we don't have any matches.
+// - When building ContourGraphs, to get the value at the end of a match,
+//   instead of walking there using incremental steps, compute and store the value
+//   of the match once then end-column is processed, but insert it only when the
+//   start-column is being processed.
 //
 //
 // DONE: Fast Seed+Gap heuristic implementation:

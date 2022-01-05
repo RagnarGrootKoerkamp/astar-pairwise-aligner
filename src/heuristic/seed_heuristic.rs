@@ -12,13 +12,30 @@ use crate::{
     seeds::{find_matches, Match, MatchConfig, SeedMatches},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum QueryMode {
+    // No fast querying
+    Off,
+    // Incremental querying
+    On,
+    // Incremental querying, and check gap to matches starting in neighbours.
+    // This is needed when not generating matches with indels at the start/end.
+    Nbs,
+}
+
+impl QueryMode {
+    pub fn enabled(&self) -> bool {
+        *self != QueryMode::Off
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub match_config: MatchConfig,
     pub distance_function: DH,
     pub pruning: bool,
     pub build_fast: bool,
-    pub query_fast: bool,
+    pub query_fast: QueryMode,
 }
 impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH>
 where
@@ -106,7 +123,7 @@ where
         if params.build_fast {
             assert!(params.distance_function.name() == "Gap");
         }
-        if params.query_fast {
+        if params.query_fast.enabled() {
             assert!(
                 params.build_fast,
                 "Query_fast only works when build_fast is enabled"
@@ -280,7 +297,7 @@ where
         //dbg!(&transformed_matches);
         self.contour_graph =
             ContourGraph::new(transform_target, leftover_at_end, transformed_matches);
-        if !self.params.query_fast {
+        if !self.params.query_fast.enabled() {
             self.h_at_seeds = self.contour_graph.to_map();
         }
 
@@ -294,7 +311,7 @@ where
     // In this case h(A) = P(A)-P(X) <= d(A,B) + h(B) = 0 + P(B)-P(X) = P(A)-P(X)-1
     // is false.
     fn base_h(&self, Node(pos, parent): NodeH<'a, Self>) -> usize {
-        let d = if self.params.query_fast {
+        let d = if self.params.query_fast == QueryMode::On {
             let p = self.seed_matches.potential(pos);
             let val = self.contour_graph.val(parent);
             if parent == self.contour_graph.bot() {
@@ -302,6 +319,8 @@ where
             } else {
                 p - val
             }
+        } else if self.params.query_fast == QueryMode::Nbs {
+            todo!();
         } else if self.params.build_fast {
             let pos_transformed = self.transform(pos);
             let p = self.seed_matches.potential(pos);
@@ -318,6 +337,7 @@ where
         d
     }
 
+    // Used for debugging.
     pub fn base_h_with_parent(&self, pos: Pos) -> (usize, Pos) {
         if self.params.build_fast {
             let pos_transformed = self.transform(pos);
@@ -352,7 +372,7 @@ where
                 .iter()
                 .filter(|&(parent, _)| *parent >= pos)
                 .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
-                .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
+                .min_by_key(|&(val, Pos(i, j))| (val, ((i, Reverse(j)))))
                 .unwrap_or_else(|| (self.distance(pos, self.target), self.target))
         }
     }
@@ -377,7 +397,7 @@ where
         pos: Pos,
         _cost: usize,
     ) -> Self::IncrementalState {
-        if self.params.query_fast {
+        if self.params.query_fast.enabled() {
             self.contour_graph
                 .incremental(self.transform(pos), parent.1, self.transform(parent.0))
         } else {
@@ -508,7 +528,7 @@ mod tests {
                             distance_function: GapHeuristic,
                             pruning,
                             build_fast: false,
-                            query_fast: false,
+                            query_fast: QueryMode::Off,
                         };
                         let h_fast = SeedHeuristic {
                             match_config: MatchConfig {
@@ -519,7 +539,7 @@ mod tests {
                             distance_function: GapHeuristic,
                             pruning,
                             build_fast: true,
-                            query_fast: false,
+                            query_fast: QueryMode::Off,
                         };
 
                         let (a, b, alphabet, stats) = setup(n, e);
@@ -582,7 +602,11 @@ mod tests {
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,
-                    query_fast: build_fast,
+                    query_fast: if build_fast {
+                        QueryMode::On
+                    } else {
+                        QueryMode::Off
+                    },
                 };
                 let h_fast = SeedHeuristic {
                     match_config: MatchConfig {
@@ -593,7 +617,11 @@ mod tests {
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,
-                    query_fast: build_fast,
+                    query_fast: if build_fast {
+                        QueryMode::On
+                    } else {
+                        QueryMode::Off
+                    },
                 };
 
                 let (_, _, alphabet, stats) = setup(0, 0.0);
@@ -636,7 +664,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let h_fast = SeedHeuristic {
             match_config: MatchConfig {
@@ -647,7 +675,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning,
             build_fast,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
 
         let n = 1000;
@@ -685,7 +713,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let h_fast = SeedHeuristic {
             match_config: MatchConfig {
@@ -696,7 +724,7 @@ mod tests {
             distance_function: GapHeuristic,
             pruning,
             build_fast,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
 
         let n = 1000;
@@ -748,7 +776,7 @@ mod tests {
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast: false,
-                    query_fast: false,
+                    query_fast: QueryMode::Off,
                 };
                 let h_fast = SeedHeuristic {
                     match_config: MatchConfig {
@@ -759,7 +787,7 @@ mod tests {
                     distance_function: GapHeuristic,
                     pruning,
                     build_fast,
-                    query_fast: false,
+                    query_fast: QueryMode::Off,
                 };
 
                 let n = 1000;
@@ -780,11 +808,11 @@ mod tests {
                 //     &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec(),
                 // );
 
-                println!("\n\n\nTESTING: {:?}", h_fast);
+                println!("TESTING: {:?}", h_fast);
                 println!("{}\n{}", to_string(a), to_string(b));
 
                 if do_transform {
-                    println!("\n\n\nALIGN");
+                    println!("ALIGN");
                     align(
                         &a,
                         &b,

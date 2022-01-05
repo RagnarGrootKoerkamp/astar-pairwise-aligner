@@ -12,7 +12,7 @@ fn main() {
     let max_match_cost = 1;
     let pruning = false;
     let build_fast = true;
-    let query_fast = true;
+    let query_fast = QueryMode::Off;
 
     let result = {
         let h = SeedHeuristic {

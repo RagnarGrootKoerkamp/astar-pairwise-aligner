@@ -14,7 +14,7 @@ fn main() {
             distance_function: CountHeuristic,
             pruning: false,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
@@ -30,7 +30,7 @@ fn main() {
             distance_function: CountHeuristic,
             pruning: false,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
@@ -46,7 +46,7 @@ fn main() {
             distance_function: CountHeuristic,
             pruning: true,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
@@ -62,7 +62,7 @@ fn main() {
             distance_function: ZeroHeuristic,
             pruning: true,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
@@ -82,7 +82,7 @@ fn main() {
             distance_function: CountHeuristic,
             pruning: true,
             build_fast: false,
-            query_fast: false,
+            query_fast: QueryMode::Off,
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
