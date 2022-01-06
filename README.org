@@ -15,6 +15,9 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
 1. Run tests in [[src/lib.rs]] using ~cargo test [name_of_test]~
 1. Run benchmarks in [[src/lib.rs]] using ~cargo bench~
 
+* TODOs
+
+See [[todo.org]]
 
 * LICENCE
 MPL-2.0
