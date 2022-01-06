@@ -91,7 +91,6 @@ impl ContourGraph<usize> {
         let root = Pos(usize::MAX, usize::MAX);
 
         let push_node = |start: Pos, val: usize, front: &mut F, nodes: &mut Vec<Node<usize>>| {
-            //println!("Bump {:?} to {}", start, val);
             // 1. Check if the value is still large enough.
             // 1b. If not, continue.
             let (next_val, mut parent) = front
@@ -102,16 +101,6 @@ impl ContourGraph<usize> {
             if val < next_val {
                 return;
             }
-
-            // The value shouldn't grow much when using 1 extra seed. This makes
-            // sure we add at most max_match_distance epsilon nodes.
-            // TODO: Pass the max_match_cost for the match we're using into this function.
-            // assert!(
-            //     val <= next_val + max_match_cost,
-            //     "{} <= {}",
-            //     val,
-            //     next_val + max_match_cost
-            // );
 
             // 2. Insert nodes for all values up to the current value, to have consistent pareto fronts.
             for val in next_val..=val {
@@ -132,10 +121,6 @@ impl ContourGraph<usize> {
                         next_idx
                     });
 
-                //println!(
-                //"Push id {}: {:?} => {}, parent {:?} next {:?}",
-                //id, start, val, parent, next
-                //);
                 nodes.push(Node {
                     pos: start,
                     val,
@@ -157,40 +142,45 @@ impl ContourGraph<usize> {
 
         // Push the global root.
         push_node(root, 0, &mut front, &mut self.nodes);
-        //dbg!(&front.m);
-        //dbg!(&self.nodes);
 
-        // Sort by start, the order in which we will add them to the front.
-        let ps_by_start = {
-            let mut ps = ps;
-            ps.sort_by_key(|Match { start, end, .. }| Reverse((start.0, start.1, end.0, end.1)));
-            ps
-        };
-        //let mut best_per_pos = HashMap::new();
-        for m in ps_by_start {
-            // Find the parent for the end of this match.
-            let parent_idx = front
-                .get(ValuedPos(m.end.1, usize::MAX))
-                .map(|(_, hint)| self.incremental_forward(m.end, hint))
-                .unwrap();
-            //println!("Parent: {:?}", parent_idx);
-            let val = match self.nodes[parent_idx] {
-                // For matches to the end, take into account the gap penalty.
-                // NOTE: This assumes that the global root is at index 0.
-                Node { pos, .. } if pos == root => {
+        // Sort reversed by start, the order in which we will add them to the front.
+        let mut ps_by_start = ps;
+        ps_by_start.sort_unstable_by_key(|&Match { start, .. }| Reverse(LexPos(start)));
+        let ps_by_start = ps_by_start;
+
+        // Same order as ps_by_start.
+        let mut match_values = vec![0; ps_by_start.len()];
+
+        // Sort reversed by end, the order in which we evaluate their values.
+        let mut ps_by_end: Vec<usize> = (0..ps_by_start.len()).collect_vec();
+        ps_by_end.sort_unstable_by_key(|&idx| Reverse(LexPos(ps_by_start[idx].end)));
+        let mut ps_by_end = ps_by_end.into_iter().peekable();
+
+        for (idx, m) in ps_by_start.iter().enumerate() {
+            while let Some(&idx) = ps_by_end.peek() {
+                if LexPos(ps_by_start[idx].end) <= LexPos(m.start) {
+                    break;
+                }
+                let m = &ps_by_start[idx];
+                ps_by_end.next();
+
+                // Process all ends after this start.
+                // Find the parent for the end of this match.
+                let parent_idx = front.get(ValuedPos(m.end.1, usize::MAX)).unwrap().1;
+                let parent = self.nodes[parent_idx];
+                let val = if parent.pos != root {
+                    // The distance to the parent
+                    parent.val + m.seed_potential - m.match_cost
+                } else {
+                    // For matches to the end, take into account the gap penalty.
+                    // NOTE: This assumes that the global root is at index 0.
                     (m.seed_potential - m.match_cost).saturating_sub({
                         // gap cost between `end` and `target`
                         // This will only have effect when leftover_at_end is true
                         let di = target.0 - m.end.0;
                         let dj = target.1 - m.end.1;
-                        let pot = (di + dj) / 2
-                            - (if self.leftover_at_end {
-                                // TODO: This should be the cost of the first remaining match.
-                                let _ = m.seed_potential;
-                                0
-                            } else {
-                                0
-                            });
+                        // TODO: Fix edge case when there are characters at the end not covered by a seed.
+                        let pot = (di + dj) / 2;
                         let g = abs_diff(di, dj) / 2;
                         // println!(
                         //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
@@ -205,20 +195,14 @@ impl ContourGraph<usize> {
                         // );
                         g.saturating_sub(pot)
                     })
-                }
-                // The distance to the parent
-                n => n.val + m.seed_potential - m.match_cost,
-            };
-            //println!("{:?} {}", m, val);
+                };
+                assert!(match_values[idx] == 0);
+                match_values[idx] = val;
+            }
 
-            push_node(m.start, val, &mut front, &mut self.nodes);
+            push_node(m.start, match_values[idx], &mut front, &mut self.nodes);
         }
-        //for n in &self.nodes {
-        //println!("{:?}", n);
-        //}
-        //for n in &front.m {
-        //println!("{:?}", n);
-        //}
+
         // The root is the now largest value in the front.
         let (_, mut layer) = front.max().unwrap();
         self.max = layer;
@@ -290,12 +274,9 @@ impl ContourGraph<usize> {
     /// Moves to the next/prev neighbour as long as needed, and then goes to parents.
     #[inline]
     pub fn incremental_forward(&self, pos @ Pos(i, j): Pos, mut hint_idx: NodeIndex) -> NodeIndex {
-        //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {
-            //println!("HINT: {}", hint_idx);
             let hint = &self.nodes[hint_idx];
             if pos <= hint.pos {
-                //println!("GET JUMP {:?} {:?}", pos, Some(hint_idx));
                 return hint_idx;
             }
             if let Some(next_idx) = hint.next {
@@ -314,7 +295,6 @@ impl ContourGraph<usize> {
                 hint_idx = prev_idx;
                 continue;
             }
-            //println!("GET JUMP {:?} {:?}", pos, None::<()>);
             unreachable!("Pos {:?} is not covered by botright maximum", pos);
         }
     }
@@ -348,12 +328,9 @@ impl ContourGraph<usize> {
             }
         }
 
-        //println!("GET JUMP {:?} {}", pos, hint_idx);
         loop {
-            //println!("HINT: {}", hint_idx);
             let hint = &self.nodes[hint_idx];
             if pos <= hint.pos {
-                //println!("GET JUMP {:?} {:?}", pos, Some(hint_idx));
                 return hint_idx;
             }
             if let Some(next_idx) = hint.next {
@@ -372,7 +349,6 @@ impl ContourGraph<usize> {
                 hint_idx = prev_idx;
                 continue;
             }
-            //println!("GET JUMP {:?} {:?}", pos, None::<()>);
             unreachable!("Pos {:?} is not covered by botright maximum", pos);
         }
     }
@@ -456,13 +432,7 @@ mod tests {
                     },
                 ],
             );
-            for x in &f.nodes {
-                println!("{:?}", x);
-            }
             let m = f.to_map();
-            for x in &m {
-                println!("{:?}", x);
-            }
             assert!(m[&Pos(4, 4)] == m[&Pos(3, 5)] + 1);
             assert!(m[&Pos(4, 4)] == m[&Pos(5, 3)] + 1);
         }
