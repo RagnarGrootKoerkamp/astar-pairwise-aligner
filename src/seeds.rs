@@ -6,7 +6,8 @@ use crate::prelude::*;
 pub struct Seed {
     pub start: usize,
     pub end: usize,
-    pub max_match_cost: usize,
+    // The seed_potential is 1 more than the maximal number of errors allowed in this seed.
+    pub seed_potential: usize,
     pub qgram: usize,
 }
 
@@ -15,7 +16,7 @@ pub struct Match {
     pub start: Pos,
     pub end: Pos,
     pub match_cost: usize,
-    pub max_match_cost: usize,
+    pub seed_potential: usize,
 }
 
 #[derive(Default)]
@@ -258,7 +259,7 @@ pub fn find_matches<'a>(
             v.push(Seed {
                 start: i,
                 end: i + seed_len,
-                max_match_cost,
+                seed_potential: max_match_cost + 1,
                 qgram: qgram(seed),
             });
             i += seed_len;
@@ -286,19 +287,19 @@ pub fn find_matches<'a>(
 
     let mut cur_potential = seed_qgrams
         .iter()
-        .map(|Seed { max_match_cost, .. }| max_match_cost + 1)
+        .map(|Seed { seed_potential, .. }| seed_potential)
         .sum();
     potential.push(cur_potential);
     //println!("{:?}", seed_qgrams);
     for &Seed {
         start,
         end,
-        max_match_cost,
+        seed_potential,
         qgram,
     } in &seed_qgrams
     {
         let len = end - start;
-        cur_potential -= max_match_cost + 1;
+        cur_potential -= seed_potential;
         potential.extend(repeat(cur_potential).take(len));
         start_of_seed.extend(repeat(start).take(len));
 
@@ -308,11 +309,11 @@ pub fn find_matches<'a>(
                 start: Pos(start, j),
                 end: Pos(end, j + len),
                 match_cost: 0,
-                max_match_cost,
+                seed_potential,
             });
         }
         // Inexact matches.
-        if max_match_cost == 1 {
+        if seed_potential > 1 {
             let mutations = mutations(len, qgram, mutation_config);
             for mutation in mutations.deletions {
                 for &j in get_matches(qgrams, b, alph, len - 1, mutation) {
@@ -320,7 +321,7 @@ pub fn find_matches<'a>(
                         start: Pos(start, j),
                         end: Pos(end, j + len - 1),
                         match_cost: 1,
-                        max_match_cost,
+                        seed_potential,
                     });
                 }
             }
@@ -330,7 +331,7 @@ pub fn find_matches<'a>(
                         start: Pos(start, j),
                         end: Pos(end, j + len),
                         match_cost: 1,
-                        max_match_cost,
+                        seed_potential,
                     });
                 }
             }
@@ -340,7 +341,7 @@ pub fn find_matches<'a>(
                         start: Pos(start, j),
                         end: Pos(end, j + len + 1),
                         match_cost: 1,
-                        max_match_cost,
+                        seed_potential,
                     });
                 }
             }
