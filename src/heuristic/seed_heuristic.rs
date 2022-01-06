@@ -267,7 +267,7 @@ where
                      start,
                      end,
                      match_cost,
-                     max_match_cost,
+                     seed_potential,
                  }| {
                     //println!("Match: {:?}", m);
                     // println!(
@@ -280,7 +280,7 @@ where
                         start: self.transform(start),
                         end: self.transform(end),
                         match_cost,
-                        max_match_cost,
+                        seed_potential,
                     }
                 },
             )

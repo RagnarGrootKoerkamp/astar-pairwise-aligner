@@ -178,7 +178,7 @@ impl ContourGraph<usize> {
                 // For matches to the end, take into account the gap penalty.
                 // NOTE: This assumes that the global root is at index 0.
                 Node { pos, .. } if pos == root => {
-                    ((m.max_match_cost + 1) - m.match_cost).saturating_sub({
+                    (m.seed_potential - m.match_cost).saturating_sub({
                         // gap cost between `end` and `target`
                         // This will only have effect when leftover_at_end is true
                         let di = target.0 - m.end.0;
@@ -186,7 +186,7 @@ impl ContourGraph<usize> {
                         let pot = (di + dj) / 2
                             - (if self.leftover_at_end {
                                 // TODO: This should be the cost of the first remaining match.
-                                let _ = m.max_match_cost + 1;
+                                let _ = m.seed_potential;
                                 0
                             } else {
                                 0
@@ -207,7 +207,7 @@ impl ContourGraph<usize> {
                     })
                 }
                 // The distance to the parent
-                n => n.val + (m.max_match_cost + 1) - m.match_cost,
+                n => n.val + m.seed_potential - m.match_cost,
             };
             //println!("{:?} {}", m, val);
 
@@ -422,37 +422,37 @@ mod tests {
                         start: Pos(start_x, 9),
                         end: Pos(10, 10),
                         match_cost: 1,
-                        max_match_cost: 1,
+                        seed_potential: 2,
                     },
                     Match {
                         start: Pos(4, 4),
                         end: Pos(6, 6),
                         match_cost: 0,
-                        max_match_cost: 1,
+                        seed_potential: 2,
                     },
                     Match {
                         start: Pos(4, 4),
                         end: Pos(5, 7),
                         match_cost: 1,
-                        max_match_cost: 1,
+                        seed_potential: 2,
                     },
                     Match {
                         start: Pos(4, 4),
                         end: Pos(7, 5),
                         match_cost: 1,
-                        max_match_cost: 1,
+                        seed_potential: 2,
                     },
                     Match {
                         start: Pos(3, 5),
                         end: Pos(6, 6),
                         match_cost: 1,
-                        max_match_cost: 1,
+                        seed_potential: 2,
                     },
                     Match {
                         start: Pos(5, 3),
                         end: Pos(6, 6),
                         match_cost: 1,
-                        max_match_cost: 1,
+                        seed_potential: 2,
                     },
                 ],
             );
@@ -478,37 +478,37 @@ mod tests {
                     start: Pos(3, 9),
                     end: Pos(10, 10),
                     match_cost: 1,
-                    max_match_cost: 1,
+                    seed_potential: 2,
                 },
                 Match {
                     start: Pos(4, 8),
                     end: Pos(10, 10),
                     match_cost: 0,
-                    max_match_cost: 1,
+                    seed_potential: 2,
                 },
                 Match {
                     start: Pos(5, 7),
                     end: Pos(10, 10),
                     match_cost: 1,
-                    max_match_cost: 1,
+                    seed_potential: 2,
                 },
                 Match {
                     start: Pos(6, 6),
                     end: Pos(10, 10),
                     match_cost: 0,
-                    max_match_cost: 1,
+                    seed_potential: 2,
                 },
                 Match {
                     start: Pos(7, 5),
                     end: Pos(10, 10),
                     match_cost: 1,
-                    max_match_cost: 1,
+                    seed_potential: 2,
                 },
                 Match {
                     start: Pos(8, 4),
                     end: Pos(10, 10),
                     match_cost: 0,
-                    max_match_cost: 1,
+                    seed_potential: 2,
                 },
             ],
         );
