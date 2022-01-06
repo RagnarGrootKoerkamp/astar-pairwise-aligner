@@ -24,7 +24,7 @@ where
     ExpandFn: FnMut(NodeG<G>),
     ExploreFn: FnMut(NodeG<G>),
 {
-    let mut visit_next = heap::Heap::default(); // f
+    let mut visit_next = heap::Heap::<G>::default(); // f
     let mut scores = G::DiagonalMap::new(target); // g
     let mut estimate_scores = G::DiagonalMap::new(target); // f
     let mut path_tracker = PathTracker::<G>::new(target);
