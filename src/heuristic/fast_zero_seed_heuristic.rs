@@ -58,7 +58,7 @@ impl FastZeroSeedHeuristicI {
             b,
             alphabet,
             MatchConfig {
-                l: params.l,
+                length: Fixed(params.l),
                 ..Default::default()
             },
         );

@@ -7,14 +7,40 @@ fn main() {
         .from_path("evals/stats/table.csv")
         .unwrap();
 
-    let ns = [4_000, 8_000, 16_000, 32_000];
+    let ns = [8_000, 16_000, 32_000, 64_000, 128_000];
     let es = [0.20];
-    let lm = [(8, 1)];
+    let lm = [
+        (Fixed(4), 0),
+        (Fixed(5), 0),
+        (Fixed(6), 0),
+        (Fixed(7), 0),
+        (LengthConfig::max(0, |n| (n as f32).sqrt() as usize), 0),
+        (LengthConfig::max(1, |n| (n as f32).sqrt() as usize), 0),
+        (LengthConfig::min(1, |n| (n as f32).sqrt() as usize), 0),
+        (LengthConfig::min(2, |n| (n as f32).sqrt() as usize), 0),
+        (LengthConfig::max(0, |n| n), 0),
+        (LengthConfig::max(1, |n| n), 0),
+        (LengthConfig::min(1, |n| n), 0),
+        (LengthConfig::min(2, |n| n), 0),
+        (Fixed(6), 1),
+        (Fixed(7), 1),
+        (Fixed(8), 1),
+        (Fixed(9), 1),
+        (Fixed(10), 1),
+        (LengthConfig::max(0, |n| (n as f32).sqrt() as usize), 1),
+        (LengthConfig::max(1, |n| (n as f32).sqrt() as usize), 1),
+        (LengthConfig::min(1, |n| (n as f32).sqrt() as usize), 1),
+        (LengthConfig::min(2, |n| (n as f32).sqrt() as usize), 1),
+        (LengthConfig::max(0, |n| n), 1),
+        (LengthConfig::max(1, |n| n), 1),
+        (LengthConfig::min(1, |n| n), 1),
+        (LengthConfig::min(2, |n| n), 1),
+    ];
     let prunings = [false];
     let build_fast = [(true, QueryMode::On)];
 
     for (&n, e) in ns.iter().cartesian_product(es) {
-        for (l, max_match_cost) in lm {
+        for (length, max_match_cost) in lm {
             for pruning in prunings {
                 for (build_fast, query_fast) in build_fast {
                     if pruning && query_fast.enabled() {
@@ -26,7 +52,7 @@ fn main() {
                     let result = {
                         let h = SeedHeuristic {
                             match_config: MatchConfig {
-                                l,
+                                length,
                                 max_match_cost,
                                 ..MatchConfig::default()
                             },

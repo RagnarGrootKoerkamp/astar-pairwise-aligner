@@ -2,98 +2,49 @@ use pairwise_aligner::{prelude::*, *};
 use rand::{prelude::Distribution, SeedableRng};
 
 fn main() {
-    let pruning = true;
-    let (l, max_match_cost) = (7, 1);
+    let pruning = false;
+    let (l, max_match_cost) = (5, 1);
     for do_transform in [false, true] {
-        for build_fast in [false, true] {
-            let h_slow = SeedHeuristic {
+        for build_fast in [false] {
+            let heuristic = SeedHeuristic {
                 match_config: MatchConfig {
-                    l,
-                    max_match_cost,
-                    ..MatchConfig::default()
-                },
-                distance_function: GapHeuristic,
-                pruning,
-                build_fast: false,
-                query_fast: false,
-            };
-            let h_fast = SeedHeuristic {
-                match_config: MatchConfig {
-                    l,
+                    length: Fixed(l),
                     max_match_cost,
                     ..MatchConfig::default()
                 },
                 distance_function: GapHeuristic,
                 pruning,
                 build_fast,
-                query_fast: false,
+                query_fast: QueryMode::Off,
             };
 
-            let n = 1000;
-            let e: f32 = 0.3;
+            let n = 40;
+            let e: f32 = 0.2;
             let (ref a, ref b, alphabet, stats) = setup(n, e);
-            //let start = 658;
-            //let end = 756;
-            let start = 0;
-            let end = 150;
-            let a = &a[start..end].to_vec();
-            let b = &b[start..end].to_vec();
-            // let a = &"GAAGGGTAACAGTGCTCG".as_bytes().to_vec();
-            // let b = &"AGGGTAACAGTGCTCGTA".as_bytes().to_vec();
-            // let (a, b) = (
-            //     &"GATCGCAGCAGAACTGTGCCCATTTTGTGCCT".as_bytes().to_vec(),
-            //     &"CGGATCGGCGCAGAACATGTGGTCCAATTTTGCTGCC".as_bytes().to_vec(),
-            // );
-            // let (a, b) = (
-            //     &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec(),
-            //     &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec(),
-            // );
+            //let start = 0;
+            //let end = 150;
+            //let a = &a[start..end].to_vec();
+            //let b = &b[start..end].to_vec();
 
-            println!("\n\n\nTESTING: {:?}", h_fast);
+            let prune = [];
             println!("{}\n{}", to_string(a), to_string(b));
-            let mut h = h_fast.build(&a, &b, &alphabet);
-            for p in [
-                Pos(21, 8),
-                Pos(28, 15),
-                Pos(35, 22),
-                Pos(42, 29),
-                Pos(63, 52),
-                Pos(70, 61),
-            ] {
-                h.prune(p);
+            let l = heuristic.params().l.unwrap();
+            let max_match_cost = heuristic.params().max_match_cost.unwrap();
+            let mut h = heuristic.build(&a, &b, &alphabet);
+            for p in &prune {
+                h.prune(*p);
             }
-
             let mut ps = HashMap::default();
             let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3144);
             let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
-
             let mut pixels = vec![vec![(None, None, false, false); 20 * b.len()]; 20 * a.len()];
-
             let start_i = Pos(
                 b.len() * (max_match_cost + 1) / (l + max_match_cost + 1) + a.len() - b.len(),
                 0,
             );
             let start_j = Pos(0, a.len() * (max_match_cost + 1) / l + b.len() - a.len());
             let start = Pos(h.transform(start_j).0, h.transform(start_i).1);
-            let target = Pos(a.len(), b.len());
-            print!(
-                "target {:?} / {:?}\nstarti {:?}\nstartj {:?}\n",
-                target,
-                h.transform(target),
-                start_i,
-                start_j
-            );
-            // print!(
-            //     "target {:?}\nstarti {:?}\nstartj {:?}\nSTART: {:?}\n",
-            //     transform(target),
-            //     transform(start_i),
-            //     transform(start_j),
-            //     start
-            // );
-
-            let target = h.transform(target);
-            //let target = Pos(target.0 + a.len(), target.1 + b.len());
-
+            let target = h.transform(Pos(a.len(), b.len()));
             for i in (0..=a.len()).rev() {
                 for j in (0..=b.len()).rev() {
                     let p = Pos(i, j);
@@ -123,7 +74,6 @@ fn main() {
                     pixel.1 = Some(val);
                 }
             }
-
             let print = |i: usize, j: usize| {
                 let pixel = pixels[i][j];
                 if pixel.2 {
@@ -144,40 +94,51 @@ fn main() {
                     termion::color::Bg(pixel.0.unwrap_or(termion::color::Rgb(0, 0, 0))),
                     pixel.1.map(|x| format!("{:3}", x)).unwrap_or_default()
                 );
-                print!("{}", termion::color::Fg(termion::color::Reset));
-                print!("{}", termion::color::Bg(termion::color::Reset));
+                print!(
+                    "{}{}",
+                    termion::color::Fg(termion::color::Reset),
+                    termion::color::Bg(termion::color::Reset)
+                );
             };
-
             if do_transform {
                 for j in start.1..=target.1 {
                     for i in start.0..=target.0 {
                         print(i, j);
                     }
-                    print!("{}", termion::color::Fg(termion::color::Reset));
-                    print!("{}", termion::color::Bg(termion::color::Reset));
-                    print!("\n");
+                    print!(
+                        "{}{}\n",
+                        termion::color::Fg(termion::color::Reset),
+                        termion::color::Bg(termion::color::Reset)
+                    );
                 }
             } else {
                 for j in 0 * b.len()..=1 * b.len() {
                     for i in 0 * a.len()..=1 * a.len() {
                         print(i, j);
                     }
-                    print!("{}", termion::color::Fg(termion::color::Reset));
-                    print!("{}", termion::color::Bg(termion::color::Reset));
-                    print!("\n");
+                    print!(
+                        "{}{}\n",
+                        termion::color::Fg(termion::color::Reset),
+                        termion::color::Bg(termion::color::Reset)
+                    );
                 }
-            }
+            };
 
             if do_transform {
-                println!("\n\n\nALIGN");
+                let h2 = SeedHeuristic {
+                    build_fast: false,
+                    query_fast: QueryMode::Off,
+                    ..heuristic
+                };
+
                 align(
                     &a,
                     &b,
                     &alphabet,
                     stats,
                     EqualHeuristic {
-                        h1: h_slow,
-                        h2: h_fast,
+                        h1: h2,
+                        h2: heuristic,
                     },
                 );
             }

@@ -3,6 +3,14 @@ use std::iter::repeat;
 use crate::prelude::*;
 
 #[derive(Clone, Debug)]
+pub struct Seed {
+    pub start: usize,
+    pub end: usize,
+    pub max_match_cost: usize,
+    pub qgram: usize,
+}
+
+#[derive(Clone, Debug)]
 pub struct Match {
     pub start: Pos,
     pub end: Pos,
@@ -50,10 +58,59 @@ impl<'a> DistanceHeuristicInstance<'a> for SeedMatches {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct MaxMatches {
+    // The smallest l with at most this many matches within the band.
+    pub max_matches: usize,
+    // Return the band as a function of n.
+    pub band: fn(usize) -> usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct MinMatches {
+    // The largest l with at least this many matches within the band.
+    pub min_matches: usize,
+    // Return the band as a function of n.
+    pub band: fn(usize) -> usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum LengthConfig {
+    Fixed(usize),
+    Max(MaxMatches),
+    Min(MinMatches),
+}
+
+impl LengthConfig {
+    pub fn fixed(l: usize) -> LengthConfig {
+        LengthConfig::Fixed(l)
+    }
+    pub fn max(max_matches: usize, band: fn(usize) -> usize) -> LengthConfig {
+        LengthConfig::Max(MaxMatches { max_matches, band })
+    }
+    pub fn min(min_matches: usize, band: fn(usize) -> usize) -> LengthConfig {
+        assert!(min_matches > 0);
+        LengthConfig::Min(MinMatches { min_matches, band })
+    }
+    pub fn l(&self) -> Option<usize> {
+        match *self {
+            Fixed(l) => Some(l),
+            _ => None,
+        }
+    }
+}
+
+impl Default for LengthConfig {
+    fn default() -> Self {
+        LengthConfig::Fixed(0)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MatchConfig {
     // TODO: Add settings for variable length matches in here.
-    pub l: usize,
+    pub length: LengthConfig,
+    // TODO: Move the max_match_cost into MatchLength.
     pub max_match_cost: usize,
     pub mutation_config: MutationConfig,
 }
@@ -61,48 +118,163 @@ pub struct MatchConfig {
 pub fn find_matches<'a>(
     a: &'a Sequence,
     b: &'a Sequence,
-    text_alphabet: &Alphabet,
+    alph: &Alphabet,
     MatchConfig {
-        l,
+        length,
         max_match_cost,
         mutation_config,
     }: MatchConfig,
 ) -> SeedMatches {
     assert!(max_match_cost == 0 || max_match_cost == 1);
+
+    // Qgrams of B.
+    // TODO: Profile this index and possibly use something more efficient for large l.
+    let qgrams = &mut HashMap::<usize, QGramIndex>::default();
+    fn get_matches<'a, 'c>(
+        qgrams: &'c mut HashMap<usize, QGramIndex>,
+        b: &'a Sequence,
+        alph: &Alphabet,
+        l: usize,
+        qgram: usize,
+    ) -> &'c [usize] {
+        qgrams
+            .entry(l)
+            .or_insert_with_key(|l| QGramIndex::new(*l as u32, b, alph))
+            .qgram_matches(qgram)
+    }
+
+    // Stops counting when max_count is reached.
+    let mut count_matches = |l, qgram, max_count: usize, i: usize, band: usize| -> usize {
+        let count_in_band = |matches: &[usize]| -> usize {
+            // println!(
+            //     "{} {} {} {} for {:?}",
+            //     l,
+            //     max_count,
+            //     i.saturating_sub(band),
+            //     i + band,
+            //     matches
+            // );
+            if matches.len() <= 32 {
+                matches
+                    .iter()
+                    .copied()
+                    .filter(|&j| i <= j + band && j <= i + band)
+                    .count()
+            } else {
+                let start = matches
+                    .binary_search(&i.saturating_sub(band))
+                    .map_or_else(|x| x, |x| x);
+                let end = matches
+                    .binary_search(&(i + band))
+                    .map_or_else(|x| x + 1, |x| x);
+                end - start
+            }
+        };
+
+        // exact matches
+        let mut cnt = 0;
+        cnt += count_in_band(get_matches(qgrams, b, alph, l, qgram));
+        if cnt >= max_count {
+            return max_count;
+        }
+        if max_match_cost == 1 {
+            let mutations = mutations(l, qgram, mutation_config);
+            for (v, l) in [
+                (mutations.deletions, l - 1),
+                (mutations.substitutions, l),
+                (mutations.insertions, l + 1),
+            ] {
+                for qgram in v {
+                    cnt += count_in_band(get_matches(qgrams, b, alph, l, qgram));
+                    if cnt >= max_count {
+                        return max_count;
+                    }
+                }
+            }
+        }
+        cnt
+    };
+
     // Convert to a binary sequences.
-    let rank_transform = RankTransform::new(text_alphabet);
+    let rank_transform = RankTransform::new(alph);
+    let qgram = |seed: &[u8]| {
+        rank_transform
+            .qgrams(seed.len() as u32, seed)
+            .next()
+            .unwrap()
+    };
 
     // Split a into seeds of size l and l+1 alternating, which are bit-encoded.
-    // (start, end, max_match_cost, ngram value)
     let seed_qgrams = {
         // TODO: Make a dedicated struct for seeds, apart from Matches.
-        let mut v: Vec<(usize, usize, usize, usize)> = Vec::default();
+        // (start, end, max_match_cost, qgram)
+        let mut v: Vec<Seed> = Vec::default();
+        let n = a.len();
         let mut a = &a[..];
         let mut long = false;
-        let mut pos = 0;
+        let mut i = 0;
         loop {
             // TODO: Clever seed choice, using variable l and m.
-            let seed_len = l;
+            let seed_len = {
+                match length {
+                    Fixed(l) => l,
+                    LengthConfig::Max(MaxMatches { max_matches, band }) => {
+                        let mut l = 3;
+                        (|| {
+                            while l <= a.len() && l <= 10
+                                // TODO: Use band(min(a.len(), n-a.len())) or something like it.
+                                && count_matches(l, qgram(&a[..l]), max_matches + 1, i, band(n))
+                                    > max_matches
+                            {
+                                l += 1;
+                            }
+                            l - 2
+                        })()
+                    }
+                    LengthConfig::Min(MinMatches { min_matches, band }) => {
+                        let mut l = 4;
+                        (|| {
+                            // TODO: Remove max length, which is only needed because of memory reasons.
+                            while l <= a.len() && l <= 11
+                                // TODO: Use band(min(a.len(), n-a.len())) or something like it.
+                                && count_matches(l, qgram(&a[..l]), min_matches, i, band(n))
+                                    >= min_matches
+                            {
+                                l += 1;
+                            }
+                            l - 1 - 2
+                        })()
+                    }
+                }
+            };
             if seed_len > a.len() {
                 break;
             }
+            //print!("{} ", seed_len);
 
             let (seed, tail) = a.split_at(seed_len);
             a = tail;
 
-            v.push((
-                pos,
-                pos + seed_len,
+            v.push(Seed {
+                start: i,
+                end: i + seed_len,
                 max_match_cost,
-                rank_transform.qgrams(seed_len as u32, seed).next().unwrap(),
-            ));
-            pos += seed_len;
+                qgram: qgram(seed),
+            });
+            i += seed_len;
 
             long = !long;
         }
+        //println!();
         v
     };
     let num_seeds = seed_qgrams.len();
+    // println!(
+    //     "l: {}",
+    //     //length,
+    //     //num_seeds,
+    //     a.len() as f32 / num_seeds as f32
+    // );
 
     let n = a.len();
     let mut potential = Vec::with_capacity(n + 1);
@@ -112,23 +284,26 @@ pub fn find_matches<'a>(
     // NOTE: This uses O(alphabet^l) memory.
     let mut matches = Vec::<Match>::new();
 
-    let mut qgrams = HashMap::<usize, QGramIndex>::default();
-    for l in [l - 1, l, l + 1] {
-        // TODO: Profile this index and possibly use something more efficient for large l.
-        qgrams.insert(l, QGramIndex::new(l as u32, b, text_alphabet));
-    }
-
-    let mut cur_potential = seed_qgrams.iter().map(|(_, _, cost, _)| cost + 1).sum();
+    let mut cur_potential = seed_qgrams
+        .iter()
+        .map(|Seed { max_match_cost, .. }| max_match_cost + 1)
+        .sum();
     potential.push(cur_potential);
     //println!("{:?}", seed_qgrams);
-    for &(start, end, max_match_cost, seed) in &seed_qgrams {
+    for &Seed {
+        start,
+        end,
+        max_match_cost,
+        qgram,
+    } in &seed_qgrams
+    {
         let len = end - start;
         cur_potential -= max_match_cost + 1;
         potential.extend(repeat(cur_potential).take(len));
         start_of_seed.extend(repeat(start).take(len));
 
         // Exact matches
-        for &j in qgrams[&len].qgram_matches(seed) {
+        for &j in get_matches(qgrams, b, alph, len, qgram) {
             matches.push(Match {
                 start: Pos(start, j),
                 end: Pos(end, j + len),
@@ -138,9 +313,9 @@ pub fn find_matches<'a>(
         }
         // Inexact matches.
         if max_match_cost == 1 {
-            let mutations = mutations(len, seed, mutation_config);
+            let mutations = mutations(len, qgram, mutation_config);
             for mutation in mutations.deletions {
-                for &j in qgrams[&(len - 1)].qgram_matches(mutation) {
+                for &j in get_matches(qgrams, b, alph, len - 1, mutation) {
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(end, j + len - 1),
@@ -150,7 +325,7 @@ pub fn find_matches<'a>(
                 }
             }
             for mutation in mutations.substitutions {
-                for &j in qgrams[&len].qgram_matches(mutation) {
+                for &j in get_matches(qgrams, b, alph, len, mutation) {
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(end, j + len),
@@ -160,7 +335,7 @@ pub fn find_matches<'a>(
                 }
             }
             for mutation in mutations.insertions {
-                for &j in qgrams[&(len + 1)].qgram_matches(mutation) {
+                for &j in get_matches(qgrams, b, alph, len + 1, mutation) {
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(end, j + len + 1),
@@ -173,7 +348,7 @@ pub fn find_matches<'a>(
     }
     // Backfill a potential gap after the last seed.
     potential.extend(repeat(0).take(n + 1 - potential.len()));
-    start_of_seed.extend(repeat(seed_qgrams.last().unwrap().1).take(n + 1 - start_of_seed.len()));
+    start_of_seed.extend(repeat(seed_qgrams.last().unwrap().end).take(n + 1 - start_of_seed.len()));
 
     //println!("{:?}", potential);
     //println!("{:?}", start_of_seed);

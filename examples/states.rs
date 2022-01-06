@@ -7,7 +7,7 @@ fn main() {
     {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 4,
+                length: Fixed(4),
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
@@ -23,7 +23,7 @@ fn main() {
     {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 6,
+                length: Fixed(6),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
@@ -39,7 +39,7 @@ fn main() {
     {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 4,
+                length: Fixed(4),
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
@@ -55,7 +55,7 @@ fn main() {
     let r = {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 6,
+                length: Fixed(6),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
@@ -75,7 +75,7 @@ fn main() {
     let r = {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 6,
+                length: Fixed(6),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },

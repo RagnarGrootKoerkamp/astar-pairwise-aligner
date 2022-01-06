@@ -6,18 +6,18 @@ fn main() {
         .from_path("evals/stats/table.csv")
         .unwrap();
 
-    let n = 10_000;
-    let e = 0.10;
+    let n = 30_000;
+    let e = 0.20;
     let l = 7;
     let max_match_cost = 1;
-    let pruning = false;
+    let pruning = true;
     let build_fast = true;
     let query_fast = QueryMode::Off;
 
     let result = {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l,
+                length: Fixed(l),
                 max_match_cost,
                 ..MatchConfig::default()
             },

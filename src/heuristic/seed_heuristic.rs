@@ -49,7 +49,9 @@ where
         b: &'a Sequence,
         alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
-        assert!(self.match_config.max_match_cost < self.match_config.l);
+        assert!(
+            self.match_config.max_match_cost < self.match_config.length.l().unwrap_or(usize::MAX)
+        );
         SeedHeuristicI::new(a, b, alphabet, *self)
     }
 
@@ -60,7 +62,7 @@ where
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name(),
-            l: Some(self.match_config.l),
+            l: Some(self.match_config.length.l().unwrap_or(0)),
             max_match_cost: Some(self.match_config.max_match_cost),
             pruning: Some(self.pruning),
             distance_function: Some(self.distance_function.name()),
@@ -372,7 +374,7 @@ where
                 .iter()
                 .filter(|&(parent, _)| *parent >= pos)
                 .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
-                .min_by_key(|&(val, Pos(i, j))| (val, ((i, Reverse(j)))))
+                .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
                 .unwrap_or_else(|| (self.distance(pos, self.target), self.target))
         }
     }
@@ -521,7 +523,7 @@ mod tests {
                     for pruning in [false, true] {
                         let h_slow = SeedHeuristic {
                             match_config: MatchConfig {
-                                l,
+                                length: Fixed(l),
                                 max_match_cost,
                                 ..MatchConfig::default()
                             },
@@ -532,7 +534,7 @@ mod tests {
                         };
                         let h_fast = SeedHeuristic {
                             match_config: MatchConfig {
-                                l,
+                                length: Fixed(l),
                                 max_match_cost,
                                 ..MatchConfig::default()
                             },
@@ -595,7 +597,7 @@ mod tests {
                 let pruning = false;
                 let h_slow = SeedHeuristic {
                     match_config: MatchConfig {
-                        l,
+                        length: Fixed(l),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -610,7 +612,7 @@ mod tests {
                 };
                 let h_fast = SeedHeuristic {
                     match_config: MatchConfig {
-                        l,
+                        length: Fixed(l),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -657,7 +659,7 @@ mod tests {
         let (l, max_match_cost) = (7, 1);
         let h_slow = SeedHeuristic {
             match_config: MatchConfig {
-                l,
+                length: Fixed(l),
                 max_match_cost,
                 ..MatchConfig::default()
             },
@@ -668,7 +670,7 @@ mod tests {
         };
         let h_fast = SeedHeuristic {
             match_config: MatchConfig {
-                l,
+                length: Fixed(l),
                 max_match_cost,
                 ..MatchConfig::default()
             },
@@ -706,7 +708,7 @@ mod tests {
         let build_fast = true;
         let h_slow = SeedHeuristic {
             match_config: MatchConfig {
-                l,
+                length: Fixed(l),
                 max_match_cost,
                 ..MatchConfig::default()
             },
@@ -717,7 +719,7 @@ mod tests {
         };
         let h_fast = SeedHeuristic {
             match_config: MatchConfig {
-                l,
+                length: Fixed(l),
                 max_match_cost,
                 ..MatchConfig::default()
             },
@@ -769,7 +771,7 @@ mod tests {
             for build_fast in [false, true] {
                 let h_slow = SeedHeuristic {
                     match_config: MatchConfig {
-                        l,
+                        length: Fixed(l),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -780,7 +782,7 @@ mod tests {
                 };
                 let h_fast = SeedHeuristic {
                     match_config: MatchConfig {
-                        l,
+                        length: Fixed(l),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
