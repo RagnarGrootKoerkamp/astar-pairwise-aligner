@@ -61,7 +61,7 @@ pub mod prelude {
 
     pub use crate::graph::*;
     pub use crate::heuristic::*;
-    pub use crate::seeds::{Match, MatchConfig};
+    pub use crate::seeds::{LengthConfig, LengthConfig::Fixed, Match, MatchConfig};
     pub use crate::util::*;
     #[allow(unused_imports)]
     pub(crate) use crate::DEBUG;
@@ -222,9 +222,9 @@ impl AlignResult {
             (format!("{:>7}", "ret"), |this: &AlignResult| {
                 format!("{:>7}", this.astar.retries)
             }),
-            (format!("{:>6}", "band"), |this: &AlignResult| {
+            (format!("{:>8}", "band"), |this: &AlignResult| {
                 format!(
-                    "{:>6.2}",
+                    "{:>8.2}",
                     this.astar.expanded as f32 / max(this.input.len_a, this.input.len_b) as f32
                 )
             }),
@@ -540,7 +540,7 @@ mod tests {
         // Instantiate the heuristic.
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l,
+                length: Fixed(l),
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
@@ -596,7 +596,7 @@ mod tests {
             stats,
             SeedHeuristic {
                 match_config: MatchConfig {
-                    l,
+                    length: Fixed(l),
                     max_match_cost: 1,
                     ..MatchConfig::default()
                 },
@@ -614,7 +614,7 @@ mod tests {
     fn consistency_1() {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 4,
+                length: Fixed(4),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
@@ -636,7 +636,7 @@ mod tests {
     fn consistency_2() {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 5,
+                length: Fixed(5),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
@@ -659,7 +659,7 @@ mod tests {
     fn consistency_3() {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 4,
+                length: Fixed(4),
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
@@ -681,7 +681,7 @@ mod tests {
     fn consistency_4() {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 6,
+                length: Fixed(6),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
@@ -705,7 +705,7 @@ mod tests {
     fn consistency_5() {
         let h = SeedHeuristic {
             match_config: MatchConfig {
-                l: 4,
+                length: Fixed(4),
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },

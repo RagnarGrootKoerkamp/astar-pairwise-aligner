@@ -12,7 +12,7 @@ fn main() {
             {
                 let h = SeedHeuristic {
                     match_config: MatchConfig {
-                        l,
+                        length: Fixed(l),
                         max_match_cost: 1,
                         ..MatchConfig::default()
                     },
