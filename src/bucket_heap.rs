@@ -1,26 +1,30 @@
 use std::cmp::min;
 
-use crate::scored::MinScored;
+use crate::{
+    graph::{ImplicitGraph, NodeG},
+    scored::MinScored,
+};
 
 /// A heap where values are sorted by bucket sort.
 // TODO: Investigate whether to enable sorting.
 // Can be disabled by initializing next_sort to 0.
-pub struct BucketHeap<T> {
-    layers: Vec<Vec<T>>,
+// TODO: Could be generatlized to take arbitrary T instead of NodeG<G>.
+pub struct BucketHeap<G: ImplicitGraph> {
+    layers: Vec<Vec<NodeG<G>>>,
     next: usize,
     next_sort: usize,
 }
 
-impl<T: std::cmp::Ord> BucketHeap<T> {
+impl<G: ImplicitGraph> BucketHeap<G> {
     #[inline]
-    pub fn push(&mut self, MinScored(k, v): MinScored<usize, T>) {
+    pub fn push(&mut self, MinScored(k, v): MinScored<usize, G>) {
         if self.layers.len() <= k {
             self.layers.resize_with(k + 1, Vec::default);
         }
         self.next = min(self.next, k);
         self.layers[k].push(v);
     }
-    pub fn pop(&mut self) -> Option<MinScored<usize, T>> {
+    pub fn pop(&mut self) -> Option<MinScored<usize, G>> {
         while let Some(layer) = self.layers.get_mut(self.next) {
             if let Some(back) = layer.pop() {
                 return Some(MinScored(self.next, back));
@@ -39,7 +43,7 @@ impl<T: std::cmp::Ord> BucketHeap<T> {
     }
 }
 
-impl<T> Default for BucketHeap<T> {
+impl<G: ImplicitGraph> Default for BucketHeap<G> {
     fn default() -> Self {
         Self {
             layers: Default::default(),

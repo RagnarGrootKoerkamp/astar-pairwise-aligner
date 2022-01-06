@@ -574,7 +574,7 @@ mod tests {
     }
 
     #[test]
-    fn increasing_function() {
+    fn contour_graph() {
         let tests = [
             (
                 "GATCGCAGCAGAACTGTGCCCATTTTGTGCCT",

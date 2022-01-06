@@ -44,7 +44,6 @@ List of TODOs and other quick remarks.
 *  Pruning
 ** TODO In-place bruteforce pruning for IncreasingFunction datastructure
 ** TODO Partial pruning: only prune matches where it is cheap to do so
-** TODO Lazy pruning with offset.
 ** TODO Proof that pruning doesn't interact badly with consistency
 ** TODO Implementation for fast partial pruning:
    - If the current match has no prev/next on the pareto front, *all* previous points must have optimal paths through this match.
@@ -60,10 +59,9 @@ List of TODOs and other quick remarks.
 *  Performance
 ** TODO Use Pos(u32,u32) instead of Pos(usize,usize)
 ** TODO Use array + sorting + binary search to find optimal path.
-** TODO Do Greedy extending of edges along diagonals
-   - NOTE This should also expand (and prune) all in-between states.
-     Tight coupling with A* is needed to do this.
-** TODO Replace QGramIndex by something less memory hungry
+** DONE Do Greedy extending of edges along diagonals
+Whenever a state $(i,j)$ has a matching outgoing edge, we only generate
+$(i,j) \to (i+1, j+1)$ and skip the indel edges.
 ** TODO Skip insertions at the start/end of seeds.
 ** TODO Prune only half (some fixed %) of matches. This should result in O(matches) total pruning time.
 ** TODO Prune only matches at (or close to) the 'front': with so far maximal i and j, for not having to update the priority queue.
@@ -80,6 +78,8 @@ List of TODOs and other quick remarks.
    instead of walking there using incremental steps, compute and store the value
    of the match once then end-column is processed, but insert it only when the
    start-column is being processed.
+** TODO Use SuffixArray instead of multiple QGramIndices for fixed l.
+** TODO Update ContourGraph to set the value of a match after processing the end-column, instead of doing a lookup when processing the start column.
 
 * TODO Fast Seed+Gap heuristic implementation:
 ** Bruteforce from bottom right to top left, fully processing everything all
