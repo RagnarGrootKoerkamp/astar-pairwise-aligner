@@ -32,8 +32,14 @@ impl PartialOrd for Pos {
 }
 
 /// Pos, but with a total lexicographic order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
-pub struct LexPos(Pos);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LexPos(pub Pos);
+
+impl PartialOrd for LexPos {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl Ord for LexPos {
     fn cmp(&self, other: &Self) -> Ordering {
