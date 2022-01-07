@@ -15,6 +15,7 @@ fn main() {
             pruning: false,
             build_fast: false,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
@@ -31,6 +32,7 @@ fn main() {
             pruning: false,
             build_fast: false,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
@@ -47,6 +49,7 @@ fn main() {
             pruning: true,
             build_fast: false,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
@@ -63,6 +66,7 @@ fn main() {
             pruning: true,
             build_fast: false,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)
@@ -83,6 +87,7 @@ fn main() {
             pruning: true,
             build_fast: false,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)

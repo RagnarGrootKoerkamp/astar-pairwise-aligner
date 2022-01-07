@@ -23,6 +23,7 @@ fn main() {
             },
             distance_function: GapHeuristic,
             pruning,
+            prune_fraction: 0.5,
             build_fast,
             query_fast,
         };

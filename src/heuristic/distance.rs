@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 // TODO: Can we get away with only one of these two traits?
-pub trait DistanceHeuristic: Heuristic
+pub trait DistanceHeuristic: Heuristic + Default
 //where
 //for<'a> Self::Instance<'a>: DistanceHeuristicInstance<'a>,
 {
@@ -22,7 +22,7 @@ pub trait DistanceHeuristicInstance<'a>: HeuristicInstance<'a> {
 }
 
 // # ZERO HEURISTIC
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ZeroHeuristic;
 impl Heuristic for ZeroHeuristic {
     type Instance<'a> = ZeroHeuristicI;
@@ -66,7 +66,7 @@ impl DistanceHeuristicInstance<'_> for ZeroHeuristicI {
 }
 
 // # MAX HEURISTIC
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct MaxHeuristic;
 impl Heuristic for MaxHeuristic {
     type Instance<'a> = MaxHeuristicI;
@@ -113,7 +113,7 @@ impl DistanceHeuristicInstance<'_> for MaxHeuristicI {
 }
 
 // # GAP HEURISTIC
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct GapHeuristic;
 impl Heuristic for GapHeuristic {
     type Instance<'a> = GapHeuristicI;
@@ -172,7 +172,7 @@ fn char_counts(a: &Sequence, alphabet: &Alphabet) -> Counts {
     counts
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct CountHeuristic;
 impl Heuristic for CountHeuristic {
     type Instance<'a> = CountHeuristicI;
@@ -260,7 +260,7 @@ fn char_bicounts(a: &Sequence, alphabet: &Alphabet) -> BiCounts {
     counts
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct BiCountHeuristic;
 impl Heuristic for BiCountHeuristic {
     type Instance<'a> = BiCountHeuristicI;

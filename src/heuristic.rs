@@ -85,5 +85,5 @@ pub trait HeuristicInstance<'a> {
         Default::default()
     }
 
-    fn print(&self, _do_transform: bool) {}
+    fn print(&self, _do_transform: bool, _wait_for_user: bool) {}
 }

@@ -2,9 +2,14 @@ use pairwise_aligner::{prelude::*, *};
 
 fn main() {
     let pruning = false;
-    let (l, max_match_cost) = (5, 1);
     for do_transform in [false, true] {
-        for build_fast in [false] {
+        for build_fast in [true] {
+            let n = 50;
+            let e: f32 = 0.2;
+            let l = 4;
+            let max_match_cost = 1;
+            let prune = [];
+
             let heuristic = SeedHeuristic {
                 match_config: MatchConfig {
                     length: Fixed(l),
@@ -15,24 +20,17 @@ fn main() {
                 pruning,
                 build_fast,
                 query_fast: QueryMode::Off,
+                ..SeedHeuristic::default()
             };
 
-            let n = 40;
-            let e: f32 = 0.2;
             let (ref a, ref b, alphabet, stats) = setup(n, e);
-            //let start = 0;
-            //let end = 150;
-            //let a = &a[start..end].to_vec();
-            //let b = &b[start..end].to_vec();
-
-            let prune = [];
             println!("{}\n{}", to_string(a), to_string(b));
             let mut h = heuristic.build(&a, &b, &alphabet);
             for p in &prune {
                 h.prune(*p);
             }
 
-            h.print(do_transform);
+            h.print(do_transform, false);
 
             if do_transform {
                 let h2 = SeedHeuristic {
