@@ -4,6 +4,7 @@ use std::{
 };
 
 use itertools::Itertools;
+use rand::{prelude::Distribution, SeedableRng};
 
 use super::{distance::*, *};
 use crate::{
@@ -502,6 +503,101 @@ where
         self.build();
         self.pruning_duration += start.elapsed();
         //println!("{:?}", self.h_at_seeds);
+    }
+
+    fn print(&self, do_transform: bool) {
+        let l = self.params.match_config.length.l().unwrap();
+        let max_match_cost = self.params.match_config.max_match_cost;
+        let mut ps = HashMap::default();
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3144);
+        let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
+        let Pos(a, b) = self.target;
+        let mut pixels = vec![vec![(None, None, false, false); 20 * b]; 20 * a];
+        let start_i = Pos(
+            b * (max_match_cost + 1) / (l + max_match_cost + 1) + a - b,
+            0,
+        );
+        let start_j = Pos(0, a * (max_match_cost + 1) / l + b - a);
+        let start = Pos(self.transform(start_j).0, self.transform(start_i).1);
+        let target = self.transform(Pos(a, b));
+        for i in (0..=a).rev() {
+            for j in (0..=b).rev() {
+                let p = Pos(i, j);
+                // Transformation: draw (i,j) at ((l+1)*i + l*(B-j), l*j + (A-i)*(l-1))
+                // scaling: divide draw coordinate by l, using the right offset.
+                let draw_pos = if do_transform { self.transform(p) } else { p };
+                let pixel = &mut pixels[draw_pos.0][draw_pos.1];
+
+                let (val, parent_pos) = self.base_h_with_parent(p);
+                let l = ps.len();
+                let (_parent_id, color) = ps.entry(parent_pos).or_insert((
+                    l,
+                    termion::color::Rgb(
+                        dist.sample(&mut rng),
+                        dist.sample(&mut rng),
+                        dist.sample(&mut rng),
+                    ),
+                ));
+                let is_start_of_match = self.seed_matches.iter().find(|m| m.start == p).is_some();
+                let is_end_of_match = self.seed_matches.iter().find(|m| m.end == p).is_some();
+                if is_start_of_match {
+                    pixel.2 = true;
+                } else if is_end_of_match {
+                    pixel.3 = true;
+                }
+                pixel.0 = Some(*color);
+                pixel.1 = Some(val);
+            }
+        }
+        let print = |i: usize, j: usize| {
+            let pixel = pixels[i][j];
+            if pixel.2 {
+                print!(
+                    "{}{}",
+                    termion::color::Fg(termion::color::Black),
+                    termion::style::Bold
+                );
+            } else if pixel.3 {
+                print!(
+                    "{}{}",
+                    termion::color::Fg(termion::color::Rgb(100, 100, 100)),
+                    termion::style::Bold
+                );
+            }
+            print!(
+                "{}{:3} ",
+                termion::color::Bg(pixel.0.unwrap_or(termion::color::Rgb(0, 0, 0))),
+                pixel.1.map(|x| format!("{:3}", x)).unwrap_or_default()
+            );
+            print!(
+                "{}{}",
+                termion::color::Fg(termion::color::Reset),
+                termion::color::Bg(termion::color::Reset)
+            );
+        };
+        if do_transform {
+            for j in start.1..=target.1 {
+                for i in start.0..=target.0 {
+                    print(i, j);
+                }
+                print!(
+                    "{}{}\n",
+                    termion::color::Fg(termion::color::Reset),
+                    termion::color::Bg(termion::color::Reset)
+                );
+            }
+        } else {
+            for j in 0 * b..=1 * b {
+                for i in 0 * a..=1 * a {
+                    print(i, j);
+                }
+                print!(
+                    "{}{}\n",
+                    termion::color::Fg(termion::color::Reset),
+                    termion::color::Bg(termion::color::Reset)
+                );
+            }
+        };
     }
 }
 
