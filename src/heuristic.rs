@@ -84,4 +84,6 @@ pub trait HeuristicInstance<'a> {
     fn stats(&self) -> HeuristicStats {
         Default::default()
     }
+
+    fn print(&self, _do_transform: bool) {}
 }
