@@ -45,6 +45,7 @@ fn main() {
                 pruning: false,
                 build_fast: false,
                 query_fast: QueryMode::Off,
+                ..SeedHeuristic::default()
             };
             let h = h.build(&a, &b, &alph);
             let dist = h.h(Node(Pos(0, 0), h.root_state(Pos(0, 0))));

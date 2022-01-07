@@ -1,5 +1,6 @@
 use std::{
     cmp::Reverse,
+    io,
     time::{self, Duration},
 };
 
@@ -35,9 +36,24 @@ pub struct SeedHeuristic<DH: DistanceHeuristic> {
     pub match_config: MatchConfig,
     pub distance_function: DH,
     pub pruning: bool,
+    pub prune_fraction: f32,
     pub build_fast: bool,
     pub query_fast: QueryMode,
 }
+
+impl<DH: DistanceHeuristic> Default for SeedHeuristic<DH> {
+    fn default() -> Self {
+        Self {
+            match_config: Default::default(),
+            distance_function: DH::default(),
+            pruning: false,
+            prune_fraction: 1.0,
+            build_fast: true,
+            query_fast: QueryMode::On,
+        }
+    }
+}
+
 impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH>
 where
     for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a, Pos = Pos>,
@@ -83,6 +99,10 @@ pub struct SeedHeuristicI<'a, DH: DistanceHeuristic> {
     active_matches: HashMap<Pos, Match>,
     h_at_seeds: HashMap<Pos, usize>,
     pruned_positions: HashSet<Pos>,
+
+    // For partial pruning.
+    num_tried_pruned: usize,
+    num_actual_pruned: usize,
 
     // For the fast version
     transform_target: Pos,
@@ -146,6 +166,8 @@ where
             contour_graph: Default::default(),
             expanded: HashSet::default(),
             pruning_duration: Default::default(),
+            num_tried_pruned: 0,
+            num_actual_pruned: 0,
         };
         h.transform_target = if h.params.build_fast {
             h.transform(h.target)
@@ -436,6 +458,14 @@ where
             );
         }
 
+        self.num_tried_pruned += 1;
+        if self.num_actual_pruned as f32
+            >= self.num_tried_pruned as f32 * self.params.prune_fraction
+        {
+            return;
+        }
+        self.num_actual_pruned += 1;
+
         // If the current position is not on a Pareto front, there is no need to
         // rebuild.
         if self.params.build_fast {
@@ -498,14 +528,16 @@ where
                 return;
             }
         }
+
         //println!("REBUILD");
         let start = time::Instant::now();
         self.build();
         self.pruning_duration += start.elapsed();
+        //self.print(true, true);
         //println!("{:?}", self.h_at_seeds);
     }
 
-    fn print(&self, do_transform: bool) {
+    fn print(&self, do_transform: bool, wait_for_user: bool) {
         let l = self.params.match_config.length.l().unwrap();
         let max_match_cost = self.params.match_config.max_match_cost;
         let mut ps = HashMap::default();
@@ -520,8 +552,8 @@ where
         let start_j = Pos(0, a * (max_match_cost + 1) / l + b - a);
         let start = Pos(self.transform(start_j).0, self.transform(start_i).1);
         let target = self.transform(Pos(a, b));
-        for i in (0..=a).rev() {
-            for j in (0..=b).rev() {
+        for i in 0..=a {
+            for j in 0..=b {
                 let p = Pos(i, j);
                 // Transformation: draw (i,j) at ((l+1)*i + l*(B-j), l*j + (A-i)*(l-1))
                 // scaling: divide draw coordinate by l, using the right offset.
@@ -598,6 +630,10 @@ where
                 );
             }
         };
+        if wait_for_user {
+            let mut ret = String::new();
+            io::stdin().read_line(&mut ret).unwrap();
+        }
     }
 }
 
@@ -627,6 +663,7 @@ mod tests {
                             pruning,
                             build_fast: false,
                             query_fast: QueryMode::Off,
+                            ..SeedHeuristic::default()
                         };
                         let h_fast = SeedHeuristic {
                             match_config: MatchConfig {
@@ -638,6 +675,7 @@ mod tests {
                             pruning,
                             build_fast: true,
                             query_fast: QueryMode::Off,
+                            ..SeedHeuristic::default()
                         };
 
                         let (a, b, alphabet, stats) = setup(n, e);
@@ -705,6 +743,7 @@ mod tests {
                     } else {
                         QueryMode::Off
                     },
+                    ..SeedHeuristic::default()
                 };
                 let h_fast = SeedHeuristic {
                     match_config: MatchConfig {
@@ -720,6 +759,7 @@ mod tests {
                     } else {
                         QueryMode::Off
                     },
+                    ..SeedHeuristic::default()
                 };
 
                 let (_, _, alphabet, stats) = setup(0, 0.0);
@@ -763,6 +803,7 @@ mod tests {
             pruning,
             build_fast: false,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
         let h_fast = SeedHeuristic {
             match_config: MatchConfig {
@@ -774,6 +815,7 @@ mod tests {
             pruning,
             build_fast,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
 
         let n = 1000;
@@ -812,6 +854,7 @@ mod tests {
             pruning,
             build_fast: false,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
         let h_fast = SeedHeuristic {
             match_config: MatchConfig {
@@ -823,6 +866,7 @@ mod tests {
             pruning,
             build_fast,
             query_fast: QueryMode::Off,
+            ..SeedHeuristic::default()
         };
 
         let n = 1000;
@@ -875,6 +919,7 @@ mod tests {
                     pruning,
                     build_fast: false,
                     query_fast: QueryMode::Off,
+                    ..SeedHeuristic::default()
                 };
                 let h_fast = SeedHeuristic {
                     match_config: MatchConfig {
@@ -886,6 +931,7 @@ mod tests {
                     pruning,
                     build_fast,
                     query_fast: QueryMode::Off,
+                    ..SeedHeuristic::default()
                 };
 
                 let n = 1000;
