@@ -7,7 +7,7 @@ fn main() {
         .from_path("evals/stats/table.csv")
         .unwrap();
 
-    let ns = [4000, 8_000, 16_000, 32_000, 64_000, 128_000];
+    let ns = [100, 4000, 8_000, 16_000, 32_000, 64_000, 128_000];
     let es = [0.20];
     let lm = [
         (Fixed(4), 0),
@@ -36,32 +36,24 @@ fn main() {
         // (LengthConfig::min(1, |n| n), 1),
         // (LengthConfig::min(2, |n| n), 1),
     ];
-    let prunings = [0.0, 0.5, 1.0];
-    let build_fast = [(true, QueryMode::Off)];
+    let prunings = [1.0];
+    let build_fast = [true];
 
     for (&n, e) in ns.iter().cartesian_product(es) {
         for (length, max_match_cost) in lm {
             for prune_fraction in prunings {
-                for (build_fast, query_fast) in build_fast {
-                    // if prune_fraction > 0.0 && query_fast.enabled() {
-                    //     continue;
-                    // }
-                    // if prune_fraction == 0.0 && !query_fast.enabled() {
-                    //     continue;
-                    // }
+                for build_fast in build_fast {
                     let result = {
-                        let h = SeedHeuristic {
+                        let h = GapSeedHeuristic {
                             match_config: MatchConfig {
                                 length,
                                 max_match_cost,
                                 ..MatchConfig::default()
                             },
-                            distance_function: GapHeuristic,
                             pruning: true,
                             prune_fraction,
-                            build_fast,
-                            query_fast,
-                            ..SeedHeuristic::default()
+                            c: PhantomData::<NaiveContours<NaiveContour>>,
+                            ..GapSeedHeuristic::default()
                         };
                         let (a, b, alphabet, stats) = setup(n, e);
                         align(&a, &b, &alphabet, stats, h)

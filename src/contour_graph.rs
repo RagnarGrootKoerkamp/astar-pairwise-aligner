@@ -3,6 +3,7 @@ use std::hash;
 
 use itertools::Itertools;
 
+use crate::contour::Contours;
 use crate::prelude::*;
 use crate::seeds::Match;
 use crate::thresholds::vec::Thresholds;
@@ -13,15 +14,12 @@ pub struct NodeIndex(usize);
 
 // We guarantee that the function always contains (0,0), so lookup will always succeed.
 #[derive(Default)]
-pub struct ContourGraph<T: Copy + hash::Hash + Eq> {
-    nodes: Vec<Node<T>>,
+pub struct ContourGraph {
+    nodes: Vec<Node<usize>>,
     // val=0
     bot: NodeIndex,
     // val=max
     max: NodeIndex,
-    // FIXME
-    #[allow(dead_code)]
-    leftover_at_end: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -65,7 +63,7 @@ impl Ord for ValuedPos {
     }
 }
 
-impl ContourGraph<usize> {
+impl ContourGraph {
     #[inline]
     pub fn val(&self, idx: NodeIndex) -> usize {
         self.nodes[idx].val
@@ -73,168 +71,10 @@ impl ContourGraph<usize> {
 
     /// Build the increasing function over the given points. `l` must be at least 1.
     /// `ps` must be sorted increasing by (x,y), first on x and then on y.
-    pub fn new(target: Pos, leftover_at_end: bool, ps: Vec<Match>) -> Self {
-        let mut s = Self {
-            nodes: Vec::new(),
-            bot: NodeIndex(0),
-            // Placeholder until properly set in build.
-            max: NodeIndex(0),
-            leftover_at_end,
-        };
-        s.build(target, ps);
+    pub fn new(ps: Vec<Match>) -> Self {
+        s.build(ps);
         assert!(!s.nodes.is_empty());
         s
-    }
-
-    fn build(&mut self, target: Pos, ps: Vec<Match>) {
-        // ValuedPos(j, value) -> (layer, parent idx).
-        type F = Thresholds<ValuedPos, NodeIndex>;
-        let mut front = F::default();
-        let root = Pos(usize::MAX, usize::MAX);
-
-        let push_node = |start: Pos, val: usize, front: &mut F, nodes: &mut Vec<Node<usize>>| {
-            // 1. Check if the value is still large enough.
-            // 1b. If not, continue.
-            let (next_val, mut parent) = front
-                .get(ValuedPos(start.1, usize::MAX))
-                .map_or((0, None), |(current_val, parent_idx)| {
-                    (current_val + 1, Some(parent_idx))
-                });
-            if val < next_val {
-                return;
-            }
-
-            // 2. Insert nodes for all values up to the current value, to have consistent pareto fronts.
-            for val in next_val..=val {
-                // The id of the node we're adding here.
-                let id = NodeIndex(nodes.len());
-
-                // 3. Find `next`: The index of the node with this value, if present.
-                // This should just be the first incremental value after the current position.
-                let next = front
-                    .get_larger(ValuedPos(start.1, val))
-                    .map(|(nextval, next_idx)| {
-                        // Since we keep clean pareto fronts, this must always exist.
-                        // We can never skip a value.
-                        assert_eq!(nextval, val);
-                        // Prev/Next nodes are in direct correspondence.
-                        assert!(nodes[next_idx].prev.is_none());
-                        nodes[next_idx].prev = Some(id);
-                        next_idx
-                    });
-
-                nodes.push(Node {
-                    pos: start,
-                    val,
-                    parent,
-                    prev: None,
-                    next,
-                    child: None,
-                });
-                // Update the child for our parent.
-                if let Some(parent) = parent {
-                    nodes[parent].child = Some(id);
-                }
-
-                assert!(front.set(ValuedPos(start.1, val), (val, id)));
-
-                parent = Some(id);
-            }
-        };
-
-        // Push the global root.
-        push_node(root, 0, &mut front, &mut self.nodes);
-
-        // Sort reversed by start, the order in which we will add them to the front.
-        let mut ps_by_start = ps;
-        ps_by_start.sort_unstable_by_key(|&Match { start, .. }| Reverse(LexPos(start)));
-        let ps_by_start = ps_by_start;
-
-        // Same order as ps_by_start.
-        let mut match_values = vec![0; ps_by_start.len()];
-
-        // Sort reversed by end, the order in which we evaluate their values.
-        let mut ps_by_end: Vec<usize> = (0..ps_by_start.len()).collect_vec();
-        ps_by_end.sort_unstable_by_key(|&idx| Reverse(LexPos(ps_by_start[idx].end)));
-        let mut ps_by_end = ps_by_end.into_iter().peekable();
-
-        for (idx, m) in ps_by_start.iter().enumerate() {
-            while let Some(&idx) = ps_by_end.peek() {
-                if LexPos(ps_by_start[idx].end) <= LexPos(m.start) {
-                    break;
-                }
-                let m = &ps_by_start[idx];
-                ps_by_end.next();
-
-                // Process all ends after this start.
-                // Find the parent for the end of this match.
-                let parent_idx = front.get(ValuedPos(m.end.1, usize::MAX)).unwrap().1;
-                let parent = self.nodes[parent_idx];
-                let val = if parent.pos != root {
-                    // The distance to the parent
-                    parent.val + m.seed_potential - m.match_cost
-                } else {
-                    // For matches to the end, take into account the gap penalty.
-                    // NOTE: This assumes that the global root is at index 0.
-                    (m.seed_potential - m.match_cost).saturating_sub({
-                        // gap cost between `end` and `target`
-                        // This will only have effect when leftover_at_end is true
-                        let di = target.0 - m.end.0;
-                        let dj = target.1 - m.end.1;
-                        // TODO: Fix edge case when there are characters at the end not covered by a seed.
-                        let pot = (di + dj) / 2;
-                        let g = abs_diff(di, dj) / 2;
-                        // println!(
-                        //     "{:?} {:?} -> {} {} -> subtract: ({} - {} = {}) ({})",
-                        //     m.end,
-                        //     target,
-                        //     di,
-                        //     dj,
-                        //     g,
-                        //     pot,
-                        //     g.saturating_sub(pot),
-                        //     self.leftover_at_end
-                        // );
-                        g.saturating_sub(pot)
-                    })
-                };
-                assert!(match_values[idx] == 0);
-                match_values[idx] = val;
-            }
-
-            push_node(m.start, match_values[idx], &mut front, &mut self.nodes);
-        }
-
-        // The root is the now largest value in the front.
-        let (_, mut layer) = front.max().unwrap();
-        self.max = layer;
-
-        // Fill children pointers, layer by layer.
-        while let Some(u) = self.nodes[layer].parent {
-            // Since u is the parent of some node, it is guaranteed that is has a child.
-            // Move left of u and copy over the parent.
-            {
-                let mut u = u;
-                while let Some(v) = self.nodes[u].prev {
-                    let c = self.nodes[u].child.unwrap();
-                    self.nodes[v].child.get_or_insert(c);
-                    u = v;
-                }
-            }
-            // Move right of u and copy over the parent.
-            {
-                let mut u = u;
-                while let Some(v) = self.nodes[u].next {
-                    let c = self.nodes[u].child.unwrap();
-                    self.nodes[v].child.get_or_insert(c);
-                    u = v;
-                }
-            }
-            layer = u;
-        }
-
-        // Sorting the nodes improves cache locality.
-        self.sort_nodes();
     }
 
     // Sort the nodes by (layer, position) and update all pointers.
@@ -375,6 +215,125 @@ impl ContourGraph<usize> {
             }
         }
         m
+    }
+}
+
+impl Contours for ContourGraph {
+    fn new(arrows: impl IntoIterator<Item = crate::contour::Arrow>) -> Self {
+        let mut this = Self {
+            nodes: Vec::new(),
+            bot: NodeIndex(0),
+            // Placeholder until properly set in build.
+            max: NodeIndex(0),
+        };
+        // ValuedPos(j, value) -> (layer, parent idx).
+        type F = Thresholds<ValuedPos, NodeIndex>;
+        let mut front = F::default();
+        let root = Pos(usize::MAX, usize::MAX);
+
+        let push_node = |start: Pos, val: usize, front: &mut F, nodes: &mut Vec<Node<usize>>| {
+            // 1. Check if the value is still large enough.
+            // 1b. If not, continue.
+            let (next_val, mut parent) = front
+                .get(ValuedPos(start.1, usize::MAX))
+                .map_or((0, None), |(current_val, parent_idx)| {
+                    (current_val + 1, Some(parent_idx))
+                });
+            if val < next_val {
+                return;
+            }
+
+            // 2. Insert nodes for all values up to the current value, to have consistent pareto fronts.
+            for val in next_val..=val {
+                // The id of the node we're adding here.
+                let id = NodeIndex(nodes.len());
+
+                // 3. Find `next`: The index of the node with this value, if present.
+                // This should just be the first incremental value after the current position.
+                let next = front
+                    .get_larger(ValuedPos(start.1, val))
+                    .map(|(nextval, next_idx)| {
+                        // Since we keep clean pareto fronts, this must always exist.
+                        // We can never skip a value.
+                        assert_eq!(nextval, val);
+                        // Prev/Next nodes are in direct correspondence.
+                        assert!(nodes[next_idx].prev.is_none());
+                        nodes[next_idx].prev = Some(id);
+                        next_idx
+                    });
+
+                nodes.push(Node {
+                    pos: start,
+                    val,
+                    parent,
+                    prev: None,
+                    next,
+                    child: None,
+                });
+                // Update the child for our parent.
+                if let Some(parent) = parent {
+                    nodes[parent].child = Some(id);
+                }
+
+                assert!(front.set(ValuedPos(start.1, val), (val, id)));
+
+                parent = Some(id);
+            }
+        };
+
+        // Push the global root.
+        push_node(root, 0, &mut front, &mut this.nodes);
+
+        // Sort reversed by start, the order in which we will add them to the front.
+
+        for a in arrows {
+            push_node(
+                a.start,
+                this.value(a.end) + a.len,
+                &mut front,
+                &mut this.nodes,
+            );
+        }
+
+        // The root is the now largest value in the front.
+        let (_, mut layer) = front.max().unwrap();
+        this.max = layer;
+
+        // Fill children pointers, layer by layer.
+        while let Some(u) = this.nodes[layer].parent {
+            // Since u is the parent of some node, it is guaranteed that is has a child.
+            // Move left of u and copy over the parent.
+            {
+                let mut u = u;
+                while let Some(v) = this.nodes[u].prev {
+                    let c = this.nodes[u].child.unwrap();
+                    this.nodes[v].child.get_or_insert(c);
+                    u = v;
+                }
+            }
+            // Move right of u and copy over the parent.
+            {
+                let mut u = u;
+                while let Some(v) = this.nodes[u].next {
+                    let c = this.nodes[u].child.unwrap();
+                    this.nodes[v].child.get_or_insert(c);
+                    u = v;
+                }
+            }
+            layer = u;
+        }
+
+        // Sorting the nodes improves cache locality.
+        this.sort_nodes();
+        this
+    }
+
+    fn value(&self, _q: Pos) -> usize {
+        todo!()
+    }
+
+    fn prune(&mut self, _p: Pos) {
+        todo!()
     }
 }
 

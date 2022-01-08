@@ -27,37 +27,39 @@ List of TODOs and other quick remarks.
 
 * Edit Distance
 ** TODO Run SeedHeuristic with l=1 as edit distance computation algorithm.
-   - This generalizes the LCS Contours algorithm to edit distance.
-   - For l>1, it generalizes the LCS_{k[+]}  algorithm and provides a lower bound.
+- This generalizes the LCS Contours algorithm to edit distance.
+- For l>1, it generalizes the LCS_{k[+]}  algorithm and provides a lower bound.
 
 * Seeds
 ** TODO Dynamic seeding, either greedy or using some DP[i, j, distance].
-   - Maximize h(0,0) or (max_match_cost+1)/l
-   - Minimize number of extra seeds.
+- Maximize h(0,0) or (max_match_cost+1)/l
+- Minimize number of extra seeds.
 ** TODO choosing seeds bases on guessed alignment
 ** TODO Fix the gap heuristic transpose to take the seeds into account.
 ** TODO Strategies for choosing seeds:
-   - A: Each seed does not match, and covers exactly max_dist+1 mutations.
-     - This way, no pruning is needed because there are no matches on the
-     diagonal, and h(0,0) exactly equals the actual distance, so that only a
-     very narrow region is expanded.
-   - B: Maximize the number of seeds that matches exactly (at most 10 times).
-   - Experiment: make one mutation every l positions, and make seeds of length l.
+- A: Each seed does not match, and covers exactly max_dist+1 mutations.
+  - This way, no pruning is needed because there are no matches on the
+    diagonal, and h(0,0) exactly equals the actual distance, so that only a
+    very narrow region is expanded.
+- B: Maximize the number of seeds that matches exactly (at most 10 times).
+- Experiment: make one mutation every l positions, and make seeds of length l.
 
 * Pruning
 ** TODO In-place bruteforce pruning for IncreasingFunction datastructure
 ** TODO Partial pruning: only prune matches where it is cheap to do so
 ** TODO Proof that pruning doesn't interact badly with consistency
 ** TODO Implementation for fast partial pruning:
-   - If the current match has no prev/next on the pareto front, *all* previous points must have optimal paths through this match.
-   - Removing this match decreases h for *all* previous matches
-   - Either bruteforce decrement the value at previous nodes, or keep some log-time datastructure for this.
-   - Most of the time, the match will be at the very front and there are going
-     to be very few expanded states in front, so we can do an offset and only
-     update h for those expanded states beyond this match.
+- If the current match has no prev/next on the pareto front, *all* previous points must have optimal paths through this match.
+- Removing this match decreases h for *all* previous matches
+- Either bruteforce decrement the value at previous nodes, or keep some log-time datastructure for this.
+- Most of the time, the match will be at the very front and there are going
+  to be very few expanded states in front, so we can do an offset and only
+  update h for those expanded states beyond this match.
 ** TODO Pruning with offset
-   - Need to figure out when all previous vertices depend on the current match
+- Need to figure out when all previous vertices depend on the current match
 ** TODO Remove matches from indels at the start and ends of seeds. Replace by doing a wider lookup along the diagonal.
+** TODO Don't only query the current point, but also points above/below it
+- to correct for small differences between heuristic implementations.
 
 ** NOTE: Pruning of inexact matches has differences between the bruteforce and contour algorithm:
 - In the bruteforce, when an exact match is pruned, neighbouring exact matches

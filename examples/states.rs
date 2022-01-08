@@ -11,10 +11,8 @@ fn main() {
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
-            distance_function: CountHeuristic,
+            distance_function: GapHeuristic,
             pruning: false,
-            build_fast: false,
-            query_fast: QueryMode::Off,
             ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
@@ -28,10 +26,8 @@ fn main() {
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
-            distance_function: CountHeuristic,
+            distance_function: GapHeuristic,
             pruning: false,
-            build_fast: false,
-            query_fast: QueryMode::Off,
             ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
@@ -45,10 +41,8 @@ fn main() {
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
-            distance_function: CountHeuristic,
+            distance_function: GapHeuristic,
             pruning: true,
-            build_fast: false,
-            query_fast: QueryMode::Off,
             ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
@@ -64,8 +58,6 @@ fn main() {
             },
             distance_function: ZeroHeuristic,
             pruning: true,
-            build_fast: false,
-            query_fast: QueryMode::Off,
             ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
@@ -83,10 +75,8 @@ fn main() {
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
-            distance_function: CountHeuristic,
+            distance_function: GapHeuristic,
             pruning: true,
-            build_fast: false,
-            query_fast: QueryMode::Off,
             ..SeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);

@@ -36,16 +36,14 @@ fn main() {
         for e in es {
             let (a, b, alph, _) = setup(n, e);
             let start = time::Instant::now();
-            let h = SeedHeuristic {
+            let h = GapSeedHeuristic {
                 match_config: MatchConfig {
                     length: Fixed(1),
                     ..Default::default()
                 },
-                distance_function: MaxHeuristic,
                 pruning: false,
-                build_fast: false,
-                query_fast: QueryMode::Off,
-                ..SeedHeuristic::default()
+                c: PhantomData::<NaiveContours<NaiveContour>>,
+                ..GapSeedHeuristic::default()
             };
             let h = h.build(&a, &b, &alph);
             let dist = h.h(Node(Pos(0, 0), h.root_state(Pos(0, 0))));

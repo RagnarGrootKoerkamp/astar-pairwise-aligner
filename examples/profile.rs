@@ -6,26 +6,23 @@ fn main() {
         .from_path("evals/stats/table.csv")
         .unwrap();
 
-    let n = 30_000;
-    let e = 0.20;
-    let l = 7;
-    let max_match_cost = 1;
+    let n = 300;
+    let e = 0.10;
+    let l = 3;
+    let max_match_cost = 0;
     let pruning = true;
-    let build_fast = true;
-    let query_fast = QueryMode::Off;
 
     let result = {
-        let h = SeedHeuristic {
+        let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(l),
                 max_match_cost,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
             pruning,
             prune_fraction: 0.5,
-            build_fast,
-            query_fast,
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(n, e);
         align(&a, &b, &alphabet, stats, h)

@@ -7,7 +7,7 @@ use serde::Serialize;
 use std::cmp::Ordering;
 
 /// A position in a pairwise matching.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
 pub struct Pos(pub usize, pub usize);
 
 /// Partial ordering by

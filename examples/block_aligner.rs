@@ -10,17 +10,15 @@ fn main() {
     for (&n, e) in ns.iter().cartesian_product(es) {
         for l in [8, 9, 10, 11, 12] {
             {
-                let h = SeedHeuristic {
+                let h = GapSeedHeuristic {
                     match_config: MatchConfig {
                         length: Fixed(l),
                         max_match_cost: 1,
                         ..MatchConfig::default()
                     },
-                    distance_function: CountHeuristic,
                     pruning: true,
-                    build_fast: false,
-                    query_fast: QueryMode::Off,
-                    ..SeedHeuristic::default()
+                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    ..GapSeedHeuristic::default()
                 };
                 let (a, b, alphabet, stats) = setup(n, e);
                 align(&a, &b, &alphabet, stats, h)

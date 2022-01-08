@@ -15,7 +15,7 @@ impl<H1: Heuristic, H2: Heuristic, Pos> Heuristic for EqualHeuristic<H1, H2>
 where
     for<'a> H1::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
     for<'a> H2::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
-    Pos: Copy + Eq + std::fmt::Debug,
+    Pos: Copy + Eq + std::fmt::Debug + Default,
 {
     type Instance<'a> = EqualHeuristicI<'a, H1, H2>;
 
@@ -47,7 +47,7 @@ impl<'a, H1: Heuristic, H2: Heuristic, Pos> HeuristicInstance<'a> for EqualHeuri
 where
     H1::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
     H2::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
-    Pos: Eq + Copy + std::fmt::Debug,
+    Pos: Eq + Copy + std::fmt::Debug + Default,
 {
     type Pos = Pos;
 
