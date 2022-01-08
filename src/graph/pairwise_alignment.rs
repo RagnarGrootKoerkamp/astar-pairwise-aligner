@@ -61,14 +61,16 @@ pub struct AlignmentGraph<'a> {
     a: &'a Sequence,
     b: &'a Sequence,
     target: Pos,
+    greedy_matching: bool,
 }
 
 impl<'a> AlignmentGraph<'a> {
-    pub fn new(a: &'a Sequence, b: &'a Sequence) -> AlignmentGraph<'a> {
+    pub fn new(a: &'a Sequence, b: &'a Sequence, greedy_matching: bool) -> AlignmentGraph<'a> {
         AlignmentGraph {
             a,
             b,
             target: Pos(a.len(), b.len()),
+            greedy_matching,
         }
     }
 }
@@ -104,14 +106,24 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
         F: FnMut(NodeG<Self>, usize),
     {
         // Take any of the 3 edges, and then walk as much diagonally as possible.
-        if let Some(n) = self.is_match(n) {
-            f(n, 0);
-        } else {
-            for (di, dj) in [(1, 0), (0, 1), (1, 1)] {
-                let pos = Pos(i + di, j + dj);
-                if pos <= self.target {
-                    f(Node(pos, ()), 1)
-                }
+        let is_match = self.is_match(n);
+        if self.greedy_matching {
+            if let Some(n) = is_match {
+                f(n, 0);
+                return;
+            }
+        }
+        for (di, dj) in [(1, 0), (0, 1), (1, 1)] {
+            let pos = Pos(i + di, j + dj);
+            if pos <= self.target {
+                f(
+                    Node(pos, ()),
+                    if is_match.is_some() && (di, dj) == (1, 1) {
+                        0
+                    } else {
+                        1
+                    },
+                )
             }
         }
     }
@@ -129,9 +141,10 @@ impl<'a, 'b, H: HeuristicInstance<'a>> IncrementalAlignmentGraph<'a, 'b, H> {
         a: &'a Sequence,
         b: &'a Sequence,
         heuristic: &'b RefCell<H>,
+        greedy_matching: bool,
     ) -> IncrementalAlignmentGraph<'a, 'b, H> {
         IncrementalAlignmentGraph {
-            graph: AlignmentGraph::new(a, b),
+            graph: AlignmentGraph::new(a, b, greedy_matching),
             heuristic,
         }
     }

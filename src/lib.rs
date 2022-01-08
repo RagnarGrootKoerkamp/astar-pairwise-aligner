@@ -367,7 +367,8 @@ where
 
     // Run A* with heuristic.
     let start_time = time::Instant::now();
-    let incremental_graph = IncrementalAlignmentGraph::new(a, b, &h);
+    // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
+    let incremental_graph = IncrementalAlignmentGraph::new(a, b, &h, true);
     let mut h_values = HashMap::<usize, usize>::default();
     let target = Pos(a.len(), b.len());
     let (distance, path) = astar::astar(
