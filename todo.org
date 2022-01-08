@@ -25,12 +25,12 @@ List of TODOs and other quick remarks.
 ** TODO instantiate one heuristic per pair of sequences
 ** TODO run A* on the one-by-one step graph
 
-*  Edit Distance
+* Edit Distance
 ** TODO Run SeedHeuristic with l=1 as edit distance computation algorithm.
    - This generalizes the LCS Contours algorithm to edit distance.
    - For l>1, it generalizes the LCS_{k[+]}  algorithm and provides a lower bound.
 
-*  Seeds
+* Seeds
 ** TODO Dynamic seeding, either greedy or using some DP[i, j, distance].
    - Maximize h(0,0) or (max_match_cost+1)/l
    - Minimize number of extra seeds.
@@ -44,7 +44,7 @@ List of TODOs and other quick remarks.
    - B: Maximize the number of seeds that matches exactly (at most 10 times).
    - Experiment: make one mutation every l positions, and make seeds of length l.
 
-*  Pruning
+* Pruning
 ** TODO In-place bruteforce pruning for IncreasingFunction datastructure
 ** TODO Partial pruning: only prune matches where it is cheap to do so
 ** TODO Proof that pruning doesn't interact badly with consistency
@@ -59,7 +59,15 @@ List of TODOs and other quick remarks.
    - Need to figure out when all previous vertices depend on the current match
 ** TODO Remove matches from indels at the start and ends of seeds. Replace by doing a wider lookup along the diagonal.
 
-*  Performance
+** NOTE: Pruning of inexact matches has differences between the bruteforce and contour algorithm:
+- In the bruteforce, when an exact match is pruned, neighbouring exact matches
+  can still be used. Thus, the pruning only affects one state.
+- Using contours, more states get an increased value, because for states
+  'before' the pruned inexact match, going through the exact match is never
+  optimal to begin with. This leads to non-equal heuristic values between the
+  two approaches, but not to an inadmissible heuristic.
+
+* Performance
 ** TODO Use Pos(u32,u32) instead of Pos(usize,usize)
 ** TODO Use array + sorting + binary search to find optimal path.
 ** DONE Do Greedy extending of edges along diagonals

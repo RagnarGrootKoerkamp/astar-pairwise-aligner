@@ -20,9 +20,6 @@ pub enum QueryMode {
     Off,
     // Incremental querying
     On,
-    // Incremental querying, and check gap to matches starting in neighbours.
-    // This is needed when not generating matches with indels at the start/end.
-    Nbs,
 }
 
 impl QueryMode {
@@ -331,11 +328,43 @@ where
         //println!("H: {:?}", h_map);
     }
 
-    // The base heuristic function, which is not consistent in the following case:
-    // pos A is the start of a seed, and pos B is A+(1,1), with edge cost 0.
-    // In this case h(A) = P(A)-P(X) <= d(A,B) + h(B) = 0 + P(B)-P(X) = P(A)-P(X)-1
-    // is false.
-    fn base_h(&self, Node(pos, parent): NodeH<'a, Self>) -> usize {
+    // Used for debugging.
+    pub fn base_h_with_parent(&self, pos: Pos) -> (usize, Pos) {
+        //let h = self.h(Node(pos, self.root_state(Pos(0, 0))));
+        if self.params.build_fast {
+            let pos_transformed = self.transform(pos);
+            let p = self.seed_matches.potential(pos);
+            let (val, parent) = self
+                .h_at_seeds
+                .iter()
+                .filter(|&(parent, _)| *parent >= pos_transformed)
+                .map(|(parent, val)| (p - *val, *parent))
+                .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
+                .unwrap_or_else(|| (self.distance(pos, self.target), self.target));
+            (val, parent)
+        } else {
+            let (val, p) = self
+                .h_at_seeds
+                .iter()
+                .filter(|&(parent, _)| *parent >= pos)
+                .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
+                .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
+                .unwrap_or_else(|| (self.distance(pos, self.target), self.target));
+            (val, p)
+        }
+    }
+}
+
+impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
+where
+    DH::DistanceInstance<'a>: DistanceHeuristicInstance<'a, Pos = Pos>,
+{
+    type Pos = crate::graph::Pos;
+    fn h(&self, Node(pos, parent): NodeH<'a, Self>) -> usize {
+        // TODO: Don't only query the current point, but also points above/below
+        // it, to correct for small differences between heuristic
+        // implementations.
+        // This depends on the potential of the current seed.
         let d = if self.params.query_fast == QueryMode::On {
             let p = self.seed_matches.potential(pos);
             let val = self.contour_graph.val(parent);
@@ -344,8 +373,6 @@ where
             } else {
                 p - val
             }
-        } else if self.params.query_fast == QueryMode::Nbs {
-            todo!();
         } else if self.params.build_fast {
             let pos_transformed = self.transform(pos);
             let p = self.seed_matches.potential(pos);
@@ -360,56 +387,6 @@ where
         };
         //println!("h {:?} -> {:?}", pos, self.base_h_with_parent(pos.0));
         d
-    }
-
-    // Used for debugging.
-    pub fn base_h_with_parent(&self, pos: Pos) -> (usize, Pos) {
-        if self.params.build_fast {
-            let pos_transformed = self.transform(pos);
-            let to_end = (self.distance(pos, self.target), self.target);
-            let (val, parent) = self
-                .h_at_seeds
-                .iter()
-                .filter(|&(parent, _)| *parent >= pos_transformed)
-                .map(|(parent, val)| {
-                    // println!(
-                    //     "pos {:?} parent {:?} pot {} val {}",
-                    //     pos,
-                    //     parent,
-                    //     self.seed_matches.potential(pos),
-                    //     val
-                    // );
-                    (self.seed_matches.potential(pos) - *val, *parent)
-                })
-                .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
-                .unwrap_or(to_end);
-            (val, parent)
-            // println!(
-            //     "H at {:?} / {:?}: {} - {} \t for parent {:?}",
-            //     pos,
-            //     pos_transformed,
-            //     self.seed_matches.potential(pos),
-            //     val,
-            //     parent,
-            // );
-        } else {
-            self.h_at_seeds
-                .iter()
-                .filter(|&(parent, _)| *parent >= pos)
-                .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
-                .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
-                .unwrap_or_else(|| (self.distance(pos, self.target), self.target))
-        }
-    }
-}
-
-impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SeedHeuristicI<'a, DH>
-where
-    DH::DistanceInstance<'a>: DistanceHeuristicInstance<'a, Pos = Pos>,
-{
-    type Pos = crate::graph::Pos;
-    fn h(&self, pos: NodeH<'a, Self>) -> usize {
-        self.base_h(pos)
     }
 
     // TODO: Get rid of Option here?
@@ -515,26 +492,29 @@ where
                 .remove(&pos)
                 .expect("Already checked that this positions is a match.");
             // println!(
-            //     "{} PRUNE POINT {:?} / {:?}",
+            //     "FAST: {} PRUNE POINT {:?} / {:?}",
             //     self.params.build_fast as u8,
             //     pos,
             //     self.transform(pos)
             // );
         } else {
-            //println!("{} PRUNE POINT {:?}", self.params.build_fast as u8, pos);
             //Prune the current position.
             self.pruned_positions.insert(pos);
             if self.h_at_seeds.remove(&pos).is_none() {
                 return;
             }
+            // println!(
+            //     "SLOW {} PRUNE POINT {:?}",
+            //     self.params.build_fast as u8, pos
+            // );
         }
 
         //println!("REBUILD");
         let start = time::Instant::now();
         self.build();
         self.pruning_duration += start.elapsed();
-        //self.print(true, true);
-        //println!("{:?}", self.h_at_seeds);
+        // self.print(false, false);
+        // println!("{:?}", self.h_at_seeds);
     }
 
     fn print(&self, do_transform: bool, wait_for_user: bool) {
@@ -841,32 +821,21 @@ mod tests {
 
     #[test]
     fn needs_leftover() {
-        let pruning = true;
-        let (l, max_match_cost) = (7, 1);
-        let build_fast = true;
         let h_slow = SeedHeuristic {
             match_config: MatchConfig {
-                length: Fixed(l),
-                max_match_cost,
+                length: Fixed(7),
+                max_match_cost: 1,
                 ..MatchConfig::default()
             },
             distance_function: GapHeuristic,
-            pruning,
+            pruning: true,
             build_fast: false,
             query_fast: QueryMode::Off,
             ..SeedHeuristic::default()
         };
         let h_fast = SeedHeuristic {
-            match_config: MatchConfig {
-                length: Fixed(l),
-                max_match_cost,
-                ..MatchConfig::default()
-            },
-            distance_function: GapHeuristic,
-            pruning,
-            build_fast,
-            query_fast: QueryMode::Off,
-            ..SeedHeuristic::default()
+            build_fast: true,
+            ..h_slow
         };
 
         let n = 1000;
@@ -876,21 +845,11 @@ mod tests {
         let end = 989;
         let a = &a[start..end].to_vec();
         let b = &b[start..end].to_vec();
-        // let a = &"GAAGGGTAACAGTGCTCG".as_bytes().to_vec();
-        // let b = &"AGGGTAACAGTGCTCGTA".as_bytes().to_vec();
-        // let (a, b) = (
-        //     &"GATCGCAGCAGAACTGTGCCCATTTTGTGCCT".as_bytes().to_vec(),
-        //     &"CGGATCGGCGCAGAACATGTGGTCCAATTTTGCTGCC".as_bytes().to_vec(),
-        // );
-        // let (a, b) = (
-        //     &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec(),
-        //     &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec(),
-        // );
 
-        println!("\n\n\nTESTING: {:?}", h_fast);
+        println!("TESTING: {:?}", h_fast);
         println!("{}\n{}", to_string(a), to_string(b));
 
-        println!("\n\n\nALIGN");
+        println!("ALIGN");
         align(
             &a,
             &b,

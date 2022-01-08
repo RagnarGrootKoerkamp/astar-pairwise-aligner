@@ -76,17 +76,6 @@ where
 
             path_tracker.set_predecessor(next.to_pos(), node.to_pos());
             let next_estimate_score = next_score + h(next);
-            // FIXME: Enable this assert to check consistency
-            // assert!(
-            //     estimate_score <= next_estimate_score,
-            //     "Heuristic is not path consistent. {:?}: {}+{} -> {:?}: {}+{}",
-            //     node,
-            //     node_score,
-            //     estimate_score - node_score,
-            //     next,
-            //     next_score,
-            //     next_estimate_score - next_score
-            // );
             visit_next.push(MinScored(next_estimate_score, next));
         });
     }
