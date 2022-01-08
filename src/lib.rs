@@ -11,7 +11,7 @@
 pub mod astar;
 pub mod bucket_heap;
 pub mod contour;
-pub mod contour_graph;
+//pub mod contour_graph;
 pub mod diagonal_map;
 pub mod graph;
 pub mod heuristic;
@@ -56,11 +56,13 @@ mod bucket_heap_impl {
 
 pub mod prelude {
     pub use bio_types::sequence::Sequence;
+    pub use std::marker::PhantomData;
 
     pub use super::fx_hash_map::*;
 
     pub(crate) use super::bucket_heap_impl as heap;
 
+    pub use crate::contour::*;
     pub use crate::graph::*;
     pub use crate::heuristic::*;
     pub use crate::seeds::{LengthConfig, LengthConfig::Fixed, Match, MatchConfig};
@@ -152,7 +154,7 @@ impl AlignResult {
     }
     pub fn print(&self) {
         static mut PRINTED_HEADER: bool = false;
-        let columns: [(String, fn(&AlignResult) -> String); 24] = [
+        let columns: &[(String, fn(&AlignResult) -> String)] = &[
             (format!("{:>6}", "|a|"), |this: &AlignResult| {
                 format!("{:>6}", this.input.len_a)
             }),
@@ -184,14 +186,6 @@ impl AlignResult {
                 format!(
                     "{:>2}",
                     AlignResult::print_opt_bool(this.heuristic_params.build_fast)
-                )
-            }),
-            (format!("{:>2}", "qf"), |this: &AlignResult| {
-                format!(
-                    "{:>2}",
-                    AlignResult::print_opt_bool(
-                        this.heuristic_params.query_fast.map(|x| x.enabled())
-                    )
                 )
             }),
             (format!("{:<5}", "dist"), |this: &AlignResult| {
@@ -263,7 +257,7 @@ impl AlignResult {
         ];
 
         if unsafe { !PRINTED_HEADER } {
-            for (hdr, _) in &columns {
+            for (hdr, _) in columns {
                 print!("{} ", hdr);
             }
             // SAFE: We're single threaded anyway.
@@ -272,7 +266,7 @@ impl AlignResult {
             }
             println!();
         }
-        for (_, col) in &columns {
+        for (_, col) in columns {
             print!("{} ", col(self));
         }
         println!();
@@ -541,17 +535,15 @@ mod tests {
         let b = "ACTGG".as_bytes().to_vec();
 
         // Instantiate the heuristic.
-        let h = SeedHeuristic {
+        let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(l),
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
             pruning: false,
-            build_fast: false,
-            query_fast: QueryMode::Off,
-            ..SeedHeuristic::default()
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
         }
         .build(&a, &b, alphabet);
 
@@ -598,17 +590,15 @@ mod tests {
             &text,
             &alphabet,
             stats,
-            SeedHeuristic {
+            GapSeedHeuristic {
                 match_config: MatchConfig {
                     length: Fixed(l),
                     max_match_cost: 1,
                     ..MatchConfig::default()
                 },
-                distance_function: BiCountHeuristic,
                 pruning: false,
-                build_fast: false,
-                query_fast: QueryMode::Off,
-                ..SeedHeuristic::default()
+                c: PhantomData::<NaiveContours<NaiveContour>>,
+                ..GapSeedHeuristic::default()
             },
         );
         assert!(r.heuristic_stats2.root_h <= r.answer_cost);
@@ -617,17 +607,15 @@ mod tests {
     // Failed because of match distance > 0
     #[test]
     fn consistency_1() {
-        let h = SeedHeuristic {
+        let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(4),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
             pruning: false,
-            build_fast: false,
-            query_fast: QueryMode::Off,
-            ..SeedHeuristic::default()
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[361..369].to_vec();
@@ -640,17 +628,15 @@ mod tests {
     // Failed because of match distance > 0 and stricter consistency check
     #[test]
     fn consistency_2() {
-        let h = SeedHeuristic {
+        let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(5),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
             pruning: false,
-            build_fast: false,
-            query_fast: QueryMode::Off,
-            ..SeedHeuristic::default()
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[236..246].to_vec();
@@ -664,17 +650,15 @@ mod tests {
     #[test]
     #[ignore]
     fn consistency_3() {
-        let h = SeedHeuristic {
+        let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(4),
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
             pruning: true,
-            build_fast: false,
-            query_fast: QueryMode::Off,
-            ..SeedHeuristic::default()
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a.to_vec();
@@ -687,17 +671,15 @@ mod tests {
     // Failed because of pruning and match distance
     #[test]
     fn consistency_4() {
-        let h = SeedHeuristic {
+        let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(6),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
             pruning: true,
-            build_fast: false,
-            query_fast: QueryMode::Off,
-            ..SeedHeuristic::default()
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
         let a = &a[846..870].to_vec();
@@ -712,17 +694,15 @@ mod tests {
     // Failed because of pruning and large edit distance
     #[test]
     fn consistency_5() {
-        let h = SeedHeuristic {
+        let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(4),
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
             pruning: true,
-            build_fast: false,
-            query_fast: QueryMode::Off,
-            ..SeedHeuristic::default()
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.20);
         let a = &a[200..310].to_vec();

@@ -10,17 +10,15 @@ fn main() {
             let max_match_cost = 1;
             let prune = [];
 
-            let heuristic = SeedHeuristic {
+            let heuristic = GapSeedHeuristic {
                 match_config: MatchConfig {
                     length: Fixed(l),
                     max_match_cost,
                     ..MatchConfig::default()
                 },
-                distance_function: GapHeuristic,
                 pruning,
-                build_fast,
-                query_fast: QueryMode::Off,
-                ..SeedHeuristic::default()
+                c: PhantomData::<NaiveContours<NaiveContour>>,
+                ..GapSeedHeuristic::default()
             };
 
             let (ref a, ref b, alphabet, stats) = setup(n, e);
@@ -33,11 +31,8 @@ fn main() {
             h.print(do_transform, false);
 
             if do_transform {
-                let h2 = SeedHeuristic {
-                    build_fast: false,
-                    query_fast: QueryMode::Off,
-                    ..heuristic
-                };
+                // TODO: Convert to slow variant.
+                let h2 = GapSeedHeuristic { ..heuristic };
 
                 align(
                     &a,

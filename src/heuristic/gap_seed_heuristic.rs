@@ -1,0 +1,752 @@
+use std::{
+    cmp::Reverse,
+    io,
+    marker::PhantomData,
+    time::{self, Duration},
+};
+
+use itertools::Itertools;
+use rand::{prelude::Distribution, SeedableRng};
+
+use super::{distance::*, *};
+use crate::{
+    contour::{Arrow, Contours},
+    prelude::*,
+    seeds::{find_matches, Match, MatchConfig, SeedMatches},
+};
+
+pub struct GapSeedHeuristic<C: Contours> {
+    pub match_config: MatchConfig,
+    pub pruning: bool,
+    pub prune_fraction: f32,
+    // TODO: Delete. Replaced by the Contours type.
+    pub c: PhantomData<C>,
+}
+
+impl<C: Contours> std::fmt::Debug for GapSeedHeuristic<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SeedHeuristic")
+            .field("match_config", &self.match_config)
+            .field("pruning", &self.pruning)
+            .field("prune_fraction", &self.prune_fraction)
+            .finish()
+    }
+}
+impl<C: Contours> Clone for GapSeedHeuristic<C> {
+    fn clone(&self) -> Self {
+        Self {
+            match_config: self.match_config.clone(),
+            pruning: self.pruning.clone(),
+            prune_fraction: self.prune_fraction.clone(),
+            c: self.c.clone(),
+        }
+    }
+}
+
+impl<C: Contours> Copy for GapSeedHeuristic<C> {}
+
+impl<C: Contours> Default for GapSeedHeuristic<C> {
+    fn default() -> Self {
+        Self {
+            match_config: Default::default(),
+            pruning: false,
+            prune_fraction: 1.0,
+            c: PhantomData,
+        }
+    }
+}
+
+impl<C: Contours> Heuristic for GapSeedHeuristic<C> {
+    type Instance<'a> = SeedHeuristicI<C>;
+
+    fn build<'a>(
+        &self,
+        a: &'a Sequence,
+        b: &'a Sequence,
+        alphabet: &Alphabet,
+    ) -> Self::Instance<'a> {
+        assert!(
+            self.match_config.max_match_cost < self.match_config.length.l().unwrap_or(usize::MAX)
+        );
+        SeedHeuristicI::new(a, b, alphabet, *self)
+    }
+
+    fn name(&self) -> String {
+        "Seed".into()
+    }
+
+    fn params(&self) -> HeuristicParams {
+        HeuristicParams {
+            name: self.name(),
+            l: Some(self.match_config.length.l().unwrap_or(0)),
+            max_match_cost: Some(self.match_config.max_match_cost),
+            pruning: Some(self.pruning),
+            distance_function: Some("Gap".to_string()),
+            ..Default::default()
+        }
+    }
+}
+pub struct SeedHeuristicI<C: Contours> {
+    params: GapSeedHeuristic<C>,
+    distance_function: GapHeuristicI,
+    target: Pos,
+
+    pub seed_matches: SeedMatches,
+    // The lowest cost match starting at each position.
+    active_matches: HashMap<Pos, Match>,
+    h_at_seeds: HashMap<Pos, usize>,
+    pruned_positions: HashSet<Pos>,
+
+    // For partial pruning.
+    num_tried_pruned: usize,
+    num_actual_pruned: usize,
+
+    // For the fast version
+    transform_target: Pos,
+    //contour_graph: ContourGraph<usize>,
+    contours: C,
+
+    // For debugging
+    expanded: HashSet<Pos>,
+    pub pruning_duration: Duration,
+}
+
+/// The seed heuristic implies a distance function as the maximum of the
+/// provided distance function and the potential difference between the two
+/// positions.  Assumes that the current position is not a match, and no matches
+/// are visited in between `from` and `to`.
+impl<'a, C: Contours> DistanceHeuristicInstance<'a> for SeedHeuristicI<C> {
+    fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
+        max(
+            self.distance_function.distance(from, to),
+            self.seed_matches.distance(from, to),
+        )
+    }
+}
+
+impl<'a, C: Contours> SeedHeuristicI<C> {
+    fn new(
+        a: &'a Sequence,
+        b: &'a Sequence,
+        alphabet: &Alphabet,
+        params: GapSeedHeuristic<C>,
+    ) -> Self {
+        let seed_matches = find_matches(a, b, alphabet, params.match_config);
+
+        let mut h = SeedHeuristicI {
+            params,
+            distance_function: DistanceHeuristic::build(&GapHeuristic, a, b, alphabet),
+            target: Pos(a.len(), b.len()),
+            seed_matches,
+            active_matches: Default::default(),
+            h_at_seeds: Default::default(),
+            pruned_positions: Default::default(),
+            transform_target: Pos(0, 0),
+            // Filled below.
+            contours: C::default(),
+            expanded: HashSet::default(),
+            pruning_duration: Default::default(),
+            num_tried_pruned: 0,
+            num_actual_pruned: 0,
+        };
+        h.transform_target = h.transform(h.target);
+        h.build();
+        //println!("{:?}", h.h_at_seeds);
+        //println!("{:?}", h.active_matches);
+        h
+    }
+
+    /// Build the `h_at_seeds` map in roughly O(#seeds).
+    // Implementation:
+    // - Loop over seeds from right to left.
+    // - Keep a second sorted list going from the bottom to the top.
+    // - Keep a front over all match-starts with i>=x-l and j>=y-l, for some x,y.
+    // - To determine the value at a position, simply loop over all matches in the front.
+    //
+    // - Matches B(x,y) are dropped from the front when we are sure they are superseeded:
+    //   - The diagonal is covered by another match A, with !(start(A) < start(B))
+    //     This ensures that everything that can reach B on the side of A can also reach A.
+    //   - That match A is to the left at (i,*) or above at (*,j)
+    //   - We have processed all matches M with end(M).0 > i or end(M).1 > j.
+    //
+    // When the diagonal has sufficiently many matches, this process should lead to
+    // a front containing O(1) matches.
+    // TODO: Report some metrics on skipped states.
+    fn build(&mut self) {
+        // Filter matches by transformed start position.
+        let filtered_matches = self
+            .seed_matches
+            .iter()
+            .filter(|Match { start, .. }| !self.pruned_positions.contains(start))
+            .collect_vec();
+        // Update active_matches.
+        for &m in &filtered_matches {
+            match self.active_matches.entry(m.start) {
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    if m.match_cost < entry.get().match_cost {
+                        entry.insert(m.clone());
+                    }
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(m.clone());
+                }
+            }
+        }
+        // Transform to Arrows.
+        let mut arrows = filtered_matches
+            .into_iter()
+            .map(
+                |&Match {
+                     start,
+                     end,
+                     match_cost,
+                     seed_potential,
+                 }| {
+                    Arrow {
+                        start: self.transform(start),
+                        end: self.transform(end),
+                        len: seed_potential - match_cost,
+                    }
+                },
+            )
+            .collect_vec();
+        // Sort revered by start.
+        arrows.sort_by_key(|Arrow { start, .. }| Reverse(LexPos(*start)));
+        self.contours = C::new(arrows);
+
+        //let mut h_map = self.h_at_seeds.iter().collect_vec();
+        //h_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+        //println!("H: {:?}", h_map);
+        //self.print(false, false);
+    }
+
+    pub fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
+        let a = self.target.0;
+        let b = self.target.1;
+        let pot = |pos| self.seed_matches.potential(pos);
+        Pos(
+            i + b - j + pot(Pos(0, 0)) - pot(pos),
+            j + a - i + pot(Pos(0, 0)) - pot(pos),
+        )
+    }
+
+    // Used for debugging.
+    pub fn base_h_with_parent(&self, pos: Pos) -> (usize, Pos) {
+        //let h = self.h(Node(pos, self.root_state(Pos(0, 0))));
+        let pos_transformed = self.transform(pos);
+        let p = self.seed_matches.potential(pos);
+        let (val, parent) = self
+            .h_at_seeds
+            .iter()
+            .filter(|&(parent, _)| *parent >= pos_transformed)
+            .map(|(parent, val)| (p - *val, *parent))
+            .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
+            .unwrap_or_else(|| (self.distance(pos, self.target), self.target));
+        (val, parent)
+    }
+}
+
+impl<'a, C: Contours> HeuristicInstance<'a> for SeedHeuristicI<C> {
+    type Pos = crate::graph::Pos;
+    fn h(&self, Node(pos, _parent): NodeH<'a, Self>) -> usize {
+        let p = self.seed_matches.potential(pos);
+        let val = self.contours.value(pos);
+        if val == 0 {
+            self.distance(pos, self.target)
+        } else {
+            p - val
+        }
+    }
+
+    // TODO: Re-implement IncrementalState
+    type IncrementalState = ();
+
+    // TODO: Use cost for more efficient incremental function.
+    fn incremental_h(
+        &self,
+        _parent: NodeH<'a, Self>,
+        _pos: Pos,
+        _cost: usize,
+    ) -> Self::IncrementalState {
+        ()
+        // if self.params.query_fast.enabled() {
+        //     self.contour_graph
+        //         .incremental(self.transform(pos), parent.1, self.transform(parent.0))
+        // } else {
+        //     parent.1
+        // }
+    }
+
+    fn root_state(&self, _root_pos: Self::Pos) -> Self::IncrementalState {
+        ()
+    }
+
+    fn stats(&self) -> HeuristicStats {
+        HeuristicStats {
+            num_seeds: Some(self.seed_matches.num_seeds),
+            num_matches: Some(self.seed_matches.matches.len()),
+            matches: Some(self.seed_matches.matches.clone()),
+            pruning_duration: Some(self.pruning_duration.as_secs_f32()),
+        }
+    }
+
+    fn prune(&mut self, pos: Pos) {
+        if !self.params.pruning {
+            return;
+        }
+
+        // Check that we don't double expand start-of-seed states.
+        if self.seed_matches.is_start_of_seed(pos) {
+            // When we don't ensure consistency, starts of seeds should still only be expanded once.
+            assert!(
+                self.expanded.insert(pos),
+                "Double expanded start of seed {:?}",
+                pos
+            );
+        }
+
+        self.num_tried_pruned += 1;
+        if self.num_actual_pruned as f32
+            >= self.num_tried_pruned as f32 * self.params.prune_fraction
+        {
+            return;
+        }
+        self.num_actual_pruned += 1;
+
+        // If the current position is not on a Pareto front, there is no need to
+        // rebuild.
+        // This doesn't work after all...
+        //let tpos = self.transform(pos);
+        // Prune the current position.
+        self.pruned_positions.insert(pos);
+        // NOTE: This still has a small bug/difference with the bruteforce implementation:
+        // When two exact matches are neighbours, it can happen that one
+        // suffices as parent/root for the region, but the fast implementation doesn't detect this and uses both.
+        // This means that the spurious match will be prunes in the fast
+        // case, and not in the slow case, leading to small differences.
+        // Either way, both behaviours are correct.
+        if !self.seed_matches.is_start_of_seed(pos) {
+            return;
+        }
+
+        let m = if let Some(m) = self.active_matches.get(&pos) {
+            m
+        } else {
+            return;
+        };
+
+        // Skip pruning when this is an inexact match neighbouring a strictly better still active exact match.
+        // TODO: This feels hacky doing the manual position manipulation, but oh well... .
+        let nbs = {
+            let mut nbs = Vec::new();
+            if pos.1 > 0 {
+                nbs.push(Pos(pos.0, pos.1 - 1));
+            }
+            if pos.1 < self.target.1 {
+                nbs.push(Pos(pos.0, pos.1 + 1));
+            }
+            nbs
+        };
+        for nb in nbs {
+            if self
+                .active_matches
+                .get(&nb)
+                .map_or(false, |m2| m2.match_cost < m.match_cost)
+            {
+                return;
+            }
+        }
+
+        self.active_matches
+            .remove(&pos)
+            .expect("Already checked that this positions is a match.");
+        // println!(
+        //     "FAST: {} PRUNE POINT {:?} / {:?}",
+        //     self.params.build_fast as u8,
+        //     pos,
+        //     self.transform(pos)
+        // );
+
+        //println!("REBUILD");
+        let start = time::Instant::now();
+        self.build();
+        self.pruning_duration += start.elapsed();
+        // self.print(false, false);
+        // println!("{:?}", self.h_at_seeds);
+    }
+
+    fn print(&self, do_transform: bool, wait_for_user: bool) {
+        let l = self.params.match_config.length.l().unwrap();
+        let max_match_cost = self.params.match_config.max_match_cost;
+        let mut ps = HashMap::default();
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3144);
+        let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
+        let Pos(a, b) = self.target;
+        let mut pixels = vec![vec![(None, None, false, false); 20 * b]; 20 * a];
+        let start_i = Pos(
+            b * (max_match_cost + 1) / (l + max_match_cost + 1) + a - b,
+            0,
+        );
+        let start_j = Pos(0, a * (max_match_cost + 1) / l + b - a);
+        let start = Pos(self.transform(start_j).0, self.transform(start_i).1);
+        let target = self.transform(Pos(a, b));
+        for i in 0..=a {
+            for j in 0..=b {
+                let p = Pos(i, j);
+                // Transformation: draw (i,j) at ((l+1)*i + l*(B-j), l*j + (A-i)*(l-1))
+                // scaling: divide draw coordinate by l, using the right offset.
+                let draw_pos = if do_transform { self.transform(p) } else { p };
+                let pixel = &mut pixels[draw_pos.0][draw_pos.1];
+
+                let (val, parent_pos) = self.base_h_with_parent(p);
+                let l = ps.len();
+                let (_parent_id, color) = ps.entry(parent_pos).or_insert((
+                    l,
+                    termion::color::Rgb(
+                        dist.sample(&mut rng),
+                        dist.sample(&mut rng),
+                        dist.sample(&mut rng),
+                    ),
+                ));
+                let is_start_of_match = self.seed_matches.iter().find(|m| m.start == p).is_some();
+                let is_end_of_match = self.seed_matches.iter().find(|m| m.end == p).is_some();
+                if is_start_of_match {
+                    pixel.2 = true;
+                } else if is_end_of_match {
+                    pixel.3 = true;
+                }
+                pixel.0 = Some(*color);
+                pixel.1 = Some(val);
+            }
+        }
+        let print = |i: usize, j: usize| {
+            let pixel = pixels[i][j];
+            if pixel.2 {
+                print!(
+                    "{}{}",
+                    termion::color::Fg(termion::color::Black),
+                    termion::style::Bold
+                );
+            } else if pixel.3 {
+                print!(
+                    "{}{}",
+                    termion::color::Fg(termion::color::Rgb(100, 100, 100)),
+                    termion::style::Bold
+                );
+            }
+            print!(
+                "{}{:3} ",
+                termion::color::Bg(pixel.0.unwrap_or(termion::color::Rgb(0, 0, 0))),
+                pixel.1.map(|x| format!("{:3}", x)).unwrap_or_default()
+            );
+            print!(
+                "{}{}",
+                termion::color::Fg(termion::color::Reset),
+                termion::color::Bg(termion::color::Reset)
+            );
+        };
+        if do_transform {
+            for j in start.1..=target.1 {
+                for i in start.0..=target.0 {
+                    print(i, j);
+                }
+                print!(
+                    "{}{}\n",
+                    termion::color::Fg(termion::color::Reset),
+                    termion::color::Bg(termion::color::Reset)
+                );
+            }
+        } else {
+            for j in 0 * b..=1 * b {
+                for i in 0 * a..=1 * a {
+                    print(i, j);
+                }
+                print!(
+                    "{}{}\n",
+                    termion::color::Fg(termion::color::Reset),
+                    termion::color::Bg(termion::color::Reset)
+                );
+            }
+        };
+        if wait_for_user {
+            let mut ret = String::new();
+            io::stdin().read_line(&mut ret).unwrap();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use itertools::Itertools;
+
+    use crate::align;
+    use crate::setup;
+    use gap_seed_heuristic::*;
+
+    #[test]
+    fn fast_build() {
+        // TODO: check pruning
+        for (l, max_match_cost) in [(4, 0), (5, 0), (7, 1), (8, 1)] {
+            for n in [100, 200, 500, 1000] {
+                for e in [0.1, 0.3, 1.0] {
+                    for pruning in [false, true] {
+                        let h_slow = GapSeedHeuristic {
+                            match_config: MatchConfig {
+                                length: Fixed(l),
+                                max_match_cost,
+                                ..MatchConfig::default()
+                            },
+                            pruning,
+                            c: PhantomData::<NaiveContours<NaiveContour>>,
+                            ..GapSeedHeuristic::default()
+                        };
+                        let h_fast = GapSeedHeuristic { ..h_slow };
+
+                        let (a, b, alphabet, stats) = setup(n, e);
+
+                        println!("TESTING n {} e {}: {:?}", n, e, h_fast);
+                        if false {
+                            let h_slow = h_slow.build(&a, &b, &alphabet);
+                            let h_fast = h_fast.build(&a, &b, &alphabet);
+                            let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
+                            let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
+                            h_slow_map.sort_unstable_by_key(|&(Pos(i, j), _)| (i, j));
+                            h_fast_map.sort_unstable_by_key(|&(Pos(i, j), _)| (i, j));
+                            assert_eq!(h_slow_map, h_fast_map);
+                        }
+
+                        align(
+                            &a,
+                            &b,
+                            &alphabet,
+                            stats,
+                            EqualHeuristic {
+                                h1: h_slow,
+                                h2: h_fast,
+                            },
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn contour_graph() {
+        let tests = [
+            (
+                "GATCGCAGCAGAACTGTGCCCATTTTGTGCCT",
+                "CGGATCGGCGCAGAACATGTGGTCCAATTTTGCTGCC",
+            ),
+            (
+                "GCCTAAATGCGAACGTAGATTCGTTGTTCC",
+                "GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC",
+            ),
+            // Fails with alternating [(4,0),(7,1)] seeds on something to do with leftover_at_end.
+            ("GAAGGGTAACAGTGCTCG", "AGGGTAACAGTGCTCGTA"),
+        ];
+        for build_fast in [false, true] {
+            for (a, b) in tests {
+                println!("TEST:\n{}\n{}", a, b);
+                let a = a.as_bytes().to_vec();
+                let b = b.as_bytes().to_vec();
+                let l = 7;
+                let max_match_cost = 1;
+                let pruning = false;
+                let h_slow = GapSeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(l),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning,
+                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    ..GapSeedHeuristic::default()
+                };
+                let h_fast = GapSeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(l),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning,
+                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    ..GapSeedHeuristic::default()
+                };
+
+                let (_, _, alphabet, stats) = setup(0, 0.0);
+
+                if false {
+                    let h_slow = h_slow.build(&a, &b, &alphabet);
+                    let h_fast = h_fast.build(&a, &b, &alphabet);
+                    let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
+                    let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
+                    h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                    h_fast_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
+                    assert_eq!(h_slow_map, h_fast_map);
+                }
+
+                align(
+                    &a,
+                    &b,
+                    &alphabet,
+                    stats,
+                    EqualHeuristic {
+                        h1: h_slow,
+                        h2: h_fast,
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn no_leftover() {
+        let pruning = true;
+        let (l, max_match_cost) = (7, 1);
+        let h_slow = GapSeedHeuristic {
+            match_config: MatchConfig {
+                length: Fixed(l),
+                max_match_cost,
+                ..MatchConfig::default()
+            },
+            pruning,
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
+        };
+        let h_fast = GapSeedHeuristic {
+            match_config: MatchConfig {
+                length: Fixed(l),
+                max_match_cost,
+                ..MatchConfig::default()
+            },
+            pruning,
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
+        };
+
+        let n = 1000;
+        let e: f32 = 0.3;
+        let (a, b, alphabet, stats) = setup(n, e);
+        let start = 679;
+        let end = 750;
+        let a = &a[start..end].to_vec();
+        let b = &b[start..end].to_vec();
+
+        println!("\n\n\nALIGN");
+        align(
+            &a,
+            &b,
+            &alphabet,
+            stats,
+            EqualHeuristic {
+                h1: h_slow,
+                h2: h_fast,
+            },
+        );
+    }
+
+    #[test]
+    fn needs_leftover() {
+        let h_slow = GapSeedHeuristic {
+            match_config: MatchConfig {
+                length: Fixed(7),
+                max_match_cost: 1,
+                ..MatchConfig::default()
+            },
+            pruning: false,
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
+        };
+        let h_fast = GapSeedHeuristic { ..h_slow };
+
+        let n = 1000;
+        let e: f32 = 0.3;
+        let (a, b, alphabet, stats) = setup(n, e);
+        let start = 909;
+        let end = 989;
+        let a = &a[start..end].to_vec();
+        let b = &b[start..end].to_vec();
+
+        println!("TESTING: {:?}", h_fast);
+        println!("{}\n{}", to_string(a), to_string(b));
+
+        println!("ALIGN");
+        align(
+            &a,
+            &b,
+            &alphabet,
+            stats,
+            EqualHeuristic {
+                h1: h_slow,
+                h2: h_fast,
+            },
+        );
+    }
+
+    #[test]
+    fn pruning_and_inexact_matches() {
+        let pruning = true;
+        let (l, max_match_cost) = (7, 1);
+        for do_transform in [false, true] {
+            for build_fast in [false, true] {
+                let h_slow = GapSeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(l),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning,
+                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    ..GapSeedHeuristic::default()
+                };
+                let h_fast = GapSeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(l),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning,
+                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    ..GapSeedHeuristic::default()
+                };
+
+                let n = 1000;
+                let e: f32 = 0.3;
+                let (a, b, alphabet, stats) = setup(n, e);
+                let start = 951;
+                let end = 986;
+                let a = &a[start..end].to_vec();
+                let b = &b[start..end].to_vec();
+                // let a = &"GAAGGGTAACAGTGCTCG".as_bytes().to_vec();
+                // let b = &"AGGGTAACAGTGCTCGTA".as_bytes().to_vec();
+                // let (a, b) = (
+                //     &"GATCGCAGCAGAACTGTGCCCATTTTGTGCCT".as_bytes().to_vec(),
+                //     &"CGGATCGGCGCAGAACATGTGGTCCAATTTTGCTGCC".as_bytes().to_vec(),
+                // );
+                // let (a, b) = (
+                //     &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec(),
+                //     &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec(),
+                // );
+
+                println!("TESTING: {:?}", h_fast);
+                println!("{}\n{}", to_string(a), to_string(b));
+
+                if do_transform {
+                    println!("ALIGN");
+                    align(
+                        &a,
+                        &b,
+                        &alphabet,
+                        stats,
+                        EqualHeuristic {
+                            h1: h_slow,
+                            h2: h_fast,
+                        },
+                    );
+                }
+            }
+        }
+    }
+}
