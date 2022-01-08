@@ -23,9 +23,9 @@ pub trait DistanceHeuristicInstance<'a>: HeuristicInstance<'a> {
 
 // # ZERO HEURISTIC
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ZeroHeuristic;
-impl Heuristic for ZeroHeuristic {
-    type Instance<'a> = ZeroHeuristicI;
+pub struct ZeroCost;
+impl Heuristic for ZeroCost {
+    type Instance<'a> = ZeroCostI;
 
     fn name(&self) -> String {
         "Zero".into()
@@ -37,11 +37,11 @@ impl Heuristic for ZeroHeuristic {
         _b: &'a Sequence,
         _alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
-        ZeroHeuristicI
+        ZeroCostI
     }
 }
-impl DistanceHeuristic for ZeroHeuristic {
-    type DistanceInstance<'a> = ZeroHeuristicI;
+impl DistanceHeuristic for ZeroCost {
+    type DistanceInstance<'a> = ZeroCostI;
 
     fn build<'a>(
         &self,
@@ -49,17 +49,17 @@ impl DistanceHeuristic for ZeroHeuristic {
         _b: &'a Sequence,
         _alphabet: &Alphabet,
     ) -> Self::DistanceInstance<'a> {
-        ZeroHeuristicI
+        ZeroCostI
     }
 }
 
-pub struct ZeroHeuristicI;
-impl HeuristicInstance<'_> for ZeroHeuristicI {
+pub struct ZeroCostI;
+impl HeuristicInstance<'_> for ZeroCostI {
     fn h(&self, _: NodeH<Self>) -> usize {
         0
     }
 }
-impl DistanceHeuristicInstance<'_> for ZeroHeuristicI {
+impl DistanceHeuristicInstance<'_> for ZeroCostI {
     fn distance(&self, _from: Pos, _to: Pos) -> usize {
         0
     }
@@ -67,9 +67,9 @@ impl DistanceHeuristicInstance<'_> for ZeroHeuristicI {
 
 // # MAX HEURISTIC
 #[derive(Debug, Clone, Copy, Default)]
-pub struct MaxHeuristic;
-impl Heuristic for MaxHeuristic {
-    type Instance<'a> = MaxHeuristicI;
+pub struct MaxCost;
+impl Heuristic for MaxCost {
+    type Instance<'a> = MaxCostI;
     fn name(&self) -> String {
         "Max".into()
     }
@@ -80,13 +80,13 @@ impl Heuristic for MaxHeuristic {
         b: &'a Sequence,
         _alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
-        MaxHeuristicI {
+        MaxCostI {
             target: Pos(a.len(), b.len()),
         }
     }
 }
-impl DistanceHeuristic for MaxHeuristic {
-    type DistanceInstance<'a> = MaxHeuristicI;
+impl DistanceHeuristic for MaxCost {
+    type DistanceInstance<'a> = MaxCostI;
 
     fn build<'a>(
         &self,
@@ -94,19 +94,19 @@ impl DistanceHeuristic for MaxHeuristic {
         b: &'a Sequence,
         alphabet: &Alphabet,
     ) -> Self::DistanceInstance<'a> {
-        <MaxHeuristic as Heuristic>::build(self, a, b, alphabet)
+        <MaxCost as Heuristic>::build(self, a, b, alphabet)
     }
 }
-pub struct MaxHeuristicI {
+pub struct MaxCostI {
     target: Pos,
 }
 
-impl HeuristicInstance<'_> for MaxHeuristicI {
+impl HeuristicInstance<'_> for MaxCostI {
     fn h(&self, Node(Pos(i, j), _): NodeH<Self>) -> usize {
         max(self.target.0 - i, self.target.1 - j)
     }
 }
-impl DistanceHeuristicInstance<'_> for MaxHeuristicI {
+impl DistanceHeuristicInstance<'_> for MaxCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
         max(to.0 - from.0, to.1 - from.1)
     }
@@ -114,9 +114,9 @@ impl DistanceHeuristicInstance<'_> for MaxHeuristicI {
 
 // # GAP HEURISTIC
 #[derive(Debug, Clone, Copy, Default)]
-pub struct GapHeuristic;
-impl Heuristic for GapHeuristic {
-    type Instance<'a> = GapHeuristicI;
+pub struct GapCost;
+impl Heuristic for GapCost {
+    type Instance<'a> = GapCostI;
     fn name(&self) -> String {
         "Gap".into()
     }
@@ -127,13 +127,13 @@ impl Heuristic for GapHeuristic {
         b: &'a Sequence,
         _alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
-        GapHeuristicI {
+        GapCostI {
             target: Pos(a.len(), b.len()),
         }
     }
 }
-impl DistanceHeuristic for GapHeuristic {
-    type DistanceInstance<'a> = GapHeuristicI;
+impl DistanceHeuristic for GapCost {
+    type DistanceInstance<'a> = GapCostI;
 
     fn build<'a>(
         &self,
@@ -141,19 +141,19 @@ impl DistanceHeuristic for GapHeuristic {
         b: &'a Sequence,
         alphabet: &Alphabet,
     ) -> Self::DistanceInstance<'a> {
-        <GapHeuristic as Heuristic>::build(self, a, b, alphabet)
+        <GapCost as Heuristic>::build(self, a, b, alphabet)
     }
 }
-pub struct GapHeuristicI {
+pub struct GapCostI {
     target: Pos,
 }
 
-impl HeuristicInstance<'_> for GapHeuristicI {
+impl HeuristicInstance<'_> for GapCostI {
     fn h(&self, Node(Pos(i, j), _): NodeH<Self>) -> usize {
         abs_diff(self.target.0 - i, self.target.1 - j)
     }
 }
-impl DistanceHeuristicInstance<'_> for GapHeuristicI {
+impl DistanceHeuristicInstance<'_> for GapCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
         abs_diff(to.0 - from.0, to.1 - from.1)
     }
@@ -173,9 +173,9 @@ fn char_counts(a: &Sequence, alphabet: &Alphabet) -> Counts {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct CountHeuristic;
-impl Heuristic for CountHeuristic {
-    type Instance<'a> = CountHeuristicI;
+pub struct CountCost;
+impl Heuristic for CountCost {
+    type Instance<'a> = CountCostI;
     fn name(&self) -> String {
         "Count".into()
     }
@@ -186,15 +186,15 @@ impl Heuristic for CountHeuristic {
         b: &'a Sequence,
         alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
-        CountHeuristicI {
+        CountCostI {
             a_cnts: char_counts(a, alphabet),
             b_cnts: char_counts(b, alphabet),
             target: Pos(a.len(), b.len()),
         }
     }
 }
-impl DistanceHeuristic for CountHeuristic {
-    type DistanceInstance<'a> = CountHeuristicI;
+impl DistanceHeuristic for CountCost {
+    type DistanceInstance<'a> = CountCostI;
 
     fn build<'a>(
         &self,
@@ -202,22 +202,22 @@ impl DistanceHeuristic for CountHeuristic {
         b: &'a Sequence,
         alphabet: &Alphabet,
     ) -> Self::DistanceInstance<'a> {
-        <CountHeuristic as Heuristic>::build(self, a, b, alphabet)
+        <CountCost as Heuristic>::build(self, a, b, alphabet)
     }
 }
-pub struct CountHeuristicI {
+pub struct CountCostI {
     a_cnts: Counts,
     b_cnts: Counts,
     target: Pos,
 }
 
-impl HeuristicInstance<'_> for CountHeuristicI {
+impl HeuristicInstance<'_> for CountCostI {
     fn h(&self, Node(pos, _): NodeH<Self>) -> usize {
         self.distance(pos, self.target)
     }
 }
 
-impl DistanceHeuristicInstance<'_> for CountHeuristicI {
+impl DistanceHeuristicInstance<'_> for CountCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
         let mut pos = 0;
         let mut neg = 0;
@@ -261,43 +261,43 @@ fn char_bicounts(a: &Sequence, alphabet: &Alphabet) -> BiCounts {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct BiCountHeuristic;
-impl Heuristic for BiCountHeuristic {
-    type Instance<'a> = BiCountHeuristicI;
+pub struct BiCountCost;
+impl Heuristic for BiCountCost {
+    type Instance<'a> = BiCountCostI;
     fn name(&self) -> String {
         "BiCount".into()
     }
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance<'_> {
-        BiCountHeuristicI {
-            cnt: DistanceHeuristic::build(&CountHeuristic, a, b, alphabet),
+        BiCountCostI {
+            cnt: DistanceHeuristic::build(&CountCost, a, b, alphabet),
             a_cnts: char_bicounts(a, alphabet),
             b_cnts: char_bicounts(b, alphabet),
             target: Pos(a.len(), b.len()),
         }
     }
 }
-impl DistanceHeuristic for BiCountHeuristic {
-    type DistanceInstance<'a> = BiCountHeuristicI;
+impl DistanceHeuristic for BiCountCost {
+    type DistanceInstance<'a> = BiCountCostI;
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance<'_> {
-        <BiCountHeuristic as Heuristic>::build(self, a, b, alphabet)
+        <BiCountCost as Heuristic>::build(self, a, b, alphabet)
     }
 }
-pub struct BiCountHeuristicI {
-    cnt: CountHeuristicI,
+pub struct BiCountCostI {
+    cnt: CountCostI,
     a_cnts: BiCounts,
     b_cnts: BiCounts,
     target: Pos,
 }
 
-impl<'a> HeuristicInstance<'a> for BiCountHeuristicI {
+impl<'a> HeuristicInstance<'a> for BiCountCostI {
     fn h(&self, Node(pos, _): NodeH<Self>) -> usize {
         self.distance(pos, self.target)
     }
 }
 
-impl<'a> DistanceHeuristicInstance<'a> for BiCountHeuristicI {
+impl<'a> DistanceHeuristicInstance<'a> for BiCountCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
         let mut pos = 0;
         let mut neg = 0;

@@ -19,13 +19,13 @@ pub struct GapSeedHeuristic<C: Contours> {
     pub match_config: MatchConfig,
     pub pruning: bool,
     pub prune_fraction: f32,
-    // TODO: Delete. Replaced by the Contours type.
     pub c: PhantomData<C>,
 }
 
+// Manual implementations because C is not Debug, Clone, or Copy.
 impl<C: Contours> std::fmt::Debug for GapSeedHeuristic<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SeedHeuristic")
+        f.debug_struct("GapSeedHeuristic")
             .field("match_config", &self.match_config)
             .field("pruning", &self.pruning)
             .field("prune_fraction", &self.prune_fraction)
@@ -42,7 +42,6 @@ impl<C: Contours> Clone for GapSeedHeuristic<C> {
         }
     }
 }
-
 impl<C: Contours> Copy for GapSeedHeuristic<C> {}
 
 impl<C: Contours> Default for GapSeedHeuristic<C> {
@@ -57,7 +56,7 @@ impl<C: Contours> Default for GapSeedHeuristic<C> {
 }
 
 impl<C: Contours> Heuristic for GapSeedHeuristic<C> {
-    type Instance<'a> = SeedHeuristicI<C>;
+    type Instance<'a> = GapSeedHeuristicI<C>;
 
     fn build<'a>(
         &self,
@@ -66,13 +65,14 @@ impl<C: Contours> Heuristic for GapSeedHeuristic<C> {
         alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
         assert!(
-            self.match_config.max_match_cost < self.match_config.length.l().unwrap_or(usize::MAX)
+            self.match_config.max_match_cost
+                < self.match_config.length.l().unwrap_or(usize::MAX) / 3
         );
-        SeedHeuristicI::new(a, b, alphabet, *self)
+        GapSeedHeuristicI::new(a, b, alphabet, *self)
     }
 
     fn name(&self) -> String {
-        "Seed".into()
+        "GapSeed".into()
     }
 
     fn params(&self) -> HeuristicParams {
@@ -86,9 +86,10 @@ impl<C: Contours> Heuristic for GapSeedHeuristic<C> {
         }
     }
 }
-pub struct SeedHeuristicI<C: Contours> {
+
+pub struct GapSeedHeuristicI<C: Contours> {
     params: GapSeedHeuristic<C>,
-    distance_function: GapHeuristicI,
+    gap_distance: GapCostI,
     target: Pos,
 
     pub seed_matches: SeedMatches,
@@ -115,16 +116,16 @@ pub struct SeedHeuristicI<C: Contours> {
 /// provided distance function and the potential difference between the two
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
-impl<'a, C: Contours> DistanceHeuristicInstance<'a> for SeedHeuristicI<C> {
+impl<'a, C: Contours> DistanceHeuristicInstance<'a> for GapSeedHeuristicI<C> {
     fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
         max(
-            self.distance_function.distance(from, to),
+            self.gap_distance.distance(from, to),
             self.seed_matches.distance(from, to),
         )
     }
 }
 
-impl<'a, C: Contours> SeedHeuristicI<C> {
+impl<'a, C: Contours> GapSeedHeuristicI<C> {
     fn new(
         a: &'a Sequence,
         b: &'a Sequence,
@@ -133,9 +134,9 @@ impl<'a, C: Contours> SeedHeuristicI<C> {
     ) -> Self {
         let seed_matches = find_matches(a, b, alphabet, params.match_config);
 
-        let mut h = SeedHeuristicI {
+        let mut h = GapSeedHeuristicI {
             params,
-            distance_function: DistanceHeuristic::build(&GapHeuristic, a, b, alphabet),
+            gap_distance: DistanceHeuristic::build(&GapCost, a, b, alphabet),
             target: Pos(a.len(), b.len()),
             seed_matches,
             active_matches: Default::default(),
@@ -151,26 +152,10 @@ impl<'a, C: Contours> SeedHeuristicI<C> {
         };
         h.transform_target = h.transform(h.target);
         h.build();
-        //println!("{:?}", h.h_at_seeds);
-        //println!("{:?}", h.active_matches);
         h
     }
 
-    /// Build the `h_at_seeds` map in roughly O(#seeds).
-    // Implementation:
-    // - Loop over seeds from right to left.
-    // - Keep a second sorted list going from the bottom to the top.
-    // - Keep a front over all match-starts with i>=x-l and j>=y-l, for some x,y.
-    // - To determine the value at a position, simply loop over all matches in the front.
-    //
-    // - Matches B(x,y) are dropped from the front when we are sure they are superseeded:
-    //   - The diagonal is covered by another match A, with !(start(A) < start(B))
-    //     This ensures that everything that can reach B on the side of A can also reach A.
-    //   - That match A is to the left at (i,*) or above at (*,j)
-    //   - We have processed all matches M with end(M).0 > i or end(M).1 > j.
-    //
-    // When the diagonal has sufficiently many matches, this process should lead to
-    // a front containing O(1) matches.
+    /// Build the `h_at_seeds` map in roughly O(r * lg(r)), for r seeds.
     // TODO: Report some metrics on skipped states.
     fn build(&mut self) {
         // Filter matches by transformed start position.
@@ -213,14 +198,9 @@ impl<'a, C: Contours> SeedHeuristicI<C> {
         // Sort revered by start.
         arrows.sort_by_key(|Arrow { start, .. }| Reverse(LexPos(*start)));
         self.contours = C::new(arrows);
-
-        //let mut h_map = self.h_at_seeds.iter().collect_vec();
-        //h_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
-        //println!("H: {:?}", h_map);
-        //self.print(false, false);
     }
 
-    pub fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
+    fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
         let a = self.target.0;
         let b = self.target.1;
         let pot = |pos| self.seed_matches.potential(pos);
@@ -229,9 +209,23 @@ impl<'a, C: Contours> SeedHeuristicI<C> {
             j + a - i + pot(Pos(0, 0)) - pot(pos),
         )
     }
+}
 
-    // Used for debugging.
-    pub fn base_h_with_parent(&self, pos: Pos) -> (usize, Pos) {
+impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
+    type Pos = crate::graph::Pos;
+
+    fn h(&self, Node(pos, ()): NodeH<'a, Self>) -> usize {
+        let p = self.seed_matches.potential(pos);
+        let val = self.contours.value(pos);
+        println!("{:?}: {} {}", pos, p, val);
+        if val == 0 {
+            self.distance(pos, self.target)
+        } else {
+            p - val
+        }
+    }
+
+    fn h_with_parent(&self, Node(pos, ()): Node<Pos, ()>) -> (usize, Pos) {
         //let h = self.h(Node(pos, self.root_state(Pos(0, 0))));
         let pos_transformed = self.transform(pos);
         let p = self.seed_matches.potential(pos);
@@ -244,42 +238,6 @@ impl<'a, C: Contours> SeedHeuristicI<C> {
             .unwrap_or_else(|| (self.distance(pos, self.target), self.target));
         (val, parent)
     }
-}
-
-impl<'a, C: Contours> HeuristicInstance<'a> for SeedHeuristicI<C> {
-    type Pos = crate::graph::Pos;
-    fn h(&self, Node(pos, _parent): NodeH<'a, Self>) -> usize {
-        let p = self.seed_matches.potential(pos);
-        let val = self.contours.value(pos);
-        if val == 0 {
-            self.distance(pos, self.target)
-        } else {
-            p - val
-        }
-    }
-
-    // TODO: Re-implement IncrementalState
-    type IncrementalState = ();
-
-    // TODO: Use cost for more efficient incremental function.
-    fn incremental_h(
-        &self,
-        _parent: NodeH<'a, Self>,
-        _pos: Pos,
-        _cost: usize,
-    ) -> Self::IncrementalState {
-        ()
-        // if self.params.query_fast.enabled() {
-        //     self.contour_graph
-        //         .incremental(self.transform(pos), parent.1, self.transform(parent.0))
-        // } else {
-        //     parent.1
-        // }
-    }
-
-    fn root_state(&self, _root_pos: Self::Pos) -> Self::IncrementalState {
-        ()
-    }
 
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
@@ -290,6 +248,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for SeedHeuristicI<C> {
         }
     }
 
+    // NOTE: This still has a small bug/difference with the bruteforce implementation:
+    // When two exact matches are neighbours, it can happen that one
+    // suffices as parent/root for the region, but the fast implementation doesn't detect this and uses both.
+    // This means that the spurious match will be prunes in the fast
+    // case, and not in the slow case, leading to small differences.
+    // Either way, both behaviours are correct.
     fn prune(&mut self, pos: Pos) {
         if !self.params.pruning {
             return;
@@ -313,18 +277,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for SeedHeuristicI<C> {
         }
         self.num_actual_pruned += 1;
 
-        // If the current position is not on a Pareto front, there is no need to
-        // rebuild.
-        // This doesn't work after all...
-        //let tpos = self.transform(pos);
         // Prune the current position.
         self.pruned_positions.insert(pos);
-        // NOTE: This still has a small bug/difference with the bruteforce implementation:
-        // When two exact matches are neighbours, it can happen that one
-        // suffices as parent/root for the region, but the fast implementation doesn't detect this and uses both.
-        // This means that the spurious match will be prunes in the fast
-        // case, and not in the slow case, leading to small differences.
-        // Either way, both behaviours are correct.
         if !self.seed_matches.is_start_of_seed(pos) {
             return;
         }
@@ -398,7 +352,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for SeedHeuristicI<C> {
                 let draw_pos = if do_transform { self.transform(p) } else { p };
                 let pixel = &mut pixels[draw_pos.0][draw_pos.1];
 
-                let (val, parent_pos) = self.base_h_with_parent(p);
+                let (val, parent_pos) = self.h_with_parent(Node(p, ()));
                 let l = ps.len();
                 let (_parent_id, color) = ps.entry(parent_pos).or_insert((
                     l,
@@ -480,9 +434,9 @@ mod tests {
 
     use itertools::Itertools;
 
+    use super::*;
     use crate::align;
     use crate::setup;
-    use gap_seed_heuristic::*;
 
     #[test]
     fn fast_build() {
@@ -498,7 +452,7 @@ mod tests {
                                 ..MatchConfig::default()
                             },
                             pruning,
-                            c: PhantomData::<NaiveContours<NaiveContour>>,
+                            c: PhantomData::<BruteforceContours>,
                             ..GapSeedHeuristic::default()
                         };
                         let h_fast = GapSeedHeuristic { ..h_slow };

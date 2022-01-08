@@ -11,7 +11,7 @@ fn main() {
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
+            distance_function: GapCost,
             pruning: false,
             ..SeedHeuristic::default()
         };
@@ -26,7 +26,7 @@ fn main() {
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
+            distance_function: GapCost,
             pruning: false,
             ..SeedHeuristic::default()
         };
@@ -41,7 +41,7 @@ fn main() {
                 max_match_cost: 0,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
+            distance_function: GapCost,
             pruning: true,
             ..SeedHeuristic::default()
         };
@@ -56,7 +56,7 @@ fn main() {
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
-            distance_function: ZeroHeuristic,
+            distance_function: ZeroCost,
             pruning: true,
             ..SeedHeuristic::default()
         };
@@ -75,7 +75,7 @@ fn main() {
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },
-            distance_function: GapHeuristic,
+            distance_function: GapCost,
             pruning: true,
             ..SeedHeuristic::default()
         };

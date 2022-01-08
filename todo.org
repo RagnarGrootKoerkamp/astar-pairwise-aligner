@@ -43,6 +43,8 @@ List of TODOs and other quick remarks.
     very narrow region is expanded.
 - B: Maximize the number of seeds that matches exactly (at most 10 times).
 - Experiment: make one mutation every l positions, and make seeds of length l.
+** TODO Try SeedHeuristic without Gaps
+- Maybe now that we have pruning, gaps aren't actually needed anymore.
 
 * Pruning
 ** TODO In-place bruteforce pruning for IncreasingFunction datastructure

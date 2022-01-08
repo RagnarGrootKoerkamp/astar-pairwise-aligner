@@ -522,7 +522,7 @@ mod tests {
                 error_rate: 0.,
                 source: Source::Manual,
             },
-            ZeroHeuristic,
+            ZeroCost,
         );
     }
 
