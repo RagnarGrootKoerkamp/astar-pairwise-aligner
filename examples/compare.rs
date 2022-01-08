@@ -37,30 +37,27 @@ fn main() {
         // (LengthConfig::min(2, |n| n), 1),
     ];
     let prunings = [1.0];
-    let build_fast = [true];
 
     for (&n, e) in ns.iter().cartesian_product(es) {
         for (length, max_match_cost) in lm {
             for prune_fraction in prunings {
-                for build_fast in build_fast {
-                    let result = {
-                        let h = GapSeedHeuristic {
-                            match_config: MatchConfig {
-                                length,
-                                max_match_cost,
-                                ..MatchConfig::default()
-                            },
-                            pruning: true,
-                            prune_fraction,
-                            c: PhantomData::<NaiveContours<NaiveContour>>,
-                            ..GapSeedHeuristic::default()
-                        };
-                        let (a, b, alphabet, stats) = setup(n, e);
-                        align(&a, &b, &alphabet, stats, h)
+                let result = {
+                    let h = GapSeedHeuristic {
+                        match_config: MatchConfig {
+                            length,
+                            max_match_cost,
+                            ..MatchConfig::default()
+                        },
+                        pruning: true,
+                        prune_fraction,
+                        c: PhantomData::<BruteforceContours>,
+                        ..GapSeedHeuristic::default()
                     };
-                    result.print();
-                    result.write(&mut wtr);
-                }
+                    let (a, b, alphabet, stats) = setup(n, e);
+                    align(&a, &b, &alphabet, stats, h)
+                };
+                result.print();
+                result.write(&mut wtr);
             }
         }
         println!("");
