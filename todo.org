@@ -9,7 +9,7 @@ List of TODOs and other quick remarks.
 ** TODO heuristic time
 ** TODO number of skipped matches
 ** TODO pruning time
-
+** TODO Use ~explored/path-len~ for band, instead of ~explored/max(n,m)~
 
 * Code
 ** TODO fuzzing/testing that fast impls equal slow impls
@@ -17,6 +17,9 @@ List of TODOs and other quick remarks.
 ** TODO Investigate doing long jumps on matching diagonals.
 ** TODO Rename max_match_cost to something that includes the +1 that's present everywhere.
 ** TODO Make a separate type for transformed positions
+** TODO Parameter for enabling greedy matching
+** TODO Remove sorting from BucketHeap? (Doesn't matter for A*, but may help for cache locality.)
+** TODO Colour ~print_heuristic~ by contours instead of by parent.
 
 * MSA (delayed; pruning complications)
 ** TODO instantiate one heuristic per pair of sequences
