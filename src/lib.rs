@@ -4,11 +4,13 @@
     exclusive_range_pattern,
     associated_type_defaults,
     generic_associated_types,
-    hash_drain_filter
+    hash_drain_filter,
+    drain_filter
 )]
 
 pub mod astar;
 pub mod bucket_heap;
+pub mod contour;
 pub mod contour_graph;
 pub mod diagonal_map;
 pub mod graph;

@@ -19,6 +19,8 @@ pub struct ContourGraph<T: Copy + hash::Hash + Eq> {
     bot: NodeIndex,
     // val=max
     max: NodeIndex,
+    // FIXME
+    #[allow(dead_code)]
     leftover_at_end: bool,
 }
 

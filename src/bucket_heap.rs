@@ -29,11 +29,9 @@ impl<G: ImplicitGraph> BucketHeap<G> {
             if let Some(back) = layer.pop() {
                 return Some(MinScored(self.next, back));
             }
-            // TODO: Sort the keys in the next layer.
             self.next += 1;
             if self.next == self.next_sort {
                 if let Some(layer) = self.layers.get_mut(self.next_sort) {
-                    // TODO: Use sort_unstable here?
                     layer.sort_unstable();
                 }
                 self.next_sort += 1;
