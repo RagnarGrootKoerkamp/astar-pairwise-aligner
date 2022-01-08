@@ -3,10 +3,7 @@
 use crate::prelude::*;
 
 // TODO: Can we get away with only one of these two traits?
-pub trait Distance: Heuristic + Default
-//where
-//for<'a> Self::Instance<'a>: DistanceHeuristicInstance<'a>,
-{
+pub trait Distance: Heuristic + Default {
     // TODO: Provide default implementations for these.
     type DistanceInstance<'a>: DistanceInstance<'a>;
     fn build<'a>(

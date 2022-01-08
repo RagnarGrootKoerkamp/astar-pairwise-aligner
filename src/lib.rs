@@ -164,8 +164,8 @@ impl AlignResult {
             (format!("{:>4}", "r"), |this: &AlignResult| {
                 format!("{:>4.2}", this.input.error_rate)
             }),
-            (format!("{:<5}", "H"), |this: &AlignResult| {
-                format!("{:<5}", this.heuristic_params.name)
+            (format!("{:<7}", "H"), |this: &AlignResult| {
+                format!("{:<7}", this.heuristic_params.name)
             }),
             (format!("{:>2}", "l"), |this: &AlignResult| {
                 format!("{:>2}", AlignResult::print_opt(this.heuristic_params.l))
@@ -507,57 +507,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_dijkstra() {
-        let pattern = b"ACTG".to_vec();
-        let text = b"AACT".to_vec();
-        let alphabet = &Alphabet::new(b"ACTG");
-
-        let _result = align(
-            &pattern,
-            &text,
-            &alphabet,
-            SequenceStats {
-                len_a: pattern.len(),
-                len_b: text.len(),
-                error_rate: 0.,
-                source: Source::Manual,
-            },
-            ZeroCost,
-        );
-    }
-
-    #[test]
-    fn visualize_gapped_seed() {
-        let alphabet = &Alphabet::new(b"ACTG");
-
-        let l = 3;
-        let a = "ACTTGG".as_bytes().to_vec();
-        let b = "ACTGG".as_bytes().to_vec();
-
-        // Instantiate the heuristic.
-        let h = GapSeedHeuristic {
-            match_config: MatchConfig {
-                length: Fixed(l),
-                max_match_cost: 0,
-                ..MatchConfig::default()
-            },
-            pruning: false,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
-            ..GapSeedHeuristic::default()
-        }
-        .build(&a, &b, alphabet);
-
-        for j in 0..=b.len() {
-            println!(
-                "{:?}",
-                (0..=a.len())
-                    .map(|i| h.h(Node(Pos(i, j), Default::default())))
-                    .collect::<Vec<_>>()
-            );
-        }
-    }
-
-    #[test]
     fn bicount_admissible() {
         let alphabet = &Alphabet::new(b"ACTG");
 
@@ -568,22 +517,12 @@ mod tests {
         let ___text = "AGACGTCCA".as_bytes().to_vec();
         let text = ___text;
 
-        //let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
-        //let pattern = random_sequence(n, alphabet, &mut rng);
-        //let text = random_mutate(&pattern, alphabet, (e * n as f32) as usize, &mut rng);
-
         let stats = SequenceStats {
             len_a: pattern.len(),
             len_b: text.len(),
             error_rate: 0.,
             source: Source::Manual,
         };
-
-        println!(
-            "{}\n{}\n",
-            String::from_utf8(pattern.clone()).unwrap(),
-            String::from_utf8(text.clone()).unwrap()
-        );
 
         let r = align(
             &pattern,
@@ -599,6 +538,22 @@ mod tests {
                 pruning: false,
                 c: PhantomData::<NaiveContours<NaiveContour>>,
                 ..GapSeedHeuristic::default()
+            },
+        );
+        let r = align(
+            &pattern,
+            &text,
+            &alphabet,
+            stats,
+            SeedHeuristic {
+                match_config: MatchConfig {
+                    length: Fixed(l),
+                    max_match_cost: 1,
+                    ..MatchConfig::default()
+                },
+                distance_function: BiCountCost,
+                pruning: false,
+                ..SeedHeuristic::default()
             },
         );
         assert!(r.heuristic_stats2.root_h <= r.answer_cost);
