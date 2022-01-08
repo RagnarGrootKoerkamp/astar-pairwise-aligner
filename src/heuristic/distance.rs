@@ -3,12 +3,12 @@
 use crate::prelude::*;
 
 // TODO: Can we get away with only one of these two traits?
-pub trait DistanceHeuristic: Heuristic + Default
+pub trait Distance: Heuristic + Default
 //where
 //for<'a> Self::Instance<'a>: DistanceHeuristicInstance<'a>,
 {
     // TODO: Provide default implementations for these.
-    type DistanceInstance<'a>: DistanceHeuristicInstance<'a>;
+    type DistanceInstance<'a>: DistanceInstance<'a>;
     fn build<'a>(
         &self,
         a: &'a Sequence,
@@ -17,7 +17,7 @@ pub trait DistanceHeuristic: Heuristic + Default
     ) -> Self::DistanceInstance<'a>;
 }
 
-pub trait DistanceHeuristicInstance<'a>: HeuristicInstance<'a> {
+pub trait DistanceInstance<'a>: HeuristicInstance<'a> {
     fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize;
 }
 
@@ -40,7 +40,7 @@ impl Heuristic for ZeroCost {
         ZeroCostI
     }
 }
-impl DistanceHeuristic for ZeroCost {
+impl Distance for ZeroCost {
     type DistanceInstance<'a> = ZeroCostI;
 
     fn build<'a>(
@@ -59,7 +59,7 @@ impl HeuristicInstance<'_> for ZeroCostI {
         0
     }
 }
-impl DistanceHeuristicInstance<'_> for ZeroCostI {
+impl DistanceInstance<'_> for ZeroCostI {
     fn distance(&self, _from: Pos, _to: Pos) -> usize {
         0
     }
@@ -85,7 +85,7 @@ impl Heuristic for MaxCost {
         }
     }
 }
-impl DistanceHeuristic for MaxCost {
+impl Distance for MaxCost {
     type DistanceInstance<'a> = MaxCostI;
 
     fn build<'a>(
@@ -106,7 +106,7 @@ impl HeuristicInstance<'_> for MaxCostI {
         max(self.target.0 - i, self.target.1 - j)
     }
 }
-impl DistanceHeuristicInstance<'_> for MaxCostI {
+impl DistanceInstance<'_> for MaxCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
         max(to.0 - from.0, to.1 - from.1)
     }
@@ -132,7 +132,7 @@ impl Heuristic for GapCost {
         }
     }
 }
-impl DistanceHeuristic for GapCost {
+impl Distance for GapCost {
     type DistanceInstance<'a> = GapCostI;
 
     fn build<'a>(
@@ -153,7 +153,7 @@ impl HeuristicInstance<'_> for GapCostI {
         abs_diff(self.target.0 - i, self.target.1 - j)
     }
 }
-impl DistanceHeuristicInstance<'_> for GapCostI {
+impl DistanceInstance<'_> for GapCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
         abs_diff(to.0 - from.0, to.1 - from.1)
     }
@@ -193,7 +193,7 @@ impl Heuristic for CountCost {
         }
     }
 }
-impl DistanceHeuristic for CountCost {
+impl Distance for CountCost {
     type DistanceInstance<'a> = CountCostI;
 
     fn build<'a>(
@@ -217,7 +217,7 @@ impl HeuristicInstance<'_> for CountCostI {
     }
 }
 
-impl DistanceHeuristicInstance<'_> for CountCostI {
+impl DistanceInstance<'_> for CountCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
         let mut pos = 0;
         let mut neg = 0;
@@ -270,14 +270,14 @@ impl Heuristic for BiCountCost {
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::Instance<'_> {
         BiCountCostI {
-            cnt: DistanceHeuristic::build(&CountCost, a, b, alphabet),
+            cnt: Distance::build(&CountCost, a, b, alphabet),
             a_cnts: char_bicounts(a, alphabet),
             b_cnts: char_bicounts(b, alphabet),
             target: Pos(a.len(), b.len()),
         }
     }
 }
-impl DistanceHeuristic for BiCountCost {
+impl Distance for BiCountCost {
     type DistanceInstance<'a> = BiCountCostI;
 
     fn build(&self, a: &Sequence, b: &Sequence, alphabet: &Alphabet) -> Self::DistanceInstance<'_> {
@@ -297,7 +297,7 @@ impl<'a> HeuristicInstance<'a> for BiCountCostI {
     }
 }
 
-impl<'a> DistanceHeuristicInstance<'a> for BiCountCostI {
+impl<'a> DistanceInstance<'a> for BiCountCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
         let mut pos = 0;
         let mut neg = 0;
