@@ -1,4 +1,8 @@
-use std::{cmp::Ordering, fmt::Display, mem};
+use std::{
+    cmp::Ordering,
+    fmt::{Debug, Display},
+    mem,
+};
 
 use crate::graph::Pos;
 
@@ -11,7 +15,7 @@ use crate::graph::Pos;
 // TODO: An implementation that does lookup in O(lg(n))
 // TODO: An implementation that does lookup, and push (and pop) in O(lg(n))
 // TODO: An implementation that does lookup in O(1), using a hint.
-pub trait Contour: Default {
+pub trait Contour: Default + Debug {
     /// Add a new point to the graph.
     /// This point must be 'smaller' (actually: not larger) than every existing point.
     fn push(&mut self, _p: Pos);
@@ -38,7 +42,7 @@ impl std::fmt::Display for Arrow {
     }
 }
 
-impl std::fmt::Debug for Arrow {
+impl Debug for Arrow {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <Arrow as Display>::fmt(self, f)
     }
@@ -47,7 +51,7 @@ impl std::fmt::Debug for Arrow {
 /// A datastructure that contains multiple contours.
 /// Supports incremental building from matches, querying, and pruning.
 /// The structure is built by pushing matches in decreasing order.
-pub trait Contours: Default {
+pub trait Contours: Default + Debug {
     /// Build the contours from a set of arrows.
     /// NOTE: Arrows must be reverse sorted by start.
     fn new(_arrows: impl IntoIterator<Item = Arrow>) -> Self;
@@ -61,7 +65,7 @@ pub trait Contours: Default {
 }
 
 /// A contour implementation that does all operations in O(n).
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct NaiveContour {
     points: Vec<Pos>,
 }
@@ -89,7 +93,7 @@ impl Contour for NaiveContour {
 }
 
 /// A Contours implementation based on Contour layers with value queries in O(log(r)^2).
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct NaiveContours<C: Contour> {
     contours: Vec<C>,
 }
@@ -101,11 +105,19 @@ impl<C: Contour> Contours for NaiveContours<C> {
         };
         this.contours[0].push(Pos(usize::MAX, usize::MAX));
         for a in arrows {
-            let v = this.value(a.end) + a.len;
+            let mut v = this.value(a.end) + a.len;
             if this.contours.len() <= v {
                 this.contours.resize_with(v + 1, || C::default());
             }
-            this.contours[v].push(a.start);
+            loop {
+                this.contours[v].push(a.start);
+                v -= 1;
+                // Make sure this position is also contained in all lower
+                // contours, to preserve the binary search.
+                if this.contours[v].contains(a.start) {
+                    break;
+                }
+            }
         }
         this
     }
@@ -130,7 +142,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
 
 /// A bruteforce Contours implementation answering queries in O(r), and pruning
 /// in O(r^2) by rebuilding the entire datastructure.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct BruteforceContours {
     valued_arrows: Vec<(Arrow, usize)>,
 }
