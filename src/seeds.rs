@@ -50,7 +50,7 @@ impl<'a> HeuristicInstance<'a> for SeedMatches {
         unimplemented!("SeedMatches can only be used as a distance, not as a heuristic!");
     }
 }
-impl<'a> DistanceHeuristicInstance<'a> for SeedMatches {
+impl<'a> DistanceInstance<'a> for SeedMatches {
     /// The minimal distance is the potential of the seeds entirely within the `[from, to)` interval.
     /// NOTE: Assumes disjoint seeds.
     fn distance(&self, from: Pos, to: Pos) -> usize {

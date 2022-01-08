@@ -10,14 +10,14 @@ use crate::{
 };
 
 #[derive(Debug, Copy, Clone)]
-pub struct SeedHeuristic<DH: DistanceHeuristic> {
+pub struct SeedHeuristic<DH: Distance> {
     pub match_config: MatchConfig,
     pub distance_function: DH,
     pub pruning: bool,
     pub prune_fraction: f32,
 }
 
-impl<DH: DistanceHeuristic> Default for SeedHeuristic<DH> {
+impl<DH: Distance> Default for SeedHeuristic<DH> {
     fn default() -> Self {
         Self {
             match_config: Default::default(),
@@ -28,7 +28,7 @@ impl<DH: DistanceHeuristic> Default for SeedHeuristic<DH> {
     }
 }
 
-impl<DH: DistanceHeuristic> Heuristic for SeedHeuristic<DH>
+impl<DH: Distance> Heuristic for SeedHeuristic<DH>
 where
     for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a, Pos = Pos>,
 {
@@ -63,7 +63,7 @@ where
     }
 }
 
-pub struct SimpleSeedHeuristicI<'a, DH: DistanceHeuristic> {
+pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
     params: SeedHeuristic<DH>,
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
@@ -87,9 +87,9 @@ pub struct SimpleSeedHeuristicI<'a, DH: DistanceHeuristic> {
 /// provided distance function and the potential difference between the two
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
-impl<'a, DH: DistanceHeuristic> DistanceHeuristicInstance<'a> for SimpleSeedHeuristicI<'a, DH>
+impl<'a, DH: Distance> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, DH>
 where
-    DH::DistanceInstance<'a>: DistanceHeuristicInstance<'a, Pos = Pos>,
+    DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
 {
     fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
         max(
@@ -99,9 +99,9 @@ where
     }
 }
 
-impl<'a, DH: DistanceHeuristic> SimpleSeedHeuristicI<'a, DH>
+impl<'a, DH: Distance> SimpleSeedHeuristicI<'a, DH>
 where
-    DH::DistanceInstance<'a>: DistanceHeuristicInstance<'a, Pos = Pos>,
+    DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
 {
     fn new(
         a: &'a Sequence,
@@ -111,7 +111,7 @@ where
     ) -> Self {
         let mut h = SimpleSeedHeuristicI::<'a> {
             params,
-            distance_function: DistanceHeuristic::build(&params.distance_function, a, b, alphabet),
+            distance_function: Distance::build(&params.distance_function, a, b, alphabet),
             target: Pos(a.len(), b.len()),
             matches: find_matches(a, b, alphabet, params.match_config),
             h_at_seeds: Default::default(),
@@ -164,9 +164,9 @@ where
     }
 }
 
-impl<'a, DH: DistanceHeuristic> HeuristicInstance<'a> for SimpleSeedHeuristicI<'a, DH>
+impl<'a, DH: Distance> HeuristicInstance<'a> for SimpleSeedHeuristicI<'a, DH>
 where
-    DH::DistanceInstance<'a>: DistanceHeuristicInstance<'a, Pos = Pos>,
+    DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
 {
     type Pos = crate::graph::Pos;
     fn h(&self, Node(pos, _): NodeH<'a, Self>) -> usize {
