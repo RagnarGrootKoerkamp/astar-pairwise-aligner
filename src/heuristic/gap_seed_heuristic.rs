@@ -22,6 +22,17 @@ pub struct GapSeedHeuristic<C: Contours> {
     pub c: PhantomData<C>,
 }
 
+impl<C: Contours> GapSeedHeuristic<C> {
+    pub fn as_seed_heuristic(&self) -> SeedHeuristic<GapCost> {
+        SeedHeuristic {
+            match_config: self.match_config,
+            distance_function: GapCost,
+            pruning: self.pruning,
+            prune_fraction: self.prune_fraction,
+        }
+    }
+}
+
 // Manual implementations because C is not Debug, Clone, or Copy.
 impl<C: Contours> std::fmt::Debug for GapSeedHeuristic<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -58,17 +69,12 @@ impl<C: Contours> Default for GapSeedHeuristic<C> {
 impl<C: Contours> Heuristic for GapSeedHeuristic<C> {
     type Instance<'a> = GapSeedHeuristicI<C>;
 
-    fn build<'a>(
-        &self,
-        a: &'a Sequence,
-        b: &'a Sequence,
-        alphabet: &Alphabet,
-    ) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
-                < self.match_config.length.l().unwrap_or(usize::MAX) / 3
+                <= self.match_config.length.l().unwrap_or(usize::MAX) / 3
         );
-        GapSeedHeuristicI::new(a, b, alphabet, *self)
+        GapSeedHeuristicI::new(a, b, alph, *self)
     }
 
     fn name(&self) -> String {
@@ -95,7 +101,6 @@ pub struct GapSeedHeuristicI<C: Contours> {
     pub seed_matches: SeedMatches,
     // The lowest cost match starting at each position.
     active_matches: HashMap<Pos, Match>,
-    h_at_seeds: HashMap<Pos, usize>,
     pruned_positions: HashSet<Pos>,
 
     // For partial pruning.
@@ -126,21 +131,15 @@ impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
 }
 
 impl<'a, C: Contours> GapSeedHeuristicI<C> {
-    fn new(
-        a: &'a Sequence,
-        b: &'a Sequence,
-        alphabet: &Alphabet,
-        params: GapSeedHeuristic<C>,
-    ) -> Self {
-        let seed_matches = find_matches(a, b, alphabet, params.match_config);
+    fn new(a: &'a Sequence, b: &'a Sequence, alph: &Alphabet, params: GapSeedHeuristic<C>) -> Self {
+        let seed_matches = find_matches(a, b, alph, params.match_config);
 
         let mut h = GapSeedHeuristicI {
             params,
-            gap_distance: Distance::build(&GapCost, a, b, alphabet),
+            gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos(a.len(), b.len()),
             seed_matches,
             active_matches: Default::default(),
-            h_at_seeds: Default::default(),
             pruned_positions: Default::default(),
             transform_target: Pos(0, 0),
             // Filled below.
@@ -155,14 +154,16 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         h
     }
 
-    /// Build the `h_at_seeds` map in roughly O(r * lg(r)), for r seeds.
     // TODO: Report some metrics on skipped states.
     fn build(&mut self) {
         // Filter matches by transformed start position.
         let filtered_matches = self
             .seed_matches
             .iter()
-            .filter(|Match { start, .. }| !self.pruned_positions.contains(start))
+            .filter(|Match { start, end, .. }| {
+                self.transform(*end) <= self.transform_target
+                    && !self.pruned_positions.contains(start)
+            })
             .collect_vec();
         // Update active_matches.
         for &m in &filtered_matches {
@@ -195,9 +196,12 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
                 },
             )
             .collect_vec();
+        //println!("{:?}", self.seed_matches.matches);
+        //println!("{:?}", arrows);
         // Sort revered by start.
         arrows.sort_by_key(|Arrow { start, .. }| Reverse(LexPos(*start)));
         self.contours = C::new(arrows);
+        //println!("{:?}", self.contours);
     }
 
     fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
@@ -216,27 +220,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
     fn h(&self, Node(pos, ()): NodeH<'a, Self>) -> usize {
         let p = self.seed_matches.potential(pos);
-        let val = self.contours.value(pos);
-        println!("{:?}: {} {}", pos, p, val);
+        let val = self.contours.value(self.transform(pos));
         if val == 0 {
             self.distance(pos, self.target)
         } else {
             p - val
         }
-    }
-
-    fn h_with_parent(&self, Node(pos, ()): Node<Pos, ()>) -> (usize, Pos) {
-        //let h = self.h(Node(pos, self.root_state(Pos(0, 0))));
-        let pos_transformed = self.transform(pos);
-        let p = self.seed_matches.potential(pos);
-        let (val, parent) = self
-            .h_at_seeds
-            .iter()
-            .filter(|&(parent, _)| *parent >= pos_transformed)
-            .map(|(parent, val)| (p - *val, *parent))
-            .min_by_key(|&(val, Pos(i, j))| (val, Reverse((i, j))))
-            .unwrap_or_else(|| (self.distance(pos, self.target), self.target));
-        (val, parent)
     }
 
     fn stats(&self) -> HeuristicStats {
@@ -248,6 +237,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
+    // TODO: Move the pruning code to Contours.
     // NOTE: This still has a small bug/difference with the bruteforce implementation:
     // When two exact matches are neighbours, it can happen that one
     // suffices as parent/root for the region, but the fast implementation doesn't detect this and uses both.
@@ -314,19 +304,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         self.active_matches
             .remove(&pos)
             .expect("Already checked that this positions is a match.");
-        // println!(
-        //     "FAST: {} PRUNE POINT {:?} / {:?}",
-        //     self.params.build_fast as u8,
-        //     pos,
-        //     self.transform(pos)
-        // );
 
-        //println!("REBUILD");
         let start = time::Instant::now();
         self.build();
         self.pruning_duration += start.elapsed();
-        // self.print(false, false);
-        // println!("{:?}", self.h_at_seeds);
     }
 
     fn print(&self, do_transform: bool, wait_for_user: bool) {
@@ -432,55 +413,144 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 #[cfg(test)]
 mod tests {
 
-    use itertools::Itertools;
-
     use super::*;
     use crate::align;
     use crate::setup;
+    use crate::SequenceStats;
+    use crate::Source;
+
+    #[allow(unused)]
+    fn print<C: Contours>(h: GapSeedHeuristic<C>, a: &Vec<u8>, b: &Vec<u8>, alph: &Alphabet) {
+        h.as_seed_heuristic().build(a, b, alph).print(false, false);
+        let h = h.build(a, b, alph);
+        println!("{:?}", h.contours);
+        h.print(false, false);
+    }
 
     #[test]
-    fn fast_build() {
-        // TODO: check pruning
-        for (l, max_match_cost) in [(4, 0), (5, 0), (7, 1), (8, 1)] {
-            for n in [100, 200, 500, 1000] {
+    fn exact_no_pruning() {
+        for l in [4, 5] {
+            for n in [40, 100, 200, 500] {
                 for e in [0.1, 0.3, 1.0] {
-                    for pruning in [false, true] {
-                        let h_slow = GapSeedHeuristic {
-                            match_config: MatchConfig {
-                                length: Fixed(l),
-                                max_match_cost,
-                                ..MatchConfig::default()
-                            },
-                            pruning,
-                            c: PhantomData::<BruteforceContours>,
-                            ..GapSeedHeuristic::default()
-                        };
-                        let h_fast = GapSeedHeuristic { ..h_slow };
+                    let h = GapSeedHeuristic {
+                        match_config: MatchConfig {
+                            length: Fixed(l),
+                            max_match_cost: 0,
+                            ..MatchConfig::default()
+                        },
+                        pruning: false,
+                        c: PhantomData::<NaiveContours<NaiveContour>>,
+                        ..GapSeedHeuristic::default()
+                    };
+                    let (a, b, alph, stats) = setup(n, e);
+                    println!("TESTING n {} e {}: {:?}", n, e, h);
+                    align(
+                        &a,
+                        &b,
+                        &alph,
+                        stats,
+                        EqualHeuristic {
+                            h1: h.as_seed_heuristic(),
+                            h2: h,
+                        },
+                    );
+                }
+            }
+        }
+    }
 
-                        let (a, b, alphabet, stats) = setup(n, e);
+    #[test]
+    fn inexact_no_pruning() {
+        for l in [6, 7] {
+            for n in [40, 100, 200, 500] {
+                for e in [0.1, 0.3, 1.0] {
+                    let h = GapSeedHeuristic {
+                        match_config: MatchConfig {
+                            length: Fixed(l),
+                            max_match_cost: 1,
+                            ..MatchConfig::default()
+                        },
+                        pruning: false,
+                        c: PhantomData::<BruteforceContours>,
+                        ..GapSeedHeuristic::default()
+                    };
+                    let (a, b, alph, stats) = setup(n, e);
+                    //print(h, &a, &b, &alph);
+                    println!("TESTING n {} e {}: {:?}", n, e, h);
+                    align(
+                        &a,
+                        &b,
+                        &alph,
+                        stats,
+                        EqualHeuristic {
+                            h1: h.as_seed_heuristic(),
+                            h2: h,
+                        },
+                    );
+                }
+            }
+        }
+    }
 
-                        println!("TESTING n {} e {}: {:?}", n, e, h_fast);
-                        if false {
-                            let h_slow = h_slow.build(&a, &b, &alphabet);
-                            let h_fast = h_fast.build(&a, &b, &alphabet);
-                            let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
-                            let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
-                            h_slow_map.sort_unstable_by_key(|&(Pos(i, j), _)| (i, j));
-                            h_fast_map.sort_unstable_by_key(|&(Pos(i, j), _)| (i, j));
-                            assert_eq!(h_slow_map, h_fast_map);
-                        }
+    #[test]
+    fn exact_pruning() {
+        for l in [4, 5] {
+            for n in [40, 100, 200, 500] {
+                for e in [0.1, 0.3, 1.0] {
+                    let h = GapSeedHeuristic {
+                        match_config: MatchConfig {
+                            length: Fixed(l),
+                            max_match_cost: 0,
+                            ..MatchConfig::default()
+                        },
+                        pruning: true,
+                        c: PhantomData::<BruteforceContours>,
+                        ..GapSeedHeuristic::default()
+                    };
+                    let (a, b, alph, stats) = setup(n, e);
+                    println!("TESTING n {} e {}: {:?}", n, e, h);
+                    align(
+                        &a,
+                        &b,
+                        &alph,
+                        stats,
+                        EqualHeuristic {
+                            h1: h.as_seed_heuristic(),
+                            h2: h,
+                        },
+                    );
+                }
+            }
+        }
+    }
 
-                        align(
-                            &a,
-                            &b,
-                            &alphabet,
-                            stats,
-                            EqualHeuristic {
-                                h1: h_slow,
-                                h2: h_fast,
-                            },
-                        );
-                    }
+    #[test]
+    fn inexact_pruning() {
+        for l in [6, 7] {
+            for n in [40, 100, 200, 500] {
+                for e in [0.1, 0.3, 1.0] {
+                    let h = GapSeedHeuristic {
+                        match_config: MatchConfig {
+                            length: Fixed(l),
+                            max_match_cost: 1,
+                            ..MatchConfig::default()
+                        },
+                        pruning: true,
+                        c: PhantomData::<BruteforceContours>,
+                        ..GapSeedHeuristic::default()
+                    };
+                    let (a, b, alph, stats) = setup(n, e);
+                    println!("TESTING n {} e {}: {:?}", n, e, h);
+                    align(
+                        &a,
+                        &b,
+                        &alph,
+                        stats,
+                        EqualHeuristic {
+                            h1: h.as_seed_heuristic(),
+                            h2: h,
+                        },
+                    );
                 }
             }
         }
@@ -529,22 +599,12 @@ mod tests {
                     ..GapSeedHeuristic::default()
                 };
 
-                let (_, _, alphabet, stats) = setup(0, 0.0);
-
-                if false {
-                    let h_slow = h_slow.build(&a, &b, &alphabet);
-                    let h_fast = h_fast.build(&a, &b, &alphabet);
-                    let mut h_slow_map = h_slow.h_at_seeds.into_iter().collect_vec();
-                    let mut h_fast_map = h_fast.h_at_seeds.into_iter().collect_vec();
-                    h_slow_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
-                    h_fast_map.sort_by_key(|&(Pos(i, j), _)| (i, j));
-                    assert_eq!(h_slow_map, h_fast_map);
-                }
+                let (_, _, alph, stats) = setup(0, 0.0);
 
                 align(
                     &a,
                     &b,
-                    &alphabet,
+                    &alph,
                     stats,
                     EqualHeuristic {
                         h1: h_slow,
@@ -582,7 +642,7 @@ mod tests {
 
         let n = 1000;
         let e: f32 = 0.3;
-        let (a, b, alphabet, stats) = setup(n, e);
+        let (a, b, alph, stats) = setup(n, e);
         let start = 679;
         let end = 750;
         let a = &a[start..end].to_vec();
@@ -592,7 +652,7 @@ mod tests {
         align(
             &a,
             &b,
-            &alphabet,
+            &alph,
             stats,
             EqualHeuristic {
                 h1: h_slow,
@@ -617,7 +677,7 @@ mod tests {
 
         let n = 1000;
         let e: f32 = 0.3;
-        let (a, b, alphabet, stats) = setup(n, e);
+        let (a, b, alph, stats) = setup(n, e);
         let start = 909;
         let end = 989;
         let a = &a[start..end].to_vec();
@@ -630,7 +690,7 @@ mod tests {
         align(
             &a,
             &b,
-            &alphabet,
+            &alph,
             stats,
             EqualHeuristic {
                 h1: h_slow,
@@ -668,7 +728,7 @@ mod tests {
 
                 let n = 1000;
                 let e: f32 = 0.3;
-                let (a, b, alphabet, stats) = setup(n, e);
+                let (a, b, alph, stats) = setup(n, e);
                 let start = 951;
                 let end = 986;
                 let a = &a[start..end].to_vec();
@@ -692,7 +752,7 @@ mod tests {
                     align(
                         &a,
                         &b,
-                        &alphabet,
+                        &alph,
                         stats,
                         EqualHeuristic {
                             h1: h_slow,
@@ -702,5 +762,37 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn small_test() {
+        let alphabet = &Alphabet::new(b"ACTG");
+
+        let _n = 25;
+        let _e = 0.2;
+        let l = 4;
+        let pattern = "AGACGTCC".as_bytes().to_vec();
+        let ___text = "AGACGTCCA".as_bytes().to_vec();
+        let text = ___text;
+
+        let stats = SequenceStats {
+            len_a: pattern.len(),
+            len_b: text.len(),
+            error_rate: 0.,
+            source: Source::Manual,
+        };
+
+        let h = GapSeedHeuristic {
+            match_config: MatchConfig {
+                length: Fixed(l),
+                max_match_cost: 1,
+                ..MatchConfig::default()
+            },
+            pruning: false,
+            c: PhantomData::<NaiveContours<NaiveContour>>,
+            ..GapSeedHeuristic::default()
+        };
+        let r = align(&pattern, &text, &alphabet, stats, h);
+        assert!(r.heuristic_stats2.root_h <= r.answer_cost);
     }
 }

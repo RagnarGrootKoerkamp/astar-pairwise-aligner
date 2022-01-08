@@ -1,4 +1,7 @@
-use std::{cell::RefCell, fmt::Debug};
+use std::{
+    cell::RefCell,
+    fmt::{Debug, Display},
+};
 
 use super::{implicit_graph, implicit_graph::Node, ImplicitGraph, NodeG};
 use crate::{diagonal_map::DiagonalMap, heuristic::HeuristicInstance};
@@ -9,6 +12,12 @@ use std::cmp::Ordering;
 /// A position in a pairwise matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
 pub struct Pos(pub usize, pub usize);
+
+impl Display for Pos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <Self as Debug>::fmt(&self, f)
+    }
+}
 
 /// Partial ordering by
 /// (a,b) <= (c,d) when a<=c and b<=d.

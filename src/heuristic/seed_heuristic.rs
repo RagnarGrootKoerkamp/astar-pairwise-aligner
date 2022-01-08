@@ -42,13 +42,13 @@ where
     ) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
-                < self.match_config.length.l().unwrap_or(usize::MAX) / 3
+                <= self.match_config.length.l().unwrap_or(usize::MAX) / 3
         );
         SimpleSeedHeuristicI::new(a, b, alphabet, *self)
     }
 
     fn name(&self) -> String {
-        "SimpleSeed".into()
+        "Seed".into()
     }
 
     fn params(&self) -> HeuristicParams {
@@ -127,8 +127,7 @@ where
 
     // A separate function that can be reused with pruning.
     fn build(&mut self) {
-        let mut h_at_seeds = HashMap::<Pos, usize>::default();
-        h_at_seeds.insert(self.target, 0);
+        self.h_at_seeds.insert(self.target, 0);
         for Match {
             start,
             end,
@@ -147,20 +146,9 @@ where
             // Update if using is better than skipping.
             // TODO: Report some metrics on skipped states.
             if update_val < query_val {
-                h_at_seeds.insert(*start, update_val);
+                self.h_at_seeds.insert(*start, update_val);
             }
         }
-        self.h_at_seeds = h_at_seeds;
-    }
-
-    pub fn h_with_parent(&self, Node(pos, _): NodeH<'a, Self>) -> (usize, Pos) {
-        self.h_at_seeds
-            .iter()
-            .into_iter()
-            .filter(|&(parent, _)| *parent >= pos)
-            .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
-            .min_by_key(|(val, pos)| (*val, Reverse(LexPos(*pos))))
-            .unwrap()
     }
 }
 
@@ -176,6 +164,16 @@ where
             .filter(|&(parent, _)| *parent >= pos)
             .map(|(parent, val)| self.distance(pos, *parent) + val)
             .min()
+            .unwrap()
+    }
+
+    fn h_with_parent(&self, Node(pos, _): NodeH<'a, Self>) -> (usize, Pos) {
+        self.h_at_seeds
+            .iter()
+            .into_iter()
+            .filter(|&(parent, _)| *parent >= pos)
+            .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
+            .min_by_key(|(val, pos)| (*val, Reverse(LexPos(*pos))))
             .unwrap()
     }
 
