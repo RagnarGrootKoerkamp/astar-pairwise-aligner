@@ -19,6 +19,7 @@ pub struct GapSeedHeuristic<C: Contours> {
     pub match_config: MatchConfig,
     pub pruning: bool,
     pub prune_fraction: f32,
+    pub incremental_pruning: bool,
     pub c: PhantomData<C>,
 }
 
@@ -40,6 +41,7 @@ impl<C: Contours> std::fmt::Debug for GapSeedHeuristic<C> {
             .field("match_config", &self.match_config)
             .field("pruning", &self.pruning)
             .field("prune_fraction", &self.prune_fraction)
+            .field("incremental_pruning", &self.incremental_pruning)
             .finish()
     }
 }
@@ -49,6 +51,7 @@ impl<C: Contours> Clone for GapSeedHeuristic<C> {
             match_config: self.match_config.clone(),
             pruning: self.pruning.clone(),
             prune_fraction: self.prune_fraction.clone(),
+            incremental_pruning: self.incremental_pruning.clone(),
             c: self.c.clone(),
         }
     }
@@ -61,6 +64,7 @@ impl<C: Contours> Default for GapSeedHeuristic<C> {
             match_config: Default::default(),
             pruning: false,
             prune_fraction: 1.0,
+            incremental_pruning: true,
             c: PhantomData,
         }
     }
@@ -151,6 +155,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         };
         h.transform_target = h.transform(h.target);
         h.build();
+        //h.print(true, false);
         h
     }
 
@@ -228,15 +233,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
-    fn stats(&self) -> HeuristicStats {
-        HeuristicStats {
-            num_seeds: Some(self.seed_matches.num_seeds),
-            num_matches: Some(self.seed_matches.matches.len()),
-            matches: Some(self.seed_matches.matches.clone()),
-            pruning_duration: Some(self.pruning_duration.as_secs_f32()),
-        }
-    }
-
     // TODO: Move the pruning code to Contours.
     // NOTE: This still has a small bug/difference with the bruteforce implementation:
     // When two exact matches are neighbours, it can happen that one
@@ -252,11 +248,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         // Check that we don't double expand start-of-seed states.
         if self.seed_matches.is_start_of_seed(pos) {
             // When we don't ensure consistency, starts of seeds should still only be expanded once.
-            assert!(
-                self.expanded.insert(pos),
-                "Double expanded start of seed {:?}",
-                pos
-            );
+            // FIXME
+            // assert!(
+            //     self.expanded.insert(pos),
+            //     "Double expanded start of seed {:?}",
+            //     pos
+            // );
         }
 
         self.num_tried_pruned += 1;
@@ -267,13 +264,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
         self.num_actual_pruned += 1;
 
-        // Prune the current position.
-        self.pruned_positions.insert(pos);
-        if !self.seed_matches.is_start_of_seed(pos) {
-            return;
-        }
-
-        let m = if let Some(m) = self.active_matches.get(&pos) {
+        let _m = if let Some(m) = self.active_matches.get(&pos) {
             m
         } else {
             return;
@@ -281,6 +272,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
         // Skip pruning when this is an inexact match neighbouring a strictly better still active exact match.
         // TODO: This feels hacky doing the manual position manipulation, but oh well... .
+        /*
         let nbs = {
             let mut nbs = Vec::new();
             if pos.1 > 0 {
@@ -300,21 +292,47 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 return;
             }
         }
+        */
 
         self.active_matches
             .remove(&pos)
             .expect("Already checked that this positions is a match.");
 
+        // Prune the current position.
+        self.pruned_positions.insert(pos);
+        if !self.seed_matches.is_start_of_seed(pos) {
+            return;
+        }
+
         let start = time::Instant::now();
-        self.build();
+        if self.params.incremental_pruning {
+            //println!("PRUNE INCREMENT {}", pos);
+            self.contours.prune(self.transform(pos));
+        } else {
+            //println!("PRUNE REBUILD   {}", pos);
+            self.build();
+        }
         self.pruning_duration += start.elapsed();
+        //self.print(true, true);
+    }
+
+    fn stats(&self) -> HeuristicStats {
+        HeuristicStats {
+            num_seeds: Some(self.seed_matches.num_seeds),
+            num_matches: Some(self.seed_matches.matches.len()),
+            matches: Some(self.seed_matches.matches.clone()),
+            pruning_duration: Some(self.pruning_duration.as_secs_f32()),
+        }
     }
 
     fn print(&self, do_transform: bool, wait_for_user: bool) {
         let l = self.params.match_config.length.l().unwrap();
         let max_match_cost = self.params.match_config.max_match_cost;
         let mut ps = HashMap::default();
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3144);
+        // ps.insert(1, termion::color::Rgb(255, 0, 0));
+        // ps.insert(2, termion::color::Rgb(0, 255, 0));
+        // ps.insert(0, termion::color::Rgb(0, 0, 255));
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31413);
         let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
         let Pos(a, b) = self.target;
         let mut pixels = vec![vec![(None, None, false, false); 20 * b]; 20 * a];
@@ -333,15 +351,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 let draw_pos = if do_transform { self.transform(p) } else { p };
                 let pixel = &mut pixels[draw_pos.0][draw_pos.1];
 
-                let (val, parent_pos) = self.h_with_parent(Node(p, ()));
-                let l = ps.len();
-                let (_parent_id, color) = ps.entry(parent_pos).or_insert((
-                    l,
-                    termion::color::Rgb(
-                        dist.sample(&mut rng),
-                        dist.sample(&mut rng),
-                        dist.sample(&mut rng),
-                    ),
+                let layer = self.contours.value(self.transform(p));
+                let (_val, _parent_pos) = self.h_with_parent(Node(p, ()));
+                let color = ps.entry(layer).or_insert(termion::color::Rgb(
+                    dist.sample(&mut rng),
+                    dist.sample(&mut rng),
+                    dist.sample(&mut rng),
                 ));
                 let is_start_of_match = self.seed_matches.iter().find(|m| m.start == p).is_some();
                 let is_end_of_match = self.seed_matches.iter().find(|m| m.end == p).is_some();
@@ -351,7 +366,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                     pixel.3 = true;
                 }
                 pixel.0 = Some(*color);
-                pixel.1 = Some(val);
+                pixel.1 = Some(layer);
             }
         }
         let print = |i: usize, j: usize| {
@@ -414,6 +429,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 mod tests {
 
     use super::*;
+
     use crate::align;
     use crate::setup;
     use crate::SequenceStats;
@@ -424,7 +440,7 @@ mod tests {
         h.as_seed_heuristic().build(a, b, alph).print(false, false);
         let h = h.build(a, b, alph);
         println!("{:?}", h.contours);
-        h.print(false, false);
+        //h.print(false, false);
     }
 
     #[test]
