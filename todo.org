@@ -62,8 +62,11 @@ List of TODOs and other quick remarks.
 ** TODO Remove matches from indels at the start and ends of seeds. Replace by doing a wider lookup along the diagonal.
 ** TODO Don't only query the current point, but also points above/below it
 - to correct for small differences between heuristic implementations.
+** TODO Banded pruning
+only prune and update matches within $\sqrt n$ of the main diagonal. The rest
+won't be relevant anyway.
 
-** NOTE: Pruning of inexact matches has differences between the bruteforce and contour algorithm:
+** NOTE Pruning of inexact matches has differences between the bruteforce and contour algorithm:
 - In the bruteforce, when an exact match is pruned, neighbouring exact matches
   can still be used. Thus, the pruning only affects one state.
 - Using contours, more states get an increased value, because for states

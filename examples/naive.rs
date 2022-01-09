@@ -5,7 +5,7 @@ use pairwise_aligner::{prelude::*, *};
 // Compare with block aligner:
 // They do 10k pairs of length 10k and distance 10% in 2s!
 fn main() {
-    let ns = [250, 500, 1_000, 2_000, 4_000, 8_000, 16_000];
+    let ns = [250, 500, 1_000, 2_000, 4_000, 8_000, 16_000, 32_000];
     let es = [0.20];
 
     for n in ns {

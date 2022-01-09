@@ -1,6 +1,7 @@
 #![feature(
     test,
     iter_intersperse,
+    is_sorted,
     exclusive_range_pattern,
     associated_type_defaults,
     generic_associated_types,
@@ -524,22 +525,6 @@ mod tests {
             source: Source::Manual,
         };
 
-        let r = align(
-            &pattern,
-            &text,
-            &alphabet,
-            stats,
-            GapSeedHeuristic {
-                match_config: MatchConfig {
-                    length: Fixed(l),
-                    max_match_cost: 1,
-                    ..MatchConfig::default()
-                },
-                pruning: false,
-                c: PhantomData::<NaiveContours<NaiveContour>>,
-                ..GapSeedHeuristic::default()
-            },
-        );
         let r = align(
             &pattern,
             &text,

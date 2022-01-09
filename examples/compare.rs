@@ -50,7 +50,7 @@ fn main() {
                         },
                         pruning: true,
                         prune_fraction,
-                        c: PhantomData::<BruteforceContours>,
+                        c: PhantomData::<NaiveContours<NaiveContour>>,
                         ..GapSeedHeuristic::default()
                     };
                     let (a, b, alphabet, stats) = setup(n, e);

@@ -2,9 +2,9 @@ use pairwise_aligner::{prelude::*, *};
 
 fn main() {
     let n = 30000;
-    let e = 0.10;
-    let l = 5;
-    let max_match_cost = 0;
+    let e = 0.20;
+    let l = 7;
+    let max_match_cost = 1;
     let pruning = true;
 
     let h = GapSeedHeuristic {
