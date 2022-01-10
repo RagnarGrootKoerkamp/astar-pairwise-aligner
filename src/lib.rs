@@ -554,7 +554,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning: false,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -575,7 +575,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning: false,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -597,7 +597,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning: true,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -618,7 +618,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning: true,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -641,7 +641,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning: true,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
         let (a, b, alphabet, stats) = setup(2000, 0.20);

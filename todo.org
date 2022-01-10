@@ -20,6 +20,8 @@ List of TODOs and other quick remarks.
 ** TODO Parameter for enabling greedy matching
 ** TODO Remove sorting from BucketHeap? (Doesn't matter for A*, but may help for cache locality.)
 ** TODO Colour ~print_heuristic~ by contours instead of by parent.
+** TODO Consider using Intrusive Collections for storing contours.
+** TODO Check code coverage to see which edge cases are never hit.
 
 * MSA (delayed; pruning complications)
 ** TODO instantiate one heuristic per pair of sequences

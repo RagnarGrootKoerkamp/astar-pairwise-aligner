@@ -1,9 +1,12 @@
-use pairwise_aligner::{prelude::*, *};
+use pairwise_aligner::{
+    prelude::{equal_contour::EqualContour, *},
+    *,
+};
 
 fn main() {
-    let n = 30000;
+    let n = 100000;
     let e = 0.20;
-    let l = 7;
+    let l = 8;
     let max_match_cost = 1;
     let pruning = true;
 
@@ -15,9 +18,10 @@ fn main() {
         },
         pruning,
         prune_fraction: 0.5,
-        c: PhantomData::<NaiveContours<NaiveContour>>,
+        c: PhantomData::<NaiveContours<LogQueryContour>>,
         ..GapSeedHeuristic::default()
     };
+
     let (a, b, alphabet, stats) = setup(n, e);
     let result = align(&a, &b, &alphabet, stats, h);
     result.print();
