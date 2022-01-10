@@ -36,7 +36,7 @@ fn main() {
         // (LengthConfig::min(1, |n| n), 1),
         // (LengthConfig::min(2, |n| n), 1),
     ];
-    let prunings = [1.0];
+    let prunings = [0.3, 0.5, 0.9, 1.0];
 
     for (&n, e) in ns.iter().cartesian_product(es) {
         for (length, max_match_cost) in lm {
@@ -50,7 +50,7 @@ fn main() {
                         },
                         pruning: true,
                         prune_fraction,
-                        c: PhantomData::<NaiveContours<NaiveContour>>,
+                        c: PhantomData::<NaiveContours<LogQueryContour>>,
                         ..GapSeedHeuristic::default()
                     };
                     let (a, b, alphabet, stats) = setup(n, e);

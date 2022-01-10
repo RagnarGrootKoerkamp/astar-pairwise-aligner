@@ -17,7 +17,7 @@ fn main() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    c: PhantomData::<NaiveContours<LogQueryContour>>,
                     ..GapSeedHeuristic::default()
                 };
                 let (a, b, alphabet, stats) = setup(n, e);

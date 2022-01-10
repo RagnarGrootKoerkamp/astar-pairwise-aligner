@@ -42,7 +42,7 @@ fn main() {
                     ..Default::default()
                 },
                 pruning: false,
-                c: PhantomData::<NaiveContours<NaiveContour>>,
+                c: PhantomData::<NaiveContours<LogQueryContour>>,
                 ..GapSeedHeuristic::default()
             };
             let h = h.build(&a, &b, &alph);
