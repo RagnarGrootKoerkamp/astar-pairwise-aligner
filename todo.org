@@ -2,6 +2,23 @@
 
 List of TODOs and other quick remarks.
 
+* Correctness
+** DONE Proof for consistency of $h$ at start of matches
+** TODO Proof that =consistent pruned heuristics= works
+A lowerbound on the shortest path to the end, not using any already expanded
+states. Consistent when $f$ never decreases over edges.
+** TODO Proof that pruning heuristic yields a consistent pruned heuristic
+
+* Failing assertions / Bugs
+** TODO Pruning may result in double expansion of matches
+We have to make sure that we only prune when we found the shortest path to a
+node. Currently this assertion fails, probably because of issues around pruning
+inexact matches next to exact matches.
+** TODO GappedSeedHeuristic differs from SeedHeuristic in some edge cases
+** TODO Do we need some special consideration for seeds exactly
+Potentially the same as above. There used to be code for this but it was not
+re-implemented for Contours.
+
 * Statistics
 ** TODO avg total estimated distance
 ** TODO max number of consecutive matches
@@ -23,9 +40,12 @@ List of TODOs and other quick remarks.
 ** TODO Consider using Intrusive Collections for storing contours.
 ** TODO Check code coverage to see which edge cases are never hit.
 
-* MSA (delayed; pruning complications)
-** TODO instantiate one heuristic per pair of sequences
-** TODO run A* on the one-by-one step graph
+* Extensions
+** MSA (delayed; pruning complications)
+*** TODO instantiate one heuristic per pair of sequences
+*** TODO run A* on the one-by-one step graph
+** Non-constant indel/substitution cost
+** Affine gaps
 
 * Edit Distance
 ** TODO Run SeedHeuristic with l=1 as edit distance computation algorithm.
@@ -101,7 +121,7 @@ $(i,j) \to (i+1, j+1)$ and skip the indel edges.
 ** TODO Use SuffixArray instead of multiple QGramIndices for fixed l.
 ** TODO Update ContourGraph to set the value of a match after processing the end-column, instead of doing a lookup when processing the start column.
 
-* TODO Fast Seed+Gap heuristic implementation:
+* DONE Fast Seed+Gap heuristic implementation:
 ** Bruteforce from bottom right to top left, fully processing everything all
    matches that are 'shadowed', i.e. only matter for going left/up, but not diagonally anymore.
 
