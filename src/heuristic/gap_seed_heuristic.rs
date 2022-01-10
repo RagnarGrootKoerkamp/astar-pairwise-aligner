@@ -134,6 +134,12 @@ impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
     }
 }
 
+impl<'a, C: Contours> Drop for GapSeedHeuristicI<C> {
+    fn drop(&mut self) {
+        self.contours.print_stats();
+    }
+}
+
 impl<'a, C: Contours> GapSeedHeuristicI<C> {
     fn new(a: &'a Sequence, b: &'a Sequence, alph: &Alphabet, params: GapSeedHeuristic<C>) -> Self {
         let seed_matches = find_matches(a, b, alph, params.match_config);
@@ -156,6 +162,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         h.transform_target = h.transform(h.target);
         h.build();
         //h.print(true, false);
+        h.contours.print_stats();
         h
     }
 
@@ -205,7 +212,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         //println!("{:?}", arrows);
         // Sort revered by start.
         arrows.sort_by_key(|Arrow { start, .. }| Reverse(LexPos(*start)));
-        self.contours = C::new(arrows);
+        self.contours = C::new(arrows, self.params.match_config.max_match_cost + 1);
         //println!("{:?}", self.contours);
     }
 
@@ -306,14 +313,14 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
         let start = time::Instant::now();
         if self.params.incremental_pruning {
-            //println!("PRUNE INCREMENT {}", pos);
+            //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
             self.contours.prune(self.transform(pos));
         } else {
             //println!("PRUNE REBUILD   {}", pos);
             self.build();
         }
         self.pruning_duration += start.elapsed();
-        //self.print(true, true);
+        //self.print(true, false);
     }
 
     fn stats(&self) -> HeuristicStats {
@@ -455,7 +462,7 @@ mod tests {
                             ..MatchConfig::default()
                         },
                         pruning: false,
-                        c: PhantomData::<NaiveContours<NaiveContour>>,
+                        c: PhantomData::<NaiveContours<BruteForceContour>>,
                         ..GapSeedHeuristic::default()
                     };
                     let (a, b, alph, stats) = setup(n, e);
@@ -621,7 +628,7 @@ mod tests {
                         },
                         pruning: true,
                         incremental_pruning: true,
-                        c: PhantomData::<NaiveContours<NaiveContour>>,
+                        c: PhantomData::<NaiveContours<BruteForceContour>>,
                         ..GapSeedHeuristic::default()
                     };
                     let (a, b, alph, stats) = setup(n, e);
@@ -657,7 +664,7 @@ mod tests {
                         },
                         pruning: true,
                         incremental_pruning: true,
-                        c: PhantomData::<NaiveContours<LogContour>>,
+                        c: PhantomData::<NaiveContours<LogQueryContour>>,
                         ..GapSeedHeuristic::default()
                     };
                     let h_base = GapSeedHeuristic {
@@ -668,10 +675,49 @@ mod tests {
                         },
                         pruning: true,
                         incremental_pruning: true,
-                        c: PhantomData::<NaiveContours<NaiveContour>>,
+                        c: PhantomData::<NaiveContours<BruteForceContour>>,
                         ..GapSeedHeuristic::default()
                     };
                     let (a, b, alph, stats) = setup(n, e);
+                    println!("TESTING n {} e {}: {:?}", n, e, h);
+                    align(&a, &b, &alph, stats, EqualHeuristic { h1: h_base, h2: h });
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn incremental_pruning_naive_set() {
+        for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+            for n in [40, 100, 200, 500, 1000] {
+                for e in [0.1, 0.3, 1.0] {
+                    let h = GapSeedHeuristic {
+                        match_config: MatchConfig {
+                            length: Fixed(l),
+                            max_match_cost,
+                            ..MatchConfig::default()
+                        },
+                        pruning: true,
+                        incremental_pruning: true,
+                        c: PhantomData::<NaiveContours<SetContour>>,
+                        ..GapSeedHeuristic::default()
+                    };
+                    let h_base = GapSeedHeuristic {
+                        match_config: MatchConfig {
+                            length: Fixed(l),
+                            max_match_cost,
+                            ..MatchConfig::default()
+                        },
+                        pruning: true,
+                        incremental_pruning: true,
+                        c: PhantomData::<NaiveContours<BruteForceContour>>,
+                        ..GapSeedHeuristic::default()
+                    };
+                    let (a, b, alph, stats) = setup(n, e);
+                    //let start = 234;
+                    //let end = 280;
+                    //let a = (&a[start..end]).to_vec();
+                    //let b = (&b[start..end]).to_vec();
                     println!("TESTING n {} e {}: {:?}", n, e, h);
                     align(&a, &b, &alph, stats, EqualHeuristic { h1: h_base, h2: h });
                 }
@@ -708,7 +754,7 @@ mod tests {
                         ..MatchConfig::default()
                     },
                     pruning,
-                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    c: PhantomData::<NaiveContours<BruteForceContour>>,
                     ..GapSeedHeuristic::default()
                 };
                 let h_fast = GapSeedHeuristic {
@@ -718,7 +764,7 @@ mod tests {
                         ..MatchConfig::default()
                     },
                     pruning,
-                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    c: PhantomData::<NaiveContours<BruteForceContour>>,
                     ..GapSeedHeuristic::default()
                 };
 
@@ -749,7 +795,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
         let h_fast = GapSeedHeuristic {
@@ -759,7 +805,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
 
@@ -793,7 +839,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning: false,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
         let h_fast = GapSeedHeuristic { ..h_slow };
@@ -835,7 +881,7 @@ mod tests {
                         ..MatchConfig::default()
                     },
                     pruning,
-                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    c: PhantomData::<NaiveContours<BruteForceContour>>,
                     ..GapSeedHeuristic::default()
                 };
                 let h_fast = GapSeedHeuristic {
@@ -845,7 +891,7 @@ mod tests {
                         ..MatchConfig::default()
                     },
                     pruning,
-                    c: PhantomData::<NaiveContours<NaiveContour>>,
+                    c: PhantomData::<NaiveContours<BruteForceContour>>,
                     ..GapSeedHeuristic::default()
                 };
 
@@ -912,7 +958,7 @@ mod tests {
                 ..MatchConfig::default()
             },
             pruning: false,
-            c: PhantomData::<NaiveContours<NaiveContour>>,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
         let r = align(&pattern, &text, &alphabet, stats, h);
