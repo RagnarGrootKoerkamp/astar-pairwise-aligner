@@ -55,13 +55,7 @@ where
         let h1 = self.h1.h(Node(pos, s1));
         let h2 = self.h2.h(Node(pos, s2));
         // h1 is the slow accurate one, h2 the fast inaccurate one.
-        assert!(
-            h1 <= h2 + 1 && h2 <= h1,
-            "Values differ at {:?}: {} {}",
-            pos,
-            h1,
-            h2
-        );
+        assert!(h1 == h2, "Values differ at {:?}: {} {}", pos, h1, h2);
         h1
     }
 
