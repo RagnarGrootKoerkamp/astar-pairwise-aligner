@@ -184,7 +184,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         };
         h.transform_target = h.transform(h.target);
         h.build();
-        h.print(true, false);
+        //h.print(true, false);
         h.contours.print_stats();
         h
     }
@@ -250,27 +250,22 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
-    // TODO: Move the pruning code to Contours.
-    // NOTE: This still has a small bug/difference with the bruteforce implementation:
-    // When two exact matches are neighbours, it can happen that one
-    // suffices as parent/root for the region, but the fast implementation doesn't detect this and uses both.
-    // This means that the spurious match will be prunes in the fast
-    // case, and not in the slow case, leading to small differences.
-    // Either way, both behaviours are correct.
     fn prune(&mut self, pos: Pos) {
         if !self.params.pruning {
             return;
         }
 
-        // Check that we don't double expand start-of-seed states.
-        if self.seed_matches.is_start_of_seed(pos) {
-            // Starts of seeds should still only be expanded once.
-            assert!(
-                self.expanded.insert(pos),
-                "Double expanded start of seed {:?}",
-                pos
-            );
+        if !self.seed_matches.is_start_of_seed(pos) {
+            return;
         }
+
+        // Check that we don't double expand start-of-seed states.
+        // Starts of seeds should still only be expanded once.
+        assert!(
+            self.expanded.insert(pos),
+            "Double expanded start of seed {:?}",
+            pos
+        );
 
         self.num_tried_pruned += 1;
         if self.num_actual_pruned as f32
@@ -280,41 +275,15 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
         self.num_actual_pruned += 1;
 
-        // Skip pruning when this is an inexact match neighbouring a strictly better still active exact match.
-        // TODO: This feels hacky doing the manual position manipulation, but oh well... .
-        /*
-        let nbs = {
-            let mut nbs = Vec::new();
-            if pos.1 > 0 {
-                nbs.push(Pos(pos.0, pos.1 - 1));
-            }
-            if pos.1 < self.target.1 {
-                nbs.push(Pos(pos.0, pos.1 + 1));
-            }
-            nbs
-        };
-        for nb in nbs {
-            if self
-                .active_matches
-                .get(&nb)
-                .map_or(false, |m2| m2.match_cost < m.match_cost)
-            {
-                return;
-            }
-        }
-        */
-
         // Prune the current position.
         self.pruned_positions.insert(pos);
-        if !self.seed_matches.is_start_of_seed(pos) {
-            return;
-        }
 
-        println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
         let start = time::Instant::now();
-        self.contours.prune(self.transform(pos));
+        if self.contours.prune(self.transform(pos)) {
+            //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
+            //self.print(false, false);
+        }
         self.pruning_duration += start.elapsed();
-        self.print(false, false);
     }
 
     fn stats(&self) -> HeuristicStats {
