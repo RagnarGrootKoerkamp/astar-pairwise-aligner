@@ -18,10 +18,12 @@ inexact matches next to exact matches.
 
 It seems that this is not an issue anymore when retrying on outdated heuristic values.
 
-** TODO GappedSeedHeuristic differs from SeedHeuristic in some edge cases
-** TODO Do we need some special consideration for seeds exactly on the edge of the cone region?
-Potentially the same as above. There used to be code for this but it was not
-re-implemented for Contours.
+** DONE GappedSeedHeuristic differs from SeedHeuristic in some edge cases
+CLOSED: [2022-01-11 Tue 16:28]
+SeedHeuristic was using outdated values of h when rebuilding, leading to differences.
+** DONE Do we need some special consideration for seeds exactly on the edge of the cone region?
+CLOSED: [2022-01-11 Tue 16:28]
+Nope, fixed by the above
 ** DONE NaiveContours sometimes drops values by more than max_len.
 CLOSED: [2022-01-11 Tue 14:23]
 Fixed by replacing the pruning of the single root point by also

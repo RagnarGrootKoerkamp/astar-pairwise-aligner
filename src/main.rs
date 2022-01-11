@@ -152,7 +152,13 @@ fn run(a: &Sequence, b: &Sequence, args: &Cli) {
 )]
 struct Cli {
     #[structopt(short, long, parse(from_os_str))]
-    input: PathBuf,
+    input: Option<PathBuf>,
+
+    #[structopt(short, conflicts_with = "input", required_unless = "input")]
+    n: Option<usize>,
+
+    #[structopt(short, default_value = "0.2")]
+    e: f32,
 
     #[structopt(short, default_value = "7")]
     l: usize,
@@ -183,18 +189,25 @@ fn main() {
     let args = Cli::from_args();
 
     // Read the input
-    let data = std::fs::read(&args.input).unwrap();
-    let pairs = data
-        .split(|c| *c == '\n' as u8)
-        .tuples()
-        .map(|(a, b)| {
-            assert!(a[0] == '>' as u8);
-            assert!(b[0] == '<' as u8);
-            (a[1..].to_vec(), b[1..].to_vec())
-        })
-        .collect_vec();
+    if let Some(input) = &args.input {
+        let data = std::fs::read(&input).unwrap();
+        let pairs = data
+            .split(|c| *c == '\n' as u8)
+            .tuples()
+            .map(|(a, b)| {
+                assert!(a[0] == '>' as u8);
+                assert!(b[0] == '<' as u8);
+                (a[1..].to_vec(), b[1..].to_vec())
+            })
+            .collect_vec();
 
-    for (a, b) in pairs {
+        for (a, b) in pairs {
+            run(&a, &b, &args);
+        }
+    } else {
+        // Generate random input.
+        // TODO: Propagate stats.
+        let (a, b, _, _) = setup(args.n.unwrap(), args.e);
         run(&a, &b, &args);
     }
 }
