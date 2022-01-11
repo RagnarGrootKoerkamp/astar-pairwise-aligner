@@ -4,3 +4,4 @@
 /flamegraph.svg
 /*.svg
 data
+/examples/test.rs
