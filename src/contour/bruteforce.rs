@@ -81,7 +81,7 @@ impl Contours for BruteForceContours {
             .unwrap_or(0)
     }
 
-    fn prune(&mut self, pos: Pos) {
+    fn prune(&mut self, pos: Pos) -> bool {
         //println!("Size before pruning {}: {}", pos, self.valued_arrows.len());
         //println!("Arrows {:?}", self.valued_arrows);
         self.valued_arrows = Self::new(
@@ -92,5 +92,7 @@ impl Contours for BruteForceContours {
         )
         .valued_arrows;
         //println!("Size after pruning {}: {}", pos, self.valued_arrows.len());
+        // Always return true, since we don't detect changes.
+        true
     }
 }

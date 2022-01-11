@@ -197,10 +197,10 @@ impl<C: Contour> Contours for NaiveContours<C> {
         v
     }
 
-    fn prune(&mut self, p: Pos) {
+    fn prune(&mut self, p: Pos) -> bool {
         if self.arrows.remove(&p).is_none() {
             // This position was already pruned or never needed pruning.
-            return;
+            return false;
         }
 
         // Work contour by contour.
@@ -213,7 +213,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
         // Prune the current point, and also any other lazily pruned points that become dominant.
         if !self.contours[v].prune_filter(&mut |pos| !self.arrows.contains_key(&pos)) {
             //println!("SKIP");
-            return;
+            return false;
         }
         self.prune_stats.prunes += 1;
         //println!("PRUNE {} at LAYER {}", p, v);
@@ -388,6 +388,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
         // for (i, c) in self.contours.iter().enumerate().rev() {
         //     //println!("{}: {:?}", i, c);
         // }
+        true
     }
 
     fn print_stats(&self) {
