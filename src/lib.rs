@@ -135,7 +135,6 @@ pub struct HeuristicStats2 {
     pub root_h: usize,
     pub path_matches: Option<usize>,
     pub explored_matches: Option<usize>,
-    pub avg_h: f32,
 }
 
 #[derive(Serialize)]
@@ -370,8 +369,8 @@ where
     // Run A* with heuristic.
     let start_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
-    let incremental_graph = IncrementalAlignmentGraph::new(a, b, &h, true);
-    let mut h_values = HashMap::<usize, usize>::default();
+    let incremental_graph =
+        IncrementalAlignmentGraph::new(a, b, &h, /*greedy_matching*/ false);
     let target = Pos(a.len(), b.len());
     let (distance, path) = astar::astar(
         &incremental_graph,
@@ -380,9 +379,6 @@ where
         // heuristic function
         |state| {
             let v = h.borrow().h(state);
-            if DEBUG {
-                *h_values.entry(v).or_insert(0) += 1;
-            }
             v
         },
         /*retry_outdated*/ true,
@@ -415,16 +411,6 @@ where
         distance,
         root_val
     );
-
-    let avg_h = {
-        let mut cnt = 0;
-        let mut sum = 0;
-        for (x, y) in h_values {
-            cnt += y;
-            sum += x * y;
-        }
-        sum as f32 / cnt as f32
-    };
 
     let path: Vec<Pos> = if DEBUG {
         path.into_iter().collect()
@@ -470,7 +456,6 @@ where
             root_h: root_val,
             path_matches,
             explored_matches,
-            avg_h,
         },
         answer_cost: distance,
         path,
