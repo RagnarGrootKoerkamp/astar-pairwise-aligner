@@ -116,7 +116,6 @@ pub struct GapSeedHeuristicI<C: Contours> {
 
     pub seed_matches: SeedMatches,
     // The lowest cost match starting at each position.
-    //active_matches: HashMap<Pos, Match>,
     pruned_positions: HashSet<Pos>,
 
     // For partial pruning.
@@ -161,7 +160,6 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos(a.len(), b.len()),
             seed_matches,
-            //active_matches: Default::default(),
             pruned_positions: Default::default(),
             transform_target: Pos(0, 0),
             // Filled below.
@@ -189,19 +187,6 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
                     && !self.pruned_positions.contains(start)
             })
             .collect_vec();
-        // Update active_matches.
-        // for &m in &filtered_matches {
-        //     match self.active_matches.entry(m.start) {
-        //         std::collections::hash_map::Entry::Occupied(mut entry) => {
-        //             if m.match_cost < entry.get().match_cost {
-        //                 entry.insert(m.clone());
-        //             }
-        //         }
-        //         std::collections::hash_map::Entry::Vacant(entry) => {
-        //             entry.insert(m.clone());
-        //         }
-        //     }
-        // }
         // Transform to Arrows.
         let mut arrows = filtered_matches
             .into_iter()
@@ -282,12 +267,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
         self.num_actual_pruned += 1;
 
-        // let _m = if let Some(m) = self.active_matches.get(&pos) {
-        //     m
-        // } else {
-        //     return;
-        // };
-
         // Skip pruning when this is an inexact match neighbouring a strictly better still active exact match.
         // TODO: This feels hacky doing the manual position manipulation, but oh well... .
         /*
@@ -311,10 +290,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             }
         }
         */
-
-        // self.active_matches
-        //     .remove(&pos)
-        //     .expect("Already checked that this positions is a match.");
 
         // Prune the current position.
         self.pruned_positions.insert(pos);
