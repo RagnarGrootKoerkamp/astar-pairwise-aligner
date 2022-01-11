@@ -57,9 +57,11 @@ pub trait Contours: Default + Debug {
     /// Hint is guaranteed to be for the current position.
     fn value(&self, _q: Pos) -> usize;
     /// Remove the point at the given position, and shift all contours.
+    /// This removes all arrows starting at the given position.
+    /// Returns true when at the point was removed.
     /// TODO: also prune all arrows ending in the given position.
     ///       or at least when this is the only outgoing arrow.
-    fn prune(&mut self, _p: Pos);
+    fn prune(&mut self, _p: Pos) -> bool;
 
     /// Returns some statistics.
     fn print_stats(&self) {}
