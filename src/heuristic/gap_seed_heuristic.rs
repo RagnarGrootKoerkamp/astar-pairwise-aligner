@@ -129,7 +129,6 @@ pub struct GapSeedHeuristicI<C: Contours> {
 
     pub seed_matches: SeedMatches,
     // The lowest cost match starting at each position.
-    pruned_positions: HashSet<Pos>,
 
     // For partial pruning.
     num_tried_pruned: usize,
@@ -173,7 +172,6 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos(a.len(), b.len()),
             seed_matches,
-            pruned_positions: Default::default(),
             transform_target: Pos(0, 0),
             // Filled below.
             contours: C::default(),
@@ -195,10 +193,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         let filtered_matches = self
             .seed_matches
             .iter()
-            .filter(|Match { start, end, .. }| {
-                self.transform(*end) <= self.transform_target
-                    && !self.pruned_positions.contains(start)
-            })
+            .filter(|Match { end, .. }| self.transform(*end) <= self.transform_target)
             .collect_vec();
         // Transform to Arrows.
         let mut arrows = filtered_matches
@@ -263,8 +258,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         // Starts of seeds should still only be expanded once.
         assert!(
             self.expanded.insert(pos),
-            "Double expanded start of seed {:?}",
-            pos
+            "Double expanded start of seed {} / {}",
+            pos,
+            self.transform(pos)
         );
 
         self.num_tried_pruned += 1;
@@ -275,12 +271,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
         self.num_actual_pruned += 1;
 
-        // Prune the current position.
-        self.pruned_positions.insert(pos);
-
         let start = time::Instant::now();
+        //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
         if self.contours.prune(self.transform(pos)) {
-            //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
             //self.print(false, false);
         }
         self.pruning_duration += start.elapsed();
