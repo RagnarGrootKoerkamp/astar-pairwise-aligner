@@ -1,7 +1,7 @@
 [package]
 name = "pairwise-aligner"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
@@ -15,12 +15,13 @@ bio-types = "*"
 bio = "*"
 rand = "*"
 rand_chacha = "*"
-# TODO: Only used for generating random sequences. Replace with own/more generic standalone implementation?
-block-aligner={version="*", features=["simd_avx2"]}
 csv = "*"
 serde = "*"
 itertools = "*"
+strum = "*"
 strum_macros = "*"
 termion = "*"
 rustc-hash = "*"
 structopt = "*"
+# TODO: Only used for generating random sequences. Replace with own/more generic standalone implementation?
+block-aligner={version="*", features=["simd_avx2"]}

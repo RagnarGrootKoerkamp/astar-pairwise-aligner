@@ -64,7 +64,7 @@ impl Contour for LogQueryContour {
         self.dominant.binary_search(&LexPos(q)).is_ok()
     }
 
-    fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, mut f: &mut F) -> bool {
+    fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, f: &mut F) -> bool {
         // TODO: Make this more efficient.
         if self.points.drain_filter(|&mut LexPos(s)| f(s)).count() > 0 {
             // Rebuild the dominant front.
@@ -127,10 +127,6 @@ struct PruneStats {
     // Number of times we stop pruning early.
     no_change: usize,
     shift_layers: usize,
-    sum_shift_stop_layers: usize,
-    sum_shift_stop_layers_remaining: usize,
-    sum_no_change_layers: usize,
-    sum_no_change_layers_remaining: usize,
 }
 
 impl<C: Contour> NaiveContours<C> {
@@ -210,12 +206,13 @@ impl<C: Contour> Contours for NaiveContours<C> {
         // Work contour by contour.
         // 1. Remove p from it's first contour.
         let mut v = self.value(p);
-        // for (i, c) in self.contours.iter().enumerate().rev() {
-        //     //println!("{}: {:?}", i, c);
-        // }
+        //for (i, c) in self.contours.iter().enumerate().rev() {
+        //println!("{}: {:?}", i, c);
+        //}
 
-        if !self.contours[v].prune(p) {
-            ////println!("SKIP");
+        // Prune the current point, and also any other lazily pruned points that become dominant.
+        if !self.contours[v].prune_filter(&mut |pos| !self.arrows.contains_key(&pos)) {
+            //println!("SKIP");
             return;
         }
         self.prune_stats.prunes += 1;
@@ -224,93 +221,96 @@ impl<C: Contour> Contours for NaiveContours<C> {
         // Loop over the dominant matches in the next layer, and repeatedly prune while needed.
         let mut last_change = v;
         let mut num_emptied = 0;
-        let mut emptied_shift = None;
+        let mut previous_shift = None;
         loop {
             v += 1;
             if v >= self.contours.len() {
                 break;
             }
             self.prune_stats.contours += 1;
-            // println!("layer {}", v);
-            // println!("{}: {:?}", v, self.contours[v]);
-            // println!("{}: {:?}", v - 1, self.contours[v - 1]);
+            //println!("layer {}", v);
+            //println!("{}: {:?}", v, self.contours[v]);
+            //println!("{}: {:?}", v - 1, self.contours[v - 1]);
             let (up_to_v, current) = {
                 let (up_to_v, from_v) = self.contours.as_mut_slice().split_at_mut(v);
                 (up_to_v, &mut from_v[0])
             };
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
-            let arrows = &self.arrows;
-            #[cfg(feature = "faster")]
-            let max_len = self.max_len;
-            let mut shift_to = None;
-            let prune_stats = &mut self.prune_stats;
-            let mut max_new_layer_val = 0;
+            let mut current_shift = None;
+            let mut layer_best_start_val = 0;
             if current.prune_filter(&mut |pos| -> bool {
-                prune_stats.checked += 1;
+                // This function decides whether the point pos from contour v
+                // needs to be pruned from it.  For this, we (re)compute the
+                // value at pos and if it's < v, we push is to the new contour
+                // of its value.
+                self.prune_stats.checked += 1;
                 //println!("f: {}", pos);
-                if let Some(pos_arrows) = arrows.get(&pos) {
-                    let mut max_new_val = 0;
-                    assert!(!pos_arrows.is_empty());
-                    //println!("Arrows {:?}", pos_arrows);
-                    for arrow in pos_arrows {
-                        // Find the value at end_val via a backwards search.
-                        let mut end_val = v - arrow.len;
-                        while !up_to_v[end_val].contains(arrow.end) {
-                            end_val -= 1;
+                let pos_arrows = match self.arrows.get(&pos) {
+                    Some(arrows) => arrows,
+                    None => {
+                        //println!("f: Prune {} no arrows left", pos);
+                        current_shift = Some(usize::MAX);
+                        // If no arrows left for this position, prune it without propagating.
+                        self.prune_stats.checked_true += 1;
+                        return true;
+                    }
+                };
+                assert!(!pos_arrows.is_empty());
+                let mut best_start_val = 0;
+                for arrow in pos_arrows {
+                    // Find the value at end_val via a backwards search.
+                    let mut end_val = v - arrow.len;
+                    while !up_to_v[end_val].contains(arrow.end) {
+                        end_val -= 1;
 
-                            // No need to continue when this value isn't going to be optimal anyway.
-                            if end_val + arrow.len <= max_new_val {
+                        // No need to continue when this value isn't going to be optimal anyway.
+                        if end_val + arrow.len <= best_start_val {
+                            break;
+                        }
+
+                        #[cfg(feature = "faster")]
+                        {
+                            // We know that max_new_val will be within [v-max_len, v].
+                            // Thus, value(arrow.end) will be in [v-max_len-arrow.len, v-arrow.len].
+                            // For simplicity, we skip this check.
+                            if end_val + self.max_len == v - arrow.len {
                                 break;
                             }
-
-                            #[allow(inctive-code)]
-                            #[cfg(feature = "faster")]
-                            {
-                                // We know that max_new_val will be within [v-max_len, v].
-                                // Thus, value(arrow.end) will be in [v-max_len-arrow.len, v-arrow.len].
-                                // For simplicity, we skip this check.
-                                if end_val + max_len == v - arrow.len {
-                                    break;
-                                }
-                            }
-                        }
-
-                        max_new_val = max(max_new_val, end_val + arrow.len);
-                        max_new_layer_val = max(max_new_layer_val, end_val + arrow.len);
-
-                        // Value v is still up to date. No need to loop over the remaining arrows starting here.
-                        if max_new_val == v {
-                            //println!("f: {} keeps value {}", pos, max_new_val);
-                            prune_stats.checked_false += 1;
-                            shift_to = Some(usize::MAX);
-                            return false;
                         }
                     }
-                    //println!("f: {} new value {}", pos, max_new_val);
-                    // NOTE: This assertion does not always hold. In particular,
-                    // when the Contour implementation is lazy about pruning
-                    // non-dominant points, it may happen that e.g. a value 8 contour contains points with value 7.
-                    // After removing a match of length max_len=2, this would drop to 5, which is less than 8 - 2.
-                    // assert!(v - max_len <= max_new_val && max_new_val <= v,);
 
-                    // Either no arrows left (position already pruned), or none of its arrows yields value v.
-                    //println!("f: Push {} to {} shift {:?}", pos, max_new_val, shift_to);
-                    up_to_v[max_new_val].push(pos);
-                    if shift_to.is_none() {
-                        shift_to = Some(v - max_new_val);
-                    } else if shift_to.unwrap() != v - max_new_val {
-                        shift_to = Some(usize::MAX);
-                    }
-                    prune_stats.checked_true += 1;
-                    return true;
-                } else {
-                    //println!("f: Prune {} no arrows left", pos);
-                    shift_to = Some(usize::MAX);
-                    ////println!("f: No arrows from {}", pos);
-                    // If no arrows left for this position, prune it without propagating.
-                    prune_stats.checked_true += 1;
-                    return true;
+                    let start_val = end_val + arrow.len;
+                    best_start_val = max(best_start_val, start_val);
+                    layer_best_start_val = max(layer_best_start_val, start_val);
                 }
+                // Value v is still up to date. No need to loop over the remaining arrows starting here.
+                if best_start_val == v {
+                    //println!("f: {} keeps value {}", pos, best_start_val);
+                    self.prune_stats.checked_false += 1;
+                    current_shift = Some(usize::MAX);
+                    return false;
+                }
+
+                //println!("f: {} new value {}", pos, max_new_val);
+                // NOTE: This assertion does not always hold. In particular,
+                // when the Contour implementation is lazy about pruning
+                // non-dominant points, it may happen that e.g. a value 8 contour contains points with value 7.
+                // After removing a match of length max_len=2, this would drop to 5, which is less than 8 - 2.
+                // assert!(v - max_len <= max_new_val && max_new_val <= v,);
+
+                // Either no arrows left (position already pruned), or none of its arrows yields value v.
+                // println!(
+                //     "f: Push {} to {} shift {:?}",
+                //     pos, best_start_val, current_shift
+                // );
+                up_to_v[best_start_val].push(pos);
+                if current_shift.is_none() {
+                    current_shift = Some(v - best_start_val);
+                } else if current_shift.unwrap() != v - best_start_val {
+                    current_shift = Some(usize::MAX);
+                }
+                self.prune_stats.checked_true += 1;
+                return true;
             }) {
                 last_change = v;
             }
@@ -321,8 +321,6 @@ impl<C: Contour> Contours for NaiveContours<C> {
                 ////println!("Last change at {}, stopping at {}", last_change, v);
                 // No further changes can happen.
                 self.prune_stats.no_change += 1;
-                self.prune_stats.sum_no_change_layers += v;
-                self.prune_stats.sum_no_change_layers_remaining += self.contours.len() - v;
                 break;
             }
 
@@ -331,40 +329,41 @@ impl<C: Contour> Contours for NaiveContours<C> {
             //emptied_shift, shift_to, last_change
             //);
             if self.contours[v].len() == 0
-                && (shift_to.is_none() || shift_to.unwrap() != usize::MAX)
+                && (current_shift.is_none() || current_shift.unwrap() != usize::MAX)
             {
-                if emptied_shift.is_none() || shift_to.is_none() || emptied_shift == shift_to {
+                if previous_shift.is_none()
+                    || current_shift.is_none()
+                    || previous_shift == current_shift
+                {
                     num_emptied += 1;
-                    if emptied_shift.is_none() {
-                        emptied_shift = shift_to;
+                    if previous_shift.is_none() {
+                        previous_shift = current_shift;
                     }
                 }
                 //println!("Num emptied to {} shift {:?}", num_emptied, emptied_shift);
             } else {
                 num_emptied = 0;
-                emptied_shift = None;
+                previous_shift = None;
                 //println!("Num emptied reset");
             }
             assert!(
                 // 0 happens when the layer was already empty.
-                max_new_layer_val == 0 || max_new_layer_val >= v - self.max_len,
+                layer_best_start_val == 0 || layer_best_start_val >= v - self.max_len,
                 "Pruning {} now layer {} new max {} drops more than {}.\nlast_change: {}, shift_to {:?}, layer size: {}",
                 p,
                 v,
-                max_new_layer_val,
+                layer_best_start_val,
                 self.max_len,
-                last_change, shift_to, self.contours[v].len()
+                last_change, current_shift, self.contours[v].len()
             );
 
             if num_emptied >= self.max_len {
                 //println!("Emptied {}, stopping at {}", num_emptied, v);
                 // Shift all other contours one down.
-                if emptied_shift.is_some() {
+                if previous_shift.is_some() {
                     self.prune_stats.shift_layers += 1;
-                    self.prune_stats.sum_shift_stop_layers += v;
-                    self.prune_stats.sum_shift_stop_layers_remaining += self.contours.len() - v;
 
-                    for _ in 0..emptied_shift.unwrap() {
+                    for _ in 0..previous_shift.unwrap() {
                         //println!("Delete layer {} of len {}", v, self.contours[v].len());
                         assert!(self.contours[v].len() == 0);
                         self.contours.remove(v);
@@ -400,7 +399,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
             total_len += c.len();
             total_dom += c.num_dominant();
         }
-        println!("contours              {}", num);
+        println!("#contours             {}", num);
         println!("avg size              {}", total_len as f32 / num as f32);
         println!("avg domn              {}", total_dom as f32 / num as f32);
 
@@ -412,10 +411,6 @@ impl<C: Contour> Contours for NaiveContours<C> {
             contours,
             no_change,
             shift_layers,
-            sum_shift_stop_layers,
-            sum_no_change_layers,
-            sum_shift_stop_layers_remaining,
-            sum_no_change_layers_remaining,
         }: PruneStats = self.prune_stats;
 
         if prunes == 0 {
@@ -424,6 +419,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
 
         println!("#prunes               {}", prunes);
         println!("contours per prune    {}", contours as f32 / prunes as f32);
+        println!("#checks               {}", checked);
         println!("checked per prune     {}", checked as f32 / prunes as f32);
         println!(
             "checked true per p    {}",

@@ -103,7 +103,7 @@ impl Contour for SetContour {
     /// Loop over dominant points. If pruned, try new dominant points
     /// until one is found that is not pruned.
     /// TODO: prune_filter with hint, so we don't need to iterate the entire contour.
-    fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, mut f: &mut F) -> bool {
+    fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, f: &mut F) -> bool {
         // This vector will only be used when at least one point is pruned.
         let mut new_dominant = Vec::<Pos>::default();
         let mut change = false;
