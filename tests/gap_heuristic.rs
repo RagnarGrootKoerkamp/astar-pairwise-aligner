@@ -157,8 +157,7 @@ fn no_double_expand() {
         prune_fraction,
         c: PhantomData::<BruteForceContours>,
         ..GapSeedHeuristic::default()
-    }
-    .equal_to_seed_heuristic();
+    };
 
     let (_, _, alphabet, stats) = setup(n, e);
     let a = "TTGGAGATAGTGTAGACCAGTAGACTATCAGCGCGGGACCGGTGAAACCAGGCTACTAAGTGCCCGCTACAGTGTCCG"
@@ -168,8 +167,8 @@ fn no_double_expand() {
         .as_bytes()
         .to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let result = align(&a, &b, &alphabet, stats, h);
-    result.print();
+    align(&a, &b, &alphabet, stats, h.to_seed_heuristic()).print();
+    align(&a, &b, &alphabet, stats, h).print();
 }
 
 #[test]
@@ -185,8 +184,7 @@ fn no_double_expand_2() {
         prune_fraction,
         c: PhantomData::<NaiveContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
-    }
-    .equal_to_seed_heuristic();
+    };
 
     let (_, _, alphabet, stats) = setup(n, e);
     let a = "TCGGTCTGTACCGCCGTGGGCGGCTTCCTATCCTCTCTTGTCCCACCGGTCTTTTCAAAGC"
@@ -196,6 +194,6 @@ fn no_double_expand_2() {
         .as_bytes()
         .to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let result = align(&a, &b, &alphabet, stats, h);
-    result.print();
+    align(&a, &b, &alphabet, stats, h.to_seed_heuristic()).print();
+    align(&a, &b, &alphabet, stats, h).print();
 }
