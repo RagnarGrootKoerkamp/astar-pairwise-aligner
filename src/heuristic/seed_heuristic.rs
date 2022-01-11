@@ -91,11 +91,29 @@ impl<'a, DH: Distance> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
 {
-    fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
+    default fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
         max(
             self.distance_function.distance(from, to),
             self.matches.distance(from, to),
         )
+    }
+}
+
+/// For GapCost, we can show that it's never optimal to actually pay for a gap (unless going to the target)
+/// -- the potential difference to the parent will always be smaller.
+impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
+    fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
+        let gap = self.distance_function.distance(from, to);
+        let pot = self.matches.distance(from, to);
+        if gap <= pot {
+            pot
+        } else {
+            if to == self.target {
+                gap
+            } else {
+                usize::MAX
+            }
+        }
     }
 }
 
@@ -163,7 +181,7 @@ where
             .iter()
             .into_iter()
             .filter(|&(parent, _)| *parent >= pos)
-            .map(|(parent, val)| self.distance(pos, *parent) + val)
+            .map(|(parent, val)| self.distance(pos, *parent).saturating_add(*val))
             .min()
             .unwrap()
     }
@@ -173,7 +191,7 @@ where
             .iter()
             .into_iter()
             .filter(|&(parent, _)| *parent >= pos)
-            .map(|(parent, val)| (self.distance(pos, *parent) + val, *parent))
+            .map(|(parent, val)| (self.distance(pos, *parent).saturating_add(*val), *parent))
             .min_by_key(|(val, pos)| (*val, Reverse(LexPos(*pos))))
             .unwrap()
     }

@@ -2,6 +2,7 @@
     test,
     iter_intersperse,
     derive_default_enum,
+    specialization,
     is_sorted,
     exclusive_range_pattern,
     associated_type_defaults,
