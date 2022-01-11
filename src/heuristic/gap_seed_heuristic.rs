@@ -19,7 +19,6 @@ pub struct GapSeedHeuristic<C: Contours> {
     pub match_config: MatchConfig,
     pub pruning: bool,
     pub prune_fraction: f32,
-    pub incremental_pruning: bool,
     pub c: PhantomData<C>,
 }
 
@@ -32,6 +31,22 @@ impl<C: Contours> GapSeedHeuristic<C> {
             prune_fraction: self.prune_fraction,
         }
     }
+    pub fn as_bruteforce_contours(&self) -> GapSeedHeuristic<BruteForceContours> {
+        GapSeedHeuristic {
+            match_config: self.match_config,
+            pruning: self.pruning,
+            prune_fraction: self.prune_fraction,
+            c: Default::default(),
+        }
+    }
+    pub fn as_naive_brutefore_contour(&self) -> GapSeedHeuristic<NaiveContours<BruteForceContour>> {
+        GapSeedHeuristic {
+            match_config: self.match_config,
+            pruning: self.pruning,
+            prune_fraction: self.prune_fraction,
+            c: Default::default(),
+        }
+    }
 }
 
 // Manual implementations because C is not Debug, Clone, or Copy.
@@ -41,7 +56,6 @@ impl<C: Contours> std::fmt::Debug for GapSeedHeuristic<C> {
             .field("match_config", &self.match_config)
             .field("pruning", &self.pruning)
             .field("prune_fraction", &self.prune_fraction)
-            .field("incremental_pruning", &self.incremental_pruning)
             .finish()
     }
 }
@@ -51,7 +65,6 @@ impl<C: Contours> Clone for GapSeedHeuristic<C> {
             match_config: self.match_config.clone(),
             pruning: self.pruning.clone(),
             prune_fraction: self.prune_fraction.clone(),
-            incremental_pruning: self.incremental_pruning.clone(),
             c: self.c.clone(),
         }
     }
@@ -64,7 +77,6 @@ impl<C: Contours> Default for GapSeedHeuristic<C> {
             match_config: Default::default(),
             pruning: false,
             prune_fraction: 1.0,
-            incremental_pruning: true,
             c: PhantomData,
         }
     }
@@ -104,7 +116,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
 
     pub seed_matches: SeedMatches,
     // The lowest cost match starting at each position.
-    active_matches: HashMap<Pos, Match>,
+    //active_matches: HashMap<Pos, Match>,
     pruned_positions: HashSet<Pos>,
 
     // For partial pruning.
@@ -149,7 +161,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos(a.len(), b.len()),
             seed_matches,
-            active_matches: Default::default(),
+            //active_matches: Default::default(),
             pruned_positions: Default::default(),
             transform_target: Pos(0, 0),
             // Filled below.
@@ -178,18 +190,18 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
             })
             .collect_vec();
         // Update active_matches.
-        for &m in &filtered_matches {
-            match self.active_matches.entry(m.start) {
-                std::collections::hash_map::Entry::Occupied(mut entry) => {
-                    if m.match_cost < entry.get().match_cost {
-                        entry.insert(m.clone());
-                    }
-                }
-                std::collections::hash_map::Entry::Vacant(entry) => {
-                    entry.insert(m.clone());
-                }
-            }
-        }
+        // for &m in &filtered_matches {
+        //     match self.active_matches.entry(m.start) {
+        //         std::collections::hash_map::Entry::Occupied(mut entry) => {
+        //             if m.match_cost < entry.get().match_cost {
+        //                 entry.insert(m.clone());
+        //             }
+        //         }
+        //         std::collections::hash_map::Entry::Vacant(entry) => {
+        //             entry.insert(m.clone());
+        //         }
+        //     }
+        // }
         // Transform to Arrows.
         let mut arrows = filtered_matches
             .into_iter()
@@ -254,13 +266,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
         // Check that we don't double expand start-of-seed states.
         if self.seed_matches.is_start_of_seed(pos) {
-            // When we don't ensure consistency, starts of seeds should still only be expanded once.
-            // FIXME
-            // assert!(
-            //     self.expanded.insert(pos),
-            //     "Double expanded start of seed {:?}",
-            //     pos
-            // );
+            // Starts of seeds should still only be expanded once.
+            assert!(
+                self.expanded.insert(pos),
+                "Double expanded start of seed {:?}",
+                pos
+            );
         }
 
         self.num_tried_pruned += 1;
@@ -271,11 +282,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
         self.num_actual_pruned += 1;
 
-        let _m = if let Some(m) = self.active_matches.get(&pos) {
-            m
-        } else {
-            return;
-        };
+        // let _m = if let Some(m) = self.active_matches.get(&pos) {
+        //     m
+        // } else {
+        //     return;
+        // };
 
         // Skip pruning when this is an inexact match neighbouring a strictly better still active exact match.
         // TODO: This feels hacky doing the manual position manipulation, but oh well... .
@@ -301,9 +312,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
         */
 
-        self.active_matches
-            .remove(&pos)
-            .expect("Already checked that this positions is a match.");
+        // self.active_matches
+        //     .remove(&pos)
+        //     .expect("Already checked that this positions is a match.");
 
         // Prune the current position.
         self.pruned_positions.insert(pos);
@@ -312,13 +323,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
 
         let start = time::Instant::now();
-        if self.params.incremental_pruning {
-            //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
-            self.contours.prune(self.transform(pos));
-        } else {
-            //println!("PRUNE REBUILD   {} / {}", pos, self.transform(pos));
-            self.build();
-        }
+        //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
+        self.contours.prune(self.transform(pos));
         self.pruning_duration += start.elapsed();
         //self.print(false, false);
     }

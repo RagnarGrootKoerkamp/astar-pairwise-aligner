@@ -62,10 +62,7 @@ fn pruning_and_inexact_matches() {
             c: PhantomData::<NaiveContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
-        let h_slow = GapSeedHeuristic {
-            incremental_pruning: false,
-            ..h_fast
-        };
+        let h_slow = GapSeedHeuristic { ..h_fast };
 
         let n = 1000;
         let e: f32 = 0.3;
