@@ -8,14 +8,14 @@ use crate::{
 /// A heap where values are sorted by bucket sort.
 // TODO: Investigate whether to enable sorting.
 // Can be disabled by initializing next_sort to 0.
-// TODO: Could be generatlized to take arbitrary T instead of NodeG<G>.
-pub struct BucketHeap<G: ImplicitGraph> {
+// TODO: Could be generalized to take arbitrary T instead of NodeG<G>.
+pub struct BucketQueue<G: ImplicitGraph> {
     layers: Vec<Vec<NodeG<G>>>,
     next: usize,
     next_sort: usize,
 }
 
-impl<G: ImplicitGraph> BucketHeap<G> {
+impl<G: ImplicitGraph> BucketQueue<G> {
     #[inline]
     pub fn push(&mut self, MinScored(k, v): MinScored<usize, G>) {
         if self.layers.len() <= k {
@@ -41,7 +41,7 @@ impl<G: ImplicitGraph> BucketHeap<G> {
     }
 }
 
-impl<G: ImplicitGraph> Default for BucketHeap<G> {
+impl<G: ImplicitGraph> Default for BucketQueue<G> {
     fn default() -> Self {
         Self {
             layers: Default::default(),

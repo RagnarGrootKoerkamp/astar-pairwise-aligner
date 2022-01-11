@@ -52,6 +52,8 @@ pruning silently pruned potential new dominant points in the layer.
 ** TODO Check code coverage to see which edge cases are never hit.
 ** TODO Extract tests to /tests.
 ** TODO Replace ~Sequence: Vec<u8>~ by ~&[u8]~.
+** TODO Test if ~dyn Contour~ is as fast as ~C: Contour~, and if so simplify the code this way.
+
 * Tests
 ** TODO Test all pairs with n <= 6
 
