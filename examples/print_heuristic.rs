@@ -30,18 +30,12 @@ fn main() {
         h.print(do_transform, false);
 
         if do_transform {
-            // TODO: Convert to slow variant.
-            let h2 = heuristic.as_seed_heuristic();
-
             align(
                 &a,
                 &b,
                 &alphabet,
                 stats,
-                EqualHeuristic {
-                    h1: h2,
-                    h2: heuristic,
-                },
+                heuristic.equal_to_seed_heuristic(),
             );
         }
     }

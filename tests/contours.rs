@@ -17,16 +17,7 @@ fn exact_no_pruning() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(
-                    &a,
-                    &b,
-                    &alph,
-                    stats,
-                    EqualHeuristic {
-                        h1: h.as_seed_heuristic(),
-                        h2: h,
-                    },
-                );
+                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
             }
         }
     }
@@ -50,16 +41,7 @@ fn inexact_no_pruning() {
                 let (a, b, alph, stats) = setup(n, e);
                 //print(h, &a, &b, &alph);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(
-                    &a,
-                    &b,
-                    &alph,
-                    stats,
-                    EqualHeuristic {
-                        h1: h.as_seed_heuristic(),
-                        h2: h,
-                    },
-                );
+                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
             }
         }
     }
@@ -82,16 +64,7 @@ fn exact_pruning() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(
-                    &a,
-                    &b,
-                    &alph,
-                    stats,
-                    EqualHeuristic {
-                        h1: h.as_seed_heuristic(),
-                        h2: h,
-                    },
-                );
+                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
             }
         }
     }
@@ -114,16 +87,7 @@ fn inexact_pruning() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(
-                    &a,
-                    &b,
-                    &alph,
-                    stats,
-                    EqualHeuristic {
-                        h1: h.as_seed_heuristic(),
-                        h2: h,
-                    },
-                );
+                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
             }
         }
     }
@@ -146,16 +110,7 @@ fn incremental_pruning_bruteforce() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(
-                    &a,
-                    &b,
-                    &alph,
-                    stats,
-                    EqualHeuristic {
-                        h1: h.as_bruteforce_contours(),
-                        h2: h,
-                    },
-                );
+                align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
             }
         }
     }
@@ -178,16 +133,7 @@ fn incremental_pruning_naive_naive() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(
-                    &a,
-                    &b,
-                    &alph,
-                    stats,
-                    EqualHeuristic {
-                        h1: h.as_bruteforce_contours(),
-                        h2: h,
-                    },
-                );
+                align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
             }
         }
     }
@@ -273,19 +219,10 @@ fn exact_pruning_bad_case() {
         c: PhantomData::<BruteForceContours>,
         ..GapSeedHeuristic::default()
     };
-    let (a, b, alph, stats) = setup(n, e);
+    let (_a, _b, alph, stats) = setup(n, e);
     let a = "TCGTCCCAACTGCGTGCAGACGTCCTGAGGACGTGGTCGCGACGCTATAGGCAGGGTACATCGAGATGCCGCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
     let b = "TCAGTCCCACACTCCTAGCAGACGTTCCTGCAGGACAGTGGACGCTGACGCCTATAGGAGAGGCATCGAGGTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
     println!("TESTING n {} e {}: {:?}", n, e, h);
     println!("{}\n{}", to_string(&a), to_string(&b));
-    align(
-        &a,
-        &b,
-        &alph,
-        stats,
-        EqualHeuristic {
-            h1: h.as_seed_heuristic(),
-            h2: h,
-        },
-    );
+    align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
 }

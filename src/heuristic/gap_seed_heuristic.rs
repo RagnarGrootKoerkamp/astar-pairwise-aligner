@@ -23,28 +23,41 @@ pub struct GapSeedHeuristic<C: Contours> {
 }
 
 impl<C: Contours> GapSeedHeuristic<C> {
-    pub fn as_seed_heuristic(&self) -> SeedHeuristic<GapCost> {
-        SeedHeuristic {
-            match_config: self.match_config,
-            distance_function: GapCost,
-            pruning: self.pruning,
-            prune_fraction: self.prune_fraction,
+    pub fn equal_to_seed_heuristic(&self) -> EqualHeuristic<SeedHeuristic<GapCost>, Self> {
+        EqualHeuristic {
+            h1: SeedHeuristic {
+                match_config: self.match_config,
+                distance_function: GapCost,
+                pruning: self.pruning,
+                prune_fraction: self.prune_fraction,
+            },
+            h2: *self,
         }
     }
-    pub fn as_bruteforce_contours(&self) -> GapSeedHeuristic<BruteForceContours> {
-        GapSeedHeuristic {
-            match_config: self.match_config,
-            pruning: self.pruning,
-            prune_fraction: self.prune_fraction,
-            c: Default::default(),
+    pub fn equal_to_bruteforce_contours(
+        &self,
+    ) -> EqualHeuristic<GapSeedHeuristic<BruteForceContours>, Self> {
+        EqualHeuristic {
+            h1: GapSeedHeuristic {
+                match_config: self.match_config,
+                pruning: self.pruning,
+                prune_fraction: self.prune_fraction,
+                c: Default::default(),
+            },
+            h2: *self,
         }
     }
-    pub fn as_naive_brutefore_contour(&self) -> GapSeedHeuristic<NaiveContours<BruteForceContour>> {
-        GapSeedHeuristic {
-            match_config: self.match_config,
-            pruning: self.pruning,
-            prune_fraction: self.prune_fraction,
-            c: Default::default(),
+    pub fn equal_to_naive_brutefore_contour(
+        &self,
+    ) -> EqualHeuristic<GapSeedHeuristic<NaiveContours<BruteForceContour>>, Self> {
+        EqualHeuristic {
+            h1: GapSeedHeuristic {
+                match_config: self.match_config,
+                pruning: self.pruning,
+                prune_fraction: self.prune_fraction,
+                c: Default::default(),
+            },
+            h2: *self,
         }
     }
 }
@@ -171,7 +184,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         };
         h.transform_target = h.transform(h.target);
         h.build();
-        //h.print(true, false);
+        h.print(true, false);
         h.contours.print_stats();
         h
     }
@@ -297,11 +310,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             return;
         }
 
+        println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
         let start = time::Instant::now();
-        //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
         self.contours.prune(self.transform(pos));
         self.pruning_duration += start.elapsed();
-        //self.print(false, false);
+        self.print(false, false);
     }
 
     fn stats(&self) -> HeuristicStats {

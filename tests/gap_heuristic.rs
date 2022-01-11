@@ -21,7 +21,7 @@ fn contour_graph() {
         let l = 7;
         let max_match_cost = 1;
         let pruning = false;
-        let h_fast = GapSeedHeuristic {
+        let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(l),
                 max_match_cost,
@@ -31,19 +31,9 @@ fn contour_graph() {
             c: PhantomData::<BruteForceContours>,
             ..GapSeedHeuristic::default()
         };
-        let h_slow = h_fast.as_seed_heuristic();
         let (_, _, alph, stats) = setup(0, 0.0);
 
-        align(
-            &a,
-            &b,
-            &alph,
-            stats,
-            EqualHeuristic {
-                h1: h_slow,
-                h2: h_fast,
-            },
-        );
+        align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
     }
 }
 
