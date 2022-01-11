@@ -5,7 +5,7 @@ use strum_macros::EnumString;
 
 #[derive(EnumString, Default)]
 #[strum(ascii_case_insensitive)]
-enum Cost {
+pub enum Cost {
     Zero,
     #[default]
     Gap,
@@ -16,7 +16,7 @@ enum Cost {
 
 #[derive(EnumString, Default)]
 #[strum(ascii_case_insensitive)]
-enum Contour {
+pub enum Contour {
     BruteForce,
     #[default]
     LogQuery,
@@ -25,7 +25,7 @@ enum Contour {
 
 #[derive(EnumString)]
 #[strum(ascii_case_insensitive)]
-enum Contours {
+pub enum Contours {
     BruteForce,
     Naive,
 }
@@ -38,7 +38,7 @@ impl Default for Contours {
 
 #[derive(EnumString)]
 #[strum(ascii_case_insensitive)]
-enum Algorithm {
+pub enum Algorithm {
     // The basic n^2 DP
     Naive,
     // Naive, but with SIMD
