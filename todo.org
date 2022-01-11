@@ -18,6 +18,9 @@ inexact matches next to exact matches.
 ** TODO Do we need some special consideration for seeds exactly
 Potentially the same as above. There used to be code for this but it was not
 re-implemented for Contours.
+** TODO NaiveContours sometimes drops values by more than max_len.
+Partially fixed by replacing the pruning of the single root point by also
+pruning silently pruned potential new dominant points in the layer.
 
 * Statistics
 ** TODO avg total estimated distance
@@ -39,6 +42,8 @@ re-implemented for Contours.
 ** TODO Colour ~print_heuristic~ by contours instead of by parent.
 ** TODO Consider using Intrusive Collections for storing contours.
 ** TODO Check code coverage to see which edge cases are never hit.
+** TODO Extract tests to /tests.
+** TODO Replace ~Sequence: Vec<u8>~ by ~&[u8]~.
 
 * Extensions
 ** MSA (delayed; pruning complications)
