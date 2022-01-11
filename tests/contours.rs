@@ -12,7 +12,7 @@ fn exact_no_pruning() {
                         ..MatchConfig::default()
                     },
                     pruning: false,
-                    c: PhantomData::<NaiveContours<BruteForceContour>>,
+                    c: PhantomData::<BruteForceContours>,
                     ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
@@ -44,7 +44,7 @@ fn inexact_no_pruning() {
                         ..MatchConfig::default()
                     },
                     pruning: false,
-                    c: PhantomData::<BruteforceContours>,
+                    c: PhantomData::<BruteForceContours>,
                     ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
@@ -77,7 +77,7 @@ fn exact_pruning() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    c: PhantomData::<BruteforceContours>,
+                    c: PhantomData::<BruteForceContours>,
                     ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
@@ -109,7 +109,7 @@ fn inexact_pruning() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    c: PhantomData::<BruteforceContours>,
+                    c: PhantomData::<BruteForceContours>,
                     ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
@@ -142,7 +142,7 @@ fn incremental_pruning_bruteforce() {
                     },
                     pruning: true,
                     incremental_pruning: true,
-                    c: PhantomData::<BruteforceContours>,
+                    c: PhantomData::<BruteForceContours>,
                     ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);

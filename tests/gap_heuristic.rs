@@ -14,37 +14,72 @@ fn contour_graph() {
         // Fails with alternating [(4,0),(7,1)] seeds on something to do with leftover_at_end.
         ("GAAGGGTAACAGTGCTCG", "AGGGTAACAGTGCTCGTA"),
     ];
-    for build_fast in [false, true] {
-        for (a, b) in tests {
-            println!("TEST:\n{}\n{}", a, b);
-            let a = a.as_bytes().to_vec();
-            let b = b.as_bytes().to_vec();
-            let l = 7;
-            let max_match_cost = 1;
-            let pruning = false;
-            let h_slow = GapSeedHeuristic {
-                match_config: MatchConfig {
-                    length: Fixed(l),
-                    max_match_cost,
-                    ..MatchConfig::default()
-                },
-                pruning,
-                c: PhantomData::<NaiveContours<BruteForceContour>>,
-                ..GapSeedHeuristic::default()
-            };
-            let h_fast = GapSeedHeuristic {
-                match_config: MatchConfig {
-                    length: Fixed(l),
-                    max_match_cost,
-                    ..MatchConfig::default()
-                },
-                pruning,
-                c: PhantomData::<NaiveContours<BruteForceContour>>,
-                ..GapSeedHeuristic::default()
-            };
+    for (a, b) in tests {
+        println!("TEST:\n{}\n{}", a, b);
+        let a = a.as_bytes().to_vec();
+        let b = b.as_bytes().to_vec();
+        let l = 7;
+        let max_match_cost = 1;
+        let pruning = false;
+        let h_fast = GapSeedHeuristic {
+            match_config: MatchConfig {
+                length: Fixed(l),
+                max_match_cost,
+                ..MatchConfig::default()
+            },
+            pruning,
+            c: PhantomData::<BruteForceContours>,
+            ..GapSeedHeuristic::default()
+        };
+        let h_slow = h_fast.as_seed_heuristic();
+        let (_, _, alph, stats) = setup(0, 0.0);
 
-            let (_, _, alph, stats) = setup(0, 0.0);
+        align(
+            &a,
+            &b,
+            &alph,
+            stats,
+            EqualHeuristic {
+                h1: h_slow,
+                h2: h_fast,
+            },
+        );
+    }
+}
 
+#[test]
+fn pruning_and_inexact_matches() {
+    let pruning = true;
+    let (l, max_match_cost) = (7, 1);
+    for do_transform in [false, true] {
+        let h_fast = GapSeedHeuristic {
+            match_config: MatchConfig {
+                length: Fixed(l),
+                max_match_cost,
+                ..MatchConfig::default()
+            },
+            pruning,
+            c: PhantomData::<NaiveContours<BruteForceContour>>,
+            ..GapSeedHeuristic::default()
+        };
+        let h_slow = GapSeedHeuristic {
+            incremental_pruning: false,
+            ..h_fast
+        };
+
+        let n = 1000;
+        let e: f32 = 0.3;
+        let (a, b, alph, stats) = setup(n, e);
+        let start = 951;
+        let end = 986;
+        let a = &a[start..end].to_vec();
+        let b = &b[start..end].to_vec();
+
+        println!("TESTING: {:?}", h_fast);
+        println!("{}\n{}", to_string(a), to_string(b));
+
+        if do_transform {
+            println!("ALIGN");
             align(
                 &a,
                 &b,
@@ -55,70 +90,6 @@ fn contour_graph() {
                     h2: h_fast,
                 },
             );
-        }
-    }
-}
-#[test]
-fn pruning_and_inexact_matches() {
-    let pruning = true;
-    let (l, max_match_cost) = (7, 1);
-    for do_transform in [false, true] {
-        for build_fast in [false, true] {
-            let h_slow = GapSeedHeuristic {
-                match_config: MatchConfig {
-                    length: Fixed(l),
-                    max_match_cost,
-                    ..MatchConfig::default()
-                },
-                pruning,
-                c: PhantomData::<NaiveContours<BruteForceContour>>,
-                ..GapSeedHeuristic::default()
-            };
-            let h_fast = GapSeedHeuristic {
-                match_config: MatchConfig {
-                    length: Fixed(l),
-                    max_match_cost,
-                    ..MatchConfig::default()
-                },
-                pruning,
-                c: PhantomData::<NaiveContours<BruteForceContour>>,
-                ..GapSeedHeuristic::default()
-            };
-
-            let n = 1000;
-            let e: f32 = 0.3;
-            let (a, b, alph, stats) = setup(n, e);
-            let start = 951;
-            let end = 986;
-            let a = &a[start..end].to_vec();
-            let b = &b[start..end].to_vec();
-            // let a = &"GAAGGGTAACAGTGCTCG".as_bytes().to_vec();
-            // let b = &"AGGGTAACAGTGCTCGTA".as_bytes().to_vec();
-            // let (a, b) = (
-            //     &"GATCGCAGCAGAACTGTGCCCATTTTGTGCCT".as_bytes().to_vec(),
-            //     &"CGGATCGGCGCAGAACATGTGGTCCAATTTTGCTGCC".as_bytes().to_vec(),
-            // );
-            // let (a, b) = (
-            //     &"GCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec(),
-            //     &"GTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec(),
-            // );
-
-            println!("TESTING: {:?}", h_fast);
-            println!("{}\n{}", to_string(a), to_string(b));
-
-            if do_transform {
-                println!("ALIGN");
-                align(
-                    &a,
-                    &b,
-                    &alph,
-                    stats,
-                    EqualHeuristic {
-                        h1: h_slow,
-                        h2: h_fast,
-                    },
-                );
-            }
         }
     }
 }

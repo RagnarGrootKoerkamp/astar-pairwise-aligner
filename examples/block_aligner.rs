@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use pairwise_aligner::{prelude::*, *};
+use pairwise_aligner::prelude::*;
 
 // Compare with block aligner:
 // They do 10k pairs of length 10k and distance 10% in 2s!
