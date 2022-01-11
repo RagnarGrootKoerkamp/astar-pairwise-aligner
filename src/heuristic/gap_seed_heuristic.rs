@@ -23,17 +23,22 @@ pub struct GapSeedHeuristic<C: Contours> {
 }
 
 impl<C: Contours> GapSeedHeuristic<C> {
+    pub fn to_seed_heuristic(&self) -> SeedHeuristic<GapCost> {
+        SeedHeuristic {
+            match_config: self.match_config,
+            distance_function: GapCost,
+            pruning: self.pruning,
+            prune_fraction: self.prune_fraction,
+        }
+    }
+
     pub fn equal_to_seed_heuristic(&self) -> EqualHeuristic<SeedHeuristic<GapCost>, Self> {
         EqualHeuristic {
-            h1: SeedHeuristic {
-                match_config: self.match_config,
-                distance_function: GapCost,
-                pruning: self.pruning,
-                prune_fraction: self.prune_fraction,
-            },
+            h1: self.to_seed_heuristic(),
             h2: *self,
         }
     }
+
     pub fn equal_to_bruteforce_contours(
         &self,
     ) -> EqualHeuristic<GapSeedHeuristic<BruteForceContours>, Self> {
@@ -128,7 +133,6 @@ pub struct GapSeedHeuristicI<C: Contours> {
     target: Pos,
 
     pub seed_matches: SeedMatches,
-    // The lowest cost match starting at each position.
 
     // For partial pruning.
     num_tried_pruned: usize,
@@ -262,6 +266,26 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             pos,
             self.transform(pos)
         );
+
+        // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
+        {
+            // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
+            let cur_val = self.h(Node(pos, ()));
+            if pos.1 > 0 {
+                let nb_val = self.h(Node(Pos(pos.0, pos.1 - 1), ()));
+                assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
+                if cur_val > nb_val {
+                    return;
+                }
+            }
+            if pos.1 < self.target.1 {
+                let nb_val = self.h(Node(Pos(pos.0, pos.1 + 1), ()));
+                assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
+                if cur_val > nb_val {
+                    return;
+                }
+            }
+        }
 
         self.num_tried_pruned += 1;
         if self.num_actual_pruned as f32

@@ -36,6 +36,7 @@ This test makes sure that SeedHeuristic<Gap> does the same:
 Instead of taking max(gap distance, potential distance), in cases when gap >
 potential, this parent should be skipped completely.
 ** TODO Double expanding start of seeds
+*** Broken solution
 Disabled greedy matching. Removing multiple types of not-best paths can lead
 to deletion of all best paths, since we don't have a strict inequality.
 In particular, greedy matching can lead to a non-consistent heuristic.
@@ -47,6 +48,17 @@ Solutions:
   would lead to an inconsistent heuristic.
 - Argue that the current situation is fine. That may or may not be true, and
   likely depends on the order in which the A* breaks ties between equal $f$ values.
+*** Good solution
+Re-enabled greedy matching -- that was not the problem.
+
+Instead, we have to make sure that even after pruning $h$ remains consistent.
+If we have a situation where we prune a position with $h$ larger than a
+neighbour above or below, after pruning this difference will be at least $2$,
+which is not consistent.
+
+As a fix, both ~SeedHeuristic~ and ~GapSeedHeuristic~ now check whether the
+current $h$ value is larger than any of the neighbours above/below, and if so,
+skip pruning.
 
 * Statistics
 ** TODO avg total estimated distance
@@ -71,6 +83,8 @@ Solutions:
 ** TODO Extract tests to /tests.
 ** TODO Replace ~Sequence: Vec<u8>~ by ~&[u8]~.
 ** TODO Test if ~dyn Contour~ is as fast as ~C: Contour~, and if so simplify the code this way.
+Same for Heuristic. Compilation is very slow after enumerating over all possible
+implementations in ~algorithms.rs~.
 
 * Tests
 ** TODO Test all pairs with n <= 6

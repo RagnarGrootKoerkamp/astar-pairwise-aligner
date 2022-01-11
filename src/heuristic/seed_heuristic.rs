@@ -214,6 +214,7 @@ where
         if !self.matches.is_start_of_seed(pos) {
             return;
         }
+
         // When we don't ensure consistency, starts of seeds should still only be expanded once.
         assert!(
             self.expanded.insert(pos),
@@ -228,6 +229,26 @@ where
             return;
         }
         self.num_actual_pruned += 1;
+
+        // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
+        {
+            // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
+            let cur_val = self.h(Node(pos, ()));
+            if pos.1 > 0 {
+                let nb_val = self.h(Node(Pos(pos.0, pos.1 - 1), ()));
+                assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
+                if cur_val > nb_val {
+                    return;
+                }
+            }
+            if pos.1 < self.target.1 {
+                let nb_val = self.h(Node(Pos(pos.0, pos.1 + 1), ()));
+                assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
+                if cur_val > nb_val {
+                    return;
+                }
+            }
+        }
 
         //Prune the current position.
         self.pruned_positions.insert(pos);
