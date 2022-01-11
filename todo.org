@@ -10,17 +10,23 @@ states. Consistent when $f$ never decreases over edges.
 ** TODO Proof that pruning heuristic yields a consistent pruned heuristic
 
 * Failing assertions / Bugs
-** TODO Pruning may result in double expansion of matches
+** DONE Pruning may result in double expansion of matches
+CLOSED: [2022-01-11 Tue 14:21]
 We have to make sure that we only prune when we found the shortest path to a
 node. Currently this assertion fails, probably because of issues around pruning
 inexact matches next to exact matches.
+
+It seems that this is not an issue anymore when retrying on outdated heuristic values.
+
 ** TODO GappedSeedHeuristic differs from SeedHeuristic in some edge cases
-** TODO Do we need some special consideration for seeds exactly
+** TODO Do we need some special consideration for seeds exactly on the edge of the cone region?
 Potentially the same as above. There used to be code for this but it was not
 re-implemented for Contours.
-** TODO NaiveContours sometimes drops values by more than max_len.
-Partially fixed by replacing the pruning of the single root point by also
+** DONE NaiveContours sometimes drops values by more than max_len.
+CLOSED: [2022-01-11 Tue 14:23]
+Fixed by replacing the pruning of the single root point by also
 pruning silently pruned potential new dominant points in the layer.
+
 
 * Statistics
 ** TODO avg total estimated distance
