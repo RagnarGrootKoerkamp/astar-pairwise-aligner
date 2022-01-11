@@ -119,7 +119,7 @@ fn incremental_pruning_bruteforce() {
 #[test]
 fn incremental_pruning_naive_naive() {
     for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
-        for n in [40, 100, 200, 500, 1000] {
+        for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
@@ -203,26 +203,4 @@ fn incremental_pruning_naive_set() {
             }
         }
     }
-}
-
-#[test]
-fn exact_pruning_bad_case() {
-    let (l, m, n, e, pruning, prune_fraction) = (4, 0, 100, 0.3, true, 1.0);
-    let h = GapSeedHeuristic {
-        match_config: MatchConfig {
-            length: Fixed(l),
-            max_match_cost: m,
-            ..MatchConfig::default()
-        },
-        pruning,
-        prune_fraction,
-        c: PhantomData::<BruteForceContours>,
-        ..GapSeedHeuristic::default()
-    };
-    let (_a, _b, alph, stats) = setup(n, e);
-    let a = "TCGTCCCAACTGCGTGCAGACGTCCTGAGGACGTGGTCGCGACGCTATAGGCAGGGTACATCGAGATGCCGCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
-    let b = "TCAGTCCCACACTCCTAGCAGACGTTCCTGCAGGACAGTGGACGCTGACGCCTATAGGAGAGGCATCGAGGTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
-    println!("TESTING n {} e {}: {:?}", n, e, h);
-    println!("{}\n{}", to_string(&a), to_string(&b));
-    align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
 }

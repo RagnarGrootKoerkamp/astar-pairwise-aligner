@@ -127,6 +127,7 @@ where
 
     // A separate function that can be reused with pruning.
     fn build(&mut self) {
+        self.h_at_seeds.clear();
         self.h_at_seeds.insert(self.target, 0);
         for Match {
             start,
@@ -192,14 +193,15 @@ where
         }
 
         // Check that we don't double expand start-of-seed states.
-        if self.matches.is_start_of_seed(pos) {
-            // When we don't ensure consistency, starts of seeds should still only be expanded once.
-            assert!(
-                self.expanded.insert(pos),
-                "Double expanded start of seed {:?}",
-                pos
-            );
+        if !self.matches.is_start_of_seed(pos) {
+            return;
         }
+        // When we don't ensure consistency, starts of seeds should still only be expanded once.
+        assert!(
+            self.expanded.insert(pos),
+            "Double expanded start of seed {:?}",
+            pos
+        );
 
         self.num_tried_pruned += 1;
         if self.num_actual_pruned as f32
@@ -216,9 +218,11 @@ where
             return;
         }
 
+        //println!("PRUNE SEED HEURISTIC: {}", pos);
         let start = time::Instant::now();
         self.build();
         self.pruning_duration += start.elapsed();
+        //self.print(false, false);
     }
 
     fn print(&self, _transform: bool, wait_for_user: bool) {
