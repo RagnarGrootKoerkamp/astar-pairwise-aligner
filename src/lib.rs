@@ -1,6 +1,7 @@
 #![feature(
     test,
     iter_intersperse,
+    derive_default_enum,
     is_sorted,
     exclusive_range_pattern,
     associated_type_defaults,
@@ -10,9 +11,10 @@
 )]
 
 pub mod astar;
-pub mod bucket_heap;
+pub mod bucket_queue;
 pub mod contour;
 //pub mod contour_graph;
+pub mod algorithms;
 pub mod diagonal_map;
 pub mod graph;
 pub mod heuristic;
@@ -45,13 +47,13 @@ mod fx_hash_map {
 }
 
 // Include one of these heap implementations.
-mod binary_heap_impl {
+mod binary_queue_impl {
     #[allow(dead_code)]
     pub use std::collections::BinaryHeap as Heap;
 }
-mod bucket_heap_impl {
+mod bucket_queue_impl {
     #[allow(dead_code)]
-    pub use crate::bucket_heap::BucketHeap as Heap;
+    pub use crate::bucket_queue::BucketQueue as Heap;
 }
 
 pub mod prelude {
@@ -60,9 +62,10 @@ pub mod prelude {
 
     pub use super::fx_hash_map::*;
 
-    pub(crate) use super::bucket_heap_impl as heap;
+    pub(crate) use super::bucket_queue_impl as heap;
 
     pub use super::*;
+    pub use crate::algorithms::*;
     pub use crate::contour::*;
     pub use crate::graph::*;
     pub use crate::heuristic::*;
