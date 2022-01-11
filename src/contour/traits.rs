@@ -42,6 +42,7 @@ pub trait Contour: Default + Debug {
 pub struct Arrow {
     pub start: Pos,
     pub end: Pos,
+    // ~ discount
     pub len: usize,
 }
 

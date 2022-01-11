@@ -33,7 +33,7 @@ impl Contour for BruteForceContour {
         return true;
     }
 
-    fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, mut f: &mut F) -> bool {
+    fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, f: &mut F) -> bool {
         self.points.drain_filter(|&mut s| f(s)).count() > 0
     }
 
