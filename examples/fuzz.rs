@@ -1,28 +1,25 @@
 use pairwise_aligner::prelude::*;
 
 fn main() {
-    let n = 1000;
     let mut r = 0;
     loop {
-        let e = 0.20;
-        let l = 7;
-        let max_match_cost = 1;
-        let pruning = true;
-
+        let (l, m, n, e, pruning, prune_fraction) = (4, 0, 16, 0.3, true, 1.0);
         let h = GapSeedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(l),
-                max_match_cost,
+                max_match_cost: m,
                 ..MatchConfig::default()
             },
             pruning,
-            prune_fraction: 1.0,
-            c: PhantomData::<NaiveContours<LogQueryContour>>,
+            prune_fraction,
+            c: PhantomData::<BruteForceContours>,
             ..GapSeedHeuristic::default()
-        };
+        }
+        .equal_to_seed_heuristic();
 
         println!("n={} r={}", n, r);
         let (a, b, alphabet, stats) = setup_with_seed(n, e, r);
+        println!("{}\n{}", to_string(&a), to_string(&b));
         let result = align(&a, &b, &alphabet, stats, h);
         result.print();
         r += 1;
