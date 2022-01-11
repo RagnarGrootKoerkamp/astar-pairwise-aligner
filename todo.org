@@ -50,6 +50,8 @@ pruning silently pruned potential new dominant points in the layer.
 ** TODO Check code coverage to see which edge cases are never hit.
 ** TODO Extract tests to /tests.
 ** TODO Replace ~Sequence: Vec<u8>~ by ~&[u8]~.
+* Tests
+** TODO Test all pairs with n <= 6
 
 * Extensions
 ** MSA (delayed; pruning complications)

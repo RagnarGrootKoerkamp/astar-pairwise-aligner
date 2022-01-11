@@ -141,7 +141,6 @@ fn incremental_pruning_bruteforce() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    incremental_pruning: true,
                     c: PhantomData::<BruteForceContours>,
                     ..GapSeedHeuristic::default()
                 };
@@ -153,10 +152,7 @@ fn incremental_pruning_bruteforce() {
                     &alph,
                     stats,
                     EqualHeuristic {
-                        h1: GapSeedHeuristic {
-                            incremental_pruning: false,
-                            ..h
-                        },
+                        h1: h.as_bruteforce_contours(),
                         h2: h,
                     },
                 );
@@ -177,7 +173,6 @@ fn incremental_pruning_naive_naive() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    incremental_pruning: true,
                     c: PhantomData::<NaiveContours<BruteForceContour>>,
                     ..GapSeedHeuristic::default()
                 };
@@ -189,10 +184,7 @@ fn incremental_pruning_naive_naive() {
                     &alph,
                     stats,
                     EqualHeuristic {
-                        h1: GapSeedHeuristic {
-                            incremental_pruning: false,
-                            ..h
-                        },
+                        h1: h.as_bruteforce_contours(),
                         h2: h,
                     },
                 );
@@ -213,7 +205,6 @@ fn incremental_pruning_naive_log() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    incremental_pruning: true,
                     c: PhantomData::<NaiveContours<LogQueryContour>>,
                     ..GapSeedHeuristic::default()
                 };
@@ -224,7 +215,6 @@ fn incremental_pruning_naive_log() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    incremental_pruning: true,
                     c: PhantomData::<NaiveContours<BruteForceContour>>,
                     ..GapSeedHeuristic::default()
                 };
@@ -248,7 +238,6 @@ fn incremental_pruning_naive_set() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    incremental_pruning: true,
                     c: PhantomData::<NaiveContours<SetContour>>,
                     ..GapSeedHeuristic::default()
                 };
@@ -259,7 +248,6 @@ fn incremental_pruning_naive_set() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
-                    incremental_pruning: true,
                     c: PhantomData::<NaiveContours<BruteForceContour>>,
                     ..GapSeedHeuristic::default()
                 };
@@ -269,4 +257,35 @@ fn incremental_pruning_naive_set() {
             }
         }
     }
+}
+
+#[test]
+fn exact_pruning_bad_case() {
+    let (l, m, n, e, pruning, prune_fraction) = (4, 0, 100, 0.3, true, 1.0);
+    let h = GapSeedHeuristic {
+        match_config: MatchConfig {
+            length: Fixed(l),
+            max_match_cost: m,
+            ..MatchConfig::default()
+        },
+        pruning,
+        prune_fraction,
+        c: PhantomData::<BruteForceContours>,
+        ..GapSeedHeuristic::default()
+    };
+    let (a, b, alph, stats) = setup(n, e);
+    let a = "TCGTCCCAACTGCGTGCAGACGTCCTGAGGACGTGGTCGCGACGCTATAGGCAGGGTACATCGAGATGCCGCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
+    let b = "TCAGTCCCACACTCCTAGCAGACGTTCCTGCAGGACAGTGGACGCTGACGCCTATAGGAGAGGCATCGAGGTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
+    println!("TESTING n {} e {}: {:?}", n, e, h);
+    println!("{}\n{}", to_string(&a), to_string(&b));
+    align(
+        &a,
+        &b,
+        &alph,
+        stats,
+        EqualHeuristic {
+            h1: h.as_seed_heuristic(),
+            h2: h,
+        },
+    );
 }

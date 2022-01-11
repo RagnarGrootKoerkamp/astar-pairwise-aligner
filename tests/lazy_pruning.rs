@@ -28,7 +28,6 @@ fn lazy_pruning() {
         pruning,
         prune_fraction: 0.5,
         c: PhantomData::<NaiveContours<LogQueryContour>>,
-        incremental_pruning: false,
         ..GapSeedHeuristic::default()
     };
     let h = EqualHeuristic {

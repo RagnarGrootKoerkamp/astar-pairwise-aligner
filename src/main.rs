@@ -113,7 +113,6 @@ fn run(a: &Sequence, b: &Sequence, args: &Cli) {
                     },
                     pruning: !args.no_prune,
                     prune_fraction: args.prune_fraction,
-                    incremental_pruning: !args.no_incremental_pruning,
                     c: PhantomData::<NaiveContours<BruteForceContour>>,
                 };
                 println!("Heuristic:\n{:?}", heuristic);
@@ -175,9 +174,6 @@ struct Cli {
 
     #[structopt(long)]
     no_prune: bool,
-
-    #[structopt(long)]
-    no_incremental_pruning: bool,
 
     #[structopt(long, default_value = "0.5")]
     prune_fraction: f32,
