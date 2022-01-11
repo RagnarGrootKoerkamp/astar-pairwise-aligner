@@ -1,12 +1,9 @@
-use pairwise_aligner::{
-    prelude::{equal_contour::EqualContour, *},
-    *,
-};
+use pairwise_aligner::prelude::*;
 
 fn main() {
     let n = 100000;
     let e = 0.20;
-    let l = 8;
+    let l = 7;
     let max_match_cost = 1;
     let pruning = true;
 

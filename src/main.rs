@@ -82,7 +82,7 @@ struct Cli {
     #[structopt(long)]
     no_incremental_pruning: bool,
 
-    #[structopt(long, default_value = "1.0")]
+    #[structopt(long, default_value = "0.5")]
     prune_fraction: f32,
 }
 
@@ -112,8 +112,12 @@ fn main() {
         incremental_pruning: !args.no_incremental_pruning,
         c: PhantomData::<NaiveContours<BruteForceContour>>,
     };
+    let alphabet = Alphabet::new(b"ACTG");
+
+    println!("Heuristic:\n{:?}", heuristic);
 
     for (a, b) in pairs {
+        println!("{}\n{}", to_string(&a), to_string(&b));
         let sequence_stats = SequenceStats {
             len_a: a.len(),
             len_b: b.len(),
@@ -121,6 +125,6 @@ fn main() {
             source: Source::Extern,
         };
 
-        align(&a, &b, &alphabet(), sequence_stats, heuristic);
+        align(&a, &b, &alphabet, sequence_stats, heuristic);
     }
 }
