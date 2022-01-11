@@ -56,13 +56,13 @@ impl Contour for BruteForceContour {
 /// A bruteforce Contours implementation answering queries in O(r), and pruning
 /// in O(r^2) by rebuilding the entire datastructure.
 #[derive(Default, Debug)]
-pub struct BruteforceContours {
+pub struct BruteForceContours {
     valued_arrows: Vec<(Arrow, usize)>,
 }
 
-impl Contours for BruteforceContours {
+impl Contours for BruteForceContours {
     fn new(arrows: impl IntoIterator<Item = Arrow>, _max_len: usize) -> Self {
-        let mut this = BruteforceContours {
+        let mut this = BruteForceContours {
             valued_arrows: Vec::default(),
         };
         for arrow in arrows {

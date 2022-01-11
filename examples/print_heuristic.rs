@@ -1,4 +1,4 @@
-use pairwise_aligner::{prelude::*, *};
+use pairwise_aligner::prelude::*;
 
 fn main() {
     let pruning = false;
