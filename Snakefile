@@ -1,10 +1,11 @@
 ns = [100, 1000, 10000, 100000, 1000000]
-N = 10000000
+N = 1000000
 es = [0.01, 0.05, 0.20]
-algs = ["pa", "edlib"]
+algs = ['pa', 'edlib', 'wfa']
 
 pairwise_aligner_binary="target/release/pairwise-aligner"
 edlib_binary="../edlib/build/bin/edlib-aligner"
+wfa_binary="../wfa/bin/align_benchmark"
 
 # Map of parameters to use given length and edit distance.
 PARAMS = {
@@ -72,15 +73,28 @@ rule run_edlib:
         # -s: Silent / no output
         '{edlib_binary} {input[0]} -p -s'
 
+rule run_wfa:
+    input:
+        "data/input/{cnt}x-n{n}-e{e}.seq",
+        wfa_binary
+    benchmark:
+        "data/runs/{cnt}x-n{n}-e{e}.wfa.bench"
+    params:
+        l = lambda w: PARAMS[(int(w.n),float(w.e))]
+    shell:
+        # -p: Return alignment
+        # -s: Silent / no output
+        '{wfa_binary} -i {input[0]} -a edit-dp || true'
 
-# Collect all .benchfiles into a single csv.
+
+# Collect all .benchfiles into a single tsv.
 headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load"
 prefix       = "{alg}\t{n[1]}\t{n[0]}\t{e}"
 rule benchmark:
     input:
         file = expand("data/runs/{n[1]}x-n{n[0]}-e{e}.{alg}.bench", n=[(n, N//n) for n in ns], e=es, alg=algs)
     output:
-        f"data/benchmark_{N}.csv"
+        f"data/benchmark_{N}.tsv"
     params:
         prefix = expand(prefix, n=[(n, N//n) for n in ns], e=es, alg=algs)
     shell:
