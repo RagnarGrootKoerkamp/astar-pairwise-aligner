@@ -10,6 +10,9 @@ states. Consistent when $f$ never decreases over edges.
 ** TODO Proof that pruning heuristic yields a consistent pruned heuristic
 
 * Failing assertions / Bugs
+** TODO Investigate inconsistent heuristic before pruning
+For n=300000 e=0.2, the assertion failed at least once.
+Also found counterexamples for n=100.
 ** DONE Pruning may result in double expansion of matches
 CLOSED: [2022-01-11 Tue 14:21]
 We have to make sure that we only prune when we found the shortest path to a
@@ -35,7 +38,8 @@ In the GapSeedHeuristic, we never use a gap distance, unless it's towards the ta
 This test makes sure that SeedHeuristic<Gap> does the same:
 Instead of taking max(gap distance, potential distance), in cases when gap >
 potential, this parent should be skipped completely.
-** TODO Double expanding start of seeds
+** DONE Double expanding start of seeds
+CLOSED: [2022-01-12 Wed 11:28]
 *** Broken solution
 Disabled greedy matching. Removing multiple types of not-best paths can lead
 to deletion of all best paths, since we don't have a strict inequality.
