@@ -34,7 +34,7 @@ fn bicount_admissible() {
             ..SeedHeuristic::default()
         },
     );
-    assert!(r.heuristic_stats2.root_h <= r.answer_cost);
+    assert!(r.heuristic_stats2.root_h <= r.edit_distance);
 }
 
 // Failed because of match distance > 0

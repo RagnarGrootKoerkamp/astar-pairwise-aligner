@@ -110,7 +110,7 @@ fn small_test() {
         ..GapSeedHeuristic::default()
     };
     let r = align(&pattern, &text, &alphabet, stats, h);
-    assert!(r.heuristic_stats2.root_h <= r.answer_cost);
+    assert!(r.heuristic_stats2.root_h <= r.edit_distance);
 }
 
 /// This was broken because seed_heuristic didn't clear the previous state before rebuilding.
