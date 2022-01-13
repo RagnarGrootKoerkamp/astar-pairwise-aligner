@@ -22,7 +22,7 @@ pub struct GapSeedHeuristic<C: Contours> {
     pub c: PhantomData<C>,
 }
 
-impl<C: Contours> GapSeedHeuristic<C> {
+impl<C: 'static + Contours> GapSeedHeuristic<C> {
     pub fn to_seed_heuristic(&self) -> SeedHeuristic<GapCost> {
         SeedHeuristic {
             match_config: self.match_config,
@@ -68,12 +68,13 @@ impl<C: Contours> GapSeedHeuristic<C> {
 }
 
 // Manual implementations because C is not Debug, Clone, or Copy.
-impl<C: Contours> std::fmt::Debug for GapSeedHeuristic<C> {
+impl<C: 'static + Contours> std::fmt::Debug for GapSeedHeuristic<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GapSeedHeuristic")
             .field("match_config", &self.match_config)
             .field("pruning", &self.pruning)
             .field("prune_fraction", &self.prune_fraction)
+            .field("contours", &std::any::type_name::<C>())
             .finish()
     }
 }
@@ -100,7 +101,7 @@ impl<C: Contours> Default for GapSeedHeuristic<C> {
     }
 }
 
-impl<C: Contours> Heuristic for GapSeedHeuristic<C> {
+impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
     type Instance<'a> = GapSeedHeuristicI<C>;
 
     fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {

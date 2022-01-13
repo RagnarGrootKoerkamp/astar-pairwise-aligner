@@ -88,6 +88,7 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
     type Pos = Pos;
     type Data = ();
     type DiagonalMap<T> = DiagonalMap<T>;
+    //type DiagonalMap<T> = crate::prelude::HashMap<Pos, T>;
 
     #[inline]
     fn root(&self) -> Self::Pos {
@@ -166,6 +167,7 @@ where
     type Pos = Pos;
     type Data = H::IncrementalState;
     type DiagonalMap<T> = DiagonalMap<T>;
+    //type DiagonalMap<T> = crate::prelude::HashMap<Pos, T>;
 
     #[inline]
     fn root(&self) -> Self::Pos {
