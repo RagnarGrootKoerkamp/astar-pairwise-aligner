@@ -1,9 +1,8 @@
 #![feature(derive_default_enum)]
 use itertools::Itertools;
-use pairwise_aligner::{align, prelude::*, SequenceStats, Source};
-use std::{marker::PhantomData, path::PathBuf};
+use pairwise_aligner::prelude::*;
+use std::path::PathBuf;
 use structopt::StructOpt;
-use strum_macros::EnumString;
 
 #[derive(StructOpt)]
 struct Input {
