@@ -9,6 +9,11 @@ A lowerbound on the shortest path to the end, not using any already expanded
 states. Consistent when $f$ never decreases over edges.
 ** TODO Proof that pruning heuristic yields a consistent pruned heuristic
 
+* Analysis
+** TODO What is the expected deviation from the diagonal for a random sequence?
+Is this $sqrt(n)$ like in a drunkard's walk? Or is it less, because we know
+where we end and can use $j = (m/n) * i$ as prediction.
+
 * Failing assertions / Bugs
 ** TODO Investigate inconsistent heuristic before pruning
 For n=300000 e=0.2, the assertion failed at least once.
@@ -70,7 +75,8 @@ skip pruning.
 ** TODO contribution to h from matches and distance heuristic
 ** TODO heuristic time
 ** TODO number of skipped matches
-** TODO pruning time
+** DONE pruning time
+CLOSED: [2022-01-13 Thu 18:56]
 ** TODO Use ~explored/path-len~ for band, instead of ~explored/max(n,m)~
 
 * Code

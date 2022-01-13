@@ -88,7 +88,7 @@ rule run_wfa:
 
 
 # Collect all .benchfiles into a single tsv.
-headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load"
+headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load\tcpu_time"
 prefix       = "{alg}\t{n[1]}\t{n[0]}\t{e}"
 rule benchmark:
     input:
