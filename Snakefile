@@ -1,6 +1,5 @@
 ns = [100, 1000, 10000, 100000, 1000000]
-# FIXME: Bump this back to 10M
-N = 1000000
+N = 10000000
 es = [0.01, 0.05, 0.20]
 algs = ["pa", "edlib"]
 
@@ -57,7 +56,7 @@ rule run_pairwise_aligner:
     shell:
         # -l: k-mer length
         # --silent: Silent / no output
-        '{pairwise_aligner_library} -i {input[0]} -l {params.l} --silent'
+        '{pairwise_aligner_binary} -i {input[0]} -l {params.l} --silent'
 
 
 rule run_edlib:
@@ -72,6 +71,20 @@ rule run_edlib:
         # -p: Return alignment
         # -s: Silent / no output
         '{edlib_binary} {input[0]} -p -s'
+
+
+# Collect all .benchfiles into a single csv.
+headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load"
+prefix       = "{alg}\t{n[1]}\t{n[0]}\t{e}"
+rule benchmark:
+    input:
+        file = expand("data/runs/{n[1]}x-n{n[0]}-e{e}.{alg}.bench", n=[(n, N//n) for n in ns], e=es, alg=algs)
+    output:
+        f"data/benchmark_{N}.csv"
+    params:
+        prefix = expand(prefix, n=[(n, N//n) for n in ns], e=es, alg=algs)
+    shell:
+        "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) | sed '1s/^/{headers}\\n/' > {output}"
 
 
 # Visualizations
