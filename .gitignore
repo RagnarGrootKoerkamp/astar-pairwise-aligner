@@ -5,3 +5,6 @@
 /*.svg
 data
 /examples/test.rs
+/proof.tex
+/proof.pdf
+/.snakemake/
