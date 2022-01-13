@@ -92,10 +92,11 @@ use std::{
 
 use prelude::*;
 
-#[derive(Serialize, Clone, Copy, Debug)]
+#[derive(Serialize, Clone, Copy, Debug, Default)]
 pub enum Source {
     Uniform,
     Manual,
+    #[default]
     Extern,
 }
 impl fmt::Display for Source {
@@ -104,7 +105,7 @@ impl fmt::Display for Source {
     }
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Default)]
 pub struct SequenceStats {
     pub len_a: usize,
     pub len_b: usize,
@@ -112,13 +113,13 @@ pub struct SequenceStats {
     pub source: Source,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct TimingStats {
     pub precomputation: f32,
     pub astar: f32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct AStarStats {
     pub expanded: usize,
     pub explored: usize,
@@ -130,14 +131,14 @@ pub struct AStarStats {
     pub expanded_states: Vec<Pos>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct HeuristicStats2 {
     pub root_h: usize,
     pub path_matches: Option<usize>,
     pub explored_matches: Option<usize>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct AlignResult {
     pub input: SequenceStats,
     pub heuristic_params: HeuristicParams,
@@ -147,7 +148,7 @@ pub struct AlignResult {
     pub heuristic_stats: HeuristicStats,
 
     // Output
-    pub answer_cost: usize,
+    pub edit_distance: usize,
     #[serde(skip_serializing)]
     pub path: Vec<Pos>,
 }
@@ -244,7 +245,7 @@ impl AlignResult {
                 )
             }),
             (format!("{:>5}", "dist"), |this: &AlignResult| {
-                format!("{:>5}", this.answer_cost)
+                format!("{:>5}", this.edit_distance)
             }),
             (format!("{:>6}", "h(0,0)"), |this: &AlignResult| {
                 format!("{:>6}", this.heuristic_stats2.root_h)
@@ -291,7 +292,7 @@ impl AlignResult {
                 &self.astar,
                 &self.heuristic_stats2,
                 Distance {
-                    distance: self.answer_cost,
+                    distance: self.edit_distance,
                 },
             ))
             .unwrap();
@@ -456,7 +457,7 @@ where
             path_matches,
             explored_matches,
         },
-        answer_cost: distance,
+        edit_distance: distance,
         path,
     }
 }

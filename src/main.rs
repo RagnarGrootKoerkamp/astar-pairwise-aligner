@@ -28,6 +28,10 @@ struct Cli {
 
     #[structopt(flatten)]
     params: Params,
+
+    // Do not print anything, for benchmarking.
+    #[structopt(short, long)]
+    silent: bool,
 }
 
 fn main() {
@@ -35,24 +39,42 @@ fn main() {
 
     // Read the input
     if let Some(input) = &args.input.input {
-        let data = std::fs::read(&input).unwrap();
-        let pairs = data
-            .split(|c| *c == '\n' as u8)
-            .tuples()
-            .map(|(a, b)| {
-                assert!(a[0] == '>' as u8);
-                assert!(b[0] == '<' as u8);
-                (a[1..].to_vec(), b[1..].to_vec())
-            })
-            .collect_vec();
+        let files = if input.is_file() {
+            vec![input.clone()]
+        } else {
+            input
+                .read_dir()
+                .unwrap()
+                .map(|x| x.unwrap().path())
+                .collect_vec()
+        };
 
-        for (a, b) in pairs {
-            run(&a, &b, &args.params);
+        for f in files {
+            let data = std::fs::read(&f).unwrap();
+            let pairs = data
+                .split(|c| *c == '\n' as u8)
+                .tuples()
+                .map(|(a, b)| {
+                    assert!(a[0] == '>' as u8);
+                    assert!(b[0] == '<' as u8);
+                    (a[1..].to_vec(), b[1..].to_vec())
+                })
+                .collect_vec();
+
+            for (a, b) in pairs {
+                let r = run(&a, &b, &args.params);
+                if !args.silent {
+                    r.print();
+                }
+            }
         }
     } else {
         // Generate random input.
         // TODO: Propagate stats.
         let (a, b, _, _) = setup(args.input.n.unwrap(), args.input.e);
-        run(&a, &b, &args.params);
+        let r = run(&a, &b, &args.params);
+        if !args.silent {
+            r.print();
+        }
     }
 }
