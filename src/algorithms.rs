@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use std::marker::PhantomData;
+use std::{default, marker::PhantomData};
 use structopt::StructOpt;
 use strum_macros::EnumString;
 
@@ -78,15 +78,32 @@ pub struct Params {
     prune_fraction: f32,
 }
 
-pub fn run(a: &Sequence, b: &Sequence, params: &Params) {
+pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
     match params.algorithm {
         Algorithm::Naive => {
             let dist = bio::alignment::distance::levenshtein(&a, &b);
-            println!("SIMD {:>8} {:>8} {:>6}", a.len(), b.len(), dist);
+            AlignResult {
+                input: SequenceStats {
+                    len_a: a.len(),
+                    len_b: b.len(),
+                    ..Default::default()
+                },
+                edit_distance: dist as usize,
+                ..Default::default()
+            }
         }
         Algorithm::Simd => {
             let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
             println!("SIMD {:>8} {:>8} {:>6}", a.len(), b.len(), dist);
+            AlignResult {
+                input: SequenceStats {
+                    len_a: a.len(),
+                    len_b: b.len(),
+                    ..Default::default()
+                },
+                edit_distance: dist as usize,
+                ..Default::default()
+            }
         }
         Algorithm::Dijkstra => {
             let heuristic = ZeroCost;
@@ -100,10 +117,10 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) {
                 source: Source::Extern,
             };
 
-            align(&a, &b, &alphabet, sequence_stats, heuristic).print();
+            align(&a, &b, &alphabet, sequence_stats, heuristic)
         }
         Algorithm::Seed => {
-            fn run_cost<C: Distance>(a: &Sequence, b: &Sequence, params: &Params)
+            fn run_cost<C: Distance>(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult
             where
                 for<'a> C::DistanceInstance<'a>: HeuristicInstance<'a, Pos = Pos>,
             {
@@ -127,7 +144,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) {
                     source: Source::Extern,
                 };
 
-                align(&a, &b, &alphabet, sequence_stats, heuristic).print();
+                align(&a, &b, &alphabet, sequence_stats, heuristic)
             }
 
             match params.cost {
@@ -143,7 +160,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) {
                 a: &Sequence,
                 b: &Sequence,
                 params: &Params,
-            ) {
+            ) -> AlignResult {
                 let heuristic = GapSeedHeuristic {
                     match_config: MatchConfig {
                         length: Fixed(params.l),
@@ -164,7 +181,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) {
                     source: Source::Extern,
                 };
 
-                align(&a, &b, &alphabet, sequence_stats, heuristic).print();
+                align(&a, &b, &alphabet, sequence_stats, heuristic)
             }
 
             match params.contours {
@@ -180,7 +197,5 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) {
                 },
             }
         }
-    };
-
-    //align(&a, &b, &alphabet, sequence_stats, heuristic).print();
+    }
 }
