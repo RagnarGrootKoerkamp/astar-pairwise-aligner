@@ -1,5 +1,5 @@
 ns = [100, 1000, 10000, 100000, 1000000]
-N = 100000
+N = 10000000
 es = [0.01, 0.05, 0.20]
 algs = ['pa', 'edlib', 'wfa', 'pa-no-prune', 'dijkstra']
 
@@ -7,7 +7,7 @@ pairwise_aligner_binary="target/release/pairwise-aligner"
 edlib_binary="../edlib/build/bin/edlib-aligner"
 wfa_binary="../wfa/bin/align_benchmark"
 
-TIMELIMIT       = "(timeout 180s"
+TIMELIMIT       = "(timeout 1s"
 TIMELIMITEND    = ") || true"
 
 # Map of parameters to use given length and edit distance.
