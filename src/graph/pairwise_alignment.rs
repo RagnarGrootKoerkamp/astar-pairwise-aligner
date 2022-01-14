@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use super::{implicit_graph, ImplicitGraph};
+use super::{implicit_graph, ImplicitGraph, ParentTrait};
 use crate::diagonal_map::DiagonalMap;
 use bio_types::sequence::Sequence;
 use serde::Serialize;
@@ -9,6 +9,29 @@ use std::cmp::Ordering;
 /// A position in a pairwise matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
 pub struct Pos(pub usize, pub usize);
+
+#[derive(Default, Clone, Copy)]
+pub enum Parent {
+    // The root, or an unvisited state.
+    #[default]
+    None,
+    Match,
+    Substitution,
+    Left,
+    Up,
+}
+
+impl ParentTrait<Pos> for Parent {
+    fn parent(&self, &Pos(i, j): &Pos) -> Option<Pos> {
+        match self {
+            Parent::None => None,
+            Parent::Match => Some(Pos(i - 1, j - 1)),
+            Parent::Substitution => Some(Pos(i - 1, j - 1)),
+            Parent::Left => Some(Pos(i - 1, j)),
+            Parent::Up => Some(Pos(i, j - 1)),
+        }
+    }
+}
 
 impl Display for Pos {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -83,7 +106,8 @@ impl<'a> AlignmentGraph<'a> {
 
 impl<'a> ImplicitGraph for AlignmentGraph<'a> {
     type Pos = Pos;
-    type DiagonalMap<T> = DiagonalMap<T>;
+    type Parent = Parent;
+    type DiagonalMap<T: Default> = DiagonalMap<T>;
     //type DiagonalMap<T> = crate::prelude::HashMap<Pos, T>;
 
     #[inline]
@@ -109,27 +133,28 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
     #[inline]
     fn iterate_outgoing_edges<F>(&self, n @ Pos(i, j): Self::Pos, mut f: F)
     where
-        F: FnMut(Self::Pos, usize),
+        F: FnMut(Self::Pos, usize, Self::Parent),
     {
         // Take any of the 3 edges, and then walk as much diagonally as possible.
         let is_match = self.is_match(n);
         if self.greedy_matching {
             if let Some(n) = is_match {
-                f(n, 0);
+                f(n, 0, Parent::Match);
                 return;
             }
         }
-        for (di, dj) in [(1, 0), (0, 1), (1, 1)] {
+        for (di, dj, cost, parent) in [
+            (1, 0, 1, Parent::Left),
+            (0, 1, 1, Parent::Up),
+            if is_match.is_some() {
+                (1, 1, 0, Parent::Match)
+            } else {
+                (1, 1, 1, Parent::Substitution)
+            },
+        ] {
             let pos = Pos(i + di, j + dj);
             if pos <= self.target {
-                f(
-                    pos,
-                    if is_match.is_some() && (di, dj) == (1, 1) {
-                        0
-                    } else {
-                        1
-                    },
-                )
+                f(pos, cost, parent)
             }
         }
     }

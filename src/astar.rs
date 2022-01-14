@@ -2,6 +2,49 @@ use crate::diagonal_map::{DiagonalMapTrait, InsertIfSmallerResult};
 use crate::prelude::*;
 use crate::scored::MinScored;
 
+#[derive(Clone, Copy)]
+struct ExploredState<Parent> {
+    g: usize,
+    parent: Parent,
+}
+
+#[derive(Clone, Copy)]
+struct ExpandedState<Parent> {
+    g: usize,
+    // TODO: Can we not just use g instead?
+    f: usize,
+    parent: Parent,
+}
+
+enum State<Parent> {
+    Unvisited,
+    Explored(ExploredState<Parent>),
+    Expanded(ExpandedState<Parent>),
+}
+use State::*;
+
+impl<Parent> State<Parent> {
+    fn expanded(&self) -> &ExpandedState<Parent> {
+        match self {
+            Expanded(state) => state,
+            _ => unreachable!("Not an explored state"),
+        }
+    }
+    fn g(&self) -> usize {
+        match self {
+            Unvisited => unreachable!("Not a visited state"),
+            Explored(state) => state.g,
+            Expanded(state) => state.g,
+        }
+    }
+}
+
+impl<Parent> Default for State<Parent> {
+    fn default() -> Self {
+        State::Unvisited
+    }
+}
+
 // h: heuristic = lower bound on cost from node to end
 // g: computed cost to reach node from the start
 // f: g+h
@@ -24,91 +67,106 @@ where
     ExpandFn: FnMut(G::Pos),
     ExploreFn: FnMut(G::Pos),
 {
-    let mut visit_next = heap::Heap::<G::Pos>::default(); // f
+    let mut queue = heap::Heap::<G::Pos>::default(); // f
 
     // TODO: Merge these three DiagonalMaps?
-    let mut scores = G::DiagonalMap::new(target); // g
-    let mut estimate_scores = G::DiagonalMap::new(target); // f
-    let mut path_tracker = PathTracker::<G>::new(target);
+    let mut states = G::DiagonalMap::<State<G::Parent>>::new(target);
 
-    let zero_score = 0;
-    scores.insert(start, zero_score);
-    visit_next.push(MinScored(h(start), start));
+    states.insert(
+        start,
+        Explored(ExploredState::<G::Parent> {
+            g: 0,
+            parent: G::Parent::default(),
+        }),
+    );
+    queue.push(MinScored(h(start), start));
 
-    while let Some(MinScored(estimate_score, node)) = visit_next.pop() {
+    while let Some(MinScored(f, pos)) = queue.pop() {
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
-        let node_score = scores[node];
-
-        if node == target {
-            let path = path_tracker.reconstruct_path_to(node);
-            return Some((node_score, path));
-        }
+        //let g = gs[pos];
+        let state = &mut states[pos];
+        let g = state.g();
 
         // If the heuristic value is outdated, skip the node and re-push it with the updated value.
         if retry_outdated {
-            let current_estimate_score = node_score + h(node);
-            if current_estimate_score > estimate_score {
+            let current_f = g + h(pos);
+            if current_f > f {
                 *retries += 1;
-                visit_next.push(MinScored(current_estimate_score, node));
+                queue.push(MinScored(current_f, pos));
                 continue;
             }
         }
 
-        match estimate_scores.insert_if_smaller(node, estimate_score) {
-            InsertIfSmallerResult::New => {}
-            InsertIfSmallerResult::Smaller => *double_expands += 1,
-            InsertIfSmallerResult::Larger => continue,
+        // Expand the state.
+        *state = match *state {
+            Unvisited => {
+                unreachable!("Cannot explore an unvisited node")
+            }
+            // Expand the currently explored state.
+            Explored(ExploredState { g, parent }) => Expanded(ExpandedState { g, f, parent }),
+            Expanded(mut s) => {
+                if f < s.f {
+                    s.f = f;
+                    *double_expands += 1;
+                    Expanded(s)
+                } else {
+                    // Skip if f is not better than the previous best f.
+                    continue;
+                }
+            }
+        };
+
+        // Retrace path to root and return.
+        if pos == target {
+            let last = pos;
+            let mut path = vec![last];
+
+            let mut current = last;
+            while let Some(previous) = states[current].expanded().parent.parent(&current) {
+                path.push(previous);
+                current = previous;
+            }
+
+            path.reverse();
+            return Some((g, path));
         }
 
         // Number of times we compute the neighbours of a node.
-        on_expand(node);
+        on_expand(pos);
 
-        graph.iterate_outgoing_edges(node, |next, cost| {
-            let next_score = node_score + cost;
+        graph.iterate_outgoing_edges(pos, |next, cost, parent| {
+            let next_g = g + cost;
 
-            if let InsertIfSmallerResult::Larger = scores.insert_if_smaller(next, next_score) {
-                return;
-            }
+            // Expand next
+            match &mut states[next] {
+                s @ Unvisited => *s = Explored(ExploredState { g: next_g, parent }),
+                // Expand the currently explored state.
+                Explored(s) => {
+                    if next_g >= s.g {
+                        return;
+                    }
+                    *s = ExploredState { g: next_g, parent };
+                }
+                Expanded(s) => {
+                    if next_g >= s.g {
+                        return;
+                    }
+                    *s = ExpandedState {
+                        g: next_g,
+                        f: s.f,
+                        parent,
+                    };
+                }
+            };
 
             // Number of pushes on the stack.
             on_explore(next);
 
-            path_tracker.set_predecessor(next, node);
-            let next_estimate_score = next_score + h(next);
-            visit_next.push(MinScored(next_estimate_score, next));
+            let next_f = next_g + h(next);
+            queue.push(MinScored(next_f, next));
         });
     }
 
     None
-}
-
-struct PathTracker<G: ImplicitGraph> {
-    came_from: G::DiagonalMap<G::Pos>,
-}
-
-impl<G: ImplicitGraph> PathTracker<G> {
-    fn new(target: G::Pos) -> PathTracker<G> {
-        PathTracker {
-            came_from: G::DiagonalMap::new(target),
-        }
-    }
-
-    fn set_predecessor(&mut self, node: G::Pos, previous: G::Pos) {
-        self.came_from.insert(node, previous);
-    }
-
-    fn reconstruct_path_to(&self, last: G::Pos) -> Vec<G::Pos> {
-        let mut path = vec![last];
-
-        let mut current = last;
-        while let Some(&previous) = self.came_from.get(&current) {
-            path.push(previous);
-            current = previous;
-        }
-
-        path.reverse();
-
-        path
-    }
 }
