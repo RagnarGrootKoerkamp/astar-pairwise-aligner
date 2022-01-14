@@ -26,6 +26,10 @@ struct Cli {
     #[structopt(flatten)]
     input: Input,
 
+    // Where to write the average bandwith
+    #[structopt(short, long, parse(from_os_str))]
+    output: Option<PathBuf>,
+
     #[structopt(flatten)]
     params: Params,
 
@@ -38,6 +42,8 @@ fn main() {
     let args = Cli::from_args();
 
     // Read the input
+    let mut sum_band = 0.0;
+    let mut cnt = 0;
     if let Some(input) = &args.input.input {
         let files = if input.is_file() {
             vec![input.clone()]
@@ -66,6 +72,8 @@ fn main() {
                 if !args.silent {
                     r.print();
                 }
+                cnt += 1;
+                sum_band += r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
             }
         }
     } else {
@@ -75,6 +83,12 @@ fn main() {
         let r = run(&a, &b, &args.params);
         if !args.silent {
             r.print();
+            cnt += 1;
+            sum_band += r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
         }
+    }
+    if let Some(output) = args.output {
+        let avg_band = sum_band / cnt as f32;
+        std::fs::write(output, format!("{}", avg_band)).unwrap();
     }
 }

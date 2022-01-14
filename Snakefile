@@ -1,11 +1,14 @@
 ns = [100, 1000, 10000, 100000, 1000000]
-N = 1000000
+N = 100000
 es = [0.01, 0.05, 0.20]
-algs = ['pa', 'edlib', 'wfa']
+algs = ['pa', 'edlib', 'wfa', 'pa-no-prune', 'dijkstra']
 
 pairwise_aligner_binary="target/release/pairwise-aligner"
 edlib_binary="../edlib/build/bin/edlib-aligner"
 wfa_binary="../wfa/bin/align_benchmark"
+
+TIMELIMIT       = "(timeout 360s"
+TIMELIMITEND    = ") || true"
 
 # Map of parameters to use given length and edit distance.
 PARAMS = {
@@ -57,7 +60,31 @@ rule run_pairwise_aligner:
     shell:
         # -l: k-mer length
         # --silent: Silent / no output
-        '{pairwise_aligner_binary} -i {input[0]} -l {params.l} --silent'
+        '{pairwise_aligner_binary} -i {input[0]} -o data/runs/{wildcards.cnt}x-n{wildcards.n}-e{wildcards.e}.pa.bench.band -l {params.l} --silent'
+
+rule run_pairwise_aligner_no_prune:
+    input:
+        "data/input/{cnt}x-n{n}-e{e}.seq",
+        pairwise_aligner_binary
+    benchmark:
+        "data/runs/{cnt}x-n{n}-e{e}.pa-no-prune.bench"
+    params:
+        l = lambda w: PARAMS[(int(w.n),float(w.e))]
+    shell:
+        # -l: k-mer length
+        # --no-prune: don't prune any matches
+        # --silent: Silent / no output
+        '{TIMELIMIT} {pairwise_aligner_binary} -i {input[0]} -o data/runs/{wildcards.cnt}x-n{wildcards.n}-e{wildcards.e}.pa-no-prune.bench.band -l {params.l} --no-prune --silent {TIMELIMITEND}'
+
+
+rule run_dijkstra:
+    input:
+        "data/input/{cnt}x-n{n}-e{e}.seq",
+        pairwise_aligner_binary
+    benchmark:
+        "data/runs/{cnt}x-n{n}-e{e}.dijkstra.bench"
+    shell:
+        '{TIMELIMIT} {pairwise_aligner_binary} -i {input[0]} -o data/runs/{wildcards.cnt}x-n{wildcards.n}-e{wildcards.e}.dijkstra.bench.band -a Dijkstra --silent {TIMELIMITEND}'
 
 
 rule run_edlib:
@@ -88,7 +115,7 @@ rule run_wfa:
 
 
 # Collect all .benchfiles into a single tsv.
-headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load\tcpu_time"
+headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load\tcpu_time\tband"
 prefix       = "{alg}\t{n[1]}\t{n[0]}\t{e}"
 rule benchmark:
     input:
@@ -98,7 +125,7 @@ rule benchmark:
     params:
         prefix = expand(prefix, n=[(n, N//n) for n in ns], e=es, alg=algs)
     shell:
-        "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) | sed '1s/^/{headers}\\n/' > {output}"
+        "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) <(cat {file}.band) | sed '1s/^/{headers}\\n/' > {output}"
 
 
 # Visualizations

@@ -188,6 +188,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         h.transform_target = h.transform(h.target);
         h.build();
         //h.print(true, false);
+        //h.print(false, false);
         h.contours.print_stats();
         h
     }
@@ -302,6 +303,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
         if self.contours.prune(self.transform(pos)) {
             //self.print(false, false);
+            //self.print(true, false);
         }
         self.pruning_duration += start.elapsed();
     }
@@ -319,11 +321,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     fn print(&self, do_transform: bool, wait_for_user: bool) {
         let l = self.params.match_config.length.l().unwrap();
         let max_match_cost = self.params.match_config.max_match_cost;
+        let reset = termion::color::Rgb(230, 230, 230);
         let mut ps = HashMap::default();
         // ps.insert(1, termion::color::Rgb(255, 0, 0));
-        // ps.insert(2, termion::color::Rgb(0, 255, 0));
-        // ps.insert(0, termion::color::Rgb(0, 0, 255));
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31413);
+        ps.insert(1, termion::color::Rgb(255, 255, 200));
+        ps.insert(0, termion::color::Rgb(2, 255, 210));
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31414);
         let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
         let Pos(a, b) = self.target;
         let mut pixels = vec![vec![(None, None, false, false); 20 * b]; 20 * a];
@@ -357,7 +360,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                     pixel.3 = true;
                 }
                 pixel.0 = Some(*color);
-                pixel.1 = Some(_val);
+                pixel.1 = Some(""); // _val, layer
             }
         }
         let print = |i: usize, j: usize| {
@@ -377,14 +380,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             }
             print!(
                 "{}{:3} ",
-                termion::color::Bg(pixel.0.unwrap_or(termion::color::Rgb(0, 0, 0))),
+                termion::color::Bg(pixel.0.unwrap_or(reset)),
                 pixel.1.map(|x| format!("{:3}", x)).unwrap_or_default()
             );
-            print!(
-                "{}{}",
-                termion::color::Fg(termion::color::Reset),
-                termion::color::Bg(termion::color::Reset)
-            );
+            print!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
         };
         if do_transform {
             for j in start.1..=target.1 {
@@ -393,8 +392,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 }
                 print!(
                     "{}{}\n",
-                    termion::color::Fg(termion::color::Reset),
-                    termion::color::Bg(termion::color::Reset)
+                    termion::color::Fg(reset),
+                    termion::color::Bg(reset)
                 );
             }
         } else {
@@ -404,8 +403,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 }
                 print!(
                     "{}{}\n",
-                    termion::color::Fg(termion::color::Reset),
-                    termion::color::Bg(termion::color::Reset)
+                    termion::color::Fg(reset),
+                    termion::color::Bg(reset)
                 );
             }
         };
