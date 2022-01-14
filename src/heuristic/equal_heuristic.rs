@@ -51,9 +51,9 @@ where
 {
     type Pos = Pos;
 
-    fn h(&self, Node(pos, (s1, s2)): NodeH<'a, Self>) -> usize {
-        let h1 = self.h1.h(Node(pos, s1));
-        let h2 = self.h2.h(Node(pos, s2));
+    fn h(&self, pos: Self::Pos) -> usize {
+        let h1 = self.h1.h(pos);
+        let h2 = self.h2.h(pos);
         // h1 is the slow accurate one, h2 the fast inaccurate one.
         assert!(h1 == h2, "Values differ at {:?}: {} {}", pos, h1, h2);
         h1
@@ -69,15 +69,10 @@ where
         self.h2.prune(pos);
     }
 
-    fn incremental_h(
-        &self,
-        Node(parent, (s1, s2)): NodeH<'a, Self>,
-        pos: Pos,
-        cost: usize,
-    ) -> Self::IncrementalState {
+    fn incremental_h(&self, parent: Self::Pos, pos: Pos, cost: usize) -> Self::IncrementalState {
         (
-            self.h1.incremental_h(Node(parent, s1), pos, cost),
-            self.h2.incremental_h(Node(parent, s2), pos, cost),
+            self.h1.incremental_h(parent, pos, cost),
+            self.h2.incremental_h(parent, pos, cost),
         )
     }
 

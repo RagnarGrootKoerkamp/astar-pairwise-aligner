@@ -52,7 +52,7 @@ impl Distance for ZeroCost {
 
 pub struct ZeroCostI;
 impl HeuristicInstance<'_> for ZeroCostI {
-    fn h(&self, _: NodeH<Self>) -> usize {
+    fn h(&self, _: Self::Pos) -> usize {
         0
     }
 }
@@ -99,7 +99,7 @@ pub struct MaxCostI {
 }
 
 impl HeuristicInstance<'_> for MaxCostI {
-    fn h(&self, Node(Pos(i, j), _): NodeH<Self>) -> usize {
+    fn h(&self, Pos(i, j): Self::Pos) -> usize {
         max(self.target.0 - i, self.target.1 - j)
     }
 }
@@ -146,7 +146,7 @@ pub struct GapCostI {
 }
 
 impl HeuristicInstance<'_> for GapCostI {
-    fn h(&self, Node(Pos(i, j), _): NodeH<Self>) -> usize {
+    fn h(&self, Pos(i, j): Self::Pos) -> usize {
         abs_diff(self.target.0 - i, self.target.1 - j)
     }
 }
@@ -209,7 +209,7 @@ pub struct CountCostI {
 }
 
 impl HeuristicInstance<'_> for CountCostI {
-    fn h(&self, Node(pos, _): NodeH<Self>) -> usize {
+    fn h(&self, pos: Self::Pos) -> usize {
         self.distance(pos, self.target)
     }
 }
@@ -289,7 +289,7 @@ pub struct BiCountCostI {
 }
 
 impl<'a> HeuristicInstance<'a> for BiCountCostI {
-    fn h(&self, Node(pos, _): NodeH<Self>) -> usize {
+    fn h(&self, pos: Self::Pos) -> usize {
         self.distance(pos, self.target)
     }
 }

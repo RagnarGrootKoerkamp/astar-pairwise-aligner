@@ -2,7 +2,6 @@ pub mod distance;
 pub mod equal_heuristic;
 //pub mod fast_zero_seed_heuristic;
 pub mod gap_seed_heuristic;
-pub mod pathmax;
 pub mod print;
 pub mod seed_heuristic;
 
@@ -10,7 +9,6 @@ pub use distance::*;
 pub use equal_heuristic::*;
 //pub use fast_zero_seed_heuristic::*;
 pub use gap_seed_heuristic::*;
-pub use pathmax::*;
 pub use seed_heuristic::*;
 
 use serde::Serialize;
@@ -58,24 +56,20 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     }
 }
 
-pub type NodeH<'a, H> = crate::graph::Node<
-    <H as HeuristicInstance<'a>>::Pos,
-    <H as HeuristicInstance<'a>>::IncrementalState,
->;
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
     type Pos: Eq + Copy + std::fmt::Debug + Default = crate::graph::Pos;
     type IncrementalState: Eq + Copy + Default + std::fmt::Debug = ();
 
-    fn h(&self, pos: NodeH<'a, Self>) -> usize;
+    fn h(&self, pos: Self::Pos) -> usize;
 
-    fn h_with_parent(&self, pos: NodeH<'a, Self>) -> (usize, Self::Pos) {
+    fn h_with_parent(&self, pos: Self::Pos) -> (usize, Self::Pos) {
         (self.h(pos), Self::Pos::default())
     }
 
     fn incremental_h(
         &self,
-        _parent: NodeH<'a, Self>,
+        _parent: Self::Pos,
         _pos: Self::Pos,
         _cost: usize,
     ) -> Self::IncrementalState {

@@ -29,7 +29,7 @@ pub fn print<'a, 'b, H>(
             let p = Pos(i, j);
             let pixel = &mut pixels[p.0][p.1];
 
-            let (val, parent_pos) = h.h_with_parent(Node(p, h.root_state(Pos(0, 0))));
+            let (val, parent_pos) = h.h_with_parent(p);
             let l = ps.len();
             let (_parent_id, color) = ps.entry(parent_pos).or_insert((
                 l,

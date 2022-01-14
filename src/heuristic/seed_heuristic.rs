@@ -158,9 +158,9 @@ where
                 continue;
             }
             // Use the match.
-            let update_val = match_cost + self.h(Node(*end, ()));
+            let update_val = match_cost + self.h(*end);
             // Skip the match.
-            let query_val = self.h(Node(*start, ()));
+            let query_val = self.h(*start);
 
             // Update if using is better than skipping.
             // TODO: Report some metrics on skipped states.
@@ -176,7 +176,7 @@ where
     DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
 {
     type Pos = crate::graph::Pos;
-    fn h(&self, Node(pos, _): NodeH<'a, Self>) -> usize {
+    fn h(&self, pos: Self::Pos) -> usize {
         self.h_at_seeds
             .iter()
             .into_iter()
@@ -186,7 +186,7 @@ where
             .unwrap()
     }
 
-    fn h_with_parent(&self, Node(pos, _): NodeH<'a, Self>) -> (usize, Pos) {
+    fn h_with_parent(&self, pos: Self::Pos) -> (usize, Pos) {
         self.h_at_seeds
             .iter()
             .into_iter()
@@ -233,16 +233,16 @@ where
         // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
         {
             // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
-            let cur_val = self.h(Node(pos, ()));
+            let cur_val = self.h(pos);
             if pos.1 > 0 {
-                let nb_val = self.h(Node(Pos(pos.0, pos.1 - 1), ()));
+                let nb_val = self.h(Pos(pos.0, pos.1 - 1));
                 assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
                 if cur_val > nb_val {
                     return;
                 }
             }
             if pos.1 < self.target.1 {
-                let nb_val = self.h(Node(Pos(pos.0, pos.1 + 1), ()));
+                let nb_val = self.h(Pos(pos.0, pos.1 + 1));
                 assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
                 if cur_val > nb_val {
                     return;

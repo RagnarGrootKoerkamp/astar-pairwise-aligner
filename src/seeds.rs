@@ -46,7 +46,7 @@ impl SeedMatches {
 }
 
 impl<'a> HeuristicInstance<'a> for SeedMatches {
-    fn h(&self, _: NodeH<Self>) -> usize {
+    fn h(&self, _: Self::Pos) -> usize {
         unimplemented!("SeedMatches can only be used as a distance, not as a heuristic!");
     }
 }

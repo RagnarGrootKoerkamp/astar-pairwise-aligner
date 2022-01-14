@@ -46,7 +46,7 @@ fn main() {
                 ..GapSeedHeuristic::default()
             };
             let h = h.build(&a, &b, &alph);
-            let dist = h.h(Node(Pos(0, 0), h.root_state(Pos(0, 0))));
+            let dist = h.h(Pos(0, 0));
             let d = start.elapsed().as_secs_f32();
             println!("SH   {:>8} {:>3.2} {:10.5}s {:>6}", n, e, d, dist);
         }
