@@ -11,9 +11,14 @@ pub trait PosOrder {
     fn key(&self) -> Self::Output;
 }
 
+pub trait ParentTrait<Pos>: Default + Clone + Copy {
+    fn parent(&self, _pos: &Pos) -> Option<Pos>;
+}
+
 pub trait ImplicitGraph {
     type Pos: Copy + Eq + hash::Hash + PosOrder;
-    type DiagonalMap<T>: DiagonalMapTrait<Self::Pos, T>;
+    type Parent: ParentTrait<Self::Pos>;
+    type DiagonalMap<T: Default>: DiagonalMapTrait<Self::Pos, T>;
 
     fn root(&self) -> Self::Pos;
     fn target(&self) -> Self::Pos;
@@ -24,6 +29,6 @@ pub trait ImplicitGraph {
 
     fn iterate_outgoing_edges<F>(&self, u: Self::Pos, f: F)
     where
-        F: FnMut(Self::Pos, usize),
+        F: FnMut(Self::Pos, usize, Self::Parent),
         Self: Sized;
 }
