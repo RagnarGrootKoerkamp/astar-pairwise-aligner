@@ -1,10 +1,7 @@
-use std::{
-    cell::RefCell,
-    fmt::{Debug, Display},
-};
+use std::fmt::{Debug, Display};
 
-use super::{implicit_graph, implicit_graph::Node, ImplicitGraph, NodeG};
-use crate::{diagonal_map::DiagonalMap, heuristic::HeuristicInstance};
+use super::{implicit_graph, ImplicitGraph};
+use crate::diagonal_map::DiagonalMap;
 use bio_types::sequence::Sequence;
 use serde::Serialize;
 use std::cmp::Ordering;
@@ -59,8 +56,8 @@ impl Ord for LexPos {
 impl implicit_graph::PosOrder for Pos {
     type Output = LexPos;
 
-    fn key(pos: Self) -> Self::Output {
-        LexPos(pos)
+    fn key(&self) -> Self::Output {
+        LexPos(*self)
     }
 }
 
@@ -86,7 +83,6 @@ impl<'a> AlignmentGraph<'a> {
 
 impl<'a> ImplicitGraph for AlignmentGraph<'a> {
     type Pos = Pos;
-    type Data = ();
     type DiagonalMap<T> = DiagonalMap<T>;
     //type DiagonalMap<T> = crate::prelude::HashMap<Pos, T>;
 
@@ -101,9 +97,9 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
     }
 
     #[inline]
-    fn is_match(&self, Node(Pos(i, j), _): NodeG<Self>) -> Option<NodeG<Self>> {
+    fn is_match(&self, Pos(i, j): Self::Pos) -> Option<Self::Pos> {
         if i < self.target.0 && j < self.target.1 && self.a[i] == self.b[j] {
-            Some(Node(Pos(i + 1, j + 1), ()))
+            Some(Pos(i + 1, j + 1))
         } else {
             None
         }
@@ -111,9 +107,9 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
 
     /// Internal iterator to get the edges from a position.
     #[inline]
-    fn iterate_outgoing_edges<F>(&self, n @ Node(Pos(i, j), _): NodeG<Self>, mut f: F)
+    fn iterate_outgoing_edges<F>(&self, n @ Pos(i, j): Self::Pos, mut f: F)
     where
-        F: FnMut(NodeG<Self>, usize),
+        F: FnMut(Self::Pos, usize),
     {
         // Take any of the 3 edges, and then walk as much diagonally as possible.
         let is_match = self.is_match(n);
@@ -127,7 +123,7 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
             let pos = Pos(i + di, j + dj);
             if pos <= self.target {
                 f(
-                    Node(pos, ()),
+                    pos,
                     if is_match.is_some() && (di, dj) == (1, 1) {
                         0
                     } else {
@@ -136,68 +132,5 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
                 )
             }
         }
-    }
-}
-
-/// Incremental AlignmentGraph, modelling the position and transitions in a pairwise matching graph.
-/// This computes h incrementally along edges.
-pub struct IncrementalAlignmentGraph<'a, 'b, H: HeuristicInstance<'a>> {
-    graph: AlignmentGraph<'a>,
-    heuristic: &'b RefCell<H>,
-}
-
-impl<'a, 'b, H: HeuristicInstance<'a>> IncrementalAlignmentGraph<'a, 'b, H> {
-    pub fn new(
-        a: &'a Sequence,
-        b: &'a Sequence,
-        heuristic: &'b RefCell<H>,
-        greedy_matching: bool,
-    ) -> IncrementalAlignmentGraph<'a, 'b, H> {
-        IncrementalAlignmentGraph {
-            graph: AlignmentGraph::new(a, b, greedy_matching),
-            heuristic,
-        }
-    }
-}
-
-impl<'a, 'b, H> ImplicitGraph for IncrementalAlignmentGraph<'a, 'b, H>
-where
-    H: HeuristicInstance<'a, Pos = Pos>,
-{
-    type Pos = Pos;
-    type Data = H::IncrementalState;
-    type DiagonalMap<T> = DiagonalMap<T>;
-    //type DiagonalMap<T> = crate::prelude::HashMap<Pos, T>;
-
-    #[inline]
-    fn root(&self) -> Self::Pos {
-        self.graph.root()
-    }
-
-    #[inline]
-    fn target(&self) -> Self::Pos {
-        self.graph.target()
-    }
-
-    #[inline]
-    fn is_match(&self, u: NodeG<Self>) -> Option<NodeG<Self>> {
-        self.graph.is_match(Node(u.to_pos(), ())).map(|v| {
-            Node(
-                v.to_pos(),
-                self.heuristic.borrow().incremental_h(u, v.to_pos(), 0),
-            )
-        })
-    }
-
-    #[inline]
-    fn iterate_outgoing_edges<F>(&self, u: NodeG<Self>, mut f: F)
-    where
-        F: FnMut(NodeG<Self>, usize),
-    {
-        let h = &*self.heuristic.borrow();
-        self.graph
-            .iterate_outgoing_edges(Node(u.to_pos(), ()), move |v, cost| {
-                f(Node(v.to_pos(), h.incremental_h(u, v.to_pos(), cost)), cost)
-            });
     }
 }

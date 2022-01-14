@@ -7,7 +7,7 @@ use crate::scored::MinScored;
 // f: g+h
 pub fn astar<G, H, ExpandFn, ExploreFn>(
     graph: &G,
-    start: NodeG<G>,
+    start: G::Pos,
     target: G::Pos,
     mut h: H,
     retry_outdated: bool,
@@ -20,11 +20,11 @@ pub fn astar<G, H, ExpandFn, ExploreFn>(
 ) -> Option<(usize, Vec<G::Pos>)>
 where
     G: ImplicitGraph,
-    H: FnMut(NodeG<G>) -> usize,
-    ExpandFn: FnMut(NodeG<G>),
-    ExploreFn: FnMut(NodeG<G>),
+    H: FnMut(G::Pos) -> usize,
+    ExpandFn: FnMut(G::Pos),
+    ExploreFn: FnMut(G::Pos),
 {
-    let mut visit_next = heap::Heap::<G>::default(); // f
+    let mut visit_next = heap::Heap::<G::Pos>::default(); // f
 
     // TODO: Merge these three DiagonalMaps?
     let mut scores = G::DiagonalMap::new(target); // g
@@ -32,16 +32,16 @@ where
     let mut path_tracker = PathTracker::<G>::new(target);
 
     let zero_score = 0;
-    scores.insert(start.to_pos(), zero_score);
+    scores.insert(start, zero_score);
     visit_next.push(MinScored(h(start), start));
 
     while let Some(MinScored(estimate_score, node)) = visit_next.pop() {
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
-        let node_score = scores[node.to_pos()];
+        let node_score = scores[node];
 
-        if node.to_pos() == target {
-            let path = path_tracker.reconstruct_path_to(node.to_pos());
+        if node == target {
+            let path = path_tracker.reconstruct_path_to(node);
             return Some((node_score, path));
         }
 
@@ -55,7 +55,7 @@ where
             }
         }
 
-        match estimate_scores.insert_if_smaller(node.to_pos(), estimate_score) {
+        match estimate_scores.insert_if_smaller(node, estimate_score) {
             InsertIfSmallerResult::New => {}
             InsertIfSmallerResult::Smaller => *double_expands += 1,
             InsertIfSmallerResult::Larger => continue,
@@ -67,16 +67,14 @@ where
         graph.iterate_outgoing_edges(node, |next, cost| {
             let next_score = node_score + cost;
 
-            if let InsertIfSmallerResult::Larger =
-                scores.insert_if_smaller(next.to_pos(), next_score)
-            {
+            if let InsertIfSmallerResult::Larger = scores.insert_if_smaller(next, next_score) {
                 return;
             }
 
             // Number of pushes on the stack.
             on_explore(next);
 
-            path_tracker.set_predecessor(next.to_pos(), node.to_pos());
+            path_tracker.set_predecessor(next, node);
             let next_estimate_score = next_score + h(next);
             visit_next.push(MinScored(next_estimate_score, next));
         });

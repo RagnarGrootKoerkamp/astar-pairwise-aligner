@@ -362,19 +362,18 @@ where
     let start_time = time::Instant::now();
     let h = RefCell::new(heuristic.build(a, b, alphabet));
     let root_pos = Pos(0, 0);
-    let root_state = Node(root_pos, h.borrow().root_state(root_pos));
-    let root_val = h.borrow().h(root_state);
+    let root_val = h.borrow().h(root_pos);
     //let _ = h.borrow_mut();
     let heuristic_initialization = start_time.elapsed();
 
     // Run A* with heuristic.
     let start_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
-    let incremental_graph = IncrementalAlignmentGraph::new(a, b, &h, /*greedy_matching*/ true);
+    let graph = AlignmentGraph::new(a, b, /*greedy_matching*/ true);
     let target = Pos(a.len(), b.len());
     let (distance, path) = astar::astar(
-        &incremental_graph,
-        root_state,
+        &graph,
+        root_pos,
         target,
         // heuristic function
         |state| {
@@ -383,7 +382,7 @@ where
         },
         /*retry_outdated*/ true,
         // Expand
-        |Node(pos, _)| {
+        |pos| {
             //println!("EXPAND {:?}", pos);
             //make_dot(pos, '*', is_end_calls);
             expanded += 1;
@@ -393,7 +392,7 @@ where
             h.borrow_mut().prune(pos);
         },
         // Explore
-        |Node(pos, _)| {
+        |pos| {
             explored += 1;
             if DEBUG {
                 explored_states.push(pos);
