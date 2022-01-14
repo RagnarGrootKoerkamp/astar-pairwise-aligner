@@ -89,6 +89,6 @@ fn main() {
     }
     if let Some(output) = args.output {
         let avg_band = sum_band / cnt as f32;
-        std::fs::write(output, format!("{}", avg_band)).unwrap();
+        std::fs::write(output, format!("{}\n", avg_band)).unwrap();
     }
 }
