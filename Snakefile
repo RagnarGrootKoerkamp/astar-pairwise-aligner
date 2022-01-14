@@ -7,7 +7,7 @@ pairwise_aligner_binary="target/release/pairwise-aligner"
 edlib_binary="../edlib/build/bin/edlib-aligner"
 wfa_binary="../wfa/bin/align_benchmark"
 
-TIMELIMIT       = "(timeout 360s"
+TIMELIMIT       = "(timeout 180s"
 TIMELIMITEND    = ") || true"
 
 # Map of parameters to use given length and edit distance.
@@ -113,9 +113,16 @@ rule run_wfa:
         # -s: Silent / no output
         '{wfa_binary} -i {input[0]} -a edit-dp || true'
 
+def try_read_files(paths):
+    def f(path):
+        try:
+            return Path(path).read_text().strip()+'\t'
+        except:
+            return '\t'
+    return [f(path) for path in paths]
 
 # Collect all .benchfiles into a single tsv.
-headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load\tcpu_time\tband"
+headers       = "alg\tcnt\tn\te\tband\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load\tcpu_time"
 prefix       = "{alg}\t{n[1]}\t{n[0]}\t{e}"
 rule benchmark:
     input:
@@ -123,9 +130,10 @@ rule benchmark:
     output:
         f"data/benchmark_{N}.tsv"
     params:
-        prefix = expand(prefix, n=[(n, N//n) for n in ns], e=es, alg=algs)
+        prefix = expand(prefix, n=[(n, N//n) for n in ns], e=es, alg=algs),
+        band = try_read_files(expand("data/runs/{n[1]}x-n{n[0]}-e{e}.{alg}.bench.band", n=[(n, N//n) for n in ns], e=es, alg=algs))
     shell:
-        "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) <(cat {file}.band) | sed '1s/^/{headers}\\n/' > {output}"
+        "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(echo \"{params.band}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) | sed '1s/^/{headers}\\n/' > {output}"
 
 
 # Visualizations
