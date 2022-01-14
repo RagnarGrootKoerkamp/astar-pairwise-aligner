@@ -107,7 +107,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
         }
         Algorithm::Dijkstra => {
             let heuristic = ZeroCost;
-            println!("Heuristic:\n{:?}", heuristic);
+            //println!("Heuristic:\n{:?}", heuristic);
 
             let alphabet = Alphabet::new(b"ACTG");
             let sequence_stats = SequenceStats {
