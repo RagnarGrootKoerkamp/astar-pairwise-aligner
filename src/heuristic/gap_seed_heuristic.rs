@@ -105,6 +105,7 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
     type Instance<'a> = GapSeedHeuristicI<C>;
 
     fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
+        // TODO: Warning
         assert!(
             self.match_config.max_match_cost
                 <= self.match_config.length.l().unwrap_or(I::MAX) as Cost / 3
@@ -136,6 +137,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
     pub seed_matches: SeedMatches,
 
     // For partial pruning.
+    // TODO: Put statistics into a separate struct.
     num_tried_pruned: usize,
     num_actual_pruned: usize,
 
@@ -162,14 +164,15 @@ impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
     }
 }
 
-impl<'a, C: Contours> Drop for GapSeedHeuristicI<C> {
+// TODO: Get rid of this.
+impl<C: Contours> Drop for GapSeedHeuristicI<C> {
     fn drop(&mut self) {
         self.contours.print_stats();
     }
 }
 
-impl<'a, C: Contours> GapSeedHeuristicI<C> {
-    fn new(a: &'a Sequence, b: &'a Sequence, alph: &Alphabet, params: GapSeedHeuristic<C>) -> Self {
+impl<C: Contours> GapSeedHeuristicI<C> {
+    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: GapSeedHeuristic<C>) -> Self {
         let seed_matches = find_matches(a, b, alph, params.match_config);
 
         let mut h = GapSeedHeuristicI {

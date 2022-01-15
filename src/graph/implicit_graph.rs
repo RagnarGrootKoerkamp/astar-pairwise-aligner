@@ -17,6 +17,7 @@ pub trait ParentTrait<Pos>: Default + Clone + Copy {
     fn parent(&self, _pos: &Pos) -> Option<Pos>;
 }
 
+/// An implicit graph.
 pub trait ImplicitGraph {
     type Pos: Copy + Eq + hash::Hash + PosOrder;
     type Parent: ParentTrait<Self::Pos>;

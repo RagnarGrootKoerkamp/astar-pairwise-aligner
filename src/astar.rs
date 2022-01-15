@@ -68,8 +68,6 @@ where
     ExploreFn: FnMut(G::Pos),
 {
     let mut queue = heap::Heap::<G::Pos>::default(); // f
-
-    // TODO: Merge these three DiagonalMaps?
     let mut states = G::DiagonalMap::<State<G::Parent>>::new(target);
 
     states.insert(
