@@ -100,11 +100,14 @@ implementations in ~algorithms.rs~.
 ** TODO Test all pairs with n <= 6
 
 * Extensions
+** LCS: Do not generate substitutions
 ** MSA (delayed; pruning complications)
 *** TODO instantiate one heuristic per pair of sequences
 *** TODO run A* on the one-by-one step graph
 ** Non-constant indel/substitution cost
 ** Affine gaps
+*** Git-diff, but better?
+
 
 * Edit Distance
 ** TODO Run SeedHeuristic with l=1 as edit distance computation algorithm.
