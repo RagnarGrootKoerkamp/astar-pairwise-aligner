@@ -57,7 +57,7 @@ impl Contour for BruteForceContour {
 /// in O(r^2) by rebuilding the entire datastructure.
 #[derive(Default, Debug)]
 pub struct BruteForceContours {
-    valued_arrows: Vec<(Arrow, usize)>,
+    valued_arrows: Vec<(Arrow, Cost)>,
 }
 
 impl Contours for BruteForceContours {
@@ -72,7 +72,7 @@ impl Contours for BruteForceContours {
         this
     }
 
-    fn value(&self, q: Pos) -> usize {
+    fn value(&self, q: Pos) -> Cost {
         self.valued_arrows
             .iter()
             .filter(|(arrow, _)| q <= arrow.start)

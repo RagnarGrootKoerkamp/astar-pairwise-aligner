@@ -107,7 +107,7 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
     fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
-                <= self.match_config.length.l().unwrap_or(I::MAX) as usize / 3
+                <= self.match_config.length.l().unwrap_or(I::MAX) as Cost / 3
         );
         GapSeedHeuristicI::new(a, b, alph, *self)
     }
@@ -154,7 +154,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
 impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
-    fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
+    fn distance(&self, from: Self::Pos, to: Self::Pos) -> Cost {
         max(
             self.gap_distance.distance(from, to),
             self.seed_matches.distance(from, to),
@@ -246,7 +246,7 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
 impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     type Pos = crate::graph::Pos;
 
-    fn h(&self, pos: Self::Pos) -> usize {
+    fn h(&self, pos: Self::Pos) -> Cost {
         let p = self.seed_matches.potential(pos);
         let val = self.contours.value(self.transform(pos));
         if val == 0 {

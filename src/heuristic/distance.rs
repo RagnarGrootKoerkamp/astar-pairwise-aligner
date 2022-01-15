@@ -15,7 +15,7 @@ pub trait Distance: Heuristic + Default {
 }
 
 pub trait DistanceInstance<'a>: HeuristicInstance<'a> {
-    fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize;
+    fn distance(&self, from: Self::Pos, to: Self::Pos) -> Cost;
 }
 
 // # ZERO HEURISTIC
@@ -52,12 +52,12 @@ impl Distance for ZeroCost {
 
 pub struct ZeroCostI;
 impl HeuristicInstance<'_> for ZeroCostI {
-    fn h(&self, _: Self::Pos) -> usize {
+    fn h(&self, _: Self::Pos) -> Cost {
         0
     }
 }
 impl DistanceInstance<'_> for ZeroCostI {
-    fn distance(&self, _from: Pos, _to: Pos) -> usize {
+    fn distance(&self, _from: Pos, _to: Pos) -> Cost {
         0
     }
 }
@@ -99,13 +99,13 @@ pub struct MaxCostI {
 }
 
 impl HeuristicInstance<'_> for MaxCostI {
-    fn h(&self, Pos(i, j): Self::Pos) -> usize {
-        max(self.target.0 - i, self.target.1 - j) as usize
+    fn h(&self, Pos(i, j): Self::Pos) -> Cost {
+        max(self.target.0 - i, self.target.1 - j) as Cost
     }
 }
 impl DistanceInstance<'_> for MaxCostI {
-    fn distance(&self, from: Pos, to: Pos) -> usize {
-        max(to.0 - from.0, to.1 - from.1) as usize
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
+        max(to.0 - from.0, to.1 - from.1) as Cost
     }
 }
 
@@ -150,13 +150,13 @@ fn abs_diff(i: I, j: I) -> I {
 }
 
 impl HeuristicInstance<'_> for GapCostI {
-    fn h(&self, Pos(i, j): Self::Pos) -> usize {
-        abs_diff(self.target.0 - i, self.target.1 - j) as usize
+    fn h(&self, Pos(i, j): Self::Pos) -> Cost {
+        abs_diff(self.target.0 - i, self.target.1 - j) as Cost
     }
 }
 impl DistanceInstance<'_> for GapCostI {
-    fn distance(&self, from: Pos, to: Pos) -> usize {
-        abs_diff(to.0 - from.0, to.1 - from.1) as usize
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
+        abs_diff(to.0 - from.0, to.1 - from.1) as Cost
     }
 }
 
@@ -213,13 +213,13 @@ pub struct CountCostI {
 }
 
 impl HeuristicInstance<'_> for CountCostI {
-    fn h(&self, pos: Self::Pos) -> usize {
+    fn h(&self, pos: Self::Pos) -> Cost {
         self.distance(pos, self.target)
     }
 }
 
 impl DistanceInstance<'_> for CountCostI {
-    fn distance(&self, from: Pos, to: Pos) -> usize {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
         let mut pos = 0;
         let mut neg = 0;
 
@@ -238,7 +238,7 @@ impl DistanceInstance<'_> for CountCostI {
             }
         }
 
-        max(pos, neg) as usize
+        max(pos, neg) as Cost
     }
 }
 
@@ -293,13 +293,13 @@ pub struct BiCountCostI {
 }
 
 impl<'a> HeuristicInstance<'a> for BiCountCostI {
-    fn h(&self, pos: Self::Pos) -> usize {
+    fn h(&self, pos: Self::Pos) -> Cost {
         self.distance(pos, self.target)
     }
 }
 
 impl<'a> DistanceInstance<'a> for BiCountCostI {
-    fn distance(&self, from: Pos, to: Pos) -> usize {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
         let mut pos = 0;
         let mut neg = 0;
 
@@ -322,7 +322,7 @@ impl<'a> DistanceInstance<'a> for BiCountCostI {
         max(
             self.cnt.distance(from, to),
             // TODO: Why does rounding up give an error here?
-            ((max(pos, neg) + 1) / 2) as usize,
+            ((max(pos, neg) + 1) / 2) as Cost,
         )
     }
 }

@@ -7,7 +7,7 @@ pub struct Seed {
     pub start: I,
     pub end: I,
     // The seed_potential is 1 more than the maximal number of errors allowed in this seed.
-    pub seed_potential: usize,
+    pub seed_potential: Cost,
     pub qgram: usize,
 }
 
@@ -15,8 +15,8 @@ pub struct Seed {
 pub struct Match {
     pub start: Pos,
     pub end: Pos,
-    pub match_cost: usize,
-    pub seed_potential: usize,
+    pub match_cost: Cost,
+    pub seed_potential: Cost,
 }
 
 #[derive(Default)]
@@ -26,7 +26,7 @@ pub struct SeedMatches {
     pub matches: Vec<Match>,
     // Index of the start of the rightmost seed covering the given position.
     pub start_of_seed: Vec<I>,
-    potential: Vec<usize>,
+    potential: Vec<Cost>,
 }
 
 impl SeedMatches {
@@ -35,7 +35,7 @@ impl SeedMatches {
     }
 
     // The potential at p is the cost of going from p to the end, without hitting any matches.
-    pub fn potential(&self, Pos(i, _): Pos) -> usize {
+    pub fn potential(&self, Pos(i, _): Pos) -> Cost {
         self.potential[i as usize]
     }
 
@@ -46,14 +46,14 @@ impl SeedMatches {
 }
 
 impl<'a> HeuristicInstance<'a> for SeedMatches {
-    fn h(&self, _: Self::Pos) -> usize {
+    fn h(&self, _: Self::Pos) -> Cost {
         unimplemented!("SeedMatches can only be used as a distance, not as a heuristic!");
     }
 }
 impl<'a> DistanceInstance<'a> for SeedMatches {
     /// The minimal distance is the potential of the seeds entirely within the `[from, to)` interval.
     /// NOTE: Assumes disjoint seeds.
-    fn distance(&self, from: Pos, to: Pos) -> usize {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
         assert!(from.0 <= to.0);
         self.potential[from.0 as usize]
             - (self.potential[self.start_of_seed[to.0 as usize] as usize])
@@ -113,7 +113,7 @@ pub struct MatchConfig {
     // TODO: Add settings for variable length matches in here.
     pub length: LengthConfig,
     // TODO: Move the max_match_cost into MatchLength.
-    pub max_match_cost: usize,
+    pub max_match_cost: Cost,
     pub mutation_config: MutationConfig,
 }
 
@@ -129,7 +129,7 @@ pub fn find_matches<'a>(
 ) -> SeedMatches {
     assert!(max_match_cost == 0 || max_match_cost == 1);
 
-    let Pos(n, m) = Pos::from_length(a, b);
+    let Pos(n, _m) = Pos::from_length(a, b);
 
     // Qgrams of B.
     // TODO: Profile this index and possibly use something more efficient for large l.

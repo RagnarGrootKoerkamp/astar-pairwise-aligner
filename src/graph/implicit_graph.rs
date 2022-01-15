@@ -6,6 +6,8 @@ use std::hash;
 
 use crate::diagonal_map::DiagonalMapTrait;
 
+use super::Cost;
+
 pub trait PosOrder {
     type Output: Ord;
     fn key(&self) -> Self::Output;
@@ -29,6 +31,6 @@ pub trait ImplicitGraph {
 
     fn iterate_outgoing_edges<F>(&self, u: Self::Pos, f: F)
     where
-        F: FnMut(Self::Pos, usize, Self::Parent),
+        F: FnMut(Self::Pos, Cost, Self::Parent),
         Self: Sized;
 }

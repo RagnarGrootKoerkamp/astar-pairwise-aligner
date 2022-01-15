@@ -133,7 +133,7 @@ pub struct AStarStats {
 
 #[derive(Serialize, Default)]
 pub struct HeuristicStats2 {
-    pub root_h: usize,
+    pub root_h: Cost,
     pub path_matches: Option<usize>,
     pub explored_matches: Option<usize>,
 }
@@ -148,7 +148,7 @@ pub struct AlignResult {
     pub heuristic_stats: HeuristicStats,
 
     // Output
-    pub edit_distance: usize,
+    pub edit_distance: Cost,
     #[serde(skip_serializing)]
     pub path: Vec<Pos>,
 }
@@ -282,7 +282,7 @@ impl AlignResult {
     pub fn write(&self, writer: &mut Writer<std::fs::File>) {
         #[derive(Serialize)]
         struct Distance {
-            distance: usize,
+            distance: Cost,
         }
         writer
             .serialize((

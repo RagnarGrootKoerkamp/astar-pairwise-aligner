@@ -20,7 +20,7 @@ pub struct HeuristicParams {
     pub name: String,
     pub distance_function: Option<String>,
     pub l: Option<I>,
-    pub max_match_cost: Option<usize>,
+    pub max_match_cost: Option<Cost>,
     pub pruning: Option<bool>,
     pub build_fast: Option<bool>,
 }
@@ -61,9 +61,9 @@ pub trait HeuristicInstance<'a> {
     type Pos: Eq + Copy + std::fmt::Debug + Default = crate::graph::Pos;
     type IncrementalState: Eq + Copy + Default + std::fmt::Debug = ();
 
-    fn h(&self, pos: Self::Pos) -> usize;
+    fn h(&self, pos: Self::Pos) -> Cost;
 
-    fn h_with_parent(&self, pos: Self::Pos) -> (usize, Self::Pos) {
+    fn h_with_parent(&self, pos: Self::Pos) -> (Cost, Self::Pos) {
         (self.h(pos), Self::Pos::default())
     }
 
@@ -71,7 +71,7 @@ pub trait HeuristicInstance<'a> {
         &self,
         _parent: Self::Pos,
         _pos: Self::Pos,
-        _cost: usize,
+        _cost: Cost,
     ) -> Self::IncrementalState {
         Default::default()
     }
