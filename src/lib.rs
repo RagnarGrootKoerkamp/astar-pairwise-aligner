@@ -376,15 +376,10 @@ where
         root_pos,
         target,
         // heuristic function
-        |state| {
-            let v = h.borrow().h(state);
-            v
-        },
+        |state| h.borrow().h(state),
         /*retry_outdated*/ true,
         // Expand
         |pos| {
-            //println!("EXPAND {:?}", pos);
-            //make_dot(pos, '*', is_end_calls);
             expanded += 1;
             if DEBUG {
                 expanded_states.push(pos);
