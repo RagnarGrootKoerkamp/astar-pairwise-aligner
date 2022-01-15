@@ -3,45 +3,30 @@ use crate::prelude::*;
 use crate::scored::MinScored;
 
 #[derive(Clone, Copy)]
-struct ExploredState<Parent> {
-    g: Cost,
-    parent: Parent,
+enum Status {
+    Unvisited,
+    Explored,
+    Expanded,
 }
+use Status::*;
 
 #[derive(Clone, Copy)]
-struct ExpandedState<Parent> {
-    g: Cost,
-    // TODO: Can we not just use g instead?
+struct State<Parent> {
+    status: Status,
+    // TODO: Do we really need f?
     f: Cost,
+    g: Cost,
     parent: Parent,
 }
 
-enum State<Parent> {
-    Unvisited,
-    Explored(ExploredState<Parent>),
-    Expanded(ExpandedState<Parent>),
-}
-use State::*;
-
-impl<Parent> State<Parent> {
-    fn expanded(&self) -> &ExpandedState<Parent> {
-        match self {
-            Expanded(state) => state,
-            _ => unreachable!("Not an explored state"),
-        }
-    }
-    fn g(&self) -> Cost {
-        match self {
-            Unvisited => unreachable!("Not a visited state"),
-            Explored(state) => state.g,
-            Expanded(state) => state.g,
-        }
-    }
-}
-
-impl<Parent> Default for State<Parent> {
+impl<Parent: Default> Default for State<Parent> {
     fn default() -> Self {
-        State::Unvisited
+        Self {
+            status: Unvisited,
+            f: Cost::MAX,
+            g: Cost::MAX,
+            parent: Parent::default(),
+        }
     }
 }
 
@@ -72,10 +57,12 @@ where
 
     states.insert(
         start,
-        Explored(ExploredState::<G::Parent> {
+        State {
+            status: Explored,
+            f: 0,
             g: 0,
-            parent: G::Parent::default(),
-        }),
+            parent: Default::default(),
+        },
     );
     queue.push(MinScored(h(start), start));
 
@@ -84,7 +71,7 @@ where
         // before adding it to `visit_next`.
         //let g = gs[pos];
         let state = &mut states[pos];
-        let g = state.g();
+        let g = state.g;
 
         // If the heuristic value is outdated, skip the node and re-push it with the updated value.
         if retry_outdated {
@@ -97,19 +84,25 @@ where
         }
 
         // Expand the state.
-        *state = match *state {
+        match state.status {
             Unvisited => {
                 unreachable!("Cannot explore an unvisited node")
             }
             // Expand the currently explored state.
-            Explored(ExploredState { g, parent }) => Expanded(ExpandedState { g, f, parent }),
-            Expanded(mut s) => {
-                if f < s.f {
-                    s.f = f;
+            Explored => {
+                state.status = Expanded;
+                state.f = f;
+            }
+            Expanded => {
+                if f < state.f {
+                    state.f = f;
                     *double_expands += 1;
-                    Expanded(s)
                 } else {
                     // Skip if f is not better than the previous best f.
+                    // FIXME: Does this skipping break consistency if f has
+                    // jumped up from pruning in between the first and the
+                    // second time visiting this node?
+                    // Could be fixed by checking g instead.
                     continue;
                 }
             }
@@ -121,7 +114,7 @@ where
             let mut path = vec![last];
 
             let mut current = last;
-            while let Some(previous) = states[current].expanded().parent.parent(&current) {
+            while let Some(previous) = states[current].parent.parent(&current) {
                 path.push(previous);
                 current = previous;
             }
@@ -137,26 +130,16 @@ where
             let next_g = g + cost;
 
             // Expand next
-            match &mut states[next] {
-                s @ Unvisited => *s = Explored(ExploredState { g: next_g, parent }),
-                // Expand the currently explored state.
-                Explored(s) => {
-                    if next_g >= s.g {
-                        return;
-                    }
-                    *s = ExploredState { g: next_g, parent };
-                }
-                Expanded(s) => {
-                    if next_g >= s.g {
-                        return;
-                    }
-                    *s = ExpandedState {
-                        g: next_g,
-                        f: s.f,
-                        parent,
-                    };
+            let next_state = &mut states[next];
+            if let Unvisited = next_state.status {
+                next_state.status = Explored;
+            } else {
+                if next_g >= next_state.g {
+                    return;
                 }
             };
+            next_state.g = next_g;
+            next_state.parent = parent;
 
             // Number of pushes on the stack.
             on_explore(next);

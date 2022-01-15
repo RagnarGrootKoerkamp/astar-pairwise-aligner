@@ -103,6 +103,7 @@ implementations in ~algorithms.rs~.
 CLOSED: [2022-01-15 Sat 17:18]
 ** DONE Add new strong type for costs.
 CLOSED: [2022-01-15 Sat 17:18]
+** TODO More compact Match/Arrow representation; using delta encoding for end
 
 * Tests
 ** TODO Test all pairs with n <= 6
