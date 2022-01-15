@@ -27,7 +27,7 @@ pub mod thresholds;
 pub mod util;
 
 #[cfg(debug_assertions)]
-pub const DEBUG: bool = true;
+pub const DEBUG: bool = false;
 
 #[cfg(not(debug_assertions))]
 const DEBUG: bool = false;

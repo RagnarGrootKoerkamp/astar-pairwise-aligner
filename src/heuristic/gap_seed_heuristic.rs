@@ -312,7 +312,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         HeuristicStats {
             num_seeds: Some(self.seed_matches.num_seeds),
             num_matches: Some(self.seed_matches.matches.len()),
-            matches: Some(self.seed_matches.matches.clone()),
+            matches: if DEBUG {
+                Some(self.seed_matches.matches.clone())
+            } else {
+                None
+            },
             pruning_duration: Some(self.pruning_duration.as_secs_f32()),
         }
     }
