@@ -366,6 +366,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
                     for _ in 0..previous_shift.unwrap() {
                         //println!("Delete layer {} of len {}", v, self.contours[v].len());
                         assert!(self.contours[v].len() == 0);
+                        // TODO: Instead of removing contours, keep a Fenwick Tree that counts the number of removed layers.
                         self.contours.remove(v);
                         v -= 1;
                     }
