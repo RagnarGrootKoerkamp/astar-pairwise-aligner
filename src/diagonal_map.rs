@@ -16,10 +16,11 @@ pub trait DiagonalMapTrait<Pos, V>: Index<Pos, Output = V> + IndexMut<Pos> {
 
 /// A HashMap drop-in replacement for 2D data that's dense around the diagonal.
 pub struct DiagonalMap<V> {
-    // TODO: Move from Option to a separate bit vector.
     above: Vec<Vec<V>>,
     below: Vec<Vec<V>>,
-    target: Pos,
+    // For each diagonal, allocate a number of blocks of length ~sqrt(n).
+    num_blocks: usize,
+    lg_block_size: usize,
 }
 
 // TODO: Use some NonZero types to make this type smaller.
@@ -34,9 +35,15 @@ impl<V: Default> DiagonalMap<V> {
     #[inline]
     fn index_of(&self, &Pos(i, j): &Pos) -> DIndex {
         if i >= j {
-            Above(i - j, j)
+            Above(
+                self.num_blocks * (i - j) + (j >> self.lg_block_size),
+                j & ((1 << self.lg_block_size) - 1),
+            )
         } else {
-            Below(j - i - 1, i)
+            Below(
+                self.num_blocks * (j - i - 1) + (i >> self.lg_block_size),
+                i & ((1 << self.lg_block_size) - 1),
+            )
         }
     }
 
@@ -53,24 +60,20 @@ impl<V: Default> DiagonalMap<V> {
     fn grow(&mut self, idx: &DIndex) {
         match *idx {
             // TODO: Reserving could be slightly more optimal.
-            Above(i, _j) => {
-                while self.above.len() <= i {
-                    let len = max(self.target.0, self.target.1) + 1;
-                    self.above.resize_with(i + 1, || {
-                        let mut vec = Vec::new();
-                        vec.resize_with(len, || V::default());
-                        vec
-                    });
+            Above(i, j) => {
+                if self.above.len() <= i {
+                    self.above.resize_with(i + 1, || Vec::default());
+                }
+                if self.above[i].len() <= j {
+                    self.above[i].resize_with(1 << self.lg_block_size, || V::default());
                 }
             }
-            Below(i, _j) => {
+            Below(i, j) => {
                 if self.below.len() <= i {
-                    let len = max(self.target.0, self.target.1) + 1;
-                    self.below.resize_with(i + 1, || {
-                        let mut vec = Vec::new();
-                        vec.resize_with(len, || V::default());
-                        vec
-                    });
+                    self.below.resize_with(i + 1, || Vec::default());
+                }
+                if self.below[i].len() <= j {
+                    self.below[i].resize_with(1 << self.lg_block_size, || V::default());
                 }
             }
         }
@@ -79,10 +82,19 @@ impl<V: Default> DiagonalMap<V> {
 
 impl<V: Default> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
     fn new(target: Pos) -> DiagonalMap<V> {
+        let mut block_size = 1;
+        let mut lg_block_size = 0;
+        let n = max(target.0, target.1);
+        while block_size * block_size < n {
+            block_size *= 2;
+            lg_block_size += 1;
+        }
+
         DiagonalMap {
             above: Default::default(),
             below: Default::default(),
-            target,
+            num_blocks: (n >> lg_block_size) + 1,
+            lg_block_size,
         }
     }
 
