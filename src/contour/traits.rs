@@ -59,6 +59,14 @@ pub trait Contours: Default + Debug {
     /// The value of the contour this point is on.
     /// Hint is guaranteed to be for the current position.
     fn value(&self, _q: Pos) -> Cost;
+
+    type Hint: Copy + Debug + Default = ();
+    fn value_with_hint(&self, _q: Pos, _hint: Self::Hint) -> (Cost, Self::Hint)
+    where
+        Self::Hint: Default,
+    {
+        (self.value(_q), Self::Hint::default())
+    }
     /// Remove the point at the given position, and shift all contours.
     /// This removes all arrows starting at the given position.
     /// Returns true when at the point was removed.

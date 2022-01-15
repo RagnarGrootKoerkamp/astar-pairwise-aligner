@@ -376,7 +376,7 @@ where
         root_pos,
         target,
         // heuristic function
-        |state| h.borrow().h(state),
+        |state, hint| h.borrow().h_with_hint(state, hint),
         /*retry_outdated*/ true,
         // Expand
         |pos| {

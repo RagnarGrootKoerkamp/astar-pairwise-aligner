@@ -59,9 +59,9 @@ where
         h1
     }
 
-    type IncrementalState = (
-        <<H1 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::IncrementalState,
-        <<H2 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::IncrementalState,
+    type Hint = (
+        <<H1 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint,
+        <<H2 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint,
     );
 
     fn prune(&mut self, pos: Pos) {
@@ -69,14 +69,14 @@ where
         self.h2.prune(pos);
     }
 
-    fn incremental_h(&self, parent: Self::Pos, pos: Pos, cost: Cost) -> Self::IncrementalState {
-        (
-            self.h1.incremental_h(parent, pos, cost),
-            self.h2.incremental_h(parent, pos, cost),
-        )
+    fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
+        let (c1, hint1) = self.h1.h_with_hint(pos, hint.0);
+        let (c2, hint2) = self.h2.h_with_hint(pos, hint.1);
+        assert!(c1 == c2, "Values differ at {:?}: {} {}", pos, c1, c2);
+        (c1, (hint1, hint2))
     }
 
-    fn root_state(&self, root_pos: Self::Pos) -> Self::IncrementalState {
+    fn root_state(&self, root_pos: Self::Pos) -> Self::Hint {
         (self.h1.root_state(root_pos), self.h2.root_state(root_pos))
     }
 
