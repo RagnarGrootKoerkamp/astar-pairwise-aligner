@@ -13,7 +13,7 @@ use itertools::Itertools;
 
 use crate::{
     graph::Pos,
-    prelude::{LexPos, I},
+    prelude::{Cost, LexPos, I},
 };
 
 /// A contour implementation that does push and query in logarithmic time, but prune in linear time.
@@ -138,7 +138,8 @@ impl<C: Contour> NaiveContours<C> {
     /// It can be that a contour is completely empty, and skipped by length>1 arrows.
     /// In that case, normal binary search would give a wrong answer.
     /// Thus, we always have to check multiple contours.
-    fn value_in_slice(contours: &[C], q: Pos, max_len: I) -> usize {
+    // TODO: Is max_len a cost or I here?
+    fn value_in_slice(contours: &[C], q: Pos, max_len: I) -> Cost {
         // q is always contained in layer 0.
         let mut left = 1;
         let mut right = contours.len();
@@ -163,7 +164,7 @@ impl<C: Contour> NaiveContours<C> {
             }
             size = right - left;
         }
-        left - 1
+        left as Cost - 1
     }
 }
 
@@ -185,17 +186,17 @@ impl<C: Contour> Contours for NaiveContours<C> {
                 v = max(v, this.value(a.end) + a.len);
             }
             assert!(v > 0);
-            if this.contours.len() <= v {
+            if this.contours.len() as Cost <= v {
                 this.contours
-                    .resize_with(v + 1, || C::with_max_len(max_len));
+                    .resize_with(v as usize + 1, || C::with_max_len(max_len));
             }
             ////println!("Push {} to layer {}", start, v);
-            this.contours[v].push(start);
+            this.contours[v as usize].push(start);
         }
         this
     }
 
-    fn value(&self, q: Pos) -> usize {
+    fn value(&self, q: Pos) -> Cost {
         let v = Self::value_in_slice(&self.contours, q, self.max_len);
         ////println!("Value of {} : {}", q, v);
         v
@@ -215,7 +216,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
         //}
 
         // Prune the current point, and also any other lazily pruned points that become dominant.
-        if !self.contours[v].prune_filter(&mut |pos| !self.arrows.contains_key(&pos)) {
+        if !self.contours[v as usize].prune_filter(&mut |pos| !self.arrows.contains_key(&pos)) {
             //println!("SKIP");
             return false;
         }
@@ -228,7 +229,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
         let mut previous_shift = None;
         loop {
             v += 1;
-            if v >= self.contours.len() {
+            if v >= self.contours.len() as Cost {
                 break;
             }
             self.prune_stats.contours += 1;
@@ -236,7 +237,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
             let (up_to_v, current) = {
-                let (up_to_v, from_v) = self.contours.as_mut_slice().split_at_mut(v);
+                let (up_to_v, from_v) = self.contours.as_mut_slice().split_at_mut(v as usize);
                 (up_to_v, &mut from_v[0])
             };
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
@@ -253,7 +254,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
                     Some(arrows) => arrows,
                     None => {
                         //println!("f: Prune {} no arrows left", pos);
-                        current_shift = Some(usize::MAX);
+                        current_shift = Some(Cost::MAX);
                         // If no arrows left for this position, prune it without propagating.
                         self.prune_stats.checked_true += 1;
                         return true;
@@ -264,7 +265,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
                 for arrow in pos_arrows {
                     // Find the value at end_val via a backwards search.
                     let mut end_val = v - arrow.len;
-                    while !up_to_v[end_val].contains(arrow.end) {
+                    while !up_to_v[end_val as usize].contains(arrow.end) {
                         end_val -= 1;
 
                         // No need to continue when this value isn't going to be optimal anyway.
@@ -291,7 +292,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
                 if best_start_val == v {
                     //println!("f: {} keeps value {}", pos, best_start_val);
                     self.prune_stats.checked_false += 1;
-                    current_shift = Some(usize::MAX);
+                    current_shift = Some(Cost::MAX);
                     return false;
                 }
 
@@ -307,11 +308,11 @@ impl<C: Contour> Contours for NaiveContours<C> {
                 //     "f: Push {} to {} shift {:?}",
                 //     pos, best_start_val, current_shift
                 // );
-                up_to_v[best_start_val].push(pos);
+                up_to_v[best_start_val as usize].push(pos);
                 if current_shift.is_none() {
                     current_shift = Some(v - best_start_val);
                 } else if current_shift.unwrap() != v - best_start_val {
-                    current_shift = Some(usize::MAX);
+                    current_shift = Some(Cost::MAX);
                 }
                 self.prune_stats.checked_true += 1;
                 return true;
@@ -321,7 +322,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
 
-            if v >= last_change + self.max_len as usize {
+            if v >= last_change + self.max_len as Cost {
                 ////println!("Last change at {}, stopping at {}", last_change, v);
                 // No further changes can happen.
                 self.prune_stats.no_change += 1;
@@ -332,8 +333,8 @@ impl<C: Contour> Contours for NaiveContours<C> {
             //"emptied {:?} shift {:?} last_change {:?}",
             //emptied_shift, shift_to, last_change
             //);
-            if self.contours[v].len() == 0
-                && (current_shift.is_none() || current_shift.unwrap() != usize::MAX)
+            if self.contours[v as usize].len() == 0
+                && (current_shift.is_none() || current_shift.unwrap() != Cost::MAX)
             {
                 if previous_shift.is_none()
                     || current_shift.is_none()
@@ -352,13 +353,13 @@ impl<C: Contour> Contours for NaiveContours<C> {
             }
             assert!(
                 // 0 happens when the layer was already empty.
-                layer_best_start_val == 0 || layer_best_start_val >= v - self.max_len as usize,
+                layer_best_start_val == 0 || layer_best_start_val >= v - self.max_len,
                 "Pruning {} now layer {} new max {} drops more than {}.\nlast_change: {}, shift_to {:?}, layer size: {}",
                 p,
                 v,
                 layer_best_start_val,
                 self.max_len,
-                last_change, current_shift, self.contours[v].len()
+                last_change, current_shift, self.contours[v as usize].len()
             );
 
             if num_emptied >= self.max_len {
@@ -369,9 +370,9 @@ impl<C: Contour> Contours for NaiveContours<C> {
 
                     for _ in 0..previous_shift.unwrap() {
                         //println!("Delete layer {} of len {}", v, self.contours[v].len());
-                        assert!(self.contours[v].len() == 0);
+                        assert!(self.contours[v as usize].len() == 0);
                         // TODO: Instead of removing contours, keep a Fenwick Tree that counts the number of removed layers.
-                        self.contours.remove(v);
+                        self.contours.remove(v as usize);
                         v -= 1;
                     }
                     break;

@@ -51,7 +51,7 @@ where
 {
     type Pos = Pos;
 
-    fn h(&self, pos: Self::Pos) -> usize {
+    fn h(&self, pos: Self::Pos) -> Cost {
         let h1 = self.h1.h(pos);
         let h2 = self.h2.h(pos);
         // h1 is the slow accurate one, h2 the fast inaccurate one.
@@ -69,7 +69,7 @@ where
         self.h2.prune(pos);
     }
 
-    fn incremental_h(&self, parent: Self::Pos, pos: Pos, cost: usize) -> Self::IncrementalState {
+    fn incremental_h(&self, parent: Self::Pos, pos: Pos, cost: Cost) -> Self::IncrementalState {
         (
             self.h1.incremental_h(parent, pos, cost),
             self.h2.incremental_h(parent, pos, cost),

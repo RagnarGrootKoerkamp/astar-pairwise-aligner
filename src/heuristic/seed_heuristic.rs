@@ -42,7 +42,7 @@ where
     ) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
-                <= self.match_config.length.l().unwrap_or(I::MAX) as usize / 3
+                <= self.match_config.length.l().unwrap_or(I::MAX) as Cost / 3
         );
         SimpleSeedHeuristicI::new(a, b, alphabet, *self)
     }
@@ -70,7 +70,7 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
 
     pub matches: SeedMatches,
     // The lowest cost match starting at each position.
-    h_at_seeds: HashMap<Pos, usize>,
+    h_at_seeds: HashMap<Pos, Cost>,
     // State for pruning.
     pruned_positions: HashSet<Pos>,
     // Partial pruning.
@@ -91,7 +91,7 @@ impl<'a, DH: Distance> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
 {
-    default fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
+    default fn distance(&self, from: Self::Pos, to: Self::Pos) -> Cost {
         max(
             self.distance_function.distance(from, to),
             self.matches.distance(from, to),
@@ -102,7 +102,7 @@ where
 /// For GapCost, we can show that it's never optimal to actually pay for a gap (unless going to the target)
 /// -- the potential difference to the parent will always be smaller.
 impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
-    fn distance(&self, from: Self::Pos, to: Self::Pos) -> usize {
+    fn distance(&self, from: Self::Pos, to: Self::Pos) -> Cost {
         let gap = self.distance_function.distance(from, to);
         let pot = self.matches.distance(from, to);
         if gap <= pot {
@@ -111,7 +111,7 @@ impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
             if to == self.target {
                 gap
             } else {
-                usize::MAX
+                Cost::MAX
             }
         }
     }
@@ -176,7 +176,7 @@ where
     DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
 {
     type Pos = crate::graph::Pos;
-    fn h(&self, pos: Self::Pos) -> usize {
+    fn h(&self, pos: Self::Pos) -> Cost {
         self.h_at_seeds
             .iter()
             .into_iter()
@@ -186,7 +186,7 @@ where
             .unwrap()
     }
 
-    fn h_with_parent(&self, pos: Self::Pos) -> (usize, Pos) {
+    fn h_with_parent(&self, pos: Self::Pos) -> (Cost, Pos) {
         self.h_at_seeds
             .iter()
             .into_iter()

@@ -6,8 +6,11 @@ use bio_types::sequence::Sequence;
 use serde::Serialize;
 use std::cmp::Ordering;
 
-/// The base type for positions.
+/// Type for positions in a sequence, and derived quantities.
 pub type I = u32;
+/// Type for costs.
+/// TODO: Make this a strong type.
+pub type Cost = u32;
 
 /// A position in a pairwise matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
@@ -142,7 +145,7 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
     #[inline]
     fn iterate_outgoing_edges<F>(&self, n @ Pos(i, j): Self::Pos, mut f: F)
     where
-        F: FnMut(Self::Pos, usize, Self::Parent),
+        F: FnMut(Self::Pos, Cost, Self::Parent),
     {
         // Take any of the 3 edges, and then walk as much diagonally as possible.
         let is_match = self.is_match(n);

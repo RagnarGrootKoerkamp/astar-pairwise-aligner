@@ -5,7 +5,7 @@ use strum_macros::EnumString;
 
 #[derive(EnumString, Default, Debug)]
 #[strum(ascii_case_insensitive)]
-pub enum Cost {
+pub enum CostFunction {
     Zero,
     #[default]
     Gap,
@@ -60,10 +60,10 @@ pub struct Params {
     l: I,
 
     #[structopt(short, default_value = "1")]
-    max_seed_cost: usize,
+    max_seed_cost: Cost,
 
     #[structopt(long, default_value = "Gap")]
-    cost: Cost,
+    cost: CostFunction,
 
     #[structopt(short = "-C", long, default_value = "Naive")]
     contours: Contours,
@@ -88,7 +88,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     len_b: b.len(),
                     ..Default::default()
                 },
-                edit_distance: dist as usize,
+                edit_distance: dist as Cost,
                 ..Default::default()
             }
         }
@@ -101,7 +101,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     len_b: b.len(),
                     ..Default::default()
                 },
-                edit_distance: dist as usize,
+                edit_distance: dist as Cost,
                 ..Default::default()
             }
         }
@@ -148,11 +148,11 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             }
 
             match params.cost {
-                Cost::Zero => run_cost::<ZeroCost>(a, b, params),
-                Cost::Gap => run_cost::<GapCost>(a, b, params),
-                Cost::Max => run_cost::<MaxCost>(a, b, params),
-                Cost::Count => run_cost::<CountCost>(a, b, params),
-                Cost::BiCount => run_cost::<BiCountCost>(a, b, params),
+                CostFunction::Zero => run_cost::<ZeroCost>(a, b, params),
+                CostFunction::Gap => run_cost::<GapCost>(a, b, params),
+                CostFunction::Max => run_cost::<MaxCost>(a, b, params),
+                CostFunction::Count => run_cost::<CountCost>(a, b, params),
+                CostFunction::BiCount => run_cost::<BiCountCost>(a, b, params),
             }
         }
         Algorithm::GapSeed => {

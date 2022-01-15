@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::prelude::{Pos, I};
+use crate::prelude::{Cost, Pos, I};
 
 /// A datastructure that contains the contours of non-dominant points.
 /// The 'main' contour is the set of dominant points: {P: P >= S for all S}.
@@ -43,19 +43,22 @@ pub struct Arrow {
     pub start: Pos,
     pub end: Pos,
     // ~ discount
-    pub len: usize,
+    pub len: Cost,
 }
 
 /// A datastructure that contains multiple contours.
 /// Supports incremental building from matches, querying, and pruning.
 /// The structure is built by pushing matches in decreasing order.
+// TODO: Make Pos and Cost template arguments instead?
+// Pos could be either transformed or non-transformed domain.
+// After transformation, it lives in the Cost domain.
 pub trait Contours: Default + Debug {
     /// Build the contours from a set of arrows.
     /// NOTE: Arrows must be reverse sorted by start.
     fn new(_arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self;
     /// The value of the contour this point is on.
     /// Hint is guaranteed to be for the current position.
-    fn value(&self, _q: Pos) -> usize;
+    fn value(&self, _q: Pos) -> Cost;
     /// Remove the point at the given position, and shift all contours.
     /// This removes all arrows starting at the given position.
     /// Returns true when at the point was removed.

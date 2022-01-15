@@ -4,15 +4,15 @@ use crate::scored::MinScored;
 
 #[derive(Clone, Copy)]
 struct ExploredState<Parent> {
-    g: usize,
+    g: Cost,
     parent: Parent,
 }
 
 #[derive(Clone, Copy)]
 struct ExpandedState<Parent> {
-    g: usize,
+    g: Cost,
     // TODO: Can we not just use g instead?
-    f: usize,
+    f: Cost,
     parent: Parent,
 }
 
@@ -30,7 +30,7 @@ impl<Parent> State<Parent> {
             _ => unreachable!("Not an explored state"),
         }
     }
-    fn g(&self) -> usize {
+    fn g(&self) -> Cost {
         match self {
             Unvisited => unreachable!("Not a visited state"),
             Explored(state) => state.g,
@@ -60,10 +60,10 @@ pub fn astar<G, H, ExpandFn, ExploreFn>(
     // Counters
     double_expands: &mut usize,
     retries: &mut usize,
-) -> Option<(usize, Vec<G::Pos>)>
+) -> Option<(Cost, Vec<G::Pos>)>
 where
     G: ImplicitGraph,
-    H: FnMut(G::Pos) -> usize,
+    H: FnMut(G::Pos) -> Cost,
     ExpandFn: FnMut(G::Pos),
     ExploreFn: FnMut(G::Pos),
 {
