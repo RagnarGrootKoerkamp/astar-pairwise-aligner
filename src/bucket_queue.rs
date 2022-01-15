@@ -34,7 +34,9 @@ impl<Pos: PosOrder> BucketQueue<Pos> {
                 }
                 self.next_sort += 1;
             }
-            // Start clearing memory 10 layers back.
+            // Clearing memory 10 layers back.
+            // The value of f shouldn't go down more than the maximum match
+            // distance of 1 or 2, so this should be plenty.
             if self.next_clear + 10 < self.next {
                 self.layers[self.next_clear].shrink_to_fit();
                 self.next_clear += 1;

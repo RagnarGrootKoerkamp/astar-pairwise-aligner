@@ -108,7 +108,7 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
     type Pos = Pos;
     type Parent = Parent;
     type DiagonalMap<T: Default> = DiagonalMap<T>;
-    //type DiagonalMap<T> = crate::prelude::HashMap<Pos, T>;
+    //type DiagonalMap<T: Default> = crate::prelude::HashMap<Pos, T>;
 
     #[inline]
     fn root(&self) -> Self::Pos {

@@ -126,13 +126,13 @@ impl<V> Index<Pos> for HashMap<Pos, V> {
         &self[&pos]
     }
 }
-impl<V> IndexMut<Pos> for HashMap<Pos, V> {
+impl<V: Default> IndexMut<Pos> for HashMap<Pos, V> {
     #[inline]
     fn index_mut(&mut self, pos: Pos) -> &mut Self::Output {
-        self.get_mut(&pos).unwrap()
+        self.entry(pos).or_default()
     }
 }
-impl<V> DiagonalMapTrait<Pos, V> for HashMap<Pos, V> {
+impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V> {
     fn new(_target: Pos) -> Self {
         Default::default()
     }
