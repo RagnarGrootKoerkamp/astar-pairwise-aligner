@@ -11,21 +11,23 @@ enum Status {
 use Status::*;
 
 #[derive(Clone, Copy)]
-struct State<Parent> {
+struct State<Parent, Hint> {
     status: Status,
     // TODO: Do we really need f?
     f: Cost,
     g: Cost,
     parent: Parent,
+    hint: Hint,
 }
 
-impl<Parent: Default> Default for State<Parent> {
+impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
     fn default() -> Self {
         Self {
             status: Unvisited,
             f: Cost::MAX,
             g: Cost::MAX,
             parent: Parent::default(),
+            hint: Hint::default(),
         }
     }
 }
@@ -33,7 +35,8 @@ impl<Parent: Default> Default for State<Parent> {
 // h: heuristic = lower bound on cost from node to end
 // g: computed cost to reach node from the start
 // f: g+h
-pub fn astar<G, H, ExpandFn, ExploreFn>(
+// TODO: Inline on_expand and on_explore functions by direct calls to h.
+pub fn astar<G, H, ExpandFn, ExploreFn, Hint: Default + Copy>(
     graph: &G,
     start: G::Pos,
     target: G::Pos,
@@ -48,23 +51,27 @@ pub fn astar<G, H, ExpandFn, ExploreFn>(
 ) -> Option<(Cost, Vec<G::Pos>)>
 where
     G: ImplicitGraph,
-    H: FnMut(G::Pos) -> Cost,
+    H: FnMut(G::Pos, Hint) -> (Cost, Hint),
     ExpandFn: FnMut(G::Pos),
     ExploreFn: FnMut(G::Pos),
 {
     let mut queue = heap::Heap::<G::Pos>::default(); // f
-    let mut states = G::DiagonalMap::<State<G::Parent>>::new(target);
+    let mut states = G::DiagonalMap::<State<G::Parent, Hint>>::new(target);
 
-    states.insert(
-        start,
-        State {
-            status: Explored,
-            f: 0,
-            g: 0,
-            parent: Default::default(),
-        },
-    );
-    queue.push(MinScored(h(start), start));
+    {
+        let (hroot, hint) = h(start, Hint::default());
+        queue.push(MinScored(hroot, start));
+        states.insert(
+            start,
+            State {
+                status: Explored,
+                f: 0,
+                g: 0,
+                parent: Default::default(),
+                hint,
+            },
+        );
+    }
 
     while let Some(MinScored(f, pos)) = queue.pop() {
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
@@ -72,10 +79,13 @@ where
         //let g = gs[pos];
         let state = &mut states[pos];
         let g = state.g;
+        let hint = state.hint;
 
         // If the heuristic value is outdated, skip the node and re-push it with the updated value.
         if retry_outdated {
-            let current_f = g + h(pos);
+            let (current_h, new_hint) = h(pos, state.hint);
+            state.hint = new_hint;
+            let current_f = g + current_h;
             if current_f > f {
                 *retries += 1;
                 queue.push(MinScored(current_f, pos));
@@ -144,7 +154,9 @@ where
             // Number of pushes on the stack.
             on_explore(next);
 
-            let next_f = next_g + h(next);
+            let (next_h, next_hint) = h(next, hint);
+            next_state.hint = next_hint;
+            let next_f = next_g + next_h;
             queue.push(MinScored(next_f, next));
         });
     }

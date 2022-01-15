@@ -59,7 +59,6 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
     type Pos: Eq + Copy + std::fmt::Debug + Default = crate::graph::Pos;
-    type IncrementalState: Eq + Copy + Default + std::fmt::Debug = ();
 
     fn h(&self, pos: Self::Pos) -> Cost;
 
@@ -67,15 +66,12 @@ pub trait HeuristicInstance<'a> {
         (self.h(pos), Self::Pos::default())
     }
 
-    fn incremental_h(
-        &self,
-        _parent: Self::Pos,
-        _pos: Self::Pos,
-        _cost: Cost,
-    ) -> Self::IncrementalState {
-        Default::default()
+    type Hint: Copy + Default + std::fmt::Debug = ();
+    fn h_with_hint(&self, pos: Self::Pos, _hint: Self::Hint) -> (Cost, Self::Hint) {
+        (self.h(pos), Default::default())
     }
-    fn root_state(&self, _root_pos: Self::Pos) -> Self::IncrementalState {
+
+    fn root_state(&self, _root_pos: Self::Pos) -> Self::Hint {
         Default::default()
     }
 

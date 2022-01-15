@@ -7,7 +7,11 @@ pub use bruteforce::*;
 pub use set_contour::*;
 pub use traits::*;
 
-use std::{cmp::max, collections::HashMap, fmt::Debug};
+use std::{
+    cmp::{max, min},
+    collections::HashMap,
+    fmt::Debug,
+};
 
 use itertools::Itertools;
 
@@ -200,6 +204,24 @@ impl<C: Contour> Contours for NaiveContours<C> {
         let v = Self::value_in_slice(&self.contours, q, self.max_len);
         ////println!("Value of {} : {}", q, v);
         v
+    }
+
+    // The layer for the parent node.
+    type Hint = Cost;
+
+    fn value_with_hint(&self, q: Pos, hint: Self::Hint) -> (Cost, Self::Hint)
+    where
+        Self::Hint: Default,
+    {
+        return (self.value(q), Cost::default());
+        // TODO: Figure out what is the correct addition to use here.
+        // TODO: Maybe using shadow nodes in lower layers is simpler after all.
+        // let mut v = min(hint + self.max_len + 2, self.contours.len() as Cost - 1);
+        // while !self.contours[v as usize].contains(q) {
+        //     v -= 1;
+        // }
+
+        // (v, v)
     }
 
     fn prune(&mut self, p: Pos) -> bool {

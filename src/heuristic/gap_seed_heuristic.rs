@@ -259,6 +259,17 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
+    type Hint = C::Hint;
+    fn h_with_hint(&self, pos: Self::Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
+        let p = self.seed_matches.potential(pos);
+        let (val, new_hint) = self.contours.value_with_hint(self.transform(pos), hint);
+        if val == 0 {
+            (self.distance(pos, self.target), new_hint)
+        } else {
+            (p - val, new_hint)
+        }
+    }
+
     fn prune(&mut self, pos: Pos) {
         if !self.params.pruning {
             return;
