@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use std::{default, marker::PhantomData};
+use std::marker::PhantomData;
 use structopt::StructOpt;
 use strum_macros::EnumString;
 
@@ -57,7 +57,7 @@ pub struct Params {
     algorithm: Algorithm,
 
     #[structopt(short, default_value = "7")]
-    l: usize,
+    l: I,
 
     #[structopt(short, default_value = "1")]
     max_seed_cost: usize,

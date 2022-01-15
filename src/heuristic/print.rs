@@ -23,11 +23,11 @@ pub fn print<'a, 'b, H>(
     let mut rng = ChaCha8Rng::seed_from_u64(3144);
     let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
     let Pos(a, b) = target;
-    let mut pixels = vec![vec![(None, None, false, false); 20 * b]; 20 * a];
+    let mut pixels = vec![vec![(None, None, false, false); 20 * b as usize]; 20 * a as usize];
     for i in 0..=a {
         for j in 0..=b {
             let p = Pos(i, j);
-            let pixel = &mut pixels[p.0][p.1];
+            let pixel = &mut pixels[p.0 as usize][p.1 as usize];
 
             let (val, parent_pos) = h.h_with_parent(p);
             let l = ps.len();
@@ -50,8 +50,8 @@ pub fn print<'a, 'b, H>(
             pixel.1 = Some(val);
         }
     }
-    let print = |i: usize, j: usize| {
-        let pixel = pixels[i][j];
+    let print = |i: I, j: I| {
+        let pixel = pixels[i as usize][j as usize];
         if pixel.2 {
             print!(
                 "{}{}",

@@ -19,7 +19,7 @@ use crate::{seeds::Match, util::*};
 pub struct HeuristicParams {
     pub name: String,
     pub distance_function: Option<String>,
-    pub l: Option<usize>,
+    pub l: Option<I>,
     pub max_match_cost: Option<usize>,
     pub pruning: Option<bool>,
     pub build_fast: Option<bool>,
@@ -27,7 +27,7 @@ pub struct HeuristicParams {
 
 #[derive(Serialize, Default)]
 pub struct HeuristicStats {
-    pub num_seeds: Option<usize>,
+    pub num_seeds: Option<I>,
     pub num_matches: Option<usize>,
     #[serde(skip_serializing)]
     pub matches: Option<Vec<Match>>,

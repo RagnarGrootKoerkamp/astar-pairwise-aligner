@@ -19,15 +19,15 @@ pub struct DiagonalMap<V> {
     above: Vec<Vec<V>>,
     below: Vec<Vec<V>>,
     // For each diagonal, allocate a number of blocks of length ~sqrt(n).
-    num_blocks: usize,
+    num_blocks: I,
     lg_block_size: usize,
 }
 
 // TODO: Use some NonZero types to make this type smaller.
 #[derive(Debug)]
 enum DIndex {
-    Above(usize, usize),
-    Below(usize, usize),
+    Above(I, I),
+    Below(I, I),
 }
 use DIndex::*;
 
@@ -51,8 +51,8 @@ impl<V: Default> DiagonalMap<V> {
     fn get_mut_entry<'a>(&'a mut self, idx: &DIndex) -> &'a mut V {
         self.grow(idx);
         match *idx {
-            Above(i, j) => &mut self.above[i][j],
-            Below(i, j) => &mut self.below[i][j],
+            Above(i, j) => &mut self.above[i as usize][j as usize],
+            Below(i, j) => &mut self.below[i as usize][j as usize],
         }
     }
 
@@ -61,19 +61,19 @@ impl<V: Default> DiagonalMap<V> {
         match *idx {
             // TODO: Reserving could be slightly more optimal.
             Above(i, j) => {
-                if self.above.len() <= i {
-                    self.above.resize_with(i + 1, || Vec::default());
+                if self.above.len() as I <= i {
+                    self.above.resize_with(i as usize + 1, || Vec::default());
                 }
-                if self.above[i].len() <= j {
-                    self.above[i].resize_with(1 << self.lg_block_size, || V::default());
+                if self.above[i as usize].len() as I <= j {
+                    self.above[i as usize].resize_with(1 << self.lg_block_size, || V::default());
                 }
             }
             Below(i, j) => {
-                if self.below.len() <= i {
-                    self.below.resize_with(i + 1, || Vec::default());
+                if self.below.len() as I <= i {
+                    self.below.resize_with(i as usize + 1, || Vec::default());
                 }
-                if self.below[i].len() <= j {
-                    self.below[i].resize_with(1 << self.lg_block_size, || V::default());
+                if self.below[i as usize].len() as I <= j {
+                    self.below[i as usize].resize_with(1 << self.lg_block_size, || V::default());
                 }
             }
         }
@@ -111,8 +111,8 @@ impl<V: Default> Index<Pos> for DiagonalMap<V> {
     #[inline]
     fn index(&self, pos: Pos) -> &Self::Output {
         match self.index_of(&pos) {
-            Above(i, j) => &self.above[i][j],
-            Below(i, j) => &self.below[i][j],
+            Above(i, j) => &self.above[i as usize][j as usize],
+            Below(i, j) => &self.below[i as usize][j as usize],
         }
     }
 }
@@ -123,8 +123,8 @@ impl<V: Default> IndexMut<Pos> for DiagonalMap<V> {
         let idx = self.index_of(&pos);
         self.grow(&idx);
         match idx {
-            Above(i, j) => &mut self.above[i][j],
-            Below(i, j) => &mut self.below[i][j],
+            Above(i, j) => &mut self.above[i as usize][j as usize],
+            Below(i, j) => &mut self.below[i as usize][j as usize],
         }
     }
 }

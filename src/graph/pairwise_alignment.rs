@@ -6,9 +6,18 @@ use bio_types::sequence::Sequence;
 use serde::Serialize;
 use std::cmp::Ordering;
 
+/// The base type for positions.
+pub type I = u32;
+
 /// A position in a pairwise matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
-pub struct Pos(pub usize, pub usize);
+pub struct Pos(pub I, pub I);
+
+impl Pos {
+    pub fn from_length(a: &Sequence, b: &Sequence) -> Self {
+        Pos(a.len() as I, b.len() as I)
+    }
+}
 
 #[derive(Default, Clone, Copy)]
 pub enum Parent {
@@ -98,7 +107,7 @@ impl<'a> AlignmentGraph<'a> {
         AlignmentGraph {
             a,
             b,
-            target: Pos(a.len(), b.len()),
+            target: Pos::from_length(a, b),
             greedy_matching,
         }
     }
@@ -122,7 +131,7 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
 
     #[inline]
     fn is_match(&self, Pos(i, j): Self::Pos) -> Option<Self::Pos> {
-        if i < self.target.0 && j < self.target.1 && self.a[i] == self.b[j] {
+        if i < self.target.0 && j < self.target.1 && self.a[i as usize] == self.b[j as usize] {
             Some(Pos(i + 1, j + 1))
         } else {
             None

@@ -42,7 +42,7 @@ where
     ) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
-                <= self.match_config.length.l().unwrap_or(usize::MAX) / 3
+                <= self.match_config.length.l().unwrap_or(I::MAX) as usize / 3
         );
         SimpleSeedHeuristicI::new(a, b, alphabet, *self)
     }
@@ -130,7 +130,7 @@ where
         let mut h = SimpleSeedHeuristicI::<'a> {
             params,
             distance_function: Distance::build(&params.distance_function, a, b, alphabet),
-            target: Pos(a.len(), b.len()),
+            target: Pos::from_length(a, b),
             matches: find_matches(a, b, alphabet, params.match_config),
             h_at_seeds: Default::default(),
             pruned_positions: Default::default(),

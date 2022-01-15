@@ -107,7 +107,7 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
     fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
-                <= self.match_config.length.l().unwrap_or(usize::MAX) / 3
+                <= self.match_config.length.l().unwrap_or(I::MAX) as usize / 3
         );
         GapSeedHeuristicI::new(a, b, alph, *self)
     }
@@ -175,9 +175,10 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         let mut h = GapSeedHeuristicI {
             params,
             gap_distance: Distance::build(&GapCost, a, b, alph),
-            target: Pos(a.len(), b.len()),
+            target: Pos::from_length(a, b),
             seed_matches,
             transform_target: Pos(0, 0),
+
             // Filled below.
             contours: C::default(),
             expanded: HashSet::default(),
@@ -223,17 +224,21 @@ impl<'a, C: Contours> GapSeedHeuristicI<C> {
         //println!("{:?}", arrows);
         // Sort revered by start.
         arrows.sort_by_key(|Arrow { start, .. }| Reverse(LexPos(*start)));
-        self.contours = C::new(arrows, self.params.match_config.max_match_cost + 1);
+        // TODO: Fix the units here -- unclear whether it should be I or cost.
+        self.contours = C::new(arrows, self.params.match_config.max_match_cost as I + 1);
         //println!("{:?}", self.contours);
     }
 
+    // TODO: Transform maps from position domain into cost domain.
+    // Contours should take a template for the type of point they deal with.
     fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
         let a = self.target.0;
         let b = self.target.1;
         let pot = |pos| self.seed_matches.potential(pos);
         Pos(
-            i + b - j + pot(Pos(0, 0)) - pot(pos),
-            j + a - i + pot(Pos(0, 0)) - pot(pos),
+            // This is a lie. All should be converted to cost, instead of position really.
+            i + b - j + pot(Pos(0, 0)) as I - pot(pos) as I,
+            j + a - i + pot(Pos(0, 0)) as I - pot(pos) as I,
         )
     }
 }
@@ -324,7 +329,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     // TODO: Unify this with the base print function.
     fn print(&self, do_transform: bool, wait_for_user: bool) {
         let l = self.params.match_config.length.l().unwrap();
-        let max_match_cost = self.params.match_config.max_match_cost;
+        let max_match_cost = self.params.match_config.max_match_cost as I;
         let reset = termion::color::Rgb(230, 230, 230);
         let mut ps = HashMap::default();
         // ps.insert(1, termion::color::Rgb(255, 0, 0));
@@ -333,7 +338,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31414);
         let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
         let Pos(a, b) = self.target;
-        let mut pixels = vec![vec![(None, None, false, false); 20 * b]; 20 * a];
+        let mut pixels = vec![vec![(None, None, false, false); 20 * b as usize]; 20 * a as usize];
         let start_i = Pos(
             b * (max_match_cost + 1) / (l + max_match_cost + 1) + a - b,
             0,
@@ -347,7 +352,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 // Transformation: draw (i,j) at ((l+1)*i + l*(B-j), l*j + (A-i)*(l-1))
                 // scaling: divide draw coordinate by l, using the right offset.
                 let draw_pos = if do_transform { self.transform(p) } else { p };
-                let pixel = &mut pixels[draw_pos.0][draw_pos.1];
+                let pixel = &mut pixels[draw_pos.0 as usize][draw_pos.1 as usize];
 
                 let layer = self.contours.value(self.transform(p));
                 let (_val, _parent_pos) = self.h_with_parent(p);
@@ -367,8 +372,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 pixel.1 = Some(""); // _val, layer
             }
         }
-        let print = |i: usize, j: usize| {
-            let pixel = pixels[i][j];
+        let print = |i: I, j: I| {
+            let pixel = pixels[i as usize][j as usize];
             if pixel.2 {
                 print!(
                     "{}{}",

@@ -28,11 +28,11 @@ pub struct SetContour {
     dominant: Vec<Pos>,
 
     /// The maximal width of the front.
-    width: usize,
+    width: I,
 }
 
 impl Contour for SetContour {
-    fn with_max_len(max_len: usize) -> Self {
+    fn with_max_len(max_len: I) -> Self {
         SetContour {
             width: 2 * max_len - 1,
             ..Self::default()

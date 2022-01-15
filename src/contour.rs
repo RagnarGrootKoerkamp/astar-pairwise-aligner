@@ -11,7 +11,10 @@ use std::{cmp::max, collections::HashMap, fmt::Debug};
 
 use itertools::Itertools;
 
-use crate::{graph::Pos, prelude::LexPos};
+use crate::{
+    graph::Pos,
+    prelude::{LexPos, I},
+};
 
 /// A contour implementation that does push and query in logarithmic time, but prune in linear time.
 #[derive(Default, Debug)]
@@ -108,7 +111,8 @@ pub struct NaiveContours<C: Contour> {
     contours: Vec<C>,
     // TODO: Do not use vectors inside a hashmap.
     arrows: HashMap<Pos, Vec<Arrow>>,
-    max_len: usize,
+    // TODO: This should have units in the transformed domain instead.
+    max_len: I,
     prune_stats: PruneStats,
 }
 
@@ -134,7 +138,7 @@ impl<C: Contour> NaiveContours<C> {
     /// It can be that a contour is completely empty, and skipped by length>1 arrows.
     /// In that case, normal binary search would give a wrong answer.
     /// Thus, we always have to check multiple contours.
-    fn value_in_slice(contours: &[C], q: Pos, max_len: usize) -> usize {
+    fn value_in_slice(contours: &[C], q: Pos, max_len: I) -> usize {
         // q is always contained in layer 0.
         let mut left = 1;
         let mut right = contours.len();
@@ -142,7 +146,7 @@ impl<C: Contour> NaiveContours<C> {
         while left < right {
             let mid = left + size / 2;
             let mut found = false;
-            for c in mid..mid + max_len {
+            for c in mid..mid + max_len as usize {
                 if c >= contours.len() {
                     break;
                 }
@@ -164,14 +168,14 @@ impl<C: Contour> NaiveContours<C> {
 }
 
 impl<C: Contour> Contours for NaiveContours<C> {
-    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: usize) -> Self {
+    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
         let mut this = NaiveContours {
             contours: vec![C::default()],
             arrows: HashMap::default(),
             max_len,
             prune_stats: Default::default(),
         };
-        this.contours[0].push(Pos(usize::MAX, usize::MAX));
+        this.contours[0].push(Pos(I::MAX, I::MAX));
         // Loop over all arrows from a given positions.
         for (start, pos_arrows) in &arrows.into_iter().group_by(|a| a.start) {
             let mut v = 0;
@@ -317,7 +321,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
 
-            if v >= last_change + self.max_len {
+            if v >= last_change + self.max_len as usize {
                 ////println!("Last change at {}, stopping at {}", last_change, v);
                 // No further changes can happen.
                 self.prune_stats.no_change += 1;
@@ -348,7 +352,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
             }
             assert!(
                 // 0 happens when the layer was already empty.
-                layer_best_start_val == 0 || layer_best_start_val >= v - self.max_len,
+                layer_best_start_val == 0 || layer_best_start_val >= v - self.max_len as usize,
                 "Pruning {} now layer {} new max {} drops more than {}.\nlast_change: {}, shift_to {:?}, layer size: {}",
                 p,
                 v,
