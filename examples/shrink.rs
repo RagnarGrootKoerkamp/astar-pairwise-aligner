@@ -25,12 +25,13 @@ fn main() {
     println!("Heuristic:\n{:?}", h);
 
     // True on success.
-    let test = |start, end| {
+    let test = |start: I, end: I| {
+        let Pos(n, m) = Pos::from_length(&a, &b);
         println!("Test: {} {}", start, end);
         let v = std::panic::catch_unwind(|| {
             align(
-                &a[start..min(a.len(), end)].to_vec(),
-                &b[start..min(b.len(), end)].to_vec(),
+                &a[start as usize..min(n, end) as usize].to_vec(),
+                &b[start as usize..min(m, end) as usize].to_vec(),
                 &alphabet,
                 stats,
                 h,
@@ -42,7 +43,7 @@ fn main() {
         v
     };
     let start;
-    let mut end = max(a.len(), b.len());
+    let mut end = max(a.len(), b.len()) as I;
 
     // Binary search the start of the sequence in steps of l.
     {

@@ -61,7 +61,7 @@ pub struct BruteForceContours {
 }
 
 impl Contours for BruteForceContours {
-    fn new(arrows: impl IntoIterator<Item = Arrow>, _max_len: usize) -> Self {
+    fn new(arrows: impl IntoIterator<Item = Arrow>, _max_len: I) -> Self {
         let mut this = BruteForceContours {
             valued_arrows: Vec::default(),
         };

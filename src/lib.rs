@@ -370,7 +370,7 @@ where
     let start_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = AlignmentGraph::new(a, b, /*greedy_matching*/ true);
-    let target = Pos(a.len(), b.len());
+    let target = Pos::from_length(a, b);
     let (distance, path) = astar::astar(
         &graph,
         root_pos,

@@ -1,5 +1,7 @@
 // Common types reexported.
 
+pub use crate::prelude::*;
+
 pub use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,
@@ -7,10 +9,6 @@ pub use bio::{
 pub use bio_types::sequence::Sequence;
 pub use std::cmp::{max, min};
 pub use std::collections::BTreeMap;
-
-pub fn abs_diff(i: usize, j: usize) -> usize {
-    (i as isize - j as isize).abs() as usize
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Mutations {
@@ -41,11 +39,11 @@ impl Default for MutationConfig {
 // TODO: Do not generate insertions at the end. (Also do not generate similar
 // sequences by inserting elsewhere.)
 // TODO: Move to seeds.rs.
-pub fn mutations(k: usize, kmer: usize, config: MutationConfig) -> Mutations {
+pub fn mutations(k: I, kmer: usize, config: MutationConfig) -> Mutations {
     // This assumes the alphabet size is 4.
-    let mut deletions = Vec::with_capacity(k);
-    let mut substitutions = Vec::with_capacity(4 * k);
-    let mut insertions = Vec::with_capacity(4 * (k + 1));
+    let mut deletions = Vec::with_capacity(k as usize);
+    let mut substitutions = Vec::with_capacity(4 * k as usize);
+    let mut insertions = Vec::with_capacity(4 * (k + 1) as usize);
     // Substitutions
     for i in 0..k {
         let mask = !(3 << (2 * i));

@@ -95,6 +95,9 @@ CLOSED: [2022-01-13 Thu 18:56]
 ** TODO Test if ~dyn Contour~ is as fast as ~C: Contour~, and if so simplify the code this way.
 Same for Heuristic. Compilation is very slow after enumerating over all possible
 implementations in ~algorithms.rs~.
+** TODO Shrink size of Pos
+** TODO Trie for inexact matching
+** TODO Add new strong type for costs.
 
 * Tests
 ** TODO Test all pairs with n <= 6

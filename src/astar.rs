@@ -1,4 +1,4 @@
-use crate::diagonal_map::{DiagonalMapTrait, InsertIfSmallerResult};
+use crate::diagonal_map::DiagonalMapTrait;
 use crate::prelude::*;
 use crate::scored::MinScored;
 

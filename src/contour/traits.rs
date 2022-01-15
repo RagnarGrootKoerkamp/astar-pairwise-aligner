@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::prelude::Pos;
+use crate::prelude::{Pos, I};
 
 /// A datastructure that contains the contours of non-dominant points.
 /// The 'main' contour is the set of dominant points: {P: P >= S for all S}.
@@ -12,7 +12,7 @@ use crate::prelude::Pos;
 // TODO: An implementation that does lookup, and push (and pop) in O(lg(n))
 // TODO: An implementation that does lookup in O(1), using a hint.
 pub trait Contour: Default + Debug {
-    fn with_max_len(_max_len: usize) -> Self {
+    fn with_max_len(_max_len: I) -> Self {
         Default::default()
     }
     /// Add a new point to the graph.
@@ -52,7 +52,7 @@ pub struct Arrow {
 pub trait Contours: Default + Debug {
     /// Build the contours from a set of arrows.
     /// NOTE: Arrows must be reverse sorted by start.
-    fn new(_arrows: impl IntoIterator<Item = Arrow>, max_len: usize) -> Self;
+    fn new(_arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self;
     /// The value of the contour this point is on.
     /// Hint is guaranteed to be for the current position.
     fn value(&self, _q: Pos) -> usize;

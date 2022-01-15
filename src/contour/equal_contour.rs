@@ -1,4 +1,4 @@
-use crate::prelude::Contour;
+use crate::prelude::{Contour, I};
 
 #[derive(Debug, Default)]
 pub struct EqualContour<C1: Contour, C2: Contour> {
@@ -7,7 +7,7 @@ pub struct EqualContour<C1: Contour, C2: Contour> {
 }
 
 impl<C1: Contour, C2: Contour> Contour for EqualContour<C1, C2> {
-    fn with_max_len(max_len: usize) -> Self {
+    fn with_max_len(max_len: I) -> Self {
         Self {
             c1: C1::with_max_len(max_len),
             c2: C2::with_max_len(max_len),

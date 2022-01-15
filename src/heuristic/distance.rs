@@ -78,7 +78,7 @@ impl Heuristic for MaxCost {
         _alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
         MaxCostI {
-            target: Pos(a.len(), b.len()),
+            target: Pos::from_length(a, b),
         }
     }
 }
@@ -100,12 +100,12 @@ pub struct MaxCostI {
 
 impl HeuristicInstance<'_> for MaxCostI {
     fn h(&self, Pos(i, j): Self::Pos) -> usize {
-        max(self.target.0 - i, self.target.1 - j)
+        max(self.target.0 - i, self.target.1 - j) as usize
     }
 }
 impl DistanceInstance<'_> for MaxCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
-        max(to.0 - from.0, to.1 - from.1)
+        max(to.0 - from.0, to.1 - from.1) as usize
     }
 }
 
@@ -125,7 +125,7 @@ impl Heuristic for GapCost {
         _alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
         GapCostI {
-            target: Pos(a.len(), b.len()),
+            target: Pos::from_length(a, b),
         }
     }
 }
@@ -145,14 +145,18 @@ pub struct GapCostI {
     target: Pos,
 }
 
+fn abs_diff(i: I, j: I) -> I {
+    (i as isize - j as isize).abs() as u32
+}
+
 impl HeuristicInstance<'_> for GapCostI {
     fn h(&self, Pos(i, j): Self::Pos) -> usize {
-        abs_diff(self.target.0 - i, self.target.1 - j)
+        abs_diff(self.target.0 - i, self.target.1 - j) as usize
     }
 }
 impl DistanceInstance<'_> for GapCostI {
     fn distance(&self, from: Pos, to: Pos) -> usize {
-        abs_diff(to.0 - from.0, to.1 - from.1)
+        abs_diff(to.0 - from.0, to.1 - from.1) as usize
     }
 }
 
@@ -186,7 +190,7 @@ impl Heuristic for CountCost {
         CountCostI {
             a_cnts: char_counts(a, alphabet),
             b_cnts: char_counts(b, alphabet),
-            target: Pos(a.len(), b.len()),
+            target: Pos::from_length(a, b),
         }
     }
 }
@@ -221,10 +225,10 @@ impl DistanceInstance<'_> for CountCostI {
 
         // TODO: Find
         for (afrom, ato, bfrom, bto) in itertools::izip!(
-            &self.a_cnts[from.0],
-            &self.a_cnts[to.0],
-            &self.b_cnts[from.1],
-            &self.b_cnts[to.1],
+            &self.a_cnts[from.0 as usize],
+            &self.a_cnts[to.0 as usize],
+            &self.b_cnts[from.1 as usize],
+            &self.b_cnts[to.1 as usize],
         ) {
             let delta = (ato - afrom) as isize - (bto - bfrom) as isize;
             if delta > 0 {
@@ -270,7 +274,7 @@ impl Heuristic for BiCountCost {
             cnt: Distance::build(&CountCost, a, b, alphabet),
             a_cnts: char_bicounts(a, alphabet),
             b_cnts: char_bicounts(b, alphabet),
-            target: Pos(a.len(), b.len()),
+            target: Pos::from_length(a, b),
         }
     }
 }
@@ -302,10 +306,10 @@ impl<'a> DistanceInstance<'a> for BiCountCostI {
         // TODO: It should be possible to do some clever things here and use the
         // actual types of bimers to get a better lower bound.
         for (afrom, ato, bfrom, bto) in itertools::izip!(
-            &self.a_cnts[min(from.0 + 1, to.0)],
-            &self.a_cnts[to.0],
-            &self.b_cnts[min(from.1 + 1, to.1)],
-            &self.b_cnts[to.1],
+            &self.a_cnts[min(from.0 + 1, to.0) as usize],
+            &self.a_cnts[to.0 as usize],
+            &self.b_cnts[min(from.1 + 1, to.1) as usize],
+            &self.b_cnts[to.1 as usize],
         ) {
             let delta = (ato - afrom) as isize - (bto - bfrom) as isize;
             if delta > 0 {
