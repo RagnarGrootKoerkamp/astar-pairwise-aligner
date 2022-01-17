@@ -119,6 +119,9 @@ pub struct NaiveContours<C: Contour> {
     max_len: I,
     prune_stats: PruneStats,
 }
+/// If true: insert 'shadow' points to make sure that contour v always contains contour v+1.
+/// This makes contour[v].query(p) monotone in v, allowing simpler binary search/query operations.
+const USE_SHADOW_POINTS: bool = false;
 
 #[derive(Default, Debug)]
 struct PruneStats {
@@ -151,14 +154,18 @@ impl<C: Contour> NaiveContours<C> {
         while left < right {
             let mid = left + size / 2;
             let mut found = false;
-            for c in mid..mid + max_len as usize {
-                if c >= contours.len() {
-                    break;
-                }
-                let contains = contours[c].contains(q);
-                if contains {
-                    found = true;
-                    break;
+            if USE_SHADOW_POINTS {
+                found = mid < contours.len() && contours[mid].contains(q);
+            } else {
+                for c in mid..mid + max_len as usize {
+                    if c >= contours.len() {
+                        break;
+                    }
+                    let contains = contours[c].contains(q);
+                    if contains {
+                        found = true;
+                        break;
+                    }
                 }
             }
             if found {
@@ -196,6 +203,12 @@ impl<C: Contour> Contours for NaiveContours<C> {
             }
             ////println!("Push {} to layer {}", start, v);
             this.contours[v as usize].push(start);
+            if USE_SHADOW_POINTS {
+                while v > 0 && !this.contours[v as usize - 1].contains(start) {
+                    v -= 1;
+                    this.contours[v as usize].push(start);
+                }
+            }
         }
         this
     }
@@ -331,6 +344,13 @@ impl<C: Contour> Contours for NaiveContours<C> {
                 //     pos, best_start_val, current_shift
                 // );
                 up_to_v[best_start_val as usize].push(pos);
+                if USE_SHADOW_POINTS {
+                    let mut v = best_start_val;
+                    while v > 0 && !up_to_v[v as usize - 1].contains(pos) {
+                        v -= 1;
+                        up_to_v[v as usize].push(pos);
+                    }
+                }
                 if current_shift.is_none() {
                     current_shift = Some(v - best_start_val);
                 } else if current_shift.unwrap() != v - best_start_val {
