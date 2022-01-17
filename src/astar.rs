@@ -55,7 +55,6 @@ pub fn astar<'a, G, H>(
     start: G::Pos,
     target: G::Pos,
     h: &mut H,
-    retry_outdated: bool,
 ) -> Option<(Cost, Vec<G::Pos>, AStarStats<G::Pos>)>
 where
     G: ImplicitGraph,
@@ -97,7 +96,7 @@ where
         let hint = state.hint;
 
         // If the heuristic value is outdated, skip the node and re-push it with the updated value.
-        if retry_outdated {
+        if RETRY_OUDATED_HEURISTIC_VALUE {
             let (current_h, new_hint) = h.h_with_hint(pos, state.hint);
             state.hint = new_hint;
             let current_f = g + current_h;

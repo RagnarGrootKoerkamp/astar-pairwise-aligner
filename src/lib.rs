@@ -16,6 +16,7 @@ pub mod bucket_queue;
 pub mod contour;
 //pub mod contour_graph;
 pub mod algorithms;
+pub mod config;
 pub mod diagonal_map;
 pub mod graph;
 pub mod heuristic;
@@ -25,12 +26,6 @@ pub mod seeds;
 pub mod test;
 pub mod thresholds;
 pub mod util;
-
-#[cfg(debug_assertions)]
-pub const DEBUG: bool = false;
-
-#[cfg(not(debug_assertions))]
-const DEBUG: bool = false;
 
 // Include one of these to switch to the faster FxHashMap hashing algorithm.
 mod hash_map {
@@ -63,6 +58,8 @@ pub mod prelude {
 
     pub use super::fx_hash_map::*;
 
+    pub use config::*;
+
     pub(crate) use super::bucket_queue_impl as heap;
 
     pub use super::*;
@@ -74,16 +71,12 @@ pub mod prelude {
     pub use crate::seeds::{LengthConfig, LengthConfig::Fixed, Match, MatchConfig};
     pub use crate::test::*;
     pub use crate::util::*;
-
-    #[allow(unused_imports)]
-    pub(crate) use crate::DEBUG;
 }
 
 use csv::Writer;
 use rand::SeedableRng;
 use serde::Serialize;
 use std::{
-    cell::RefCell,
     collections::HashSet,
     fmt::{self, Display},
     path::Path,
@@ -342,17 +335,15 @@ where
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
     let mut h = heuristic.build(a, b, alphabet);
-    let start = Pos(0, 0);
-    let start_val = h.h(start);
     let heuristic_initialization = start_time.elapsed();
+    let start_val = h.h(Pos(0, 0));
 
     // Run A* with heuristic.
     let start_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = AlignmentGraph::new(a, b, /*greedy_matching*/ true);
-    let target = Pos::from_length(a, b);
     let (distance, path, astar_stats) =
-        astar::astar(&graph, start, target, &mut h, /*retry_outdated*/ true).unwrap_or_default();
+        astar::astar(&graph, Pos(0, 0), Pos::from_length(a, b), &mut h).unwrap_or_default();
     let astar_duration = start_time.elapsed();
 
     assert!(

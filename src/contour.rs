@@ -119,9 +119,6 @@ pub struct NaiveContours<C: Contour> {
     max_len: I,
     prune_stats: PruneStats,
 }
-/// If true: insert 'shadow' points to make sure that contour v always contains contour v+1.
-/// This makes contour[v].query(p) monotone in v, allowing simpler binary search/query operations.
-const USE_SHADOW_POINTS: bool = false;
 
 #[derive(Default, Debug)]
 struct PruneStats {
