@@ -120,18 +120,6 @@ pub struct TimingStats {
 }
 
 #[derive(Serialize, Default)]
-pub struct AStarStats {
-    pub expanded: usize,
-    pub explored: usize,
-    pub double_expanded: usize,
-    pub retries: usize,
-    #[serde(skip_serializing)]
-    pub explored_states: Vec<Pos>,
-    #[serde(skip_serializing)]
-    pub expanded_states: Vec<Pos>,
-}
-
-#[derive(Serialize, Default)]
 pub struct HeuristicStats2 {
     pub root_h: Cost,
     pub path_matches: Option<usize>,
@@ -143,7 +131,7 @@ pub struct AlignResult {
     pub input: SequenceStats,
     pub heuristic_params: HeuristicParams,
     pub timing: TimingStats,
-    pub astar: AStarStats,
+    pub astar: astar::AStarStats<Pos>,
     pub heuristic_stats2: HeuristicStats2,
     pub heuristic_stats: HeuristicStats,
 
@@ -351,19 +339,11 @@ pub fn align<'a, H: Heuristic>(
 where
     H::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
 {
-    let mut expanded = 0;
-    let mut explored = 0;
-    let mut explored_states = Vec::new();
-    let mut expanded_states = Vec::new();
-    let mut double_expanded = 0;
-    let mut retries = 0;
-
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
-    let h = RefCell::new(heuristic.build(a, b, alphabet));
-    let root_pos = Pos(0, 0);
-    let root_val = h.borrow().h(root_pos);
-    //let _ = h.borrow_mut();
+    let mut h = heuristic.build(a, b, alphabet);
+    let start = Pos(0, 0);
+    let start_val = h.h(start);
     let heuristic_initialization = start_time.elapsed();
 
     // Run A* with heuristic.
@@ -371,39 +351,15 @@ where
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = AlignmentGraph::new(a, b, /*greedy_matching*/ true);
     let target = Pos::from_length(a, b);
-    let (distance, path) = astar::astar(
-        &graph,
-        root_pos,
-        target,
-        // heuristic function
-        |state, hint| h.borrow().h_with_hint(state, hint),
-        /*retry_outdated*/ true,
-        // Expand
-        |pos| {
-            expanded += 1;
-            if DEBUG {
-                expanded_states.push(pos);
-            }
-            h.borrow_mut().prune(pos);
-        },
-        // Explore
-        |pos| {
-            explored += 1;
-            if DEBUG {
-                explored_states.push(pos);
-            }
-        },
-        &mut double_expanded,
-        &mut retries,
-    )
-    .unwrap_or((0, vec![]));
+    let (distance, path, astar_stats) =
+        astar::astar(&graph, start, target, &mut h, /*retry_outdated*/ true).unwrap_or_default();
     let astar_duration = start_time.elapsed();
 
     assert!(
-        root_val <= distance,
+        start_val <= distance,
         "Distance {} H0 {}",
         distance,
-        root_val
+        start_val
     );
 
     let path: Vec<Pos> = if DEBUG {
@@ -411,7 +367,6 @@ where
     } else {
         Default::default()
     };
-    let h = h.borrow();
     let h_stats = h.stats();
 
     let path_matches = if DEBUG {
@@ -426,7 +381,7 @@ where
         h_stats
             .matches
             .as_ref()
-            .map(|x| num_matches_on_path(&explored_states, x))
+            .map(|x| num_matches_on_path(&astar_stats.explored_states, x))
     } else {
         Default::default()
     };
@@ -437,17 +392,10 @@ where
             precomputation: heuristic_initialization.as_secs_f32(),
             astar: astar_duration.as_secs_f32(),
         },
-        astar: AStarStats {
-            expanded,
-            explored,
-            retries,
-            explored_states,
-            expanded_states,
-            double_expanded,
-        },
+        astar: astar_stats,
         heuristic_stats: h_stats,
         heuristic_stats2: HeuristicStats2 {
-            root_h: root_val,
+            root_h: start_val,
             path_matches,
             explored_matches,
         },
