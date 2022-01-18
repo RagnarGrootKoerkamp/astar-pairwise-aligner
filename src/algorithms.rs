@@ -63,10 +63,10 @@ pub struct Params {
     #[structopt(long, default_value = "Gap")]
     cost: CostFunction,
 
-    #[structopt(short = "-C", long, default_value = "Naive")]
+    #[structopt(short = "-C", long, default_value = "Hint")]
     contours: Contours,
 
-    #[structopt(short = "-c", long, default_value = "LogQuery")]
+    #[structopt(short = "-c", long, default_value = "Central")]
     contour: Contour,
 
     #[structopt(long)]

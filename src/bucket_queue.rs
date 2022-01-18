@@ -1,7 +1,7 @@
 use std::cmp::min;
 
 use crate::{
-    prelude::{Cost, PosOrder},
+    prelude::{Cost, PosOrder, SORT_QUEUE_ELEMENTS},
     scored::MinScored,
 };
 
@@ -31,11 +31,13 @@ impl<Pos: PosOrder> BucketQueue<Pos> {
                 return Some(MinScored(self.next, back));
             }
             self.next += 1;
-            if self.next == self.next_sort {
-                if let Some(layer) = self.layers.get_mut(self.next_sort as usize) {
-                    layer.sort_unstable_by_key(|pos| <Pos as PosOrder>::key(pos));
+            if SORT_QUEUE_ELEMENTS {
+                if self.next == self.next_sort {
+                    if let Some(layer) = self.layers.get_mut(self.next_sort as usize) {
+                        layer.sort_unstable_by_key(|pos| <Pos as PosOrder>::key(pos));
+                    }
+                    self.next_sort += 1;
                 }
-                self.next_sort += 1;
             }
             // Clearing memory 10 layers back.
             // The value of f shouldn't go down more than the maximum match
