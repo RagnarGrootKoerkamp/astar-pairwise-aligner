@@ -1,10 +1,12 @@
 use pairwise_aligner::prelude::*;
 
 fn main() {
-    let n = 100;
-    let e = 0.30;
-    let l = 4;
-    let max_match_cost = 0;
+    PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
+
+    let n = 500;
+    let e = 0.10;
+    let l = 6;
+    let max_match_cost = 1;
     let pruning = true;
     let prune_fraction = 1.0;
 
@@ -16,10 +18,10 @@ fn main() {
         },
         pruning,
         prune_fraction,
-        c: PhantomData::<NaiveContours<LogQueryContour>>,
+        c: PhantomData::<NaiveContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     }
-    .equal_to_seed_heuristic();
+    .equal_to_bruteforce_contours();
 
     let (a, b, alphabet, stats) = setup(n, e);
     println!("Heuristic:\n{:?}", h);
@@ -50,7 +52,7 @@ fn main() {
         let mut left = 0;
         let mut right = end;
         while left / l < right / l {
-            let mid = (left + right) / 2 / l * l;
+            let mid = (left + right + l - 1) / 2 / l * l;
             if test(mid, end) {
                 right = mid - 1;
             } else {
@@ -73,6 +75,14 @@ fn main() {
         }
         end = left;
     }
-    assert!(!test(start, end));
+
+    assert!(
+        !test(start, end),
+        "Could not shrink: Testcase doesn't fail!"
+    );
+    println!("Result\n{}\n{}", to_string(&a), to_string(&b));
+
+    PRINT.store(true, std::sync::atomic::Ordering::Relaxed);
+    test(start, end);
     println!("Result\n{}\n{}", to_string(&a), to_string(&b));
 }
