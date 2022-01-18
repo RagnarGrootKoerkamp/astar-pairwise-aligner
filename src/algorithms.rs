@@ -19,23 +19,19 @@ pub enum CostFunction {
 #[strum(ascii_case_insensitive)]
 pub enum Contour {
     BruteForce,
-    #[default]
     LogQuery,
     Set,
+    #[default]
     Central,
 }
 
-#[derive(EnumString, Debug)]
+#[derive(EnumString, Debug, Default)]
 #[strum(ascii_case_insensitive)]
 pub enum Contours {
     BruteForce,
     Naive,
-}
-
-impl Default for Contours {
-    fn default() -> Self {
-        Self::Naive
-    }
+    #[default]
+    Hint,
 }
 
 #[derive(EnumString, Debug)]
@@ -197,6 +193,16 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     }
                     Contour::Set => run_contours::<NaiveContours<SetContour>>(a, b, params),
                     Contour::Central => run_contours::<NaiveContours<CentralContour>>(a, b, params),
+                },
+                Contours::Hint => match params.contour {
+                    Contour::BruteForce => {
+                        run_contours::<HintContours<BruteForceContour>>(a, b, params)
+                    }
+                    Contour::LogQuery => {
+                        run_contours::<HintContours<LogQueryContour>>(a, b, params)
+                    }
+                    Contour::Set => run_contours::<HintContours<SetContour>>(a, b, params),
+                    Contour::Central => run_contours::<HintContours<CentralContour>>(a, b, params),
                 },
             }
         }
