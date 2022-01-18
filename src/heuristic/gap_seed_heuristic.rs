@@ -280,6 +280,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
         // Check that we don't double expand start-of-seed states.
         // Starts of seeds should still only be expanded once.
+        // FIXME: This is still broken from time to time.
         assert!(
             self.expanded.insert(pos),
             "Double expanded start of seed {} / {}",
