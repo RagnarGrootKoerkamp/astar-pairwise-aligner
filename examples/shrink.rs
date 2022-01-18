@@ -1,9 +1,11 @@
+use std::panic::AssertUnwindSafe;
+
 use pairwise_aligner::prelude::*;
 
 fn main() {
     PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
 
-    let n = 500;
+    let n = 200;
     let e = 0.10;
     let l = 6;
     let max_match_cost = 1;
@@ -18,7 +20,7 @@ fn main() {
         },
         pruning,
         prune_fraction,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     }
     .equal_to_bruteforce_contours();
@@ -30,7 +32,7 @@ fn main() {
     let test = |start: I, end: I| {
         let Pos(n, m) = Pos::from_length(&a, &b);
         println!("Test: {} {}", start, end);
-        let v = std::panic::catch_unwind(|| {
+        let v = std::panic::catch_unwind(AssertUnwindSafe(|| {
             align(
                 &a[start as usize..min(n, end) as usize].to_vec(),
                 &b[start as usize..min(m, end) as usize].to_vec(),
@@ -39,7 +41,7 @@ fn main() {
                 h,
             )
             .print()
-        })
+        }))
         .is_ok();
         println!("Test: {} {} => {}", start, end, v);
         v
