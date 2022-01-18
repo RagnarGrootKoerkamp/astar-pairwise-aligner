@@ -204,3 +204,69 @@ fn incremental_pruning_naive_set() {
         }
     }
 }
+
+#[test]
+fn incremental_pruning_naive_central() {
+    for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+        for n in [40, 100, 200, 500, 1000] {
+            for e in [0.1, 0.3, 1.0] {
+                let h = GapSeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(l),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning: true,
+                    c: PhantomData::<NaiveContours<CentralContour>>,
+                    ..GapSeedHeuristic::default()
+                };
+                let h_base = GapSeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(l),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning: true,
+                    c: PhantomData::<NaiveContours<BruteForceContour>>,
+                    ..GapSeedHeuristic::default()
+                };
+                let (a, b, alph, stats) = setup(n, e);
+                println!("TESTING n {} e {}: {:?}", n, e, h);
+                align(&a, &b, &alph, stats, EqualHeuristic { h1: h_base, h2: h });
+            }
+        }
+    }
+}
+
+#[test]
+fn incremental_pruning_hint_central() {
+    for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+        for n in [40, 100, 200, 500, 1000] {
+            for e in [0.1, 0.3, 1.0] {
+                let h = GapSeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(l),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning: true,
+                    c: PhantomData::<HintContours<CentralContour>>,
+                    ..GapSeedHeuristic::default()
+                };
+                let h_base = GapSeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(l),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning: true,
+                    c: PhantomData::<NaiveContours<CentralContour>>,
+                    ..GapSeedHeuristic::default()
+                };
+                let (a, b, alph, stats) = setup(n, e);
+                println!("TESTING n {} e {}: {:?}", n, e, h);
+                align(&a, &b, &alph, stats, EqualHeuristic { h1: h_base, h2: h });
+            }
+        }
+    }
+}
