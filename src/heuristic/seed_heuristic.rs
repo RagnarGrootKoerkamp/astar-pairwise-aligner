@@ -255,11 +255,13 @@ where
             return;
         }
 
-        //println!("PRUNE SEED HEURISTIC: {}", pos);
+        if print() {
+            println!("PRUNE SEED HEURISTIC: {}", pos);
+        }
         let start = time::Instant::now();
         self.build();
         self.pruning_duration += start.elapsed();
-        //self.print(false, false);
+        self.print(false, false);
     }
 
     fn print(&self, _transform: bool, wait_for_user: bool) {
