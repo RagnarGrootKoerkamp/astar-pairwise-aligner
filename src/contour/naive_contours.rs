@@ -137,7 +137,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
             return false;
         }
         if USE_SHADOW_POINTS {
-            // Find the first contour where this point is dominant.
+            // Also remove the point from other contours where it is dominant.
             let mut shadow_v = v - 1;
 
             while self.contours[shadow_v as usize].is_dominant(p) {
