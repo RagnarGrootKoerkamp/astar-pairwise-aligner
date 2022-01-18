@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, cmp::Ordering};
 
 use itertools::Itertools;
 
@@ -51,30 +51,6 @@ struct HintContourStats {
     contains_calls: usize,
 }
 
-impl<C: Contour> HintContours<C> {
-    /// Get the value of the given position.
-    /// It can be that a contour is completely empty, and skipped by length>1 arrows.
-    /// In that case, normal binary search would give a wrong answer.
-    /// Thus, we always have to check multiple contours.
-    // TODO: Is max_len a cost or I here?
-    fn value_in_slice(contours: &[C], q: Pos) -> Cost {
-        // q is always contained in layer 0.
-        let mut left = 1;
-        let mut right = contours.len();
-        let mut size = right;
-        while left < right {
-            let mid = left + size / 2;
-            if mid < contours.len() && contours[mid].contains(q) {
-                left = mid + 1;
-            } else {
-                right = mid;
-            }
-            size = right - left;
-        }
-        left as Cost - 1
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct Hint {
     original_layer: Cost,
@@ -122,7 +98,16 @@ impl<C: Contour> Contours for HintContours<C> {
     }
 
     fn value(&self, q: Pos) -> Cost {
-        Self::value_in_slice(&self.contours, q)
+        // We already know that 0 contains q, so we start at 1.
+        self.contours[1..]
+            .binary_search_by(|contour| {
+                if contour.contains(q) {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            })
+            .unwrap_err() as Cost
     }
 
     // The layer for the parent node.
