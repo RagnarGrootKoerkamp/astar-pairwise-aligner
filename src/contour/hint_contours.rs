@@ -33,6 +33,11 @@ struct HintContourStats {
     // Number of times f evaluates to true/false.
     checked_true: usize,
     checked_false: usize,
+
+    // Average # layers a pruned point moves down.
+    sum_prune_shifts: Cost,
+    num_prune_shifts: usize,
+
     // Total number of layers processed.
     contours: usize,
 
@@ -52,7 +57,7 @@ impl<C: Contour> HintContours<C> {
     /// In that case, normal binary search would give a wrong answer.
     /// Thus, we always have to check multiple contours.
     // TODO: Is max_len a cost or I here?
-    fn value_in_slice(contours: &[C], q: Pos, max_len: I) -> Cost {
+    fn value_in_slice(contours: &[C], q: Pos) -> Cost {
         // q is always contained in layer 0.
         let mut left = 1;
         let mut right = contours.len();
@@ -70,9 +75,17 @@ impl<C: Contour> HintContours<C> {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Hint {
     original_layer: Cost,
+}
+
+impl Default for Hint {
+    fn default() -> Self {
+        Self {
+            original_layer: Cost::MAX,
+        }
+    }
 }
 
 impl<C: Contour> Contours for HintContours<C> {
@@ -109,7 +122,7 @@ impl<C: Contour> Contours for HintContours<C> {
     }
 
     fn value(&self, q: Pos) -> Cost {
-        Self::value_in_slice(&self.contours, q, self.max_len)
+        Self::value_in_slice(&self.contours, q)
     }
 
     // The layer for the parent node.
@@ -307,6 +320,8 @@ impl<C: Contour> Contours for HintContours<C> {
                     current_shift = Some(Cost::MAX);
                 }
                 self.stats.borrow_mut().checked_true += 1;
+                self.stats.borrow_mut().num_prune_shifts += 1;
+                self.stats.borrow_mut().sum_prune_shifts += v - best_start_val;
                 true
             });
             if changes {
@@ -416,6 +431,8 @@ impl<C: Contour> Contours for HintContours<C> {
             value_with_hint_calls,
             binary_search_fallback,
             contains_calls,
+            sum_prune_shifts,
+            num_prune_shifts,
         }: HintContourStats = *self.stats.borrow();
 
         if prunes == 0 {
@@ -433,6 +450,10 @@ impl<C: Contour> Contours for HintContours<C> {
         println!(
             "checked false per p   {}",
             checked_false as f32 / prunes as f32
+        );
+        println!(
+            "shift per check true  {}",
+            sum_prune_shifts as f32 / num_prune_shifts as f32
         );
         println!("Stop count: no change    {}", no_change);
         println!("Stop count: shift layers {}", shift_layers);
