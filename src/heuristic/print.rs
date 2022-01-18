@@ -12,6 +12,9 @@ pub fn print<'a, 'b, H>(
 ) where
     H: HeuristicInstance<'a, Pos = Pos>,
 {
+    if !crate::config::print() {
+        return;
+    }
     let mut matches_by_start = HashSet::default();
     let mut matches_by_end = HashSet::default();
     for m in matches {

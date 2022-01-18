@@ -191,8 +191,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
         };
         h.transform_target = h.transform(h.target);
         h.build();
-        //h.print(true, false);
-        //h.print(false, false);
+        h.print(false, false);
         h.contours.print_stats();
         h
     }
@@ -319,11 +318,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         self.num_actual_pruned += 1;
 
         let start = time::Instant::now();
-        //println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
-        if self.contours.prune(self.transform(pos)) {
-            //self.print(false, false);
-            //self.print(true, false);
+
+        if print() {
+            println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
         }
+        self.print(false, false);
+        if self.contours.prune(self.transform(pos)) {}
         self.pruning_duration += start.elapsed();
     }
 
@@ -342,6 +342,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
     // TODO: Unify this with the base print function.
     fn print(&self, do_transform: bool, wait_for_user: bool) {
+        if !print() {
+            return;
+        }
         let l = self.params.match_config.length.l().unwrap();
         let max_match_cost = self.params.match_config.max_match_cost as I;
         let reset = termion::color::Rgb(230, 230, 230);
@@ -385,7 +388,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                     pixel.3 = true;
                 }
                 pixel.0 = Some(*color);
-                pixel.1 = Some(""); // _val, layer
+                pixel.1 = Some(_val); // _val, layer
             }
         }
         let print = |i: I, j: I| {
@@ -425,6 +428,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 println!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
             }
         };
+        print!(
+            "{}{}",
+            termion::color::Fg(termion::color::Reset),
+            termion::color::Bg(termion::color::Reset)
+        );
         if wait_for_user {
             let mut ret = String::new();
             io::stdin().read_line(&mut ret).unwrap();
