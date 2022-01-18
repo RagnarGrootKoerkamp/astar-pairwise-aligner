@@ -2,7 +2,7 @@
 //! be turned into configurable options.
 
 #[cfg(debug_assertions)]
-pub const DEBUG: bool = false;
+pub const DEBUG: bool = true;
 
 #[cfg(not(debug_assertions))]
 pub const DEBUG: bool = false;
