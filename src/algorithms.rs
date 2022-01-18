@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use contour::central::CentralContour;
 use std::marker::PhantomData;
 use structopt::StructOpt;
 use strum_macros::EnumString;
@@ -21,6 +22,7 @@ pub enum Contour {
     #[default]
     LogQuery,
     Set,
+    Central,
 }
 
 #[derive(EnumString, Debug)]
@@ -194,6 +196,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                         run_contours::<NaiveContours<LogQueryContour>>(a, b, params)
                     }
                     Contour::Set => run_contours::<NaiveContours<SetContour>>(a, b, params),
+                    Contour::Central => run_contours::<NaiveContours<CentralContour>>(a, b, params),
                 },
             }
         }
