@@ -172,6 +172,16 @@ impl<C: Contour> Contours for NaiveContours<C> {
             //println!("SKIP");
             return false;
         }
+        if USE_SHADOW_POINTS {
+            // Find the first contour where this point is dominant.
+            let mut shadow_v = v - 1;
+
+            while self.contours[shadow_v as usize].is_dominant(p) {
+                self.contours[shadow_v as usize].prune(p);
+                shadow_v -= 1;
+            }
+        }
+
         self.prune_stats.prunes += 1;
         //println!("PRUNE {} at LAYER {}", p, v);
 
