@@ -7,7 +7,7 @@ extern crate test;
 use test::Bencher;
 
 #[bench]
-fn stable_hundred(bench: &mut Bencher) {
+fn base_100(bench: &mut Bencher) {
     let n = 100;
     let e = 0.2;
     let h = GapSeedHeuristic {
@@ -27,7 +27,7 @@ fn stable_hundred(bench: &mut Bencher) {
 }
 
 #[bench]
-fn stable_thousand(bench: &mut Bencher) {
+fn base_1000(bench: &mut Bencher) {
     let n = 1000;
     let e = 0.2;
     let h = GapSeedHeuristic {
@@ -47,7 +47,7 @@ fn stable_thousand(bench: &mut Bencher) {
 }
 
 #[bench]
-fn stable_ten_k(bench: &mut Bencher) {
+fn base_10000(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.2;
     let h = GapSeedHeuristic {
@@ -67,7 +67,7 @@ fn stable_ten_k(bench: &mut Bencher) {
 }
 
 #[bench]
-fn stable_ten_k_prune_less(bench: &mut Bencher) {
+fn base_10000_prune_less(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.2;
     let h = GapSeedHeuristic {
@@ -87,8 +87,8 @@ fn stable_ten_k_prune_less(bench: &mut Bencher) {
 }
 
 #[bench]
-fn stable_hundred_k_similar(bench: &mut Bencher) {
-    let n = 100000;
+fn base_50000_similar(bench: &mut Bencher) {
+    let n = 50000;
     let e = 0.05;
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
