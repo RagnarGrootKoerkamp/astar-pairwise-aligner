@@ -16,6 +16,7 @@ use crate::prelude::*;
 pub struct HintContours<C: Contour> {
     contours: Vec<C>,
     // TODO: Do not use vectors inside a hashmap.
+    // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
     arrows: HashMap<Pos, Vec<Arrow>>,
     // TODO: This should have units in the transformed domain instead.
     max_len: I,
@@ -37,6 +38,7 @@ struct HintContourStats {
     // Average # layers a pruned point moves down.
     sum_prune_shifts: Cost,
     num_prune_shifts: usize,
+    max_prune_shift: Cost,
 
     // Total number of layers processed.
     contours: usize,
@@ -307,6 +309,10 @@ impl<C: Contour> Contours for HintContours<C> {
                 self.stats.borrow_mut().checked_true += 1;
                 self.stats.borrow_mut().num_prune_shifts += 1;
                 self.stats.borrow_mut().sum_prune_shifts += v - best_start_val;
+                self.stats.borrow_mut().max_prune_shift = max(
+                    self.stats.borrow().max_prune_shift.clone(),
+                    v - best_start_val,
+                );
                 true
             });
             if changes {
@@ -410,14 +416,15 @@ impl<C: Contour> Contours for HintContours<C> {
             checked,
             checked_true,
             checked_false,
+            sum_prune_shifts,
+            num_prune_shifts,
             contours,
             no_change,
             shift_layers,
             value_with_hint_calls,
             binary_search_fallback,
             contains_calls,
-            sum_prune_shifts,
-            num_prune_shifts,
+            max_prune_shift,
         }: HintContourStats = *self.stats.borrow();
 
         if prunes == 0 {
@@ -440,6 +447,7 @@ impl<C: Contour> Contours for HintContours<C> {
             "shift per check true  {}",
             sum_prune_shifts as f32 / num_prune_shifts as f32
         );
+        println!("max shift             {}", max_prune_shift);
         println!("Stop count: no change    {}", no_change);
         println!("Stop count: shift layers {}", shift_layers);
         println!("value_hint calls         {}", value_with_hint_calls);
