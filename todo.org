@@ -158,6 +158,9 @@ CLOSED: [2022-01-15 Sat 17:18]
 ** TODO Banded pruning
 only prune and update matches within $\sqrt n$ of the main diagonal. The rest
 won't be relevant anyway.
+** TODO More greedy pruning of matches that were skipped initially because of their neighbours.
+If we skip because there is a higher valued neighbour, then when pruning that
+neighbour, the original should also be pruned.
 
 ** NOTE Pruning of inexact matches has differences between the bruteforce and contour algorithm:
 - In the bruteforce, when an exact match is pruned, neighbouring exact matches
