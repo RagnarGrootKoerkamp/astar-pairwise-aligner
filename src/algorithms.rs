@@ -83,7 +83,7 @@ pub struct Params {
 pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
     match params.algorithm {
         Algorithm::Naive => {
-            let dist = bio::alignment::distance::levenshtein(&a, &b);
+            let dist = bio::alignment::distance::levenshtein(a, b);
             AlignResult {
                 input: SequenceStats {
                     len_a: a.len(),
@@ -95,7 +95,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             }
         }
         Algorithm::Simd => {
-            let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+            let dist = bio::alignment::distance::simd::levenshtein(a, b);
             println!("SIMD {:>8} {:>8} {:>6}", a.len(), b.len(), dist);
             AlignResult {
                 input: SequenceStats {
@@ -119,7 +119,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 source: Source::Extern,
             };
 
-            align(&a, &b, &alphabet, sequence_stats, heuristic)
+            align(a, b, &alphabet, sequence_stats, heuristic)
         }
         Algorithm::Seed => {
             fn run_cost<C: Distance>(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult
@@ -146,7 +146,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     source: Source::Extern,
                 };
 
-                align(&a, &b, &alphabet, sequence_stats, heuristic)
+                align(a, b, &alphabet, sequence_stats, heuristic)
             }
 
             match params.cost {
@@ -183,7 +183,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     source: Source::Extern,
                 };
 
-                align(&a, &b, &alphabet, sequence_stats, heuristic)
+                align(a, b, &alphabet, sequence_stats, heuristic)
             }
 
             match params.contours {

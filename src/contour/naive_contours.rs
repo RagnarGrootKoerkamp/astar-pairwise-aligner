@@ -111,9 +111,8 @@ impl<C: Contour> Contours for NaiveContours<C> {
     }
 
     fn value(&self, q: Pos) -> Cost {
-        let v = Self::value_in_slice(&self.contours, q, self.max_len);
+        Self::value_in_slice(&self.contours, q, self.max_len)
         ////println!("Value of {} : {}", q, v);
-        v
     }
 
     // The layer for the parent node.
@@ -123,11 +122,15 @@ impl<C: Contour> Contours for NaiveContours<C> {
     where
         Self::Hint: Default,
     {
+        /// FIXME: Fallback to normal value for now.
+        let v = self.value(q);
+        return (v, v);
+
         //return (self.value(q), Cost::default());
         // TODO: Figure out what is the correct addition to use here.
         // TODO: Maybe using shadow nodes in lower layers is simpler after all.
         let mut v = hint.saturating_sub(self.max_len);
-        if true || self.contours.len() as Cost <= v || !self.contours[v as usize].contains(q) {
+        if self.contours.len() as Cost <= v || !self.contours[v as usize].contains(q) {
             // TODO: Use an exponential search in this case?
             let v = self.value(q);
             // println!(
@@ -192,7 +195,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
             let mut current_shift = None;
             let mut layer_best_start_val = 0;
-            if current.prune_filter(&mut |pos| -> bool {
+            let changes = current.prune_filter(&mut |pos| -> bool {
                 // This function decides whether the point pos from contour v
                 // needs to be pruned from it.  For this, we (re)compute the
                 // value at pos and if it's < v, we push is to the new contour
@@ -271,8 +274,9 @@ impl<C: Contour> Contours for NaiveContours<C> {
                     current_shift = Some(Cost::MAX);
                 }
                 self.prune_stats.checked_true += 1;
-                return true;
-            }) {
+                true
+            });
+            if changes {
                 last_change = v;
             }
             //println!("{}: {:?}", v, self.contours[v]);
@@ -321,10 +325,10 @@ impl<C: Contour> Contours for NaiveContours<C> {
             if num_emptied >= self.max_len {
                 //println!("Emptied {}, stopping at {}", num_emptied, v);
                 // Shift all other contours one down.
-                if previous_shift.is_some() {
+                if let Some(previous_shift) = previous_shift {
                     self.prune_stats.shift_layers += 1;
 
-                    for _ in 0..previous_shift.unwrap() {
+                    for _ in 0..previous_shift {
                         //println!("Delete layer {} of len {}", v, self.contours[v].len());
                         assert!(self.contours[v as usize].len() == 0);
                         // TODO: Instead of removing contours, keep a Fenwick Tree that counts the number of removed layers.

@@ -142,8 +142,9 @@ impl AlignResult {
         o.map_or("".into(), |x| (x as u8).to_string())
     }
     pub fn print(&self) {
+        type ColumnType = (String, fn(&AlignResult) -> String);
         static mut PRINTED_HEADER: bool = false;
-        let columns: &[(String, fn(&AlignResult) -> String)] = &[
+        let columns: &[ColumnType] = &[
             (format!("{:>6}", "|a|"), |this: &AlignResult| {
                 format!("{:>6}", this.input.len_a)
             }),
@@ -364,7 +365,7 @@ where
         h_stats
             .matches
             .as_ref()
-            .map(|x| num_matches_on_path(&path, &x))
+            .map(|x| num_matches_on_path(&path, x))
     } else {
         Default::default()
     };

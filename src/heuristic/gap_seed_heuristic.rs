@@ -81,10 +81,10 @@ impl<C: 'static + Contours> std::fmt::Debug for GapSeedHeuristic<C> {
 impl<C: Contours> Clone for GapSeedHeuristic<C> {
     fn clone(&self) -> Self {
         Self {
-            match_config: self.match_config.clone(),
-            pruning: self.pruning.clone(),
-            prune_fraction: self.prune_fraction.clone(),
-            c: self.c.clone(),
+            match_config: self.match_config,
+            pruning: self.pruning,
+            prune_fraction: self.prune_fraction,
+            c: self.c,
         }
     }
 }
@@ -370,13 +370,15 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
                 let layer = self.contours.value(self.transform(p));
                 let (_val, _parent_pos) = self.h_with_parent(p);
-                let color = ps.entry(layer).or_insert(termion::color::Rgb(
-                    dist.sample(&mut rng),
-                    dist.sample(&mut rng),
-                    dist.sample(&mut rng),
-                ));
-                let is_start_of_match = self.seed_matches.iter().find(|m| m.start == p).is_some();
-                let is_end_of_match = self.seed_matches.iter().find(|m| m.end == p).is_some();
+                let color = ps.entry(layer).or_insert_with(|| {
+                    termion::color::Rgb(
+                        dist.sample(&mut rng),
+                        dist.sample(&mut rng),
+                        dist.sample(&mut rng),
+                    )
+                });
+                let is_start_of_match = self.seed_matches.iter().any(|m| m.start == p);
+                let is_end_of_match = self.seed_matches.iter().any(|m| m.end == p);
                 if is_start_of_match {
                     pixel.2 = true;
                 } else if is_end_of_match {
@@ -413,22 +415,14 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 for i in start.0..=target.0 {
                     print(i, j);
                 }
-                print!(
-                    "{}{}\n",
-                    termion::color::Fg(reset),
-                    termion::color::Bg(reset)
-                );
+                println!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
             }
         } else {
-            for j in 0 * b..=1 * b {
-                for i in 0 * a..=1 * a {
+            for j in 0..=b {
+                for i in 0..=a {
                     print(i, j);
                 }
-                print!(
-                    "{}{}\n",
-                    termion::color::Fg(reset),
-                    termion::color::Bg(reset)
-                );
+                println!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
             }
         };
         if wait_for_user {

@@ -7,7 +7,7 @@ use crate::prelude::*;
 struct AntiDiagonal(Pos);
 impl PartialOrd for AntiDiagonal {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 impl Ord for AntiDiagonal {
@@ -92,9 +92,8 @@ impl Contour for SetContour {
         if self.is_dominant(p) {
             //println!("PRUNE SINGLE POINT {}", p);
             // TODO: This unnecessarily loops over all dominant points.
-            let v = self.prune_filter(&mut |s| s == p);
+            self.prune_filter(&mut |s| s == p)
             //println!("PRUNE SINGLE POINT {} DONE", p);
-            v
         } else {
             self.points.remove(&AntiDiagonal(p))
         }
@@ -124,12 +123,10 @@ impl Contour for SetContour {
 
                 let prev_d = if change {
                     new_dominant.last().copied()
+                } else if i == 0 {
+                    None
                 } else {
-                    if i == 0 {
-                        None
-                    } else {
-                        self.dominant.get(i - 1).copied()
-                    }
+                    self.dominant.get(i - 1).copied()
                 };
                 let next_d = self.dominant.get(i + 1).copied();
                 //println!("prev d {:?}", prev_d);

@@ -161,10 +161,8 @@ where
             let next_state = states.get_mut(next);
             if let Unvisited = next_state.status {
                 next_state.status = Explored;
-            } else {
-                if next_g >= next_state.g {
-                    return;
-                }
+            } else if next_g >= next_state.g {
+                return;
             };
             next_state.g = next_g;
             next_state.parent = parent;

@@ -224,30 +224,26 @@ pub fn find_matches<'a>(
                     Fixed(l) => l,
                     LengthConfig::Max(MaxMatches { max_matches, band }) => {
                         let mut l = 3 as I;
-                        (|| {
-                            while l <= a.len() as I && l <= 10
+                        while l <= a.len() as I && l <= 10
                                 // TODO: Use band(min(a.len(), n-a.len())) or something like it.
                                 && count_matches(l, qgram(&a[..l as usize]), max_matches + 1, i, band(n))
                                     > max_matches
-                            {
-                                l += 1;
-                            }
-                            l - 2
-                        })()
+                        {
+                            l += 1;
+                        }
+                        l
                     }
                     LengthConfig::Min(MinMatches { min_matches, band }) => {
                         let mut l = 4 as I;
-                        (|| {
-                            // TODO: Remove max length, which is only needed because of memory reasons.
-                            while l <= a.len() as I && l <= 11
+                        // TODO: Remove max length, which is only needed because of memory reasons.
+                        while l <= a.len() as I && l <= 11
                                 // TODO: Use band(min(a.len(), n-a.len())) or something like it.
                                 && count_matches(l, qgram(&a[..l as usize]), min_matches, i, band(n))
                                     >= min_matches
-                            {
-                                l += 1;
-                            }
-                            l - 1 - 2
-                        })()
+                        {
+                            l += 1;
+                        }
+                        l - 1
                     }
                 }
             };

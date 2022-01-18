@@ -21,7 +21,7 @@ impl Contour for BruteForceContour {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn is_dominant(&self, q: Pos) -> bool {
@@ -30,7 +30,7 @@ impl Contour for BruteForceContour {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, f: &mut F) -> bool {

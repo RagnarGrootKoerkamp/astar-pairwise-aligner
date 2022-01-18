@@ -76,12 +76,12 @@ pub fn print<'a, 'b, H>(
             termion::color::Bg(termion::color::Reset)
         );
     };
-    for j in 0 * b..=1 * b {
-        for i in 0 * a..=1 * a {
+    for j in 0..=b {
+        for i in 0..=a {
             print(i, j);
         }
-        print!(
-            "{}{}\n",
+        println!(
+            "{}{}",
             termion::color::Fg(termion::color::Reset),
             termion::color::Bg(termion::color::Reset)
         );
