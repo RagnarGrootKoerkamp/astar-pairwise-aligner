@@ -137,7 +137,7 @@ where
         }
 
         // Prune expanded states.
-        h.prune(pos);
+        h.prune_with_hint(pos, state.hint);
 
         // Retrace path to root and return.
         if pos == target {

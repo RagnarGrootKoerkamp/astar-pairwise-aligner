@@ -76,6 +76,9 @@ pub trait HeuristicInstance<'a> {
     }
 
     fn prune(&mut self, _pos: Self::Pos) {}
+    fn prune_with_hint(&mut self, pos: Self::Pos, _hint: Self::Hint) {
+        self.prune(pos)
+    }
 
     fn stats(&self) -> HeuristicStats {
         Default::default()

@@ -270,6 +270,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     }
 
     fn prune(&mut self, pos: Pos) {
+        self.prune_with_hint(pos, Self::Hint::default())
+    }
+
+    fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) {
         if !self.params.pruning {
             return;
         }
@@ -318,13 +322,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
         self.num_actual_pruned += 1;
 
-        let start = time::Instant::now();
-
         if print() {
             println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
+            self.print(false, false);
         }
-        self.print(false, false);
-        if self.contours.prune(self.transform(pos)) {}
+        let start = time::Instant::now();
+        self.contours.prune_with_hint(self.transform(pos), hint);
         self.pruning_duration += start.elapsed();
     }
 

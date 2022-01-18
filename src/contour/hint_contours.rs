@@ -169,6 +169,15 @@ impl<C: Contour> Contours for HintContours<C> {
     }
 
     fn prune(&mut self, p: Pos) -> bool {
+        self.prune_with_hint(
+            p,
+            Hint {
+                original_layer: Cost::MAX,
+            },
+        )
+    }
+
+    fn prune_with_hint(&mut self, p: Pos, hint: Hint) -> bool {
         if self.arrows.remove(&p).is_none() {
             // This position was already pruned or never needed pruning.
             return false;
@@ -176,7 +185,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // Work contour by contour.
         // 1. Remove p from it's first contour.
-        let mut v = self.value(p);
+        let mut v = self.value_with_hint(p, hint).0;
         //for (i, c) in self.contours.iter().enumerate().rev() {
         //println!("{}: {:?}", i, c);
         //}
