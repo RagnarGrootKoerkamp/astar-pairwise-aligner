@@ -63,7 +63,7 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
             // TODO: Reserving could be slightly more optimal.
             Above(i, j) => {
                 if self.above.len() as I <= i {
-                    self.above.resize_with(i as usize + 1, || Vec::default());
+                    self.above.resize_with(i as usize + 1, Vec::default);
                 }
                 if self.above[i as usize].len() as I <= j {
                     self.above[i as usize] = vec![V::default(); 1 << self.lg_block_size];
@@ -71,7 +71,7 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
             }
             Below(i, j) => {
                 if self.below.len() as I <= i {
-                    self.below.resize_with(i as usize + 1, || Vec::default());
+                    self.below.resize_with(i as usize + 1, Vec::default);
                 }
                 if self.below[i as usize].len() as I <= j {
                     self.below[i as usize] = vec![V::default(); 1 << self.lg_block_size];

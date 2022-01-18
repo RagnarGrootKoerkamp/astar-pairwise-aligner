@@ -107,12 +107,10 @@ impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
         let pot = self.matches.distance(from, to);
         if gap <= pot {
             pot
+        } else if to == self.target {
+            gap
         } else {
-            if to == self.target {
-                gap
-            } else {
-                Cost::MAX
-            }
+            Cost::MAX
         }
     }
 }
