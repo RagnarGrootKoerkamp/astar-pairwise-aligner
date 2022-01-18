@@ -158,7 +158,7 @@ where
             let next_g = g + cost;
 
             // Explore next
-            let next_state = &mut states[next];
+            let next_state = states.get_mut(next);
             if let Unvisited = next_state.status {
                 next_state.status = Explored;
             } else {

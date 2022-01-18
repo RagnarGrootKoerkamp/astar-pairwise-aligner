@@ -21,7 +21,7 @@ pub trait ParentTrait<Pos>: Default + Clone + Copy {
 pub trait ImplicitGraph {
     type Pos: Copy + Eq + hash::Hash + PosOrder;
     type Parent: ParentTrait<Self::Pos>;
-    type DiagonalMap<T: Default>: DiagonalMapTrait<Self::Pos, T>;
+    type DiagonalMap<T: Default + Clone + Copy>: DiagonalMapTrait<Self::Pos, T>;
 
     fn root(&self) -> Self::Pos;
     fn target(&self) -> Self::Pos;
