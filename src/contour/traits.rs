@@ -73,6 +73,9 @@ pub trait Contours: Default + Debug {
     /// TODO: also prune all arrows ending in the given position.
     ///       or at least when this is the only outgoing arrow.
     fn prune(&mut self, _p: Pos) -> bool;
+    fn prune_with_hint(&mut self, p: Pos, _hint: Self::Hint) -> bool {
+        self.prune(p)
+    }
 
     /// Returns some statistics.
     fn print_stats(&self) {}
