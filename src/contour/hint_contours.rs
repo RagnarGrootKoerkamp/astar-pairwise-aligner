@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use itertools::Itertools;
 
 use crate::prelude::*;
@@ -17,11 +19,13 @@ pub struct HintContours<C: Contour> {
     arrows: HashMap<Pos, Vec<Arrow>>,
     // TODO: This should have units in the transformed domain instead.
     max_len: I,
-    prune_stats: PruneStats,
+    stats: RefCell<HintContourStats>,
+
+    layers_removed: Cost,
 }
 
 #[derive(Default, Debug)]
-struct PruneStats {
+struct HintContourStats {
     // Total number of prunes we do.
     prunes: usize,
     // Number of times f is evaluated.
@@ -35,6 +39,11 @@ struct PruneStats {
     // Number of times we stop pruning early.
     no_change: usize,
     shift_layers: usize,
+
+    // Binary search stats
+    value_with_hint_calls: usize,
+    binary_search_fallback: usize,
+    contains_calls: usize,
 }
 
 impl<C: Contour> HintContours<C> {
@@ -50,22 +59,7 @@ impl<C: Contour> HintContours<C> {
         let mut size = right;
         while left < right {
             let mid = left + size / 2;
-            let mut found = false;
-            if USE_SHADOW_POINTS {
-                found = mid < contours.len() && contours[mid].contains(q);
-            } else {
-                for c in mid..mid + max_len as usize {
-                    if c >= contours.len() {
-                        break;
-                    }
-                    let contains = contours[c].contains(q);
-                    if contains {
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            if found {
+            if mid < contours.len() && contours[mid].contains(q) {
                 left = mid + 1;
             } else {
                 right = mid;
@@ -76,13 +70,19 @@ impl<C: Contour> HintContours<C> {
     }
 }
 
+#[derive(Clone, Copy, Default, Debug)]
+pub struct Hint {
+    original_layer: Cost,
+}
+
 impl<C: Contour> Contours for HintContours<C> {
     fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
         let mut this = HintContours {
             contours: vec![C::default()],
             arrows: HashMap::default(),
             max_len,
-            prune_stats: Default::default(),
+            stats: Default::default(),
+            layers_removed: 0,
         };
         this.contours[0].push(Pos(I::MAX, I::MAX));
         // Loop over all arrows from a given positions.
@@ -100,11 +100,9 @@ impl<C: Contour> Contours for HintContours<C> {
             }
             ////println!("Push {} to layer {}", start, v);
             this.contours[v as usize].push(start);
-            if USE_SHADOW_POINTS {
-                while v > 0 && !this.contours[v as usize - 1].contains(start) {
-                    v -= 1;
-                    this.contours[v as usize].push(start);
-                }
+            while v > 0 && !this.contours[v as usize - 1].contains(start) {
+                v -= 1;
+                this.contours[v as usize].push(start);
             }
         }
         this
@@ -112,46 +110,62 @@ impl<C: Contour> Contours for HintContours<C> {
 
     fn value(&self, q: Pos) -> Cost {
         Self::value_in_slice(&self.contours, q, self.max_len)
-        ////println!("Value of {} : {}", q, v);
     }
 
     // The layer for the parent node.
-    type Hint = Cost;
+    type Hint = Hint;
 
     fn value_with_hint(&self, q: Pos, hint: Self::Hint) -> (Cost, Self::Hint)
     where
         Self::Hint: Default,
     {
-        /// FIXME: Fallback to normal value for now.
+        self.stats.borrow_mut().value_with_hint_calls += 1;
+        // return (self.value(q), Hint::default());
+        let v = hint.original_layer.saturating_sub(self.layers_removed);
+
+        const SEARCH_RANGE: Cost = 5;
+
+        // Do a linear search for 5 steps, starting at contour v.
+        if v < self.contours.len() as Cost {
+            self.stats.borrow_mut().contains_calls += 1;
+            if self.contours[v as usize].contains(q) {
+                // Go up.
+                for v in v + 1..min(v + 1 + SEARCH_RANGE, self.contours.len() as Cost) {
+                    self.stats.borrow_mut().contains_calls += 1;
+                    if !self.contours[v as usize].contains(q) {
+                        return (
+                            v - 1,
+                            Hint {
+                                original_layer: v - 1 + self.layers_removed,
+                            },
+                        );
+                    }
+                }
+            } else {
+                // Go down.
+                self.stats.borrow_mut().contains_calls += 1;
+                for v in (v.saturating_sub(SEARCH_RANGE)..v).rev() {
+                    if self.contours[v as usize].contains(q) {
+                        return (
+                            v,
+                            Hint {
+                                original_layer: v + self.layers_removed,
+                            },
+                        );
+                    }
+                }
+            }
+        }
+        self.stats.borrow_mut().binary_search_fallback += 1;
+
+        // Fall back to binary search if not found close to the hint.
         let v = self.value(q);
-        return (v, v);
-
-        //return (self.value(q), Cost::default());
-        // TODO: Figure out what is the correct addition to use here.
-        // TODO: Maybe using shadow nodes in lower layers is simpler after all.
-        let mut v = hint.saturating_sub(self.max_len);
-        if self.contours.len() as Cost <= v || !self.contours[v as usize].contains(q) {
-            // TODO: Use an exponential search in this case?
-            let v = self.value(q);
-            // println!(
-            //     "Hint {hint} => value {v}: Binary Search {}",
-            //     hint as isize - v as isize
-            // );
-            return (v, v);
-        }
-        // let mut v = min(hint + self.max_len + 1, self.contours.len() as Cost - 1);
-        // while !self.contours[v as usize].contains(q) {
-        //     v -= 1;
-        // }
-        while v + 1 < self.contours.len() as Cost && self.contours[v as usize + 1].contains(q) {
-            v += 1;
-        }
-        println!(
-            "Hint {hint} => value {v}: Linear search {}",
-            hint as isize - v as isize
-        );
-
-        (v, v)
+        (
+            v,
+            Hint {
+                original_layer: v + self.layers_removed,
+            },
+        )
     }
 
     fn prune(&mut self, p: Pos) -> bool {
@@ -172,7 +186,17 @@ impl<C: Contour> Contours for HintContours<C> {
             //println!("SKIP");
             return false;
         }
-        self.prune_stats.prunes += 1;
+
+        {
+            // Also remove the point from other contours where it is dominant.
+            let mut shadow_v = v - 1;
+            while self.contours[shadow_v as usize].is_dominant(p) {
+                self.contours[shadow_v as usize].prune(p);
+                shadow_v -= 1;
+            }
+        }
+
+        self.stats.borrow_mut().prunes += 1;
         //println!("PRUNE {} at LAYER {}", p, v);
 
         // Loop over the dominant matches in the next layer, and repeatedly prune while needed.
@@ -184,7 +208,7 @@ impl<C: Contour> Contours for HintContours<C> {
             if v >= self.contours.len() as Cost {
                 break;
             }
-            self.prune_stats.contours += 1;
+            self.stats.borrow_mut().contours += 1;
             //println!("layer {}", v);
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
@@ -200,7 +224,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 // needs to be pruned from it.  For this, we (re)compute the
                 // value at pos and if it's < v, we push is to the new contour
                 // of its value.
-                self.prune_stats.checked += 1;
+                self.stats.borrow_mut().checked += 1;
                 //println!("f: {}", pos);
                 let pos_arrows = match self.arrows.get(&pos) {
                     Some(arrows) => arrows,
@@ -208,7 +232,7 @@ impl<C: Contour> Contours for HintContours<C> {
                         //println!("f: Prune {} no arrows left", pos);
                         current_shift = Some(Cost::MAX);
                         // If no arrows left for this position, prune it without propagating.
-                        self.prune_stats.checked_true += 1;
+                        self.stats.borrow_mut().checked_true += 1;
                         return true;
                     }
                 };
@@ -243,7 +267,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 // Value v is still up to date. No need to loop over the remaining arrows starting here.
                 if best_start_val >= v {
                     //println!("f: {} keeps value {}", pos, best_start_val);
-                    self.prune_stats.checked_false += 1;
+                    self.stats.borrow_mut().checked_false += 1;
                     current_shift = Some(Cost::MAX);
                     return false;
                 }
@@ -261,19 +285,20 @@ impl<C: Contour> Contours for HintContours<C> {
                 //     pos, best_start_val, current_shift
                 // );
                 up_to_v[best_start_val as usize].push(pos);
-                if USE_SHADOW_POINTS {
+                {
                     let mut v = best_start_val;
                     while v > 0 && !up_to_v[v as usize - 1].contains(pos) {
                         v -= 1;
                         up_to_v[v as usize].push(pos);
                     }
                 }
+
                 if current_shift.is_none() {
                     current_shift = Some(v - best_start_val);
                 } else if current_shift.unwrap() != v - best_start_val {
                     current_shift = Some(Cost::MAX);
                 }
-                self.prune_stats.checked_true += 1;
+                self.stats.borrow_mut().checked_true += 1;
                 true
             });
             if changes {
@@ -285,7 +310,7 @@ impl<C: Contour> Contours for HintContours<C> {
             if v >= last_change + self.max_len as Cost {
                 ////println!("Last change at {}, stopping at {}", last_change, v);
                 // No further changes can happen.
-                self.prune_stats.no_change += 1;
+                self.stats.borrow_mut().no_change += 1;
                 break;
             }
 
@@ -326,13 +351,14 @@ impl<C: Contour> Contours for HintContours<C> {
                 //println!("Emptied {}, stopping at {}", num_emptied, v);
                 // Shift all other contours one down.
                 if let Some(previous_shift) = previous_shift {
-                    self.prune_stats.shift_layers += 1;
+                    self.stats.borrow_mut().shift_layers += 1;
 
                     for _ in 0..previous_shift {
                         //println!("Delete layer {} of len {}", v, self.contours[v].len());
                         assert!(self.contours[v as usize].len() == 0);
                         // TODO: Instead of removing contours, keep a Fenwick Tree that counts the number of removed layers.
                         self.contours.remove(v as usize);
+                        self.layers_removed += 1;
                         v -= 1;
                     }
                     break;
@@ -371,7 +397,7 @@ impl<C: Contour> Contours for HintContours<C> {
         println!("avg size              {}", total_len as f32 / num as f32);
         println!("avg domn              {}", total_dom as f32 / num as f32);
 
-        let PruneStats {
+        let HintContourStats {
             prunes,
             checked,
             checked_true,
@@ -379,7 +405,10 @@ impl<C: Contour> Contours for HintContours<C> {
             contours,
             no_change,
             shift_layers,
-        }: PruneStats = self.prune_stats;
+            value_with_hint_calls,
+            binary_search_fallback,
+            contains_calls,
+        }: HintContourStats = *self.stats.borrow();
 
         if prunes == 0 {
             return;
@@ -399,22 +428,16 @@ impl<C: Contour> Contours for HintContours<C> {
         );
         println!("Stop count: no change    {}", no_change);
         println!("Stop count: shift layers {}", shift_layers);
-        // println!(
-        //     "Stop layer: no change    {}",
-        //     sum_no_change_layers as f32 / no_change as f32
-        // );
-        // println!(
-        //     "Stop layer: shift layers {}",
-        //     sum_shift_stop_layers as f32 / shift_layers as f32
-        // );
-        // println!(
-        //     "Rem. layer: no change    {}",
-        //     sum_no_change_layers_remaining as f32 / no_change as f32
-        // );
-        // println!(
-        //     "Rem. layer: shift layers {}",
-        //     sum_shift_stop_layers_remaining as f32 / shift_layers as f32
-        // );
+        println!("value_hint calls         {}", value_with_hint_calls);
+        println!(
+            "%binary search fallback  {}",
+            binary_search_fallback as f32 / value_with_hint_calls as f32
+        );
+        println!(
+            "avg contains calls       {}",
+            contains_calls as f32 / value_with_hint_calls as f32
+        );
+
         println!("----------------------------");
     }
 }
