@@ -87,6 +87,7 @@ impl Contour for CentralContour {
     }
 
     fn is_dominant(&self, q: Pos) -> bool {
+        // TODO: Replace by implementation similar to contains().
         self.dominant.binary_search(&LexPos(q)).is_ok()
     }
 

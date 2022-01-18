@@ -11,7 +11,7 @@ use crate::prelude::*;
 /// Hence, we store p in the x contour. This implies that sometimes we add
 /// points to a contour that are larger than other points it already contains.
 #[derive(Default, Debug)]
-pub struct NaiveContours<C: Contour> {
+pub struct HintContours<C: Contour> {
     contours: Vec<C>,
     // TODO: Do not use vectors inside a hashmap.
     arrows: HashMap<Pos, Vec<Arrow>>,
@@ -37,7 +37,7 @@ struct PruneStats {
     shift_layers: usize,
 }
 
-impl<C: Contour> NaiveContours<C> {
+impl<C: Contour> HintContours<C> {
     /// Get the value of the given position.
     /// It can be that a contour is completely empty, and skipped by length>1 arrows.
     /// In that case, normal binary search would give a wrong answer.
@@ -76,9 +76,9 @@ impl<C: Contour> NaiveContours<C> {
     }
 }
 
-impl<C: Contour> Contours for NaiveContours<C> {
+impl<C: Contour> Contours for HintContours<C> {
     fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
-        let mut this = NaiveContours {
+        let mut this = HintContours {
             contours: vec![C::default()],
             arrows: HashMap::default(),
             max_len,
@@ -116,7 +116,43 @@ impl<C: Contour> Contours for NaiveContours<C> {
     }
 
     // The layer for the parent node.
-    type Hint = ();
+    type Hint = Cost;
+
+    fn value_with_hint(&self, q: Pos, hint: Self::Hint) -> (Cost, Self::Hint)
+    where
+        Self::Hint: Default,
+    {
+        /// FIXME: Fallback to normal value for now.
+        let v = self.value(q);
+        return (v, v);
+
+        //return (self.value(q), Cost::default());
+        // TODO: Figure out what is the correct addition to use here.
+        // TODO: Maybe using shadow nodes in lower layers is simpler after all.
+        let mut v = hint.saturating_sub(self.max_len);
+        if self.contours.len() as Cost <= v || !self.contours[v as usize].contains(q) {
+            // TODO: Use an exponential search in this case?
+            let v = self.value(q);
+            // println!(
+            //     "Hint {hint} => value {v}: Binary Search {}",
+            //     hint as isize - v as isize
+            // );
+            return (v, v);
+        }
+        // let mut v = min(hint + self.max_len + 1, self.contours.len() as Cost - 1);
+        // while !self.contours[v as usize].contains(q) {
+        //     v -= 1;
+        // }
+        while v + 1 < self.contours.len() as Cost && self.contours[v as usize + 1].contains(q) {
+            v += 1;
+        }
+        println!(
+            "Hint {hint} => value {v}: Linear search {}",
+            hint as isize - v as isize
+        );
+
+        (v, v)
+    }
 
     fn prune(&mut self, p: Pos) -> bool {
         if self.arrows.remove(&p).is_none() {
@@ -136,16 +172,6 @@ impl<C: Contour> Contours for NaiveContours<C> {
             //println!("SKIP");
             return false;
         }
-        if USE_SHADOW_POINTS {
-            // Find the first contour where this point is dominant.
-            let mut shadow_v = v - 1;
-
-            while self.contours[shadow_v as usize].is_dominant(p) {
-                self.contours[shadow_v as usize].prune(p);
-                shadow_v -= 1;
-            }
-        }
-
         self.prune_stats.prunes += 1;
         //println!("PRUNE {} at LAYER {}", p, v);
 
