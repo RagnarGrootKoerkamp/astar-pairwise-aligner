@@ -171,6 +171,8 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
         for (di, dj, cost, parent) in [
             (1, 0, 1, Parent::Left),
             (0, 1, 1, Parent::Up),
+            // This edge is last, so that the LIFO behaviour of the priority
+            // queue picks up diagonal edges first.
             if is_match.is_some() {
                 (1, 1, 0, Parent::Match)
             } else {

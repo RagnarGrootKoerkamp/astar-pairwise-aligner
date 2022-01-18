@@ -22,3 +22,7 @@ pub static PRINT: AtomicBool = AtomicBool::new(false);
 pub fn print() -> bool {
     PRINT.load(std::sync::atomic::Ordering::Relaxed)
 }
+
+/// When the priority queue moves to the next value, it can sort all points and
+/// start with those closer to the target.
+pub const SORT_QUEUE_ELEMENTS: bool = false;
