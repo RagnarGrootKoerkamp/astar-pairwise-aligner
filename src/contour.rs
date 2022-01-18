@@ -15,10 +15,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::{
-    graph::Pos,
-    prelude::{Cost, LexPos, I},
-};
+use crate::{graph::Pos, prelude::*};
 
 /// A contour implementation that does push and query in logarithmic time, but prune in linear time.
 #[derive(Default, Debug)]

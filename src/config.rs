@@ -5,7 +5,7 @@
 pub const DEBUG: bool = false;
 
 #[cfg(not(debug_assertions))]
-const DEBUG: bool = false;
+pub const DEBUG: bool = false;
 
 /// If true: insert 'shadow' points in contours to make sure that contour v always contains contour v+1.
 /// This makes contour[v].query(p) monotone in v, allowing simpler binary search/query operations.
