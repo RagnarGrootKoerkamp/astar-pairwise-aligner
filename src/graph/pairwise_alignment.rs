@@ -70,6 +70,11 @@ impl PartialOrd for Pos {
         }
         None
     }
+
+    #[inline]
+    fn le(&self, other: &Self) -> bool {
+        self.0 <= other.0 && self.1 <= other.1
+    }
 }
 
 /// Pos, but with a total lexicographic order.
@@ -77,12 +82,19 @@ impl PartialOrd for Pos {
 pub struct LexPos(pub Pos);
 
 impl PartialOrd for LexPos {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+
+    #[inline]
+    fn lt(&self, other: &Self) -> bool {
+        (self.0 .0, self.0 .1) < (other.0 .0, other.0 .1)
     }
 }
 
 impl Ord for LexPos {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         (self.0 .0, self.0 .1).cmp(&(other.0 .0, other.0 .1))
     }
@@ -91,6 +103,7 @@ impl Ord for LexPos {
 impl implicit_graph::PosOrder for Pos {
     type Output = LexPos;
 
+    #[inline]
     fn key(&self) -> Self::Output {
         LexPos(*self)
     }
