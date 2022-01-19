@@ -1,6 +1,6 @@
 use std::iter::repeat;
 
-use crate::prelude::*;
+use crate::{prelude::*, trie::Trie};
 
 #[derive(Clone, Debug)]
 pub struct Seed {
@@ -11,7 +11,7 @@ pub struct Seed {
     pub qgram: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Match {
     pub start: Pos,
     pub end: Pos,
@@ -117,7 +117,128 @@ pub struct MatchConfig {
     pub mutation_config: MutationConfig,
 }
 
+fn find_matches_trie<'a>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    alph: &Alphabet,
+    MatchConfig {
+        length,
+        max_match_cost,
+        ..
+    }: MatchConfig,
+) -> SeedMatches {
+    let l: I = match length {
+        Fixed(l) => l,
+        _ => unimplemented!("Trie only works for fixed l for now."),
+    };
+    // Create a trie from all windows of b.
+    let mut trie = Trie::new(
+        b.windows((l + max_match_cost) as usize)
+            .enumerate()
+            .map(|(i, w)| (w, i as trie::Data)),
+        alph,
+    );
+    // Push all remaining suffixes of b.
+    for i in b.len() as I - l - max_match_cost + 1..b.len() as I {
+        trie.push(&b[i as usize..], i);
+    }
+
+    let seed_qgrams = a
+        .chunks_exact(l as usize)
+        .enumerate()
+        .map(|(i, _seed)| Seed {
+            start: i as I * l,
+            end: (i + 1) as I * l,
+            seed_potential: max_match_cost + 1,
+            qgram: 0, // qgram(seed), Unused
+        });
+
+    let num_seeds = seed_qgrams.len() as I;
+
+    let n = a.len();
+    let mut potential = Vec::with_capacity(n + 1);
+    let mut start_of_seed = Vec::with_capacity(n + 1);
+    let last_seed = seed_qgrams.clone().last();
+
+    // Find matches of the seeds of a in b.
+    let mut matches = Vec::<Match>::new();
+
+    let mut cur_potential = seed_qgrams.clone().map(|seed| seed.seed_potential).sum();
+    potential.push(cur_potential);
+    //println!("{:?}", seed_qgrams);
+    for Seed {
+        start,
+        end,
+        seed_potential,
+        ..
+    } in seed_qgrams
+    {
+        let seed_len = end - start;
+        cur_potential -= seed_potential;
+        potential.extend(repeat(cur_potential).take(seed_len as usize));
+        start_of_seed.extend(repeat(start).take(seed_len as usize));
+
+        trie.matches(
+            &a[start as usize..end as usize],
+            (seed_potential - 1) as trie::MatchCost,
+            |match_start, match_len, cost| {
+                matches.push(Match {
+                    start: Pos(start, match_start),
+                    end: Pos(end, match_start + match_len as I),
+                    match_cost: cost as Cost,
+                    seed_potential,
+                });
+            },
+        );
+    }
+
+    // Backfill a potential gap after the last seed.
+    potential.extend(repeat(0).take(n + 1 - potential.len()));
+    start_of_seed.extend(repeat(last_seed.unwrap().end).take(n + 1 - start_of_seed.len()));
+
+    // First sort by start, then by end, then by match cost.
+    matches.sort_unstable_by_key(
+        |&Match {
+             start,
+             end,
+             match_cost,
+             ..
+         }| (LexPos(start), LexPos(end), match_cost),
+    );
+    // Dedup to only keep the lowest match cost.
+    //println!("Size before: {}", matches.len());
+    matches.dedup_by_key(|m| (m.start, m.end));
+    //println!("Size after : {}", matches.len());
+
+    // Sort better matches first.
+    matches.sort_unstable_by_key(
+        |&Match {
+             start, match_cost, ..
+         }| (LexPos(start), match_cost),
+    );
+
+    SeedMatches {
+        num_seeds,
+        matches,
+        start_of_seed,
+        potential,
+    }
+}
+
 pub fn find_matches<'a>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    alph: &Alphabet,
+    match_config: MatchConfig,
+) -> SeedMatches {
+    if USE_TRIE_TO_FIND_MATCHES {
+        return find_matches_trie(a, b, alph, match_config);
+    } else {
+        return find_matches_qgramindex(a, b, alph, match_config);
+    }
+}
+
+pub fn find_matches_qgramindex<'a>(
     a: &'a Sequence,
     b: &'a Sequence,
     alph: &Alphabet,
@@ -209,10 +330,7 @@ pub fn find_matches<'a>(
             .unwrap()
     };
 
-    // Split a into seeds of size l and l+1 alternating, which are bit-encoded.
     let seed_qgrams = {
-        // TODO: Make a dedicated struct for seeds, apart from Matches.
-        // (start, end, max_match_cost, qgram)
         let mut v: Vec<Seed> = Vec::default();
         let mut a = &a[..];
         let mut long = false;
@@ -354,7 +472,23 @@ pub fn find_matches<'a>(
     //println!("{:?}", start_of_seed);
 
     // TODO: This sorting could be a no-op if we generate matches in order.
-    matches.sort_unstable_by_key(|&Match { start, .. }| (start.0, start.1));
+    // First sort by start, then by end, then by match cost.
+    matches.sort_unstable_by_key(
+        |&Match {
+             start,
+             end,
+             match_cost,
+             ..
+         }| (LexPos(start), LexPos(end), match_cost),
+    );
+    // Dedup to only keep the lowest match cost.
+    matches.dedup_by_key(|m| (m.start, m.end));
+    // Sort better matches first.
+    matches.sort_unstable_by_key(
+        |&Match {
+             start, match_cost, ..
+         }| (LexPos(start), match_cost),
+    );
     //for m in &matches {
     //println!("{:?}", m);
     //}
@@ -364,5 +498,43 @@ pub fn find_matches<'a>(
         matches,
         start_of_seed,
         potential,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        prelude::{setup, to_string, MatchConfig},
+        seeds::{find_matches_qgramindex, find_matches_trie},
+    };
+
+    #[test]
+    fn trie_matches() {
+        for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+            for n in [10, 20, 40, 100, 200, 500, 1000] {
+                for e in [0.1, 0.3, 1.0] {
+                    let (a, b, alph, _) = setup(n, e);
+                    println!("{}\n{}", to_string(&a), to_string(&b));
+                    let matchconfig = MatchConfig {
+                        length: crate::prelude::LengthConfig::Fixed(l),
+                        max_match_cost,
+                        ..Default::default()
+                    };
+                    println!("-----------------------");
+                    println!("n={n} e={e} l={l} mmc={max_match_cost}");
+                    let l = find_matches_trie(&a, &b, &alph, matchconfig);
+                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
+                    println!("-----------------------");
+                    for x in &l.matches {
+                        println!("{x:?}");
+                    }
+                    println!("-----------------------");
+                    for x in &r.matches {
+                        println!("{x:?}");
+                    }
+                    assert_eq!(l.matches, r.matches);
+                }
+            }
+        }
     }
 }
