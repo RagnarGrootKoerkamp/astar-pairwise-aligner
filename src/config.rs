@@ -32,3 +32,8 @@ pub const SORT_QUEUE_ELEMENTS: bool = false;
 
 /// Enables some assumptions that make code faster that should be fine, but are just safer to turn off by default.
 pub const FAST_ASSUMPTIONS: bool = false;
+
+/// Use a Trie instead of QGramIndex to find matches.
+pub const USE_TRIE_TO_FIND_MATCHES: bool = false;
+/// Trie can use stack or dfs to find matches.
+pub const USE_TRIE_STACK: bool = true;
