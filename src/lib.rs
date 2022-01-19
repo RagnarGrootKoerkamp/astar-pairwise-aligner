@@ -25,6 +25,7 @@ pub mod scored;
 pub mod seeds;
 pub mod test;
 pub mod thresholds;
+pub mod trie;
 pub mod util;
 
 // Include one of these to switch to the faster FxHashMap hashing algorithm.
