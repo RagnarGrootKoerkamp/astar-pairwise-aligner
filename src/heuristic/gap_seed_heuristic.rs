@@ -295,9 +295,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
         {
             // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
-            let cur_val = self.h(pos);
+            // TODO: Cur_val could be passed in from the parent instead.
+            let cur_val = self.h_with_hint(pos, hint).0;
             if pos.1 > 0 {
-                let nb_val = self.h(Pos(pos.0, pos.1 - 1));
+                let nb_val = self.h_with_hint(Pos(pos.0, pos.1 - 1), hint).0;
                 // FIXME: Re-enable this assertion.
                 //assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
                 if cur_val > nb_val {
@@ -305,7 +306,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 }
             }
             if pos.1 < self.target.1 {
-                let nb_val = self.h(Pos(pos.0, pos.1 + 1));
+                let nb_val = self.h_with_hint(Pos(pos.0, pos.1 + 1), hint).0;
                 // FIXME: Re-enable this assertion.
                 //assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
                 if cur_val > nb_val {
