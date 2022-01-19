@@ -310,7 +310,10 @@ impl<C: Contour> Contours for HintContours<C> {
                 self.stats.borrow_mut().num_prune_shifts += 1;
                 self.stats.borrow_mut().sum_prune_shifts += v - best_start_val;
                 self.stats.borrow_mut().max_prune_shift = max(
-                    self.stats.borrow().max_prune_shift.clone(),
+                    {
+                        let x = self.stats.borrow().max_prune_shift;
+                        x
+                    },
                     v - best_start_val,
                 );
                 true
@@ -352,7 +355,7 @@ impl<C: Contour> Contours for HintContours<C> {
             }
             assert!(
                 // 0 happens when the layer was already empty.
-                layer_best_start_val == 0 || layer_best_start_val >= v - self.max_len,
+                layer_best_start_val == 0 || layer_best_start_val + self.max_len >= v,
                 "Pruning {} now layer {} new max {} drops more than {}.\nlast_change: {}, shift_to {:?}, layer size: {}",
                 p,
                 v,
