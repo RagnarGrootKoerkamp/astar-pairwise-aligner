@@ -3,6 +3,22 @@ N = 10000000
 es = [0.01, 0.05, 0.20]
 algs = ['pa', 'edlib', 'wfa', 'pa-no-prune', 'dijkstra']
 
+# Instructions for compiling:
+# - A* Pairwise Aligner: `cargo build --release`
+# - edlib:
+#   - From this directory:
+#   - cd ..
+#   - Clone the fork, which contains an updated binary to handle the WFA input format.
+#   - git clone https://github.com/RagnarGrootKoerkamp/edlib
+#   - cd edlib/build
+#   - cmake -D CMAKE_BUILD_TYPE=Release .. && make
+# - WFA:
+#   - From this directory:
+#   - cd ..
+#   - git clone https://github.com/smarco/WFA wfa
+#   - cd wfa
+#   - make clean all
+
 pairwise_aligner_binary="target/release/pairwise-aligner"
 edlib_binary="../edlib/build/bin/edlib-aligner"
 wfa_binary="../wfa/bin/align_benchmark"
