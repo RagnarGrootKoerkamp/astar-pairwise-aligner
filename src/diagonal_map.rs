@@ -83,18 +83,22 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
 
 impl<V: Default + Clone + Copy> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
     fn new(target: Pos) -> DiagonalMap<V> {
-        let mut block_size = 1;
-        let mut lg_block_size = 0;
+        // Block size should be a minimum size to prevent too small allocations.
+        let mut block_size = 256;
+        let mut lg_block_size = 8;
         let n = max(target.0, target.1);
         while block_size * block_size < n {
             block_size *= 2;
             lg_block_size += 1;
         }
+        let num_blocks = (n >> lg_block_size) + 1;
 
+        // Reserve length n arrays, roughly corresponding to a sqrt(n) band.
+        let m = min(target.0, target.1);
         DiagonalMap {
-            above: Default::default(),
-            below: Default::default(),
-            num_blocks: (n >> lg_block_size) + 1,
+            above: vec![Vec::default(); (max(n - m, 3) * num_blocks) as usize],
+            below: vec![Vec::default(); (max(n - m, 3) * num_blocks) as usize],
+            num_blocks,
             lg_block_size,
         }
     }
