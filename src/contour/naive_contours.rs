@@ -331,7 +331,7 @@ impl<C: Contour> Contours for NaiveContours<C> {
     }
 
     fn print_stats(&self) {
-        //return;
+        return;
         println!("----------------------------");
         let num = self.contours.len();
         let mut total_len = 0;

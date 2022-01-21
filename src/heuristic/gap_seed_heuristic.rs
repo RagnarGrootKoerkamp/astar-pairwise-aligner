@@ -284,6 +284,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         {
             // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
             // TODO: Cur_val could be passed in from the parent instead.
+            // TODO: Should we be looking at h or contours.value_with_hint here?
             let (cur_val, hint) = self.h_with_hint(pos, hint);
             if pos.1 > 0 {
                 let nb_val = self.h_with_hint(Pos(pos.0, pos.1 - 1), hint).0;
