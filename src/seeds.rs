@@ -117,7 +117,7 @@ pub struct MatchConfig {
     pub mutation_config: MutationConfig,
 }
 
-fn find_matches_trie<'a>(
+pub fn find_matches_trie<'a>(
     a: &'a Sequence,
     b: &'a Sequence,
     alph: &Alphabet,
