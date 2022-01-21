@@ -1,6 +1,6 @@
 use std::iter::repeat;
 
-use crate::{prelude::*, trie::Trie};
+use crate::{costmodel::MatchCost, prelude::*, trie::Trie};
 
 #[derive(Clone, Debug)]
 pub struct Seed {
@@ -180,7 +180,7 @@ fn find_matches_trie<'a>(
 
         trie.matches(
             &a[start as usize..end as usize],
-            (seed_potential - 1) as trie::MatchCost,
+            (seed_potential - 1) as MatchCost,
             |match_start, match_len, cost| {
                 matches.push(Match {
                     start: Pos(start, match_start),
