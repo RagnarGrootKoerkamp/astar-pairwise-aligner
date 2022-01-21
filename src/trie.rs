@@ -92,6 +92,7 @@ impl Trie {
         //cost_model: CostModel,
         mut f: F,
     ) {
+        let cost_model = crate::costmodel::EDIT_DISTANCE_COSTS;
         struct QueueElement {
             /// Current state in tree
             state: State,
@@ -126,7 +127,11 @@ impl Trie {
                         continue;
                     }
                     // TODO: Replace with actual costs.
-                    let mismatch_cost = if ci == matching_index { 0 } else { 1 };
+                    let mismatch_cost = if ci == matching_index {
+                        0
+                    } else {
+                        cost_model.mismatch
+                    };
                     if cost + mismatch_cost > max_cost {
                         continue;
                     }
@@ -140,13 +145,12 @@ impl Trie {
 
                 // Delete a char: the character in the seed is ignored, and we remain at the same depth.
                 // TODO: Replace with actual costs.
-                let deletion_cost = 1;
-                if cost + deletion_cost <= max_cost {
+                if cost + cost_model.deletion <= max_cost {
                     queue.push(QueueElement {
                         state,
                         i: i + 1,
                         j,
-                        cost: cost + deletion_cost,
+                        cost: cost + cost_model.deletion,
                     });
                 }
             }
@@ -154,7 +158,6 @@ impl Trie {
             // Insert a char: No character from the seed is needed, but we increase the depth.
             // NOTE: We never insert the next character in the string, as we could directly match that instead.
             // TODO: Replace with actual costs.
-            let insertion_cost = 1;
             let matching_index = seed
                 .get(i as usize)
                 .map(|c| self.transform.get(*c) as usize);
@@ -165,14 +168,14 @@ impl Trie {
                 if Some(ci) == matching_index {
                     continue;
                 }
-                if cost + insertion_cost > max_cost {
+                if cost + cost_model.insertion > max_cost {
                     continue;
                 }
                 queue.push(QueueElement {
                     state: *state,
                     i,
                     j: j + 1,
-                    cost: cost + insertion_cost,
+                    cost: cost + cost_model.insertion,
                 });
             }
         }
