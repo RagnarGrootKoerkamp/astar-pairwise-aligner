@@ -91,24 +91,43 @@ CLOSED: [2022-01-13 Thu 18:56]
 CLOSED: [2022-01-15 Sat 17:19]
 Did not give much, because A* will expand jumped-over states anyway.
 ** TODO Rename max_match_cost to something that includes the +1 that's present everywhere.
-** TODO Make a separate type for transformed positions
-** TODO Parameter for enabling greedy matching
-** TODO Remove sorting from BucketHeap? (Doesn't matter for A*, but may help for cache locality.)
+** DONE Make a separate type for transformed positions
+CLOSED: [2022-01-19 Wed 18:02]
+** DONE Parameter for enabling greedy matching
+CLOSED: [2022-01-19 Wed 18:02]
+** DONE Remove sorting from BucketHeap? (Doesn't matter for A*, but may help for cache locality.)
+CLOSED: [2022-01-19 Wed 18:02]
 ** DONE Colour ~print_heuristic~ by contours instead of by parent.
 CLOSED: [2022-01-15 Sat 17:18]
 ** TODO Consider using Intrusive Collections for storing contours.
+This is not going to be helpful now that contours are typically very small.
 ** TODO Check code coverage to see which edge cases are never hit.
-** TODO Extract tests to /tests.
+** DONE Extract tests to /tests.
+CLOSED: [2022-01-19 Wed 18:03]
 ** TODO Replace ~Sequence: Vec<u8>~ by ~&[u8]~.
 ** TODO Test if ~dyn Contour~ is as fast as ~C: Contour~, and if so simplify the code this way.
 Same for Heuristic. Compilation is very slow after enumerating over all possible
 implementations in ~algorithms.rs~.
 ** TODO Trie for inexact matching
+WIP, but not so efficient yet.
+*** TODO Instead of a Vec<> in each node, make one big vec of data pointers
+*** TODO Insert words in sorted order
+- Cache locality
+- data can be a slice from larger vector.
+
 ** DONE Shrink size of Pos
 CLOSED: [2022-01-15 Sat 17:18]
 ** DONE Add new strong type for costs.
 CLOSED: [2022-01-15 Sat 17:18]
 ** TODO More compact Match/Arrow representation; using delta encoding for end
+** TODO Parallelize code
+*** TODO Trie building (lock after the first 2 layers)
+*** TODO Trie lookup: trie is immutable at this point
+*** TODO A*: One thread for pruning, one thread for querying
+** TODO A*:
+*** TODO Instead of storing f for expanded states, store g for queue states
+Only process if f is up-to-date and g_queue == g_expanded
+*** TODO Optimize for matching states: process these directly instead of pushing & popping from the queue
 
 * Tests
 ** TODO Test all pairs with n <= 6
@@ -134,7 +153,8 @@ CLOSED: [2022-01-15 Sat 17:18]
 - Minimize number of extra seeds.
 ** TODO choosing seeds bases on guessed alignment
 ** TODO Fix the gap heuristic transpose to take the seeds into account.
-** TODO Strategies for choosing seeds:
+** DONE Strategies for choosing seeds:
+CLOSED: [2022-01-19 Wed 18:01]
 - A: Each seed does not match, and covers exactly max_dist+1 mutations.
   - This way, no pruning is needed because there are no matches on the
     diagonal, and h(0,0) exactly equals the actual distance, so that only a
@@ -143,6 +163,9 @@ CLOSED: [2022-01-15 Sat 17:18]
 - Experiment: make one mutation every l positions, and make seeds of length l.
 ** TODO Try SeedHeuristic without Gaps
 - Maybe now that we have pruning, gaps aren't actually needed anymore.
+** TODO Instead of finding all matches and then filtering, only find matches within the cone
+- Could be done by keeping a dynamic trie, only inserting positions in b once
+  they fall within the cone, and removing then as soon as they leave the cone again.
 
 * Pruning
 ** TODO In-place bruteforce pruning for IncreasingFunction datastructure
@@ -176,13 +199,15 @@ neighbour, the original should also be pruned.
   two approaches, but not to an inadmissible heuristic.
 
 * Performance
-** TODO Use Pos(u32,u32) instead of Pos(usize,usize)
+** DONE Use Pos(u32,u32) instead of Pos(usize,usize)
+CLOSED: [2022-01-19 Wed 18:00]
 ** TODO Use array + sorting + binary search to find optimal path.
 ** DONE Do Greedy extending of edges along diagonals
 Whenever a state $(i,j)$ has a matching outgoing edge, we only generate
 $(i,j) \to (i+1, j+1)$ and skip the indel edges.
 ** TODO Skip insertions at the start/end of seeds.
-** TODO Prune only half (some fixed %) of matches. This should result in O(matches) total pruning time.
+** DONE Prune only half (some fixed %) of matches. This should result in O(matches) total pruning time.
+CLOSED: [2022-01-19 Wed 18:00]
 ** TODO Prune only matches at (or close to) the 'front': with so far maximal i and j, for not having to update the priority queue.
 ** TODO Do not generate dist-1 matches with insertions at the start and/or end.
 ** TODO Do not generate dist-1 matches with deletions at the end.
