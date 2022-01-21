@@ -125,8 +125,15 @@ CLOSED: [2022-01-15 Sat 17:18]
 *** TODO Trie lookup: trie is immutable at this point
 *** TODO A*: One thread for pruning, one thread for querying
 ** TODO A*:
-*** TODO Instead of storing f for expanded states, store g for queue states
+*** DONE Instead of storing f for expanded states, store g for queue states
+CLOSED: [2022-01-21 Fri 03:24]
 Only process if f is up-to-date and g_queue == g_expanded
+
+Not much speedup, but fixes a potential bug because checking ~f_queue < f~ isn't
+always accurate in context of pruning.
+Double-expands slightly more now, but retries much less, because the check for
+~g_queue == g~ (which just ignores the element if false), makes for skipping
+some retries.
 *** DONE Optimize for matching states: process these directly instead of pushing & popping from the queue
 CLOSED: [2022-01-21 Fri 02:45]
 This gives up to 2x speedup of the A* for highly similar sequences.
