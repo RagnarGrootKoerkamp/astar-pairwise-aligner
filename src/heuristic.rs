@@ -25,13 +25,24 @@ pub struct HeuristicParams {
     pub build_fast: Option<bool>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize)]
 pub struct HeuristicStats {
     pub num_seeds: Option<I>,
     pub num_matches: Option<usize>,
     #[serde(skip_serializing)]
     pub matches: Option<Vec<Match>>,
     pub pruning_duration: Option<f32>,
+}
+
+impl Default for HeuristicStats {
+    fn default() -> Self {
+        Self {
+            num_seeds: Some(0),
+            num_matches: Some(0),
+            matches: Default::default(),
+            pruning_duration: Some(0.),
+        }
+    }
 }
 
 /// An object containing the settings for a heuristic.

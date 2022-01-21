@@ -95,13 +95,17 @@ fn main() {
                 }
             }
 
+            let mut avg_result = AlignResult::default();
             if all_vs_all {
                 for ab in sequences.iter().combinations(2) {
                     if let [a, b, ..] = ab[..] {
                         let r = run(&a, &b, &args.params);
+                        avg_result.add_sample(&r);
+                        print!("\r");
                         if !args.silent {
                             r.print();
                         }
+                        avg_result.print_no_newline();
                         cnt += 1;
                         sum_band +=
                             r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
@@ -113,13 +117,18 @@ fn main() {
                 // Consecutive pairs
                 for (a, b) in sequences.iter().tuples() {
                     let r = run(&a, &b, &args.params);
+                    avg_result.add_sample(&r);
+                    print!("\r");
                     if !args.silent {
                         r.print();
                     }
+                    avg_result.print_no_newline();
                     cnt += 1;
                     sum_band += r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
                 }
             }
+            print!("\r");
+            avg_result.print();
         }
     } else {
         // Generate random input.

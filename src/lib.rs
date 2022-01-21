@@ -11,6 +11,9 @@
     drain_filter
 )]
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod astar;
 pub mod bucket_queue;
 pub mod contour;
@@ -81,6 +84,7 @@ use serde::Serialize;
 use std::{
     collections::HashSet,
     fmt::{self, Display},
+    io::{stdout, Write},
     path::Path,
     time,
 };
@@ -134,24 +138,63 @@ pub struct AlignResult {
     pub edit_distance: Cost,
     #[serde(skip_serializing)]
     pub path: Vec<Pos>,
+
+    // For averaging
+    pub sample_size: usize,
 }
 
 impl AlignResult {
     fn print_opt<T: Display>(o: Option<T>) -> String {
         o.map_or("".into(), |x| x.to_string())
     }
+    fn print_opt_sampled(o: Option<usize>, sample_size: usize) -> String {
+        o.map_or("".into(), |x| (x / sample_size).to_string())
+    }
     fn print_opt_bool(o: Option<bool>) -> String {
         o.map_or("".into(), |x| (x as u8).to_string())
     }
+
+    pub fn add_sample(&mut self, other: &AlignResult) {
+        self.input.len_a += other.input.len_a;
+        self.input.len_b += other.input.len_b;
+        if let Some(x) = &mut self.heuristic_stats.num_seeds {
+            *x += other.heuristic_stats.num_seeds.unwrap_or_default();
+        }
+        if let Some(x) = &mut self.heuristic_stats.num_matches {
+            *x += other.heuristic_stats.num_matches.unwrap_or_default();
+        }
+        self.astar.expanded += other.astar.expanded;
+        self.astar.explored += other.astar.explored;
+        self.astar.double_expanded += other.astar.double_expanded;
+        self.astar.retries += other.astar.retries;
+        self.timing.precomputation += other.timing.precomputation;
+        self.timing.astar += other.timing.astar;
+        if let Some(x) = &mut self.heuristic_stats.pruning_duration {
+            *x += other.heuristic_stats.pruning_duration.unwrap_or_default();
+        }
+        self.edit_distance += other.edit_distance;
+        self.heuristic_stats2.root_h += other.heuristic_stats2.root_h;
+        self.sample_size += other.sample_size;
+    }
+
     pub fn print(&self) {
+        self.print_internal(true);
+    }
+    pub fn print_no_newline(&self) {
+        self.print_internal(false);
+    }
+    fn print_internal(&self, newline: bool) {
         type ColumnType = (String, fn(&AlignResult) -> String);
         static mut PRINTED_HEADER: bool = false;
         let columns: &[ColumnType] = &[
+            (format!("{:>5}", "nr"), |this: &AlignResult| {
+                format!("{:>5}", this.sample_size)
+            }),
             (format!("{:>6}", "|a|"), |this: &AlignResult| {
-                format!("{:>6}", this.input.len_a)
+                format!("{:>6}", this.input.len_a / this.sample_size)
             }),
             (format!("{:>6}", "|b|"), |this: &AlignResult| {
-                format!("{:>6}", this.input.len_b)
+                format!("{:>6}", this.input.len_b / this.sample_size)
             }),
             (format!("{:>4}", "r"), |this: &AlignResult| {
                 format!("{:>4.2}", this.input.error_rate)
@@ -189,26 +232,32 @@ impl AlignResult {
             (format!("{:>7}", "seeds"), |this: &AlignResult| {
                 format!(
                     "{:>7}",
-                    AlignResult::print_opt(this.heuristic_stats.num_seeds)
+                    AlignResult::print_opt_sampled(
+                        this.heuristic_stats.num_seeds.map(|x| x as usize),
+                        this.sample_size
+                    )
                 )
             }),
             (format!("{:>7}", "matches"), |this: &AlignResult| {
                 format!(
                     "{:>7}",
-                    AlignResult::print_opt(this.heuristic_stats.num_matches)
+                    AlignResult::print_opt_sampled(
+                        this.heuristic_stats.num_matches,
+                        this.sample_size
+                    )
                 )
             }),
             (format!("{:>9}", "expanded"), |this: &AlignResult| {
-                format!("{:>9}", this.astar.expanded)
+                format!("{:>9}", this.astar.expanded / this.sample_size)
             }),
             (format!("{:>9}", "explored"), |this: &AlignResult| {
-                format!("{:>9}", this.astar.explored)
+                format!("{:>9}", this.astar.explored / this.sample_size)
             }),
             (format!("{:>7}", "dbl"), |this: &AlignResult| {
-                format!("{:>7}", this.astar.double_expanded)
+                format!("{:>7}", this.astar.double_expanded / this.sample_size)
             }),
             (format!("{:>7}", "ret"), |this: &AlignResult| {
-                format!("{:>7}", this.astar.retries)
+                format!("{:>7}", this.astar.retries / this.sample_size)
             }),
             (format!("{:>8}", "band"), |this: &AlignResult| {
                 format!(
@@ -217,21 +266,32 @@ impl AlignResult {
                 )
             }),
             (format!("{:>8}", "precom"), |this: &AlignResult| {
-                format!("{:>8.5}", this.timing.precomputation)
+                format!(
+                    "{:>8.5}",
+                    this.timing.precomputation / this.sample_size as f32
+                )
             }),
             (format!("{:>8}", "align"), |this: &AlignResult| {
-                format!("{:>8.5}", this.timing.astar)
+                format!("{:>8.5}", this.timing.astar / this.sample_size as f32)
             }),
             (format!("{:>8}", "prune"), |this: &AlignResult| {
                 this.heuristic_stats
                     .pruning_duration
-                    .map_or("".into(), |x| format!("{:>8.5}", x))
+                    .map_or("".into(), |x| {
+                        format!("{:>8.5}", x / this.sample_size as f32)
+                    })
             }),
             (format!("{:>5}", "dist"), |this: &AlignResult| {
-                format!("{:>5}", this.edit_distance)
+                format!(
+                    "{:>5.0}",
+                    this.edit_distance as f32 / this.sample_size as f32
+                )
             }),
-            (format!("{:>6}", "h(0,0)"), |this: &AlignResult| {
-                format!("{:>6}", this.heuristic_stats2.root_h)
+            (format!("{:>6.0}", "h(0,0)"), |this: &AlignResult| {
+                format!(
+                    "{:>6.0}",
+                    this.heuristic_stats2.root_h as f32 / this.sample_size as f32
+                )
             }),
             (format!("{:>5}", "m_pat"), |this: &AlignResult| {
                 format!(
@@ -260,7 +320,11 @@ impl AlignResult {
         for (_, col) in columns {
             print!("{} ", col(self));
         }
-        println!();
+        if newline {
+            println!();
+        } else {
+            stdout().flush().unwrap();
+        }
     }
     pub fn write(&self, writer: &mut Writer<std::fs::File>) {
         #[derive(Serialize)]
@@ -394,5 +458,6 @@ where
         },
         edit_distance: distance,
         path,
+        sample_size: 1,
     }
 }
