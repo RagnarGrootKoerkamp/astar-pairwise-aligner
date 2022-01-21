@@ -127,7 +127,9 @@ CLOSED: [2022-01-15 Sat 17:18]
 ** TODO A*:
 *** TODO Instead of storing f for expanded states, store g for queue states
 Only process if f is up-to-date and g_queue == g_expanded
-*** TODO Optimize for matching states: process these directly instead of pushing & popping from the queue
+*** DONE Optimize for matching states: process these directly instead of pushing & popping from the queue
+CLOSED: [2022-01-21 Fri 02:45]
+This gives up to 2x speedup of the A* for highly similar sequences.
 
 * Tests
 ** TODO Test all pairs with n <= 6
