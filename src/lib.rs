@@ -223,10 +223,9 @@ impl AlignResult {
                 format!("{:>8.5}", this.timing.astar)
             }),
             (format!("{:>8}", "prune"), |this: &AlignResult| {
-                format!(
-                    "{:>8.5}",
-                    AlignResult::print_opt(this.heuristic_stats.pruning_duration)
-                )
+                this.heuristic_stats
+                    .pruning_duration
+                    .map_or("".into(), |x| format!("{:>8.5}", x))
             }),
             (format!("{:>5}", "dist"), |this: &AlignResult| {
                 format!("{:>5}", this.edit_distance)

@@ -75,6 +75,11 @@ pub trait HeuristicInstance<'a> {
         Default::default()
     }
 
+    /// A* will checked for consistency whenever this returns true.
+    fn is_start_of_seed(&mut self, _pos: Self::Pos) -> bool {
+        true
+    }
+
     fn prune(&mut self, _pos: Self::Pos) {}
     fn prune_with_hint(&mut self, pos: Self::Pos, _hint: Self::Hint) {
         self.prune(pos)

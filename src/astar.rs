@@ -111,16 +111,18 @@ where
         }
 
         // Expand the state.
-        match state.status {
+        let mut double_expanded = match state.status {
             Unvisited => {
                 unreachable!("Cannot explore an unvisited node")
             }
             // Expand the currently explored state.
             Explored => {
                 state.status = Expanded;
+                false
             }
             Expanded => {
                 stats.double_expanded += 1;
+                true
             }
         };
 
@@ -140,7 +142,14 @@ where
             // Prune expanded states.
             // TODO: Make this return a new hint?
             // Or just call h manually for a new hint.
-            h.prune_with_hint(pos, hint);
+
+            if h.is_start_of_seed(pos) {
+                // Check that we don't double expand start-of-seed states.
+                // Starts of seeds should only be expanded once.
+                // FIXME: This is still broken from time to time.
+                assert!(!double_expanded, "Double expanded start of seed {:?}", pos);
+                h.prune_with_hint(pos, hint);
+            }
 
             // Retrace path to root and return.
             if pos == target {
@@ -170,9 +179,12 @@ where
                     // Continue to the next state in the queue.
                     break true;
                 }
-                if let Expanded = new_state.status {
+                double_expanded = if let Expanded = new_state.status {
                     stats.double_expanded += 1;
-                }
+                    true
+                } else {
+                    false
+                };
                 *new_state = state;
                 pos = next;
 
