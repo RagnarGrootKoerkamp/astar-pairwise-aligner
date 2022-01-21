@@ -8,11 +8,11 @@ fn main() {
     let es = [0.10];
 
     for (&n, e) in ns.iter().cartesian_product(es) {
-        for l in [8, 9, 10, 11, 12] {
+        for k in [8, 9, 10, 11, 12] {
             {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost: 1,
                         ..MatchConfig::default()
                     },

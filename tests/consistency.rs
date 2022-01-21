@@ -6,7 +6,7 @@ fn bicount_admissible() {
 
     let _n = 25;
     let _e = 0.2;
-    let l = 4;
+    let k = 4;
     let pattern = "AGACGTCC".as_bytes().to_vec();
     let ___text = "AGACGTCCA".as_bytes().to_vec();
     let text = ___text;
@@ -25,7 +25,7 @@ fn bicount_admissible() {
         stats,
         SeedHeuristic {
             match_config: MatchConfig {
-                length: Fixed(l),
+                length: Fixed(k),
                 max_match_cost: 1,
                 ..MatchConfig::default()
             },

@@ -33,9 +33,9 @@ pub fn print<'a, 'b, H>(
             let pixel = &mut pixels[p.0 as usize][p.1 as usize];
 
             let (val, parent_pos) = h.h_with_parent(p);
-            let l = ps.len();
+            let k = ps.len();
             let (_parent_id, color) = ps.entry(parent_pos).or_insert((
-                l,
+                k,
                 termion::color::Rgb(
                     dist.sample(&mut rng),
                     dist.sample(&mut rng),

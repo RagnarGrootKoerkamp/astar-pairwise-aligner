@@ -140,6 +140,11 @@ This gives up to 2x speedup of the A* for highly similar sequences.
 ** DONE Fix timing of pruning
 CLOSED: [2022-01-21 Fri 15:50]
 Currently it often reports 0, even though it's much more in the flamegraph.
+** TODO Make deleting from ~contours~ vector faster
+Replace the single vector by something that allows faster deletion but still
+constant time lookup. Maybe something using sqrt decomposition or fenwick trees.
+Or maybe soft-deletion in combination with something with Union-Find, where each
+original contour points to the contour it merged into.
 
 * Tests
 ** TODO Test all pairs with n <= 6
@@ -155,13 +160,13 @@ Currently it often reports 0, even though it's much more in the flamegraph.
 
 
 * Edit Distance
-** TODO Run SeedHeuristic with l=1 as edit distance computation algorithm.
+** TODO Run SeedHeuristic with k=1 as edit distance computation algorithm.
 - This generalizes the LCS Contours algorithm to edit distance.
-- For l>1, it generalizes the LCS_{k[+]}  algorithm and provides a lower bound.
+- For k>1, it generalizes the LCS_{k[+]}  algorithm and provides a lower bound.
 
 * Seeds
 ** TODO Dynamic seeding, either greedy or using some DP[i, j, distance].
-- Maximize h(0,0) or (max_match_cost+1)/l
+- Maximize h(0,0) or (max_match_cost+1)/k
 - Minimize number of extra seeds.
 ** TODO choosing seeds bases on guessed alignment
 ** TODO Fix the gap heuristic transpose to take the seeds into account.
@@ -172,7 +177,7 @@ CLOSED: [2022-01-19 Wed 18:01]
     diagonal, and h(0,0) exactly equals the actual distance, so that only a
     very narrow region is expanded.
 - B: Maximize the number of seeds that matches exactly (at most 10 times).
-- Experiment: make one mutation every l positions, and make seeds of length l.
+- Experiment: make one mutation every k positions, and make seeds of length k.
 ** TODO Try SeedHeuristic without Gaps
 - Maybe now that we have pruning, gaps aren't actually needed anymore.
 ** TODO Instead of finding all matches and then filtering, only find matches within the cone
@@ -234,7 +239,7 @@ CLOSED: [2022-01-19 Wed 18:00]
    instead of walking there using incremental steps, compute and store the value
    of the match once then end-column is processed, but insert it only when the
    start-column is being processed.
-** TODO Use SuffixArray instead of multiple QGramIndices for fixed l.
+** TODO Use SuffixArray instead of multiple QGramIndices for fixed k.
 ** TODO Update ContourGraph to set the value of a match after processing the end-column, instead of doing a lookup when processing the start column.
 
 * DONE Fast Seed+Gap heuristic implementation:

@@ -62,7 +62,7 @@ impl<'a> DistanceInstance<'a> for SeedMatches {
 
 #[derive(Clone, Copy, Debug)]
 pub struct MaxMatches {
-    // The smallest l with at most this many matches within the band.
+    // The smallest k with at most this many matches within the band.
     pub max_matches: usize,
     // Return the band as a function of n.
     pub band: fn(I) -> I,
@@ -70,7 +70,7 @@ pub struct MaxMatches {
 
 #[derive(Clone, Copy, Debug)]
 pub struct MinMatches {
-    // The largest l with at least this many matches within the band.
+    // The largest k with at least this many matches within the band.
     pub min_matches: usize,
     // Return the band as a function of n.
     pub band: fn(I) -> I,
@@ -84,8 +84,8 @@ pub enum LengthConfig {
 }
 
 impl LengthConfig {
-    pub fn fixed(l: I) -> LengthConfig {
-        LengthConfig::Fixed(l)
+    pub fn fixed(k: I) -> LengthConfig {
+        LengthConfig::Fixed(k)
     }
     pub fn max(max_matches: usize, band: fn(I) -> I) -> LengthConfig {
         LengthConfig::Max(MaxMatches { max_matches, band })
@@ -94,9 +94,9 @@ impl LengthConfig {
         assert!(min_matches > 0);
         LengthConfig::Min(MinMatches { min_matches, band })
     }
-    pub fn l(&self) -> Option<I> {
+    pub fn k(&self) -> Option<I> {
         match *self {
-            Fixed(l) => Some(l),
+            Fixed(k) => Some(k),
             _ => None,
         }
     }
@@ -127,28 +127,28 @@ pub fn find_matches_trie<'a>(
         ..
     }: MatchConfig,
 ) -> SeedMatches {
-    let l: I = match length {
-        Fixed(l) => l,
-        _ => unimplemented!("Trie only works for fixed l for now."),
+    let k: I = match length {
+        Fixed(k) => k,
+        _ => unimplemented!("Trie only works for fixed k for now."),
     };
     // Create a trie from all windows of b.
     let mut trie = Trie::new(
-        b.windows((l + max_match_cost) as usize)
+        b.windows((k + max_match_cost) as usize)
             .enumerate()
             .map(|(i, w)| (w, i as trie::Data)),
         alph,
     );
     // Push all remaining suffixes of b.
-    for i in b.len() as I - l - max_match_cost + 1..b.len() as I {
+    for i in b.len() as I - k - max_match_cost + 1..b.len() as I {
         trie.push(&b[i as usize..], i);
     }
 
     let seed_qgrams = a
-        .chunks_exact(l as usize)
+        .chunks_exact(k as usize)
         .enumerate()
         .map(|(i, _seed)| Seed {
-            start: i as I * l,
-            end: (i + 1) as I * l,
+            start: i as I * k,
+            end: (i + 1) as I * k,
             seed_potential: max_match_cost + 1,
             qgram: 0, // qgram(seed), Unused
         });
@@ -253,28 +253,28 @@ pub fn find_matches_qgramindex<'a>(
     let Pos(n, _m) = Pos::from_length(a, b);
 
     // Qgrams of B.
-    // TODO: Profile this index and possibly use something more efficient for large l.
+    // TODO: Profile this index and possibly use something more efficient for large k.
     let qgrams = &mut HashMap::<I, QGramIndex>::default();
     // TODO: This should return &[I] instead.
     fn get_matches<'a, 'c>(
         qgrams: &'c mut HashMap<I, QGramIndex>,
         b: &'a Sequence,
         alph: &Alphabet,
-        l: I,
+        k: I,
         qgram: usize,
     ) -> &'c [usize] {
         qgrams
-            .entry(l)
-            .or_insert_with_key(|l| QGramIndex::new(*l as u32, b, alph))
+            .entry(k)
+            .or_insert_with_key(|k| QGramIndex::new(*k as u32, b, alph))
             .qgram_matches(qgram)
     }
 
     // Stops counting when max_count is reached.
-    let mut count_matches = |l: I, qgram, max_count: usize, i: I, band: I| -> usize {
+    let mut count_matches = |k: I, qgram, max_count: usize, i: I, band: I| -> usize {
         let count_in_band = |matches: &[usize]| -> usize {
             // println!(
             //     "{} {} {} {} for {:?}",
-            //     l,
+            //     k,
             //     max_count,
             //     i.saturating_sub(band),
             //     i + band,
@@ -299,19 +299,19 @@ pub fn find_matches_qgramindex<'a>(
 
         // exact matches
         let mut cnt = 0;
-        cnt += count_in_band(get_matches(qgrams, b, alph, l, qgram));
+        cnt += count_in_band(get_matches(qgrams, b, alph, k, qgram));
         if cnt >= max_count {
             return max_count;
         }
         if max_match_cost == 1 {
-            let mutations = mutations(l, qgram, mutation_config);
-            for (v, l) in [
-                (mutations.deletions, l - 1),
-                (mutations.substitutions, l),
-                (mutations.insertions, l + 1),
+            let mutations = mutations(k, qgram, mutation_config);
+            for (v, k) in [
+                (mutations.deletions, k - 1),
+                (mutations.substitutions, k),
+                (mutations.insertions, k + 1),
             ] {
                 for qgram in v {
-                    cnt += count_in_band(get_matches(qgrams, b, alph, l, qgram));
+                    cnt += count_in_band(get_matches(qgrams, b, alph, k, qgram));
                     if cnt >= max_count {
                         return max_count;
                     }
@@ -336,32 +336,32 @@ pub fn find_matches_qgramindex<'a>(
         let mut long = false;
         let mut i = 0 as I;
         loop {
-            // TODO: Clever seed choice, using variable l and m.
+            // TODO: Clever seed choice, using variable k and m.
             let seed_len = {
                 match length {
-                    Fixed(l) => l,
+                    Fixed(k) => k,
                     LengthConfig::Max(MaxMatches { max_matches, band }) => {
-                        let mut l = 3 as I;
-                        while l <= a.len() as I && l <= 10
+                        let mut k = 3 as I;
+                        while k <= a.len() as I && k <= 10
                                 // TODO: Use band(min(a.len(), n-a.len())) or something like it.
-                                && count_matches(l, qgram(&a[..l as usize]), max_matches + 1, i, band(n))
+                                && count_matches(k, qgram(&a[..k as usize]), max_matches + 1, i, band(n))
                                     > max_matches
                         {
-                            l += 1;
+                            k += 1;
                         }
-                        l
+                        k
                     }
                     LengthConfig::Min(MinMatches { min_matches, band }) => {
-                        let mut l = 4 as I;
+                        let mut k = 4 as I;
                         // TODO: Remove max length, which is only needed because of memory reasons.
-                        while l <= a.len() as I && l <= 11
+                        while k <= a.len() as I && k <= 11
                                 // TODO: Use band(min(a.len(), n-a.len())) or something like it.
-                                && count_matches(l, qgram(&a[..l as usize]), min_matches, i, band(n))
+                                && count_matches(k, qgram(&a[..k as usize]), min_matches, i, band(n))
                                     >= min_matches
                         {
-                            l += 1;
+                            k += 1;
                         }
-                        l - 1
+                        k - 1
                     }
                 }
             };
@@ -388,7 +388,7 @@ pub fn find_matches_qgramindex<'a>(
     };
     let num_seeds = seed_qgrams.len() as I;
     // println!(
-    //     "l: {}",
+    //     "k: {}",
     //     //length,
     //     //num_seeds,
     //     a.len() as f32 / num_seeds as f32
@@ -399,7 +399,7 @@ pub fn find_matches_qgramindex<'a>(
     let mut start_of_seed = Vec::with_capacity(n + 1);
 
     // Find matches of the seeds of a in b.
-    // NOTE: This uses O(alphabet^l) memory.
+    // NOTE: This uses O(alphabet^k) memory.
     let mut matches = Vec::<Match>::new();
 
     let mut cur_potential = seed_qgrams
@@ -510,29 +510,29 @@ mod test {
 
     #[test]
     fn trie_matches() {
-        for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+        for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
             for n in [10, 20, 40, 100, 200, 500, 1000] {
                 for e in [0.1, 0.3, 1.0] {
                     let (a, b, alph, _) = setup(n, e);
                     println!("{}\n{}", to_string(&a), to_string(&b));
                     let matchconfig = MatchConfig {
-                        length: crate::prelude::LengthConfig::Fixed(l),
+                        length: crate::prelude::LengthConfig::Fixed(k),
                         max_match_cost,
                         ..Default::default()
                     };
                     println!("-----------------------");
-                    println!("n={n} e={e} l={l} mmc={max_match_cost}");
-                    let l = find_matches_trie(&a, &b, &alph, matchconfig);
+                    println!("n={n} e={e} k={k} mmc={max_match_cost}");
+                    let k = find_matches_trie(&a, &b, &alph, matchconfig);
                     let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
                     println!("-----------------------");
-                    for x in &l.matches {
+                    for x in &k.matches {
                         println!("{x:?}");
                     }
                     println!("-----------------------");
                     for x in &r.matches {
                         println!("{x:?}");
                     }
-                    assert_eq!(l.matches, r.matches);
+                    assert_eq!(k.matches, r.matches);
                 }
             }
         }

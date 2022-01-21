@@ -19,7 +19,7 @@ use crate::{seeds::Match, util::*};
 pub struct HeuristicParams {
     pub name: String,
     pub distance_function: Option<String>,
-    pub l: Option<I>,
+    pub k: Option<I>,
     pub max_match_cost: Option<Cost>,
     pub pruning: Option<bool>,
     pub build_fast: Option<bool>,

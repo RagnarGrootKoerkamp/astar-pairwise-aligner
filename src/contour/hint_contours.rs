@@ -389,9 +389,9 @@ impl<C: Contour> Contours for HintContours<C> {
                 break;
             }
         }
-        for l in (0..8).rev() {
-            if self.contours.len() > l {
-                ////println!("Contour {}: {:?}", l, self.contours[l]);
+        for k in (0..8).rev() {
+            if self.contours.len() > k {
+                ////println!("Contour {}: {:?}", k, self.contours[k]);
             }
         }
         // for (i, c) in self.contours.iter().enumerate().rev() {

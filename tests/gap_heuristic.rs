@@ -18,12 +18,12 @@ fn contour_graph() {
         println!("TEST:\n{}\n{}", a, b);
         let a = a.as_bytes().to_vec();
         let b = b.as_bytes().to_vec();
-        let l = 7;
+        let k = 7;
         let max_match_cost = 1;
         let pruning = false;
         let h = GapSeedHeuristic {
             match_config: MatchConfig {
-                length: Fixed(l),
+                length: Fixed(k),
                 max_match_cost,
                 ..MatchConfig::default()
             },
@@ -40,11 +40,11 @@ fn contour_graph() {
 #[test]
 fn pruning_and_inexact_matches() {
     let pruning = true;
-    let (l, max_match_cost) = (7, 1);
+    let (k, max_match_cost) = (7, 1);
     for do_transform in [false, true] {
         let h_fast = GapSeedHeuristic {
             match_config: MatchConfig {
-                length: Fixed(l),
+                length: Fixed(k),
                 max_match_cost,
                 ..MatchConfig::default()
             },
@@ -87,7 +87,7 @@ fn small_test() {
 
     let _n = 25;
     let _e = 0.2;
-    let l = 4;
+    let k = 4;
     let pattern = "AGACGTCC".as_bytes().to_vec();
     let ___text = "AGACGTCCA".as_bytes().to_vec();
     let text = ___text;
@@ -101,7 +101,7 @@ fn small_test() {
 
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost: 1,
             ..MatchConfig::default()
         },
@@ -116,10 +116,10 @@ fn small_test() {
 /// This was broken because seed_heuristic didn't clear the previous state before rebuilding.
 #[test]
 fn seed_heuristic_rebuild() {
-    let (l, m, n, e, pruning, prune_fraction) = (4, 0, 100, 0.3, true, 1.0);
+    let (k, m, n, e, pruning, prune_fraction) = (4, 0, 100, 0.3, true, 1.0);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost: m,
             ..MatchConfig::default()
         },
@@ -146,10 +146,10 @@ fn seed_heuristic_rebuild() {
 /// This and the test below are fixed by disabling greedy matching.
 #[test]
 fn no_double_expand() {
-    let (l, m, n, e, pruning, prune_fraction) = (5, 1, 78, 0.3, true, 1.0);
+    let (k, m, n, e, pruning, prune_fraction) = (5, 1, 78, 0.3, true, 1.0);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost: m,
             ..MatchConfig::default()
         },
@@ -173,10 +173,10 @@ fn no_double_expand() {
 
 #[test]
 fn no_double_expand_2() {
-    let (l, m, n, e, pruning, prune_fraction) = (7, 1, 61, 0.3, true, 1.0);
+    let (k, m, n, e, pruning, prune_fraction) = (7, 1, 61, 0.3, true, 1.0);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost: m,
             ..MatchConfig::default()
         },

@@ -3,13 +3,13 @@ use pairwise_aligner::prelude::*;
 fn main() {
     let n = 2000;
     let e = 0.20;
-    let l = 7;
+    let k = 7;
     let max_match_cost = 1;
     let pruning = true;
 
     let h_fast = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost,
             ..MatchConfig::default()
         },
@@ -20,7 +20,7 @@ fn main() {
     };
     let h_base = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost,
             ..MatchConfig::default()
         },
