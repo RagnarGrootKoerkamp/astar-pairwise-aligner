@@ -170,8 +170,17 @@ where
                     // Continue to the next state in the queue.
                     break true;
                 }
+                if let Expanded = new_state.status {
+                    stats.double_expanded += 1;
+                }
                 *new_state = state;
                 pos = next;
+
+                // Count the new state as explored.
+                stats.explored += 1;
+                if DEBUG {
+                    stats.explored_states.push(pos);
+                }
             } else {
                 break false;
             }
