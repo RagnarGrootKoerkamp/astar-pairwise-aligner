@@ -25,3 +25,4 @@ rustc-hash = "*"
 structopt = "*"
 # TODO: Only used for generating random sequences. Replace with own/more generic standalone implementation?
 block-aligner={version="*", features=["simd_avx2"]}
+lazy_static = "*"

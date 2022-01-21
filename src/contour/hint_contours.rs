@@ -400,6 +400,7 @@ impl<C: Contour> Contours for HintContours<C> {
         true
     }
 
+    #[allow(unreachable_code)]
     fn print_stats(&self) {
         return;
         println!("----------------------------");
