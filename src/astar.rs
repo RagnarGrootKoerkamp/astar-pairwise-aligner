@@ -2,7 +2,7 @@ use crate::diagonal_map::DiagonalMapTrait;
 use crate::prelude::*;
 use crate::scored::MinScored;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Status {
     Unvisited,
     Explored,
@@ -10,7 +10,7 @@ enum Status {
 }
 use Status::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct State<Parent, Hint> {
     status: Status,
     // TODO: Do we really need f?
@@ -87,7 +87,7 @@ where
         );
     }
 
-    while let Some(MinScored(f, pos)) = queue.pop() {
+    while let Some(MinScored(f, mut pos)) = queue.pop() {
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
         //let g = gs[pos];
@@ -131,27 +131,60 @@ where
                 }
             }
         };
-        stats.expanded += 1;
-        if DEBUG {
-            stats.expanded_states.push(pos);
-        }
 
-        // Prune expanded states.
-        h.prune_with_hint(pos, state.hint);
+        // Store the state for copying to matching states.
+        let mut state = *state;
+        // Matching states will need a match parent.
+        state.parent = G::Parent::match_value();
 
-        // Retrace path to root and return.
-        if pos == target {
-            let last = pos;
-            let mut path = vec![last];
-
-            let mut current = last;
-            while let Some(previous) = states[current].parent.parent(&current) {
-                path.push(previous);
-                current = previous;
+        // Keep expanding states while we are on a matching diagonal edge.
+        // This gives a ~2x speedup on highly similar sequences.
+        if loop {
+            stats.expanded += 1;
+            if DEBUG {
+                stats.expanded_states.push(pos);
             }
 
-            path.reverse();
-            return Some((g, path, stats));
+            // Prune expanded states.
+            // TODO: Make this return a new hint?
+            // Or just call h manually for a new hint.
+            h.prune_with_hint(pos, hint);
+
+            // Retrace path to root and return.
+            if pos == target {
+                let last = pos;
+                let mut path = vec![last];
+
+                let mut current = last;
+                // TODO
+                while let Some(previous) = states[current].parent.parent(&current) {
+                    path.push(previous);
+                    current = previous;
+                }
+
+                path.reverse();
+                return Some((g, path, stats));
+            }
+
+            if !GREEDY_EDGE_MATCHING_IN_ASTAR {
+                break false;
+            }
+
+            if let Some(next) = graph.is_match(pos) {
+                // Directly expand the next pos, by copying over the current state to there.
+                let new_state = states.get_mut(next);
+                //assert!(state.g < new_state.g);
+                if new_state.g <= state.g {
+                    // Continue to the next state in the queue.
+                    break true;
+                }
+                *new_state = state;
+                pos = next;
+            } else {
+                break false;
+            }
+        } {
+            continue;
         }
 
         graph.iterate_outgoing_edges(pos, |next, cost, parent| {
@@ -164,18 +197,19 @@ where
             } else if next_g >= next_state.g {
                 return;
             };
+
+            let (next_h, next_hint) = h.h_with_hint(next, hint);
+            let next_f = next_g + next_h;
+
             next_state.g = next_g;
             next_state.parent = parent;
+            next_state.hint = next_hint;
+            queue.push(MinScored(next_f, next));
 
             stats.explored += 1;
             if DEBUG {
                 stats.explored_states.push(pos);
             }
-
-            let (next_h, next_hint) = h.h_with_hint(next, hint);
-            next_state.hint = next_hint;
-            let next_f = next_g + next_h;
-            queue.push(MinScored(next_f, next));
         });
     }
 

@@ -16,6 +16,9 @@ pub const USE_SHADOW_POINTS: bool = true;
 /// When true, indels are not considered when there is a match edge from the current position.
 pub const GREEDY_EDGE_MATCHING: bool = true;
 
+/// When true, do greedy matching inside the A* itself.
+pub const GREEDY_EDGE_MATCHING_IN_ASTAR: bool = true;
+
 /// Whenever A* pops a position, if the value of h and f is outdated, the point is pushed and not expanded.
 pub const RETRY_OUDATED_HEURISTIC_VALUE: bool = true;
 
