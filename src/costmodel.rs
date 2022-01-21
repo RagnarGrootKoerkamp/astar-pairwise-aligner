@@ -1,10 +1,11 @@
-use crate::prelude::Cost;
+/// A potentially smaller cost datatype to save stack space.
+pub type MatchCost = u8;
 
 /// TODO: Gap-Affine costs.
 pub struct CostModel {
-    pub mismatch: Cost,
-    pub insertion: Cost,
-    pub deletion: Cost,
+    pub mismatch: MatchCost,
+    pub insertion: MatchCost,
+    pub deletion: MatchCost,
 }
 
 /// Default costs for EditDistance:
@@ -17,7 +18,7 @@ pub const EDIT_DISTANCE_COSTS: CostModel = CostModel {
 
 /// LCS corresponds to disallowing mismatches.
 pub const LCS_COSTS: CostModel = CostModel {
-    mismatch: Cost::MAX,
+    mismatch: MatchCost::MAX,
     insertion: 1,
     deletion: 1,
 };

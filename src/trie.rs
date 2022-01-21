@@ -1,11 +1,11 @@
 use bio::alphabets::{Alphabet, RankTransform};
 
+use crate::costmodel::MatchCost;
+
 pub type State = u32;
 pub type Data = u32;
-/// A potentially smaller cost datatype to save stack space.
-pub type MatchCost = crate::prelude::Cost;
 /// A potentially smaller seed length datatype to save stack space.
-pub type MatchLen = crate::prelude::I;
+pub type MatchLen = u8;
 
 pub struct TrieNode {
     // Child indices are always positive, so 0 indicates empty.
