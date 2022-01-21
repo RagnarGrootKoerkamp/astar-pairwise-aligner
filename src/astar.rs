@@ -13,8 +13,6 @@ use Status::*;
 #[derive(Clone, Copy, Debug)]
 struct State<Parent, Hint> {
     status: Status,
-    // TODO: Do we really need f?
-    f: Cost,
     g: Cost,
     parent: Parent,
     hint: Hint,
@@ -24,7 +22,6 @@ impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
     fn default() -> Self {
         Self {
             status: Unvisited,
-            f: Cost::MAX,
             g: Cost::MAX,
             parent: Parent::default(),
             hint: Hint::default(),
@@ -79,7 +76,6 @@ where
             start,
             State {
                 status: Explored,
-                f: 0,
                 g: 0,
                 parent: Default::default(),
                 hint,
@@ -87,7 +83,7 @@ where
         );
     }
 
-    while let Some(MinScored(f, mut pos, queue_g)) = queue.pop() {
+    while let Some(MinScored(queue_f, mut pos, queue_g)) = queue.pop() {
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
         //let g = gs[pos];
@@ -107,7 +103,7 @@ where
             let (current_h, new_hint) = h.h_with_hint(pos, state.hint);
             state.hint = new_hint;
             let current_f = g + current_h;
-            if current_f > f {
+            if current_f > queue_f {
                 stats.retries += 1;
                 queue.push(MinScored(current_f, pos, queue_g));
                 continue;
@@ -122,20 +118,9 @@ where
             // Expand the currently explored state.
             Explored => {
                 state.status = Expanded;
-                state.f = f;
             }
             Expanded => {
-                if f < state.f {
-                    state.f = f;
-                    stats.double_expanded += 1;
-                } else {
-                    // Skip if f is not better than the previous best f.
-                    // FIXME: Does this skipping break consistency if f has
-                    // jumped up from pruning in between the first and the
-                    // second time visiting this node?
-                    // Could be fixed by checking g instead.
-                    continue;
-                }
+                stats.double_expanded += 1;
             }
         };
 
