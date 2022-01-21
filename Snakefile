@@ -26,8 +26,8 @@ TIMELIMIT       = "(timeout 1s"
 TIMELIMITEND    = ") || true"
 
 DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/{wildcards.cnt}x-n{wildcards.n}-e{wildcards.e}.dijkstra.bench.band -a Dijkstra --silent {TIMELIMITEND}'
-PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/{wildcards.cnt}x-n{wildcards.n}-e{wildcards.e}.pa.bench.band -l {params.l} --silent {TIMELIMITEND} || true'
-PA_NO_PRUNE_CMD = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/{wildcards.cnt}x-n{wildcards.n}-e{wildcards.e}.pa-no-prune.bench.band -l {params.l} --no-prune --silent {TIMELIMITEND}'
+PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/{wildcards.cnt}x-n{wildcards.n}-e{wildcards.e}.pa.bench.band -k {params.k} --silent {TIMELIMITEND} || true'
+PA_NO_PRUNE_CMD = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/{wildcards.cnt}x-n{wildcards.n}-e{wildcards.e}.pa-no-prune.bench.band -k {params.k} --no-prune --silent {TIMELIMITEND}'
 EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'   # -p: Return alignment, -s: Silent / no output
 WFA_CMD         = '{TIMELIMIT} {wfa_bin} -i {input} -a -a gap-affine-wfa  {TIMELIMITEND}'  # -p: Return alignment, -s: Silent / no output
 
@@ -82,7 +82,7 @@ rule run_pairwise_aligner:
     benchmark:
         "data/runs/{cnt}x-n{n}-e{e}.pa.bench"
     params:
-        l = lambda w: PARAMS[(int(w.n),float(w.e))]
+        k = lambda w: PARAMS[(int(w.n),float(w.e))]
     shell:
         PA_CMD
 
@@ -92,7 +92,7 @@ rule run_pairwise_aligner_no_prune:
     benchmark:
         "data/runs/{cnt}x-n{n}-e{e}.pa-no-prune.bench"
     params:
-        l = lambda w: PARAMS[(int(w.n),float(w.e))]
+        k = lambda w: PARAMS[(int(w.n),float(w.e))]
     shell:
         PA_NO_PRUNE_CMD
 
@@ -110,7 +110,7 @@ rule run_edlib:
     benchmark:
         "data/runs/{cnt}x-n{n}-e{e}.edlib.bench"
     params:
-        l = lambda w: PARAMS[(int(w.n),float(w.e))]
+        k = lambda w: PARAMS[(int(w.n),float(w.e))]
     shell:
         EDLIB_CMD 
 
@@ -120,7 +120,7 @@ rule run_wfa:
     benchmark:
         "data/runs/{cnt}x-n{n}-e{e}.wfa.bench"
     params:
-        l = lambda w: PARAMS[(int(w.n),float(w.e))]
+        k = lambda w: PARAMS[(int(w.n),float(w.e))]
     shell:
         WFA_CMD
 
