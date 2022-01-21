@@ -22,7 +22,7 @@ impl Pos {
     }
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Debug)]
 pub enum Parent {
     // The root, or an unvisited state.
     #[default]
@@ -42,6 +42,10 @@ impl ParentTrait<Pos> for Parent {
             Parent::Left => Some(Pos(i - 1, j)),
             Parent::Up => Some(Pos(i, j - 1)),
         }
+    }
+
+    fn match_value() -> Self {
+        Parent::Match
     }
 }
 

@@ -15,12 +15,13 @@ pub trait PosOrder {
 
 pub trait ParentTrait<Pos>: Default + Clone + Copy {
     fn parent(&self, _pos: &Pos) -> Option<Pos>;
+    fn match_value() -> Self;
 }
 
 /// An implicit graph.
 pub trait ImplicitGraph {
-    type Pos: Copy + Eq + hash::Hash + PosOrder;
-    type Parent: ParentTrait<Self::Pos>;
+    type Pos: Copy + Eq + hash::Hash + PosOrder + std::fmt::Debug;
+    type Parent: ParentTrait<Self::Pos> + std::fmt::Debug;
     type DiagonalMap<T: Default + Clone + Copy>: DiagonalMapTrait<Self::Pos, T>;
 
     fn root(&self) -> Self::Pos;
