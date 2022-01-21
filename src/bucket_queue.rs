@@ -9,32 +9,32 @@ use crate::{
 // TODO: Investigate whether to enable sorting.
 // Can be disabled by initializing next_sort to 0.
 // TODO: Could be generalized to take arbitrary T instead of NodeG<G>.
-pub struct BucketQueue<Pos> {
-    layers: Vec<Vec<Pos>>,
+pub struct BucketQueue<Pos, D> {
+    layers: Vec<Vec<(Pos, D)>>,
     next: Cost,
     next_sort: Cost,
     next_clear: Cost,
 }
 
-impl<Pos: PosOrder> BucketQueue<Pos> {
+impl<Pos: PosOrder, D> BucketQueue<Pos, D> {
     #[inline]
-    pub fn push(&mut self, MinScored(k, v): MinScored<Cost, Pos>) {
+    pub fn push(&mut self, MinScored(k, v, d): MinScored<Cost, Pos, D>) {
         if self.layers.len() <= k as usize {
             self.layers.resize_with(k as usize + 1, Vec::default);
         }
         self.next = min(self.next, k);
-        self.layers[k as usize].push(v);
+        self.layers[k as usize].push((v, d));
     }
-    pub fn pop(&mut self) -> Option<MinScored<Cost, Pos>> {
+    pub fn pop(&mut self) -> Option<MinScored<Cost, Pos, D>> {
         while let Some(layer) = self.layers.get_mut(self.next as usize) {
-            if let Some(back) = layer.pop() {
-                return Some(MinScored(self.next, back));
+            if let Some((back, d)) = layer.pop() {
+                return Some(MinScored(self.next, back, d));
             }
             self.next += 1;
             if SORT_QUEUE_ELEMENTS {
                 if self.next == self.next_sort {
                     if let Some(layer) = self.layers.get_mut(self.next_sort as usize) {
-                        layer.sort_unstable_by_key(|pos| <Pos as PosOrder>::key(pos));
+                        layer.sort_unstable_by_key(|(pos, _)| <Pos as PosOrder>::key(pos));
                     }
                     self.next_sort += 1;
                 }
@@ -51,7 +51,7 @@ impl<Pos: PosOrder> BucketQueue<Pos> {
     }
 }
 
-impl<Pos> Default for BucketQueue<Pos> {
+impl<Pos, D> Default for BucketQueue<Pos, D> {
     fn default() -> Self {
         Self {
             layers: Default::default(),
