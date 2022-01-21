@@ -69,12 +69,12 @@ where
         expanded_states: Vec::default(),
     };
 
-    let mut queue = heap::Heap::<G::Pos>::default(); // f
+    let mut queue = heap::Heap::<G::Pos, Cost>::default(); // f
     let mut states = G::DiagonalMap::<State<G::Parent, H::Hint>>::new(target);
 
     {
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
-        queue.push(MinScored(hroot, start));
+        queue.push(MinScored(hroot, start, 0));
         states.insert(
             start,
             State {
@@ -87,11 +87,18 @@ where
         );
     }
 
-    while let Some(MinScored(f, mut pos)) = queue.pop() {
+    while let Some(MinScored(f, mut pos, queue_g)) = queue.pop() {
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
         //let g = gs[pos];
         let state = &mut states[pos];
+
+        if queue_g > state.g {
+            continue;
+        }
+
+        assert!(queue_g == state.g);
+
         let g = state.g;
         let hint = state.hint;
 
@@ -102,7 +109,7 @@ where
             let current_f = g + current_h;
             if current_f > f {
                 stats.retries += 1;
-                queue.push(MinScored(current_f, pos));
+                queue.push(MinScored(current_f, pos, queue_g));
                 continue;
             }
         }
@@ -204,7 +211,7 @@ where
             next_state.g = next_g;
             next_state.parent = parent;
             next_state.hint = next_hint;
-            queue.push(MinScored(next_f, next));
+            queue.push(MinScored(next_f, next, next_g));
 
             stats.explored += 1;
             if DEBUG {

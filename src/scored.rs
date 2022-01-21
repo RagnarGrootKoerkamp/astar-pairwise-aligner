@@ -8,17 +8,25 @@ use crate::prelude::PosOrder;
 /// `MinScored` compares in reverse order by the score, so that we can
 /// use `BinaryHeap` as a min-heap to extract the score-value pair with the
 /// least score.
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub struct MinScored<V, P>(pub V, pub P);
+#[derive(Copy, Clone)]
+pub struct MinScored<V, P, D>(pub V, pub P, pub D);
 
-impl<V: Ord, P: PosOrder + Eq> PartialOrd for MinScored<V, P> {
+impl<V: Eq, P: Eq, D> PartialEq for MinScored<V, P, D> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+
+impl<V: Eq, P: Eq, D> Eq for MinScored<V, P, D> {}
+
+impl<V: Ord, P: PosOrder + Eq, D> PartialOrd for MinScored<V, P, D> {
     #[inline]
-    fn partial_cmp(&self, other: &MinScored<V, P>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &MinScored<V, P, D>) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<V: Ord, P: PosOrder + std::cmp::Eq> Ord for MinScored<V, P> {
+impl<V: Ord, P: PosOrder + std::cmp::Eq, D> Ord for MinScored<V, P, D> {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         (Reverse(&self.0), self.1.key()).cmp(&(Reverse(&other.0), <P as PosOrder>::key(&other.1)))
