@@ -69,7 +69,7 @@ impl ContourGraph {
         self.nodes[idx].val
     }
 
-    /// Build the increasing function over the given points. `l` must be at least 1.
+    /// Build the increasing function over the given points. `k` must be at least 1.
     /// `ps` must be sorted increasing by (x,y), first on x and then on y.
     pub fn new(ps: Vec<Match>) -> Self {
         s.build(ps);

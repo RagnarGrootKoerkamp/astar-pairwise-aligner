@@ -42,7 +42,7 @@ where
     ) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
-                <= self.match_config.length.l().unwrap_or(I::MAX) as Cost / 3
+                <= self.match_config.length.k().unwrap_or(I::MAX) as Cost / 3
         );
         SimpleSeedHeuristicI::new(a, b, alphabet, *self)
     }
@@ -54,7 +54,7 @@ where
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name(),
-            l: Some(self.match_config.length.l().unwrap_or(0)),
+            k: Some(self.match_config.length.k().unwrap_or(0)),
             max_match_cost: Some(self.match_config.max_match_cost),
             pruning: Some(self.pruning),
             distance_function: Some(self.distance_function.name()),

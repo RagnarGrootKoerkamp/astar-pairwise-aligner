@@ -13,7 +13,7 @@ use crate::{
 // TODO: Support inexact matches.
 #[derive(Debug, Clone, Copy)]
 pub struct FastZeroSeedHeuristic {
-    pub l: usize,
+    pub k: usize,
     pub max_match_cost: usize,
 }
 impl Heuristic for FastZeroSeedHeuristic {
@@ -34,7 +34,7 @@ impl Heuristic for FastZeroSeedHeuristic {
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name(),
-            l: Some(self.l),
+            k: Some(self.k),
             distance_function: Some("Zero".into()),
             ..Default::default()
         }
@@ -58,7 +58,7 @@ impl FastZeroSeedHeuristicI {
             b,
             alphabet,
             MatchConfig {
-                length: Fixed(params.l),
+                length: Fixed(params.k),
                 ..Default::default()
             },
         );

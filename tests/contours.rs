@@ -2,12 +2,12 @@ use pairwise_aligner::prelude::*;
 
 #[test]
 fn exact_no_pruning() {
-    for l in [4, 5] {
+    for k in [4, 5] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost: 0,
                         ..MatchConfig::default()
                     },
@@ -25,12 +25,12 @@ fn exact_no_pruning() {
 
 #[test]
 fn inexact_no_pruning() {
-    for l in [6, 7] {
+    for k in [6, 7] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost: 1,
                         ..MatchConfig::default()
                     },
@@ -49,12 +49,12 @@ fn inexact_no_pruning() {
 
 #[test]
 fn exact_pruning() {
-    for l in [4, 5] {
+    for k in [4, 5] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost: 0,
                         ..MatchConfig::default()
                     },
@@ -72,12 +72,12 @@ fn exact_pruning() {
 
 #[test]
 fn inexact_pruning() {
-    for l in [6, 7] {
+    for k in [6, 7] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost: 1,
                         ..MatchConfig::default()
                     },
@@ -95,12 +95,12 @@ fn inexact_pruning() {
 
 #[test]
 fn incremental_pruning_bruteforce() {
-    for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -118,12 +118,12 @@ fn incremental_pruning_bruteforce() {
 
 #[test]
 fn incremental_pruning_naive_naive() {
-    for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -141,12 +141,12 @@ fn incremental_pruning_naive_naive() {
 
 #[test]
 fn incremental_pruning_naive_log() {
-    for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -156,7 +156,7 @@ fn incremental_pruning_naive_log() {
                 };
                 let h_base = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -174,12 +174,12 @@ fn incremental_pruning_naive_log() {
 
 #[test]
 fn incremental_pruning_naive_set() {
-    for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -189,7 +189,7 @@ fn incremental_pruning_naive_set() {
                 };
                 let h_base = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -207,12 +207,12 @@ fn incremental_pruning_naive_set() {
 
 #[test]
 fn incremental_pruning_naive_central() {
-    for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -222,7 +222,7 @@ fn incremental_pruning_naive_central() {
                 };
                 let h_base = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -240,12 +240,12 @@ fn incremental_pruning_naive_central() {
 
 #[test]
 fn incremental_pruning_hint_central() {
-    for (l, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
                 let h = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },
@@ -255,7 +255,7 @@ fn incremental_pruning_hint_central() {
                 };
                 let h_base = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(l),
+                        length: Fixed(k),
                         max_match_cost,
                         ..MatchConfig::default()
                     },

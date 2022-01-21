@@ -55,7 +55,7 @@ pub struct Params {
     algorithm: Algorithm,
 
     #[structopt(short, default_value = "7")]
-    l: I,
+    k: I,
 
     #[structopt(short, default_value = "1")]
     max_seed_cost: Cost,
@@ -124,7 +124,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             {
                 let heuristic = SeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(params.l),
+                        length: Fixed(params.k),
                         max_match_cost: params.max_seed_cost,
                         ..Default::default()
                     },
@@ -161,7 +161,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             ) -> AlignResult {
                 let heuristic = GapSeedHeuristic {
                     match_config: MatchConfig {
-                        length: Fixed(params.l),
+                        length: Fixed(params.k),
                         max_match_cost: params.max_seed_cost,
                         ..Default::default()
                     },

@@ -7,14 +7,14 @@ fn main() {
 
     let n = 200;
     let e = 0.10;
-    let l = 6;
+    let k = 6;
     let max_match_cost = 1;
     let pruning = true;
     let prune_fraction = 1.0;
 
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost,
             ..MatchConfig::default()
         },
@@ -49,12 +49,12 @@ fn main() {
     let start;
     let mut end = max(a.len(), b.len()) as I;
 
-    // Binary search the start of the sequence in steps of l.
+    // Binary search the start of the sequence in steps of k.
     {
         let mut left = 0;
         let mut right = end;
-        while left / l < right / l {
-            let mid = (left + right + l - 1) / 2 / l * l;
+        while left / k < right / k {
+            let mid = (left + right + k - 1) / 2 / k * k;
             if test(mid, end) {
                 right = mid - 1;
             } else {
@@ -70,7 +70,7 @@ fn main() {
         while left < right {
             let mid = (left + right) / 2;
             if test(start, mid) {
-                left = mid + l;
+                left = mid + k;
             } else {
                 right = mid;
             }

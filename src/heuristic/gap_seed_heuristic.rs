@@ -108,7 +108,7 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
         // TODO: Warning
         assert!(
             self.match_config.max_match_cost
-                <= self.match_config.length.l().unwrap_or(I::MAX) as Cost / 3
+                <= self.match_config.length.k().unwrap_or(I::MAX) as Cost / 3
         );
         GapSeedHeuristicI::new(a, b, alph, *self)
     }
@@ -120,7 +120,7 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name(),
-            l: Some(self.match_config.length.l().unwrap_or(0)),
+            k: Some(self.match_config.length.k().unwrap_or(0)),
             max_match_cost: Some(self.match_config.max_match_cost),
             pruning: Some(self.pruning),
             distance_function: Some("Gap".to_string()),
@@ -339,7 +339,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         if !print() {
             return;
         }
-        let l = self.params.match_config.length.l().unwrap();
+        let k = self.params.match_config.length.k().unwrap();
         let max_match_cost = self.params.match_config.max_match_cost as I;
         let reset = termion::color::Rgb(230, 230, 230);
         let mut ps = HashMap::default();
@@ -351,17 +351,17 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         let Pos(a, b) = self.target;
         let mut pixels = vec![vec![(None, None, false, false); 20 * b as usize]; 20 * a as usize];
         let start_i = Pos(
-            b * (max_match_cost + 1) / (l + max_match_cost + 1) + a - b,
+            b * (max_match_cost + 1) / (k + max_match_cost + 1) + a - b,
             0,
         );
-        let start_j = Pos(0, a * (max_match_cost + 1) / l + b - a);
+        let start_j = Pos(0, a * (max_match_cost + 1) / k + b - a);
         let start = Pos(self.transform(start_j).0, self.transform(start_i).1);
         let target = self.transform(Pos(a, b));
         for i in 0..=a {
             for j in 0..=b {
                 let p = Pos(i, j);
-                // Transformation: draw (i,j) at ((l+1)*i + l*(B-j), l*j + (A-i)*(l-1))
-                // scaling: divide draw coordinate by l, using the right offset.
+                // Transformation: draw (i,j) at ((k+1)*i + k*(B-j), k*j + (A-i)*(k-1))
+                // scaling: divide draw coordinate by k, using the right offset.
                 let draw_pos = if do_transform { self.transform(p) } else { p };
                 let pixel = &mut pixels[draw_pos.0 as usize][draw_pos.1 as usize];
 

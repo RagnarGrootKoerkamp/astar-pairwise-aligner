@@ -159,8 +159,8 @@ impl AlignResult {
             (format!("{:<7}", "H"), |this: &AlignResult| {
                 format!("{:<7}", this.heuristic_params.name)
             }),
-            (format!("{:>2}", "l"), |this: &AlignResult| {
-                format!("{:>2}", AlignResult::print_opt(this.heuristic_params.l))
+            (format!("{:>2}", "k"), |this: &AlignResult| {
+                format!("{:>2}", AlignResult::print_opt(this.heuristic_params.k))
             }),
             (format!("{:>2}", "md"), |this: &AlignResult| {
                 format!(

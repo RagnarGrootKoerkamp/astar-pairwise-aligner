@@ -3,10 +3,10 @@ use pairwise_aligner::prelude::*;
 /// This was broken because seed_heuristic didn't clear the previous state before rebuilding.
 #[test]
 fn seed_heuristic_rebuild() {
-    let (l, m, n, e, pruning, prune_fraction) = (4, 0, 100, 0.3, true, 1.0);
+    let (k, m, n, e, pruning, prune_fraction) = (4, 0, 100, 0.3, true, 1.0);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost: m,
             ..MatchConfig::default()
         },
@@ -36,10 +36,10 @@ fn seed_heuristic_rebuild() {
 /// potential, this parent should be skipped completely.
 #[test]
 fn never_use_gap_distance() {
-    let (l, m, n, e, pruning, prune_fraction) = (5, 1, 14, 0.3, true, 1.0);
+    let (k, m, n, e, pruning, prune_fraction) = (5, 1, 14, 0.3, true, 1.0);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost: m,
             ..MatchConfig::default()
         },

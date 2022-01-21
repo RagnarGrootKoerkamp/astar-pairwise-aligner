@@ -3,10 +3,10 @@ use pairwise_aligner::prelude::*;
 #[test]
 fn no_leftover() {
     let pruning = true;
-    let (l, max_match_cost) = (7, 1);
+    let (k, max_match_cost) = (7, 1);
     let h_slow = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost,
             ..MatchConfig::default()
         },
@@ -16,7 +16,7 @@ fn no_leftover() {
     };
     let h_fast = GapSeedHeuristic {
         match_config: MatchConfig {
-            length: Fixed(l),
+            length: Fixed(k),
             max_match_cost,
             ..MatchConfig::default()
         },
