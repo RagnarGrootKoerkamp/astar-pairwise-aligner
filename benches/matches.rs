@@ -58,7 +58,7 @@ fn n10000_exact_qgramindex(bench: &mut Bencher) {
             &b,
             &alph,
             MatchConfig {
-                length: Fixed(10),
+                length: Fixed(8),
                 max_match_cost: 0,
                 ..Default::default()
             },
@@ -134,7 +134,7 @@ fn n10000_exact_trie(bench: &mut Bencher) {
             &b,
             &alph,
             MatchConfig {
-                length: Fixed(10),
+                length: Fixed(8),
                 max_match_cost: 0,
                 ..Default::default()
             },
@@ -158,5 +158,26 @@ fn n10000_inexact_trie(bench: &mut Bencher) {
                 ..Default::default()
             },
         )
+    });
+}
+
+#[bench]
+fn n100_aho_corasick(bench: &mut Bencher) {
+    let n = 100;
+    let e = 0.01;
+    let k = 8;
+    let (a, b, _, _) = setup(n, e);
+    bench.iter(|| {
+        matches::aho_corasick(&a, &b, k);
+    });
+}
+#[bench]
+fn n10000_aho_corasick(bench: &mut Bencher) {
+    let n = 10000;
+    let e = 0.01;
+    let k = 8;
+    let (a, b, _, _) = setup(n, e);
+    bench.iter(|| {
+        matches::aho_corasick(&a, &b, k);
     });
 }
