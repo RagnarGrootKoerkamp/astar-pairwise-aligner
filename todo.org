@@ -137,6 +137,9 @@ some retries.
 *** DONE Optimize for matching states: process these directly instead of pushing & popping from the queue
 CLOSED: [2022-01-21 Fri 02:45]
 This gives up to 2x speedup of the A* for highly similar sequences.
+** DONE Fix timing of pruning
+CLOSED: [2022-01-21 Fri 15:50]
+Currently it often reports 0, even though it's much more in the flamegraph.
 
 * Tests
 ** TODO Test all pairs with n <= 6

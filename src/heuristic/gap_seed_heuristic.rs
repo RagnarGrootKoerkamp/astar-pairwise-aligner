@@ -147,7 +147,6 @@ pub struct GapSeedHeuristicI<C: Contours> {
     contours: C,
 
     // For debugging
-    expanded: HashSet<Pos>,
     pub pruning_duration: Duration,
 }
 
@@ -184,7 +183,6 @@ impl<C: Contours> GapSeedHeuristicI<C> {
 
             // Filled below.
             contours: C::default(),
-            expanded: HashSet::default(),
             pruning_duration: Default::default(),
             num_tried_pruned: 0,
             num_actual_pruned: 0,
@@ -269,6 +267,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
+    fn is_start_of_seed(&mut self, pos: Self::Pos) -> bool {
+        self.seed_matches.is_start_of_seed(pos)
+    }
+
     fn prune(&mut self, pos: Pos) {
         self.prune_with_hint(pos, Self::Hint::default())
     }
@@ -278,25 +280,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             return;
         }
 
-        if !self.seed_matches.is_start_of_seed(pos) {
-            return;
-        }
-
-        // Check that we don't double expand start-of-seed states.
-        // Starts of seeds should still only be expanded once.
-        // FIXME: This is still broken from time to time.
-        assert!(
-            self.expanded.insert(pos),
-            "Double expanded start of seed {} / {}",
-            pos,
-            self.transform(pos)
-        );
-
         // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
         {
             // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
             // TODO: Cur_val could be passed in from the parent instead.
-            let cur_val = self.h_with_hint(pos, hint).0;
+            let (cur_val, hint) = self.h_with_hint(pos, hint);
             if pos.1 > 0 {
                 let nb_val = self.h_with_hint(Pos(pos.0, pos.1 - 1), hint).0;
                 // FIXME: Re-enable this assertion.

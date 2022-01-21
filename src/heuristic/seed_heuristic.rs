@@ -76,8 +76,6 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
     // Partial pruning.
     num_tried_pruned: usize,
     num_actual_pruned: usize,
-    // Make sure we don't expand a pruned state twice.
-    expanded: HashSet<Pos>,
 
     // Statistics
     pub pruning_duration: Duration,
@@ -132,7 +130,6 @@ where
             matches: find_matches(a, b, alphabet, params.match_config),
             h_at_seeds: Default::default(),
             pruned_positions: Default::default(),
-            expanded: HashSet::default(),
             pruning_duration: Default::default(),
             num_tried_pruned: 0,
             num_actual_pruned: 0,
@@ -207,18 +204,6 @@ where
         if !self.params.pruning {
             return;
         }
-
-        // Check that we don't double expand start-of-seed states.
-        if !self.matches.is_start_of_seed(pos) {
-            return;
-        }
-
-        // When we don't ensure consistency, starts of seeds should still only be expanded once.
-        assert!(
-            self.expanded.insert(pos),
-            "Double expanded start of seed {:?}",
-            pos
-        );
 
         self.num_tried_pruned += 1;
         if self.num_actual_pruned as f32
