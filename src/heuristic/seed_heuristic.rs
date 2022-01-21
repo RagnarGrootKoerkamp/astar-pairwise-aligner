@@ -200,6 +200,10 @@ where
         }
     }
 
+    fn is_start_of_seed(&mut self, pos: Self::Pos) -> bool {
+        self.matches.is_start_of_seed(pos)
+    }
+
     fn prune(&mut self, pos: Pos) {
         if !self.params.pruning {
             return;

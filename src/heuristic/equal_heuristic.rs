@@ -64,9 +64,21 @@ where
         <<H2 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint,
     );
 
+    fn is_start_of_seed(&mut self, pos: Self::Pos) -> bool {
+        let s1 = self.h1.is_start_of_seed(pos);
+        let s2 = self.h2.is_start_of_seed(pos);
+        assert_eq!(s1, s2);
+        s1
+    }
+
     fn prune(&mut self, pos: Pos) {
         self.h1.prune(pos);
         self.h2.prune(pos);
+    }
+
+    fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) {
+        self.h1.prune_with_hint(pos, hint.0);
+        self.h2.prune_with_hint(pos, hint.1);
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
