@@ -37,6 +37,4 @@ pub const SORT_QUEUE_ELEMENTS: bool = false;
 pub const FAST_ASSUMPTIONS: bool = false;
 
 /// Use a Trie instead of QGramIndex to find matches.
-pub const USE_TRIE_TO_FIND_MATCHES: bool = false;
-/// Trie can use stack or dfs to find matches.
-pub const USE_TRIE_STACK: bool = true;
+pub const USE_TRIE_TO_FIND_MATCHES: bool = true;
