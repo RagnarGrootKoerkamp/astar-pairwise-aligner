@@ -100,31 +100,59 @@ pub fn suffix_qgrams(a: &Sequence, b: &Sequence, k: I) {
 }
 
 pub fn seed_hashmap(a: &Sequence, b: &Sequence, k: I) {
-    let mut m = HashMap::<&[u8], Vec<u32>>::default();
-    m.reserve(b.len());
+    let mut m = HashMap::<&[u8], u32>::default();
+    m.reserve(a.len());
     for (i, w) in a.chunks_exact(k as usize).enumerate() {
-        m.entry(w).or_default().push(i as u32)
+        *m.entry(w).or_default() = i as u32
     }
 }
 pub fn suffix_hashmap(a: &Sequence, b: &Sequence, k: I) {
-    let mut m = HashMap::<&[u8], Vec<u32>>::default();
+    let mut m = HashMap::<&[u8], u32>::default();
     m.reserve(b.len());
     for (i, w) in b.windows(k as usize).enumerate() {
-        m.entry(w).or_default().push(i as u32)
+        *m.entry(w).or_default() = i as u32
     }
 }
 
 pub fn seed_hashmap_qgrams(a: &Sequence, b: &Sequence, k: I) {
-    let mut m = HashMap::<u32, Vec<u32>>::default();
-    m.reserve(b.len());
+    let mut m = HashMap::<u32, u32>::default();
+    m.reserve(a.len());
     for (i, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {
-        m.entry(w as u32).or_default().push(i as u32)
+        *m.entry(w as u32).or_default() = i as u32;
     }
 }
 pub fn suffix_hashmap_qgrams(a: &Sequence, b: &Sequence, k: I) {
-    let mut m = HashMap::<u32, Vec<u32>>::default();
+    let mut m = HashMap::<u32, u32>::default();
     m.reserve(b.len());
     for (i, w) in TRANSFORM.qgrams(k, b).enumerate() {
-        m.entry(w as u32).or_default().push(i as u32)
+        *m.entry(w as u32).or_default() = i as u32;
+    }
+}
+
+pub fn lookup_seeds_in_qgram_hashmap(a: &Sequence, b: &Sequence, k: I) {
+    let mut m = HashMap::<u32, u32>::default();
+    m.reserve(b.len());
+    for (i, w) in TRANSFORM.qgrams(k, b).enumerate() {
+        *m.entry(w as u32).or_default() = i as u32;
+    }
+    let mut cnt = 0;
+    for (j, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {
+        if m.contains_key(&(w as u32)) {
+            cnt += 1;
+        }
+    }
+}
+
+pub fn lookup_suffixes_in_qgram_hashmap(a: &Sequence, b: &Sequence, k: I) {
+    let mut m = HashMap::<u32, u32>::default();
+    m.reserve(a.len());
+    for (i, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {
+        *m.entry(w as u32).or_default() = i as u32;
+    }
+    let mut cnt = 0;
+    for (j, w) in TRANSFORM.qgrams(k, b).enumerate() {
+        if m.contains_key(&(w as u32)) {
+            cnt += 1;
+        }
     }
 }
