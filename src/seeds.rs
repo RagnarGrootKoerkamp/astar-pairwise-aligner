@@ -1,5 +1,7 @@
 use std::iter::repeat;
 
+use smallvec::SmallVec;
+
 use crate::{costmodel::MatchCost, prelude::*, trie::Trie};
 
 #[derive(Clone, Debug)]
@@ -222,19 +224,6 @@ pub fn find_matches_trie<'a>(
         matches,
         start_of_seed,
         potential,
-    }
-}
-
-pub fn find_matches<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
-    alph: &Alphabet,
-    match_config: MatchConfig,
-) -> SeedMatches {
-    if USE_TRIE_TO_FIND_MATCHES {
-        return find_matches_trie(a, b, alph, match_config);
-    } else {
-        return find_matches_qgramindex(a, b, alph, match_config);
     }
 }
 
@@ -500,19 +489,121 @@ pub fn find_matches_qgramindex<'a>(
         potential,
     }
 }
+pub fn find_matches_qgram_hash<'a>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    alph: &Alphabet,
+    MatchConfig {
+        length,
+        max_match_cost,
+        ..
+    }: MatchConfig,
+) -> SeedMatches {
+    let k: I = match length {
+        Fixed(k) => k,
+        _ => unimplemented!("Trie only works for fixed k for now."),
+    };
+    assert!(
+        max_match_cost == 0,
+        "Only exact matches are supported for now."
+    );
+
+    let rank_transform = RankTransform::new(alph);
+
+    let num_seeds = a.len() as I / k;
+
+    let n = a.len();
+    let mut potential = Vec::with_capacity(n + 1);
+    let mut start_of_seed = Vec::with_capacity(n + 1);
+    let mut cur_potential = num_seeds;
+
+    potential.push(cur_potential);
+
+    // TODO: See if we can get rid of the Vec alltogether.
+    let mut m = HashMap::<usize, SmallVec<[I; 1]>>::default();
+    m.reserve(a.len());
+    for (i, w) in rank_transform.qgrams(k, a).enumerate().step_by(k as usize) {
+        m.entry(w).or_default().push(i as I);
+
+        cur_potential -= 1;
+        potential.extend(repeat(cur_potential).take(k as usize));
+        start_of_seed.extend(repeat(i as I).take(k as usize));
+    }
+
+    // Backfill a potential gap after the last seed.
+    potential.extend(repeat(0).take(n + 1 - potential.len()));
+    start_of_seed.extend(repeat(num_seeds * k).take(n + 1 - start_of_seed.len()));
+
+    let mut matches = Vec::<Match>::new();
+    for (j, w) in rank_transform.qgrams(k, b).enumerate() {
+        if let Some(is) = m.get(&w) {
+            for &i in is {
+                matches.push(Match {
+                    start: Pos(i, j as I),
+                    end: Pos(i + k, j as I + k),
+                    match_cost: 0,
+                    seed_potential: 1,
+                });
+            }
+        }
+    }
+
+    // First sort by start, then by end, then by match cost.
+    matches.sort_unstable_by_key(
+        |&Match {
+             start,
+             end,
+             match_cost,
+             ..
+         }| (LexPos(start), LexPos(end), match_cost),
+    );
+    // Dedup to only keep the lowest match cost.
+    //println!("Size before: {}", matches.len());
+    matches.dedup_by_key(|m| (m.start, m.end));
+    //println!("Size after : {}", matches.len());
+
+    // Sort better matches first.
+    matches.sort_unstable_by_key(
+        |&Match {
+             start, match_cost, ..
+         }| (LexPos(start), match_cost),
+    );
+
+    SeedMatches {
+        num_seeds,
+        matches,
+        start_of_seed,
+        potential,
+    }
+}
+
+pub fn find_matches<'a>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    alph: &Alphabet,
+    match_config: MatchConfig,
+) -> SeedMatches {
+    if FIND_MATCHES_HASH {
+        return find_matches_qgram_hash(a, b, alph, match_config);
+    } else if FIND_MATCHES_TRIE {
+        return find_matches_trie(a, b, alph, match_config);
+    } else {
+        return find_matches_qgramindex(a, b, alph, match_config);
+    }
+}
 
 #[cfg(test)]
 mod test {
     use crate::{
         prelude::{setup, to_string, MatchConfig},
-        seeds::{find_matches_qgramindex, find_matches_trie},
+        seeds::{find_matches_qgram_hash, find_matches_qgramindex, find_matches_trie},
     };
 
     #[test]
     fn trie_matches() {
         for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
-            for n in [10, 20, 40, 100, 200, 500, 1000] {
-                for e in [0.1, 0.3, 1.0] {
+            for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
+                for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b, alph, _) = setup(n, e);
                     println!("{}\n{}", to_string(&a), to_string(&b));
                     let matchconfig = MatchConfig {
@@ -523,6 +614,37 @@ mod test {
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
                     let k = find_matches_trie(&a, &b, &alph, matchconfig);
+                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
+                    println!("-----------------------");
+                    for x in &k.matches {
+                        println!("{x:?}");
+                    }
+                    println!("-----------------------");
+                    for x in &r.matches {
+                        println!("{x:?}");
+                    }
+                    assert_eq!(k.matches, r.matches);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn hash_matches() {
+        // TODO: Replace max match distance from 0 to 1 here once supported.
+        for (k, max_match_cost) in [(4, 0), (5, 0), (6, 0), (7, 0)] {
+            for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
+                for e in [0.01, 0.1, 0.3, 1.0] {
+                    let (a, b, alph, _) = setup(n, e);
+                    println!("{}\n{}", to_string(&a), to_string(&b));
+                    let matchconfig = MatchConfig {
+                        length: crate::prelude::LengthConfig::Fixed(k),
+                        max_match_cost,
+                        ..Default::default()
+                    };
+                    println!("-----------------------");
+                    println!("n={n} e={e} k={k} mmc={max_match_cost}");
+                    let k = find_matches_qgram_hash(&a, &b, &alph, matchconfig);
                     let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
                     println!("-----------------------");
                     for x in &k.matches {
