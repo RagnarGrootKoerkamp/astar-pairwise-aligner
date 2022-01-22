@@ -314,11 +314,13 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
         if print() {
             println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
-            self.print(false, false);
         }
         let start = time::Instant::now();
-        self.contours.prune_with_hint(self.transform(pos), hint);
+        let change = self.contours.prune_with_hint(self.transform(pos), hint);
         self.pruning_duration += start.elapsed();
+        if change && print() {
+            self.print(true, false);
+        }
     }
 
     fn stats(&self) -> HeuristicStats {
@@ -344,9 +346,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         let reset = termion::color::Rgb(230, 230, 230);
         let mut ps = HashMap::default();
         // ps.insert(1, termion::color::Rgb(255, 0, 0));
-        ps.insert(1, termion::color::Rgb(255, 255, 200));
-        ps.insert(0, termion::color::Rgb(2, 255, 210));
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31414);
+        //ps.insert(1, termion::color::Rgb(255, 255, 200));
+        //ps.insert(0, termion::color::Rgb(2, 255, 210));
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
         let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
         let Pos(a, b) = self.target;
         let mut pixels = vec![vec![(None, None, false, false); 20 * b as usize]; 20 * a as usize];
