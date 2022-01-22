@@ -277,6 +277,15 @@ impl<C: Contour> Contours for HintContours<C> {
                     //println!("f: {} keeps value {}", pos, best_start_val);
                     self.stats.borrow_mut().checked_false += 1;
                     current_shift = Some(Cost::MAX);
+
+                    // Make sure this point is contained in its parent, and add shadow points if not.
+                    // NOTE: This adds around 1% of total runtime for HintContours<CentralContour>.
+                    let mut v = best_start_val;
+                    while v > 0 && !up_to_v[v as usize - 1].contains(pos) {
+                        v -= 1;
+                        up_to_v[v as usize].push(pos);
+                    }
+
                     return false;
                 }
 
