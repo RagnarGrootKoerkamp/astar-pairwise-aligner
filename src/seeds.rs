@@ -293,7 +293,7 @@ pub fn find_matches_qgramindex<'a>(
             return max_count;
         }
         if max_match_cost == 1 {
-            let mutations = mutations(k, qgram, mutation_config);
+            let mutations = mutations(k, qgram, mutation_config, true);
             for (v, k) in [
                 (mutations.deletions, k - 1),
                 (mutations.substitutions, k),
@@ -420,7 +420,7 @@ pub fn find_matches_qgramindex<'a>(
         }
         // Inexact matches.
         if seed_potential > 1 {
-            let mutations = mutations(len, qgram, mutation_config);
+            let mutations = mutations(len, qgram, mutation_config, true);
             for mutation in mutations.deletions {
                 for &j in get_matches(qgrams, b, alph, len - 1, mutation) {
                     matches.push(Match {
