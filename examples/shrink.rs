@@ -82,6 +82,11 @@ fn main() {
         !test(start, end),
         "Could not shrink: Testcase doesn't fail!"
     );
+
+    let Pos(n, m) = Pos::from_length(&a, &b);
+    let a = &a[start as usize..min(n, end) as usize].to_vec();
+    let b = &b[start as usize..min(m, end) as usize].to_vec();
+
     println!("Result\n{}\n{}", to_string(&a), to_string(&b));
 
     PRINT.store(true, std::sync::atomic::Ordering::Relaxed);
