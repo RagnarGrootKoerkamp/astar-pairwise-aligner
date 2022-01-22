@@ -268,18 +268,21 @@ impl AlignResult {
             }),
             (format!("{:>8}", "precom"), |this: &AlignResult| {
                 format!(
-                    "{:>8.5}",
-                    this.timing.precomputation / this.sample_size as f32
+                    "{:>8.2}",
+                    1000. * this.timing.precomputation / this.sample_size as f32
                 )
             }),
             (format!("{:>8}", "align"), |this: &AlignResult| {
-                format!("{:>8.5}", this.timing.astar / this.sample_size as f32)
+                format!(
+                    "{:>8.2}",
+                    1000. * this.timing.astar / this.sample_size as f32
+                )
             }),
             (format!("{:>8}", "prune"), |this: &AlignResult| {
                 this.heuristic_stats
                     .pruning_duration
                     .map_or("".into(), |x| {
-                        format!("{:>8.5}", x / this.sample_size as f32)
+                        format!("{:>8.2}", 1000. * x / this.sample_size as f32)
                     })
             }),
             (format!("{:>5}", "dist"), |this: &AlignResult| {
