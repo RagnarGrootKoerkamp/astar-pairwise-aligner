@@ -39,7 +39,7 @@ impl Default for MutationConfig {
 // TODO: Do not generate insertions at the end. (Also do not generate similar
 // sequences by inserting elsewhere.)
 // TODO: Move to seeds.rs.
-pub fn mutations(k: I, kmer: usize, config: MutationConfig) -> Mutations {
+pub fn mutations(k: I, kmer: usize, config: MutationConfig, dedup: bool) -> Mutations {
     // This assumes the alphabet size is 4.
     let mut deletions = Vec::with_capacity(k as usize);
     let mut substitutions = Vec::with_capacity(4 * k as usize);
@@ -74,13 +74,15 @@ pub fn mutations(k: I, kmer: usize, config: MutationConfig) -> Mutations {
         let mask = (1 << (2 * i)) - 1;
         deletions.push((kmer & mask) | ((kmer & (!mask << 2)) >> 2));
     }
-    for v in [&mut deletions, &mut substitutions, &mut insertions] {
-        // TODO: This sorting is slow; maybe we can work around it.
-        v.sort_unstable();
-        v.dedup();
+    if dedup {
+        for v in [&mut deletions, &mut substitutions, &mut insertions] {
+            // TODO: This sorting is slow; maybe we can work around it.
+            v.sort_unstable();
+            v.dedup();
+        }
+        // Remove original
+        substitutions.retain(|&x| x != kmer);
     }
-    // Remove original
-    substitutions.retain(|&x| x != kmer);
     Mutations {
         deletions,
         substitutions,
@@ -99,7 +101,7 @@ mod tests {
     fn test_mutations() {
         let kmer = 0b00011011usize;
         let k = 4;
-        let ms = mutations(k, kmer, MutationConfig::default());
+        let ms = mutations(k, kmer, MutationConfig::default(), true);
         // substitution
         assert!(ms.substitutions.contains(&0b11011011));
         // insertion
@@ -123,7 +125,7 @@ mod tests {
     fn kmer_removal() {
         let kmer = 0b00011011usize;
         let k = 4;
-        let ms = mutations(k, kmer, MutationConfig::default());
+        let ms = mutations(k, kmer, MutationConfig::default(), true);
         assert!(!ms.substitutions.contains(&kmer));
         assert!(ms.deletions.contains(&kmer));
         assert!(ms.insertions.contains(&kmer));
