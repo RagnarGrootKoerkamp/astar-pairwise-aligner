@@ -1,3 +1,5 @@
+//! Benchmarks run in CI.
+
 #![feature(test)]
 #![cfg(test)]
 use pairwise_aligner::prelude::*;

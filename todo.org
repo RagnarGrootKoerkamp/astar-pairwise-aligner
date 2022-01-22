@@ -15,14 +15,21 @@ Is this $sqrt(n)$ like in a drunkard's walk? Or is it less, because we know
 where we end and can use $j = (m/n) * i$ as prediction.
 
 * Failing assertions / Bugs
-** TODO Investigate inconsistent heuristic before pruning
+** DONE Investigate inconsistent heuristic before pruning
+CLOSED: [2022-01-22 Sat 23:05]
 For n=300000 e=0.2, the assertion failed at least once.
 Also found counterexamples for n=100.
-** TODO Fix consistency of pruning with shadow points
+
+Fixed by the point below.
+** DONE Fix consistency of pruning with shadow points
+CLOSED: [2022-01-22 Sat 23:05]
 When a point is removed from a layer, dependent dominant points in the next
 layer need to be checked, because they may need to be inserted in the current
 layer as new shadow points. It is unclear to me why this hasn't been an issue
 for NaiveContours so for, but only shown up for HintContours.
+
+Fixed by for each point that is up to date in the prune callback, checking
+whether shadow points need to be added after pruning on the layer below.
 ** DONE Pruning may result in double expansion of matches
 CLOSED: [2022-01-11 Tue 14:21]
 We have to make sure that we only prune when we found the shortest path to a

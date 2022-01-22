@@ -197,3 +197,29 @@ fn no_double_expand_2() {
     align(&a, &b, &alphabet, stats, h.to_seed_heuristic()).print();
     align(&a, &b, &alphabet, stats, h).print();
 }
+
+/// When points are removed from a layer, we may have to add new shadow points to cover for the next layer.
+#[test]
+fn missing_shadow_points() {
+    let (k, m, n, e, pruning, prune_fraction) = (10, 1, 61, 0.3, true, 1.0);
+    let h = GapSeedHeuristic {
+        match_config: MatchConfig {
+            length: Fixed(k),
+            max_match_cost: m,
+            ..MatchConfig::default()
+        },
+        pruning,
+        prune_fraction,
+        c: PhantomData::<HintContours<BruteForceContour>>,
+        ..GapSeedHeuristic::default()
+    };
+
+    let (_, _, alphabet, stats) = setup(n, e);
+    let a = "CAGCGCGCGCGGGGAGCAAGCAGCAGCCGCTTGCCCTAGCCAATTACAAGTCGCTGTAAGGTGAAACAAACCCGCAGGCTAAATGTCGACCTCAAGACG";
+    let a = a.as_bytes().to_vec();
+    let b = "GGGGAGCGACAGCAGCCGCCGGCTTGCCCTAGCCAATTACTAGTCGCATTAAGGTGCAAAAAACCCCATCGGCTAAATGTGACCCTCAAGACGAGATGT";
+    let b = b.as_bytes().to_vec();
+    println!("{}\n{}", to_string(&a), to_string(&b));
+    align(&a, &b, &alphabet, stats, h.to_seed_heuristic()).print();
+    align(&a, &b, &alphabet, stats, h).print();
+}
