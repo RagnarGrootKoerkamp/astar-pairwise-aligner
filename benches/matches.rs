@@ -2,7 +2,7 @@
 #![cfg(test)]
 use pairwise_aligner::{
     prelude::*,
-    seeds::{find_matches_qgram_hash, find_matches_qgramindex, find_matches_trie},
+    seeds::{find_matches_qgram_hash_exact, find_matches_qgramindex, find_matches_trie},
 };
 
 extern crate test;
@@ -164,7 +164,7 @@ fn n100_exact_hash(bench: &mut Bencher) {
     let n = 100;
     let (a, b, alph, _) = setup(n, E);
     bench.iter(|| {
-        find_matches_qgram_hash(
+        find_matches_qgram_hash_exact(
             &a,
             &b,
             &alph,
@@ -182,7 +182,7 @@ fn n10000_exact_hash(bench: &mut Bencher) {
     let n = 10000;
     let (a, b, alph, _) = setup(n, E);
     bench.iter(|| {
-        find_matches_qgram_hash(
+        find_matches_qgram_hash_exact(
             &a,
             &b,
             &alph,
