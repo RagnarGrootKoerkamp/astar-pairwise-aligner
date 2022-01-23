@@ -91,7 +91,8 @@ def algo2color(algo):
     palette = sns.color_palette("tab10", 10)
     d = {
         'pa': '#FF6D29',
-        'edlib': '#FF6D29',
+        'edlib': '#EB2D12',
+        'wfa': '#FFC545',
         
         'astarix-prefix': '#FF6D29',
         'astar-prefix': '#FF6D29',
@@ -190,6 +191,7 @@ def algo2beautiful(algo):
     d = {
         'pa': 'A* PA',
         'edlib': 'Edlib',
+        'wfa': 'WFA',
         
         #'astar': 'A*',
         'astarix': 'AStarix',
