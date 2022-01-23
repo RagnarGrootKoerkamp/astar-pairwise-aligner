@@ -1,4 +1,4 @@
-alg	cnt	n	e	s	h:m:s	max_rss	max_vms	max_uss	max_pss	io_in	io_out	mean_load
+alg	cnt	n	e	s	h:m:s	max_rss	max_vms	max_uss	max_pss	io_in	io_out	mean_load	cpu_time
 pa	10000	100	0.01	1.3713	0:00:01	7.96	10.04	5.89	5.93	0.00	0.00	37.19	1.01
 edlib	10000	100	0.01	0.1317	0:00:00	4.64	7.41	1.80	2.00	0.00	0.00	0.00	0.00
 wfa	10000	100	0.01	0.2470	0:00:00	1.10	11.80	0.24	0.30	0.00	0.00	0.00	0.00
