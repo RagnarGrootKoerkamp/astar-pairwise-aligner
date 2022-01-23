@@ -49,11 +49,20 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
     }
 
     #[inline]
-    fn get_mut_entry<'a>(&'a mut self, idx: &DIndex) -> &'a mut V {
+    fn get_mut_entry(&mut self, idx: &DIndex) -> &mut V {
         self.grow(idx);
+        // Unsafe is ok because `grow` makes sure these are within bounds.
         match *idx {
-            Above(i, j) => &mut self.above[i as usize][j as usize],
-            Below(i, j) => &mut self.below[i as usize][j as usize],
+            Above(i, j) => unsafe {
+                self.above
+                    .get_unchecked_mut(i as usize)
+                    .get_unchecked_mut(j as usize)
+            },
+            Below(i, j) => unsafe {
+                self.below
+                    .get_unchecked_mut(i as usize)
+                    .get_unchecked_mut(j as usize)
+            },
         }
     }
 
@@ -105,12 +114,7 @@ impl<V: Default + Clone + Copy> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
 
     #[inline]
     fn get_mut(&mut self, pos: Pos) -> &mut V {
-        let idx = self.index_of(&pos);
-        self.grow(&idx);
-        match idx {
-            Above(i, j) => &mut self.above[i as usize][j as usize],
-            Below(i, j) => &mut self.below[i as usize][j as usize],
-        }
+        self.get_mut_entry(&self.index_of(&pos))
     }
 
     #[inline]
