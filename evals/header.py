@@ -53,6 +53,8 @@ def num_lower(serie):
 
 def read_benchmarks(tsv_fn, algo=None):
     df = pd.read_csv(tsv_fn, sep='\t', index_col=False)
+    df['s_per_pair'] = df['s'] / df['cnt']
+
     #df['pushed+popped'] = df['pushed'] + df['popped']
     #df['explored_per_bp'] = df['explored_states'] / df['len']
     #df['t(map)_per_bp'] = df['t(map)'] / df['len']
@@ -91,8 +93,9 @@ def algo2color(algo):
     palette = sns.color_palette("tab10", 10)
     d = {
         'pa': '#FF6D29',
-        'edlib': '#EB2D12',
-        'wfa': '#FFC545',
+        'dijkstra': '#DE4AFF',
+        'edlib': '#4DC8FF',
+        'wfa': '#625AFF',
         
         'astarix-prefix': '#FF6D29',
         'astar-prefix': '#FF6D29',
@@ -100,7 +103,6 @@ def algo2color(algo):
         'astarix-seeds': '#EB2D12',
         'astar-seeds': '#EB2D12',
         'astarix-seeds-illumina': '#EB2D12',
-        'dijkstra': '#FFC545',
         'graphaligner': '#8C8CFF',
         'pasgal': '#AC68FF',
         'vargas': '#F387FF',
