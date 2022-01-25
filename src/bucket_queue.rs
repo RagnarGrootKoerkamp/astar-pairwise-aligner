@@ -1,7 +1,7 @@
 use std::cmp::min;
 
 use crate::{
-    prelude::{Cost, PosOrder, SORT_QUEUE_ELEMENTS},
+    prelude::{Cost, PosTrait, SORT_QUEUE_ELEMENTS},
     scored::MinScored,
 };
 
@@ -16,7 +16,7 @@ pub struct BucketQueue<Pos, D> {
     next_clear: Cost,
 }
 
-impl<Pos: PosOrder, D> BucketQueue<Pos, D> {
+impl<Pos: PosTrait, D> BucketQueue<Pos, D> {
     #[inline]
     pub fn push(&mut self, MinScored(k, v, d): MinScored<Cost, Pos, D>) {
         if self.layers.len() <= k as usize {
@@ -34,7 +34,7 @@ impl<Pos: PosOrder, D> BucketQueue<Pos, D> {
             if SORT_QUEUE_ELEMENTS {
                 if self.next == self.next_sort {
                     if let Some(layer) = self.layers.get_mut(self.next_sort as usize) {
-                        layer.sort_unstable_by_key(|(pos, _)| <Pos as PosOrder>::key(pos));
+                        layer.sort_unstable_by_key(|(pos, _)| <Pos as PosTrait>::key(pos));
                     }
                     self.next_sort += 1;
                 }
