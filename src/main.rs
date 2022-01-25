@@ -36,9 +36,13 @@ struct Cli {
     #[structopt(flatten)]
     params: Params,
 
-    // Do not print anything, for benchmarking.
+    // Do not print a new line per alignment, but instead overwrite the previous one.
     #[structopt(short, long)]
     silent: bool,
+
+    // Only print a summary line, for benchmarking.
+    #[structopt(short = "-S", long)]
+    silent2: bool,
 }
 
 fn main() {
@@ -101,11 +105,13 @@ fn main() {
                     if let [a, b, ..] = ab[..] {
                         let r = run(&a, &b, &args.params);
                         avg_result.add_sample(&r);
-                        print!("\r");
-                        if !args.silent {
-                            r.print();
+                        if !args.silent2 {
+                            print!("\r");
+                            if !args.silent {
+                                r.print();
+                            }
+                            avg_result.print_no_newline();
                         }
-                        avg_result.print_no_newline();
                         cnt += 1;
                         sum_band +=
                             r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
@@ -118,16 +124,20 @@ fn main() {
                 for (a, b) in sequences.iter().tuples() {
                     let r = run(&a, &b, &args.params);
                     avg_result.add_sample(&r);
-                    print!("\r");
-                    if !args.silent {
-                        r.print();
+                    if !args.silent2 {
+                        print!("\r");
+                        if !args.silent {
+                            r.print();
+                        }
+                        avg_result.print_no_newline();
                     }
-                    avg_result.print_no_newline();
                     cnt += 1;
                     sum_band += r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
                 }
             }
-            print!("\r");
+            if !args.silent2 {
+                print!("\r");
+            }
             avg_result.print();
         }
     } else {
@@ -143,6 +153,6 @@ fn main() {
     }
     if let Some(output) = args.output {
         let avg_band = sum_band / cnt as f32;
-        std::fs::write(output, format!("{}\n", avg_band)).unwrap();
+        std::fs::write(output, format!("{:.3}\n", avg_band)).unwrap();
     }
 }
