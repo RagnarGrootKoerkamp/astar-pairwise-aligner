@@ -104,12 +104,17 @@ impl Ord for LexPos {
     }
 }
 
-impl implicit_graph::PosOrder for Pos {
+impl implicit_graph::PosTrait for Pos {
     type Output = LexPos;
 
     #[inline]
     fn key(&self) -> Self::Output {
         LexPos(*self)
+    }
+
+    #[inline]
+    fn add_diagonal(&self, step: I) -> Self {
+        Pos(self.0 + step, self.1 + step)
     }
 }
 
@@ -156,6 +161,16 @@ impl<'a> ImplicitGraph for AlignmentGraph<'a> {
         } else {
             None
         }
+    }
+
+    #[inline]
+    fn count_match(&self, Pos(i, j): Self::Pos) -> usize {
+        let max = std::cmp::min(self.target.0 - i, self.target.1 - j) as usize;
+        let mut cnt = 0;
+        while cnt < max && self.a[i as usize + cnt] == self.b[j as usize + cnt] {
+            cnt += 1;
+        }
+        cnt
     }
 
     /// Internal iterator to get the edges from a position.

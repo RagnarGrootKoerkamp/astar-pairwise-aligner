@@ -6,11 +6,12 @@ use std::hash;
 
 use crate::diagonal_map::DiagonalMapTrait;
 
-use super::Cost;
+use super::{Cost, I};
 
-pub trait PosOrder {
+pub trait PosTrait: Copy + Eq + hash::Hash + std::fmt::Debug {
     type Output: Ord;
     fn key(&self) -> Self::Output;
+    fn add_diagonal(&self, step: I) -> Self;
 }
 
 pub trait ParentTrait<Pos>: Default + Clone + Copy {
@@ -20,7 +21,7 @@ pub trait ParentTrait<Pos>: Default + Clone + Copy {
 
 /// An implicit graph.
 pub trait ImplicitGraph {
-    type Pos: Copy + Eq + hash::Hash + PosOrder + std::fmt::Debug;
+    type Pos: PosTrait;
     type Parent: ParentTrait<Self::Pos> + std::fmt::Debug;
     type DiagonalMap<T: Default + Clone + Copy>: DiagonalMapTrait<Self::Pos, T>;
 
@@ -29,6 +30,16 @@ pub trait ImplicitGraph {
 
     fn is_match(&self, _u: Self::Pos) -> Option<Self::Pos> {
         None
+    }
+
+    /// Count the number of matching characters starting at the given position.
+    fn count_match(&self, mut u: Self::Pos) -> usize {
+        let mut cnt = 0;
+        while let Some(v) = self.is_match(u) {
+            cnt += 1;
+            u = v;
+        }
+        cnt
     }
 
     fn iterate_outgoing_edges<F>(&self, u: Self::Pos, f: F)
