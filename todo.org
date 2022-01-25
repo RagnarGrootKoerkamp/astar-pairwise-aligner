@@ -152,6 +152,7 @@ Replace the single vector by something that allows faster deletion but still
 constant time lookup. Maybe something using sqrt decomposition or fenwick trees.
 Or maybe soft-deletion in combination with something with Union-Find, where each
 original contour points to the contour it merged into.
+** TODO Make the Default for the DiagonalMap State be all-zero, so that ~calloc~ can be used.
 
 * Tests
 ** TODO Test all pairs with n <= 6
