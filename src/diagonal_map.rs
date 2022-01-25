@@ -93,8 +93,8 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
 impl<V: Default + Clone + Copy> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
     fn new(target: Pos) -> DiagonalMap<V> {
         // Block size should be a minimum size to prevent too small allocations.
-        let mut block_size = 256;
         let mut lg_block_size = 8;
+        let mut block_size = 1 << lg_block_size;
         let n = max(target.0, target.1);
         while block_size * block_size < n {
             block_size *= 2;
