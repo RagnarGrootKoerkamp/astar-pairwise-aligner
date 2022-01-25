@@ -26,12 +26,12 @@ wfa_bin   = "../wfa/bin/align_benchmark"
 TIMELIMIT       = "(timeout 6s"
 TIMELIMITEND    = ") || true"
 
-# Run PA with as Dijkstra, using a heuristic that's always 0.
-DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -o {output} -a Dijkstra --silent {TIMELIMITEND}'
 # Run PA
 PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/x{wildcards.cnt}-n{wildcards.n}-e{wildcards.e}-k{wildcards.k}-m{wildcards.m}-pf{wildcards.pf}.pa.band -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
+# Run PA with as Dijkstra, using a heuristic that's always 0.
+DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
 # Run PA given optimal parameters.
-PA_OPTIMAL_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/x{wildcards.cnt}-n{wildcards.n}-e{wildcards.e}.pa.band -k {params.k}  -m {params.m} --prune-fraction {params.pf} --silent2 {TIMELIMITEND}'
+PA_OPTIMAL_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -k {params.k}  -m {params.m} --prune-fraction {params.pf} --silent2 {TIMELIMITEND}'
 # -p: Return alignment
 # -s: Silent / no output
 EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'
@@ -164,7 +164,7 @@ rule run_wfa:
         WFA_CMD
 
 # Collect all .benchfiles into a single tsv.
-headers       = "alg\tcnt\tn\te\tband\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load\tcpu_time"
+headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load\tcpu_time"
 prefix       = "{alg}\t{n[1]}\t{n[0]}\t{e}"
 rule run_benchmark_tools:
     input:
@@ -173,9 +173,8 @@ rule run_benchmark_tools:
         f"data/table/tools_N{N}.tsv"
     params:
         prefix = expand(prefix, n=[(n, N//n) for n in ns], e=es, alg=algs),
-        band = try_read_files(expand("data/runs/x{n[1]}-n{n[0]}-e{e}.{alg}.band", n=[(n, N//n) for n in ns], e=es, alg=algs))
     shell:
-        "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(echo \"{params.band}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) | sed '1s/^/{headers}\\n/' > {output}"
+        "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) | sed '1s/^/{headers}\\n/' > {output}"
 
 
 # Visualizations
