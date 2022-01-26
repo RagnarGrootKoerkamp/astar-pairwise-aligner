@@ -26,8 +26,10 @@ wfa_bin   = "../wfa/bin/align_benchmark"
 TIMELIMIT       = "(timeout 6s"
 TIMELIMITEND    = ") || true"
 
+REPEATS = 2
+
 # Run PA
-PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/x{wildcards.cnt}-n{wildcards.n}-e{wildcards.e}-k{wildcards.k}-m{wildcards.m}-pf{wildcards.pf}.pa.band -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
+PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/x{wildcards.cnt}-n{wildcards.n}-e{wildcards.e}-k{wildcards.k}-m{wildcards.m}-pf{wildcards.pf}.pa.{wildcards.sample}.band -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
 # Run PA with as Dijkstra, using a heuristic that's always 0.
 DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
 # Run PA given optimal parameters.
@@ -40,8 +42,10 @@ EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'
 WFA_CMD         = '{TIMELIMIT} {wfa_bin} -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1" {TIMELIMITEND}'
 
 # total number of letters in all A sequences (half of all letters)
+# TODO: Scale this up.
 N = 1_000_000
 # number of pairs
+# TODO: Add a test with 10M long sequences.
 ns = [100, 1_000, 10_000, 100_000, 1_000_000]
 # error rate in [0;1]
 es = [0.01, 0.05, 0.20]
@@ -94,7 +98,7 @@ rule run_pairwise_aligner:
     input:
         "data/input/x{cnt}-n{n}-e{e}.seq"
     benchmark:
-        "data/runs/x{cnt}-n{n}-e{e}-k{k}-m{m}-pf{pf}.pa.bench"
+        repeat("data/runs/x{cnt}-n{n}-e{e}-k{k}-m{m}-pf{pf}.pa.{sample}.bench", REPEATS)
     shell:
         PA_CMD
 
@@ -102,7 +106,7 @@ rule run_pairwise_aligner:
 # COMPARISON WITH OTHER TOOLS
 rule run_all_optimal:
     input:
-        expand("data/runs/x{n[1]}-n{n[0]}-e{e}.{alg}.bench", n=[(n, N//n) for n in ns], e=es, alg=algs)
+        expand("data/runs/x{n[1]}-n{n[0]}-e{e}.{alg}.{sample}.bench", n=[(n, N//n) for n in ns], e=es, alg=algs, sample=range(REPEATS))
 
 # Collect all .benchfiles into a single tsv.
 def try_read_files(paths):
@@ -113,16 +117,16 @@ def try_read_files(paths):
             return ''
     return [f(path) for path in paths]
 
-headers_params       = "alg\tcnt\tn\te\tk\tm\tpf\tband\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tm_load\tcpu_time"
-prefix_params       = "{alg}\t{n[1]}\t{n[0]}\t{e}\t{km[0]}\t{km[1]}\t{pf}"
+headers_params       = "alg\tcnt\tn\te\tk\tm\tpf\tsample\tband\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tm_load\tcpu_time"
+prefix_params       = "{alg}\t{n[1]}\t{n[0]}\t{e}\t{km[0]}\t{km[1]}\t{pf}\t{sample}"
 rule run_benchmark_params:
     input:
-        file = expand("data/runs/x{n[1]}-n{n[0]}-e{e}-k{km[0]}-m{km[1]}-pf{pf}.{alg}.bench", n=[(n, N//n) for n in ns], e=es, km=kms, pf=pfs, alg=['pa'])
+        file = expand("data/runs/x{n[1]}-n{n[0]}-e{e}-k{km[0]}-m{km[1]}-pf{pf}.{alg}.{sample}.bench", n=[(n, N//n) for n in ns], e=es, km=kms, pf=pfs, alg=['pa'], sample=range(REPEATS))
     output:
         f"data/table/params_N{N}.tsv"
     params:
-        prefix = expand(prefix_params, n=[(n, N//n) for n in ns], e=es, km=kms, pf=pfs, alg=['pa']),
-        band = try_read_files(expand("data/runs/x{n[1]}-n{n[0]}-e{e}-k{km[0]}-m{km[1]}-pf{pf}.{alg}.band", n=[(n, N//n) for n in ns], e=es, km=kms, pf=pfs, alg=['pa']))
+        prefix = expand(prefix_params, n=[(n, N//n) for n in ns], e=es, km=kms, pf=pfs, alg=['pa'], sample=range(REPEATS)),
+        band = try_read_files(expand("data/runs/x{n[1]}-n{n[0]}-e{e}-k{km[0]}-m{km[1]}-pf{pf}.{alg}.{sample}.band", n=[(n, N//n) for n in ns], e=es, km=kms, pf=pfs, alg=['pa'], sample=range(REPEATS)))
     shell:
         "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(echo \"{params.band}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) | sed '1s/^/{headers_params}\\n/' > {output}"
 
@@ -131,7 +135,7 @@ rule run_pairwise_aligner_optimal:
     input:
         "data/input/x{cnt}-n{n}-e{e}.seq"
     benchmark:
-        "data/runs/x{cnt}-n{n}-e{e,[0-9.]+}.pa.bench"
+        repeat("data/runs/x{cnt}-n{n}-e{e,[0-9.]+}.pa.{sample}.bench", REPEATS)
     params:
         k = lambda w: OPTIMAL_PARAMS[(int(w.n),float(w.e))],
         m = 0,
@@ -143,7 +147,7 @@ rule run_dijkstra:
     input:
         "data/input/x{cnt}-n{n}-e{e}.seq"
     benchmark:
-        "data/runs/x{cnt}-n{n}-e{e}.dijkstra.bench"
+        repeat("data/runs/x{cnt}-n{n}-e{e}.dijkstra.{sample}.bench", REPEATS)
     shell:
         DIJKSTRA_CMD
 
@@ -151,7 +155,7 @@ rule run_edlib:
     input:
         "data/input/x{cnt}-n{n}-e{e}.seq"
     benchmark:
-        "data/runs/x{cnt}-n{n}-e{e}.edlib.bench"
+        repeat("data/runs/x{cnt}-n{n}-e{e}.edlib.{sample}.bench", REPEATS)
     shell:
         EDLIB_CMD 
 
@@ -159,7 +163,7 @@ rule run_wfa:
     input:
         "data/input/x{cnt}-n{n}-e{e}.seq"
     benchmark:
-        "data/runs/x{cnt}-n{n}-e{e}.wfa.bench"
+        repeat("data/runs/x{cnt}-n{n}-e{e}.wfa.{sample}.bench", REPEATS)
     shell:
         WFA_CMD
 
@@ -168,11 +172,11 @@ headers       = "alg\tcnt\tn\te\ts\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\ti
 prefix       = "{alg}\t{n[1]}\t{n[0]}\t{e}"
 rule run_benchmark_tools:
     input:
-        file = expand("data/runs/x{n[1]}-n{n[0]}-e{e}.{alg}.bench", n=[(n, N//n) for n in ns], e=es, alg=algs)
+        file = expand("data/runs/x{n[1]}-n{n[0]}-e{e}.{alg}.{sample}.bench", n=[(n, N//n) for n in ns], e=es, alg=algs, sample=range(REPEATS))
     output:
         f"data/table/tools_N{N}.tsv"
     params:
-        prefix = expand(prefix, n=[(n, N//n) for n in ns], e=es, alg=algs),
+        prefix = expand(prefix, n=[(n, N//n) for n in ns], e=es, alg=algs, sample=range(REPEATS)),
     shell:
         "paste <(echo \"{params.prefix}\" | tr ' ' '\n') <(tail -n 1 --silent {input.file}) | sed '1s/^/{headers}\\n/' > {output}"
 
