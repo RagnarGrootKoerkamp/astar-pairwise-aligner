@@ -97,6 +97,19 @@ def algo2color(algo):
         'edlib': '#4DC8FF',
         'wfa': '#625AFF',
         
+        6: '#000000',
+        7: '#440000',
+        8: '#8800',
+        9: '#BB0000',
+        10: '#FF0000',
+        11: '#FF4400',
+        12: '#FF8800',
+        14: '#FFBB00',
+        15: '#FFFF00',
+        20: '#FFFF44',
+        30: '#FFFF88',
+        
+        
         'astarix-prefix': '#FF6D29',
         'astar-prefix': '#FF6D29',
         'astarix-prefix-illumina': '#FF6D29',
@@ -109,115 +122,17 @@ def algo2color(algo):
         }
     if algo in d:
         return d[algo]
-    print('algo "{}"'.format(algo))
-    assert(False)
-    
-
-def algo2color_old(algo):
-    palette = sns.color_palette("tab10", 10)
-    d = {
-        'astarix-prefix': palette[3],
-        'astar-prefix': palette[3],
-        'astarix-prefix-illumina': palette[3],
-        'astarix-seeds': palette[1],
-        'astar-seeds': palette[1],
-        'astarix-seeds-illumina': palette[1],
-        'dijkstra': palette[5],
-        'graphaligner': palette[0],
-        'pasgal': palette[4],
-        'vargas': palette[2],
-        #'astarix': 'red', #'mediumseagreen', #' forestgreen',
-        #'astarix-seeds_wo_skip_near_crumbs_pos': 'yellow',  ## ablation
-        #'astarix-seeds_wo_match_pos': 'orange',   ## ablation
-        #'astarix-seeds_wo_opt': 'blue',
-        #'astar-seeds-intervals': 'red',
-        #'astarix-seeds-intervals': 'red',
-        #'vg': 'orange',
-        }
-    if algo in d:
-        return d[algo]
-    print(algo)
-    assert(False)
-    
-def algo2marker(algo):
-    d = {
-        'astarix-prefix': 's',
-        'astar-prefix': 's',
-        'astarix-prefix-illumina': 's',
-        'astarix-seeds': 'o',
-        'astar-seeds': 'o',
-        'astarix-seeds-illumina': 'o',
-        'dijkstra': 'o',
-        'graphaligner': '^',
-        'pasgal': '<',
-        'vargas': '>',
-        #'astarix': 'red', #'mediumseagreen', #' forestgreen',
-        #'astarix-seeds_wo_skip_near_crumbs_pos': 'yellow',  ## ablation
-        #'astarix-seeds_wo_match_pos': 'orange',   ## ablation
-        #'astarix-seeds_wo_opt': 'blue',
-        #'astar-seeds-intervals': 'red',
-        #'astarix-seeds-intervals': 'red',
-        #'vg': 'orange',
-        }
-    if algo in d:
-        return d[algo]
-    print(algo)
-    assert(False)
-    
-def algo2marker_different(algo):
-    d = {
-        'astarix-prefix': '^',
-        'astar-prefix': '^',
-        'astarix-prefix-illumina': '^',
-        'astarix-seeds': '*',
-        'astar-seeds': '*',
-        'astarix-seeds-illumina': '*',
-        'dijkstra': '>',
-        'graphaligner': 'o',
-        'pasgal': 'P',
-        'vargas': 's',
-        #'astarix': 'red', #'mediumseagreen', #' forestgreen',
-        #'astarix-seeds_wo_skip_near_crumbs_pos': 'yellow',  ## ablation
-        #'astarix-seeds_wo_match_pos': 'orange',   ## ablation
-        #'astarix-seeds_wo_opt': 'blue',
-        #'astar-seeds-intervals': 'red',
-        #'astarix-seeds-intervals': 'red',
-        #'vg': 'orange',
-        }
-    if algo in d:
-        return d[algo]
-    print(algo)
-    assert(False)
+    return '#FF6D29'
 
 def algo2beautiful(algo):
     d = {
         'pa': 'A* PA',
         'edlib': 'Edlib',
         'wfa': 'WFA',
-        
-        #'astar': 'A*',
-        'astarix': 'AStarix',
-        'astarix-seeds': 'Seed heuristic',
-        'astar-seeds': 'Seed heuristic',
-        'astarix-seeds-illumina': 'AStarix-seeds',
-        'astarix-seeds-intervals': 'Seeds heuristic (+intervals)',
-        'astar-seeds-intervals': 'Seeds heuristic (+intervals)',
-        'astarix-seeds_wo_skip_near_crumbs_pos': 'Seeds -near crumbs',  ## ablation
-        'astarix-seeds_wo_match_pos': 'Seeds -match positions',   ## ablation
-        'astarix-seeds_wo_opt': 'Seeds -nearcrumbs -matchpos',
-        'astarix-prefix': 'Prefix heuristic',
-        'astar-prefix': 'Prefix heuristic',
-        'astarix-prefix-illumina': 'AStarix-prefix',
-        'dijkstra': 'Dijkstra',
-        'graphaligner': 'GraphAligner',
-        'pasgal': 'PaSGAL',
-        'vargas': 'Vargas',
-        'vg': 'VG',
         }
     if algo in d:
         return d[algo]
-    print(algo)
-    assert(False)
+    return str(algo)
     
 def col2name(col):
     d = {
