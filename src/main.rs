@@ -135,10 +135,12 @@ fn main() {
                     sum_band += r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
                 }
             }
-            if !args.silent2 {
-                print!("\r");
+            if cnt > 0 {
+                if !args.silent2 {
+                    print!("\r");
+                }
+                avg_result.print();
             }
-            avg_result.print();
         }
     } else {
         // Generate random input.
@@ -151,8 +153,10 @@ fn main() {
             sum_band += r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
         }
     }
-    if let Some(output) = args.output {
-        let avg_band = sum_band / cnt as f32;
-        std::fs::write(output, format!("{:.3}\n", avg_band)).unwrap();
+    if cnt > 0 {
+        if let Some(output) = args.output {
+            let avg_band = sum_band / cnt as f32;
+            std::fs::write(output, format!("{:.3}\n", avg_band)).unwrap();
+        }
     }
 }
