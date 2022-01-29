@@ -46,7 +46,8 @@ TIMEOUT = "10s"
 REPEATS = 2
 
 # Tools to run
-algs = ['pa', 'edlib', 'wfa', 'dijkstra']
+# Skip dijkstra, because it's slow.
+algs = ['pa', 'edlib', 'wfa']
 
 # TOOL DEFINITIONS
 
