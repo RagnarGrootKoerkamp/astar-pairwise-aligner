@@ -241,7 +241,7 @@ def col2name(col):
         }
     if col in d:
         return d[col]
-    print(col)
+    #print(col)
     return col
 
 def col2unit(col):
