@@ -222,10 +222,7 @@ impl<C: Contour> Contours for HintContours<C> {
             //println!("layer {}", v);
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
-            let (up_to_v, current) = {
-                let (up_to_v, from_v) = self.contours.as_mut_slice().split_at_mut(v as usize);
-                (up_to_v, &mut from_v[0])
-            };
+            let mut current = std::mem::take(&mut self.contours[v as usize]);
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
             let mut current_shift = None;
             let mut layer_best_start_val = 0;
@@ -251,7 +248,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 for arrow in pos_arrows {
                     // Find the value at end_val via a backwards search.
                     let mut end_val = v - arrow.len;
-                    while !up_to_v[end_val as usize].contains(arrow.end) {
+                    while !self.contours[end_val as usize].contains(arrow.end) {
                         end_val -= 1;
 
                         // No need to continue when this value isn't going to be optimal anyway.
@@ -282,9 +279,9 @@ impl<C: Contour> Contours for HintContours<C> {
                     // Make sure this point is contained in its parent, and add shadow points if not.
                     // NOTE: This adds around 1% of total runtime for HintContours<CentralContour>.
                     let mut v = best_start_val;
-                    while v > 0 && !up_to_v[v as usize - 1].contains(pos) {
+                    while v > 0 && !self.contours[v as usize - 1].contains(pos) {
                         v -= 1;
-                        up_to_v[v as usize].push(pos);
+                        self.contours[v as usize].push(pos);
                     }
 
                     return false;
@@ -302,12 +299,12 @@ impl<C: Contour> Contours for HintContours<C> {
                 //     "f: Push {} to {} shift {:?}",
                 //     pos, best_start_val, current_shift
                 // );
-                up_to_v[best_start_val as usize].push(pos);
+                self.contours[best_start_val as usize].push(pos);
                 {
                     let mut v = best_start_val;
-                    while v > 0 && !up_to_v[v as usize - 1].contains(pos) {
+                    while v > 0 && !self.contours[v as usize - 1].contains(pos) {
                         v -= 1;
-                        up_to_v[v as usize].push(pos);
+                        self.contours[v as usize].push(pos);
                     }
                 }
 
@@ -331,6 +328,10 @@ impl<C: Contour> Contours for HintContours<C> {
             if changes {
                 last_change = v;
             }
+
+            // Put current layer back in place
+            self.contours[v as usize] = current;
+
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
 
