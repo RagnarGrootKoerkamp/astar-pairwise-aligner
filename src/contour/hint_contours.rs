@@ -4,6 +4,8 @@ use itertools::Itertools;
 
 use crate::prelude::*;
 
+use super::split_vec::SplitVec;
+
 /// A Contours implementation based on Contour layers with value queries in O(log(r)^2).
 ///
 /// A contour x may contain points p that are actually in contour x+1, but only have value x.
@@ -14,7 +16,7 @@ use crate::prelude::*;
 /// points to a contour that are larger than other points it already contains.
 #[derive(Default, Debug)]
 pub struct HintContours<C: Contour> {
-    contours: Vec<C>,
+    contours: SplitVec<C>,
     // TODO: Do not use vectors inside a hashmap.
     // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
     arrows: HashMap<Pos, Vec<Arrow>>,
@@ -69,7 +71,11 @@ impl Default for Hint {
 impl<C: Contour> Contours for HintContours<C> {
     fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
         let mut this = HintContours {
-            contours: vec![C::default()],
+            contours: {
+                let mut c = SplitVec::new();
+                c.resize_with(1, || C::default());
+                c
+            },
             arrows: HashMap::default(),
             max_len,
             stats: Default::default(),
@@ -222,6 +228,7 @@ impl<C: Contour> Contours for HintContours<C> {
             //println!("layer {}", v);
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
+            // Extract the current layer so we can modify it while reading the other layers.
             let mut current = std::mem::take(&mut self.contours[v as usize]);
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
             let mut current_shift = None;
@@ -272,6 +279,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
                 // Value v is still up to date. No need to loop over the remaining arrows starting here.
                 if best_start_val >= v {
+                    assert!(best_start_val == v);
                     //println!("f: {} keeps value {}", pos, best_start_val);
                     self.stats.borrow_mut().checked_false += 1;
                     current_shift = Some(Cost::MAX);
