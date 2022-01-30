@@ -107,7 +107,7 @@ def algo2color(algo):
         14: '#FFBB00',
         15: '#FFFF00',
         20: '#FFFF44',
-        30: '#FFFF88',
+        32: '#FFFF88',
         
         
         'astarix-prefix': '#FF6D29',
