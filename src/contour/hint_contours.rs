@@ -101,7 +101,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
     fn value(&self, q: Pos) -> Cost {
         // We already know that 0 contains q, so we start at 1.
-        self.contours[1..]
+        self.contours
             .binary_search_by(|contour| {
                 if contour.contains(q) {
                     Ordering::Less
@@ -110,6 +110,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             })
             .unwrap_err() as Cost
+            - 1
     }
 
     // The layer for the parent node.
@@ -391,13 +392,13 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             }
         }
-        while let Some(c) = self.contours.last() {
-            if c.len() == 0 {
-                self.contours.pop();
-            } else {
-                break;
-            }
-        }
+        // while let Some(c) = self.contours.last() {
+        //     if c.len() == 0 {
+        //         self.contours.pop();
+        //     } else {
+        //         break;
+        //     }
+        // }
         for k in (0..8).rev() {
             if self.contours.len() > k {
                 ////println!("Contour {}: {:?}", k, self.contours[k]);
