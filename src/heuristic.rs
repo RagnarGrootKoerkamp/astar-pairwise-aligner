@@ -15,7 +15,7 @@ use serde::Serialize;
 
 use crate::{seeds::Match, util::*};
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Clone)]
 pub struct HeuristicParams {
     pub name: String,
     pub distance_function: Option<String>,
@@ -25,7 +25,7 @@ pub struct HeuristicParams {
     pub build_fast: Option<bool>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct HeuristicStats {
     pub num_seeds: Option<I>,
     pub num_matches: Option<usize>,

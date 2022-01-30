@@ -29,7 +29,7 @@ impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
     }
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Clone)]
 pub struct AStarStats<Pos> {
     pub expanded: usize,
     pub explored: usize,
