@@ -114,20 +114,20 @@ pub struct SequenceStats {
     pub source: Source,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Clone)]
 pub struct TimingStats {
     pub precomputation: f32,
     pub astar: f32,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Clone)]
 pub struct HeuristicStats2 {
     pub root_h: Cost,
     pub path_matches: Option<usize>,
     pub explored_matches: Option<usize>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Clone)]
 pub struct AlignResult {
     pub input: SequenceStats,
     pub heuristic_params: HeuristicParams,
@@ -157,6 +157,11 @@ impl AlignResult {
     }
 
     pub fn add_sample(&mut self, other: &AlignResult) {
+        if self.sample_size == 0 {
+            *self = (*other).clone();
+            return;
+        }
+
         self.input.len_a += other.input.len_a;
         self.input.len_b += other.input.len_b;
         if let Some(x) = &mut self.heuristic_stats.num_seeds {
@@ -192,11 +197,11 @@ impl AlignResult {
             (format!("{:>5}", "nr"), |this: &AlignResult| {
                 format!("{:>5}", this.sample_size)
             }),
-            (format!("{:>6}", "|a|"), |this: &AlignResult| {
-                format!("{:>6}", this.input.len_a / this.sample_size)
+            (format!("{:>8}", "|a|"), |this: &AlignResult| {
+                format!("{:>8}", this.input.len_a / this.sample_size)
             }),
-            (format!("{:>6}", "|b|"), |this: &AlignResult| {
-                format!("{:>6}", this.input.len_b / this.sample_size)
+            (format!("{:>8}", "|b|"), |this: &AlignResult| {
+                format!("{:>8}", this.input.len_b / this.sample_size)
             }),
             (format!("{:>4}", "r"), |this: &AlignResult| {
                 format!("{:>4.2}", this.input.error_rate)
