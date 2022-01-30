@@ -46,6 +46,28 @@ algs = ['pa', 'edlib', 'wfa']
 TIMEOUT = "10s"
 REPEATS = 1
 
+## TOOL DEFINITIONS
+
+pa_bin    = 'target/release/pairwise-aligner'
+edlib_bin = '../edlib/build/bin/edlib-aligner'
+wfa_bin   = '../wfa/bin/align_benchmark'
+
+TIMELIMIT       = f'(timeout {TIMEOUT}'
+TIMELIMITEND    = ') || true'
+
+# Generate testcases
+GENERATE_CMD    = '../wfa/bin/generate_dataset -n {wildcards.cnt} -l {wildcards.n} -e {wildcards.e} -o {output}'
+# Run PA
+PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/x{wildcards.cnt}-n{wildcards.n}-e{wildcards.e}-k{wildcards.k}-m{wildcards.m}-pf{wildcards.pf}.pa.band -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
+# Run PA with as Dijkstra, using a heuristic that's always 0.
+DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
+# -p: Return alignment
+# -s: Silent / no output
+EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'
+# -a: Algorithm to run
+# --affine-penalties: Use edit distance score, with gap-opening cost of 0.
+WFA_CMD         = '{TIMELIMIT} {wfa_bin} -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1" {TIMELIMITEND}'
+
 ## WRAPPER CLASSES
 
 class Input:
@@ -115,28 +137,6 @@ tool_runs = [Run(input=input, alg=alg)
                 for input in inputs
                 for alg in algs]
 
-## TOOL DEFINITIONS
-
-pa_bin    = 'target/release/pairwise-aligner'
-edlib_bin = '../edlib/build/bin/edlib-aligner'
-wfa_bin   = '../wfa/bin/align_benchmark'
-
-TIMELIMIT       = f'(timeout {TIMEOUT}'
-TIMELIMITEND    = ') || true'
-
-# Generate testcases
-GENERATE_CMD    = '../wfa/bin/generate_dataset -n {wildcards.cnt} -l {wildcards.n} -e {wildcards.e} -o {output}'
-# Run PA
-PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/x{wildcards.cnt}-n{wildcards.n}-e{wildcards.e}-k{wildcards.k}-m{wildcards.m}-pf{wildcards.pf}.pa.band -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
-# Run PA with as Dijkstra, using a heuristic that's always 0.
-DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
-# -p: Return alignment
-# -s: Silent / no output
-EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'
-# -a: Algorithm to run
-# --affine-penalties: Use edit distance score, with gap-opening cost of 0.
-WFA_CMD         = '{TIMELIMIT} {wfa_bin} -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1" {TIMELIMITEND}'
-
 ## INPUT DATA RULES
 
 rule generate_input:
@@ -177,9 +177,6 @@ rule find_best_runs:
     input: lambda w: [run.bench_path_with_params() for run in pa_runs_for_input(Input(**w))]
     output: Run.pattern()
     run:
-        print('Runs: ', [run.input.__dict__ for run in pa_runs])
-        print('Input: ', Input(**wildcards).__dict__)
-        print('INPUT: ', input)
         # Loop over input bench files, find the one with the best average runtime, and copy it.
         (_, best_f) = min(map(lambda f: (average_bench_time(f), f), input))
         import shutil
