@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::prelude::*;
 
 /// A contour implementation that does all operations in O(r).
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct BruteForceContour {
     points: Vec<Pos>,
 }

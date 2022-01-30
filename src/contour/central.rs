@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 /// A contour implementation that does push and query in logarithmic time, but prune in linear time.
 /// This caches the last relevant dominant point to answer queries along the main diagonal faster.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct CentralContour {
     points: Vec<LexPos>,
     /// The set of dominant points, sorted lexicographically.

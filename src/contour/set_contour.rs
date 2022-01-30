@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, ops::Bound::*};
 use crate::prelude::*;
 
 /// Sorts points by (x-y, x).
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 struct AntiDiagonal(Pos);
 impl PartialOrd for AntiDiagonal {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -19,7 +19,7 @@ impl Ord for AntiDiagonal {
 
 /// A contour implementation that does push, query, and prune in logarithmic time.
 /// FIXME: This still has some bugs.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SetContour {
     points: BTreeSet<AntiDiagonal>,
     /// The set of dominant points, sorted lexicographically.

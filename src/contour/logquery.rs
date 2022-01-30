@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 /// A contour implementation that does push and query in logarithmic time, but prune in linear time.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct LogQueryContour {
     points: Vec<LexPos>,
     // The set of dominant points, sorted lexicographically.
