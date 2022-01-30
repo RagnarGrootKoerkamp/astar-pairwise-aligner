@@ -5,6 +5,7 @@ pub mod hint_contours;
 pub mod logquery;
 pub mod naive_contours;
 pub mod set_contour;
+pub mod split_vec;
 pub mod traits;
 
 pub use bruteforce::*;
