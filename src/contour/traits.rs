@@ -11,7 +11,7 @@ use crate::prelude::{Cost, Pos, I};
 // TODO: An implementation that does lookup in O(lg(n))
 // TODO: An implementation that does lookup, and push (and pop) in O(lg(n))
 // TODO: An implementation that does lookup in O(1), using a hint.
-pub trait Contour: Default + Debug {
+pub trait Contour: Default + Debug + Clone {
     fn with_max_len(_max_len: I) -> Self {
         Default::default()
     }
