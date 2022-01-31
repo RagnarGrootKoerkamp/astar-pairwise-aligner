@@ -59,7 +59,7 @@ TIMELIMITEND    = ') || true'
 # Generate testcases
 GENERATE_CMD    = '../wfa/bin/generate_dataset -n {wildcards.cnt} -l {wildcards.n} -e {wildcards.e} -o {output}'
 # Run PA
-PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o {params.band_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
+PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
 # Run PA with as Dijkstra, using a heuristic that's always 0.
 DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
 # -p: Return alignment
@@ -99,9 +99,9 @@ class Run:
         return Path(f'data/runs/{self.input.name()}-A{self.alg}-m{self.m}-k{self.k}-pf{self.pf}.bench')
     def bench_path(self):
         return Path(f'data/runs/{self.input.name()}-A{self.alg}.bench')
-    def band_path(self):
+    def stats_path(self):
         assert self.alg == "pa"
-        return self.bench_path_with_params().with_suffix('.band')
+        return self.bench_path_with_params().with_suffix('.stats')
 
 # Returns false for parameters that should be skipped.
 def run_filter(run):
@@ -150,7 +150,7 @@ rule run_pairwise_aligner:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
     params:
-        band_path = lambda w: Run(input=Input(**w), **w, alg='pa').band_path()
+        stats_path = lambda w: Run(input=Input(**w), **w, alg='pa').stats_path()
     shell: PA_CMD
 
 # Collect all .bench files into a single tsv.
@@ -158,17 +158,26 @@ rule params_table:
     input: [run.bench_path() for run in pa_runs]
     output: f"data/table/params_N{N}.tsv"
     run:
-        headers = ["alg","cnt","n","e", "k", "m", "pf", "band","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
+        headers = ["alg","cnt","n","e", "m", "k", "pf","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
         table_file = Path(output[0]).open('w')
-        table_file.write("\t".join(headers) + '\n')
+
+        found_headers = False
+        for run in pa_runs:
+            if run.stats_path().is_file():
+                pa_headers = run.stats_path().read_text().splitlines()[0]
+                table_file.write("\t".join(headers) + '\t' + pa_headers + '\n')
+                found_headers = True
+                break
+        assert found_headers
+
         import itertools
         for run in pa_runs:
             try:
-                band = run.band_path().read_text().strip()
+                stats = run.stats_path().read_text().splitlines()[1]
             except:
-                band = ''
+                stats = ''
             for line in run.bench_path().read_text().splitlines()[1:]:
-                table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.k}\t{run.m}\t{run.pf}\t{band}\t{line}\n')
+                table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.m}\t{run.k}\t{run.pf}\t{line}\t{stats}\n')
 
 
 def average_bench_time(f):

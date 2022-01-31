@@ -190,9 +190,9 @@ impl AlignResult {
     pub fn print_no_newline(&self) {
         self.print_internal(false);
     }
-    fn print_internal(&self, newline: bool) {
+
+    pub fn values(&self) -> (Vec<String>, Vec<String>) {
         type ColumnType = (String, fn(&AlignResult) -> String);
-        static mut PRINTED_HEADER: bool = false;
         let columns: &[ColumnType] = &[
             (format!("{:>5}", "nr"), |this: &AlignResult| {
                 format!("{:>5}", this.sample_size)
@@ -317,19 +317,26 @@ impl AlignResult {
             }),
         ];
 
+        let mut header = Vec::new();
+        let mut vals = Vec::new();
+        for (hdr, f) in columns {
+            header.push(hdr.clone());
+            vals.push(f(self));
+        }
+        (header, vals)
+    }
+
+    fn print_internal(&self, newline: bool) {
+        let (header, values) = self.values();
+        static mut PRINTED_HEADER: bool = false;
         if unsafe { !PRINTED_HEADER } {
-            for (hdr, _) in columns {
-                print!("{} ", hdr);
-            }
             // SAFE: We're single threaded anyway.
             unsafe {
                 PRINTED_HEADER = true;
             }
-            println!();
+            println!("{}", header.join(""));
         }
-        for (_, col) in columns {
-            print!("{} ", col(self));
-        }
+        print!("{}", values.join(""));
         if newline {
             println!();
         } else {
