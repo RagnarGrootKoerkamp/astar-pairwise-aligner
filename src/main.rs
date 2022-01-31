@@ -2,7 +2,7 @@
 use bio::io::fasta;
 use itertools::Itertools;
 use pairwise_aligner::prelude::*;
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::{fs::File, io::BufReader, os::unix::prelude::OsStrExt, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -49,8 +49,7 @@ fn main() {
     let args = Cli::from_args();
 
     // Read the input
-    let mut sum_band = 0.0;
-    let mut cnt = 0;
+    let mut avg_result = AlignResult::default();
     if let Some(input) = &args.input.input {
         let files = if input.is_file() {
             vec![input.clone()]
@@ -99,7 +98,6 @@ fn main() {
                 }
             }
 
-            let mut avg_result = AlignResult::default();
             if all_vs_all {
                 for ab in sequences.iter().combinations(2) {
                     if let [a, b, ..] = ab[..] {
@@ -112,9 +110,6 @@ fn main() {
                             }
                             avg_result.print_no_newline();
                         }
-                        cnt += 1;
-                        sum_band +=
-                            r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
                     } else {
                         unreachable!("Bad combinations");
                     }
@@ -131,11 +126,9 @@ fn main() {
                         }
                         avg_result.print_no_newline();
                     }
-                    cnt += 1;
-                    sum_band += r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
                 }
             }
-            if cnt > 0 {
+            if avg_result.sample_size > 0 {
                 if !args.silent2 {
                     print!("\r");
                 }
@@ -147,16 +140,25 @@ fn main() {
         // TODO: Propagate stats.
         let (a, b, _, _) = setup(args.input.n.unwrap(), args.input.e);
         let r = run(&a, &b, &args.params);
+        avg_result.add_sample(&r);
         if !args.silent {
             r.print();
-            cnt += 1;
-            sum_band += r.astar.explored as f32 / max(r.input.len_a, r.input.len_b) as f32;
         }
     }
-    if cnt > 0 {
+
+    if avg_result.sample_size > 0 {
         if let Some(output) = args.output {
-            let avg_band = sum_band / cnt as f32;
-            std::fs::write(output, format!("{:.3}\n", avg_band)).unwrap();
+            let (header, vals) = avg_result.values();
+
+            std::fs::write(
+                output,
+                format!(
+                    "{}\n{}\n",
+                    header.iter().map(|x| x.trim()).join("\t"),
+                    vals.iter().map(|x| x.trim()).join("\t")
+                ),
+            )
+            .unwrap();
         }
     }
 }
