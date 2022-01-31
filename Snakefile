@@ -22,20 +22,21 @@
 ## INPUT DATA
 
 # total number of letters in all A sequences (half of all letters)
-N = 100_000
+N = 100_000_000
 # Length of each sequence
-ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000]
+ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000, 30_000_000, 100_000_000]
 # Error rate in [0;1]
 es = [0.05]  #[0.01, 0.05, 0.20]
 
 ## PA PARAMS
 
 # Seed length, match distance pairs
-kms = [(10,0), (12,0), (15,0)]
+kms = [(14, 0)]
 #kms = [(6,0), (7,0), (8,0), (9,0), (10, 0), (11, 0), (15, 0), (20, 0), (32, 0),
-#2      (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (14, 1)]
+#      (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (14, 1)]
 # Prune fractions.
-pfs = [0.4, 0.8, 1.0]
+pfs = [1.0]
+#pfs = [0.4, 0.8, 1.0]
 
 ## TOOLS
 
@@ -43,7 +44,7 @@ pfs = [0.4, 0.8, 1.0]
 algs = ['pa', 'edlib', 'wfa']
 
 ## RUN SETTINGS
-TIMEOUT = "10s"
+TIMEOUT = "60s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -58,7 +59,7 @@ TIMELIMITEND    = ') || true'
 # Generate testcases
 GENERATE_CMD    = '../wfa/bin/generate_dataset -n {wildcards.cnt} -l {wildcards.n} -e {wildcards.e} -o {output}'
 # Run PA
-PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o data/runs/x{wildcards.cnt}-n{wildcards.n}-e{wildcards.e}-k{wildcards.k}-m{wildcards.m}-pf{wildcards.pf}.pa.band -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
+PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o {params.band_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
 # Run PA with as Dijkstra, using a heuristic that's always 0.
 DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
 # -p: Return alignment
@@ -84,7 +85,7 @@ class Input:
     def path(self):
         return Path(f'data/input/{self.name()}.seq')
 
-inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es]
+inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
 
 class Run:
     def __init__(self, **kwargs):
@@ -100,7 +101,7 @@ class Run:
         return Path(f'data/runs/{self.input.name()}-A{self.alg}.bench')
     def band_path(self):
         assert self.alg == "pa"
-        return self.bench_path().with_suffix('.band')
+        return self.bench_path_with_params().with_suffix('.band')
 
 # Returns false for parameters that should be skipped.
 def run_filter(run):
@@ -112,7 +113,7 @@ def run_filter(run):
         return False
 
     # Don't do inexact matches for low error rates.
-    if run.input.e < 0.10 and run.input.m > 0:
+    if run.input.e < 0.10 and run.m > 0:
         return False
 
     # If we expect more than 64 matches per seed, skip since we should increase k instead.
@@ -125,14 +126,14 @@ def run_filter(run):
 
     return True
 
-pa_runs = filter(run_filter, (Run(input=input, alg='pa', m=m, k=k, pf=pf)
+pa_runs = list(filter(run_filter, (Run(input=input, alg='pa', m=m, k=k, pf=pf)
                         for input in inputs
                         for (k, m) in kms
-                        for pf in pfs))
+                        for pf in pfs)))
 def pa_runs_for_input(input):
-    return filter(run_filter, (Run(input=input, alg='pa', m=m, k=k, pf=pf)
+    return list(filter(run_filter, (Run(input=input, alg='pa', m=m, k=k, pf=pf)
                         for (k, m) in kms
-                        for pf in pfs))
+                        for pf in pfs)))
 tool_runs = [Run(input=input, alg=alg)
                 for input in inputs
                 for alg in algs]
@@ -148,6 +149,8 @@ rule generate_input:
 rule run_pairwise_aligner:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
+    params:
+        band_path = lambda w: Run(input=Input(**w), **w, alg='pa').band_path()
     shell: PA_CMD
 
 # Collect all .bench files into a single tsv.
@@ -165,7 +168,7 @@ rule params_table:
             except:
                 band = ''
             for line in run.bench_path().read_text().splitlines()[1:]:
-                table_file.write(f'{alg}\t{cnt}\t{n}\t{e}\t{k}\t{m}\t{pf}\t{band}\t{line}\n')
+                table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.k}\t{run.m}\t{run.pf}\t{band}\t{line}\n')
 
 
 def average_bench_time(f):
