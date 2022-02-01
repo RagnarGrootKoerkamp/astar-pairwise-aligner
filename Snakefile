@@ -57,11 +57,11 @@ TIMELIMIT       = f'(timeout {TIMEOUT}'
 TIMELIMITEND    = ') || true'
 
 # Generate testcases
-GENERATE_CMD    = '../wfa/bin/generate_dataset -n {wildcards.cnt} -l {wildcards.n} -e {wildcards.e} -o {output}'
+GENERATE_CMD    = 'cargo run --release --example generate_dataset -- -n {wildcards.cnt} -l {wildcards.n} -e {wildcards.e} -o {output}'
 # Run PA
-PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
+PA_CMD          = 'cargo build --release && {TIMELIMIT} {pa_bin} -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
 # Run PA with as Dijkstra, using a heuristic that's always 0.
-DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
+DIJKSTRA_CMD    = 'cargo build --release && {TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
 # -p: Return alignment
 # -s: Silent / no output
 EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'
