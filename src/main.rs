@@ -2,7 +2,7 @@
 use bio::io::fasta;
 use itertools::Itertools;
 use pairwise_aligner::prelude::*;
-use std::{fs::File, io::BufReader, os::unix::prelude::OsStrExt, path::PathBuf};
+use std::{fs::File, io::BufReader, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -67,12 +67,12 @@ fn main() {
         let mut sequences = Vec::<Sequence>::default();
 
         for f in files {
-            match f.extension().unwrap() {
+            match f.extension().expect("Unknown file extension") {
                 ext if ext == "seq" => {
                     let data = std::fs::read(&f).unwrap();
                     for (a, b) in data.split(|c| *c == '\n' as u8).tuples().map(|(a, b)| {
-                        assert!(a[0] == '>' as u8);
-                        assert!(b[0] == '<' as u8);
+                        assert_eq!(a[0], '>' as u8);
+                        assert_eq!(b[0], '<' as u8);
                         (a[1..].to_vec(), b[1..].to_vec())
                     }) {
                         sequences.push(a);
