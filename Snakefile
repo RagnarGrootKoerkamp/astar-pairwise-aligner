@@ -21,22 +21,18 @@
 
 ## INPUT DATA
 
-# total number of letters in all A sequences (half of all letters)
-N = 100_000_000
 # Length of each sequence
 ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000, 30_000_000, 100_000_000]
 # Error rate in [0;1]
-es = [0.05]  #[0.01, 0.05, 0.20]
+es = [0.01, 0.05, 0.20]
 
 ## PA PARAMS
 
 # Seed length, match distance pairs
-kms = [(14, 0)]
-#kms = [(6,0), (7,0), (8,0), (9,0), (10, 0), (11, 0), (15, 0), (20, 0), (32, 0),
-#      (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (14, 1)]
+kms = [(6,0), (7,0), (8,0), (9,0), (10, 0), (11, 0), (15, 0), (20, 0), (32, 0),
+       (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (14, 1)]
 # Prune fractions.
-pfs = [1.0]
-#pfs = [0.4, 0.8, 1.0]
+pfs = [0.4, 0.8, 1.0]
 
 ## TOOLS
 
@@ -44,7 +40,7 @@ pfs = [1.0]
 algs = ['pa', 'edlib', 'wfa']
 
 ## RUN SETTINGS
-TIMEOUT = "60s"
+TIMEOUT = "120s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -70,6 +66,8 @@ EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'
 WFA_CMD         = '{TIMELIMIT} {wfa_bin} -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1" {TIMELIMITEND}'
 
 ## WRAPPER CLASSES
+wildcard_constraints:
+    e="[0-9.]+"
 
 class Input:
     def __init__(self, **kwargs):
@@ -79,13 +77,15 @@ class Input:
     def name_pattern():
         return 'x{cnt}-n{n}-e{e}'
     def pattern():
-        return 'data/input/x{cnt}-n{n}-e{e,[0-9.]+}.seq'
+        return 'data/input/x{cnt}-n{n}-e{e}.seq'
     def name(self):
         return Path(f'x{self.cnt}-n{self.n}-e{self.e}')
     def path(self):
         return Path(f'data/input/{self.name()}.seq')
 
-inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+def inputs(N):
+    N = int(N)
+    return [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
 
 class Run:
     def __init__(self, **kwargs):
@@ -126,16 +126,24 @@ def run_filter(run):
 
     return True
 
-pa_runs = list(filter(run_filter, (Run(input=input, alg='pa', m=m, k=k, pf=pf)
-                        for input in inputs
+def linear_runs(N, e, m, k, pf):
+    return list(filter(run_filter, (Run(input=input, alg='pa', m=int(m), k=int(k), pf=float(pf))
+                                    for input in inputs(N) if input.e == float(e))))
+
+def params_runs(N):
+    return list(filter(run_filter, (Run(input=input, alg='pa', m=m, k=k, pf=pf)
+                        for input in inputs(N)
                         for (k, m) in kms
                         for pf in pfs)))
-def pa_runs_for_input(input):
+
+def params_runs_for_input(input):
     return list(filter(run_filter, (Run(input=input, alg='pa', m=m, k=k, pf=pf)
                         for (k, m) in kms
                         for pf in pfs)))
-tool_runs = [Run(input=input, alg=alg)
-                for input in inputs
+
+def tool_runs(N):
+    return [Run(input=input, alg=alg)
+                for input in inputs(N)
                 for alg in algs]
 
 ## INPUT DATA RULES
@@ -153,32 +161,39 @@ rule run_pairwise_aligner:
         stats_path = lambda w: Run(input=Input(**w), **w, alg='pa').stats_path()
     shell: PA_CMD
 
+def write_table(runs, output):
+    headers = ["alg","cnt","n","e", "m", "k", "pf","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
+    table_file = Path(output[0]).open('w')
+
+    found_headers = False
+    for run in runs:
+        if run.stats_path().is_file():
+            pa_headers = run.stats_path().read_text().splitlines()[0]
+            table_file.write("\t".join(headers) + '\t' + pa_headers + '\n')
+            found_headers = True
+            break
+    assert found_headers
+
+    import itertools
+    for run in runs:
+        try:
+            stats = run.stats_path().read_text().splitlines()[1]
+        except:
+            stats = ''
+        for line in run.bench_path_with_params().read_text().splitlines()[1:]:
+            table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.m}\t{run.k}\t{run.pf}\t{line}\t{stats}\n')
+
 # Collect all .bench files into a single tsv.
 rule params_table:
-    input: [run.bench_path() for run in pa_runs]
-    output: f"data/table/params_N{N}.tsv"
-    run:
-        headers = ["alg","cnt","n","e", "m", "k", "pf","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
-        table_file = Path(output[0]).open('w')
+    input: lambda w: [run.bench_path_with_params() for run in params_runs(**w)]
+    output: 'data/table/params_N{N}.tsv'
+    run: write_table(params_runs(**wildcards), output)
 
-        found_headers = False
-        for run in pa_runs:
-            if run.stats_path().is_file():
-                pa_headers = run.stats_path().read_text().splitlines()[0]
-                table_file.write("\t".join(headers) + '\t' + pa_headers + '\n')
-                found_headers = True
-                break
-        assert found_headers
-
-        import itertools
-        for run in pa_runs:
-            try:
-                stats = run.stats_path().read_text().splitlines()[1]
-            except:
-                stats = ''
-            for line in run.bench_path().read_text().splitlines()[1:]:
-                table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.m}\t{run.k}\t{run.pf}\t{line}\t{stats}\n')
-
+# Collect all .bench files into a single tsv.
+rule linear_table:
+    input: lambda w: [run.bench_path_with_params() for run in linear_runs(**w)]
+    output: 'data/table/linear_N{N}_e{e}_m{m}_k{k}_pf{pf}.tsv'
+    run: write_table(linear_runs(**wildcards), output)
 
 def average_bench_time(f):
     import statistics
@@ -186,7 +201,7 @@ def average_bench_time(f):
 
 # Find the run with the smallest average benchmark time and copy those files.
 rule find_best_runs:
-    input: lambda w: [run.bench_path_with_params() for run in pa_runs_for_input(Input(**w))]
+    input: lambda w: [run.bench_path_with_params() for run in params_runs_for_input(Input(**w))]
     output: Run.pattern()
     run:
         # Loop over input bench files, find the one with the best average runtime, and copy it.
@@ -213,14 +228,14 @@ rule run_wfa:
 
 # Collect all .bench files into a single tsv.
 rule tools_table:
-    input: [run.bench_path() for run in tool_runs]
-    output: f"data/table/tools_N{N}.tsv"
+    input: lambda w: [run.bench_path() for run in tool_runs(**w)]
+    output: 'data/table/tools_N{N}.tsv'
     run:
         headers = ["alg","cnt","n","e","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
         table_file = Path(output[0]).open('w')
         table_file.write("\t".join(headers) + '\n')
         import itertools
-        for run in tool_runs:
+        for run in tool_runs(**w):
             for line in run.bench_path().read_text().splitlines()[1:]:
                 table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{line}\n')
 
