@@ -3,8 +3,8 @@
 /perf.data*
 /flamegraph.svg
 /*.svg
-/data/input/*
-/data/runs/*
+/evals/input/*
+/evals/runs/*
 /examples/test.rs
 /proof.tex
 /proof.pdf
