@@ -29,7 +29,7 @@ es = [0.01, 0.05, 0.20]
 ## PA PARAMS
 
 # Seed length, match distance pairs
-kms = [(6,0), (7,0), (8,0), (9,0), (10, 0), (11, 0), (15, 0), (20, 0), (32, 0),
+kms = [(6,0), (7,0), (8,0), (9,0), (10, 0), (11, 0), (15, 0), (20, 0), (31, 0),
        (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (14, 1)]
 # Prune fractions.
 pfs = [0.4, 0.8, 1.0]
@@ -55,9 +55,9 @@ TIMELIMITEND    = ') || true'
 # Generate testcases
 GENERATE_CMD    = 'cargo run --release --example generate_dataset -- -n {wildcards.cnt} -l {wildcards.n} -e {wildcards.e} -o {output}'
 # Run PA
-PA_CMD          = 'cargo build --release && {TIMELIMIT} {pa_bin} -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
+PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
 # Run PA with as Dijkstra, using a heuristic that's always 0.
-DIJKSTRA_CMD    = 'cargo build --release && {TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
+DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
 # -p: Return alignment
 # -s: Silent / no output
 EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'
@@ -116,8 +116,11 @@ def run_filter(run):
     if run.input.e < 0.10 and run.m > 0:
         return False
 
-    # If we expect more than 64 matches per seed, skip since we should increase k instead.
-    if 4**run.k < run.input.n / 64:
+    # If we expect many matches per seed, skip since we should increase k instead.
+    if run.m == 0 and run.input.n / 4.**run.k > 10*run.k:
+        return False
+    # The number of distance-1 matches per seed is roughly 8*k.
+    if run.m == 1 and 8*run.k* run.input.n / 4.**run.k > 10*run.k:
         return False
 
     # Never do partial pruning for m=1
