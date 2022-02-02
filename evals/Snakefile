@@ -106,9 +106,9 @@ class Run:
 # Returns false for parameters that should be skipped.
 def run_filter(run):
     if run.alg != 'pa': return True
-    # If the error rate is larger than the max rate this (k,m) can handle, skip.
+    # If the error rate is larger than the max rate this (k,m,pf) can handle, skip.
     # e is made a bit lower, since an induced error rate of 20% only gives ~15% edit distance.
-    max_error_rate = (run.m+1) / run.k
+    max_error_rate = (run.m+1) / run.k * run.pf
     if run.input.e * 0.8 > max_error_rate:
         return False
 

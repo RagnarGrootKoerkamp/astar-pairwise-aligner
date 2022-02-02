@@ -8,4 +8,4 @@
 /examples/test.rs
 /proof.tex
 /proof.pdf
-/.snakemake/
+.snakemake
