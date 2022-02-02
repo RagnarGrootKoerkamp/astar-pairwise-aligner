@@ -45,9 +45,9 @@ REPEATS = 1
 
 ## TOOL DEFINITIONS
 
-pa_bin    = 'target/release/pairwise-aligner'
-edlib_bin = '../edlib/build/bin/edlib-aligner'
-wfa_bin   = '../wfa/bin/align_benchmark'
+pa_bin    = '../target/release/pairwise-aligner'
+edlib_bin = '../../edlib/build/bin/edlib-aligner'
+wfa_bin   = '../../wfa/bin/align_benchmark'
 
 TIMELIMIT       = f'(timeout {TIMEOUT}'
 TIMELIMITEND    = ') || true'
@@ -77,11 +77,11 @@ class Input:
     def name_pattern():
         return 'x{cnt}-n{n}-e{e}'
     def pattern():
-        return 'evals/input/x{cnt}-n{n}-e{e}.seq'
+        return 'input/x{cnt}-n{n}-e{e}.seq'
     def name(self):
         return Path(f'x{self.cnt}-n{self.n}-e{self.e}')
     def path(self):
-        return Path(f'evals/input/{self.name()}.seq')
+        return Path(f'input/{self.name()}.seq')
 
 def inputs(N):
     N = int(N)
@@ -92,13 +92,13 @@ class Run:
         self.__dict__.update(kwargs)
     def pattern_with_params():
         alg = 'pa'
-        return f'evals/runs/{Input.name_pattern()}-A{alg}-m{{m}}-k{{k}}-pf{{pf}}.bench'
+        return f'runs/{Input.name_pattern()}-A{alg}-m{{m}}-k{{k}}-pf{{pf}}.bench'
     def pattern(alg='pa'):
-        return f'evals/runs/{Input.name_pattern()}-A{alg}.bench'
+        return f'runs/{Input.name_pattern()}-A{alg}.bench'
     def bench_path_with_params(self):
-        return Path(f'evals/runs/{self.input.name()}-A{self.alg}-m{self.m}-k{self.k}-pf{self.pf}.bench')
+        return Path(f'runs/{self.input.name()}-A{self.alg}-m{self.m}-k{self.k}-pf{self.pf}.bench')
     def bench_path(self):
-        return Path(f'evals/runs/{self.input.name()}-A{self.alg}.bench')
+        return Path(f'runs/{self.input.name()}-A{self.alg}.bench')
     def stats_path(self):
         assert self.alg == "pa"
         return self.bench_path_with_params().with_suffix('.stats')
@@ -186,13 +186,13 @@ def write_table(runs, output):
 # Collect all .bench files into a single tsv.
 rule params_table:
     input: lambda w: [run.bench_path_with_params() for run in params_runs(**w)]
-    output: 'evals/table/params_N{N}.tsv'
+    output: 'table/params_N{N}.tsv'
     run: write_table(params_runs(**wildcards), output)
 
 # Collect all .bench files into a single tsv.
 rule linear_table:
     input: lambda w: [run.bench_path_with_params() for run in linear_runs(**w)]
-    output: 'evals/table/linear_N{N}_e{e}_m{m}_k{k}_pf{pf}.tsv'
+    output: 'table/linear_N{N}_e{e}_m{m}_k{k}_pf{pf}.tsv'
     run: write_table(linear_runs(**wildcards), output)
 
 def average_bench_time(f):
@@ -229,7 +229,7 @@ rule run_wfa:
 # Collect all .bench files into a single tsv.
 rule tools_table:
     input: lambda w: [run.bench_path() for run in tool_runs(**w)]
-    output: 'evals/table/tools_N{N}.tsv'
+    output: 'table/tools_N{N}.tsv'
     run:
         headers = ["alg","cnt","n","e","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
         table_file = Path(output[0]).open('w')
