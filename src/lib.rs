@@ -197,11 +197,11 @@ impl AlignResult {
             (format!("{:>5}", "nr"), |this: &AlignResult| {
                 format!("{:>5}", this.sample_size)
             }),
-            (format!("{:>8}", "|a|"), |this: &AlignResult| {
-                format!("{:>8}", this.input.len_a / this.sample_size)
+            (format!("{:>10}", "|a|"), |this: &AlignResult| {
+                format!("{:>10}", this.input.len_a / this.sample_size)
             }),
-            (format!("{:>8}", "|b|"), |this: &AlignResult| {
-                format!("{:>8}", this.input.len_b / this.sample_size)
+            (format!("{:>10}", "|b|"), |this: &AlignResult| {
+                format!("{:>10}", this.input.len_b / this.sample_size)
             }),
             (format!("{:>4}", "r"), |this: &AlignResult| {
                 format!("{:>4.2}", this.input.error_rate)
@@ -334,9 +334,9 @@ impl AlignResult {
             unsafe {
                 PRINTED_HEADER = true;
             }
-            println!("{}", header.join(""));
+            println!("{}", header.join(" "));
         }
-        print!("{}", values.join(""));
+        print!("{}", values.join(" "));
         if newline {
             println!();
         } else {
