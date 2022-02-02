@@ -10,3 +10,4 @@
 /proof.pdf
 .snakemake
 /evals/imgs
+__pycache__
