@@ -116,11 +116,11 @@ def run_filter(run):
     if run.input.e < 0.10 and run.m > 0:
         return False
 
-    # If we expect many matches per seed, skip since we should increase k instead.
-    if run.m == 0 and run.input.n / 4.**run.k > 10*run.k:
+    # If we expect multiple matches per seed, skip since we should increase k instead.
+    if run.m == 0 and run.input.n / 4.**run.k > 2*run.k:
         return False
     # The number of distance-1 matches per seed is roughly 8*k.
-    if run.m == 1 and 8*run.k* run.input.n / 4.**run.k > 10*run.k:
+    if run.m == 1 and 8*run.k* run.input.n / 4.**run.k > 2*run.k:
         return False
 
     # Never do partial pruning for m=1
