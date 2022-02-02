@@ -155,6 +155,9 @@ original contour points to the contour it merged into.
 ** TODO Make the Default for the DiagonalMap State be all-zero, so that ~calloc~ can be used.
 ** TODO Reduce memory usage by deallocating DiagonalMap entries that won't be used anymore.
 ** TODO Reduce memory by storing DiagonalMap g/h as u8/u16 delta instead of u32 absolute.
+** TODO Reduce number of retries by adding an offset to the BucketQueue that's updated after every prune.
+This will require some manual updates after pruning, but removes the ~n lg n~
+for the number of retries.
 
 * Tests
 ** TODO Test all pairs with n <= 6
