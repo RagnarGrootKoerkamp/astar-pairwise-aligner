@@ -1,6 +1,6 @@
 #+TITLE: A* Pairwise Aligner
 
-A pairwise sequence aligner using A*, extending ideas from [[https://github.com/eth-sri/astarix][Astarix]]:
+A pairwise sequence aligner using A*, extending ideas from [[https://github.com/eth-sri/astarix][AStarix]]:
 
 Ivanov, Bichsel, Vechev (2021, preprint)
 [[https://www.biorxiv.org/content/10.1101/2021.11.05.467453v1][Fast and Optimal Sequence-to-Graph Alignment Guided by Seeds]]
