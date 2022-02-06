@@ -72,7 +72,7 @@ pub struct Params {
     #[structopt(long)]
     no_prune: bool,
 
-    #[structopt(long, default_value = "0.5")]
+    #[structopt(long, default_value = "1.0")]
     prune_fraction: f32,
 }
 
