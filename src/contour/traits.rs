@@ -73,8 +73,11 @@ pub trait Contours: Default + Debug {
     /// TODO: also prune all arrows ending in the given position.
     ///       or at least when this is the only outgoing arrow.
     fn prune(&mut self, _p: Pos) -> bool;
-    fn prune_with_hint(&mut self, p: Pos, _hint: Self::Hint) -> bool {
-        self.prune(p)
+    /// If the additional Cost return is positive, this indicates that position
+    /// `p` was the only arrow in its layer, and a total of Cost layers were
+    /// removed.
+    fn prune_with_hint(&mut self, p: Pos, _hint: Self::Hint) -> (bool, Cost) {
+        (self.prune(p), 0)
     }
 
     /// Returns some statistics.

@@ -56,7 +56,7 @@ where
         let h2 = self.h2.h(pos);
         // h1 is the slow accurate one, h2 the fast inaccurate one.
         assert!(h1 == h2, "Values differ at {:?}: {} {}", pos, h1, h2);
-        h1
+        h2
     }
 
     type Hint = (
@@ -68,7 +68,7 @@ where
         let s1 = self.h1.is_start_of_seed(pos);
         let s2 = self.h2.is_start_of_seed(pos);
         assert_eq!(s1, s2);
-        s1
+        s2
     }
 
     fn prune(&mut self, pos: Pos) {
@@ -76,16 +76,18 @@ where
         self.h2.prune(pos);
     }
 
-    fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) {
-        self.h1.prune_with_hint(pos, hint.0);
-        self.h2.prune_with_hint(pos, hint.1);
+    fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) -> Cost {
+        let c1 = self.h1.prune_with_hint(pos, hint.0);
+        let c2 = self.h2.prune_with_hint(pos, hint.1);
+        println!("{c1} {c2}");
+        c2
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let (c1, hint1) = self.h1.h_with_hint(pos, hint.0);
         let (c2, hint2) = self.h2.h_with_hint(pos, hint.1);
         assert!(c1 == c2, "Values differ at {:?}: {} {}", pos, c1, c2);
-        (c1, (hint1, hint2))
+        (c2, (hint1, hint2))
     }
 
     fn root_state(&self, root_pos: Self::Pos) -> Self::Hint {
@@ -93,6 +95,15 @@ where
     }
 
     fn stats(&self) -> HeuristicStats {
-        self.h1.stats()
+        self.h2.stats()
+    }
+
+    fn root_potential(&self) -> Cost {
+        self.h2.root_potential()
+    }
+
+    fn explore(&mut self, pos: Self::Pos) {
+        self.h1.explore(pos);
+        self.h2.explore(pos);
     }
 }

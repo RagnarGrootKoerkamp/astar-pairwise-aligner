@@ -141,9 +141,9 @@ pub struct GapSeedHeuristicI<C: Contours> {
     num_tried_pruned: usize,
     num_actual_pruned: usize,
 
-    // For the fast version
+    /// The max transformed position.
+    max_transformed_pos: Pos,
     transform_target: Pos,
-    //contour_graph: ContourGraph<usize>,
     contours: C,
 
     // For debugging
@@ -179,13 +179,16 @@ impl<C: Contours> GapSeedHeuristicI<C> {
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos::from_length(a, b),
             seed_matches,
-            transform_target: Pos(0, 0),
-
-            // Filled below.
-            contours: C::default(),
-            pruning_duration: Default::default(),
             num_tried_pruned: 0,
             num_actual_pruned: 0,
+
+            // For pruning propagation
+            max_transformed_pos: Pos(0, 0),
+
+            // Filled below.
+            transform_target: Pos(0, 0),
+            contours: C::default(),
+            pruning_duration: Default::default(),
         };
         h.transform_target = h.transform(h.target);
         h.build();
@@ -272,12 +275,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     }
 
     fn prune(&mut self, pos: Pos) {
-        self.prune_with_hint(pos, Self::Hint::default())
+        self.prune_with_hint(pos, Self::Hint::default());
     }
 
-    fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) {
+    fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) -> Cost {
         if !self.params.pruning {
-            return;
+            return 0;
         }
 
         // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
@@ -291,7 +294,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 // FIXME: Re-enable this assertion.
                 //assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
                 if cur_val > nb_val {
-                    return;
+                    return 0;
                 }
             }
             if pos.1 < self.target.1 {
@@ -299,7 +302,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 // FIXME: Re-enable this assertion.
                 //assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
                 if cur_val > nb_val {
-                    return;
+                    return 0;
                 }
             }
         }
@@ -308,18 +311,42 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         if self.num_actual_pruned as f32
             >= self.num_tried_pruned as f32 * self.params.prune_fraction
         {
-            return;
+            return 0;
         }
         self.num_actual_pruned += 1;
 
+        let tpos = self.transform(pos);
         if print() {
-            println!("PRUNE INCREMENT {} / {}", pos, self.transform(pos));
+            println!("PRUNE INCREMENT {} / {}", pos, tpos);
         }
         let start = time::Instant::now();
-        let change = self.contours.prune_with_hint(self.transform(pos), hint);
+        let change = self.contours.prune_with_hint(tpos, hint);
         self.pruning_duration += start.elapsed();
-        if change && print() {
+        if change.0 && print() {
             self.print(true, false);
+        }
+        if tpos >= self.max_transformed_pos {
+            return change.1;
+        } else {
+            return 0;
+        }
+    }
+
+    fn explore(&mut self, pos: Self::Pos) {
+        let tpos = self.transform(pos);
+        if tpos.0 >= self.max_transformed_pos.0 {
+            if tpos.0 > self.max_transformed_pos.0 {
+                self.max_transformed_pos.0 = tpos.0;
+                //self.max_i_pos.clear();
+            }
+            //self.max_i_pos.push(pos);
+        }
+        if tpos.1 >= self.max_transformed_pos.1 {
+            if tpos.1 > self.max_transformed_pos.1 {
+                self.max_transformed_pos.1 = tpos.1;
+                //self.max_j_pos.clear();
+            }
+            //self.max_j_pos.push(pos);
         }
     }
 
@@ -433,5 +460,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             let mut ret = String::new();
             io::stdin().read_line(&mut ret).unwrap();
         }
+    }
+
+    fn root_potential(&self) -> Cost {
+        self.seed_matches.potential(Pos(0, 0))
     }
 }

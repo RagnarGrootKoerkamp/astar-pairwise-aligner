@@ -90,6 +90,7 @@ skip pruning.
 ** DONE pruning time
 CLOSED: [2022-01-13 Thu 18:56]
 ** TODO Use ~explored/path-len~ for band, instead of ~explored/max(n,m)~
+** TODO Report number of allocated DiagonalMap states and % filled
 
 * Code
 ** TODO fuzzing/testing that fast impls equal slow impls
@@ -155,9 +156,17 @@ original contour points to the contour it merged into.
 ** TODO Make the Default for the DiagonalMap State be all-zero, so that ~calloc~ can be used.
 ** TODO Reduce memory usage by deallocating DiagonalMap entries that won't be used anymore.
 ** TODO Reduce memory by storing DiagonalMap g/h as u8/u16 delta instead of u32 absolute.
-** TODO Reduce number of retries by adding an offset to the BucketQueue that's updated after every prune.
-This will require some manual updates after pruning, but removes the ~n lg n~
-for the number of retries.
+** DONE Reduce number of retries by adding an offset to the BucketQueue that's updated after every prune.
+CLOSED: [2022-02-06 Sun 13:02]
+When the position to be pruned is the largest transformed position seen so far,
+add an offset to the priority queue since all expanded states need updating.
+
+Currently this can only work if the pruned match is preceded by another exact
+match, since expanded states just above/left of the pruned position will be
+larger than the pruned position in the transformed domain.
+
+For large n and e=0.01 or e=0.05, this reduces the number of retries by 10x to 100x.
+** TODO Reduce retries more: Also prune when there's <Constant~=10 states that need updating.
 
 * Tests
 ** TODO Test all pairs with n <= 6

@@ -86,15 +86,27 @@ pub trait HeuristicInstance<'a> {
         Default::default()
     }
 
+    fn root_potential(&self) -> Cost {
+        println!("base root potential");
+        0
+    }
+
     /// A* will checked for consistency whenever this returns true.
     fn is_start_of_seed(&mut self, _pos: Self::Pos) -> bool {
         true
     }
 
     fn prune(&mut self, _pos: Self::Pos) {}
-    fn prune_with_hint(&mut self, pos: Self::Pos, _hint: Self::Hint) {
-        self.prune(pos)
+    /// Returns the offset by which all expanded states in the priority queue can be shifted.
+    fn prune_with_hint(&mut self, pos: Self::Pos, _hint: Self::Hint) -> Cost {
+        self.prune(pos);
+        0
     }
+
+    /// Tells the heuristic that the position was explored, so it knows which
+    /// positions need to be updated when propagating the pruning to the
+    /// priority queue.
+    fn explore(&mut self, _pos: Self::Pos) {}
 
     fn stats(&self) -> HeuristicStats {
         Default::default()
