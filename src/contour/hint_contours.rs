@@ -182,12 +182,13 @@ impl<C: Contour> Contours for HintContours<C> {
                 original_layer: Cost::MAX,
             },
         )
+        .0
     }
 
-    fn prune_with_hint(&mut self, p: Pos, hint: Hint) -> bool {
+    fn prune_with_hint(&mut self, p: Pos, hint: Hint) -> (bool, Cost) {
         if self.arrows.remove(&p).is_none() {
             // This position was already pruned or never needed pruning.
-            return false;
+            return (false, 0);
         }
 
         // Work contour by contour.
@@ -196,11 +197,15 @@ impl<C: Contour> Contours for HintContours<C> {
         //for (i, c) in self.contours.iter().enumerate().rev() {
         //println!("{}: {:?}", i, c);
         //}
+        // println!("BEFORE PRUNE");
+        // for i in v.saturating_sub(4)..min(v + 4, self.contours.len() as Cost) {
+        //     println!("{}: {:?}", i, self.contours[i as usize]);
+        // }
 
         // Prune the current point, and also any other lazily pruned points that become dominant.
         if !self.contours[v as usize].prune_filter(&mut |pos| !self.arrows.contains_key(&pos)) {
             //println!("SKIP");
-            return false;
+            return (false, 0);
         }
 
         {
@@ -214,6 +219,27 @@ impl<C: Contour> Contours for HintContours<C> {
 
         self.stats.borrow_mut().prunes += 1;
         //println!("PRUNE {} at LAYER {}", p, v);
+
+        // If this layer becomes empty, and the max_len-1 layers below it are
+        // also empty, shift everything down by max_dist, and report this back
+        // for efficient updating of heuristic values in the queue.
+        if self.contours[v as usize].len() == 0 {
+            let mut all_empty = true;
+            for w in (v + 1 - self.max_len) as usize..v as usize {
+                all_empty &= self.contours[w].len() == 0;
+            }
+            if all_empty {
+                // Delete these max_len layers.
+                for _ in 0..self.max_len {
+                    //println!("Delete layer {} of len {}", v, self.contours[v].len());
+                    assert!(self.contours[v as usize].len() == 0);
+                    self.contours.remove(v as usize);
+                    self.layers_removed += 1;
+                    v -= 1;
+                }
+                return (true, self.max_len);
+            }
+        }
 
         // Loop over the dominant matches in the next layer, and repeatedly prune while needed.
         let mut last_change = v;
@@ -392,7 +418,6 @@ impl<C: Contour> Contours for HintContours<C> {
                     for _ in 0..previous_shift {
                         //println!("Delete layer {} of len {}", v, self.contours[v].len());
                         assert!(self.contours[v as usize].len() == 0);
-                        // TODO: Instead of removing contours, keep a Fenwick Tree that counts the number of removed layers.
                         self.contours.remove(v as usize);
                         self.layers_removed += 1;
                         v -= 1;
@@ -416,7 +441,7 @@ impl<C: Contour> Contours for HintContours<C> {
         // for (i, c) in self.contours.iter().enumerate().rev() {
         //     //println!("{}: {:?}", i, c);
         // }
-        true
+        (true, 0)
     }
 
     #[allow(unreachable_code)]

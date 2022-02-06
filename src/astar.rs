@@ -33,10 +33,12 @@ impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
 pub struct AStarStats<Pos> {
     pub expanded: usize,
     pub explored: usize,
-    // Number of times an already expanded node was expanded again with a lower value of f.
+    /// Number of times an already expanded node was expanded again with a lower value of f.
     pub double_expanded: usize,
-    // Number of times a node was popped and found to have an outdated value of h after pruning.
+    /// Number of times a node was popped and found to have an outdated value of h after pruning.
     pub retries: usize,
+    /// Number of times a prune is propagated to the priority queue.
+    pub reduce_retries: usize,
     #[serde(skip_serializing)]
     pub explored_states: Vec<Pos>,
     #[serde(skip_serializing)]
@@ -62,16 +64,31 @@ where
         explored: 0,
         double_expanded: 0,
         retries: 0,
+        reduce_retries: 0,
         explored_states: Vec::default(),
         expanded_states: Vec::default(),
     };
 
-    let mut queue = heap::Heap::<G::Pos, Cost>::default(); // f
+    // f -> pos
+    let mut queue = heap::Heap::<G::Pos, Cost>::default();
+    // When > 0, queue[x] corresponds to f=x+offset.
+    // Increasing the offset implicitly shifts all elements of the queue up.
+    let mut queue_offset: Cost = 0;
+    // An upper bound on the queue_offset, to make sure indices never become negative.
+    let max_queue_offset = if REDUCE_RETRIES {
+        h.root_potential()
+    } else {
+        0
+    };
     let mut states = G::DiagonalMap::<State<G::Parent, H::Hint>>::new(target);
 
     {
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
-        queue.push(MinScored(hroot, start, 0));
+        queue.push(MinScored(
+            hroot + (max_queue_offset - queue_offset),
+            start,
+            0,
+        ));
         states.insert(
             start,
             State {
@@ -84,6 +101,7 @@ where
     }
 
     while let Some(MinScored(queue_f, mut pos, queue_g)) = queue.pop() {
+        let queue_f = queue_f + queue_offset - max_queue_offset;
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
         //let g = gs[pos];
@@ -103,9 +121,17 @@ where
             let (current_h, new_hint) = h.h_with_hint(pos, state.hint);
             state.hint = new_hint;
             let current_f = g + current_h;
+            assert!(
+                current_f >= queue_f,
+                "Current_f {current_f} smaller than queue_f {queue_f}!"
+            );
             if current_f > queue_f {
                 stats.retries += 1;
-                queue.push(MinScored(current_f, pos, queue_g));
+                queue.push(MinScored(
+                    current_f + (max_queue_offset - queue_offset),
+                    pos,
+                    queue_g,
+                ));
                 continue;
             }
         }
@@ -148,7 +174,11 @@ where
                 // Starts of seeds should only be expanded once.
                 // FIXME: This is still broken from time to time.
                 assert!(!double_expanded, "Double expanded start of seed {:?}", pos);
-                h.prune_with_hint(pos, hint);
+                let pq_shift = h.prune_with_hint(pos, hint);
+                if REDUCE_RETRIES && pq_shift > 0 {
+                    stats.reduce_retries += 1;
+                    queue_offset += pq_shift;
+                }
             }
 
             // Retrace path to root and return.
@@ -188,6 +218,11 @@ where
                 *new_state = state;
                 pos = next;
 
+                // NOTE: We do not call h.expand() here, because it isn't needed for pruning-propagation:
+                // Pruned positions on this diagonal will always be larger than
+                // the expanded positions in front of it, and problems only
+                // arise for non-diagonal edges.
+
                 // Count the new state as explored.
                 stats.explored += 1;
                 if DEBUG {
@@ -217,8 +252,13 @@ where
             next_state.g = next_g;
             next_state.parent = parent;
             next_state.hint = next_hint;
-            queue.push(MinScored(next_f, next, next_g));
+            queue.push(MinScored(
+                next_f + (max_queue_offset - queue_offset),
+                next,
+                next_g,
+            ));
 
+            h.explore(next);
             stats.explored += 1;
             if DEBUG {
                 stats.explored_states.push(pos);

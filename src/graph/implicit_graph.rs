@@ -8,10 +8,13 @@ use crate::diagonal_map::DiagonalMapTrait;
 
 use super::{Cost, I};
 
-pub trait PosTrait: Copy + Eq + hash::Hash + std::fmt::Debug {
+pub trait PosTrait:
+    Copy + Eq + hash::Hash + std::fmt::Debug + PartialOrd + std::fmt::Display
+{
     type Output: Ord;
     fn key(&self) -> Self::Output;
     fn add_diagonal(&self, step: I) -> Self;
+    fn max_with(&mut self, other: &Self);
 }
 
 pub trait ParentTrait<Pos>: Default + Clone + Copy {

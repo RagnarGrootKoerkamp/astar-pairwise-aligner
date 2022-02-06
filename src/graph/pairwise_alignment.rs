@@ -1,4 +1,7 @@
-use std::fmt::{Debug, Display};
+use std::{
+    cmp::max,
+    fmt::{Debug, Display},
+};
 
 use super::{implicit_graph, ImplicitGraph, ParentTrait};
 use crate::diagonal_map::DiagonalMap;
@@ -115,6 +118,11 @@ impl implicit_graph::PosTrait for Pos {
     #[inline]
     fn add_diagonal(&self, step: I) -> Self {
         Pos(self.0 + step, self.1 + step)
+    }
+
+    fn max_with(&mut self, other: &Self) {
+        self.0 = max(self.0, other.0);
+        self.1 = max(self.1, other.1);
     }
 }
 

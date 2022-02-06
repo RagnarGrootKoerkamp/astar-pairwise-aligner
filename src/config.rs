@@ -41,3 +41,6 @@ pub const FIND_MATCHES_TRIE: bool = false;
 /// Use a HashMap to find matches. Only works with exact matches and fixed k.
 /// Default: Use QGramIndex to find matches.
 pub const FIND_MATCHES_HASH: bool = true;
+
+/// Whether to use shifting of the priority queue to reduce retries.
+pub const REDUCE_RETRIES: bool = true;
