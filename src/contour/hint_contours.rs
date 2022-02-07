@@ -203,6 +203,7 @@ impl<C: Contour> Contours for HintContours<C> {
         // }
 
         // Prune the current point, and also any other lazily pruned points that become dominant.
+        // If nothing changed, return false.
         if !self.contours[v as usize].prune_filter(&mut |pos| !self.arrows.contains_key(&pos)) {
             //println!("SKIP");
             return (false, 0);

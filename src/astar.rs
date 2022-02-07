@@ -38,7 +38,9 @@ pub struct AStarStats<Pos> {
     /// Number of times a node was popped and found to have an outdated value of h after pruning.
     pub retries: usize,
     /// Number of times a prune is propagated to the priority queue.
-    pub reduce_retries: usize,
+    pub pq_shifts: usize,
+    /// Number of states allocated in the DiagonalMap
+    pub diagonalmap_capacity: usize,
     #[serde(skip_serializing)]
     pub explored_states: Vec<Pos>,
     #[serde(skip_serializing)]
@@ -64,9 +66,10 @@ where
         explored: 0,
         double_expanded: 0,
         retries: 0,
-        reduce_retries: 0,
+        pq_shifts: 0,
         explored_states: Vec::default(),
         expanded_states: Vec::default(),
+        diagonalmap_capacity: 0,
     };
 
     // f -> pos
@@ -172,11 +175,10 @@ where
             if h.is_start_of_seed(pos) {
                 // Check that we don't double expand start-of-seed states.
                 // Starts of seeds should only be expanded once.
-                // FIXME: This is still broken from time to time.
                 assert!(!double_expanded, "Double expanded start of seed {:?}", pos);
                 let pq_shift = h.prune_with_hint(pos, hint);
                 if REDUCE_RETRIES && pq_shift > 0 {
-                    stats.reduce_retries += 1;
+                    stats.pq_shifts += 1;
                     queue_offset += pq_shift;
                 }
             }
@@ -194,6 +196,7 @@ where
                 }
 
                 path.reverse();
+                stats.diagonalmap_capacity = states.capacity();
                 return Some((g, path, stats));
             }
 

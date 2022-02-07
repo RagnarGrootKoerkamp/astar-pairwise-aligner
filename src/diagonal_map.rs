@@ -13,6 +13,7 @@ pub trait DiagonalMapTrait<Pos, V>: Index<Pos, Output = V> + IndexMut<Pos> {
     fn new(target: Pos) -> Self;
     fn insert(&mut self, pos: Pos, v: V);
     fn get_mut(&mut self, pos: Pos) -> &mut V;
+    fn capacity(&self) -> usize;
 }
 
 /// A HashMap drop-in replacement for 2D data that's dense around the diagonal.
@@ -20,8 +21,9 @@ pub struct DiagonalMap<V> {
     above: Vec<Vec<V>>,
     below: Vec<Vec<V>>,
     // For each diagonal, allocate a number of blocks of length ~sqrt(n).
-    num_blocks: I,
+    blocks_per_diagonal: I,
     lg_block_size: usize,
+    allocated_blocks: usize,
 }
 
 // TODO: Use some NonZero types to make this type smaller.
@@ -37,12 +39,12 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
     fn index_of(&self, &Pos(i, j): &Pos) -> DIndex {
         if i >= j {
             Above(
-                self.num_blocks * (i - j) + (j >> self.lg_block_size),
+                self.blocks_per_diagonal * (i - j) + (j >> self.lg_block_size),
                 j & ((1 << self.lg_block_size) - 1),
             )
         } else {
             Below(
-                self.num_blocks * (j - i - 1) + (i >> self.lg_block_size),
+                self.blocks_per_diagonal * (j - i - 1) + (i >> self.lg_block_size),
                 i & ((1 << self.lg_block_size) - 1),
             )
         }
@@ -75,6 +77,7 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
                     self.above.resize_with(i as usize + 1, Vec::default);
                 }
                 if self.above[i as usize].len() as I <= j {
+                    self.allocated_blocks += 1;
                     self.above[i as usize] = vec![V::default(); 1 << self.lg_block_size];
                 }
             }
@@ -83,6 +86,7 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
                     self.below.resize_with(i as usize + 1, Vec::default);
                 }
                 if self.below[i as usize].len() as I <= j {
+                    self.allocated_blocks += 1;
                     self.below[i as usize] = vec![V::default(); 1 << self.lg_block_size];
                 }
             }
@@ -107,8 +111,9 @@ impl<V: Default + Clone + Copy> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
         DiagonalMap {
             above: vec![Vec::default(); (max(n - m, 3) * num_blocks) as usize],
             below: vec![Vec::default(); (max(n - m, 3) * num_blocks) as usize],
-            num_blocks,
+            blocks_per_diagonal: num_blocks,
             lg_block_size,
+            allocated_blocks: 0,
         }
     }
 
@@ -121,6 +126,10 @@ impl<V: Default + Clone + Copy> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
     fn insert(&mut self, pos: Pos, v: V) {
         let idx = self.index_of(&pos);
         *self.get_mut_entry(&idx) = v;
+    }
+
+    fn capacity(&self) -> usize {
+        self.allocated_blocks << self.lg_block_size
     }
 }
 
@@ -173,5 +182,9 @@ impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V> {
 
     fn insert(&mut self, pos: Pos, v: V) {
         self.insert(pos, v);
+    }
+
+    fn capacity(&self) -> usize {
+        self.capacity()
     }
 }

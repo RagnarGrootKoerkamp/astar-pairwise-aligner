@@ -313,7 +313,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         {
             return 0;
         }
-        self.num_actual_pruned += 1;
 
         let tpos = self.transform(pos);
         if print() {
@@ -322,6 +321,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         let start = time::Instant::now();
         let change = self.contours.prune_with_hint(tpos, hint);
         self.pruning_duration += start.elapsed();
+        if change.0 {
+            self.num_actual_pruned += 1;
+        }
         if change.0 && print() {
             self.print(true, false);
         }
@@ -360,6 +362,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 None
             },
             pruning_duration: Some(self.pruning_duration.as_secs_f32()),
+            num_prunes: Some(self.num_actual_pruned),
         }
     }
 

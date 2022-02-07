@@ -170,10 +170,15 @@ impl AlignResult {
         if let Some(x) = &mut self.heuristic_stats.num_matches {
             *x += other.heuristic_stats.num_matches.unwrap_or_default();
         }
+        if let Some(x) = &mut self.heuristic_stats.num_prunes {
+            *x += other.heuristic_stats.num_prunes.unwrap_or_default();
+        }
         self.astar.expanded += other.astar.expanded;
         self.astar.explored += other.astar.explored;
         self.astar.double_expanded += other.astar.double_expanded;
         self.astar.retries += other.astar.retries;
+        self.astar.pq_shifts += other.astar.pq_shifts;
+        self.astar.diagonalmap_capacity += other.astar.diagonalmap_capacity;
         self.timing.precomputation += other.timing.precomputation;
         self.timing.astar += other.timing.astar;
         if let Some(x) = &mut self.heuristic_stats.pruning_duration {
@@ -266,6 +271,18 @@ impl AlignResult {
             (format!("{:>7}", "ret"), |this: &AlignResult| {
                 format!("{:>7}", this.astar.retries / this.sample_size)
             }),
+            (format!("{:>7}", "prunes"), |this: &AlignResult| {
+                format!(
+                    "{:>7}",
+                    AlignResult::print_opt_sampled(
+                        this.heuristic_stats.num_prunes,
+                        this.sample_size
+                    )
+                )
+            }),
+            (format!("{:>7}", "shift"), |this: &AlignResult| {
+                format!("{:>7}", this.astar.pq_shifts / this.sample_size)
+            }),
             (format!("{:>8}", "band"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
@@ -291,28 +308,34 @@ impl AlignResult {
                         format!("{:>8.2}", 1000. * x / this.sample_size as f32)
                     })
             }),
-            (format!("{:>5}", "dist"), |this: &AlignResult| {
+            (format!("{:>7}", "dist"), |this: &AlignResult| {
                 format!(
-                    "{:>5.0}",
+                    "{:>7.0}",
                     this.edit_distance as f32 / this.sample_size as f32
                 )
             }),
-            (format!("{:>6.0}", "h(0,0)"), |this: &AlignResult| {
+            (format!("{:>6}", "h0"), |this: &AlignResult| {
                 format!(
                     "{:>6.0}",
                     this.heuristic_stats2.root_h as f32 / this.sample_size as f32
                 )
             }),
-            (format!("{:>5}", "m_pat"), |this: &AlignResult| {
+            // (format!("{:>5}", "m_pat"), |this: &AlignResult| {
+            //     format!(
+            //         "{:>5}",
+            //         AlignResult::print_opt(this.heuristic_stats2.path_matches)
+            //     )
+            // }),
+            // (format!("{:>5}", "m_exp"), |this: &AlignResult| {
+            //     format!(
+            //         "{:>5}",
+            //         AlignResult::print_opt(this.heuristic_stats2.explored_matches)
+            //     )
+            // }),
+            (format!("{:>5}", "DM fr"), |this: &AlignResult| {
                 format!(
-                    "{:>5}",
-                    AlignResult::print_opt(this.heuristic_stats2.path_matches)
-                )
-            }),
-            (format!("{:>5}", "m_exp"), |this: &AlignResult| {
-                format!(
-                    "{:>5}",
-                    AlignResult::print_opt(this.heuristic_stats2.explored_matches)
+                    "{:>5.3}",
+                    this.astar.explored as f32 / this.astar.diagonalmap_capacity as f32
                 )
             }),
         ];
