@@ -54,6 +54,7 @@ def num_lower(serie):
 def read_benchmarks(tsv_fn, algo=None):
     df = pd.read_csv(tsv_fn, sep='\t', index_col=False)
     df['s_per_pair'] = df['s'] / df['cnt']
+    #df = df.groupby(["alg", "cnt", "e"]).median()
 
     #df['pushed+popped'] = df['pushed'] + df['popped']
     #df['explored_per_bp'] = df['explored_states'] / df['len']

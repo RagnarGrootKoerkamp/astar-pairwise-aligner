@@ -1,4 +1,4 @@
-alg	cnt	n	e	m	k	pf	s	h:m:s	max_rss	max_vms	max_uss	max_pss	io_in	io_out	mean_load	cpu_time	nr	|a|	|b|	r	H	k	md	pr	bf	dist	seeds	matches	expanded	explored	dbl	ret	band	precom	align	prune	dist		m_pat	m_exp
+alg	cnt	n	e	m	k	pf	s	h:m:s	max_rss	max_vms	max_uss	max_pss	io_in	io_out	mean_load	cpu_time	nr	|a|	|b|	r	H	k	md	pr	bf	dist	seeds	matches	expanded	explored	dbl	ret	band	precom	align	prune	dist	h(0,0)	m_pat	m_exp
 pa	10000	100	0.01	0	6	0.4	0.2072	0:00:00	9.06	20.79	3.43	4.15	0.00	0.00	0.00	0.01	10000	100	100	0.00	GapSeed	6	0	1		Gap	16	15	101	102	0	0	1.02	0.01	0.01	0.00	1	1		
 pa	10000	100	0.01	0	6	0.8	0.2344	0:00:00	2.83	7.10	0.46	0.77	0.00	0.00	0.00	0.00	10000	100	100	0.00	GapSeed	6	0	1		Gap	16	15	101	102	0	0	1.02	0.01	0.01	0.00	1	1		
 pa	10000	100	0.01	0	6	1.0	0.2256	0:00:00	2.76	7.10	0.45	0.74	0.00	0.00	0.00	0.00	10000	100	100	0.00	GapSeed	6	0	1		Gap	16	15	101	102	0	0	1.02	0.01	0.01	0.00	1	1		
