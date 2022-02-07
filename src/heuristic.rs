@@ -32,6 +32,7 @@ pub struct HeuristicStats {
     #[serde(skip_serializing)]
     pub matches: Option<Vec<Match>>,
     pub pruning_duration: Option<f32>,
+    pub num_prunes: Option<usize>,
 }
 
 impl Default for HeuristicStats {
@@ -41,6 +42,7 @@ impl Default for HeuristicStats {
             num_matches: Some(0),
             matches: Default::default(),
             pruning_duration: Some(0.),
+            num_prunes: Some(0),
         }
     }
 }

@@ -197,6 +197,7 @@ where
             num_matches: Some(self.matches.matches.len()),
             matches: Some(self.matches.matches.clone()),
             pruning_duration: Some(self.pruning_duration.as_secs_f32()),
+            num_prunes: Some(self.num_actual_pruned),
         }
     }
 
