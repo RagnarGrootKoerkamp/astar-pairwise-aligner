@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use std::{
     cmp::max,
     fmt::{Debug, Display},
@@ -120,6 +121,7 @@ impl implicit_graph::PosTrait for Pos {
         Pos(self.0 + step, self.1 + step)
     }
 
+    #[inline]
     fn max_with(&mut self, other: &Self) {
         self.0 = max(self.0, other.0);
         self.1 = max(self.1, other.1);
