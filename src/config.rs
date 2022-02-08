@@ -44,3 +44,6 @@ pub const FIND_MATCHES_HASH: bool = true;
 
 /// Whether to use shifting of the priority queue to reduce retries.
 pub const REDUCE_RETRIES: bool = true;
+
+/// Whether to use an offset array in the DiagonalMap.
+pub const DIAGONAL_MAP_OFFSET: bool = false;

@@ -1,5 +1,8 @@
 use crate::prelude::*;
-use std::ops::{Index, IndexMut};
+use std::{
+    cell::RefCell,
+    ops::{Index, IndexMut},
+};
 
 #[derive(PartialEq, Eq)]
 pub enum InsertIfSmallerResult {
@@ -12,12 +15,14 @@ pub enum InsertIfSmallerResult {
 pub trait DiagonalMapTrait<Pos, V>: Index<Pos, Output = V> + IndexMut<Pos> {
     fn new(target: Pos) -> Self;
     fn insert(&mut self, pos: Pos, v: V);
+    fn get(&self, pos: Pos) -> Option<&V>;
     fn get_mut(&mut self, pos: Pos) -> &mut V;
     fn capacity(&self) -> usize;
 }
 
 /// A HashMap drop-in replacement for 2D data that's dense around the diagonal.
 pub struct DiagonalMap<V> {
+    offset: RefCell<Vec<Cost>>,
     above: Vec<Vec<V>>,
     below: Vec<Vec<V>>,
     // For each diagonal, allocate a number of blocks of length ~sqrt(n).
@@ -37,14 +42,23 @@ use DIndex::*;
 impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
     #[inline]
     fn index_of(&self, &Pos(i, j): &Pos) -> DIndex {
-        if i >= j {
+        let o = if DIAGONAL_MAP_OFFSET {
+            let ref mut o = self.offset.borrow_mut()[i as usize];
+            if *o == Cost::MAX {
+                *o = j;
+            }
+            *o
+        } else {
+            i
+        };
+        if j <= o {
             Above(
-                self.blocks_per_diagonal * (i - j) + (j >> self.lg_block_size),
-                j & ((1 << self.lg_block_size) - 1),
+                self.blocks_per_diagonal * (o - j) + (i >> self.lg_block_size),
+                i & ((1 << self.lg_block_size) - 1),
             )
         } else {
             Below(
-                self.blocks_per_diagonal * (j - i - 1) + (i >> self.lg_block_size),
+                self.blocks_per_diagonal * (j - o - 1) + (i >> self.lg_block_size),
                 i & ((1 << self.lg_block_size) - 1),
             )
         }
@@ -69,23 +83,47 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
     }
 
     #[inline]
+    fn contains(&self, idx: &DIndex) -> bool {
+        match *idx {
+            // TODO: Reserving could be slightly more optimal.
+            Above(i, j) => {
+                if i >= self.above.len() as I {
+                    return false;
+                }
+                if j >= self.above[i as usize].len() as I {
+                    return false;
+                }
+            }
+            Below(i, j) => {
+                if i >= self.below.len() as I {
+                    return false;
+                }
+                if j >= self.below[i as usize].len() as I {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    #[inline]
     fn grow(&mut self, idx: &DIndex) {
         match *idx {
             // TODO: Reserving could be slightly more optimal.
             Above(i, j) => {
-                if self.above.len() as I <= i {
+                if i >= self.above.len() as I {
                     self.above.resize_with(i as usize + 1, Vec::default);
                 }
-                if self.above[i as usize].len() as I <= j {
+                if j >= self.above[i as usize].len() as I {
                     self.allocated_blocks += 1;
                     self.above[i as usize] = vec![V::default(); 1 << self.lg_block_size];
                 }
             }
             Below(i, j) => {
-                if self.below.len() as I <= i {
+                if i >= self.below.len() as I {
                     self.below.resize_with(i as usize + 1, Vec::default);
                 }
-                if self.below[i as usize].len() as I <= j {
+                if j >= self.below[i as usize].len() as I {
                     self.allocated_blocks += 1;
                     self.below[i as usize] = vec![V::default(); 1 << self.lg_block_size];
                 }
@@ -109,11 +147,25 @@ impl<V: Default + Clone + Copy> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
         // Reserve length n arrays, roughly corresponding to a sqrt(n) band.
         let m = min(target.0, target.1);
         DiagonalMap {
+            offset: RefCell::new(if DIAGONAL_MAP_OFFSET {
+                vec![Cost::MAX; target.0 as usize + 1]
+            } else {
+                (0..target.0 + 1).collect()
+            }),
             above: vec![Vec::default(); (max(n - m, 3) * num_blocks) as usize],
             below: vec![Vec::default(); (max(n - m, 3) * num_blocks) as usize],
             blocks_per_diagonal: num_blocks,
             lg_block_size,
             allocated_blocks: 0,
+        }
+    }
+
+    fn get(&self, pos: Pos) -> Option<&V> {
+        let idx = self.index_of(&pos);
+        if self.contains(&idx) {
+            Some(&self[pos])
+        } else {
+            None
         }
     }
 
@@ -174,6 +226,10 @@ impl<V: Default> IndexMut<Pos> for HashMap<Pos, V> {
 impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V> {
     fn new(_target: Pos) -> Self {
         Default::default()
+    }
+
+    fn get(&self, pos: Pos) -> Option<&V> {
+        self.get(&pos)
     }
 
     fn get_mut(&mut self, pos: Pos) -> &mut V {
