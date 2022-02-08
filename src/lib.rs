@@ -170,6 +170,12 @@ impl AlignResult {
         if let Some(x) = &mut self.heuristic_stats.num_matches {
             *x += other.heuristic_stats.num_matches.unwrap_or_default();
         }
+        if let Some(x) = &mut self.heuristic_stats.num_filtered_matches {
+            *x += other
+                .heuristic_stats
+                .num_filtered_matches
+                .unwrap_or_default();
+        }
         if let Some(x) = &mut self.heuristic_stats.num_prunes {
             *x += other.heuristic_stats.num_prunes.unwrap_or_default();
         }
@@ -199,8 +205,8 @@ impl AlignResult {
     pub fn values(&self) -> (Vec<String>, Vec<String>) {
         type ColumnType = (String, fn(&AlignResult) -> String);
         let columns: &[ColumnType] = &[
-            (format!("{:>5}", "nr"), |this: &AlignResult| {
-                format!("{:>5}", this.sample_size)
+            (format!("{:>7}", "nr"), |this: &AlignResult| {
+                format!("{:>7}", this.sample_size)
             }),
             (format!("{:>10}", "|a|"), |this: &AlignResult| {
                 format!("{:>10}", this.input.len_a / this.sample_size)
@@ -235,7 +241,7 @@ impl AlignResult {
                     AlignResult::print_opt_bool(this.heuristic_params.build_fast)
                 )
             }),
-            (format!("{:<5}", "dist"), |this: &AlignResult| {
+            (format!("{:<5}", "ed"), |this: &AlignResult| {
                 format!(
                     "{:<5}",
                     AlignResult::print_opt(this.heuristic_params.distance_function.as_ref())
@@ -255,6 +261,15 @@ impl AlignResult {
                     "{:>7}",
                     AlignResult::print_opt_sampled(
                         this.heuristic_stats.num_matches,
+                        this.sample_size
+                    )
+                )
+            }),
+            (format!("{:>7}", "f-match"), |this: &AlignResult| {
+                format!(
+                    "{:>7}",
+                    AlignResult::print_opt_sampled(
+                        this.heuristic_stats.num_filtered_matches,
                         this.sample_size
                     )
                 )
