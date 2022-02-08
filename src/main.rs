@@ -141,7 +141,7 @@ fn main() {
         let (a, b, _, _) = setup(args.input.n.unwrap(), args.input.e);
         let r = run(&a, &b, &args.params);
         avg_result.add_sample(&r);
-        if !args.silent {
+        if !args.silent2 {
             r.print();
         }
     }

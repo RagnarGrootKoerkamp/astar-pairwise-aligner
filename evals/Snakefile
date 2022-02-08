@@ -49,6 +49,7 @@ pa_bin    = '../target/release/pairwise-aligner'
 edlib_bin = '../../edlib/build/bin/edlib-aligner'
 wfa_bin   = '../../wfa/bin/align_benchmark'
 
+# TODO: Distinguish between timeout and OOM.
 TIMELIMIT       = f'(timeout {TIMEOUT}'
 TIMELIMITEND    = ') || true'
 
