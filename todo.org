@@ -175,6 +175,7 @@ larger than the pruned position in the transformed domain.
 For large n and e=0.01 or e=0.05, this reduces the number of retries by 10x to 100x.
 ** TODO Reduce retries more: Also prune when there's <Constant~=10 states that need updating.
 
+** TODO Estimate/Exponential search f, and prune states with larger f.
 
 * Evals
 ** TODO Put timelimit in tables
