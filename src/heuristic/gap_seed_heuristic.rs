@@ -135,6 +135,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
     target: Pos,
 
     pub seed_matches: SeedMatches,
+    num_filtered_matches: usize,
 
     // For partial pruning.
     // TODO: Put statistics into a separate struct.
@@ -179,6 +180,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos::from_length(a, b),
             seed_matches,
+            num_filtered_matches: 0,
             num_tried_pruned: 0,
             num_actual_pruned: 0,
 
@@ -205,6 +207,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
             .iter()
             .filter(|Match { end, .. }| self.transform(*end) <= self.transform_target)
             .collect_vec();
+        self.num_filtered_matches = filtered_matches.len();
         // Transform to Arrows.
         let mut arrows = filtered_matches
             .into_iter()
@@ -356,6 +359,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         HeuristicStats {
             num_seeds: Some(self.seed_matches.num_seeds),
             num_matches: Some(self.seed_matches.matches.len()),
+            num_filtered_matches: Some(self.num_filtered_matches),
             matches: if DEBUG {
                 Some(self.seed_matches.matches.clone())
             } else {

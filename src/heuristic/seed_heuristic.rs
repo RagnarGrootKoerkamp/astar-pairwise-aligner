@@ -195,6 +195,7 @@ where
         HeuristicStats {
             num_seeds: Some(self.matches.num_seeds),
             num_matches: Some(self.matches.matches.len()),
+            num_filtered_matches: Some(self.matches.matches.len()),
             matches: Some(self.matches.matches.clone()),
             pruning_duration: Some(self.pruning_duration.as_secs_f32()),
             num_prunes: Some(self.num_actual_pruned),
