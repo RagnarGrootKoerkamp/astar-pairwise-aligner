@@ -241,7 +241,7 @@ impl AlignResult {
                     AlignResult::print_opt_bool(this.heuristic_params.build_fast)
                 )
             }),
-            (format!("{:<5}", "ed"), |this: &AlignResult| {
+            (format!("{:<5}", "dist-func"), |this: &AlignResult| {
                 format!(
                     "{:<5}",
                     AlignResult::print_opt(this.heuristic_params.distance_function.as_ref())
@@ -323,7 +323,7 @@ impl AlignResult {
                         format!("{:>8.2}", 1000. * x / this.sample_size as f32)
                     })
             }),
-            (format!("{:>7}", "dist"), |this: &AlignResult| {
+            (format!("{:>7}", "ed"), |this: &AlignResult| {
                 format!(
                     "{:>7.0}",
                     this.edit_distance as f32 / this.sample_size as f32
@@ -347,7 +347,7 @@ impl AlignResult {
             //         AlignResult::print_opt(this.heuristic_stats2.explored_matches)
             //     )
             // }),
-            (format!("{:>5}", "DM fr"), |this: &AlignResult| {
+            (format!("{:>5}", "dm-fr"), |this: &AlignResult| {
                 format!(
                     "{:>5.3}",
                     this.astar.explored as f32 / this.astar.diagonalmap_capacity as f32
