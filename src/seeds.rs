@@ -836,7 +836,7 @@ pub fn find_matches<'a>(
 #[cfg(test)]
 mod test {
     use crate::{
-        prelude::{setup, to_string, MatchConfig},
+        prelude::{setup, to_string, MatchConfig, SLIDING_WINDOW_MATCHES},
         seeds::{
             find_matches_qgram_hash_exact, find_matches_qgram_hash_inexact,
             find_matches_qgramindex, find_matches_trie,
@@ -890,17 +890,19 @@ mod test {
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
                     let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
                     let k = find_matches_qgram_hash_exact(&a, &b, &alph, matchconfig);
-                    if r.matches != k.matches {
-                        println!("-----------------------");
-                        for x in &r.matches {
-                            println!("{x:?}");
+                    if !SLIDING_WINDOW_MATCHES {
+                        if r.matches != k.matches {
+                            println!("-----------------------");
+                            for x in &r.matches {
+                                println!("{x:?}");
+                            }
+                            println!("-----------------------");
+                            for x in &k.matches {
+                                println!("{x:?}");
+                            }
                         }
-                        println!("-----------------------");
-                        for x in &k.matches {
-                            println!("{x:?}");
-                        }
+                        assert_eq!(r.matches, k.matches);
                     }
-                    assert_eq!(r.matches, k.matches);
                 }
             }
         }
