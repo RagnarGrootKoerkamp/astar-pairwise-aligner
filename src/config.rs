@@ -47,3 +47,7 @@ pub const REDUCE_RETRIES: bool = true;
 
 /// Whether to use an offset array in the DiagonalMap.
 pub const DIAGONAL_MAP_OFFSET: bool = false;
+
+/// Do not save states after greedy matching.
+/// Instead, quickly jump over them and redo work later if needed.
+pub const DO_NOT_SAVE_GREEDY_MATCHES: bool = true;

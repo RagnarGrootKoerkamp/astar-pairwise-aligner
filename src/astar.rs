@@ -33,6 +33,7 @@ impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
 pub struct AStarStats<Pos> {
     pub expanded: usize,
     pub explored: usize,
+    pub skipped_explored: usize,
     /// Number of times an already expanded node was expanded again with a lower value of f.
     pub double_expanded: usize,
     /// Number of times a node was popped and found to have an outdated value of h after pruning.
@@ -64,6 +65,7 @@ where
     let mut stats = AStarStats {
         expanded: 0,
         explored: 0,
+        skipped_explored: 0,
         double_expanded: 0,
         retries: 0,
         pq_shifts: 0,
@@ -189,8 +191,12 @@ where
                 let mut path = vec![last];
 
                 let mut current = last;
-                // TODO
-                while let Some(previous) = states[current].parent.parent(&current) {
+                // If the state is not in the map, it was found via a match.
+                while let Some(previous) = states
+                    .get(current)
+                    .map_or(G::Parent::match_value(), |x| x.parent)
+                    .parent(&current)
+                {
                     path.push(previous);
                     current = previous;
                 }
@@ -206,19 +212,21 @@ where
 
             if let Some(next) = graph.is_match(pos) {
                 // Directly expand the next pos, by copying over the current state to there.
-                let new_state = states.get_mut(next);
-                //assert!(state.g < new_state.g);
-                if new_state.g <= state.g {
-                    // Continue to the next state in the queue.
-                    break true;
+
+                if !DO_NOT_SAVE_GREEDY_MATCHES {
+                    let new_state = states.get_mut(next);
+                    if new_state.g <= state.g {
+                        // Continue to the next state in the queue.
+                        break true;
+                    }
+                    double_expanded = if let Expanded = new_state.status {
+                        stats.double_expanded += 1;
+                        true
+                    } else {
+                        false
+                    };
+                    *new_state = state;
                 }
-                double_expanded = if let Expanded = new_state.status {
-                    stats.double_expanded += 1;
-                    true
-                } else {
-                    false
-                };
-                *new_state = state;
                 pos = next;
 
                 // NOTE: We do not call h.expand() here, because it isn't needed for pruning-propagation:
@@ -228,6 +236,7 @@ where
 
                 // Count the new state as explored.
                 stats.explored += 1;
+                stats.skipped_explored += 1;
                 if DEBUG {
                     stats.explored_states.push(pos);
                 }
@@ -264,7 +273,7 @@ where
             h.explore(next);
             stats.explored += 1;
             if DEBUG {
-                stats.explored_states.push(pos);
+                stats.explored_states.push(next);
             }
         });
     }
