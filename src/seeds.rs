@@ -509,20 +509,22 @@ pub fn find_matches_qgram_hash_inexact<'a>(
 
     let rank_transform = RankTransform::new(alph);
 
-    assert!(k <= 14);
+    // type of Qgrams
+    type Q = u64;
+    assert!(k <= 31);
 
     // TODO: See if we can get rid of the Vec alltogether.
-    let key = |l: u32, w: usize| ((w as u32) << 2) + (l + 1 - k);
-    let mut m = HashMap::<u32, SmallVec<[u32; 4]>>::default();
+    let key = |l: Cost, w: usize| -> Q { ((w as Q) << 2) + (l + 1 - k) as Q };
+    let mut m = HashMap::<Q, SmallVec<[Cost; 4]>>::default();
     m.reserve(3 * b.len());
     for (j, w) in rank_transform.qgrams(k - 1, b).enumerate() {
-        m.entry(key(k - 1, w)).or_default().push(j as u32);
+        m.entry(key(k - 1, w)).or_default().push(j as Cost);
     }
     for (j, w) in rank_transform.qgrams(k, b).enumerate() {
-        m.entry(key(k, w)).or_default().push(j as u32);
+        m.entry(key(k, w)).or_default().push(j as Cost);
     }
     for (j, w) in rank_transform.qgrams(k + 1, b).enumerate() {
-        m.entry(key(k + 1, w)).or_default().push(j as u32);
+        m.entry(key(k + 1, w)).or_default().push(j as Cost);
     }
     let mut matches = Vec::<Match>::new();
     for (i, w) in rank_transform.qgrams(k, a).enumerate().step_by(k as usize) {
