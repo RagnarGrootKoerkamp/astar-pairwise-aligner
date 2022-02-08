@@ -54,6 +54,12 @@ def num_lower(serie):
 def read_benchmarks(tsv_fn, algo=None):
     df = pd.read_csv(tsv_fn, sep='\t', index_col=False)
     df['s_per_pair'] = df['s'] / df['cnt']
+    
+    if 'align' in df:
+        df['align_frac'] = df['align'] / (df['precom'] + df['align'])
+        df['prune_frac'] = df['prune'] / df['align']
+        #df['h_approx_frac'] = df['h0'] / df['ed']
+        df['expanded_frac'] = df['expanded'] / df['explored']
     #df = df.groupby(["alg", "cnt", "e"]).median()
 
     #df['pushed+popped'] = df['pushed'] + df['popped']
