@@ -29,10 +29,10 @@ es = [0.01, 0.05, 0.10, 0.20]
 ## PA PARAMS
 
 # Seed length, match distance pairs
-kms = [(6,0), (7,0), (8,0), (9,0), (10, 0), (11, 0), (15, 0), (20, 0), (25, 0), (31, 0),
+kms = [(6,0), (8,0), (10, 0), (12, 0), (14, 0), (17, 0), (20, 0), (25, 0), (31, 0),
        (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1)]
 # Prune fractions.
-pfs = [0.4, 0.8, 1.0]
+pfs = [1.0] # [0.4, 0.8, 1.0]
 
 ## TOOLS
 
@@ -40,7 +40,7 @@ pfs = [0.4, 0.8, 1.0]
 algs = ['pa', 'edlib', 'wfa']
 
 ## RUN SETTINGS
-TIMEOUT = "120s"
+TIMEOUT = "600s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -84,7 +84,7 @@ class Input:
         return Path(f'input/{self.name()}.seq')
 
 def inputs(N):
-    N = int(N)
+    N = int(float(N))
     return [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
 
 class Run:
@@ -105,11 +105,18 @@ class Run:
 
 # Returns false for parameters that should be skipped.
 def run_filter(run):
+    if run.alg == 'wfa':
+        # Remove cases that go out of memory
+        if run.input.e == 0.01 and run.input.n >= 10_000_000: return False
+        if run.input.e == 0.05 and run.input.n >= 3_000_000: return False
+        if run.input.e == 0.1 and run.input.n >= 1_000_000: return False
+        if run.input.e == 0.2 and run.input.n >= 1_000_000: return False
+
     if run.alg != 'pa': return True
     # If the error rate is larger than the max rate this (k,m,pf) can handle, skip.
     # e is made a bit lower, since an induced error rate of 20% only gives ~15% edit distance.
     max_error_rate = (run.m+1) / run.k * run.pf
-    if run.input.e * 0.8 > max_error_rate:
+    if run.input.e * 0.85 > max_error_rate:
         return False
 
     # Don't do inexact matches for low error rates.
@@ -208,9 +215,12 @@ rule find_best_runs:
     output: Run.pattern()
     run:
         # Loop over input bench files, find the one with the best average runtime, and copy it.
-        (_, best_f) = min(map(lambda f: (average_bench_time(f), f), input))
-        import shutil
-        shutil.copy(best_f, output[0])
+        (_, best_f) = min(map(lambda f: (average_bench_time(f), f), input), default=(None, None))
+        if best_f is None:
+            Path(output[0]).touch()
+        else:
+            import shutil
+            shutil.copy(best_f, output[0])
 
 ## RUN OTHER TOOLS
 
@@ -238,9 +248,11 @@ rule tools_table:
         table_file = Path(output[0]).open('w')
         table_file.write("\t".join(headers) + '\n')
         import itertools
-        for run in tool_runs(**w):
-            for line in run.bench_path().read_text().splitlines()[1:]:
-                table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{line}\n')
+        for run in tool_runs(**wildcards):
+            lines = run.bench_path().read_text().splitlines()
+            if len(lines) > 0:
+                for line in lines[1:]:
+                    table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{line}\n')
 
 # Visualizations
 

@@ -13,6 +13,7 @@ states. Consistent when $f$ never decreases over edges.
 ** TODO What is the expected deviation from the diagonal for a random sequence?
 Is this $sqrt(n)$ like in a drunkard's walk? Or is it less, because we know
 where we end and can use $j = (m/n) * i$ as prediction.
+** TODO Proof expected linear runtime
 
 * Failing assertions / Bugs
 ** DONE Investigate inconsistent heuristic before pruning
@@ -90,7 +91,13 @@ skip pruning.
 ** DONE pruning time
 CLOSED: [2022-01-13 Thu 18:56]
 ** TODO Use ~explored/path-len~ for band, instead of ~explored/max(n,m)~
-** TODO Report number of allocated DiagonalMap states and % filled
+** DONE Report number of allocated DiagonalMap states and % filled
+CLOSED: [2022-02-08 Tue 17:31]
+** TODO Size of wrapper vec around DM
+** TODO Max size of queue
+** TODO Max deviation from diagonal (distance between min and max diagonal)
+** TODO Print allocated states
+** TODO Remove optional wrappers from statistics; just make them 0
 
 * Code
 ** TODO fuzzing/testing that fast impls equal slow impls
@@ -167,6 +174,14 @@ larger than the pruned position in the transformed domain.
 
 For large n and e=0.01 or e=0.05, this reduces the number of retries by 10x to 100x.
 ** TODO Reduce retries more: Also prune when there's <Constant~=10 states that need updating.
+
+
+* Evals
+** TODO Put timelimit in tables
+** TODO Rerun once with 64GB of reserved memory, so only one at a time is run
+- Add --mem parameter to the command line.
+** TODO Rename 100000 to 1e6 everywhere (or 1M?)
+** TODO Big indels
 
 * Tests
 ** TODO Test all pairs with n <= 6
