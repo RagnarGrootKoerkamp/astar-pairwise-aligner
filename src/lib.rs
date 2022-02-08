@@ -241,7 +241,7 @@ impl AlignResult {
                     AlignResult::print_opt_bool(this.heuristic_params.build_fast)
                 )
             }),
-            (format!("{:<5}", "dist-func"), |this: &AlignResult| {
+            (format!("{:<5}", "d-f"), |this: &AlignResult| {
                 format!(
                     "{:<5}",
                     AlignResult::print_opt(this.heuristic_params.distance_function.as_ref())
