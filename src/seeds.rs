@@ -167,7 +167,6 @@ pub fn find_matches_trie<'a>(
 
     let mut cur_potential = seed_qgrams.clone().map(|seed| seed.seed_potential).sum();
     potential.push(cur_potential);
-    //println!("{:?}", seed_qgrams);
     for Seed {
         start,
         end,
@@ -208,9 +207,7 @@ pub fn find_matches_trie<'a>(
          }| (LexPos(start), LexPos(end), match_cost),
     );
     // Dedup to only keep the lowest match cost.
-    //println!("Size before: {}", matches.len());
     matches.dedup_by_key(|m| (m.start, m.end));
-    //println!("Size after : {}", matches.len());
 
     // Sort better matches first.
     matches.sort_unstable_by_key(
@@ -646,24 +643,125 @@ pub fn find_matches_qgram_hash_exact<'a>(
     assert!(max_match_cost == 0);
 
     let rank_transform = RankTransform::new(alph);
+    let bits = (rank_transform.ranks.len() as f32).log2().ceil() as u32;
+
+    type Key = u64;
 
     // TODO: See if we can get rid of the Vec alltogether.
-    let mut m = HashMap::<usize, SmallVec<[I; 1]>>::default();
-    m.reserve(a.len());
-    for (i, w) in rank_transform.qgrams(k, a).enumerate().step_by(k as usize) {
-        m.entry(w).or_default().push(i as I);
-    }
-
+    let mut m = HashMap::<Key, SmallVec<[I; 4]>>::default();
     let mut matches = Vec::<Match>::new();
-    for (j, w) in rank_transform.qgrams(k, b).enumerate() {
-        if let Some(is) = m.get(&w) {
-            for &i in is {
-                matches.push(Match {
-                    start: Pos(i, j as I),
-                    end: Pos(i + k, j as I + k),
-                    match_cost: 0,
-                    seed_potential: 1,
-                });
+
+    if SLIDING_WINDOW_MATCHES {
+        let capacity = a.len() / k as usize / (k - 1) as usize / 2;
+        m.reserve(capacity);
+
+        const CHECK_EACH_J_LAYERS: Cost = 6;
+
+        // Target position.
+        let p = Pos::from_length(a, b);
+        // Target in transformed domain.
+        let t = Pos((p.0 - 1) / k + p.0 - p.1, (p.0 - 1) / k + p.1 - p.0);
+        // Given a j, the range of i values where we want to find matches.
+        let i_range_for_j = |j: Cost| -> (Cost, Cost) {
+            // Do computation as usize because Cost can overflow.
+            let j = j as usize;
+            let k = k as usize;
+            let max_match_cost = max_match_cost as usize;
+            (
+                ((j.saturating_sub(t.1 as usize)) * (max_match_cost + 1) * k / (k - 1))
+                    .saturating_sub(max_match_cost + 2) as Cost,
+                ((t.0 as usize + j) * (max_match_cost + 1) * k / (k + 1) + max_match_cost + 2)
+                    as Cost,
+            )
+        };
+
+        let get_qgram_a = |i: usize| -> usize {
+            let mut q = 0;
+            for &c in &a[i..i + k as usize] {
+                q <<= bits;
+                q |= rank_transform.get(c) as usize;
+            }
+            q
+        };
+
+        // Iterators pointing to the next i to be inserted to/removed from the hashmap.
+        let mut to_remove = (0..a.len() + 1 - k as usize)
+            .step_by(k as usize)
+            .rev()
+            .peekable();
+        let mut to_insert = (0..a.len() + 1 - k as usize)
+            .step_by(k as usize)
+            .rev()
+            .peekable();
+        let mut qb = 0usize;
+        let prepend_qgram_b = |j: usize, qb: &mut usize| {
+            *qb = (*qb >> bits) | ((rank_transform.get(b[j]) as usize) << ((k - 1) * bits))
+        };
+
+        for j in (0..b.len()).rev() {
+            if (b.len() - 1 - j) as Cost & ((1 << CHECK_EACH_J_LAYERS) - 1) == 0 {
+                let (new_start, new_end) = i_range_for_j(j as Cost);
+                // Remove elements after new_end.
+                while let Some(&i) = to_remove.peek() {
+                    if (i as Cost) > new_end {
+                        let wi = get_qgram_a(i);
+                        to_remove.next();
+                        let v = m.get_mut(&(wi as Key)).unwrap();
+                        assert!(!v.is_empty());
+                        // If last element in the smallvec, remove entirely. Else only remove from vector.
+                        if v.len() == 1 {
+                            assert_eq!(v[0], i as Cost);
+                            m.remove(&(wi as Key)).unwrap();
+                        } else {
+                            v.swap_remove(v.iter().position(|x| *x == i as Cost).unwrap());
+                            assert!(v.len() > 0);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                // Insert new elements after new_start
+                while let Some(&i) = to_insert.peek() {
+                    if (i as Cost) >= new_start.saturating_sub(2 * (1 << CHECK_EACH_J_LAYERS)) {
+                        to_insert.next();
+                        let wi = get_qgram_a(i);
+                        m.entry(wi as Key).or_default().push(i as I);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            prepend_qgram_b(j, &mut qb);
+            if j > b.len() - k as usize {
+                continue;
+            }
+            if let Some(is) = m.get(&(qb as Key)) {
+                for &i in is {
+                    matches.push(Match {
+                        start: Pos(i, j as I),
+                        end: Pos(i + k, j as I + k),
+                        match_cost: 0,
+                        seed_potential: 1,
+                    });
+                }
+            }
+        }
+    } else {
+        m.reserve(a.len() / k as usize + 1);
+        for (i, w) in rank_transform.qgrams(k, a).enumerate().step_by(k as usize) {
+            m.entry(w as Key).or_default().push(i as I);
+        }
+
+        for (j, w) in rank_transform.qgrams(k, b).enumerate() {
+            if let Some(is) = m.get(&(w as Key)) {
+                for &i in is {
+                    matches.push(Match {
+                        start: Pos(i, j as I),
+                        end: Pos(i + k, j as I + k),
+                        match_cost: 0,
+                        seed_potential: 1,
+                    });
+                }
             }
         }
     }
@@ -678,9 +776,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
          }| (LexPos(start), LexPos(end), match_cost),
     );
     // Dedup to only keep the lowest match cost.
-    //println!("Size before: {}", matches.len());
     matches.dedup_by_key(|m| (m.start, m.end));
-    //println!("Size after : {}", matches.len());
 
     // Sort better matches first.
     matches.sort_unstable_by_key(
