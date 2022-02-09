@@ -186,6 +186,9 @@ impl AlignResult {
         self.astar.retries += other.astar.retries;
         self.astar.pq_shifts += other.astar.pq_shifts;
         self.astar.diagonalmap_capacity += other.astar.diagonalmap_capacity;
+        self.astar.expanded_states = other.astar.expanded_states.clone();
+        self.astar.explored_states = other.astar.explored_states.clone();
+        self.path = other.path.clone();
         self.timing.precomputation += other.timing.precomputation;
         self.timing.astar += other.timing.astar;
         if let Some(x) = &mut self.heuristic_stats.pruning_duration {

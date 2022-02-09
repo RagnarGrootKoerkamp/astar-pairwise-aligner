@@ -47,12 +47,16 @@ struct Cli {
     silent: bool,
 
     // Only print a summary line, for benchmarking.
-    #[structopt(short = "-S", long)]
+    #[structopt(short = "S", long)]
     silent2: bool,
 }
 
 fn main() {
     let args = Cli::from_args();
+
+    if args.visited_states.is_some() && !DEBUG {
+        assert!(false, "--visited-states does not work in release mode.");
+    }
 
     // Read the input
     let mut avg_result = AlignResult::default();
