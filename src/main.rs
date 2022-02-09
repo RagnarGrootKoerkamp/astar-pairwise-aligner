@@ -29,9 +29,15 @@ struct Cli {
     #[structopt(flatten)]
     input: Input,
 
-    // Where to write the average bandwith
+    // Where to write the statistics.
     #[structopt(short, long, parse(from_os_str))]
     output: Option<PathBuf>,
+
+    // Where to write a csv of visited states.
+    // NOTE: Only works in debug mode.
+    // This information is not stored in release mode.
+    #[structopt(short, long, parse(from_os_str))]
+    visited_states: Option<PathBuf>,
 
     #[structopt(flatten)]
     params: Params,
@@ -160,6 +166,10 @@ fn main() {
                 ),
             )
             .unwrap();
+        }
+
+        if let Some(output) = args.visited_states {
+            avg_result.write_explored_states(output);
         }
     }
 }
