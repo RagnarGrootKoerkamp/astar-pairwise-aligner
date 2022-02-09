@@ -1,7 +1,11 @@
 #![feature(derive_default_enum)]
 use bio::io::fasta;
 use itertools::Itertools;
-use pairwise_aligner::prelude::*;
+use pairwise_aligner::{
+    generate::{generate_pair, GenerateOptions},
+    prelude::*,
+};
+use rand::thread_rng;
 use std::{fs::File, io::BufReader, path::PathBuf};
 use structopt::StructOpt;
 
@@ -10,13 +14,9 @@ struct Input {
     #[structopt(short, long, parse(from_os_str))]
     input: Option<PathBuf>,
 
-    /// If input is also given, sequences will be cropped to this length.
-    /// Otherwise, a pair of sequences of length `n` and relative distance `e` is generated.
-    #[structopt(short, required_unless = "input")]
-    n: Option<usize>,
-
-    #[structopt(short, default_value = "0.2")]
-    e: f32,
+    /// Options to generate an input pair.
+    #[structopt(flatten)]
+    generate_options: GenerateOptions,
 }
 
 #[derive(StructOpt)]
@@ -91,7 +91,8 @@ fn main() {
             };
 
             for a in &mut sequences {
-                if let Some(n) = args.input.n {
+                let n = args.input.generate_options.length;
+                if n != 0 {
                     if a.len() > n {
                         a.resize(n, Default::default());
                     }
@@ -138,7 +139,7 @@ fn main() {
     } else {
         // Generate random input.
         // TODO: Propagate stats.
-        let (a, b, _, _) = setup(args.input.n.unwrap(), args.input.e);
+        let (a, b) = generate_pair(&args.input.generate_options, &mut thread_rng());
         let r = run(&a, &b, &args.params);
         avg_result.add_sample(&r);
         if !args.silent2 {
