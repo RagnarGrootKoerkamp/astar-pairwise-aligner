@@ -22,6 +22,7 @@ pub mod algorithms;
 pub mod config;
 pub mod costmodel;
 pub mod diagonal_map;
+pub mod generate;
 pub mod graph;
 pub mod heuristic;
 pub mod matches;

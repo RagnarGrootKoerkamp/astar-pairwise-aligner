@@ -54,19 +54,19 @@ pub struct Params {
     #[structopt(short, long, default_value = "GapSeed")]
     algorithm: Algorithm,
 
-    #[structopt(short, default_value = "7")]
+    #[structopt(short)]
     k: I,
 
-    #[structopt(short, default_value = "1")]
+    #[structopt(short, default_value = "0")]
     max_seed_cost: Cost,
 
     #[structopt(long, default_value = "Gap")]
     cost: CostFunction,
 
-    #[structopt(short = "-C", long, default_value = "Hint")]
+    #[structopt(short = "C", long, default_value = "Hint")]
     contours: Contours,
 
-    #[structopt(short = "-c", long, default_value = "Central")]
+    #[structopt(short = "c", long, default_value = "Central")]
     contour: Contour,
 
     #[structopt(long)]
