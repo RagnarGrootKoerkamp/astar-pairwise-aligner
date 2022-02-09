@@ -287,7 +287,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
 
         // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
-        {
+        if self.params.match_config.max_match_cost > 0 {
             // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
             // TODO: Cur_val could be passed in from the parent instead.
             // TODO: Should we be looking at h or contours.value_with_hint here?
