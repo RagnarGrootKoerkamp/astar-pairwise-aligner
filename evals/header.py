@@ -58,7 +58,7 @@ def read_benchmarks(tsv_fn, algo=None):
     if 'align' in df:
         df['align_frac'] = df['align'] / (df['precom'] + df['align'])
         df['prune_frac'] = df['prune'] / df['align']
-        #df['h_approx_frac'] = df['h0'] / df['ed']
+        df['h_approx_frac'] = df['h0'] / df['ed']
         df['expanded_frac'] = df['expanded'] / df['explored']
     #df = df.groupby(["alg", "cnt", "e"]).median()
 
