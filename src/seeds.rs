@@ -912,7 +912,7 @@ mod test {
     fn hash_matches_inexact() {
         // TODO: Replace max match distance from 0 to 1 here once supported.
         for (k, max_match_cost) in [(6, 1), (7, 1), (10, 1)] {
-            for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
+            for n in [40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b, alph, _) = setup(n, e);
                     println!("{}\n{}", to_string(&a), to_string(&b));
