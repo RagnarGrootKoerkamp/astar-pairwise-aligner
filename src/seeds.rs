@@ -660,7 +660,10 @@ pub fn find_matches_qgram_hash_exact<'a>(
         // Target position.
         let p = Pos::from_length(a, b);
         // Target in transformed domain.
-        let t = Pos((p.0 - 1) / k + p.0 - p.1, (p.0 - 1) / k + p.1 - p.0);
+        let t = Pos(
+            ((p.0 - 1) / k + p.0).saturating_sub(p.1),
+            ((p.0 - 1) / k + p.1).saturating_sub(p.0),
+        );
         // Given a j, the range of i values where we want to find matches.
         let i_range_for_j = |j: Cost| -> (Cost, Cost) {
             // Do computation as usize because Cost can overflow.
