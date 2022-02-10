@@ -19,6 +19,10 @@
 # Instructions for running:
 # - snakemake -p -c all run_benchmark
 
+import itertools
+import shutil
+import statistics
+
 ## INPUT DATA
 
 # Length of each sequence
@@ -181,7 +185,6 @@ def write_table(runs, output):
             break
     assert found_headers
 
-    import itertools
     for run in runs:
         try:
             stats = run.stats_path().read_text().splitlines()[1]
@@ -197,7 +200,6 @@ rule params_table:
     run: write_table(params_runs(**wildcards), output)
 
 def average_bench_time(f):
-    import statistics
     return statistics.mean(map(lambda line: float(line.split('\t')[0]), Path(f).read_text().splitlines()[1:]))
 
 # Find the run with the smallest average benchmark time and copy those files.
@@ -210,7 +212,6 @@ rule find_best_runs:
         if best_f is None:
             Path(output[0]).touch()
         else:
-            import shutil
             shutil.copy(best_f, output[0])
 
 ## RUN OTHER TOOLS
@@ -238,7 +239,6 @@ rule tools_table:
         headers = ["alg","cnt","n","e","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
         table_file = Path(output[0]).open('w')
         table_file.write("\t".join(headers) + '\n')
-        import itertools
         for run in tool_runs(**wildcards):
             lines = run.bench_path().read_text().splitlines()
             if len(lines) > 0:
