@@ -49,26 +49,52 @@ REPEATS = 1
 
 ## TOOL DEFINITIONS
 
-pa_bin    = '../target/release/pairwise-aligner'
-edlib_bin = '../../edlib/build/bin/edlib-aligner'
-wfa_bin   = '../../wfa/bin/align_benchmark'
+# Wrap a comman in a small shell script than handles timeouts.
+# Uses the TIMEOUT variable, and writes status to params.status_path.
+def timeout(command):
+    return f"""
+# Allow this command to fail.
+set +e
+timeout {{TIMEOUT}} {command}
+exit_code=$?
+set -e
+# Normal exit
+if [ $exit_code -eq 0 ] ; then
+    echo ok > {{params.status_path}}
+    exit 0
+fi
+# Handle timeout
+if [ $exit_code -eq 124 ] ; then
+    echo timeout {{TIMEOUT}} > {{params.status_path}}
+    exit 0
+fi
+# Handle out of memory (OOM);
+# typically from SIGKILL (137) (when killed by linux) or SIGSEGV (139) or SIGABRT (134)
+if [ $exit_code -eq 137 ] || [ $exit_code -eq 139 ] || [ $exit_code -eq 134 ]; then
+    echo out-of-memory $exit_code > {{params.status_path}}
+    exit 0
+fi
+echo Unexpected exit status $exit_code
+# Fail with an error.
+exit 1
+"""
 
-# TODO: Distinguish between timeout and OOM.
-TIMELIMIT       = f'(timeout {TIMEOUT}'
-TIMELIMITEND    = ') || true'
 
 # Generate testcases
-GENERATE_CMD    = './target/release/examples/generate_dataset -- -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
+GENERATE_CMD    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
 # Run PA
-PA_CMD          = '{TIMELIMIT} {pa_bin} -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2 {TIMELIMITEND}'
-# Run PA with as Dijkstra, using a heuristic that's always 0.
-DIJKSTRA_CMD    = '{TIMELIMIT} {pa_bin} -i {input} -a Dijkstra --silent2 {TIMELIMITEND}'
+pa_bin    = '../target/release/pairwise-aligner'
+PA_CMD          = '{pa_bin} -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --prune-fraction {wildcards.pf} --silent2'
+# Run PA as Dijkstra, using a heuristic that's always 0.
+DIJKSTRA_CMD    = '{pa_bin} -i {input} -a Dijkstra --silent2'
 # -p: Return alignment
 # -s: Silent / no output
-EDLIB_CMD       = '{TIMELIMIT} {edlib_bin} {input} -p -s {TIMELIMITEND}'
+edlib_bin = '../../edlib/build/bin/edlib-aligner'
+EDLIB_CMD       = '{edlib_bin} {input} -p -s'
 # -a: Algorithm to run
 # --affine-penalties: Use edit distance score, with gap-opening cost of 0.
-WFA_CMD         = '{TIMELIMIT} {wfa_bin} -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1" {TIMELIMITEND}'
+wfa_bin   = '../../wfa/bin/align_benchmark'
+WFA_CMD         = '{wfa_bin} -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"'
 
 ## WRAPPER CLASSES
 wildcard_constraints:
@@ -101,12 +127,16 @@ class Run:
     def pattern(alg='pa'):
         return f'runs/{Input.name_pattern()}-A{alg}.bench'
     def bench_path_with_params(self):
+        assert self.alg == "pa"
         return Path(f'runs/{self.input.name()}-A{self.alg}-m{self.m}-k{self.k}-pf{self.pf}.bench')
+    def stats_path_with_params(self):
+        return self.bench_path_with_params().with_suffix('.stats')
+    def status_path_with_params(self):
+        return self.bench_path_with_params().with_suffix('.status')
     def bench_path(self):
         return Path(f'runs/{self.input.name()}-A{self.alg}.bench')
-    def stats_path(self):
-        assert self.alg == "pa"
-        return self.bench_path_with_params().with_suffix('.stats')
+    def status_path(self):
+        return self.bench_path().with_suffix('.status')
 
 # Returns false for parameters that should be skipped.
 def run_filter(run):
@@ -169,8 +199,9 @@ rule run_pairwise_aligner:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
     params:
-        stats_path = lambda w: Run(input=Input(**w), **w, alg='pa').stats_path()
-    shell: PA_CMD
+        stats_path = lambda w: Run(input=Input(**w), **w, alg='pa').stats_path_with_params(),
+        status_path = lambda w: Run(input=Input(**w), **w, alg='pa').status_path_with_params()
+    shell: timeout(PA_CMD)
 
 def write_table(runs, output):
     headers = ["alg","cnt","n","e", "m", "k", "pf","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
@@ -208,28 +239,33 @@ rule find_best_runs:
     output: Run.pattern()
     run:
         # Loop over input bench files, find the one with the best average runtime, and copy it.
-        (_, best_f) = min(map(lambda f: (average_bench_time(f), f), input), default=(None, None))
-        if best_f is None:
+        (_, run) = min(map(lambda run: (average_bench_time(run.bench_path_with_params()), run), params_runs_for_input(Input(**wildcards))), key=lambda p: p[0], default=(None, None))
+        if run is None:
+            assert False
             Path(output[0]).touch()
         else:
-            shutil.copy(best_f, output[0])
+            shutil.copy(run.bench_path_with_params(), run.bench_path())
+            shutil.copy(run.status_path_with_params(), run.status_path())
 
 ## RUN OTHER TOOLS
 
 rule run_dijkstra:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern('dijkstra'), REPEATS)
-    shell: DIJKSTRA_CMD
+    params: status_path = lambda w: Run(input=Input(**w), **w, alg='dijkstra').status_path()
+    shell: timeout(DIJKSTRA_CMD)
 
 rule run_edlib:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern('edlib'), REPEATS)
-    shell: EDLIB_CMD
+    params: status_path = lambda w: Run(input=Input(**w), **w, alg='edlib').status_path()
+    shell: timeout(EDLIB_CMD)
 
 rule run_wfa:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern('wfa'), REPEATS)
-    shell: WFA_CMD
+    params: status_path = lambda w: Run(input=Input(**w), **w, alg='wfa').status_path()
+    shell: timeout(WFA_CMD)
 
 # Collect all .bench files into a single tsv.
 rule tools_table:
