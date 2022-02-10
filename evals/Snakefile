@@ -137,10 +137,6 @@ def run_filter(run):
 
     return True
 
-def linear_runs(N, e, m, k, pf):
-    return list(filter(run_filter, (Run(input=input, alg='pa', m=int(m), k=int(k), pf=float(pf))
-                                    for input in inputs(N) if input.e == float(e))))
-
 def params_runs(N):
     return list(filter(run_filter, (Run(input=input, alg='pa', m=m, k=k, pf=pf)
                         for input in inputs(N)
@@ -199,12 +195,6 @@ rule params_table:
     input: lambda w: [run.bench_path_with_params() for run in params_runs(**w)]
     output: 'table/params_N{N}.tsv'
     run: write_table(params_runs(**wildcards), output)
-
-# Collect all .bench files into a single tsv.
-rule linear_table:
-    input: lambda w: [run.bench_path_with_params() for run in linear_runs(**w)]
-    output: 'table/linear_N{N}_e{e}_m{m}_k{k}_pf{pf}.tsv'
-    run: write_table(linear_runs(**wildcards), output)
 
 def average_bench_time(f):
     import statistics
