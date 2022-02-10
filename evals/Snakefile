@@ -203,32 +203,33 @@ rule run_pairwise_aligner:
         status_path = lambda w: Run(input=Input(**w), **w, alg='pa').status_path_with_params()
     shell: timeout(PA_CMD)
 
-def write_table(runs, output):
-    headers = ["alg","cnt","n","e", "m", "k", "pf","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
+def params_table(runs, output):
+    headers = ["alg","cnt","n","e", "m", "k", "pf","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
     for run in runs:
-        if run.stats_path().is_file():
-            pa_headers = run.stats_path().read_text().splitlines()[0]
+        if run.stats_path_with_params().is_file():
+            pa_headers = run.stats_path_with_params().read_text().splitlines()[0]
             table_file.write("\t".join(headers) + '\t' + pa_headers + '\n')
             found_headers = True
             break
     assert found_headers
 
     for run in runs:
+        status = run.status_path_with_params().read_text().strip()
         try:
-            stats = run.stats_path().read_text().splitlines()[1]
+            stats = run.stats_path_with_params().read_text().splitlines()[1]
         except:
             stats = ''
-        for line in run.bench_path_with_params().read_text().splitlines()[1:]:
-            table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.m}\t{run.k}\t{run.pf}\t{line}\t{stats}\n')
+        for bench_line in run.bench_path_with_params().read_text().splitlines()[1:]:
+            table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.m}\t{run.k}\t{run.pf}\t{bench_line}\t{status}\t{stats}\n')
 
 # Collect all .bench files into a single tsv.
 rule params_table:
     input: lambda w: [run.bench_path_with_params() for run in params_runs(**w)]
     output: 'table/params_N{N}.tsv'
-    run: write_table(params_runs(**wildcards), output)
+    run: params_table(params_runs(**wildcards), output)
 
 def average_bench_time(f):
     return statistics.mean(map(lambda line: float(line.split('\t')[0]), Path(f).read_text().splitlines()[1:]))
@@ -272,14 +273,14 @@ rule tools_table:
     input: lambda w: [run.bench_path() for run in tool_runs(**w)]
     output: 'table/tools_N{N}.tsv'
     run:
-        headers = ["alg","cnt","n","e","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time"]
+        headers = ["alg","cnt","n","e","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
         table_file = Path(output[0]).open('w')
         table_file.write("\t".join(headers) + '\n')
         for run in tool_runs(**wildcards):
             lines = run.bench_path().read_text().splitlines()
-            if len(lines) > 0:
-                for line in lines[1:]:
-                    table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{line}\n')
+            status = run.status_path().read_text().strip()
+            for bench_line in lines[1:]:
+                table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}\n')
 
 # Visualizations
 
