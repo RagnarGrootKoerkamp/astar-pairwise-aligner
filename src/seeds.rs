@@ -716,6 +716,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
                             assert_eq!(v[0], i as Cost);
                             m.remove(&(wi as Key)).unwrap();
                         } else {
+                            // NOTE: This removes in O(1), but changes the order of the elements.
                             v.swap_remove(v.iter().position(|x| *x == i as Cost).unwrap());
                             assert!(v.len() > 0);
                         }
