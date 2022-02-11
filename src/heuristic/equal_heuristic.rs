@@ -79,7 +79,6 @@ where
     fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) -> Cost {
         let c1 = self.h1.prune_with_hint(pos, hint.0);
         let c2 = self.h2.prune_with_hint(pos, hint.1);
-        println!("{c1} {c2}");
         c2
     }
 
