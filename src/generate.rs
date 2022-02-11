@@ -3,6 +3,8 @@ use rand::Rng;
 use structopt::StructOpt;
 use strum_macros::EnumString;
 
+use crate::prelude::*;
+
 #[derive(EnumString, Default, Debug, Clone, Copy)]
 #[strum(ascii_case_insensitive)]
 pub enum ErrorModel {
@@ -101,6 +103,36 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Vec<u8>, Vec
         }
     }
     (a, b.to_string().into_bytes())
+}
+
+// For quick testing
+pub fn setup_with_seed(
+    n: usize,
+    e: f32,
+    seed: u64,
+) -> (Sequence, Sequence, Alphabet, SequenceStats) {
+    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+    let alphabet = Alphabet::new(b"ACTG");
+    let (a, b) = generate_pair(
+        &GenerateOptions {
+            length: n,
+            error: e,
+            model: ErrorModel::Uniform,
+        },
+        &mut rng,
+    );
+
+    let sequence_stats = SequenceStats {
+        len_a: a.len(),
+        len_b: b.len(),
+        error_rate: e,
+        source: Source::Uniform,
+    };
+    (a, b, alphabet, sequence_stats)
+}
+
+pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) {
+    setup_with_seed(n, e, 31415)
 }
 
 #[cfg(test)]

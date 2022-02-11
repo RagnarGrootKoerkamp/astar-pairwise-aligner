@@ -27,10 +27,8 @@ pub mod graph;
 pub mod heuristic;
 pub mod matches;
 pub mod matches_inexact;
-pub mod random_sequence;
 pub mod scored;
 pub mod seeds;
-pub mod test;
 pub mod thresholds;
 pub mod trie;
 pub mod util;
@@ -73,11 +71,10 @@ pub mod prelude {
     pub use super::*;
     pub use crate::algorithms::*;
     pub use crate::contour::*;
+    pub use crate::generate::*;
     pub use crate::graph::*;
     pub use crate::heuristic::*;
-    pub use crate::random_sequence::*;
     pub use crate::seeds::{LengthConfig, LengthConfig::Fixed, Match, MatchConfig};
-    pub use crate::test::*;
     pub use crate::util::*;
 }
 
