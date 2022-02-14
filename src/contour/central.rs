@@ -1,15 +1,17 @@
+use crate::prelude::*;
+use smallvec::SmallVec;
 use std::cell::Cell;
 
-use crate::prelude::*;
+type VecType = SmallVec<[LexPos; 2]>;
 
 /// A contour implementation that does push and query in logarithmic time, but prune in linear time.
 /// This caches the last relevant dominant point to answer queries along the main diagonal faster.
 #[derive(Default, Debug, Clone)]
 pub struct CentralContour {
-    points: Vec<LexPos>,
+    points: VecType,
     /// The set of dominant points, sorted lexicographically.
     /// TODO: This could be a BTreeSet instead, although that would likely be slower in practice.
-    dominant: Vec<LexPos>,
+    dominant: VecType,
     /// The index of the last position in `dominant` that was relevant for a `contains` query.
     last_dominant: Cell<usize>,
 }
@@ -93,7 +95,17 @@ impl Contour for CentralContour {
 
     fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, f: &mut F) -> bool {
         // TODO: Make this more efficient.
-        if self.points.drain_filter(|&mut LexPos(s)| f(s)).count() > 0 {
+        let mut change = false;
+        self.points.retain(|&mut LexPos(s)| {
+            let remove = f(s);
+            if remove {
+                change = true;
+            }
+            // f returns true when a point needs pruning.
+            // Retain removes on false.
+            !remove
+        });
+        if change {
             // Rebuild the dominant front.
             self.points.sort();
             self.dominant.clear();
