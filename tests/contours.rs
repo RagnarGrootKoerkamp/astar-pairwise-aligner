@@ -48,52 +48,6 @@ fn inexact_no_pruning() {
 }
 
 #[test]
-fn exact_pruning() {
-    for k in [4, 5] {
-        for n in [40, 100, 200, 500] {
-            for e in [0.1, 0.3, 1.0] {
-                let h = GapSeedHeuristic {
-                    match_config: MatchConfig {
-                        length: Fixed(k),
-                        max_match_cost: 0,
-                        ..MatchConfig::default()
-                    },
-                    pruning: true,
-                    c: PhantomData::<BruteForceContours>,
-                    ..GapSeedHeuristic::default()
-                };
-                let (a, b, alph, stats) = setup(n, e);
-                println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
-            }
-        }
-    }
-}
-
-#[test]
-fn inexact_pruning() {
-    for k in [6, 7] {
-        for n in [40, 100, 200, 500] {
-            for e in [0.1, 0.3, 1.0] {
-                let h = GapSeedHeuristic {
-                    match_config: MatchConfig {
-                        length: Fixed(k),
-                        max_match_cost: 1,
-                        ..MatchConfig::default()
-                    },
-                    pruning: true,
-                    c: PhantomData::<BruteForceContours>,
-                    ..GapSeedHeuristic::default()
-                };
-                let (a, b, alph, stats) = setup(n, e);
-                println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
-            }
-        }
-    }
-}
-
-#[test]
 fn incremental_pruning_bruteforce() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
