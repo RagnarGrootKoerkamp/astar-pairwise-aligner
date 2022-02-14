@@ -181,6 +181,11 @@ For large n and e=0.01 or e=0.05, this reduces the number of retries by 10x to 1
 
 ** TODO Estimate/Exponential search f, and prune states with larger f.
 ** TODO Keep best-g per diagonal, and skip previous states with a higher g.
+** TODO Fix consistency handling
+Add a separate ~ArrowPruner~ class that decides when or not to remove arrows.
+In particular, the current check to not prune when h(x) > h(x+-1) is wrong, and
+needs to be replaced by a check that the maximal arrow value drops by at most one.
+
 
 * Evals
 ** DONE Put timelimit in tables

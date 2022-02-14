@@ -25,7 +25,6 @@ pub mod diagonal_map;
 pub mod generate;
 pub mod graph;
 pub mod heuristic;
-pub mod matches;
 pub mod matches_inexact;
 pub mod scored;
 pub mod seeds;
