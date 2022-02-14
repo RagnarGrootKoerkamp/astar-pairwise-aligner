@@ -71,7 +71,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
-    type Pos: Eq + Copy + std::fmt::Debug + Default = crate::graph::Pos;
+    type Pos: Eq + Copy + std::fmt::Debug + Default = crate::alignment_graph::Pos;
 
     fn h(&self, pos: Self::Pos) -> Cost;
 

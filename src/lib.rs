@@ -11,14 +11,13 @@
     drain_filter
 )]
 
-pub mod astar;
-pub mod contour;
-//pub mod contour_graph;
 pub mod algorithms;
+pub mod alignment_graph;
+pub mod astar;
 pub mod config;
+pub mod contour;
 pub mod datastructures;
 pub mod generate;
-pub mod graph;
 pub mod heuristic;
 pub mod seeds;
 
@@ -47,10 +46,10 @@ pub mod prelude {
 
     pub use super::*;
     pub use crate::algorithms::*;
+    pub use crate::alignment_graph::*;
     pub use crate::contour::*;
     pub use crate::datastructures::*;
     pub use crate::generate::*;
-    pub use crate::graph::*;
     pub use crate::heuristic::*;
     pub use crate::seeds::{LengthConfig, LengthConfig::Fixed, Match, MatchConfig};
     pub use bio::alphabets::{Alphabet, RankTransform};

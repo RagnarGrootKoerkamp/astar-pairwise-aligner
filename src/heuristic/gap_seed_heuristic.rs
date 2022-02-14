@@ -237,7 +237,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
 }
 
 impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
-    type Pos = crate::graph::Pos;
+    type Pos = crate::alignment_graph::Pos;
 
     fn h(&self, pos: Self::Pos) -> Cost {
         let p = self.seed_matches.potential(pos);
