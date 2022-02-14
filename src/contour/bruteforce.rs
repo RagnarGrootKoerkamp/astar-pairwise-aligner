@@ -1,13 +1,14 @@
 use std::mem;
 
 use itertools::Itertools;
+use smallvec::SmallVec;
 
 use crate::prelude::*;
 
 /// A contour implementation that does all operations in O(r).
 #[derive(Default, Debug, Clone)]
 pub struct BruteForceContour {
-    points: Vec<Pos>,
+    points: SmallVec<[Pos; 2]>,
 }
 
 impl Contour for BruteForceContour {
@@ -16,25 +17,23 @@ impl Contour for BruteForceContour {
     }
 
     fn contains(&self, q: Pos) -> bool {
-        for &s in &self.points {
-            if q <= s {
-                return true;
-            }
-        }
-        false
+        self.points.iter().any(|s| q <= *s)
     }
 
     fn is_dominant(&self, q: Pos) -> bool {
-        for &s in &self.points {
-            if q < s {
-                return false;
-            }
-        }
-        true
+        !self.points.iter().any(|s| q < *s)
     }
 
     fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, f: &mut F) -> bool {
-        self.points.drain_filter(|&mut s| f(s)).count() > 0
+        let mut change = false;
+        self.points.retain(|&mut s| {
+            let prune = f(s);
+            if prune {
+                change = true;
+            }
+            !prune
+        });
+        change
     }
 
     fn len(&self) -> usize {
@@ -82,17 +81,9 @@ impl Contours for BruteForceContours {
     }
 
     fn prune(&mut self, pos: Pos) -> bool {
-        //println!("Size before pruning {}: {}", pos, self.valued_arrows.len());
-        //println!("Arrows {:?}", self.valued_arrows);
-        self.valued_arrows = Self::new(
-            mem::take(&mut self.valued_arrows)
-                .into_iter()
-                .filter_map(|(a, _)| if a.start != pos { Some(a) } else { None }),
-            0,
-        )
-        .valued_arrows;
-        //println!("Size after pruning {}: {}", pos, self.valued_arrows.len());
-        // Always return true, since we don't detect changes.
-        true
+        self.valued_arrows
+            .drain_filter(|(a, _)| a.start == pos)
+            .count()
+            > 0
     }
 }
