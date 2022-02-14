@@ -116,7 +116,6 @@ pub struct MatchConfig {
     pub length: LengthConfig,
     // TODO: Move the max_match_cost into MatchLength.
     pub max_match_cost: Cost,
-    pub mutation_config: MutationConfig,
 }
 
 pub fn find_matches_trie<'a>(
@@ -231,7 +230,6 @@ pub fn find_matches_qgramindex<'a>(
     MatchConfig {
         length,
         max_match_cost,
-        mutation_config,
     }: MatchConfig,
 ) -> SeedMatches {
     assert!(max_match_cost == 0 || max_match_cost == 1);
@@ -290,7 +288,7 @@ pub fn find_matches_qgramindex<'a>(
             return max_count;
         }
         if max_match_cost == 1 {
-            let mutations = mutations(k, qgram, mutation_config, true);
+            let mutations = mutations(k, qgram, true);
             for (v, k) in [
                 (mutations.deletions, k - 1),
                 (mutations.substitutions, k),
@@ -417,7 +415,7 @@ pub fn find_matches_qgramindex<'a>(
         }
         // Inexact matches.
         if seed_potential > 1 {
-            let mutations = mutations(len, qgram, mutation_config, true);
+            let mutations = mutations(len, qgram, true);
             for mutation in mutations.deletions {
                 for &j in get_matches(qgrams, b, alph, len - 1, mutation) {
                     matches.push(Match {
@@ -536,7 +534,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             }
         }
         // We don't dedup here, since we'll be sorting and deduplicating the list of all matches anyway.
-        let ms = mutations(k, w, MutationConfig::default(), false);
+        let ms = mutations(k, w, false);
         for w in ms.deletions {
             if let Some(js) = m.get(&key(k - 1, w)) {
                 for &j in js {
