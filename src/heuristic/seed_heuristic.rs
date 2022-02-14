@@ -256,7 +256,7 @@ where
         }
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
-        for d in 0..self.params.match_config.max_match_cost {
+        for d in 1..=self.params.match_config.max_match_cost {
             if pos.1 >= d {
                 if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 - d)) {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
