@@ -4,8 +4,6 @@ use itertools::Itertools;
 
 use crate::prelude::*;
 
-use super::split_vec::SplitVec;
-
 /// A Contours implementation based on Contour layers with value queries in O(log(r)^2).
 ///
 /// A contour x may contain points p that are actually in contour x+1, but only have value x.
