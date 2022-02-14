@@ -208,13 +208,6 @@ pub fn find_matches_trie<'a>(
     // Dedup to only keep the lowest match cost.
     matches.dedup_by_key(|m| (m.start, m.end));
 
-    // Sort better matches first.
-    matches.sort_unstable_by_key(
-        |&Match {
-             start, match_cost, ..
-         }| (LexPos(start), match_cost),
-    );
-
     SeedMatches {
         num_seeds,
         matches,
@@ -467,15 +460,6 @@ pub fn find_matches_qgramindex<'a>(
     );
     // Dedup to only keep the lowest match cost.
     matches.dedup_by_key(|m| (m.start, m.end));
-    // Sort better matches first.
-    matches.sort_unstable_by_key(
-        |&Match {
-             start, match_cost, ..
-         }| (LexPos(start), match_cost),
-    );
-    //for m in &matches {
-    //println!("{:?}", m);
-    //}
 
     SeedMatches {
         num_seeds,
@@ -734,7 +718,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
                 }
             }
             prepend_qgram_b(j, &mut qb);
-            if j > b.len() - k as usize {
+            if j + k as usize > b.len() {
                 continue;
             }
             if let Some(is) = m.get(&(qb as Key)) {
@@ -779,13 +763,6 @@ pub fn find_matches_qgram_hash_exact<'a>(
     );
     // Dedup to only keep the lowest match cost.
     matches.dedup_by_key(|m| (m.start, m.end));
-
-    // Sort better matches first.
-    matches.sort_unstable_by_key(
-        |&Match {
-             start, match_cost, ..
-         }| (LexPos(start), match_cost),
-    );
 
     // Compute some remaining data.
     let num_seeds = a.len() as I / k;
@@ -890,6 +867,7 @@ pub fn mutations(k: I, kmer: usize, dedup: bool) -> Mutations {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::matches::{self, mutations};
     use crate::{
         matches::{
@@ -979,8 +957,30 @@ mod test {
                     };
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
-                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
-                    let k = find_matches_qgram_hash_inexact(&a, &b, &alph, matchconfig);
+                    let mut r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
+                    let mut k = find_matches_qgram_hash_inexact(&a, &b, &alph, matchconfig);
+                    assert!(r
+                        .matches
+                        .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
+                    assert!(k
+                        .matches
+                        .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
+                    r.matches.sort_by_key(
+                        |&Match {
+                             start,
+                             end,
+                             match_cost,
+                             ..
+                         }| { (LexPos(start), LexPos(end), match_cost) },
+                    );
+                    k.matches.sort_by_key(
+                        |&Match {
+                             start,
+                             end,
+                             match_cost,
+                             ..
+                         }| { (LexPos(start), LexPos(end), match_cost) },
+                    );
                     if r.matches != k.matches {
                         println!("-----------------------");
                         for x in &r.matches {
