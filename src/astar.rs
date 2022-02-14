@@ -1,4 +1,5 @@
-use crate::diagonal_map::DiagonalMapTrait;
+#[allow(unused_imports)]
+use crate::diagonal_map::{DiagonalMap, DiagonalMapTrait};
 use crate::prelude::*;
 use crate::scored::MinScored;
 
@@ -52,15 +53,14 @@ pub struct AStarStats<Pos> {
 // g: computed cost to reach node from the start
 // f: g+h
 // TODO: Inline on_expand and on_explore functions by direct calls to h.
-pub fn astar<'a, G, H>(
-    graph: &G,
-    start: G::Pos,
-    target: G::Pos,
+pub fn astar<'a, H>(
+    graph: &AlignmentGraph,
+    start: Pos,
+    target: Pos,
     h: &mut H,
-) -> Option<(Cost, Vec<G::Pos>, AStarStats<G::Pos>)>
+) -> Option<(Cost, Vec<Pos>, AStarStats<Pos>)>
 where
-    G: ImplicitGraph,
-    H: HeuristicInstance<'a, Pos = G::Pos>,
+    H: HeuristicInstance<'a, Pos = Pos>,
 {
     let mut stats = AStarStats {
         expanded: 0,
@@ -75,7 +75,7 @@ where
     };
 
     // f -> pos
-    let mut queue = heap::Heap::<G::Pos, Cost>::default();
+    let mut queue = heap::Heap::<Cost>::default();
     // When > 0, queue[x] corresponds to f=x+offset.
     // Increasing the offset implicitly shifts all elements of the queue up.
     let mut queue_offset: Cost = 0;
@@ -85,7 +85,9 @@ where
     } else {
         0
     };
-    let mut states = G::DiagonalMap::<State<G::Parent, H::Hint>>::new(target);
+
+    //let mut states = DiagonalMap::<State<Parent, H::Hint>>::new(target);
+    let mut states = HashMap::<Pos, State<Parent, H::Hint>>::new(target);
 
     {
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
@@ -160,7 +162,7 @@ where
         // Store the state for copying to matching states.
         let mut state = *state;
         // Matching states will need a match parent.
-        state.parent = G::Parent::match_value();
+        state.parent = Parent::match_value();
 
         // Keep expanding states while we are on a matching diagonal edge.
         // This gives a ~2x speedup on highly similar sequences.
@@ -192,9 +194,8 @@ where
 
                 let mut current = last;
                 // If the state is not in the map, it was found via a match.
-                while let Some(previous) = states
-                    .get(current)
-                    .map_or(G::Parent::match_value(), |x| x.parent)
+                while let Some(previous) = DiagonalMapTrait::get(&states, current)
+                    .map_or(Parent::match_value(), |x| x.parent)
                     .parent(&current)
                 {
                     path.push(previous);
@@ -214,7 +215,7 @@ where
                 // Directly expand the next pos, by copying over the current state to there.
 
                 if !DO_NOT_SAVE_GREEDY_MATCHES {
-                    let new_state = states.get_mut(next);
+                    let new_state = DiagonalMapTrait::get_mut(&mut states, next);
                     if new_state.g <= state.g {
                         // Continue to the next state in the queue.
                         break true;
@@ -251,7 +252,7 @@ where
             let next_g = g + cost;
 
             // Explore next
-            let next_state = states.get_mut(next);
+            let next_state = DiagonalMapTrait::get_mut(&mut states, next);
             if let Unvisited = next_state.status {
                 next_state.status = Explored;
             } else if next_g >= next_state.g {
