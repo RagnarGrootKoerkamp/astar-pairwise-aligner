@@ -1,5 +1,4 @@
-#[allow(unused_imports)]
-use crate::diagonal_map::{DiagonalMap, DiagonalMapTrait};
+use crate::bucket_queue::BucketQueue;
 use crate::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -74,7 +73,7 @@ where
     };
 
     // f -> pos
-    let mut queue = heap::Heap::<Cost>::default();
+    let mut queue = BucketQueue::<Cost>::default();
     // When > 0, queue[x] corresponds to f=x+offset.
     // Increasing the offset implicitly shifts all elements of the queue up.
     let mut queue_offset: Cost = 0;
