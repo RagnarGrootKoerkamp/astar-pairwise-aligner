@@ -3,7 +3,6 @@ use crate::prelude::*;
 use csv::Writer;
 use serde::Serialize;
 use std::{
-    collections::HashSet,
     fmt,
     io::{stdout, Write},
     path::Path,
@@ -296,7 +295,7 @@ impl AlignResult {
 
 fn num_matches_on_path(path: &[Pos], matches: &[Match]) -> usize {
     let matches = {
-        let mut s = HashSet::<Pos>::new();
+        let mut s = HashSet::<Pos>::default();
         for &Match { start, .. } in matches {
             s.insert(start);
         }
