@@ -1,7 +1,7 @@
+use crate::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
-
-use crate::prelude::*;
+use std::mem;
 
 /// A contour implementation that does all operations in O(r).
 #[derive(Default, Debug, Clone)]
@@ -78,10 +78,21 @@ impl Contours for BruteForceContours {
             .unwrap_or(0)
     }
 
-    fn prune(&mut self, pos: Pos) -> bool {
-        self.valued_arrows
-            .drain_filter(|(a, _)| a.start == pos)
-            .count()
-            > 0
+    fn prune_with_hint(
+        &mut self,
+        pos: Pos,
+        _hint: Self::Hint,
+        _arrows: &HashMap<Pos, Vec<Arrow>>,
+    ) -> (bool, Cost) {
+        let len_before = self.valued_arrows.len();
+        self.valued_arrows = Self::new(
+            mem::take(&mut self.valued_arrows)
+                .into_iter()
+                .filter_map(|(a, _)| if a.start != pos { Some(a) } else { None }),
+            0,
+        )
+        .valued_arrows;
+        let len_after = self.valued_arrows.len();
+        (len_before != len_after, 0)
     }
 }
