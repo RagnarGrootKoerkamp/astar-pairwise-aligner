@@ -19,7 +19,7 @@ pub mod contour;
 pub mod datastructures;
 pub mod generate;
 pub mod heuristic;
-pub mod seeds;
+pub mod matches;
 
 // Include one of these to switch to the faster FxHashMap hashing algorithm.
 mod hash_map {
@@ -51,7 +51,7 @@ pub mod prelude {
     pub use crate::datastructures::*;
     pub use crate::generate::*;
     pub use crate::heuristic::*;
-    pub use crate::seeds::{LengthConfig, LengthConfig::Fixed, Match, MatchConfig};
+    pub use crate::matches::{LengthConfig, LengthConfig::Fixed, Match, MatchConfig};
     pub use bio::alphabets::{Alphabet, RankTransform};
     pub use bio::data_structures::qgram_index::QGramIndex;
     pub use std::cmp::{max, min};

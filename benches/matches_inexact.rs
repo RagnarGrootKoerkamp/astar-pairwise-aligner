@@ -4,8 +4,8 @@
 #![feature(test)]
 #![cfg(test)]
 use pairwise_aligner::{
+    matches::{find_matches_qgram_hash_inexact, find_matches_trie, Mutations},
     prelude::*,
-    seeds::{find_matches_qgram_hash_inexact, find_matches_trie, Mutations},
 };
 
 #[macro_use]

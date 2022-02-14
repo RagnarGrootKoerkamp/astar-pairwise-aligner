@@ -5,8 +5,8 @@ use std::{
 
 use super::{distance::*, *};
 use crate::{
+    matches::{find_matches, Match, MatchConfig, SeedMatches},
     prelude::*,
-    seeds::{find_matches, Match, MatchConfig, SeedMatches},
 };
 
 #[derive(Debug, Copy, Clone)]
