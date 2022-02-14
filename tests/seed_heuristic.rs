@@ -12,7 +12,7 @@ fn seed_heuristic_rebuild() {
         },
         pruning,
         prune_fraction,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
     let (_a, _b, alph, stats) = setup(n, e);

@@ -27,7 +27,6 @@ pub enum Contour {
 #[strum(ascii_case_insensitive)]
 pub enum Contours {
     BruteForce,
-    Naive,
     #[default]
     Hint,
 }
@@ -182,12 +181,6 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
 
             match params.contours {
                 Contours::BruteForce => run_contours::<BruteForceContours>(a, b, params),
-                Contours::Naive => match params.contour {
-                    Contour::BruteForce => {
-                        run_contours::<NaiveContours<BruteForceContour>>(a, b, params)
-                    }
-                    Contour::Central => run_contours::<NaiveContours<CentralContour>>(a, b, params),
-                },
                 Contours::Hint => match params.contour {
                     Contour::BruteForce => {
                         run_contours::<HintContours<BruteForceContour>>(a, b, params)

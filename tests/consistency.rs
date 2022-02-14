@@ -47,7 +47,7 @@ fn consistency_1() {
             ..MatchConfig::default()
         },
         pruning: false,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -68,7 +68,7 @@ fn consistency_2() {
             ..MatchConfig::default()
         },
         pruning: false,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -90,7 +90,7 @@ fn consistency_3() {
             ..MatchConfig::default()
         },
         pruning: true,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -111,7 +111,7 @@ fn consistency_4() {
             ..MatchConfig::default()
         },
         pruning: true,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -134,7 +134,7 @@ fn consistency_5() {
             ..MatchConfig::default()
         },
         pruning: true,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.20);

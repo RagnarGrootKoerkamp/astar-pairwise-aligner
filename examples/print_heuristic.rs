@@ -16,7 +16,7 @@ fn main() {
                 ..MatchConfig::default()
             },
             pruning,
-            c: PhantomData::<NaiveContours<BruteForceContour>>,
+            c: PhantomData::<HintContours<BruteForceContour>>,
             ..GapSeedHeuristic::default()
         };
 

@@ -1,5 +1,3 @@
-use std::mem;
-
 use itertools::Itertools;
 use smallvec::SmallVec;
 
