@@ -117,7 +117,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
         Algorithm::Seed => {
             fn run_cost<C: Distance>(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult
             where
-                for<'a> C::DistanceInstance<'a>: HeuristicInstance<'a, Pos = Pos>,
+                for<'a> C::DistanceInstance<'a>: HeuristicInstance<'a>,
             {
                 let heuristic = SeedHeuristic {
                     match_config: MatchConfig {

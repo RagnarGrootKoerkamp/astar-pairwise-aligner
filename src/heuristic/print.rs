@@ -10,7 +10,7 @@ pub fn print<'a, 'b, H>(
     target: Pos,
     wait_for_user: bool,
 ) where
-    H: HeuristicInstance<'a, Pos = Pos>,
+    H: HeuristicInstance<'a>,
 {
     if !crate::config::print() {
         return;

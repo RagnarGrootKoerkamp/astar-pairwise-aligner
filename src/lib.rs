@@ -379,7 +379,7 @@ pub fn align<'a, H: Heuristic>(
     heuristic: H,
 ) -> AlignResult
 where
-    H::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
+    H::Instance<'a>: HeuristicInstance<'a>,
 {
     // Instantiate the heuristic.
     let start_time = time::Instant::now();

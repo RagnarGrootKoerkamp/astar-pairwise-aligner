@@ -237,9 +237,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
 }
 
 impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
-    type Pos = crate::alignment_graph::Pos;
-
-    fn h(&self, pos: Self::Pos) -> Cost {
+    fn h(&self, pos: Pos) -> Cost {
         let p = self.seed_matches.potential(pos);
         let val = self.contours.value(self.transform(pos));
         if val == 0 {
@@ -250,7 +248,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     }
 
     type Hint = C::Hint;
-    fn h_with_hint(&self, pos: Self::Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
+    fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let p = self.seed_matches.potential(pos);
         let (val, new_hint) = self.contours.value_with_hint(self.transform(pos), hint);
         if val == 0 {
@@ -260,7 +258,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
-    fn is_start_of_seed(&mut self, pos: Self::Pos) -> bool {
+    fn is_start_of_seed(&mut self, pos: Pos) -> bool {
         self.seed_matches.is_start_of_seed(pos)
     }
 
@@ -268,7 +266,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         self.prune_with_hint(pos, Self::Hint::default());
     }
 
-    fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) -> Cost {
+    fn prune_with_hint(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
         if !self.params.pruning {
             return 0;
         }
@@ -324,7 +322,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
-    fn explore(&mut self, pos: Self::Pos) {
+    fn explore(&mut self, pos: Pos) {
         let tpos = self.transform(pos);
         if tpos.0 >= self.max_transformed_pos.0 {
             if tpos.0 > self.max_transformed_pos.0 {

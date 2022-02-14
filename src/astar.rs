@@ -58,7 +58,7 @@ pub fn astar<'a, H>(
     h: &mut H,
 ) -> Option<(Cost, Vec<Pos>, AStarStats<Pos>)>
 where
-    H: HeuristicInstance<'a, Pos = Pos>,
+    H: HeuristicInstance<'a>,
 {
     let mut stats = AStarStats {
         expanded: 0,
