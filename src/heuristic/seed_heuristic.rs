@@ -170,7 +170,7 @@ impl<'a, DH: Distance> HeuristicInstance<'a> for SimpleSeedHeuristicI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
 {
-    type Pos = crate::graph::Pos;
+    type Pos = crate::alignment_graph::Pos;
     fn h(&self, pos: Self::Pos) -> Cost {
         self.h_at_seeds
             .iter()
