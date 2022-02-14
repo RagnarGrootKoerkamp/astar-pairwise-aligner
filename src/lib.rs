@@ -41,16 +41,6 @@ mod fx_hash_map {
     pub use rustc_hash::FxHashSet as HashSet;
 }
 
-// Include one of these heap implementations.
-mod binary_queue_impl {
-    #[allow(dead_code)]
-    pub use std::collections::BinaryHeap as Heap;
-}
-mod bucket_queue_impl {
-    #[allow(dead_code)]
-    pub use crate::bucket_queue::BucketQueue as Heap;
-}
-
 pub mod prelude {
     pub use bio_types::sequence::Sequence;
     pub use std::marker::PhantomData;
@@ -59,10 +49,9 @@ pub mod prelude {
 
     pub use config::*;
 
-    pub(crate) use super::bucket_queue_impl as heap;
-
     pub use super::*;
     pub use crate::algorithms::*;
+    pub use crate::bucket_queue::*;
     pub use crate::contour::*;
     pub use crate::generate::*;
     pub use crate::graph::*;
