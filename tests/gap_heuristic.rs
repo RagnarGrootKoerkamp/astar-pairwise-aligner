@@ -38,50 +38,6 @@ fn contour_graph() {
 }
 
 #[test]
-fn pruning_and_inexact_matches() {
-    let pruning = true;
-    let (k, max_match_cost) = (7, 1);
-    for do_transform in [false, true] {
-        let h_fast = GapSeedHeuristic {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost,
-                ..MatchConfig::default()
-            },
-            pruning,
-            c: PhantomData::<NaiveContours<BruteForceContour>>,
-            ..GapSeedHeuristic::default()
-        };
-        let h_slow = GapSeedHeuristic { ..h_fast };
-
-        let n = 1000;
-        let e: f32 = 0.3;
-        let (a, b, alph, stats) = setup(n, e);
-        let start = 951;
-        let end = 986;
-        let a = &a[start..end].to_vec();
-        let b = &b[start..end].to_vec();
-
-        println!("TESTING: {:?}", h_fast);
-        println!("{}\n{}", to_string(a), to_string(b));
-
-        if do_transform {
-            println!("ALIGN");
-            align(
-                &a,
-                &b,
-                &alph,
-                stats,
-                EqualHeuristic {
-                    h1: h_slow,
-                    h2: h_fast,
-                },
-            );
-        }
-    }
-}
-
-#[test]
 fn small_test() {
     let alphabet = &Alphabet::new(b"ACTG");
 
@@ -106,7 +62,7 @@ fn small_test() {
             ..MatchConfig::default()
         },
         pruning: false,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
     let r = align(&pattern, &text, &alphabet, stats, h);
@@ -125,7 +81,7 @@ fn seed_heuristic_rebuild() {
         },
         pruning,
         prune_fraction,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
     let (_a, _b, alph, stats) = setup(n, e);
@@ -182,7 +138,7 @@ fn no_double_expand_2() {
         },
         pruning,
         prune_fraction,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
 

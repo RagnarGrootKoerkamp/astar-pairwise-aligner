@@ -52,19 +52,6 @@ impl<C: 'static + Contours> GapSeedHeuristic<C> {
             h2: *self,
         }
     }
-    pub fn equal_to_naive_brutefore_contour(
-        &self,
-    ) -> EqualHeuristic<GapSeedHeuristic<NaiveContours<BruteForceContour>>, Self> {
-        EqualHeuristic {
-            h1: GapSeedHeuristic {
-                match_config: self.match_config,
-                pruning: self.pruning,
-                prune_fraction: self.prune_fraction,
-                c: Default::default(),
-            },
-            h2: *self,
-        }
-    }
 }
 
 // Manual implementations because C is not Debug, Clone, or Copy.

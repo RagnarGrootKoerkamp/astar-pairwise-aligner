@@ -4,24 +4,14 @@ use pairwise_aligner::prelude::*;
 fn no_leftover() {
     let pruning = true;
     let (k, max_match_cost) = (7, 1);
-    let h_slow = GapSeedHeuristic {
+    let h = GapSeedHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost,
             ..MatchConfig::default()
         },
         pruning,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
-    };
-    let h_fast = GapSeedHeuristic {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost,
-            ..MatchConfig::default()
-        },
-        pruning,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -34,31 +24,21 @@ fn no_leftover() {
     let b = &b[start..end].to_vec();
 
     println!("\n\n\nALIGN");
-    align(
-        &a,
-        &b,
-        &alph,
-        stats,
-        EqualHeuristic {
-            h1: h_slow,
-            h2: h_fast,
-        },
-    );
+    align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
 }
 
 #[test]
 fn needs_leftover() {
-    let h_slow = GapSeedHeuristic {
+    let h = GapSeedHeuristic {
         match_config: MatchConfig {
             length: Fixed(7),
             max_match_cost: 1,
             ..MatchConfig::default()
         },
         pruning: false,
-        c: PhantomData::<NaiveContours<BruteForceContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
-    let h_fast = GapSeedHeuristic { ..h_slow };
 
     let n = 1000;
     let e: f32 = 0.3;
@@ -68,18 +48,9 @@ fn needs_leftover() {
     let a = &a[start..end].to_vec();
     let b = &b[start..end].to_vec();
 
-    println!("TESTING: {:?}", h_fast);
+    println!("TESTING: {:?}", h);
     println!("{}\n{}", to_string(a), to_string(b));
 
     println!("ALIGN");
-    align(
-        &a,
-        &b,
-        &alph,
-        stats,
-        EqualHeuristic {
-            h1: h_slow,
-            h2: h_fast,
-        },
-    );
+    align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
 }
