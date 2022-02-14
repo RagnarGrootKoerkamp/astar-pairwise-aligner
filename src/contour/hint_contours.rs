@@ -15,9 +15,6 @@ use crate::prelude::*;
 #[derive(Default, Debug)]
 pub struct HintContours<C: Contour> {
     contours: SplitVec<C>,
-    // TODO: Do not use vectors inside a hashmap.
-    // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
-    arrows: HashMap<Pos, Vec<Arrow>>,
     // TODO: This should have units in the transformed domain instead.
     max_len: I,
     stats: RefCell<HintContourStats>,
@@ -74,7 +71,6 @@ impl<C: Contour> Contours for HintContours<C> {
                 c.resize_with(1, || C::default());
                 c
             },
-            arrows: HashMap::default(),
             max_len,
             stats: Default::default(),
             layers_removed: 0,
@@ -83,8 +79,7 @@ impl<C: Contour> Contours for HintContours<C> {
         // Loop over all arrows from a given positions.
         for (start, pos_arrows) in &arrows.into_iter().group_by(|a| a.start) {
             let mut v = 0;
-            this.arrows.insert(start, pos_arrows.collect());
-            for a in &this.arrows[&start] {
+            for a in pos_arrows {
                 assert_eq!((a.end.0 - a.start.0) + (a.end.1 - a.start.1), 2 * max_len);
                 v = max(v, this.value(a.end) + a.len);
             }
@@ -173,36 +168,24 @@ impl<C: Contour> Contours for HintContours<C> {
         )
     }
 
-    fn prune(&mut self, p: Pos) -> bool {
-        self.prune_with_hint(
-            p,
-            Hint {
-                original_layer: Cost::MAX,
-            },
-        )
-        .0
-    }
-
-    fn prune_with_hint(&mut self, p: Pos, hint: Hint) -> (bool, Cost) {
-        if self.arrows.remove(&p).is_none() {
-            // This position was already pruned or never needed pruning.
-            return (false, 0);
-        }
-
+    fn prune_with_hint(
+        &mut self,
+        p: Pos,
+        hint: Hint,
+        arrows: &HashMap<Pos, Vec<Arrow>>,
+    ) -> (bool, Cost) {
         // Work contour by contour.
         // 1. Remove p from it's first contour.
         let mut v = self.value_with_hint(p, hint).0;
-        //for (i, c) in self.contours.iter().enumerate().rev() {
-        //println!("{}: {:?}", i, c);
-        //}
-        // println!("BEFORE PRUNE");
+        // println!("BEFORE PRUNE of {p} layer {v}");
         // for i in v.saturating_sub(4)..min(v + 4, self.contours.len() as Cost) {
         //     println!("{}: {:?}", i, self.contours[i as usize]);
         // }
 
         // Prune the current point, and also any other lazily pruned points that become dominant.
         // If nothing changed, return false.
-        if !self.contours[v as usize].prune_filter(&mut |pos| !self.arrows.contains_key(&pos)) {
+        if v == 0 || !self.contours[v as usize].prune_filter(&mut |pos| !arrows.contains_key(&pos))
+        {
             //println!("SKIP");
             return (false, 0);
         }
@@ -265,8 +248,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 // of its value.
                 self.stats.borrow_mut().checked += 1;
                 //println!("f: {}", pos);
-                let pos_arrows = match self.arrows.get(&pos) {
-                    Some(arrows) => arrows,
+                let pos_arrows = match arrows.get(&pos) {
                     None => {
                         //println!("f: Prune {} no arrows left", pos);
                         current_shift = Some(Cost::MAX);
@@ -274,6 +256,7 @@ impl<C: Contour> Contours for HintContours<C> {
                         self.stats.borrow_mut().checked_true += 1;
                         return true;
                     }
+                    Some(arrows) => arrows,
                 };
                 assert!(!pos_arrows.is_empty());
                 let mut best_start_val = 0;

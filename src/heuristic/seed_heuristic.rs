@@ -3,6 +3,8 @@ use std::{
     time::{self, Duration},
 };
 
+use itertools::Itertools;
+
 use super::{distance::*, *};
 use crate::{
     matches::{find_matches, Match, MatchConfig, SeedMatches},
@@ -71,8 +73,8 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
     pub matches: SeedMatches,
     // The lowest cost match starting at each position.
     h_at_seeds: HashMap<Pos, Cost>,
-    // State for pruning.
-    pruned_positions: HashSet<Pos>,
+    // Remaining arrows/matches
+    arrows: HashMap<Pos, Vec<Arrow>>,
     // Partial pruning.
     num_tried_pruned: usize,
     num_actual_pruned: usize,
@@ -129,12 +131,41 @@ where
             target: Pos::from_length(a, b),
             matches: find_matches(a, b, alphabet, params.match_config),
             h_at_seeds: Default::default(),
-            pruned_positions: Default::default(),
+            arrows: Default::default(),
             pruning_duration: Default::default(),
             num_tried_pruned: 0,
             num_actual_pruned: 0,
         };
+        assert!(h
+            .matches
+            .matches
+            .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
+
+        // Transform to Arrows.
+        let arrows_iterator = h.matches.iter().map(
+            |&Match {
+                 start,
+                 end,
+                 match_cost,
+                 seed_potential,
+             }| {
+                Arrow {
+                    start,
+                    end,
+                    len: seed_potential - match_cost,
+                }
+            },
+        );
+
+        h.arrows = arrows_iterator
+            .clone()
+            .group_by(|a| a.start)
+            .into_iter()
+            .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
+            .collect();
+
         h.build();
+        h.print(false, false);
         h
     }
 
@@ -149,7 +180,7 @@ where
             ..
         } in self.matches.iter().rev()
         {
-            if self.pruned_positions.contains(start) {
+            if !self.arrows.contains_key(start) {
                 continue;
             }
             // Use the match.
@@ -216,39 +247,45 @@ where
         {
             return;
         }
-        self.num_actual_pruned += 1;
 
-        // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
-        if self.params.match_config.max_match_cost > 0 {
-            // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
-            let cur_val = self.h(pos);
-            if pos.1 > 0 {
-                let nb_val = self.h(Pos(pos.0, pos.1 - 1));
-                assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
-                if cur_val > nb_val {
-                    return;
+        let start = time::Instant::now();
+
+        if !self.arrows.contains_key(&pos) {
+            self.pruning_duration += start.elapsed();
+            return;
+        }
+
+        // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
+        for d in 0..self.params.match_config.max_match_cost {
+            if pos.1 >= d {
+                if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 - d)) {
+                    if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
+                        self.pruning_duration += start.elapsed();
+                        return;
+                    }
                 }
             }
-            if pos.1 < self.target.1 {
-                let nb_val = self.h(Pos(pos.0, pos.1 + 1));
-                assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
-                if cur_val > nb_val {
-                    return;
+            if pos.1 + d <= self.target.1 {
+                if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 + d)) {
+                    if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
+                        self.pruning_duration += start.elapsed();
+                        return;
+                    }
                 }
             }
         }
 
         //Prune the current position.
-        self.pruned_positions.insert(pos);
-        if self.h_at_seeds.remove(&pos).is_none() {
-            // Nothing to do.
-            return;
-        }
-
         if print() {
             println!("PRUNE SEED HEURISTIC: {}", pos);
         }
-        let start = time::Instant::now();
+
+        self.arrows.remove(&pos).unwrap();
+
+        if self.h_at_seeds.remove(&pos).is_none() {
+            // No need to rebuild.
+            return;
+        }
         self.build();
         self.pruning_duration += start.elapsed();
         self.print(false, false);
