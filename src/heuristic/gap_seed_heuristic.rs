@@ -143,7 +143,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
 impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
-    fn distance(&self, from: Self::Pos, to: Self::Pos) -> Cost {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.gap_distance.distance(from, to),
             self.seed_matches.distance(from, to),
