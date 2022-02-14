@@ -20,7 +20,7 @@ fn base_100(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 1.0,
-        c: PhantomData::<NaiveContours<LogQueryContour>>,
+        c: PhantomData::<HintContours<CentralContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -40,7 +40,7 @@ fn base_1000(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 1.0,
-        c: PhantomData::<NaiveContours<LogQueryContour>>,
+        c: PhantomData::<HintContours<CentralContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -60,7 +60,7 @@ fn base_10000(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 1.0,
-        c: PhantomData::<NaiveContours<LogQueryContour>>,
+        c: PhantomData::<HintContours<CentralContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -80,7 +80,7 @@ fn base_10000_prune_less(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 0.6,
-        c: PhantomData::<NaiveContours<LogQueryContour>>,
+        c: PhantomData::<HintContours<CentralContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -100,7 +100,7 @@ fn base_50000_similar(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 1.0,
-        c: PhantomData::<NaiveContours<LogQueryContour>>,
+        c: PhantomData::<HintContours<CentralContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -120,7 +120,7 @@ fn fast_100(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 1.0,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -140,7 +140,7 @@ fn fast_1000(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 1.0,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -160,7 +160,7 @@ fn fast_10000(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 1.0,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -180,7 +180,7 @@ fn fast_10000_prune_less(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 0.6,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
 
@@ -200,7 +200,7 @@ fn fast_50000_similar(bench: &mut Bencher) {
         },
         pruning: true,
         prune_fraction: 1.0,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
 
