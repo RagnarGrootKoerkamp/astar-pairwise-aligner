@@ -20,8 +20,6 @@ pub enum CostFunction {
 pub enum Contour {
     #[default]
     BruteForce,
-    LogQuery,
-    Set,
     Central,
 }
 
@@ -188,20 +186,12 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     Contour::BruteForce => {
                         run_contours::<NaiveContours<BruteForceContour>>(a, b, params)
                     }
-                    Contour::LogQuery => {
-                        run_contours::<NaiveContours<LogQueryContour>>(a, b, params)
-                    }
-                    Contour::Set => run_contours::<NaiveContours<SetContour>>(a, b, params),
                     Contour::Central => run_contours::<NaiveContours<CentralContour>>(a, b, params),
                 },
                 Contours::Hint => match params.contour {
                     Contour::BruteForce => {
                         run_contours::<HintContours<BruteForceContour>>(a, b, params)
                     }
-                    Contour::LogQuery => {
-                        run_contours::<HintContours<LogQueryContour>>(a, b, params)
-                    }
-                    Contour::Set => run_contours::<HintContours<SetContour>>(a, b, params),
                     Contour::Central => run_contours::<HintContours<CentralContour>>(a, b, params),
                 },
             }
