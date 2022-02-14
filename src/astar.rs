@@ -1,7 +1,6 @@
 #[allow(unused_imports)]
 use crate::diagonal_map::{DiagonalMap, DiagonalMapTrait};
 use crate::prelude::*;
-use crate::scored::MinScored;
 
 #[derive(Clone, Copy, Debug)]
 enum Status {
