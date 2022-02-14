@@ -11,7 +11,7 @@ pub use seed_heuristic::*;
 
 use serde::Serialize;
 
-use crate::{seeds::Match, util::*};
+use crate::{prelude::*, seeds::Match};
 
 #[derive(Serialize, Default, Clone)]
 pub struct HeuristicParams {
