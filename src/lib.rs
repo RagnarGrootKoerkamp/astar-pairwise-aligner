@@ -28,7 +28,6 @@ pub mod heuristic;
 pub mod matches_inexact;
 pub mod scored;
 pub mod seeds;
-pub mod thresholds;
 pub mod trie;
 pub mod util;
 
