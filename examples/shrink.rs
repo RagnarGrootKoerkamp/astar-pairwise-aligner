@@ -7,6 +7,7 @@ fn main() {
 
     let n = 200;
     let e = 0.10;
+    let seed = 54;
     let k = 6;
     let max_match_cost = 1;
     let pruning = true;
@@ -25,7 +26,7 @@ fn main() {
     }
     .equal_to_bruteforce_contours();
 
-    let (a, b, alphabet, stats) = setup(n, e);
+    let (a, b, alphabet, stats) = setup_with_seed(n, e, seed);
     println!("Heuristic:\n{:?}", h);
 
     // True on success.
