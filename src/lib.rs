@@ -12,19 +12,16 @@
 )]
 
 pub mod astar;
-pub mod bucket_queue;
 pub mod contour;
 //pub mod contour_graph;
 pub mod algorithms;
 pub mod config;
 pub mod costmodel;
-pub mod diagonal_map;
+pub mod datastructures;
 pub mod generate;
 pub mod graph;
 pub mod heuristic;
-pub mod scored;
 pub mod seeds;
-pub mod trie;
 
 // Include one of these to switch to the faster FxHashMap hashing algorithm.
 mod hash_map {
@@ -51,8 +48,8 @@ pub mod prelude {
 
     pub use super::*;
     pub use crate::algorithms::*;
-    pub use crate::bucket_queue::*;
     pub use crate::contour::*;
+    pub use crate::datastructures::*;
     pub use crate::generate::*;
     pub use crate::graph::*;
     pub use crate::heuristic::*;
