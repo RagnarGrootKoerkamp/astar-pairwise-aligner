@@ -1,18 +1,15 @@
-use std::{
-    cmp::Reverse,
-    io,
-    marker::PhantomData,
-    time::{self, Duration},
-};
-
-use itertools::Itertools;
-use rand::{prelude::Distribution, SeedableRng};
-
 use super::{distance::*, *};
 use crate::{
     contour::{Arrow, Contours},
     matches::{find_matches, Match, MatchConfig, SeedMatches},
     prelude::*,
+};
+use itertools::Itertools;
+use rand::{prelude::Distribution, SeedableRng};
+use std::{
+    io,
+    marker::PhantomData,
+    time::{self, Duration},
 };
 
 pub struct GapSeedHeuristic<C: Contours> {
@@ -136,6 +133,9 @@ pub struct GapSeedHeuristicI<C: Contours> {
 
     // For debugging
     pub pruning_duration: Duration,
+    // TODO: Do not use vectors inside a hashmap.
+    // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
+    arrows: HashMap<Pos, Vec<Arrow>>,
 }
 
 /// The seed heuristic implies a distance function as the maximum of the
@@ -160,13 +160,11 @@ impl<C: Contours> Drop for GapSeedHeuristicI<C> {
 
 impl<C: Contours> GapSeedHeuristicI<C> {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: GapSeedHeuristic<C>) -> Self {
-        let seed_matches = find_matches(a, b, alph, params.match_config);
-
         let mut h = GapSeedHeuristicI {
             params,
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos::from_length(a, b),
-            seed_matches,
+            seed_matches: find_matches(a, b, alph, params.match_config),
             num_filtered_matches: 0,
             num_tried_pruned: 0,
             num_actual_pruned: 0,
@@ -178,48 +176,58 @@ impl<C: Contours> GapSeedHeuristicI<C> {
             transform_target: Pos(0, 0),
             contours: C::default(),
             pruning_duration: Default::default(),
+            arrows: Default::default(),
         };
         h.transform_target = h.transform(h.target);
-        h.build();
+
+        // Filter the matches.
+        // NOTE: Matches is already sorted by start.
+        assert!(h
+            .seed_matches
+            .matches
+            .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
+        {
+            // Need to take it out of h.seed_matches because transform also uses this.
+            let mut matches = std::mem::take(&mut h.seed_matches.matches);
+            matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);
+            h.seed_matches.matches = matches;
+            h.num_filtered_matches = h.seed_matches.matches.len();
+        }
+
+        // Transform to Arrows.
+        let arrows_iterator = h.seed_matches.iter().rev().map(
+            |&Match {
+                 start,
+                 end,
+                 match_cost,
+                 seed_potential,
+             }| {
+                Arrow {
+                    start: h.transform(start),
+                    end: h.transform(end),
+                    len: seed_potential - match_cost,
+                }
+            },
+        );
+
+        let arrows_map = arrows_iterator
+            .clone()
+            .group_by(|a| a.start)
+            .into_iter()
+            .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
+            .collect();
+
+        // Sort revered by start (the order needed to construct contours).
+        // TODO: Can we get away without sorting? It's probably possible if seed_matches
+        // TODO: Fix the units here -- unclear whether it should be I or cost.
+        h.contours = C::new(
+            arrows_iterator,
+            h.params.match_config.max_match_cost as I + 1,
+        );
+        h.arrows = arrows_map;
         h.print(false, false);
         h.contours.print_stats();
         h
-    }
-
-    // TODO: Report some metrics on skipped states.
-    fn build(&mut self) {
-        // Filter matches by transformed start position.
-        let filtered_matches = self
-            .seed_matches
-            .iter()
-            .filter(|Match { end, .. }| self.transform(*end) <= self.transform_target)
-            .collect_vec();
-        self.num_filtered_matches = filtered_matches.len();
-        // Transform to Arrows.
-        let mut arrows = filtered_matches
-            .into_iter()
-            .map(
-                |&Match {
-                     start,
-                     end,
-                     match_cost,
-                     seed_potential,
-                 }| {
-                    Arrow {
-                        start: self.transform(start),
-                        end: self.transform(end),
-                        len: seed_potential - match_cost,
-                    }
-                },
-            )
-            .collect_vec();
-        //println!("{:?}", self.seed_matches.matches);
-        //println!("{:?}", arrows);
-        // Sort revered by start.
-        arrows.sort_by_key(|Arrow { start, .. }| Reverse(LexPos(*start)));
-        // TODO: Fix the units here -- unclear whether it should be I or cost.
-        self.contours = C::new(arrows, self.params.match_config.max_match_cost as I + 1);
-        //println!("{:?}", self.contours);
     }
 
     // TODO: Transform maps from position domain into cost domain.
@@ -271,30 +279,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             return 0;
         }
 
-        // Make sure that h remains consistent, by never pruning if it would make the new value >1 larger than it's neighbours above/below.
-        if self.params.match_config.max_match_cost > 0 {
-            // Compute the new value. Can be linear time loop since we are going to rebuild anyway.
-            // TODO: Cur_val could be passed in from the parent instead.
-            // TODO: Should we be looking at h or contours.value_with_hint here?
-            let (cur_val, hint) = self.h_with_hint(pos, hint);
-            if pos.1 > 0 {
-                let nb_val = self.h_with_hint(Pos(pos.0, pos.1 - 1), hint).0;
-                // FIXME: Re-enable this assertion.
-                //assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
-                if cur_val > nb_val {
-                    return 0;
-                }
-            }
-            if pos.1 < self.target.1 {
-                let nb_val = self.h_with_hint(Pos(pos.0, pos.1 + 1), hint).0;
-                // FIXME: Re-enable this assertion.
-                //assert!(cur_val + 1 >= nb_val, "cur {} nb {}", cur_val, nb_val);
-                if cur_val > nb_val {
-                    return 0;
-                }
-            }
-        }
-
+        // Partial pruning check.
         self.num_tried_pruned += 1;
         if self.num_actual_pruned as f32
             >= self.num_tried_pruned as f32 * self.params.prune_fraction
@@ -302,18 +287,45 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             return 0;
         }
 
-        let tpos = self.transform(pos);
-        if print() {
-            println!("PRUNE INCREMENT {} / {}", pos, tpos);
-        }
         let start = time::Instant::now();
-        let change = self.contours.prune_with_hint(tpos, hint);
-        self.pruning_duration += start.elapsed();
-        if change.0 {
-            self.num_actual_pruned += 1;
+
+        let tpos = self.transform(pos);
+
+        if !self.arrows.contains_key(&tpos) {
+            self.pruning_duration += start.elapsed();
+            return 0;
         }
-        if change.0 && print() {
-            self.print(true, false);
+
+        // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
+        for d in 0..self.params.match_config.max_match_cost {
+            if tpos.1 >= d {
+                if let Some(pos_arrows) = self.arrows.get(&Pos(tpos.0 + d, tpos.1 - d)) {
+                    if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
+                        self.pruning_duration += start.elapsed();
+                        return 0;
+                    }
+                }
+            }
+            if tpos.0 >= d {
+                if let Some(pos_arrows) = self.arrows.get(&Pos(tpos.0 - d, tpos.1 + d)) {
+                    if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
+                        self.pruning_duration += start.elapsed();
+                        return 0;
+                    }
+                }
+            }
+        }
+
+        if print() {
+            println!("PRUNE GAP SEED HEURISTIC {} / {}", pos, tpos);
+        }
+
+        self.arrows.remove(&tpos).unwrap();
+        let change = self.contours.prune_with_hint(tpos, hint, &self.arrows);
+        self.pruning_duration += start.elapsed();
+        self.num_actual_pruned += 1;
+        if print() {
+            self.print(false, false);
         }
         if tpos >= self.max_transformed_pos {
             return change.1;

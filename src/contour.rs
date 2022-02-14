@@ -8,7 +8,7 @@ pub use hint_contours::*;
 
 use std::fmt::{Debug, Display};
 
-use crate::prelude::{Cost, Pos, I};
+use crate::prelude::{Cost, HashMap, Pos, I};
 
 /// A datastructure that contains the contours of non-dominant points.
 /// The 'main' contour is the set of dominant points: {P: P >= S for all S}.
@@ -96,13 +96,15 @@ pub trait Contours: Default + Debug {
     /// Returns true when at the point was removed.
     /// TODO: also prune all arrows ending in the given position.
     ///       or at least when this is the only outgoing arrow.
-    fn prune(&mut self, _p: Pos) -> bool;
     /// If the additional Cost return is positive, this indicates that position
     /// `p` was the only arrow in its layer, and a total of Cost layers were
     /// removed.
-    fn prune_with_hint(&mut self, p: Pos, _hint: Self::Hint) -> (bool, Cost) {
-        (self.prune(p), 0)
-    }
+    fn prune_with_hint(
+        &mut self,
+        p: Pos,
+        hint: Self::Hint,
+        arrows: &HashMap<Pos, Vec<Arrow>>,
+    ) -> (bool, Cost);
 
     /// Returns some statistics.
     fn print_stats(&self) {}
