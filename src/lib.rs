@@ -67,7 +67,7 @@ use rand::SeedableRng;
 use serde::Serialize;
 use std::{
     collections::HashSet,
-    fmt::{self, Display},
+    fmt,
     io::{stdout, Write},
     path::Path,
     time,
@@ -105,8 +105,8 @@ pub struct TimingStats {
 #[derive(Serialize, Default, Clone)]
 pub struct HeuristicStats2 {
     pub root_h: Cost,
-    pub path_matches: Option<usize>,
-    pub explored_matches: Option<usize>,
+    pub path_matches: usize,
+    pub explored_matches: usize,
 }
 
 #[derive(Serialize, Default, Clone)]
@@ -128,16 +128,6 @@ pub struct AlignResult {
 }
 
 impl AlignResult {
-    fn print_opt<T: Display>(o: Option<T>) -> String {
-        o.map_or("".into(), |x| x.to_string())
-    }
-    fn print_opt_sampled(o: Option<usize>, sample_size: usize) -> String {
-        o.map_or("".into(), |x| (x / sample_size).to_string())
-    }
-    fn print_opt_bool(o: Option<bool>) -> String {
-        o.map_or("".into(), |x| (x as u8).to_string())
-    }
-
     pub fn add_sample(&mut self, other: &AlignResult) {
         if self.sample_size == 0 {
             *self = (*other).clone();
@@ -146,21 +136,10 @@ impl AlignResult {
 
         self.input.len_a += other.input.len_a;
         self.input.len_b += other.input.len_b;
-        if let Some(x) = &mut self.heuristic_stats.num_seeds {
-            *x += other.heuristic_stats.num_seeds.unwrap_or_default();
-        }
-        if let Some(x) = &mut self.heuristic_stats.num_matches {
-            *x += other.heuristic_stats.num_matches.unwrap_or_default();
-        }
-        if let Some(x) = &mut self.heuristic_stats.num_filtered_matches {
-            *x += other
-                .heuristic_stats
-                .num_filtered_matches
-                .unwrap_or_default();
-        }
-        if let Some(x) = &mut self.heuristic_stats.num_prunes {
-            *x += other.heuristic_stats.num_prunes.unwrap_or_default();
-        }
+        self.heuristic_stats.num_seeds += other.heuristic_stats.num_seeds;
+        self.heuristic_stats.num_matches += other.heuristic_stats.num_matches;
+        self.heuristic_stats.num_filtered_matches += other.heuristic_stats.num_filtered_matches;
+        self.heuristic_stats.num_prunes += other.heuristic_stats.num_prunes;
         self.astar.expanded += other.astar.expanded;
         self.astar.explored += other.astar.explored;
         self.astar.double_expanded += other.astar.double_expanded;
@@ -172,9 +151,7 @@ impl AlignResult {
         self.path = other.path.clone();
         self.timing.precomputation += other.timing.precomputation;
         self.timing.astar += other.timing.astar;
-        if let Some(x) = &mut self.heuristic_stats.pruning_duration {
-            *x += other.heuristic_stats.pruning_duration.unwrap_or_default();
-        }
+        self.heuristic_stats.pruning_duration += other.heuristic_stats.pruning_duration;
         self.edit_distance += other.edit_distance;
         self.heuristic_stats2.root_h += other.heuristic_stats2.root_h;
         self.sample_size += other.sample_size;
@@ -206,57 +183,33 @@ impl AlignResult {
                 format!("{:<7}", this.heuristic_params.name)
             }),
             (format!("{:>2}", "k"), |this: &AlignResult| {
-                format!("{:>2}", AlignResult::print_opt(this.heuristic_params.k))
+                format!("{:>2}", this.heuristic_params.k)
             }),
             (format!("{:>2}", "md"), |this: &AlignResult| {
-                format!(
-                    "{:>2}",
-                    AlignResult::print_opt(this.heuristic_params.max_match_cost)
-                )
+                format!("{:>2}", this.heuristic_params.max_match_cost)
             }),
             (format!("{:>2}", "pr"), |this: &AlignResult| {
-                format!(
-                    "{:>2}",
-                    AlignResult::print_opt_bool(this.heuristic_params.pruning)
-                )
+                format!("{:>2}", this.heuristic_params.pruning)
             }),
             (format!("{:>2}", "bf"), |this: &AlignResult| {
-                format!(
-                    "{:>2}",
-                    AlignResult::print_opt_bool(this.heuristic_params.build_fast)
-                )
+                format!("{:>2}", this.heuristic_params.build_fast)
             }),
             (format!("{:<5}", "d-f"), |this: &AlignResult| {
-                format!(
-                    "{:<5}",
-                    AlignResult::print_opt(this.heuristic_params.distance_function.as_ref())
-                )
+                format!("{:<5}", this.heuristic_params.distance_function)
             }),
             (format!("{:>7}", "seeds"), |this: &AlignResult| {
                 format!(
                     "{:>7}",
-                    AlignResult::print_opt_sampled(
-                        this.heuristic_stats.num_seeds.map(|x| x as usize),
-                        this.sample_size
-                    )
+                    this.heuristic_stats.num_seeds as usize / this.sample_size
                 )
             }),
             (format!("{:>7}", "matches"), |this: &AlignResult| {
-                format!(
-                    "{:>7}",
-                    AlignResult::print_opt_sampled(
-                        this.heuristic_stats.num_matches,
-                        this.sample_size
-                    )
-                )
+                format!("{:>7}", this.heuristic_stats.num_matches / this.sample_size)
             }),
             (format!("{:>7}", "f-match"), |this: &AlignResult| {
                 format!(
                     "{:>7}",
-                    AlignResult::print_opt_sampled(
-                        this.heuristic_stats.num_filtered_matches,
-                        this.sample_size
-                    )
+                    this.heuristic_stats.num_filtered_matches / this.sample_size
                 )
             }),
             (format!("{:>9}", "expanded"), |this: &AlignResult| {
@@ -272,13 +225,7 @@ impl AlignResult {
                 format!("{:>7}", this.astar.retries / this.sample_size)
             }),
             (format!("{:>7}", "prunes"), |this: &AlignResult| {
-                format!(
-                    "{:>7}",
-                    AlignResult::print_opt_sampled(
-                        this.heuristic_stats.num_prunes,
-                        this.sample_size
-                    )
-                )
+                format!("{:>7}", this.heuristic_stats.num_prunes / this.sample_size)
             }),
             (format!("{:>7}", "shift"), |this: &AlignResult| {
                 format!("{:>7}", this.astar.pq_shifts / this.sample_size)
@@ -302,11 +249,10 @@ impl AlignResult {
                 )
             }),
             (format!("{:>8}", "prune"), |this: &AlignResult| {
-                this.heuristic_stats
-                    .pruning_duration
-                    .map_or("".into(), |x| {
-                        format!("{:>8.2}", 1000. * x / this.sample_size as f32)
-                    })
+                format!(
+                    "{:>8.2}",
+                    1000. * this.heuristic_stats.pruning_duration / this.sample_size as f32
+                )
             }),
             (format!("{:>7}", "ed"), |this: &AlignResult| {
                 format!(
@@ -323,13 +269,13 @@ impl AlignResult {
             // (format!("{:>5}", "m_pat"), |this: &AlignResult| {
             //     format!(
             //         "{:>5}",
-            //         AlignResult::print_opt(this.heuristic_stats2.path_matches)
+            //         this.heuristic_stats2.path_matches
             //     )
             // }),
             // (format!("{:>5}", "m_exp"), |this: &AlignResult| {
             //     format!(
             //         "{:>5}",
-            //         AlignResult::print_opt(this.heuristic_stats2.explored_matches)
+            //         this.heuristic_stats2.explored_matches
             //     )
             // }),
             (format!("{:>5}", "dm-fr"), |this: &AlignResult| {
@@ -402,14 +348,12 @@ impl AlignResult {
         for pos in &self.path {
             wtr.serialize((pos.0, pos.1, "Path", -1, -1)).unwrap();
         }
-        if let Some(matches) = &self.heuristic_stats.matches {
-            for Match {
-                start, match_cost, ..
-            } in matches
-            {
-                wtr.serialize((start.0, start.1, "Match", -1, match_cost))
-                    .unwrap();
-            }
+        for Match {
+            start, match_cost, ..
+        } in &self.heuristic_stats.matches
+        {
+            wtr.serialize((start.0, start.1, "Match", -1, match_cost))
+                .unwrap();
         }
         wtr.flush().unwrap();
     }
@@ -467,18 +411,12 @@ where
     let h_stats = h.stats();
 
     let path_matches = if DEBUG {
-        h_stats
-            .matches
-            .as_ref()
-            .map(|x| num_matches_on_path(&path, x))
+        num_matches_on_path(&path, &h_stats.matches)
     } else {
         Default::default()
     };
     let explored_matches = if DEBUG {
-        h_stats
-            .matches
-            .as_ref()
-            .map(|x| num_matches_on_path(&astar_stats.explored_states, x))
+        num_matches_on_path(&astar_stats.explored_states, &h_stats.matches)
     } else {
         Default::default()
     };

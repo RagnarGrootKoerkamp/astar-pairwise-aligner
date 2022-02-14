@@ -54,10 +54,10 @@ where
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name(),
-            k: Some(self.match_config.length.k().unwrap_or(0)),
-            max_match_cost: Some(self.match_config.max_match_cost),
-            pruning: Some(self.pruning),
-            distance_function: Some(self.distance_function.name()),
+            k: self.match_config.length.k().unwrap_or(0),
+            max_match_cost: self.match_config.max_match_cost,
+            pruning: self.pruning,
+            distance_function: self.distance_function.name(),
             ..Default::default()
         }
     }
@@ -193,12 +193,12 @@ where
 
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
-            num_seeds: Some(self.matches.num_seeds),
-            num_matches: Some(self.matches.matches.len()),
-            num_filtered_matches: Some(self.matches.matches.len()),
-            matches: Some(self.matches.matches.clone()),
-            pruning_duration: Some(self.pruning_duration.as_secs_f32()),
-            num_prunes: Some(self.num_actual_pruned),
+            num_seeds: self.matches.num_seeds,
+            num_matches: self.matches.matches.len(),
+            num_filtered_matches: self.matches.matches.len(),
+            matches: self.matches.matches.clone(),
+            pruning_duration: self.pruning_duration.as_secs_f32(),
+            num_prunes: self.num_actual_pruned,
         }
     }
 

@@ -16,33 +16,33 @@ use crate::{prelude::*, seeds::Match};
 #[derive(Serialize, Default, Clone)]
 pub struct HeuristicParams {
     pub name: String,
-    pub distance_function: Option<String>,
-    pub k: Option<I>,
-    pub max_match_cost: Option<Cost>,
-    pub pruning: Option<bool>,
-    pub build_fast: Option<bool>,
+    pub distance_function: String,
+    pub k: I,
+    pub max_match_cost: Cost,
+    pub pruning: bool,
+    pub build_fast: bool,
 }
 
 #[derive(Serialize, Clone)]
 pub struct HeuristicStats {
-    pub num_seeds: Option<I>,
-    pub num_matches: Option<usize>,
-    pub num_filtered_matches: Option<usize>,
+    pub num_seeds: I,
+    pub num_matches: usize,
+    pub num_filtered_matches: usize,
     #[serde(skip_serializing)]
-    pub matches: Option<Vec<Match>>,
-    pub pruning_duration: Option<f32>,
-    pub num_prunes: Option<usize>,
+    pub matches: Vec<Match>,
+    pub pruning_duration: f32,
+    pub num_prunes: usize,
 }
 
 impl Default for HeuristicStats {
     fn default() -> Self {
         Self {
-            num_seeds: Some(0),
-            num_matches: Some(0),
-            num_filtered_matches: Some(0),
+            num_seeds: 0,
+            num_matches: 0,
+            num_filtered_matches: 0,
             matches: Default::default(),
-            pruning_duration: Some(0.),
-            num_prunes: Some(0),
+            pruning_duration: 0.,
+            num_prunes: 0,
         }
     }
 }
