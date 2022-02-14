@@ -123,10 +123,17 @@ impl AlignResult {
                 format!("{:>2}", this.heuristic_params.max_match_cost)
             }),
             (format!("{:>2}", "pr"), |this: &AlignResult| {
-                format!("{:>2}", this.heuristic_params.pruning)
+                format!("{:>2}", if this.heuristic_params.pruning { 1 } else { 0 })
             }),
             (format!("{:>2}", "bf"), |this: &AlignResult| {
-                format!("{:>2}", this.heuristic_params.build_fast)
+                format!(
+                    "{:>2}",
+                    if this.heuristic_params.build_fast {
+                        1
+                    } else {
+                        0
+                    }
+                )
             }),
             (format!("{:<5}", "d-f"), |this: &AlignResult| {
                 format!("{:<5}", this.heuristic_params.distance_function)
