@@ -11,3 +11,4 @@
 .snakemake
 /evals/imgs
 __pycache__
+/.cargo/config
