@@ -11,9 +11,6 @@
     drain_filter
 )]
 
-#[macro_use]
-extern crate lazy_static;
-
 pub mod astar;
 pub mod bucket_queue;
 pub mod contour;
@@ -28,7 +25,6 @@ pub mod heuristic;
 pub mod scored;
 pub mod seeds;
 pub mod trie;
-pub mod util;
 
 // Include one of these to switch to the faster FxHashMap hashing algorithm.
 mod hash_map {
@@ -72,7 +68,13 @@ pub mod prelude {
     pub use crate::graph::*;
     pub use crate::heuristic::*;
     pub use crate::seeds::{LengthConfig, LengthConfig::Fixed, Match, MatchConfig};
-    pub use crate::util::*;
+    pub use bio::alphabets::{Alphabet, RankTransform};
+    pub use bio::data_structures::qgram_index::QGramIndex;
+    pub use std::cmp::{max, min};
+
+    pub fn to_string(seq: &[u8]) -> String {
+        String::from_utf8(seq.to_vec()).unwrap()
+    }
 }
 
 use csv::Writer;
