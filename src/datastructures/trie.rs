@@ -1,6 +1,6 @@
 use bio::alphabets::{Alphabet, RankTransform};
 
-use crate::costmodel::MatchCost;
+use crate::prelude::MatchCost;
 
 pub type State = u32;
 pub type Data = u32;
@@ -92,7 +92,7 @@ impl Trie {
         //cost_model: CostModel,
         mut f: F,
     ) {
-        let cost_model = crate::costmodel::EDIT_DISTANCE_COSTS;
+        let cost_model = crate::prelude::EDIT_DISTANCE_COSTS;
         struct QueueElement {
             /// Current state in tree
             state: State,

@@ -2,7 +2,7 @@ use std::iter::repeat;
 
 use smallvec::SmallVec;
 
-use crate::{costmodel::MatchCost, prelude::*, trie::Trie};
+use crate::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct Seed {
@@ -136,7 +136,7 @@ pub fn find_matches_trie<'a>(
     let mut trie = Trie::new(
         b.windows((k + max_match_cost) as usize)
             .enumerate()
-            .map(|(i, w)| (w, i as trie::Data)),
+            .map(|(i, w)| (w, i as crate::datastructures::trie::Data)),
         alph,
     );
     // Push all remaining suffixes of b.

@@ -16,7 +16,6 @@ pub mod contour;
 //pub mod contour_graph;
 pub mod algorithms;
 pub mod config;
-pub mod costmodel;
 pub mod datastructures;
 pub mod generate;
 pub mod graph;
