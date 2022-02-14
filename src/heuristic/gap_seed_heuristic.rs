@@ -107,10 +107,10 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name(),
-            k: Some(self.match_config.length.k().unwrap_or(0)),
-            max_match_cost: Some(self.match_config.max_match_cost),
-            pruning: Some(self.pruning),
-            distance_function: Some("Gap".to_string()),
+            k: self.match_config.length.k().unwrap_or(0),
+            max_match_cost: self.match_config.max_match_cost,
+            pruning: self.pruning,
+            distance_function: "Gap".to_string(),
             ..Default::default()
         }
     }
@@ -344,16 +344,16 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
-            num_seeds: Some(self.seed_matches.num_seeds),
-            num_matches: Some(self.seed_matches.matches.len()),
-            num_filtered_matches: Some(self.num_filtered_matches),
+            num_seeds: self.seed_matches.num_seeds,
+            num_matches: self.seed_matches.matches.len(),
+            num_filtered_matches: self.num_filtered_matches,
             matches: if DEBUG {
-                Some(self.seed_matches.matches.clone())
+                self.seed_matches.matches.clone()
             } else {
-                None
+                Default::default()
             },
-            pruning_duration: Some(self.pruning_duration.as_secs_f32()),
-            num_prunes: Some(self.num_actual_pruned),
+            pruning_duration: self.pruning_duration.as_secs_f32(),
+            num_prunes: self.num_actual_pruned,
         }
     }
 
