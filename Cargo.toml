@@ -23,8 +23,11 @@ strum_macros = "*"
 termion = "*"
 rustc-hash = "*"
 structopt = "*"
-aho-corasick = "*"
 suffix = "*"
 lazy_static = "*"
 smallvec = {version="*", features=["union"]}
 ropey = "*"
+
+[dev-dependencies]
+# For benchmarking only.
+aho-corasick = "*"
