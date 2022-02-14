@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use rand::Rng;
+use rand::{Rng, SeedableRng};
 use structopt::StructOpt;
 use strum_macros::EnumString;
 

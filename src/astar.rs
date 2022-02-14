@@ -1,5 +1,5 @@
-use crate::bucket_queue::BucketQueue;
 use crate::prelude::*;
+use serde::Serialize;
 
 #[derive(Clone, Copy, Debug)]
 enum Status {
@@ -29,7 +29,7 @@ impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
 }
 
 #[derive(Serialize, Default, Clone)]
-pub struct AStarStats<Pos> {
+pub struct AStarStats {
     pub expanded: usize,
     pub explored: usize,
     pub skipped_explored: usize,
@@ -56,7 +56,7 @@ pub fn astar<'a, H>(
     start: Pos,
     target: Pos,
     h: &mut H,
-) -> Option<(Cost, Vec<Pos>, AStarStats<Pos>)>
+) -> Option<(Cost, Vec<Pos>, AStarStats)>
 where
     H: HeuristicInstance<'a>,
 {
