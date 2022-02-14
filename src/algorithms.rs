@@ -18,10 +18,10 @@ pub enum CostFunction {
 #[derive(EnumString, Default, Debug)]
 #[strum(ascii_case_insensitive)]
 pub enum Contour {
+    #[default]
     BruteForce,
     LogQuery,
     Set,
-    #[default]
     Central,
 }
 
@@ -66,7 +66,7 @@ pub struct Params {
     #[structopt(short = "C", long, default_value = "Hint")]
     contours: Contours,
 
-    #[structopt(short = "c", long, default_value = "Central")]
+    #[structopt(short = "c", long, default_value = "BruteForce")]
     contour: Contour,
 
     #[structopt(long)]
