@@ -21,26 +21,12 @@ pub mod generate;
 pub mod heuristic;
 pub mod matches;
 
-// Include one of these to switch to the faster FxHashMap hashing algorithm.
-mod hash_map {
-    #[allow(dead_code)]
-    pub type HashMap<K, V> =
-        std::collections::HashMap<K, V, std::collections::hash_map::RandomState>;
-    #[allow(dead_code)]
-    pub type HashSet<K> = std::collections::HashSet<K, std::collections::hash_map::RandomState>;
-}
-mod fx_hash_map {
-    #[allow(dead_code)]
-    pub use rustc_hash::FxHashMap as HashMap;
-    #[allow(dead_code)]
-    pub use rustc_hash::FxHashSet as HashSet;
-}
-
 pub mod prelude {
     pub use bio_types::sequence::Sequence;
     pub use std::marker::PhantomData;
 
-    pub use super::fx_hash_map::*;
+    pub use rustc_hash::FxHashMap as HashMap;
+    pub use rustc_hash::FxHashSet as HashSet;
 
     pub use config::*;
 
