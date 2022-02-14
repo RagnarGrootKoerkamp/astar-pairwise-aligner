@@ -71,20 +71,18 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
-    type Pos: Eq + Copy + std::fmt::Debug + Default = crate::alignment_graph::Pos;
+    fn h(&self, pos: Pos) -> Cost;
 
-    fn h(&self, pos: Self::Pos) -> Cost;
-
-    fn h_with_parent(&self, pos: Self::Pos) -> (Cost, Self::Pos) {
-        (self.h(pos), Self::Pos::default())
+    fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
+        (self.h(pos), Pos::default())
     }
 
     type Hint: Copy + Default + std::fmt::Debug = ();
-    fn h_with_hint(&self, pos: Self::Pos, _hint: Self::Hint) -> (Cost, Self::Hint) {
+    fn h_with_hint(&self, pos: Pos, _hint: Self::Hint) -> (Cost, Self::Hint) {
         (self.h(pos), Default::default())
     }
 
-    fn root_state(&self, _root_pos: Self::Pos) -> Self::Hint {
+    fn root_state(&self, _root_pos: Pos) -> Self::Hint {
         Default::default()
     }
 
@@ -94,13 +92,13 @@ pub trait HeuristicInstance<'a> {
     }
 
     /// A* will checked for consistency whenever this returns true.
-    fn is_start_of_seed(&mut self, _pos: Self::Pos) -> bool {
+    fn is_start_of_seed(&mut self, _pos: Pos) -> bool {
         true
     }
 
-    fn prune(&mut self, _pos: Self::Pos) {}
+    fn prune(&mut self, _pos: Pos) {}
     /// Returns the offset by which all expanded states in the priority queue can be shifted.
-    fn prune_with_hint(&mut self, pos: Self::Pos, _hint: Self::Hint) -> Cost {
+    fn prune_with_hint(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
         self.prune(pos);
         0
     }
@@ -108,7 +106,7 @@ pub trait HeuristicInstance<'a> {
     /// Tells the heuristic that the position was explored, so it knows which
     /// positions need to be updated when propagating the pruning to the
     /// priority queue.
-    fn explore(&mut self, _pos: Self::Pos) {}
+    fn explore(&mut self, _pos: Pos) {}
 
     fn stats(&self) -> HeuristicStats {
         Default::default()

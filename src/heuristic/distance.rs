@@ -15,7 +15,7 @@ pub trait Distance: Heuristic + Default {
 }
 
 pub trait DistanceInstance<'a>: HeuristicInstance<'a> {
-    fn distance(&self, from: Self::Pos, to: Self::Pos) -> Cost;
+    fn distance(&self, from: Pos, to: Pos) -> Cost;
 }
 
 // # ZERO HEURISTIC
@@ -52,7 +52,7 @@ impl Distance for ZeroCost {
 
 pub struct ZeroCostI;
 impl HeuristicInstance<'_> for ZeroCostI {
-    fn h(&self, _: Self::Pos) -> Cost {
+    fn h(&self, _: Pos) -> Cost {
         0
     }
 }
@@ -99,7 +99,7 @@ pub struct MaxCostI {
 }
 
 impl HeuristicInstance<'_> for MaxCostI {
-    fn h(&self, Pos(i, j): Self::Pos) -> Cost {
+    fn h(&self, Pos(i, j): Pos) -> Cost {
         max(self.target.0 - i, self.target.1 - j) as Cost
     }
 }
@@ -150,7 +150,7 @@ fn abs_diff(i: I, j: I) -> I {
 }
 
 impl HeuristicInstance<'_> for GapCostI {
-    fn h(&self, Pos(i, j): Self::Pos) -> Cost {
+    fn h(&self, Pos(i, j): Pos) -> Cost {
         abs_diff(self.target.0 - i, self.target.1 - j) as Cost
     }
 }
@@ -213,7 +213,7 @@ pub struct CountCostI {
 }
 
 impl HeuristicInstance<'_> for CountCostI {
-    fn h(&self, pos: Self::Pos) -> Cost {
+    fn h(&self, pos: Pos) -> Cost {
         self.distance(pos, self.target)
     }
 }
@@ -293,7 +293,7 @@ pub struct BiCountCostI {
 }
 
 impl<'a> HeuristicInstance<'a> for BiCountCostI {
-    fn h(&self, pos: Self::Pos) -> Cost {
+    fn h(&self, pos: Pos) -> Cost {
         self.distance(pos, self.target)
     }
 }

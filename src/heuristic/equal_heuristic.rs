@@ -11,10 +11,10 @@ pub struct EqualHeuristicI<'a, H1: Heuristic, H2: Heuristic> {
     h2: H2::Instance<'a>,
 }
 
-impl<H1: Heuristic, H2: Heuristic, Pos> Heuristic for EqualHeuristic<H1, H2>
+impl<H1: Heuristic, H2: Heuristic> Heuristic for EqualHeuristic<H1, H2>
 where
-    for<'a> H1::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
-    for<'a> H2::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
+    for<'a> H1::Instance<'a>: HeuristicInstance<'a>,
+    for<'a> H2::Instance<'a>: HeuristicInstance<'a>,
     Pos: Copy + Eq + std::fmt::Debug + Default,
 {
     type Instance<'a> = EqualHeuristicI<'a, H1, H2>;
@@ -43,15 +43,12 @@ where
     }
 }
 
-impl<'a, H1: Heuristic, H2: Heuristic, Pos> HeuristicInstance<'a> for EqualHeuristicI<'a, H1, H2>
+impl<'a, H1: Heuristic, H2: Heuristic> HeuristicInstance<'a> for EqualHeuristicI<'a, H1, H2>
 where
-    H1::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
-    H2::Instance<'a>: HeuristicInstance<'a, Pos = Pos>,
-    Pos: Eq + Copy + std::fmt::Debug + Default,
+    H1::Instance<'a>: HeuristicInstance<'a>,
+    H2::Instance<'a>: HeuristicInstance<'a>,
 {
-    type Pos = Pos;
-
-    fn h(&self, pos: Self::Pos) -> Cost {
+    fn h(&self, pos: Pos) -> Cost {
         let h1 = self.h1.h(pos);
         let h2 = self.h2.h(pos);
         // h1 is the slow accurate one, h2 the fast inaccurate one.
@@ -64,7 +61,7 @@ where
         <<H2 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint,
     );
 
-    fn is_start_of_seed(&mut self, pos: Self::Pos) -> bool {
+    fn is_start_of_seed(&mut self, pos: Pos) -> bool {
         let s1 = self.h1.is_start_of_seed(pos);
         let s2 = self.h2.is_start_of_seed(pos);
         assert_eq!(s1, s2);
@@ -76,7 +73,7 @@ where
         self.h2.prune(pos);
     }
 
-    fn prune_with_hint(&mut self, pos: Self::Pos, hint: Self::Hint) -> Cost {
+    fn prune_with_hint(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
         let _c1 = self.h1.prune_with_hint(pos, hint.0);
         let c2 = self.h2.prune_with_hint(pos, hint.1);
         c2
@@ -89,7 +86,7 @@ where
         (c2, (hint1, hint2))
     }
 
-    fn root_state(&self, root_pos: Self::Pos) -> Self::Hint {
+    fn root_state(&self, root_pos: Pos) -> Self::Hint {
         (self.h1.root_state(root_pos), self.h2.root_state(root_pos))
     }
 
@@ -101,7 +98,7 @@ where
         self.h2.root_potential()
     }
 
-    fn explore(&mut self, pos: Self::Pos) {
+    fn explore(&mut self, pos: Pos) {
         self.h1.explore(pos);
         self.h2.explore(pos);
     }

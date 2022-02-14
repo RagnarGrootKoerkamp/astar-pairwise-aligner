@@ -30,7 +30,7 @@ impl<DH: Distance> Default for SeedHeuristic<DH> {
 
 impl<DH: Distance> Heuristic for SeedHeuristic<DH>
 where
-    for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a, Pos = Pos>,
+    for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a>,
 {
     type Instance<'a> = SimpleSeedHeuristicI<'a, DH>;
 
@@ -87,9 +87,9 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
 /// are visited in between `from` and `to`.
 impl<'a, DH: Distance> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, DH>
 where
-    DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
+    DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
-    default fn distance(&self, from: Self::Pos, to: Self::Pos) -> Cost {
+    default fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.distance_function.distance(from, to),
             self.matches.distance(from, to),
@@ -100,7 +100,7 @@ where
 /// For GapCost, we can show that it's never optimal to actually pay for a gap (unless going to the target)
 /// -- the potential difference to the parent will always be smaller.
 impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
-    fn distance(&self, from: Self::Pos, to: Self::Pos) -> Cost {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
         let gap = self.distance_function.distance(from, to);
         let pot = self.matches.distance(from, to);
         if gap <= pot {
@@ -115,7 +115,7 @@ impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
 
 impl<'a, DH: Distance> SimpleSeedHeuristicI<'a, DH>
 where
-    DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
+    DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
     fn new(
         a: &'a Sequence,
@@ -168,10 +168,9 @@ where
 
 impl<'a, DH: Distance> HeuristicInstance<'a> for SimpleSeedHeuristicI<'a, DH>
 where
-    DH::DistanceInstance<'a>: DistanceInstance<'a, Pos = Pos>,
+    DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
-    type Pos = crate::alignment_graph::Pos;
-    fn h(&self, pos: Self::Pos) -> Cost {
+    fn h(&self, pos: Pos) -> Cost {
         self.h_at_seeds
             .iter()
             .into_iter()
@@ -181,7 +180,7 @@ where
             .unwrap()
     }
 
-    fn h_with_parent(&self, pos: Self::Pos) -> (Cost, Pos) {
+    fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
         self.h_at_seeds
             .iter()
             .into_iter()
@@ -202,7 +201,7 @@ where
         }
     }
 
-    fn is_start_of_seed(&mut self, pos: Self::Pos) -> bool {
+    fn is_start_of_seed(&mut self, pos: Pos) -> bool {
         self.matches.is_start_of_seed(pos)
     }
 
