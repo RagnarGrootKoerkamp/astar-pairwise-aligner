@@ -890,13 +890,13 @@ pub fn mutations(k: I, kmer: usize, dedup: bool) -> Mutations {
 
 #[cfg(test)]
 mod test {
-    use super::mutations;
+    use crate::matches::{self, mutations};
     use crate::{
-        prelude::{setup, to_string, MatchConfig, SLIDING_WINDOW_MATCHES},
-        seeds::{
+        matches::{
             find_matches_qgram_hash_exact, find_matches_qgram_hash_inexact,
             find_matches_qgramindex, find_matches_trie,
         },
+        prelude::{setup, to_string, MatchConfig, SLIDING_WINDOW_MATCHES},
     };
 
     #[test]
@@ -1010,7 +1010,7 @@ mod test {
         assert!(ms.deletions.contains(&0b000111));
         assert_eq!(
             ms,
-            super::Mutations {
+            matches::Mutations {
                 deletions: [6, 7, 11, 27].to_vec(),
                 substitutions: [11, 19, 23, 24, 25, 26, 31, 43, 59, 91, 155, 219].to_vec(),
                 insertions: [

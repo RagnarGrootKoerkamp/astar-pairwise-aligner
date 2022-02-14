@@ -11,8 +11,8 @@ use rand::{prelude::Distribution, SeedableRng};
 use super::{distance::*, *};
 use crate::{
     contour::{Arrow, Contours},
+    matches::{find_matches, Match, MatchConfig, SeedMatches},
     prelude::*,
-    seeds::{find_matches, Match, MatchConfig, SeedMatches},
 };
 
 pub struct GapSeedHeuristic<C: Contours> {
