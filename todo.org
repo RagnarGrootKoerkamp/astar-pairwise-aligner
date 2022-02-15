@@ -88,7 +88,8 @@ CLOSED: [2022-02-10 Thu 16:20]
 ** TODO max number of consecutive matches
 ** TODO contribution to h from matches and distance heuristic
 ** TODO heuristic time
-** TODO number of skipped matches
+** DONE number of skipped matches
+CLOSED: [2022-02-14 Mon 20:09]
 ** DONE pruning time
 CLOSED: [2022-01-13 Thu 18:56]
 ** TODO Use ~explored/path-len~ for band, instead of ~explored/max(n,m)~
@@ -99,7 +100,8 @@ CLOSED: [2022-02-08 Tue 17:31]
 ** TODO Max deviation from diagonal (distance between min and max diagonal)
 ** DONE Print allocated states
 CLOSED: [2022-02-10 Thu 16:24]
-** TODO Remove optional wrappers from statistics; just make them 0
+** DONE Remove optional wrappers from statistics; just make them 0
+CLOSED: [2022-02-14 Mon 20:09]
 
 * Code
 ** TODO fuzzing/testing that fast impls equal slow impls
@@ -116,7 +118,8 @@ CLOSED: [2022-01-19 Wed 18:02]
 CLOSED: [2022-01-19 Wed 18:02]
 ** DONE Colour ~print_heuristic~ by contours instead of by parent.
 CLOSED: [2022-01-15 Sat 17:18]
-** TODO Consider using Intrusive Collections for storing contours.
+** DONE Consider using Intrusive Collections for storing contours.
+CLOSED: [2022-02-14 Mon 20:09]
 This is not going to be helpful now that contours are typically very small.
 ** TODO Check code coverage to see which edge cases are never hit.
 ** DONE Extract tests to /tests.
@@ -141,7 +144,8 @@ CLOSED: [2022-01-15 Sat 17:18]
 *** TODO Trie building (lock after the first 2 layers)
 *** TODO Trie lookup: trie is immutable at this point
 *** TODO A*: One thread for pruning, one thread for querying
-** TODO A*:
+** DONE A*:
+CLOSED: [2022-02-14 Mon 20:10]
 *** DONE Instead of storing f for expanded states, store g for queue states
 CLOSED: [2022-01-21 Fri 03:24]
 Only process if f is up-to-date and g_queue == g_expanded
@@ -186,6 +190,17 @@ Add a separate ~ArrowPruner~ class that decides when or not to remove arrows.
 In particular, the current check to not prune when h(x) > h(x+-1) is wrong, and
 needs to be replaced by a check that the maximal arrow value drops by at most one.
 
+** TODO Single-vec bucket queue: Just use a normal queue and keep indices to the slices for each value
+This only works when we only push values equal to the minimum f or 1 larger (so
+that a single swap is sufficient).
+** TODO Single vec version of HashMap<Pos, Vec<Arrows>>
+Allocating all the vectors is slow. Also reserve size for the hashmap.
+** TODO Discard seeds with >1 match
+This can simplify Contours datastructures
+** TODO HintContours using a single vec
+Instead of storing a vec per contour, we can take adjacent slices of on larger
+vector.
+When all contours only contain one point, this is much more compact.
 
 * Evals
 ** DONE Put timelimit in tables
