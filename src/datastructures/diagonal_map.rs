@@ -17,7 +17,7 @@ pub trait DiagonalMapTrait<Pos, V>: Index<Pos, Output = V> + IndexMut<Pos> {
     fn insert(&mut self, pos: Pos, v: V);
     fn get(&self, pos: Pos) -> Option<&V>;
     fn get_mut(&mut self, pos: Pos) -> &mut V;
-    fn capacity(&self) -> usize;
+    fn dm_capacity(&self) -> usize;
 }
 
 /// A HashMap drop-in replacement for 2D data that's dense around the diagonal.
@@ -180,7 +180,7 @@ impl<V: Default + Clone + Copy> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
         *self.get_mut_entry(&idx) = v;
     }
 
-    fn capacity(&self) -> usize {
+    fn dm_capacity(&self) -> usize {
         self.allocated_blocks << self.lg_block_size
     }
 }
@@ -240,7 +240,7 @@ impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V> {
         self.insert(pos, v);
     }
 
-    fn capacity(&self) -> usize {
+    fn dm_capacity(&self) -> usize {
         self.capacity()
     }
 }

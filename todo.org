@@ -201,6 +201,9 @@ This can simplify Contours datastructures
 Instead of storing a vec per contour, we can take adjacent slices of on larger
 vector.
 When all contours only contain one point, this is much more compact.
+** TODO Add bloom filters in front of hashmaps
+These can be very small, so fit in L1 cache and can quickly discard elements not
+in the hashmap.
 
 * Evals
 ** DONE Put timelimit in tables
