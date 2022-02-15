@@ -85,7 +85,7 @@ where
     };
 
     //let mut states = DiagonalMap::<State<Parent, H::Hint>>::new(target);
-    let mut states = HashMap::<Pos, State<Parent, H::Hint>>::new(target);
+    let mut states = HashMap::<Pos, State<Parent, H::Hint>>::default();
 
     {
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
@@ -201,7 +201,7 @@ where
                 }
 
                 path.reverse();
-                stats.diagonalmap_capacity = states.capacity();
+                stats.diagonalmap_capacity = states.dm_capacity();
                 return Some((g, path, stats));
             }
 
