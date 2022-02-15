@@ -178,7 +178,7 @@ where
                 // Check that we don't double expand start-of-seed states.
                 // Starts of seeds should only be expanded once.
                 assert!(!double_expanded, "Double expanded start of seed {:?}", pos);
-                let pq_shift = h.prune_with_hint(pos, hint);
+                let pq_shift = h.prune(pos, hint);
                 if REDUCE_RETRIES && pq_shift > 0 {
                     stats.pq_shifts += 1;
                     queue_offset += pq_shift;

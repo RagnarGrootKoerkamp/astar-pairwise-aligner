@@ -68,14 +68,9 @@ where
         s2
     }
 
-    fn prune(&mut self, pos: Pos) {
-        self.h1.prune(pos);
-        self.h2.prune(pos);
-    }
-
-    fn prune_with_hint(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
-        let _c1 = self.h1.prune_with_hint(pos, hint.0);
-        let c2 = self.h2.prune_with_hint(pos, hint.1);
+    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
+        let _c1 = self.h1.prune(pos, hint.0);
+        let c2 = self.h2.prune(pos, hint.1);
         c2
     }
 
