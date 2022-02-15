@@ -68,9 +68,6 @@ pub struct Params {
 
     #[structopt(long)]
     no_prune: bool,
-
-    #[structopt(long, default_value = "1.0")]
-    prune_fraction: f32,
 }
 
 pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
@@ -126,7 +123,6 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     },
                     distance_function: C::default(),
                     pruning: !params.no_prune,
-                    prune_fraction: params.prune_fraction,
                 };
                 println!("Heuristic:\n{:?}", heuristic);
 
@@ -162,7 +158,6 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                         ..Default::default()
                     },
                     pruning: !params.no_prune,
-                    prune_fraction: params.prune_fraction,
                     c: PhantomData::<C>,
                 };
                 //println!("Heuristic:\n{:?}", heuristic);
