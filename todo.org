@@ -204,6 +204,11 @@ When all contours only contain one point, this is much more compact.
 ** TODO Add bloom filters in front of hashmaps
 These can be very small, so fit in L1 cache and can quickly discard elements not
 in the hashmap.
+** TODO What about Judy / Rudy
+A fast u32 -> word map.
+** TODO Refactor Matches
+- make a constructor that handles ~start_of_seed~ and ~potential~.
+- should also take a ~Vec<Seed>~.
 
 * Evals
 ** DONE Put timelimit in tables

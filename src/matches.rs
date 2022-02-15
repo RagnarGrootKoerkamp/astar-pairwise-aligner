@@ -1,8 +1,6 @@
-use std::iter::repeat;
-
-use smallvec::SmallVec;
-
 use crate::prelude::*;
+use smallvec::SmallVec;
+use std::iter::repeat;
 
 #[derive(Clone, Debug)]
 pub struct Seed {
@@ -28,7 +26,7 @@ pub struct SeedMatches {
     pub matches: Vec<Match>,
     // Index of the start of the rightmost seed covering the given position.
     pub start_of_seed: Vec<I>,
-    potential: Vec<Cost>,
+    pub potential: Vec<Cost>,
 }
 
 impl SeedMatches {
