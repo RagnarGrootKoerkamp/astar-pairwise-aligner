@@ -7,7 +7,6 @@ fn main() {
         let e: f32 = 0.2;
         let k = 4;
         let max_match_cost = 1;
-        let prune = [];
 
         let heuristic = GapSeedHeuristic {
             match_config: MatchConfig {
@@ -23,9 +22,6 @@ fn main() {
         let (ref a, ref b, alphabet, stats) = setup(n, e);
         println!("{}\n{}", to_string(a), to_string(b));
         let mut h = heuristic.build(&a, &b, &alphabet);
-        for p in &prune {
-            h.prune(*p);
-        }
 
         h.print(do_transform, false);
 

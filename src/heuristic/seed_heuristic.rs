@@ -236,23 +236,23 @@ where
         self.matches.is_start_of_seed(pos)
     }
 
-    fn prune(&mut self, pos: Pos) {
+    fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
         if !self.params.pruning {
-            return;
+            return 0;
         }
 
         self.num_tried_pruned += 1;
         if self.num_actual_pruned as f32
             >= self.num_tried_pruned as f32 * self.params.prune_fraction
         {
-            return;
+            return 0;
         }
 
         let start = time::Instant::now();
 
         if !self.arrows.contains_key(&pos) {
             self.pruning_duration += start.elapsed();
-            return;
+            return 0;
         }
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
@@ -261,7 +261,7 @@ where
                 if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 - d)) {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
                         self.pruning_duration += start.elapsed();
-                        return;
+                        return 0;
                     }
                 }
             }
@@ -269,7 +269,7 @@ where
                 if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 + d)) {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
                         self.pruning_duration += start.elapsed();
-                        return;
+                        return 0;
                     }
                 }
             }
@@ -284,11 +284,12 @@ where
 
         if self.h_at_seeds.remove(&pos).is_none() {
             // No need to rebuild.
-            return;
+            return 0;
         }
         self.build();
         self.pruning_duration += start.elapsed();
         self.print(false, false);
+        0
     }
 
     fn print(&self, _transform: bool, wait_for_user: bool) {

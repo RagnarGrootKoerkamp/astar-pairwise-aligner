@@ -96,10 +96,8 @@ pub trait HeuristicInstance<'a> {
         true
     }
 
-    fn prune(&mut self, _pos: Pos) {}
     /// Returns the offset by which all expanded states in the priority queue can be shifted.
-    fn prune_with_hint(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
-        self.prune(pos);
+    fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
         0
     }
 
