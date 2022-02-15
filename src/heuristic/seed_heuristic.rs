@@ -218,7 +218,7 @@ where
 
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
-            num_seeds: self.matches.num_seeds,
+            num_seeds: self.matches.seeds.len() as I,
             num_matches: self.matches.matches.len(),
             num_filtered_matches: self.matches.matches.len(),
             matches: self.matches.matches.clone(),

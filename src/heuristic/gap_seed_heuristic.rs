@@ -333,7 +333,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
-            num_seeds: self.seed_matches.num_seeds,
+            num_seeds: self.seed_matches.seeds.len() as I,
             num_matches: self.seed_matches.matches.len(),
             num_filtered_matches: self.num_filtered_matches,
             matches: if DEBUG {
