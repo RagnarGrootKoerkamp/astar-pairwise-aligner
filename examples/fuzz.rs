@@ -3,7 +3,7 @@ use pairwise_aligner::prelude::*;
 fn main() {
     for n in 10.. {
         for r in 0..100 {
-            let (k, m, n, e, pruning, prune_fraction) = (4, 0, n, 0.2, true, 1.0);
+            let (k, m, n, e, pruning) = (4, 0, n, 0.2, true);
             let h = GapSeedHeuristic {
                 match_config: MatchConfig {
                     length: Fixed(k),
@@ -11,7 +11,6 @@ fn main() {
                     ..MatchConfig::default()
                 },
                 pruning,
-                prune_fraction,
                 c: PhantomData::<HintContours<CentralContour>>,
                 ..GapSeedHeuristic::default()
             }

@@ -21,7 +21,7 @@ fn main() {
 
         let (ref a, ref b, alphabet, stats) = setup(n, e);
         println!("{}\n{}", to_string(a), to_string(b));
-        let mut h = heuristic.build(&a, &b, &alphabet);
+        let h = heuristic.build(&a, &b, &alphabet);
 
         h.print(do_transform, false);
 

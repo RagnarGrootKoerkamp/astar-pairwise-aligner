@@ -16,7 +16,6 @@ pub struct SeedHeuristic<DH: Distance> {
     pub match_config: MatchConfig,
     pub distance_function: DH,
     pub pruning: bool,
-    pub prune_fraction: f32,
 }
 
 impl<DH: Distance> Default for SeedHeuristic<DH> {
@@ -25,7 +24,6 @@ impl<DH: Distance> Default for SeedHeuristic<DH> {
             match_config: Default::default(),
             distance_function: DH::default(),
             pruning: false,
-            prune_fraction: 1.0,
         }
     }
 }
@@ -75,8 +73,6 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
     h_at_seeds: HashMap<Pos, Cost>,
     // Remaining arrows/matches
     arrows: HashMap<Pos, Vec<Arrow>>,
-    // Partial pruning.
-    num_tried_pruned: usize,
     num_actual_pruned: usize,
 
     // Statistics
@@ -133,7 +129,6 @@ where
             h_at_seeds: Default::default(),
             arrows: Default::default(),
             pruning_duration: Default::default(),
-            num_tried_pruned: 0,
             num_actual_pruned: 0,
         };
         assert!(h
@@ -238,13 +233,6 @@ where
 
     fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
         if !self.params.pruning {
-            return 0;
-        }
-
-        self.num_tried_pruned += 1;
-        if self.num_actual_pruned as f32
-            >= self.num_tried_pruned as f32 * self.params.prune_fraction
-        {
             return 0;
         }
 

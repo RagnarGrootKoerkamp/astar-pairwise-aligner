@@ -15,7 +15,6 @@ use std::{
 pub struct GapSeedHeuristic<C: Contours> {
     pub match_config: MatchConfig,
     pub pruning: bool,
-    pub prune_fraction: f32,
     pub c: PhantomData<C>,
 }
 
@@ -25,7 +24,6 @@ impl<C: 'static + Contours> GapSeedHeuristic<C> {
             match_config: self.match_config,
             distance_function: GapCost,
             pruning: self.pruning,
-            prune_fraction: self.prune_fraction,
         }
     }
 
@@ -43,7 +41,6 @@ impl<C: 'static + Contours> GapSeedHeuristic<C> {
             h1: GapSeedHeuristic {
                 match_config: self.match_config,
                 pruning: self.pruning,
-                prune_fraction: self.prune_fraction,
                 c: Default::default(),
             },
             h2: *self,
@@ -57,7 +54,6 @@ impl<C: 'static + Contours> std::fmt::Debug for GapSeedHeuristic<C> {
         f.debug_struct("GapSeedHeuristic")
             .field("match_config", &self.match_config)
             .field("pruning", &self.pruning)
-            .field("prune_fraction", &self.prune_fraction)
             .field("contours", &std::any::type_name::<C>())
             .finish()
     }
@@ -67,7 +63,6 @@ impl<C: Contours> Clone for GapSeedHeuristic<C> {
         Self {
             match_config: self.match_config,
             pruning: self.pruning,
-            prune_fraction: self.prune_fraction,
             c: self.c,
         }
     }
@@ -79,7 +74,6 @@ impl<C: Contours> Default for GapSeedHeuristic<C> {
         Self {
             match_config: Default::default(),
             pruning: false,
-            prune_fraction: 1.0,
             c: PhantomData,
         }
     }
@@ -121,9 +115,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
     pub seed_matches: SeedMatches,
     num_filtered_matches: usize,
 
-    // For partial pruning.
     // TODO: Put statistics into a separate struct.
-    num_tried_pruned: usize,
     num_actual_pruned: usize,
 
     /// The max transformed position.
@@ -166,7 +158,6 @@ impl<C: Contours> GapSeedHeuristicI<C> {
             target: Pos::from_length(a, b),
             seed_matches: find_matches(a, b, alph, params.match_config),
             num_filtered_matches: 0,
-            num_tried_pruned: 0,
             num_actual_pruned: 0,
 
             // For pruning propagation
@@ -272,14 +263,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
     fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
         if !self.params.pruning {
-            return 0;
-        }
-
-        // Partial pruning check.
-        self.num_tried_pruned += 1;
-        if self.num_actual_pruned as f32
-            >= self.num_tried_pruned as f32 * self.params.prune_fraction
-        {
             return 0;
         }
 

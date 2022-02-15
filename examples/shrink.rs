@@ -11,7 +11,6 @@ fn main() {
     let k = 6;
     let max_match_cost = 1;
     let pruning = true;
-    let prune_fraction = 1.0;
 
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
@@ -20,7 +19,6 @@ fn main() {
             ..MatchConfig::default()
         },
         pruning,
-        prune_fraction,
         c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     }

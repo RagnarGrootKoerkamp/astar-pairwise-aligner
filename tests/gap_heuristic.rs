@@ -72,7 +72,7 @@ fn small_test() {
 /// This was broken because seed_heuristic didn't clear the previous state before rebuilding.
 #[test]
 fn seed_heuristic_rebuild() {
-    let (k, m, n, e, pruning, prune_fraction) = (4, 0, 100, 0.3, true, 1.0);
+    let (k, m, n, e, pruning) = (4, 0, 100, 0.3, true);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
@@ -80,7 +80,6 @@ fn seed_heuristic_rebuild() {
             ..MatchConfig::default()
         },
         pruning,
-        prune_fraction,
         c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
@@ -102,7 +101,7 @@ fn seed_heuristic_rebuild() {
 /// This and the test below are fixed by disabling greedy matching.
 #[test]
 fn no_double_expand() {
-    let (k, m, n, e, pruning, prune_fraction) = (5, 1, 78, 0.3, true, 1.0);
+    let (k, m, n, e, pruning) = (5, 1, 78, 0.3, true);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
@@ -110,7 +109,6 @@ fn no_double_expand() {
             ..MatchConfig::default()
         },
         pruning,
-        prune_fraction,
         c: PhantomData::<BruteForceContours>,
         ..GapSeedHeuristic::default()
     };
@@ -129,7 +127,7 @@ fn no_double_expand() {
 
 #[test]
 fn no_double_expand_2() {
-    let (k, m, n, e, pruning, prune_fraction) = (7, 1, 61, 0.3, true, 1.0);
+    let (k, m, n, e, pruning) = (7, 1, 61, 0.3, true);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
@@ -137,7 +135,6 @@ fn no_double_expand_2() {
             ..MatchConfig::default()
         },
         pruning,
-        prune_fraction,
         c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
@@ -157,7 +154,7 @@ fn no_double_expand_2() {
 /// When points are removed from a layer, we may have to add new shadow points to cover for the next layer.
 #[test]
 fn missing_shadow_points() {
-    let (k, m, n, e, pruning, prune_fraction) = (10, 1, 61, 0.3, true, 1.0);
+    let (k, m, n, e, pruning) = (10, 1, 61, 0.3, true);
     let h = GapSeedHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
@@ -165,7 +162,6 @@ fn missing_shadow_points() {
             ..MatchConfig::default()
         },
         pruning,
-        prune_fraction,
         c: PhantomData::<HintContours<BruteForceContour>>,
         ..GapSeedHeuristic::default()
     };
