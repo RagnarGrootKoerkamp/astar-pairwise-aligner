@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use itertools::Itertools;
 use smallvec::SmallVec;
 use std::iter::repeat;
 
@@ -21,12 +22,22 @@ pub struct Match {
 
 #[derive(Default)]
 pub struct SeedMatches {
-    // Sorted by (i, j)
-    pub num_seeds: I,
+    // Sorted by start.
+    pub seeds: Vec<Seed>,
+    // Sorted by start (i, j).
     pub matches: Vec<Match>,
     // Index of the start of the rightmost seed covering the given position.
     pub start_of_seed: Vec<I>,
     pub potential: Vec<Cost>,
+}
+
+fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> usize {
+    let mut q = 0;
+    for &c in seed {
+        q <<= width;
+        q |= rank_transform.get(c) as usize;
+    }
+    q
 }
 
 impl SeedMatches {
@@ -142,34 +153,35 @@ pub fn find_matches_trie<'a>(
         trie.push(&b[i as usize..], i);
     }
 
-    let seed_qgrams = a
+    let rank_transform = RankTransform::new(alph);
+    let width = rank_transform.get_width();
+    let seeds = a
         .chunks_exact(k as usize)
         .enumerate()
-        .map(|(i, _seed)| Seed {
+        .map(|(i, seed)| Seed {
             start: i as I * k,
             end: (i + 1) as I * k,
             seed_potential: max_match_cost + 1,
-            qgram: 0, // qgram(seed), Unused
-        });
-
-    let num_seeds = seed_qgrams.len() as I;
+            qgram: to_qgram(&rank_transform, width, seed),
+        })
+        .collect_vec();
 
     let n = a.len();
     let mut potential = Vec::with_capacity(n + 1);
     let mut start_of_seed = Vec::with_capacity(n + 1);
-    let last_seed = seed_qgrams.clone().last();
+    let last_seed = seeds.last();
 
     // Find matches of the seeds of a in b.
     let mut matches = Vec::<Match>::new();
 
-    let mut cur_potential = seed_qgrams.clone().map(|seed| seed.seed_potential).sum();
+    let mut cur_potential = seeds.iter().map(|seed| seed.seed_potential).sum();
     potential.push(cur_potential);
-    for Seed {
+    for &Seed {
         start,
         end,
         seed_potential,
         ..
-    } in seed_qgrams
+    } in &seeds
     {
         let seed_len = end - start;
         cur_potential -= seed_potential;
@@ -207,7 +219,7 @@ pub fn find_matches_trie<'a>(
     matches.dedup_by_key(|m| (m.start, m.end));
 
     SeedMatches {
-        num_seeds,
+        seeds,
         matches,
         start_of_seed,
         potential,
@@ -298,14 +310,9 @@ pub fn find_matches_qgramindex<'a>(
 
     // Convert to a binary sequences.
     let rank_transform = RankTransform::new(alph);
-    let qgram = |seed: &[u8]| {
-        rank_transform
-            .qgrams(seed.len() as u32, seed)
-            .next()
-            .unwrap()
-    };
+    let width = rank_transform.get_width();
 
-    let seed_qgrams = {
+    let seeds = {
         let mut v: Vec<Seed> = Vec::default();
         let mut a = &a[..];
         let mut long = false;
@@ -319,7 +326,7 @@ pub fn find_matches_qgramindex<'a>(
                         let mut k = 3 as I;
                         while k <= a.len() as I && k <= 10
                                 // TODO: Use band(min(a.len(), n-a.len())) or something like it.
-                                && count_matches(k, qgram(&a[..k as usize]), max_matches + 1, i, band(n))
+                                && count_matches(k, to_qgram(&rank_transform, width, &a[..k as usize]), max_matches + 1, i, band(n))
                                     > max_matches
                         {
                             k += 1;
@@ -331,7 +338,7 @@ pub fn find_matches_qgramindex<'a>(
                         // TODO: Remove max length, which is only needed because of memory reasons.
                         while k <= a.len() as I && k <= 11
                                 // TODO: Use band(min(a.len(), n-a.len())) or something like it.
-                                && count_matches(k, qgram(&a[..k as usize]), min_matches, i, band(n))
+                                && count_matches(k, to_qgram(&rank_transform, width, &a[..k as usize]), min_matches, i, band(n))
                                     >= min_matches
                         {
                             k += 1;
@@ -352,7 +359,7 @@ pub fn find_matches_qgramindex<'a>(
                 start: i,
                 end: i + seed_len,
                 seed_potential: max_match_cost + 1,
-                qgram: qgram(seed),
+                qgram: to_qgram(&rank_transform, width, seed),
             });
             i += seed_len;
 
@@ -361,7 +368,6 @@ pub fn find_matches_qgramindex<'a>(
         //println!();
         v
     };
-    let num_seeds = seed_qgrams.len() as I;
     // println!(
     //     "k: {}",
     //     //length,
@@ -377,7 +383,7 @@ pub fn find_matches_qgramindex<'a>(
     // NOTE: This uses O(alphabet^k) memory.
     let mut matches = Vec::<Match>::new();
 
-    let mut cur_potential = seed_qgrams
+    let mut cur_potential = seeds
         .iter()
         .map(|Seed { seed_potential, .. }| seed_potential)
         .sum();
@@ -388,7 +394,8 @@ pub fn find_matches_qgramindex<'a>(
         end,
         seed_potential,
         qgram,
-    } in &seed_qgrams
+        ..
+    } in &seeds
     {
         let len = end - start;
         cur_potential -= seed_potential;
@@ -441,7 +448,7 @@ pub fn find_matches_qgramindex<'a>(
     }
     // Backfill a potential gap after the last seed.
     potential.extend(repeat(0).take(n + 1 - potential.len()));
-    start_of_seed.extend(repeat(seed_qgrams.last().unwrap().end).take(n + 1 - start_of_seed.len()));
+    start_of_seed.extend(repeat(seeds.last().unwrap().end).take(n + 1 - start_of_seed.len()));
 
     //println!("{:?}", potential);
     //println!("{:?}", start_of_seed);
@@ -460,7 +467,7 @@ pub fn find_matches_qgramindex<'a>(
     matches.dedup_by_key(|m| (m.start, m.end));
 
     SeedMatches {
-        num_seeds,
+        seeds,
         matches,
         start_of_seed,
         potential,
@@ -485,6 +492,18 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     assert!(max_match_cost == 1);
 
     let rank_transform = RankTransform::new(alph);
+    let width = rank_transform.get_width();
+
+    let seeds = a
+        .chunks_exact(k as usize)
+        .enumerate()
+        .map(|(i, seed)| Seed {
+            start: i as I * k,
+            end: (i + 1) as I * k,
+            seed_potential: max_match_cost + 1,
+            qgram: to_qgram(&rank_transform, width, seed),
+        })
+        .collect_vec();
 
     // type of Qgrams
     type Q = u64;
@@ -504,25 +523,25 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         m.entry(key(k + 1, w)).or_default().push(j as Cost);
     }
     let mut matches = Vec::<Match>::new();
-    for (i, w) in rank_transform.qgrams(k, a).enumerate().step_by(k as usize) {
-        if let Some(js) = m.get(&key(k, w)) {
+    for &Seed { start, qgram, .. } in &seeds {
+        if let Some(js) = m.get(&key(k, qgram)) {
             for &j in js {
                 matches.push(Match {
-                    start: Pos(i as I, j),
-                    end: Pos(i as I + k, j + k),
+                    start: Pos(start, j),
+                    end: Pos(start + k, j + k),
                     match_cost: 0,
                     seed_potential: 2,
                 });
             }
         }
         // We don't dedup here, since we'll be sorting and deduplicating the list of all matches anyway.
-        let ms = mutations(k, w, false);
+        let ms = mutations(k, qgram, false);
         for w in ms.deletions {
             if let Some(js) = m.get(&key(k - 1, w)) {
                 for &j in js {
                     matches.push(Match {
-                        start: Pos(i as I, j),
-                        end: Pos(i as I + k, j + k - 1),
+                        start: Pos(start, j),
+                        end: Pos(start + k, j + k - 1),
                         match_cost: 1,
                         seed_potential: 2,
                     });
@@ -533,8 +552,8 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             if let Some(js) = m.get(&key(k, w)) {
                 for &j in js {
                     matches.push(Match {
-                        start: Pos(i as I, j),
-                        end: Pos(i as I + k, j + k),
+                        start: Pos(start, j),
+                        end: Pos(start + k, j + k),
                         match_cost: 1,
                         seed_potential: 2,
                     });
@@ -545,8 +564,8 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             if let Some(js) = m.get(&key(k + 1, w)) {
                 for &j in js {
                     matches.push(Match {
-                        start: Pos(i as I, j),
-                        end: Pos(i as I + k, j + k + 1),
+                        start: Pos(start, j),
+                        end: Pos(start + k, j + k + 1),
                         match_cost: 1,
                         seed_potential: 2,
                     });
@@ -598,7 +617,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     }
 
     SeedMatches {
-        num_seeds,
+        seeds,
         matches,
         start_of_seed,
         potential,
@@ -623,7 +642,18 @@ pub fn find_matches_qgram_hash_exact<'a>(
     assert!(max_match_cost == 0);
 
     let rank_transform = RankTransform::new(alph);
-    let bits = (rank_transform.ranks.len() as f32).log2().ceil() as u32;
+    let width = rank_transform.get_width();
+
+    let seeds = a
+        .chunks_exact(k as usize)
+        .enumerate()
+        .map(|(i, seed)| Seed {
+            start: i as I * k,
+            end: (i + 1) as I * k,
+            seed_potential: max_match_cost + 1,
+            qgram: to_qgram(&rank_transform, width, seed),
+        })
+        .collect_vec();
 
     type Key = u64;
 
@@ -658,15 +688,6 @@ pub fn find_matches_qgram_hash_exact<'a>(
             )
         };
 
-        let get_qgram_a = |i: usize| -> usize {
-            let mut q = 0;
-            for &c in &a[i..i + k as usize] {
-                q <<= bits;
-                q |= rank_transform.get(c) as usize;
-            }
-            q
-        };
-
         // Iterators pointing to the next i to be inserted to/removed from the hashmap.
         let mut to_remove = (0..a.len() + 1 - k as usize)
             .step_by(k as usize)
@@ -678,7 +699,8 @@ pub fn find_matches_qgram_hash_exact<'a>(
             .peekable();
         let mut qb = 0usize;
         let prepend_qgram_b = |j: usize, qb: &mut usize| {
-            *qb = (*qb >> bits) | ((rank_transform.get(b[j]) as usize) << ((k - 1) * bits))
+            *qb =
+                (*qb >> width) | ((rank_transform.get(b[j]) as usize) << ((k - 1) as usize * width))
         };
 
         for j in (0..b.len()).rev() {
@@ -687,7 +709,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
                 // Remove elements after new_end.
                 while let Some(&i) = to_remove.peek() {
                     if (i as Cost) > new_end {
-                        let wi = get_qgram_a(i);
+                        let wi = to_qgram(&rank_transform, width, &a[i..i + k as usize]);
                         to_remove.next();
                         let v = m.get_mut(&(wi as Key)).unwrap();
                         assert!(!v.is_empty());
@@ -708,7 +730,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
                 while let Some(&i) = to_insert.peek() {
                     if (i as Cost) >= new_start.saturating_sub(2 * (1 << CHECK_EACH_J_LAYERS)) {
                         to_insert.next();
-                        let wi = get_qgram_a(i);
+                        let wi = to_qgram(&rank_transform, width, &a[i..i + k as usize]);
                         m.entry(wi as Key).or_default().push(i as I);
                     } else {
                         break;
@@ -784,7 +806,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
     }
 
     SeedMatches {
-        num_seeds,
+        seeds,
         matches,
         start_of_seed,
         potential,
