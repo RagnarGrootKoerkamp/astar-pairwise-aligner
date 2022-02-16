@@ -86,7 +86,7 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
         // TODO: Warning
         assert!(
             self.match_config.max_match_cost
-                <= self.match_config.length.k().unwrap_or(I::MAX) as Cost / 3
+                <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
         GapSeedHeuristicI::new(a, b, alph, *self)
     }
@@ -277,16 +277,22 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
         for d in 1..=self.params.match_config.max_match_cost {
-            if tpos.1 >= d {
-                if let Some(pos_arrows) = self.arrows.get(&Pos(tpos.0 + d, tpos.1 - d)) {
+            if tpos.1 >= d as Cost {
+                if let Some(pos_arrows) = self
+                    .arrows
+                    .get(&Pos(tpos.0 + d as Cost, tpos.1 - d as Cost))
+                {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
                         self.pruning_duration += start.elapsed();
                         return 0;
                     }
                 }
             }
-            if tpos.0 >= d {
-                if let Some(pos_arrows) = self.arrows.get(&Pos(tpos.0 - d, tpos.1 + d)) {
+            if tpos.0 >= d as Cost {
+                if let Some(pos_arrows) = self
+                    .arrows
+                    .get(&Pos(tpos.0 - d as Cost, tpos.1 + d as Cost))
+                {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
                         self.pruning_duration += start.elapsed();
                         return 0;

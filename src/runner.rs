@@ -55,7 +55,7 @@ pub struct Params {
     k: I,
 
     #[structopt(short, default_value = "0")]
-    max_seed_cost: Cost,
+    max_seed_cost: MatchCost,
 
     #[structopt(long, default_value = "Gap")]
     cost: CostFunction,

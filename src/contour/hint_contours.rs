@@ -81,7 +81,7 @@ impl<C: Contour> Contours for HintContours<C> {
             let mut v = 0;
             for a in pos_arrows {
                 assert_eq!((a.end.0 - a.start.0) + (a.end.1 - a.start.1), 2 * max_len);
-                v = max(v, this.value(a.end) + a.len);
+                v = max(v, this.value(a.end) + a.len as Cost);
             }
             assert!(v > 0);
             if this.contours.len() as Cost <= v {
@@ -262,12 +262,12 @@ impl<C: Contour> Contours for HintContours<C> {
                 let mut best_start_val = 0;
                 for arrow in pos_arrows {
                     // Find the value at end_val via a backwards search.
-                    let mut end_val = v - arrow.len;
+                    let mut end_val = v - arrow.len as Cost;
                     while !self.contours[end_val as usize].contains(arrow.end) {
                         end_val -= 1;
 
                         // No need to continue when this value isn't going to be optimal anyway.
-                        if end_val + arrow.len <= best_start_val {
+                        if end_val + arrow.len as Cost <= best_start_val {
                             break;
                         }
 
@@ -275,13 +275,13 @@ impl<C: Contour> Contours for HintContours<C> {
                             // We know that max_new_val will be within [v-max_len, v].
                             // Thus, value(arrow.end) will be in [v-max_len-arrow.len, v-arrow.len].
                             // For simplicity, we skip this check.
-                            if end_val + self.max_len == v - arrow.len {
+                            if end_val + self.max_len == v - arrow.len as Cost {
                                 break;
                             }
                         }
                     }
 
-                    let start_val = end_val + arrow.len;
+                    let start_val = end_val + arrow.len as Cost;
                     best_start_val = max(best_start_val, start_val);
                     layer_best_start_val = max(layer_best_start_val, start_val);
                 }

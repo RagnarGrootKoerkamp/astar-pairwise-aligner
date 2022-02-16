@@ -13,6 +13,8 @@ pub type I = u32;
 /// Type for costs.
 /// TODO: Make this a strong type.
 pub type Cost = u32;
+/// Type for the cost of a single match.
+pub type MatchCost = u8;
 
 /// A position in a pairwise matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
@@ -206,9 +208,6 @@ impl<'a> AlignmentGraph<'a> {
         }
     }
 }
-
-/// A datatype for the cost of a match, possibly smaller than `Cost`.
-pub type MatchCost = u8;
 
 /// The costs to use for the distance computation.
 /// TODO: Gap-Affine costs.
