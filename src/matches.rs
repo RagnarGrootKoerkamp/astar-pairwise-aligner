@@ -86,6 +86,11 @@ impl SeedMatches {
         }
     }
 
+    /// The potential at p is the cost of going from p to the end, without hitting any matches.
+    pub fn potential(&self, Pos(i, _): Pos) -> Cost {
+        self.potential[i as usize]
+    }
+
     /// The seed covering a given position.
     pub fn seed_at(&self, Pos(i, _): Pos) -> Option<&Seed> {
         match self.seed_at[i as usize] {
@@ -94,15 +99,28 @@ impl SeedMatches {
         }
     }
 
-    /// The potential at p is the cost of going from p to the end, without hitting any matches.
-    pub fn potential(&self, Pos(i, _): Pos) -> Cost {
-        self.potential[i as usize]
+    /// The seed ending in the given position.
+    pub fn seed_ending_at(&self, Pos(i, _): Pos) -> Option<&Seed> {
+        if i == 0 {
+            None
+        } else {
+            match self.seed_at[i as usize - 1] {
+                Some(idx) => Some(&self.seeds[idx as usize]),
+                None => None,
+            }
+        }
     }
 
-    // TODO: Generalize this for overlapping seeds.
+    pub fn is_seed_start(&self, pos: Pos) -> bool {
+        self.seed_at(pos).map_or(false, |s| pos.0 == s.start)
+    }
+
+    pub fn is_seed_end(&self, pos: Pos) -> bool {
+        self.seed_ending_at(pos).map_or(false, |s| pos.0 == s.end)
+    }
+
     pub fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.seed_at(pos)
-            .map_or(false, |s| pos.0 == s.start || pos.0 == s.end)
+        self.is_seed_start(pos) || self.is_seed_end(pos)
     }
 }
 
@@ -116,11 +134,7 @@ impl<'a> DistanceInstance<'a> for SeedMatches {
     /// NOTE: Assumes disjoint seeds.
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         assert!(from.0 <= to.0);
-        let end_i = self.seed_at(to).map_or(to.0, |s| {
-            assert!(s.start <= to.0 && to.0 < s.end);
-            s.start
-        });
-        assert!(from.0 <= end_i);
+        let end_i = self.seed_at(to).map_or(to.0, |s| s.start);
         self.potential[from.0 as usize] - self.potential[end_i as usize]
     }
 }
