@@ -3,6 +3,7 @@ pub mod equal_heuristic;
 pub mod gap_seed_heuristic;
 pub mod print;
 pub mod seed_heuristic;
+pub mod unordered;
 
 pub use distance::*;
 pub use equal_heuristic::*;
