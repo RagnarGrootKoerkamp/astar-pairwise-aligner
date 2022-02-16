@@ -175,18 +175,20 @@ fn fixed_seeds(
 
 #[derive(Clone, Copy, Debug)]
 pub struct MaxMatches {
-    /// The smallest k with at most this many matches within the band.
+    /// The smallest k with at most this many matches.
     pub max_matches: usize,
-    /// Return the band as a function of n.
-    pub band: fn(I) -> I,
+    /// Range of k to consider.
+    pub k_min: I,
+    pub k_max: I,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct MinMatches {
-    /// The largest k with at least this many matches within the band.
+    /// The largest k with at least this many matches.
     pub min_matches: usize,
-    /// Return the band as a function of n.
-    pub band: fn(I) -> I,
+    /// Range of k to consider.
+    pub k_min: I,
+    pub k_max: I,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -200,12 +202,20 @@ impl LengthConfig {
     pub fn fixed(k: I) -> LengthConfig {
         LengthConfig::Fixed(k)
     }
-    pub fn max(max_matches: usize, band: fn(I) -> I) -> LengthConfig {
-        LengthConfig::Max(MaxMatches { max_matches, band })
+    pub fn max(max_matches: usize, k_min: I, k_max: I) -> LengthConfig {
+        LengthConfig::Max(MaxMatches {
+            max_matches,
+            k_min,
+            k_max,
+        })
     }
-    pub fn min(min_matches: usize, band: fn(I) -> I) -> LengthConfig {
+    pub fn min(min_matches: usize, k_min: I, k_max: I) -> LengthConfig {
         assert!(min_matches > 0);
-        LengthConfig::Min(MinMatches { min_matches, band })
+        LengthConfig::Min(MinMatches {
+            min_matches,
+            k_min,
+            k_max,
+        })
     }
     pub fn k(&self) -> Option<I> {
         match *self {
@@ -298,8 +308,6 @@ pub fn find_matches_qgramindex<'a>(
 ) -> SeedMatches {
     assert!(max_match_cost == 0 || max_match_cost == 1);
 
-    let Pos(n, _m) = Pos::from_length(a, b);
-
     // Qgrams of B.
     // TODO: Profile this index and possibly use something more efficient for large k.
     let qgrams = &mut HashMap::<I, QGramIndex>::default();
@@ -318,28 +326,9 @@ pub fn find_matches_qgramindex<'a>(
     }
 
     // Stops counting when max_count is reached.
-    let mut count_matches = |k: I, qgram, max_count: usize, i: I, band: I| -> usize {
-        let count_in_band = |matches: &[usize]| -> usize {
-            if matches.len() <= 32 {
-                matches
-                    .iter()
-                    .copied()
-                    .filter(|&j| i <= j as I + band && j as I <= i + band)
-                    .count()
-            } else {
-                let start = matches
-                    .binary_search(&(i.saturating_sub(band) as usize))
-                    .map_or_else(|x| x, |x| x);
-                let end = matches
-                    .binary_search(&((i + band) as usize))
-                    .map_or_else(|x| x + 1, |x| x);
-                end - start
-            }
-        };
-
+    let mut count_matches = |k: I, qgram, max_count: usize| -> usize {
         // exact matches
-        let mut cnt = 0;
-        cnt += count_in_band(get_matches(qgrams, b, alph, k, qgram));
+        let mut cnt = get_matches(qgrams, b, alph, k, qgram).len();
         if cnt >= max_count {
             return max_count;
         }
@@ -351,7 +340,7 @@ pub fn find_matches_qgramindex<'a>(
                 (mutations.insertions, k + 1),
             ] {
                 for qgram in v {
-                    cnt += count_in_band(get_matches(qgrams, b, alph, k, qgram));
+                    cnt += get_matches(qgrams, b, alph, k, qgram).len();
                     if cnt >= max_count {
                         return max_count;
                     }
@@ -375,24 +364,38 @@ pub fn find_matches_qgramindex<'a>(
             let seed_len = {
                 match length {
                     Fixed(k) => k,
-                    LengthConfig::Max(MaxMatches { max_matches, band }) => {
-                        let mut k = 3 as I;
-                        while k <= a.len() as I && k <= 10
-                                // TODO: Use band(min(a.len(), n-a.len())) or something like it.
-                                && count_matches(k, to_qgram(&rank_transform, width, &a[..k as usize]), max_matches + 1, i, band(n))
-                                    > max_matches
+                    LengthConfig::Max(MaxMatches {
+                        max_matches,
+                        k_min,
+                        k_max,
+                    }) => {
+                        let mut k = k_min as I;
+                        while k <= a.len() as I
+                            && k <= k_max
+                            && count_matches(
+                                k,
+                                to_qgram(&rank_transform, width, &a[..k as usize]),
+                                max_matches + 1,
+                            ) > max_matches
                         {
                             k += 1;
                         }
                         k
                     }
-                    LengthConfig::Min(MinMatches { min_matches, band }) => {
-                        let mut k = 4 as I;
+                    LengthConfig::Min(MinMatches {
+                        min_matches,
+                        k_min,
+                        k_max,
+                    }) => {
+                        let mut k = k_min as I;
                         // TODO: Remove max length, which is only needed because of memory reasons.
-                        while k <= a.len() as I && k <= 11
-                                // TODO: Use band(min(a.len(), n-a.len())) or something like it.
-                                && count_matches(k, to_qgram(&rank_transform, width, &a[..k as usize]), min_matches, i, band(n))
-                                    >= min_matches
+                        while k <= a.len() as I
+                            && k <= k_max
+                            && count_matches(
+                                k,
+                                to_qgram(&rank_transform, width, &a[..k as usize]),
+                                min_matches,
+                            ) >= min_matches
                         {
                             k += 1;
                         }
