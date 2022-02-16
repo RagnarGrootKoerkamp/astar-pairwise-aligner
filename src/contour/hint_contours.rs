@@ -67,7 +67,7 @@ impl<C: Contour> Contours for HintContours<C> {
     fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
         let mut this = HintContours {
             contours: {
-                let mut c = SplitVec::new();
+                let mut c = SplitVec::default();
                 c.resize_with(1, || C::default());
                 c
             },
@@ -98,8 +98,8 @@ impl<C: Contour> Contours for HintContours<C> {
         this
     }
 
+    /// The max sum of arrows starting at pos
     fn value(&self, q: Pos) -> Cost {
-        // We already know that 0 contains q, so we start at 1.
         self.contours
             .binary_search_by(|contour| {
                 if contour.contains(q) {

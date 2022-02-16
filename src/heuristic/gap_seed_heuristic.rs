@@ -112,11 +112,11 @@ pub struct GapSeedHeuristicI<C: Contours> {
     gap_distance: GapCostI,
     target: Pos,
 
-    pub seed_matches: SeedMatches,
+    seed_matches: SeedMatches,
     num_filtered_matches: usize,
 
     // TODO: Put statistics into a separate struct.
-    num_actual_pruned: usize,
+    num_pruned: usize,
 
     /// The max transformed position.
     max_transformed_pos: Pos,
@@ -124,7 +124,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
     contours: C,
 
     // For debugging
-    pub pruning_duration: Duration,
+    pruning_duration: Duration,
     // TODO: Do not use vectors inside a hashmap.
     // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
     arrows: HashMap<Pos, Vec<Arrow>>,
@@ -158,7 +158,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
             target: Pos::from_length(a, b),
             seed_matches: find_matches(a, b, alph, params.match_config),
             num_filtered_matches: 0,
-            num_actual_pruned: 0,
+            num_pruned: 0,
 
             // For pruning propagation
             max_transformed_pos: Pos(0, 0),
@@ -302,7 +302,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         self.arrows.remove(&tpos).unwrap();
         let change = self.contours.prune_with_hint(tpos, hint, &self.arrows);
         self.pruning_duration += start.elapsed();
-        self.num_actual_pruned += 1;
+        self.num_pruned += 1;
         if print() {
             self.print(false, false);
         }
@@ -313,6 +313,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
+    /// Update the max_explored_pos, so we know when the priority queue can be shifted after a prune.
     fn explore(&mut self, pos: Pos) {
         let tpos = self.transform(pos);
         if tpos.0 >= self.max_transformed_pos.0 {
@@ -342,7 +343,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                 Default::default()
             },
             pruning_duration: self.pruning_duration.as_secs_f32(),
-            num_prunes: self.num_actual_pruned,
+            num_prunes: self.num_pruned,
         }
     }
 

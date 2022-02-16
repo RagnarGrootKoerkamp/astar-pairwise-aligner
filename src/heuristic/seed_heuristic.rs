@@ -73,7 +73,7 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
     h_at_seeds: HashMap<Pos, Cost>,
     // Remaining arrows/matches
     arrows: HashMap<Pos, Vec<Arrow>>,
-    num_actual_pruned: usize,
+    num_pruned: usize,
 
     // Statistics
     pub pruning_duration: Duration,
@@ -129,7 +129,7 @@ where
             h_at_seeds: Default::default(),
             arrows: Default::default(),
             pruning_duration: Default::default(),
-            num_actual_pruned: 0,
+            num_pruned: 0,
         };
         assert!(h
             .matches
@@ -223,7 +223,7 @@ where
             num_filtered_matches: self.matches.matches.len(),
             matches: self.matches.matches.clone(),
             pruning_duration: self.pruning_duration.as_secs_f32(),
-            num_prunes: self.num_actual_pruned,
+            num_prunes: self.num_pruned,
         }
     }
 
