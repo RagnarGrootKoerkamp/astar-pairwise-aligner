@@ -186,7 +186,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
         }
 
         // Transform to Arrows.
-        let arrows_iterator = h.seed_matches.iter().rev().map(
+        let arrows_iterator = h.seed_matches.matches.iter().rev().map(
             |&Match {
                  start,
                  end,
@@ -386,8 +386,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                         dist.sample(&mut rng),
                     )
                 });
-                let is_start_of_match = self.seed_matches.iter().any(|m| m.start == p);
-                let is_end_of_match = self.seed_matches.iter().any(|m| m.end == p);
+                let is_start_of_match = self.seed_matches.matches.iter().any(|m| m.start == p);
+                let is_end_of_match = self.seed_matches.matches.iter().any(|m| m.end == p);
                 if is_start_of_match {
                     pixel.2 = true;
                 } else if is_end_of_match {
