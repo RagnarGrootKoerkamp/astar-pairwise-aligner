@@ -83,6 +83,31 @@ impl SeedMatches {
             potential,
         }
     }
+
+    /// The potential at p is the cost of going from p to the end, without hitting any matches.
+    pub fn potential(&self, Pos(i, _): Pos) -> Cost {
+        self.potential[i as usize]
+    }
+
+    // TODO: Generalize this for overlapping seeds.
+    pub fn is_start_of_seed(&self, Pos(i, _): Pos) -> bool {
+        self.start_of_seed[i as usize] == Some(i)
+    }
+}
+
+impl<'a> HeuristicInstance<'a> for SeedMatches {
+    fn h(&self, _: Pos) -> Cost {
+        unimplemented!("SeedMatches can only be used as a distance, not as a heuristic!");
+    }
+}
+impl<'a> DistanceInstance<'a> for SeedMatches {
+    /// The minimal distance is the potential of the seeds entirely within the `[from, to)` interval.
+    /// NOTE: Assumes disjoint seeds.
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
+        assert!(from.0 <= to.0);
+        self.potential[from.0 as usize]
+            - (self.potential[self.start_of_seed[to.0 as usize].unwrap_or(to.0) as usize])
+    }
 }
 
 fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> usize {
@@ -111,33 +136,6 @@ fn fixed_seeds(
             has_matches: false,
         })
         .collect_vec()
-}
-
-impl SeedMatches {
-    /// The potential at p is the cost of going from p to the end, without hitting any matches.
-    pub fn potential(&self, Pos(i, _): Pos) -> Cost {
-        self.potential[i as usize]
-    }
-
-    // TODO: Generalize this for overlapping seeds.
-    pub fn is_start_of_seed(&self, Pos(i, _): Pos) -> bool {
-        self.start_of_seed[i as usize] == Some(i)
-    }
-}
-
-impl<'a> HeuristicInstance<'a> for SeedMatches {
-    fn h(&self, _: Pos) -> Cost {
-        unimplemented!("SeedMatches can only be used as a distance, not as a heuristic!");
-    }
-}
-impl<'a> DistanceInstance<'a> for SeedMatches {
-    /// The minimal distance is the potential of the seeds entirely within the `[from, to)` interval.
-    /// NOTE: Assumes disjoint seeds.
-    fn distance(&self, from: Pos, to: Pos) -> Cost {
-        assert!(from.0 <= to.0);
-        self.potential[from.0 as usize]
-            - (self.potential[self.start_of_seed[to.0 as usize].unwrap_or(to.0) as usize])
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
