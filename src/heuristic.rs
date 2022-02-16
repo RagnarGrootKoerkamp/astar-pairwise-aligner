@@ -91,7 +91,7 @@ pub trait HeuristicInstance<'a> {
     }
 
     /// A* will checked for consistency whenever this returns true.
-    fn is_seed_start_or_end(&mut self, _pos: Pos) -> bool {
+    fn is_seed_start_or_end(&self, _pos: Pos) -> bool {
         true
     }
 
