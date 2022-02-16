@@ -54,18 +54,11 @@ impl<C> IndexMut<usize> for SplitVec<C> {
 }
 
 impl<C> SplitVec<C> {
-    pub fn new() -> Self {
-        SplitVec {
-            prefix: vec![],
-            suffix: vec![],
-        }
-    }
-
     pub fn len(&self) -> usize {
         self.prefix.len() + self.suffix.len()
     }
 
-    pub fn resize_with<F: Fn() -> C>(&mut self, new_len: usize, f: F) {
+    pub fn resize_with<F: FnMut() -> C>(&mut self, new_len: usize, f: F) {
         assert!(self.suffix.is_empty());
         self.prefix.resize_with(new_len, f);
     }
