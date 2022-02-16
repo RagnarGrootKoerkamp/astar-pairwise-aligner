@@ -114,10 +114,6 @@ fn fixed_seeds(
 }
 
 impl SeedMatches {
-    pub fn iter(&self) -> std::slice::Iter<Match> {
-        self.matches.iter()
-    }
-
     /// The potential at p is the cost of going from p to the end, without hitting any matches.
     pub fn potential(&self, Pos(i, _): Pos) -> Cost {
         self.potential[i as usize]

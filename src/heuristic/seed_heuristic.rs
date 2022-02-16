@@ -137,7 +137,7 @@ where
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
         // Transform to Arrows.
-        let arrows_iterator = h.matches.iter().map(
+        let arrows_iterator = h.matches.matches.iter().map(
             |&Match {
                  start,
                  end,
@@ -173,7 +173,7 @@ where
             end,
             match_cost,
             ..
-        } in self.matches.iter().rev()
+        } in self.matches.matches.iter().rev()
         {
             if !self.arrows.contains_key(start) {
                 continue;
@@ -281,6 +281,11 @@ where
     }
 
     fn print(&self, _transform: bool, wait_for_user: bool) {
-        super::print::print(self, self.matches.iter(), self.target, wait_for_user);
+        super::print::print(
+            self,
+            self.matches.matches.iter(),
+            self.target,
+            wait_for_user,
+        );
     }
 }
