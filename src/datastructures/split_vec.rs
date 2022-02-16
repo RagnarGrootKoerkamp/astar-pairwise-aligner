@@ -58,6 +58,14 @@ impl<C> SplitVec<C> {
         self.prefix.len() + self.suffix.len()
     }
 
+    pub fn get(&self, index: usize) -> Option<&C> {
+        if index < self.len() {
+            Some(&self[index])
+        } else {
+            None
+        }
+    }
+
     pub fn resize_with<F: FnMut() -> C>(&mut self, new_len: usize, f: F) {
         assert!(self.suffix.is_empty());
         self.prefix.resize_with(new_len, f);
