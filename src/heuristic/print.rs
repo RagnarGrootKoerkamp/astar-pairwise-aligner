@@ -4,22 +4,12 @@ use std::io;
 
 use crate::prelude::*;
 
-pub fn print<'a, 'b, H>(
-    h: &H,
-    matches: impl Iterator<Item = &'b Match>,
-    target: Pos,
-    wait_for_user: bool,
-) where
+pub fn print<'a, 'b, H>(h: &H, target: Pos, wait_for_user: bool)
+where
     H: HeuristicInstance<'a>,
 {
     if !crate::config::print() {
         return;
-    }
-    let mut matches_by_start = HashSet::default();
-    let mut matches_by_end = HashSet::default();
-    for m in matches {
-        matches_by_start.insert(m.start);
-        matches_by_end.insert(m.end);
     }
 
     let mut ps = HashMap::default();
@@ -42,12 +32,8 @@ pub fn print<'a, 'b, H>(
                     dist.sample(&mut rng),
                 ),
             ));
-            let is_start_of_match = matches_by_start.contains(&p);
-            let is_end_of_match = matches_by_end.contains(&p);
-            if is_start_of_match {
+            if h.is_seed_start_or_end(p) {
                 pixel.2 = true;
-            } else if is_end_of_match {
-                pixel.3 = true;
             }
             pixel.0 = Some(*color);
             pixel.1 = Some(val);
