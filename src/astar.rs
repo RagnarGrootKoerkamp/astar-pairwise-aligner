@@ -157,18 +157,15 @@ where
                 true
             }
         };
-        let mut is_start_of_seed;
+        let mut is_seed_start_or_end;
 
         // Store the state for copying to matching states.
         let mut state = *state;
-        // Matching states will need a match parent.
-        state.parent = Parent::match_value();
 
         // Keep expanding states while we are on a matching diagonal edge.
         // This gives a ~2x speedup on highly similar sequences, because states
         // do not need to be pushed to/popped from the priority queue.
         if loop {
-            //println!("Expand {pos}: {state:?} @ f= {queue_f}");
             stats.expanded += 1;
             if DEBUG {
                 stats.expanded_states.push(pos);
@@ -194,8 +191,8 @@ where
                 return Some((state.g, path, stats));
             }
 
-            is_start_of_seed = h.is_seed_start_or_end(pos);
-            if is_start_of_seed {
+            is_seed_start_or_end = h.is_seed_start_or_end(pos);
+            if is_seed_start_or_end {
                 // Check that we don't double expand start-of-seed states.
                 // Starts of seeds should only be expanded once.
                 assert!(!double_expanded, "Double expanded start of seed {:?}", pos);
@@ -203,8 +200,7 @@ where
                 // Prune expanded states.
                 // TODO: Make this return a new hint?
                 // Or just call h manually for a new hint.
-                // FIXME: Add seed_cost argument.
-                let pq_shift = h.prune(pos, state.hint);
+                let pq_shift = h.prune(pos, state.hint, state.seed_cost);
                 if REDUCE_RETRIES && pq_shift > 0 {
                     stats.pq_shifts += 1;
                     queue_offset += pq_shift;
@@ -216,11 +212,14 @@ where
             }
 
             if let Some(next) = graph.is_match(pos) {
+                // Matching states will need a match parent.
+                state.parent = Parent::match_value();
+
                 // Directly expand the next pos, by copying over the current state to there.
 
                 // Just after the start of a seed, the seed cost is reset to 0.
                 // We do not reset it earlier, because an insert could still be inside the same seed.
-                if is_start_of_seed {
+                if is_seed_start_or_end {
                     state.seed_cost = 0;
                 }
 
@@ -274,11 +273,11 @@ where
             let next_f = next_g + next_h;
 
             next_state.g = next_g;
-            next_state.seed_cost = if is_start_of_seed && parent != Parent::Up {
+            next_state.seed_cost = if is_seed_start_or_end && parent != Parent::Up {
                 0
             } else {
-                state.seed_cost + cost
-            };
+                state.seed_cost
+            } + cost;
             next_state.parent = parent;
             next_state.hint = next_hint;
             queue.push(MinScored(
