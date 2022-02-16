@@ -231,7 +231,7 @@ where
         self.seed_matches.is_seed_start_or_end(pos)
     }
 
-    fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
+    fn prune(&mut self, pos: Pos, _hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
         if !self.params.pruning {
             return 0;
         }
