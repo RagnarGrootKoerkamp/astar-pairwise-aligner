@@ -261,7 +261,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         self.seed_matches.is_seed_start_or_end(pos)
     }
 
-    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
+    // TODO: Prune by end pos as well (or instead of) start pos.
+    // In this case, `seed_cost` can be used to filter out lookups for states that won't have a match ending there.
+    fn prune(&mut self, pos: Pos, hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
         if !self.params.pruning {
             return 0;
         }
