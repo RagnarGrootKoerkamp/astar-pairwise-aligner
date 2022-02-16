@@ -100,8 +100,9 @@ impl SeedMatches {
     }
 
     // TODO: Generalize this for overlapping seeds.
-    pub fn is_start_of_seed(&self, pos: Pos) -> bool {
-        self.seed_at(pos).map_or(false, |s| s.start == pos.0)
+    pub fn is_seed_start_or_end(&self, pos: Pos) -> bool {
+        self.seed_at(pos)
+            .map_or(false, |s| pos.0 == s.start || pos.0 == s.end)
     }
 }
 

@@ -257,8 +257,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
     }
 
-    fn is_start_of_seed(&mut self, pos: Pos) -> bool {
-        self.seed_matches.is_start_of_seed(pos)
+    fn is_seed_start_or_end(&mut self, pos: Pos) -> bool {
+        self.seed_matches.is_seed_start_or_end(pos)
     }
 
     fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
