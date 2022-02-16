@@ -1,6 +1,7 @@
 #![feature(
     test,
     iter_intersperse,
+    label_break_value,
     derive_default_enum,
     min_specialization,
     is_sorted,
@@ -21,6 +22,7 @@ pub mod generate;
 pub mod heuristic;
 pub mod matches;
 pub mod runner;
+pub mod unordered_matches;
 
 pub mod prelude {
     pub use super::*;

@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use contour::central::CentralContour;
+use heuristic::unordered::UnorderedHeuristic;
 use std::marker::PhantomData;
 use structopt::StructOpt;
 use strum_macros::EnumString;
@@ -44,6 +45,8 @@ pub enum Algorithm {
     Seed,
     // GapSeedHeuristic, using an efficient implementation from contours
     GapSeed,
+    // UnorderedHeuristic
+    Unordered,
 }
 
 #[derive(StructOpt, Debug)]
@@ -181,6 +184,26 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     Contour::Central => run_contours::<HintContours<CentralContour>>(a, b, params),
                 },
             }
+        }
+        Algorithm::Unordered => {
+            let heuristic = UnorderedHeuristic {
+                match_config: MatchConfig {
+                    length: Fixed(params.k),
+                    max_match_cost: params.max_seed_cost,
+                    ..Default::default()
+                },
+                pruning: !params.no_prune,
+            };
+
+            let alphabet = Alphabet::new(b"ACTG");
+            let sequence_stats = SequenceStats {
+                len_a: a.len(),
+                len_b: b.len(),
+                error_rate: 0.,
+                source: Source::Extern,
+            };
+
+            align(a, b, &alphabet, sequence_stats, heuristic)
         }
     }
 }

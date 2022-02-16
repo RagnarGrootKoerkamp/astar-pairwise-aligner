@@ -1,4 +1,4 @@
-use pairwise_aligner::prelude::*;
+use pairwise_aligner::prelude::{unordered::UnorderedHeuristic, *};
 
 #[test]
 fn exact_no_pruning() {
@@ -111,6 +111,28 @@ fn incremental_pruning_hint_central() {
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
+            }
+        }
+    }
+}
+
+#[test]
+fn unordered() {
+    // TODO: Test for m > 0.
+    for (k, max_match_cost) in [(4, 0), (5, 0)] {
+        for n in [40, 100, 200, 500, 1000] {
+            for e in [0.1, 0.3, 1.0] {
+                let h = UnorderedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(k),
+                        max_match_cost,
+                        ..MatchConfig::default()
+                    },
+                    pruning: true,
+                };
+                let (a, b, alph, stats) = setup(n, e);
+                println!("TESTING n {} e {}: {:?}", n, e, h);
+                align(&a, &b, &alph, stats, h);
             }
         }
     }
