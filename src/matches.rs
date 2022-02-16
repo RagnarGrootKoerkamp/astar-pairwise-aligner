@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
-use std::iter::repeat;
 
 #[derive(Clone, Debug)]
 pub struct Seed {
@@ -34,6 +33,38 @@ pub struct SeedMatches {
     /// Index of the start of the rightmost seed covering the given position.
     pub start_of_seed: Vec<I>,
     pub potential: Vec<Cost>,
+}
+
+impl SeedMatches {
+    fn new(a: &Sequence, seeds: Vec<Seed>, matches: Vec<Match>) -> Self {
+        let n = a.len();
+        let mut potential = Vec::with_capacity(n + 1);
+        let mut start_of_seed = Vec::with_capacity(n + 1);
+        let mut cur_potential = 0;
+        let mut cur_start = n as I;
+        let mut next_seed = seeds.iter().rev().peekable();
+        for i in (0..=n).rev() {
+            cur_start = min(cur_start, i as I);
+            if let Some(ns) = next_seed.peek() {
+                if i == ns.start as usize {
+                    cur_potential += ns.seed_potential;
+                }
+                if i == ns.end as usize {
+                    cur_start = ns.start;
+                }
+                next_seed.next();
+            }
+
+            potential[i] = cur_potential;
+            start_of_seed[i] = cur_start;
+        }
+        SeedMatches {
+            seeds,
+            matches,
+            start_of_seed,
+            potential,
+        }
+    }
 }
 
 fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> usize {
@@ -181,15 +212,9 @@ pub fn find_matches_trie<'a>(
     let width = rank_transform.get_width();
     let mut seeds = fixed_seeds(&rank_transform, width, max_match_cost, a, k);
 
-    let n = a.len();
-    let mut potential = Vec::with_capacity(n + 1);
-    let mut start_of_seed = Vec::with_capacity(n + 1);
-
     // Find matches of the seeds of a in b.
     let mut matches = Vec::<Match>::new();
 
-    let mut cur_potential = seeds.iter().map(|seed| seed.seed_potential).sum();
-    potential.push(cur_potential);
     for seed @ &mut Seed {
         start,
         end,
@@ -197,11 +222,6 @@ pub fn find_matches_trie<'a>(
         ..
     } in &mut seeds
     {
-        let seed_len = end - start;
-        cur_potential -= seed_potential;
-        potential.extend(repeat(cur_potential).take(seed_len as usize));
-        start_of_seed.extend(repeat(start).take(seed_len as usize));
-
         trie.matches(
             &a[start as usize..end as usize],
             (seed_potential - 1) as MatchCost,
@@ -217,10 +237,6 @@ pub fn find_matches_trie<'a>(
         );
     }
 
-    // Backfill a potential gap after the last seed.
-    potential.extend(repeat(0).take(n + 1 - potential.len()));
-    start_of_seed.extend(repeat(seeds.last().unwrap().end).take(n + 1 - start_of_seed.len()));
-
     // First sort by start, then by end, then by match cost.
     matches.sort_unstable_by_key(
         |&Match {
@@ -233,12 +249,7 @@ pub fn find_matches_trie<'a>(
     // Dedup to only keep the lowest match cost.
     matches.dedup_by_key(|m| (m.start, m.end));
 
-    SeedMatches {
-        seeds,
-        matches,
-        start_of_seed,
-        potential,
-    }
+    SeedMatches::new(a, seeds, matches)
 }
 
 pub fn find_matches_qgramindex<'a>(
@@ -274,14 +285,6 @@ pub fn find_matches_qgramindex<'a>(
     // Stops counting when max_count is reached.
     let mut count_matches = |k: I, qgram, max_count: usize, i: I, band: I| -> usize {
         let count_in_band = |matches: &[usize]| -> usize {
-            // println!(
-            //     "{} {} {} {} for {:?}",
-            //     k,
-            //     max_count,
-            //     i.saturating_sub(band),
-            //     i + band,
-            //     matches
-            // );
             if matches.len() <= 32 {
                 matches
                     .iter()
@@ -365,7 +368,6 @@ pub fn find_matches_qgramindex<'a>(
             if seed_len > a.len() as I {
                 break;
             }
-            //print!("{} ", seed_len);
 
             let (seed, tail) = a.split_at(seed_len as usize);
             a = tail;
@@ -381,30 +383,13 @@ pub fn find_matches_qgramindex<'a>(
 
             long = !long;
         }
-        //println!();
         v
     };
-    // println!(
-    //     "k: {}",
-    //     //length,
-    //     //num_seeds,
-    //     a.len() as f32 / num_seeds as f32
-    // );
-
-    let n = a.len();
-    let mut potential = Vec::with_capacity(n + 1);
-    let mut start_of_seed = Vec::with_capacity(n + 1);
 
     // Find matches of the seeds of a in b.
     // NOTE: This uses O(alphabet^k) memory.
     let mut matches = Vec::<Match>::new();
 
-    let mut cur_potential = seeds
-        .iter()
-        .map(|Seed { seed_potential, .. }| seed_potential)
-        .sum();
-    potential.push(cur_potential);
-    //println!("{:?}", seed_qgrams);
     for seed @ &mut Seed {
         start,
         end,
@@ -414,9 +399,6 @@ pub fn find_matches_qgramindex<'a>(
     } in &mut seeds
     {
         let len = end - start;
-        cur_potential -= seed_potential;
-        potential.extend(repeat(cur_potential).take(len as usize));
-        start_of_seed.extend(repeat(start).take(len as usize));
 
         // Exact matches
         for &j in get_matches(qgrams, b, alph, len, qgram) {
@@ -466,12 +448,6 @@ pub fn find_matches_qgramindex<'a>(
             }
         }
     }
-    // Backfill a potential gap after the last seed.
-    potential.extend(repeat(0).take(n + 1 - potential.len()));
-    start_of_seed.extend(repeat(seeds.last().unwrap().end).take(n + 1 - start_of_seed.len()));
-
-    //println!("{:?}", potential);
-    //println!("{:?}", start_of_seed);
 
     // TODO: This sorting could be a no-op if we generate matches in order.
     // First sort by start, then by end, then by match cost.
@@ -486,12 +462,7 @@ pub fn find_matches_qgramindex<'a>(
     // Dedup to only keep the lowest match cost.
     matches.dedup_by_key(|m| (m.start, m.end));
 
-    SeedMatches {
-        seeds,
-        matches,
-        start_of_seed,
-        potential,
-    }
+    SeedMatches::new(a, seeds, matches)
 }
 
 /// Build a hashset of the kmers in b, and query all mutations of seeds in a.
@@ -599,9 +570,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
          }| (LexPos(start), LexPos(end), match_cost),
     );
     // Dedup to only keep the lowest match cost for each (start, end) pair.
-    //println!("Size before: {}", matches.len());
     matches.dedup_by_key(|m| (m.start, m.end));
-    //println!("Size after : {}", matches.len());
 
     // Sort better matches for a given start first.
     matches.sort_unstable_by_key(
@@ -610,33 +579,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
          }| (LexPos(start), match_cost),
     );
 
-    // Compute some remaining data.
-    let num_seeds = a.len() as I / k;
-
-    let n = a.len();
-    let mut potential = Vec::with_capacity(n + 1);
-    let mut start_of_seed = Vec::with_capacity(n + 1);
-    {
-        let mut cur_potential = 2 * num_seeds;
-
-        potential.push(cur_potential);
-        for i in (0..a.len() - (k as usize - 1)).step_by(k as usize) {
-            cur_potential -= 2;
-            potential.extend(repeat(cur_potential).take(k as usize));
-            start_of_seed.extend(repeat(i as I).take(k as usize));
-        }
-
-        // Backfill a potential gap after the last seed.
-        potential.extend(repeat(0).take(n + 1 - potential.len()));
-        start_of_seed.extend(repeat(num_seeds * k).take(n + 1 - start_of_seed.len()));
-    }
-
-    SeedMatches {
-        seeds,
-        matches,
-        start_of_seed,
-        potential,
-    }
+    SeedMatches::new(a, seeds, matches)
 }
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
@@ -792,33 +735,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
     // Dedup to only keep the lowest match cost.
     matches.dedup_by_key(|m| (m.start, m.end));
 
-    // Compute some remaining data.
-    let num_seeds = a.len() as I / k;
-
-    let n = a.len();
-    let mut potential = Vec::with_capacity(n + 1);
-    let mut start_of_seed = Vec::with_capacity(n + 1);
-    {
-        let mut cur_potential = num_seeds;
-
-        potential.push(cur_potential);
-        for i in (0..a.len() - (k as usize - 1)).step_by(k as usize) {
-            cur_potential -= 1;
-            potential.extend(repeat(cur_potential).take(k as usize));
-            start_of_seed.extend(repeat(i as I).take(k as usize));
-        }
-
-        // Backfill a potential gap after the last seed.
-        potential.extend(repeat(0).take(n + 1 - potential.len()));
-        start_of_seed.extend(repeat(num_seeds * k).take(n + 1 - start_of_seed.len()));
-    }
-
-    SeedMatches {
-        seeds,
-        matches,
-        start_of_seed,
-        potential,
-    }
+    SeedMatches::new(a, seeds, matches)
 }
 
 pub fn find_matches<'a>(
