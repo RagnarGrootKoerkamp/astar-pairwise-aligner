@@ -68,7 +68,7 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
 
-    pub matches: SeedMatches,
+    pub seed_matches: SeedMatches,
     // The lowest cost match starting at each position.
     h_at_seeds: HashMap<Pos, Cost>,
     // Remaining arrows/matches
@@ -90,7 +90,7 @@ where
     default fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.distance_function.distance(from, to),
-            self.matches.distance(from, to),
+            self.seed_matches.distance(from, to),
         )
     }
 }
@@ -100,7 +100,7 @@ where
 impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         let gap = self.distance_function.distance(from, to);
-        let pot = self.matches.distance(from, to);
+        let pot = self.seed_matches.distance(from, to);
         if gap <= pot {
             pot
         } else if to == self.target {
@@ -125,19 +125,19 @@ where
             params,
             distance_function: Distance::build(&params.distance_function, a, b, alphabet),
             target: Pos::from_length(a, b),
-            matches: find_matches(a, b, alphabet, params.match_config),
+            seed_matches: find_matches(a, b, alphabet, params.match_config),
             h_at_seeds: Default::default(),
             arrows: Default::default(),
             pruning_duration: Default::default(),
             num_pruned: 0,
         };
         assert!(h
-            .matches
+            .seed_matches
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
         // Transform to Arrows.
-        let arrows_iterator = h.matches.matches.iter().map(
+        let arrows_iterator = h.seed_matches.matches.iter().map(
             |&Match {
                  start,
                  end,
@@ -173,7 +173,7 @@ where
             end,
             match_cost,
             ..
-        } in self.matches.matches.iter().rev()
+        } in self.seed_matches.matches.iter().rev()
         {
             if !self.arrows.contains_key(start) {
                 continue;
@@ -218,17 +218,17 @@ where
 
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
-            num_seeds: self.matches.seeds.len() as I,
-            num_matches: self.matches.matches.len(),
-            num_filtered_matches: self.matches.matches.len(),
-            matches: self.matches.matches.clone(),
+            num_seeds: self.seed_matches.seeds.len() as I,
+            num_matches: self.seed_matches.matches.len(),
+            num_filtered_matches: self.seed_matches.matches.len(),
+            matches: self.seed_matches.matches.clone(),
             pruning_duration: self.pruning_duration.as_secs_f32(),
             num_prunes: self.num_pruned,
         }
     }
 
-    fn is_start_of_seed(&mut self, pos: Pos) -> bool {
-        self.matches.is_start_of_seed(pos)
+    fn is_seed_start_or_end(&mut self, pos: Pos) -> bool {
+        self.seed_matches.is_seed_start_or_end(pos)
     }
 
     fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
@@ -283,7 +283,7 @@ where
     fn print(&self, _transform: bool, wait_for_user: bool) {
         super::print::print(
             self,
-            self.matches.matches.iter(),
+            self.seed_matches.matches.iter(),
             self.target,
             wait_for_user,
         );

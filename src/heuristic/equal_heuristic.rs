@@ -61,9 +61,9 @@ where
         <<H2 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint,
     );
 
-    fn is_start_of_seed(&mut self, pos: Pos) -> bool {
-        let s1 = self.h1.is_start_of_seed(pos);
-        let s2 = self.h2.is_start_of_seed(pos);
+    fn is_seed_start_or_end(&mut self, pos: Pos) -> bool {
+        let s1 = self.h1.is_seed_start_or_end(pos);
+        let s2 = self.h2.is_seed_start_or_end(pos);
         assert_eq!(s1, s2);
         s2
     }

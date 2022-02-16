@@ -194,7 +194,7 @@ where
                 return Some((state.g, path, stats));
             }
 
-            is_start_of_seed = h.is_start_of_seed(pos);
+            is_start_of_seed = h.is_seed_start_or_end(pos);
             if is_start_of_seed {
                 // Check that we don't double expand start-of-seed states.
                 // Starts of seeds should only be expanded once.
