@@ -227,7 +227,7 @@ where
         }
     }
 
-    fn is_seed_start_or_end(&mut self, pos: Pos) -> bool {
+    fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         self.seed_matches.is_seed_start_or_end(pos)
     }
 
