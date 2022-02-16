@@ -13,6 +13,7 @@ use Status::*;
 struct State<Parent, Hint> {
     status: Status,
     g: Cost,
+    seed_cost: MatchCost,
     parent: Parent,
     hint: Hint,
 }
@@ -22,6 +23,7 @@ impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
         Self {
             status: Unvisited,
             g: Cost::MAX,
+            seed_cost: MatchCost::MAX,
             parent: Parent::default(),
             hint: Hint::default(),
         }
@@ -87,6 +89,7 @@ where
     //let mut states = DiagonalMap::<State<Parent, H::Hint>>::new(target);
     let mut states = HashMap::<Pos, State<Parent, H::Hint>>::default();
 
+    // Initialization with the root state.
     {
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
         queue.push(MinScored(
@@ -99,6 +102,7 @@ where
             State {
                 status: Explored,
                 g: 0,
+                seed_cost: 0,
                 parent: Default::default(),
                 hint,
             },
@@ -118,14 +122,11 @@ where
 
         assert!(queue_g == state.g);
 
-        let g = state.g;
-        let hint = state.hint;
-
         // If the heuristic value is outdated, skip the node and re-push it with the updated value.
         if RETRY_OUDATED_HEURISTIC_VALUE {
             let (current_h, new_hint) = h.h_with_hint(pos, state.hint);
             state.hint = new_hint;
-            let current_f = g + current_h;
+            let current_f = state.g + current_h;
             assert!(
                 current_f >= queue_f,
                 "Current_f {current_f} smaller than queue_f {queue_f}!"
@@ -156,6 +157,7 @@ where
                 true
             }
         };
+        let mut is_start_of_seed;
 
         // Store the state for copying to matching states.
         let mut state = *state;
@@ -163,26 +165,13 @@ where
         state.parent = Parent::match_value();
 
         // Keep expanding states while we are on a matching diagonal edge.
-        // This gives a ~2x speedup on highly similar sequences.
+        // This gives a ~2x speedup on highly similar sequences, because states
+        // do not need to be pushed to/popped from the priority queue.
         if loop {
+            //println!("Expand {pos}: {state:?} @ f= {queue_f}");
             stats.expanded += 1;
             if DEBUG {
                 stats.expanded_states.push(pos);
-            }
-
-            // Prune expanded states.
-            // TODO: Make this return a new hint?
-            // Or just call h manually for a new hint.
-
-            if h.is_start_of_seed(pos) {
-                // Check that we don't double expand start-of-seed states.
-                // Starts of seeds should only be expanded once.
-                assert!(!double_expanded, "Double expanded start of seed {:?}", pos);
-                let pq_shift = h.prune(pos, hint);
-                if REDUCE_RETRIES && pq_shift > 0 {
-                    stats.pq_shifts += 1;
-                    queue_offset += pq_shift;
-                }
             }
 
             // Retrace path to root and return.
@@ -202,7 +191,24 @@ where
 
                 path.reverse();
                 stats.diagonalmap_capacity = states.dm_capacity();
-                return Some((g, path, stats));
+                return Some((state.g, path, stats));
+            }
+
+            is_start_of_seed = h.is_start_of_seed(pos);
+            if is_start_of_seed {
+                // Check that we don't double expand start-of-seed states.
+                // Starts of seeds should only be expanded once.
+                assert!(!double_expanded, "Double expanded start of seed {:?}", pos);
+
+                // Prune expanded states.
+                // TODO: Make this return a new hint?
+                // Or just call h manually for a new hint.
+                // FIXME: Add seed_cost argument.
+                let pq_shift = h.prune(pos, state.hint);
+                if REDUCE_RETRIES && pq_shift > 0 {
+                    stats.pq_shifts += 1;
+                    queue_offset += pq_shift;
+                }
             }
 
             if !GREEDY_EDGE_MATCHING_IN_ASTAR {
@@ -212,6 +218,13 @@ where
             if let Some(next) = graph.is_match(pos) {
                 // Directly expand the next pos, by copying over the current state to there.
 
+                // Just after the start of a seed, the seed cost is reset to 0.
+                // We do not reset it earlier, because an insert could still be inside the same seed.
+                if is_start_of_seed {
+                    state.seed_cost = 0;
+                }
+
+                // NOTE: If greedy matches are not stored, we also don't check whether they are double expanded.
                 if !DO_NOT_SAVE_GREEDY_MATCHES {
                     let new_state = DiagonalMapTrait::get_mut(&mut states, next);
                     if new_state.g <= state.g {
@@ -228,7 +241,7 @@ where
                 }
                 pos = next;
 
-                // NOTE: We do not call h.expand() here, because it isn't needed for pruning-propagation:
+                // NOTE: We do not call h.explore() here, because it isn't needed for pruning-propagation:
                 // Pruned positions on this diagonal will always be larger than
                 // the expanded positions in front of it, and problems only
                 // arise for non-diagonal edges.
@@ -247,7 +260,7 @@ where
         }
 
         graph.iterate_outgoing_edges(pos, |next, cost, parent| {
-            let next_g = g + cost;
+            let next_g = state.g + cost as Cost;
 
             // Explore next
             let next_state = DiagonalMapTrait::get_mut(&mut states, next);
@@ -257,10 +270,15 @@ where
                 return;
             };
 
-            let (next_h, next_hint) = h.h_with_hint(next, hint);
+            let (next_h, next_hint) = h.h_with_hint(next, state.hint);
             let next_f = next_g + next_h;
 
             next_state.g = next_g;
+            next_state.seed_cost = if is_start_of_seed && parent != Parent::Up {
+                0
+            } else {
+                state.seed_cost + cost
+            };
             next_state.parent = parent;
             next_state.hint = next_hint;
             queue.push(MinScored(

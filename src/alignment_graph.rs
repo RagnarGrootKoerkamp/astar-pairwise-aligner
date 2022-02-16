@@ -26,7 +26,7 @@ impl Pos {
     }
 }
 
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Parent {
     // The root, or an unvisited state.
     #[default]
@@ -180,7 +180,7 @@ impl<'a> AlignmentGraph<'a> {
     #[inline]
     pub fn iterate_outgoing_edges<F>(&self, n @ Pos(i, j): Pos, mut f: F)
     where
-        F: FnMut(Pos, Cost, Parent),
+        F: FnMut(Pos, MatchCost, Parent),
     {
         // Take any of the 3 edges, and then walk as much diagonally as possible.
         let is_match = self.is_match(n);
