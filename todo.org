@@ -211,6 +211,9 @@ A fast u32 -> word map.
 ** TODO Refactor Matches
 - make a constructor that handles ~start_of_seed~ and ~potential~.
 - should also take a ~Vec<Seed>~.
+** TODO Linear Queue
+Keep a single vector and pointers to where each range starts.
+Pushing to min_f+1 can be done using a single swap.
 
 * Evals
 ** DONE Put timelimit in tables
