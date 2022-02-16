@@ -55,3 +55,29 @@ fn never_use_gap_distance() {
     let result = align(&a, &b, &alphabet, stats, h);
     result.print();
 }
+
+/// Zero distance should be consistent.
+#[test]
+#[ignore = "ZeroCost heuristic is not decreasing on diagonals"]
+fn seed_heuristic_zero_dist_consistent() {
+    for (k, m) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+        for n in [40, 100, 200, 500] {
+            for e in [0.1, 0.3, 1.0] {
+                let h = SeedHeuristic {
+                    match_config: MatchConfig {
+                        length: Fixed(k),
+                        max_match_cost: m,
+                        ..MatchConfig::default()
+                    },
+                    pruning: true,
+                    distance_function: ZeroCost,
+                };
+
+                println!("TESTING n {} e {}: {:?}", n, e, h);
+
+                let (a, b, alphabet, stats) = setup(n, e);
+                align(&a, &b, &alphabet, stats, h);
+            }
+        }
+    }
+}

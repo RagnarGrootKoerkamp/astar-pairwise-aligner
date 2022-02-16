@@ -87,7 +87,6 @@ pub trait HeuristicInstance<'a> {
     }
 
     fn root_potential(&self) -> Cost {
-        println!("base root potential");
         0
     }
 

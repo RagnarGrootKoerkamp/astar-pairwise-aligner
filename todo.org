@@ -8,6 +8,8 @@ List of TODOs and other quick remarks.
 A lowerbound on the shortest path to the end, not using any already expanded
 states. Consistent when $f$ never decreases over edges.
 ** TODO Proof that pruning heuristic yields a consistent pruned heuristic
+** TODO ZeroCost heuristic is not consistent
+On diagonals, h can increase. Greedy Diagonal Matches requires that this doesn't happen.
 
 * Analysis
 ** TODO What is the expected deviation from the diagonal for a random sequence?

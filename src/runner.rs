@@ -124,7 +124,6 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     distance_function: C::default(),
                     pruning: !params.no_prune,
                 };
-                println!("Heuristic:\n{:?}", heuristic);
 
                 let alphabet = Alphabet::new(b"ACTG");
                 let sequence_stats = SequenceStats {
