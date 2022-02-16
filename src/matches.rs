@@ -30,8 +30,10 @@ pub struct SeedMatches {
     /// Sorted by start (i, j).
     /// Empty for unordered matching.
     pub matches: Vec<Match>,
-    /// Index of the start of the rightmost seed covering the given position.
-    pub start_of_seed: Vec<Option<I>>,
+    /// The index of the seed covering position I.
+    /// Seeds cover [start, end) here.
+    pub seed_at: Vec<Option<I>>,
+    /// The sum of seed potentials of all seeds not starting before each position.
     pub potential: Vec<Cost>,
 }
 
@@ -60,13 +62,13 @@ impl SeedMatches {
 
         let n = a.len();
         let mut potential = vec![0; n + 1];
-        let mut start_of_seed = vec![None; n + 1];
+        let mut seed_at = vec![None; n + 1];
         let mut cur_potential = 0;
-        let mut next_seed = seeds.iter().rev().peekable();
+        let mut next_seed = seeds.iter().enumerate().rev().peekable();
         for i in (0..=n).rev() {
-            if let Some(ns) = next_seed.peek() {
+            if let Some((seed_idx, ns)) = next_seed.peek() {
                 if i < ns.end as usize {
-                    start_of_seed[i] = Some(ns.start);
+                    seed_at[i] = Some(*seed_idx as I);
                 }
 
                 if i == ns.start as usize {
@@ -79,8 +81,16 @@ impl SeedMatches {
         SeedMatches {
             seeds,
             matches,
-            start_of_seed,
+            seed_at,
             potential,
+        }
+    }
+
+    /// The seed covering a given position.
+    pub fn seed_at(&self, Pos(i, _): Pos) -> Option<&Seed> {
+        match self.seed_at[i as usize] {
+            Some(idx) => Some(&self.seeds[idx as usize]),
+            None => None,
         }
     }
 
@@ -90,8 +100,8 @@ impl SeedMatches {
     }
 
     // TODO: Generalize this for overlapping seeds.
-    pub fn is_start_of_seed(&self, Pos(i, _): Pos) -> bool {
-        self.start_of_seed[i as usize] == Some(i)
+    pub fn is_start_of_seed(&self, pos: Pos) -> bool {
+        self.seed_at(pos).map_or(false, |s| s.start == pos.0)
     }
 }
 
@@ -105,8 +115,12 @@ impl<'a> DistanceInstance<'a> for SeedMatches {
     /// NOTE: Assumes disjoint seeds.
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         assert!(from.0 <= to.0);
-        self.potential[from.0 as usize]
-            - (self.potential[self.start_of_seed[to.0 as usize].unwrap_or(to.0) as usize])
+        let end_i = self.seed_at(to).map_or(to.0, |s| {
+            assert!(s.start <= to.0 && to.0 < s.end);
+            s.start
+        });
+        assert!(from.0 <= end_i);
+        self.potential[from.0 as usize] - self.potential[end_i as usize]
     }
 }
 
