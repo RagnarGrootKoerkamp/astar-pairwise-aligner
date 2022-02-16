@@ -216,6 +216,7 @@ Keep a single vector and pointers to where each range starts.
 Pushing to min_f+1 can be done using a single swap.
 ** TODO Inexact unordered matches
 ** TODO Dynamic unordered matches
+** TODO Use u64 instead of usize where appropriate (i.e. for qgrams)
 
 * Evals
 ** DONE Put timelimit in tables

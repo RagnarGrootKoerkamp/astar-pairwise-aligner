@@ -145,7 +145,7 @@ impl<'a> DistanceInstance<'a> for SeedMatches {
     }
 }
 
-fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> usize {
+pub fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> usize {
     let mut q = 0;
     for &c in seed {
         q <<= width;
@@ -171,6 +171,23 @@ fn fixed_seeds(
             has_matches: false,
         })
         .collect_vec()
+}
+
+pub fn key_for_sized_qgram<
+    T: num_traits::Bounded
+        + num_traits::AsPrimitive<usize>
+        + std::ops::Shl<usize, Output = T>
+        + std::ops::BitOr<Output = T>,
+>(
+    k: I,
+    qgram: T,
+) -> T {
+    let size = 8 * std::mem::size_of::<T>();
+    assert!(
+        (2 * k as usize) < 8 * size,
+        "kmer size {k} does not leave spare bits in base type of size {size}"
+    );
+    qgram | (T::max_value() << (2 * k as usize + 2))
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -513,25 +530,30 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     let mut seeds = fixed_seeds(&rank_transform, width, max_match_cost, a, k);
 
     // type of Qgrams
-    type Q = u64;
+    type Q = usize;
     assert!(k <= 31);
 
     // TODO: See if we can get rid of the Vec alltogether.
-    let key = |l: Cost, w: usize| -> Q { ((w as Q) << 2) + (l + 1 - k) as Q };
     let mut m = HashMap::<Q, SmallVec<[Cost; 4]>>::default();
     m.reserve(3 * b.len());
     for (j, w) in rank_transform.qgrams(k - 1, b).enumerate() {
-        m.entry(key(k - 1, w)).or_default().push(j as Cost);
+        m.entry(key_for_sized_qgram(k - 1, w))
+            .or_default()
+            .push(j as Cost);
     }
     for (j, w) in rank_transform.qgrams(k, b).enumerate() {
-        m.entry(key(k, w)).or_default().push(j as Cost);
+        m.entry(key_for_sized_qgram(k, w))
+            .or_default()
+            .push(j as Cost);
     }
     for (j, w) in rank_transform.qgrams(k + 1, b).enumerate() {
-        m.entry(key(k + 1, w)).or_default().push(j as Cost);
+        m.entry(key_for_sized_qgram(k + 1, w))
+            .or_default()
+            .push(j as Cost);
     }
     let mut matches = Vec::<Match>::new();
     for seed @ &mut Seed { start, qgram, .. } in &mut seeds {
-        if let Some(js) = m.get(&key(k, qgram)) {
+        if let Some(js) = m.get(&key_for_sized_qgram(k, qgram)) {
             for &j in js {
                 seed.has_matches = true;
                 matches.push(Match {
@@ -545,7 +567,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         // We don't dedup here, since we'll be sorting and deduplicating the list of all matches anyway.
         let ms = mutations(k, qgram, false);
         for w in ms.deletions {
-            if let Some(js) = m.get(&key(k - 1, w)) {
+            if let Some(js) = m.get(&key_for_sized_qgram(k - 1, w)) {
                 for &j in js {
                     seed.has_matches = true;
                     matches.push(Match {
@@ -558,7 +580,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             }
         }
         for w in ms.substitutions {
-            if let Some(js) = m.get(&key(k, w)) {
+            if let Some(js) = m.get(&key_for_sized_qgram(k, w)) {
                 for &j in js {
                     seed.has_matches = true;
                     matches.push(Match {
@@ -571,7 +593,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             }
         }
         for w in ms.insertions {
-            if let Some(js) = m.get(&key(k + 1, w)) {
+            if let Some(js) = m.get(&key_for_sized_qgram(k + 1, w)) {
                 for &j in js {
                     seed.has_matches = true;
                     matches.push(Match {
