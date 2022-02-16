@@ -31,7 +31,7 @@ pub struct SeedMatches {
     /// Empty for unordered matching.
     pub matches: Vec<Match>,
     /// Index of the start of the rightmost seed covering the given position.
-    pub start_of_seed: Vec<I>,
+    pub start_of_seed: Vec<Option<I>>,
     pub potential: Vec<Cost>,
 }
 
@@ -52,25 +52,22 @@ impl SeedMatches {
         matches.dedup_by_key(|m| (m.start, m.end));
 
         let n = a.len();
-        let mut potential = Vec::with_capacity(n + 1);
-        let mut start_of_seed = Vec::with_capacity(n + 1);
+        let mut potential = vec![0; n + 1];
+        let mut start_of_seed = vec![None; n + 1];
         let mut cur_potential = 0;
-        let mut cur_start = n as I;
         let mut next_seed = seeds.iter().rev().peekable();
         for i in (0..=n).rev() {
-            cur_start = min(cur_start, i as I);
             if let Some(ns) = next_seed.peek() {
+                if i < ns.end as usize {
+                    start_of_seed[i] = Some(ns.start);
+                }
+
                 if i == ns.start as usize {
                     cur_potential += ns.seed_potential;
+                    next_seed.next();
                 }
-                if i == ns.end as usize {
-                    cur_start = ns.start;
-                }
-                next_seed.next();
             }
-
             potential[i] = cur_potential;
-            start_of_seed[i] = cur_start;
         }
         SeedMatches {
             seeds,
@@ -121,7 +118,7 @@ impl SeedMatches {
 
     // TODO: Generalize this for overlapping seeds.
     pub fn is_start_of_seed(&self, Pos(i, _): Pos) -> bool {
-        self.start_of_seed[i as usize] == i
+        self.start_of_seed[i as usize] == Some(i)
     }
 }
 
@@ -136,7 +133,7 @@ impl<'a> DistanceInstance<'a> for SeedMatches {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         assert!(from.0 <= to.0);
         self.potential[from.0 as usize]
-            - (self.potential[self.start_of_seed[to.0 as usize] as usize])
+            - (self.potential[self.start_of_seed[to.0 as usize].unwrap_or(to.0) as usize])
     }
 }
 
