@@ -36,7 +36,21 @@ pub struct SeedMatches {
 }
 
 impl SeedMatches {
-    fn new(a: &Sequence, seeds: Vec<Seed>, matches: Vec<Match>) -> Self {
+    /// Seeds must be sorted by start.
+    /// Matches will be sorted and deduplicated in this function.
+    fn new(a: &Sequence, seeds: Vec<Seed>, mut matches: Vec<Match>) -> Self {
+        // First sort by start, then by end, then by match cost.
+        matches.sort_unstable_by_key(
+            |&Match {
+                 start,
+                 end,
+                 match_cost,
+                 ..
+             }| (LexPos(start), LexPos(end), match_cost),
+        );
+        // Dedup to only keep the lowest match cost.
+        matches.dedup_by_key(|m| (m.start, m.end));
+
         let n = a.len();
         let mut potential = Vec::with_capacity(n + 1);
         let mut start_of_seed = Vec::with_capacity(n + 1);
@@ -236,18 +250,6 @@ pub fn find_matches_trie<'a>(
             },
         );
     }
-
-    // First sort by start, then by end, then by match cost.
-    matches.sort_unstable_by_key(
-        |&Match {
-             start,
-             end,
-             match_cost,
-             ..
-         }| (LexPos(start), LexPos(end), match_cost),
-    );
-    // Dedup to only keep the lowest match cost.
-    matches.dedup_by_key(|m| (m.start, m.end));
 
     SeedMatches::new(a, seeds, matches)
 }
@@ -449,19 +451,6 @@ pub fn find_matches_qgramindex<'a>(
         }
     }
 
-    // TODO: This sorting could be a no-op if we generate matches in order.
-    // First sort by start, then by end, then by match cost.
-    matches.sort_unstable_by_key(
-        |&Match {
-             start,
-             end,
-             match_cost,
-             ..
-         }| (LexPos(start), LexPos(end), match_cost),
-    );
-    // Dedup to only keep the lowest match cost.
-    matches.dedup_by_key(|m| (m.start, m.end));
-
     SeedMatches::new(a, seeds, matches)
 }
 
@@ -559,25 +548,6 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             }
         }
     }
-
-    // First sort by start, then by end, then by match cost.
-    matches.sort_unstable_by_key(
-        |&Match {
-             start,
-             end,
-             match_cost,
-             ..
-         }| (LexPos(start), LexPos(end), match_cost),
-    );
-    // Dedup to only keep the lowest match cost for each (start, end) pair.
-    matches.dedup_by_key(|m| (m.start, m.end));
-
-    // Sort better matches for a given start first.
-    matches.sort_unstable_by_key(
-        |&Match {
-             start, match_cost, ..
-         }| (LexPos(start), match_cost),
-    );
 
     SeedMatches::new(a, seeds, matches)
 }
@@ -722,18 +692,6 @@ pub fn find_matches_qgram_hash_exact<'a>(
             }
         }
     }
-
-    // First sort by start, then by end, then by match cost.
-    matches.sort_unstable_by_key(
-        |&Match {
-             start,
-             end,
-             match_cost,
-             ..
-         }| (LexPos(start), LexPos(end), match_cost),
-    );
-    // Dedup to only keep the lowest match cost.
-    matches.dedup_by_key(|m| (m.start, m.end));
 
     SeedMatches::new(a, seeds, matches)
 }
