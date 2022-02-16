@@ -87,11 +87,13 @@ impl SeedMatches {
     }
 
     /// The potential at p is the cost of going from p to the end, without hitting any matches.
+    #[inline]
     pub fn potential(&self, Pos(i, _): Pos) -> Cost {
         self.potential[i as usize]
     }
 
     /// The seed covering a given position.
+    #[inline]
     pub fn seed_at(&self, Pos(i, _): Pos) -> Option<&Seed> {
         match self.seed_at[i as usize] {
             Some(idx) => Some(&self.seeds[idx as usize]),
@@ -100,6 +102,7 @@ impl SeedMatches {
     }
 
     /// The seed ending in the given position.
+    #[inline]
     pub fn seed_ending_at(&self, Pos(i, _): Pos) -> Option<&Seed> {
         if i == 0 {
             None
@@ -111,14 +114,17 @@ impl SeedMatches {
         }
     }
 
+    #[inline]
     pub fn is_seed_start(&self, pos: Pos) -> bool {
         self.seed_at(pos).map_or(false, |s| pos.0 == s.start)
     }
 
+    #[inline]
     pub fn is_seed_end(&self, pos: Pos) -> bool {
         self.seed_ending_at(pos).map_or(false, |s| pos.0 == s.end)
     }
 
+    #[inline]
     pub fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         self.is_seed_start(pos) || self.is_seed_end(pos)
     }
