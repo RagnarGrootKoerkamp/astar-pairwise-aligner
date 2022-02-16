@@ -214,6 +214,8 @@ A fast u32 -> word map.
 ** TODO Linear Queue
 Keep a single vector and pointers to where each range starts.
 Pushing to min_f+1 can be done using a single swap.
+** TODO Inexact unordered matches
+** TODO Dynamic unordered matches
 
 * Evals
 ** DONE Put timelimit in tables
