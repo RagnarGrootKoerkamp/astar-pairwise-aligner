@@ -42,7 +42,7 @@ where
     ) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
-                <= self.match_config.length.k().unwrap_or(I::MAX) as Cost / 3
+                <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
         SimpleSeedHeuristicI::new(a, b, alphabet, *self)
     }
@@ -179,7 +179,7 @@ where
                 continue;
             }
             // Use the match.
-            let update_val = match_cost + self.h(*end);
+            let update_val = *match_cost as Cost + self.h(*end);
             // Skip the match.
             let query_val = self.h(*start);
 
@@ -245,16 +245,16 @@ where
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
         for d in 1..=self.params.match_config.max_match_cost {
-            if pos.1 >= d {
-                if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 - d)) {
+            if pos.1 >= d as Cost {
+                if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 - d as Cost)) {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
                         self.pruning_duration += start.elapsed();
                         return 0;
                     }
                 }
             }
-            if pos.1 + d <= self.target.1 {
-                if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 + d)) {
+            if pos.1 + d as Cost <= self.target.1 {
+                if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 + d as Cost)) {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
                         self.pruning_duration += start.elapsed();
                         return 0;

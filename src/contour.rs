@@ -8,7 +8,7 @@ pub use hint_contours::*;
 
 use std::fmt::{Debug, Display};
 
-use crate::prelude::{Cost, HashMap, Pos, I};
+use crate::prelude::{Cost, HashMap, MatchCost, Pos, I};
 
 /// A datastructure that contains the contours of non-dominant points.
 /// The 'main' contour is the set of dominant points: {P: P >= S for all S}.
@@ -51,7 +51,7 @@ pub struct Arrow {
     pub start: Pos,
     pub end: Pos,
     // ~ discount
-    pub len: Cost,
+    pub len: MatchCost,
 }
 
 // Implementations for Arrow

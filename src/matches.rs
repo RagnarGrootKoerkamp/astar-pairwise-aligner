@@ -7,7 +7,7 @@ pub struct Seed {
     pub start: I,
     pub end: I,
     /// The seed_potential is 1 more than the maximal number of errors allowed in this seed.
-    pub seed_potential: Cost,
+    pub seed_potential: MatchCost,
     /// Whether this seed has matches.
     /// In case of unordered seeds, true here implies there is exactly one match,
     /// and after a match has been found this seed can be pruned.
@@ -19,8 +19,8 @@ pub struct Seed {
 pub struct Match {
     pub start: Pos,
     pub end: Pos,
-    pub match_cost: Cost,
-    pub seed_potential: Cost,
+    pub match_cost: MatchCost,
+    pub seed_potential: MatchCost,
 }
 
 #[derive(Default)]
@@ -70,7 +70,7 @@ impl SeedMatches {
                 }
 
                 if i == ns.start as usize {
-                    cur_potential += ns.seed_potential;
+                    cur_potential += ns.seed_potential as Cost;
                     next_seed.next();
                 }
             }
@@ -122,7 +122,7 @@ fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> usize 
 fn fixed_seeds(
     rank_transform: &RankTransform,
     width: usize,
-    max_match_cost: Cost,
+    max_match_cost: MatchCost,
     a: &Vec<u8>,
     k: u32,
 ) -> Vec<Seed> {
@@ -191,7 +191,7 @@ pub struct MatchConfig {
     // TODO: Add settings for variable length matches in here.
     pub length: LengthConfig,
     // TODO: Move the max_match_cost into MatchLength.
-    pub max_match_cost: Cost,
+    pub max_match_cost: MatchCost,
 }
 
 pub fn find_matches_trie<'a>(
@@ -210,13 +210,13 @@ pub fn find_matches_trie<'a>(
     };
     // Create a trie from all windows of b.
     let mut trie = Trie::new(
-        b.windows((k + max_match_cost) as usize)
+        b.windows(k as usize + max_match_cost as usize)
             .enumerate()
             .map(|(i, w)| (w, i as crate::datastructures::trie::Data)),
         alph,
     );
     // Push all remaining suffixes of b.
-    for i in b.len() as I - k - max_match_cost + 1..b.len() as I {
+    for i in b.len() as I - k - max_match_cost as I + 1..b.len() as I {
         trie.push(&b[i as usize..], i);
     }
 
@@ -241,7 +241,7 @@ pub fn find_matches_trie<'a>(
                 matches.push(Match {
                     start: Pos(start, match_start),
                     end: Pos(end, match_start + match_len as I),
-                    match_cost: cost as Cost,
+                    match_cost: cost as MatchCost,
                     seed_potential,
                 });
                 seed.has_matches = true;
