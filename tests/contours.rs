@@ -118,8 +118,7 @@ fn incremental_pruning_hint_central() {
 
 #[test]
 fn unordered() {
-    // TODO: Test for m > 0.
-    for (k, max_match_cost) in [(4, 0), (5, 0)] {
+    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
                 let h = UnorderedHeuristic {
