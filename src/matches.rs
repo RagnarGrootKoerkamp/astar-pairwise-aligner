@@ -9,10 +9,9 @@ pub struct Seed {
     pub end: I,
     /// The seed_potential is 1 more than the maximal number of errors allowed in this seed.
     pub seed_potential: MatchCost,
-    /// Whether this seed has matches.
-    /// In case of unordered seeds, true here implies there is exactly one match,
-    /// and after a match has been found this seed can be pruned.
-    pub has_matches: bool,
+    /// A lower bound on the cost of crossing this seed.
+    /// For unordered matches, if this is < seed_potential there must be exactly one such seed.
+    pub seed_cost: MatchCost,
     pub qgram: usize,
 }
 
@@ -193,7 +192,7 @@ pub fn fixed_seeds(
             end: i as I + k,
             seed_potential: max_match_cost + 1,
             qgram,
-            has_matches: false,
+            seed_cost: max_match_cost + 1,
         })
         .collect_vec()
 }
@@ -348,7 +347,7 @@ pub fn find_matches_trie<'a>(
                     match_cost: cost as MatchCost,
                     seed_potential,
                 });
-                seed.has_matches = true;
+                seed.seed_cost = min(seed.seed_cost, cost);
             },
         );
     }
@@ -475,7 +474,7 @@ pub fn find_matches_qgramindex<'a>(
                 end: i + seed_len,
                 seed_potential: max_match_cost + 1,
                 qgram: to_qgram(&rank_transform, width, seed),
-                has_matches: false,
+                seed_cost: max_match_cost + 1,
             });
             i += seed_len;
 
@@ -500,7 +499,7 @@ pub fn find_matches_qgramindex<'a>(
 
         // Exact matches
         for &j in get_matches(qgrams, b, alph, len, qgram) {
-            seed.has_matches = true;
+            seed.seed_cost = 0;
             matches.push(Match {
                 start: Pos(start, j as I),
                 end: Pos(end, j as I + len),
@@ -513,7 +512,7 @@ pub fn find_matches_qgramindex<'a>(
             let mutations = mutations(len, qgram, true);
             for mutation in mutations.deletions {
                 for &j in get_matches(qgrams, b, alph, len - 1, mutation) {
-                    seed.has_matches = true;
+                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len - 1),
@@ -524,7 +523,7 @@ pub fn find_matches_qgramindex<'a>(
             }
             for mutation in mutations.substitutions {
                 for &j in get_matches(qgrams, b, alph, len, mutation) {
-                    seed.has_matches = true;
+                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len),
@@ -535,7 +534,7 @@ pub fn find_matches_qgramindex<'a>(
             }
             for mutation in mutations.insertions {
                 for &j in get_matches(qgrams, b, alph, len + 1, mutation) {
-                    seed.has_matches = true;
+                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len + 1),
@@ -589,7 +588,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     for seed @ &mut Seed { start, qgram, .. } in &mut seeds {
         if let Some(js) = m.get(&key_for_sized_qgram(k, qgram)) {
             for &j in js {
-                seed.has_matches = true;
+                seed.seed_cost = 0;
                 matches.push(Match {
                     start: Pos(start, j),
                     end: Pos(start + k, j + k),
@@ -603,7 +602,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         for w in ms.deletions {
             if let Some(js) = m.get(&key_for_sized_qgram(k - 1, w)) {
                 for &j in js {
-                    seed.has_matches = true;
+                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(start + k, j + k - 1),
@@ -616,7 +615,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         for w in ms.substitutions {
             if let Some(js) = m.get(&key_for_sized_qgram(k, w)) {
                 for &j in js {
-                    seed.has_matches = true;
+                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(start + k, j + k),
@@ -629,7 +628,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         for w in ms.insertions {
             if let Some(js) = m.get(&key_for_sized_qgram(k + 1, w)) {
                 for &j in js {
-                    seed.has_matches = true;
+                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(start + k, j + k + 1),
@@ -754,7 +753,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
             }
             if let Some(is) = m.get(&(qb as Key)) {
                 for &i in is {
-                    seeds[(i / k) as usize].has_matches = true;
+                    seeds[(i / k) as usize].seed_cost = 0;
                     matches.push(Match {
                         start: Pos(i, j as I),
                         end: Pos(i + k, j as I + k),
@@ -773,7 +772,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
         for (j, w) in rank_transform.qgrams(k, b).enumerate() {
             if let Some(is) = m.get(&(w as Key)) {
                 for &i in is {
-                    seeds[(i / k) as usize].has_matches = true;
+                    seeds[(i / k) as usize].seed_cost = 0;
                     matches.push(Match {
                         start: Pos(i, j as I),
                         end: Pos(i + k, j as I + k),

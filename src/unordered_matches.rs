@@ -35,7 +35,7 @@ fn unordered_matches_exact_fixed_hashmap<'a>(
                 start: i as I,
                 end: i as I + k,
                 seed_potential: 1,
-                has_matches: num_matches > 0,
+                seed_cost: 1 - num_matches,
                 qgram: 0,
             })
         }
@@ -69,10 +69,11 @@ pub fn unordered_matches_inexact_fixed_hashmap<'a>(
     }
     let mut seeds = Vec::<Seed>::new();
     'outer: for (i, qgram) in iterate_fixed_qgrams(&rank_transform, a, k) {
-        let mut num_matches = 0;
+        let mut seed_cost = 2;
+        let mut num_matches = 0usize;
         let mut matching_k = 0;
         let mut matching_q = 0;
-        let mut add = |cur_k, q| -> bool {
+        let mut add = |cur_k, q| -> usize {
             let cnt = m
                 .get(&key_for_sized_qgram(cur_k, q as Key))
                 .copied()
@@ -80,7 +81,7 @@ pub fn unordered_matches_inexact_fixed_hashmap<'a>(
             match cnt {
                 1 => {
                     if num_matches == 0 {
-                        num_matches = cnt;
+                        num_matches = cnt as usize;
                         matching_k = cur_k;
                         matching_q = q;
                     } else {
@@ -98,35 +99,41 @@ pub fn unordered_matches_inexact_fixed_hashmap<'a>(
                         }
                     }
                 }
-                cnt => num_matches += cnt,
+                cnt => num_matches += cnt as usize,
             }
-            num_matches > 1
+            num_matches
         };
-        if add(k, qgram) {
-            continue 'outer;
+        match add(k, qgram) {
+            0 => {}
+            1 => seed_cost = 0,
+            _ => continue 'outer,
         }
+
         // TODO: We could dedup matches, but it's probably not worth the time.
         let ms = mutations(k, qgram, false);
         for qgram in ms.deletions {
-            if add(k - 1, qgram) {
+            if add(k - 1, qgram) > 1 {
                 continue 'outer;
             }
         }
         for qgram in ms.substitutions {
-            if add(k, qgram) {
+            if add(k, qgram) > 1 {
                 continue 'outer;
             }
         }
         for qgram in ms.insertions {
-            if add(k + 1, qgram) {
+            if add(k + 1, qgram) > 1 {
                 continue 'outer;
             }
+        }
+        if num_matches > 0 && seed_cost == 2 {
+            seed_cost = 1;
         }
         seeds.push(Seed {
             start: i as I,
             end: i as I + k,
             seed_potential: 2,
-            has_matches: num_matches > 0,
+            seed_cost,
             qgram: 0,
         })
     }
@@ -191,7 +198,7 @@ fn unordered_matches_exact_fixed_hashset<'a>(
                 start: i as I,
                 end: i as I + k,
                 seed_potential: 1,
-                has_matches: num_matches > 0,
+                seed_cost: 1 - num_matches,
                 qgram: 0,
             })
         }
@@ -257,7 +264,7 @@ fn unordered_matches_exact_fixed_cuckoofilter<'a>(
                 start: i as I,
                 end: i as I + k,
                 seed_potential: 1,
-                has_matches: num_matches > 0,
+                seed_cost: 1 - num_matches,
                 qgram: 0,
             })
         }
@@ -322,7 +329,7 @@ fn unordered_matches_exact_fixed_bloomfilter<'a>(
                 start: i as I,
                 end: i as I + k,
                 seed_potential: 1,
-                has_matches: num_matches > 0,
+                seed_cost: 1 - num_matches,
                 qgram: 0,
             })
         }
@@ -389,7 +396,7 @@ fn unordered_matches_exact_dynamic<'a>(
                     start,
                     end,
                     seed_potential: 1,
-                    has_matches: num_matches > 0,
+                    seed_cost: 1 - num_matches,
                     qgram: 0,
                 });
                 start = end;
