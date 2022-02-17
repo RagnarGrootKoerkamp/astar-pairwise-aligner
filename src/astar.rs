@@ -237,6 +237,11 @@ where
                         false
                     };
                     *new_state = state;
+                } else {
+                    // Reset double exanded flag for the new state, to prevent
+                    // reusing the original value of double_exanded when
+                    // is_start_of_seed becomes true for the first time.
+                    double_expanded = false;
                 }
                 pos = next;
 
@@ -277,7 +282,8 @@ where
                 0
             } else {
                 state.seed_cost
-            } + cost;
+            }
+            .saturating_add(cost);
             next_state.parent = parent;
             next_state.hint = next_hint;
             queue.push(MinScored(
