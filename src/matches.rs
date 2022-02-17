@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
+use strum_macros::EnumString;
 
 #[derive(Clone, Debug)]
 pub struct Seed {
@@ -257,12 +258,23 @@ impl Default for LengthConfig {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, EnumString)]
+#[strum(ascii_case_insensitive)]
+pub enum MatchAlgorithm {
+    #[default]
+    Hash,
+    HashSet,
+    Bloom,
+    Cuckoo,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MatchConfig {
     // TODO: Add settings for variable length matches in here.
     pub length: LengthConfig,
     // TODO: Move the max_match_cost into MatchLength.
     pub max_match_cost: MatchCost,
+    pub algorithm: MatchAlgorithm,
 }
 
 pub fn find_matches_trie<'a>(
