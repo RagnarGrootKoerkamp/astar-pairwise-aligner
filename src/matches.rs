@@ -185,6 +185,7 @@ pub fn fixed_seeds(
 
 pub fn key_for_sized_qgram<
     T: num_traits::Bounded
+        + num_traits::Zero
         + num_traits::AsPrimitive<usize>
         + std::ops::Shl<usize, Output = T>
         + std::ops::BitOr<Output = T>,
@@ -197,7 +198,13 @@ pub fn key_for_sized_qgram<
         (2 * k as usize) < 8 * size,
         "kmer size {k} does not leave spare bits in base type of size {size}"
     );
-    qgram | (T::max_value() << (2 * k as usize + 2))
+    let shift = 2 * k as usize + 2;
+    let mask = if shift == size {
+        T::zero()
+    } else {
+        T::max_value() << shift
+    };
+    qgram | mask
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -556,20 +563,12 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     // TODO: See if we can get rid of the Vec alltogether.
     let mut m = HashMap::<Q, SmallVec<[Cost; 4]>>::default();
     m.reserve(3 * b.len());
-    for (j, w) in rank_transform.qgrams(k - 1, b).enumerate() {
-        m.entry(key_for_sized_qgram(k - 1, w))
-            .or_default()
-            .push(j as Cost);
-    }
-    for (j, w) in rank_transform.qgrams(k, b).enumerate() {
-        m.entry(key_for_sized_qgram(k, w))
-            .or_default()
-            .push(j as Cost);
-    }
-    for (j, w) in rank_transform.qgrams(k + 1, b).enumerate() {
-        m.entry(key_for_sized_qgram(k + 1, w))
-            .or_default()
-            .push(j as Cost);
+    for k in k - 1..=k + 1 {
+        for (j, w) in rank_transform.qgrams(k, b).enumerate() {
+            m.entry(key_for_sized_qgram(k, w))
+                .or_default()
+                .push(j as Cost);
+        }
     }
     let mut matches = Vec::<Match>::new();
     for seed @ &mut Seed { start, qgram, .. } in &mut seeds {
