@@ -55,10 +55,22 @@ pub struct Params {
     algorithm: Algorithm,
 
     #[structopt(short)]
-    k: I,
+    k: Option<I>,
+
+    #[structopt(long)]
+    kmin: Option<I>,
+
+    #[structopt(long)]
+    kmax: Option<I>,
+
+    #[structopt(long)]
+    max_matches: Option<usize>,
 
     #[structopt(short, default_value = "0")]
     max_seed_cost: MatchCost,
+
+    #[structopt(long, default_value = "Hash")]
+    match_algorithm: MatchAlgorithm,
 
     #[structopt(long, default_value = "Gap")]
     cost: CostFunction,
@@ -74,6 +86,22 @@ pub struct Params {
 }
 
 pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
+    fn match_config(params: &Params) -> matches::MatchConfig {
+        MatchConfig {
+            length: if let Some(max) = params.max_matches {
+                LengthConfig::Max(MaxMatches {
+                    max_matches: max,
+                    k_min: params.kmin.unwrap(),
+                    k_max: params.kmax.unwrap(),
+                })
+            } else {
+                Fixed(params.k.unwrap())
+            },
+            max_match_cost: params.max_seed_cost,
+            algorithm: params.match_algorithm,
+        }
+    }
+
     match params.algorithm {
         Algorithm::Naive => {
             let dist = bio::alignment::distance::levenshtein(a, b);
@@ -119,11 +147,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 for<'a> C::DistanceInstance<'a>: HeuristicInstance<'a>,
             {
                 let heuristic = SeedHeuristic {
-                    match_config: MatchConfig {
-                        length: Fixed(params.k),
-                        max_match_cost: params.max_seed_cost,
-                        ..Default::default()
-                    },
+                    match_config: match_config(params),
                     distance_function: C::default(),
                     pruning: !params.no_prune,
                 };
@@ -154,11 +178,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 params: &Params,
             ) -> AlignResult {
                 let heuristic = GapSeedHeuristic {
-                    match_config: MatchConfig {
-                        length: Fixed(params.k),
-                        max_match_cost: params.max_seed_cost,
-                        ..Default::default()
-                    },
+                    match_config: match_config(params),
                     pruning: !params.no_prune,
                     c: PhantomData::<C>,
                 };
@@ -187,11 +207,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
         }
         Algorithm::Unordered => {
             let heuristic = UnorderedHeuristic {
-                match_config: MatchConfig {
-                    length: Fixed(params.k),
-                    max_match_cost: params.max_seed_cost,
-                    ..Default::default()
-                },
+                match_config: match_config(params),
                 pruning: !params.no_prune,
             };
 
