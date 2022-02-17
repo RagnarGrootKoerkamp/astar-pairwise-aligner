@@ -154,20 +154,29 @@ pub fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> us
     q
 }
 
-fn fixed_seeds(
+pub fn iterate_fixed_qgrams<'a>(
+    rank_transform: &'a RankTransform,
+    a: &'a Vec<u8>,
+    k: u32,
+) -> impl Iterator<Item = (usize, usize)> + 'a {
+    let width = rank_transform.get_width();
+    a.chunks_exact(k as usize)
+        .enumerate()
+        .map(move |(i, seed)| (k as usize * i, to_qgram(&rank_transform, width, seed)))
+}
+
+pub fn fixed_seeds(
     rank_transform: &RankTransform,
-    width: usize,
     max_match_cost: MatchCost,
     a: &Vec<u8>,
     k: u32,
 ) -> Vec<Seed> {
-    a.chunks_exact(k as usize)
-        .enumerate()
-        .map(|(i, seed)| Seed {
-            start: i as I * k,
-            end: (i + 1) as I * k,
+    iterate_fixed_qgrams(rank_transform, a, k)
+        .map(|(i, qgram)| Seed {
+            start: i as I,
+            end: i as I + k,
             seed_potential: max_match_cost + 1,
-            qgram: to_qgram(&rank_transform, width, seed),
+            qgram,
             has_matches: false,
         })
         .collect_vec()
@@ -283,8 +292,7 @@ pub fn find_matches_trie<'a>(
     }
 
     let rank_transform = RankTransform::new(alph);
-    let width = rank_transform.get_width();
-    let mut seeds = fixed_seeds(&rank_transform, width, max_match_cost, a, k);
+    let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
 
     // Find matches of the seeds of a in b.
     let mut matches = Vec::<Match>::new();
@@ -321,6 +329,7 @@ pub fn find_matches_qgramindex<'a>(
     MatchConfig {
         length,
         max_match_cost,
+        ..
     }: MatchConfig,
 ) -> SeedMatches {
     assert!(max_match_cost == 0 || max_match_cost == 1);
@@ -525,9 +534,8 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     assert!(max_match_cost == 1);
 
     let rank_transform = RankTransform::new(alph);
-    let width = rank_transform.get_width();
 
-    let mut seeds = fixed_seeds(&rank_transform, width, max_match_cost, a, k);
+    let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
 
     // type of Qgrams
     type Q = usize;
@@ -630,7 +638,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
     let rank_transform = RankTransform::new(alph);
     let width = rank_transform.get_width();
 
-    let mut seeds = fixed_seeds(&rank_transform, width, max_match_cost, a, k);
+    let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
 
     type Key = u64;
 
