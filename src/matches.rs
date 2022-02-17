@@ -155,6 +155,21 @@ pub fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> us
     q
 }
 
+pub fn qgrams_overlap(mut k: I, mut q: usize, mut k2: I, mut q2: usize) -> bool {
+    if k > k2 {
+        std::mem::swap(&mut k, &mut k2);
+        std::mem::swap(&mut q, &mut q2);
+    }
+
+    let mut has_match = false;
+    for i in 0..=k2 - k {
+        if ((q2 >> (2 * i)) ^ q) & ((1 << (2 * k)) - 1) == 0 {
+            has_match = true;
+        }
+    }
+    has_match
+}
+
 pub fn iterate_fixed_qgrams<'a>(
     rank_transform: &'a RankTransform,
     a: &'a Vec<u8>,

@@ -8,7 +8,7 @@ fn unordered_matches_exact_fixed_hashmap<'a>(
     alph: &Alphabet,
     k: I,
 ) -> SeedMatches {
-    type Key = u64;
+    type Key = usize;
 
     let rank_transform = RankTransform::new(alph);
 
@@ -42,6 +42,94 @@ fn unordered_matches_exact_fixed_hashmap<'a>(
     }
 
     // println!("Size: {} bits", m.capacity() * 2 * 8);
+
+    SeedMatches::new(a, seeds, Vec::default())
+}
+
+/// Build a hashset of the kmers in b, and query all mutations of seeds in a.
+pub fn unordered_matches_inexact_fixed_hashmap<'a>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    alph: &Alphabet,
+    k: I,
+) -> SeedMatches {
+    let rank_transform = RankTransform::new(alph);
+
+    // type of Qgrams
+    type Key = usize;
+    assert!(k + 1 <= 31);
+
+    let mut m = HashMap::<Key, u8>::default();
+    m.reserve(3 * b.len());
+    for k in k - 1..=k + 1 {
+        for (_, w) in rank_transform.qgrams(k, b).enumerate() {
+            let x = m.entry(key_for_sized_qgram(k, w as Key)).or_default();
+            *x = x.saturating_add(1);
+        }
+    }
+    let mut seeds = Vec::<Seed>::new();
+    'outer: for (i, qgram) in iterate_fixed_qgrams(&rank_transform, a, k) {
+        let mut num_matches = 0;
+        let mut matching_k = 0;
+        let mut matching_q = 0;
+        let mut add = |cur_k, q| -> bool {
+            let cnt = m
+                .get(&key_for_sized_qgram(cur_k, q as Key))
+                .copied()
+                .unwrap_or_default();
+            match cnt {
+                1 => {
+                    if num_matches == 0 {
+                        num_matches = cnt;
+                        matching_k = cur_k;
+                        matching_q = q;
+                    } else {
+                        // In case we have multiple kmers with matches, we must
+                        // be careful to not double count the same match.
+                        if qgrams_overlap(cur_k, q, matching_k, matching_q) {
+                            // Keep the match of length k.
+                            if cur_k == k {
+                                matching_k = cur_k;
+                                matching_q = q;
+                            }
+                        } else {
+                            // Non overlapping qgrams imply at least two matches, so break.
+                            num_matches = 2;
+                        }
+                    }
+                }
+                cnt => num_matches += cnt,
+            }
+            num_matches > 1
+        };
+        if add(k, qgram) {
+            continue 'outer;
+        }
+        // TODO: We could dedup matches, but it's probably not worth the time.
+        let ms = mutations(k, qgram, false);
+        for qgram in ms.deletions {
+            if add(k - 1, qgram) {
+                continue 'outer;
+            }
+        }
+        for qgram in ms.substitutions {
+            if add(k, qgram) {
+                continue 'outer;
+            }
+        }
+        for qgram in ms.insertions {
+            if add(k + 1, qgram) {
+                continue 'outer;
+            }
+        }
+        seeds.push(Seed {
+            start: i as I,
+            end: i as I + k,
+            seed_potential: 2,
+            has_matches: num_matches > 0,
+            qgram: 0,
+        })
+    }
 
     SeedMatches::new(a, seeds, Vec::default())
 }
@@ -338,19 +426,22 @@ pub fn unordered_matches<'a>(
         algorithm,
     }: MatchConfig,
 ) -> SeedMatches {
-    if max_match_cost > 0 {
-        unimplemented!("max_match_cost for unordered matches must be 0 for now");
-    }
-    match length {
-        Fixed(k) => match algorithm {
-            MatchAlgorithm::Hash => unordered_matches_exact_fixed_hashmap(a, b, alph, k),
-            MatchAlgorithm::HashSet => unordered_matches_exact_fixed_hashset(a, b, alph, k),
-            MatchAlgorithm::Bloom => unordered_matches_exact_fixed_bloomfilter(a, b, alph, k),
-            MatchAlgorithm::Cuckoo => unordered_matches_exact_fixed_cuckoofilter(a, b, alph, k),
+    match max_match_cost {
+        0 => match length {
+            Fixed(k) => match algorithm {
+                MatchAlgorithm::Hash => unordered_matches_exact_fixed_hashmap(a, b, alph, k),
+                MatchAlgorithm::HashSet => unordered_matches_exact_fixed_hashset(a, b, alph, k),
+                MatchAlgorithm::Bloom => unordered_matches_exact_fixed_bloomfilter(a, b, alph, k),
+                MatchAlgorithm::Cuckoo => unordered_matches_exact_fixed_cuckoofilter(a, b, alph, k),
+            },
+            LengthConfig::Max(length) => unordered_matches_exact_dynamic(a, b, alph, length),
+            LengthConfig::Min(_) => unimplemented!("MinMatches does not make sense here."),
         },
-        LengthConfig::Max(length) => unordered_matches_exact_dynamic(a, b, alph, length),
-        LengthConfig::Min(_) => {
-            unimplemented!("MinMatches does not make sense here.")
-        }
+        1 => match length {
+            Fixed(k) => unordered_matches_inexact_fixed_hashmap(a, b, alph, k),
+            LengthConfig::Max(_) => todo!(),
+            LengthConfig::Min(_) => unimplemented!("MinMatches does not make sense here."),
+        },
+        _ => unimplemented!("max_match_cost for unordered matches must be 0 or 1."),
     }
 }
