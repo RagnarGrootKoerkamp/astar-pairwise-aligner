@@ -311,6 +311,8 @@ If we skip because there is a higher valued neighbour, then when pruning that
 neighbour, the original should also be pruned.
 - Currently we only propagate a prune as a shift when there are at least two
   consecutive exact matches, preventing this from happening with large edit distances.
+** TODO More shifting: for inexact and unorderd matches
+For long sequences retries are maybe half of the runtime. Most of this can be avoided.
 
 ** NOTE Pruning of inexact matches has differences between the bruteforce and contour algorithm:
 - In the bruteforce, when an exact match is pruned, neighbouring exact matches

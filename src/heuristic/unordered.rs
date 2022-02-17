@@ -59,7 +59,7 @@ impl UnorderedHeuristicI {
                 .seeds
                 .iter()
                 .rev()
-                .filter(|seed| seed.has_matches);
+                .filter(|seed| seed.seed_cost < seed.seed_potential);
             let num_seeds_with_matches = seeds_with_matches.clone().count();
             remaining_matches.resize_with(1, || I::MAX);
             // TODO: Add sentinel value at the start.
@@ -193,7 +193,7 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
         } else {
             return 0;
         };
-        assert!(s.has_matches);
+        assert!(s.seed_cost < s.seed_potential);
 
         //println!("Prune {pos} / {seed_cost}");
         // +1 because pos is at the end of the match.
@@ -236,7 +236,7 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
             .seed_matches
             .seeds
             .iter()
-            .filter(|seed| seed.has_matches)
+            .filter(|seed| seed.seed_cost < seed.seed_potential)
             .count();
         HeuristicStats {
             num_seeds: self.seed_matches.seeds.len() as I,
