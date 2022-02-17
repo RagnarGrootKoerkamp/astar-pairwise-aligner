@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::{prelude::*, unordered_matches::count_matches_exact};
+use crate::{prelude::*, unordered_matches::unordered_matches};
 
 #[derive(Debug, Copy, Clone)]
 pub struct UnorderedHeuristic {
@@ -49,7 +49,7 @@ type Hint = Cost;
 
 impl UnorderedHeuristicI {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: UnorderedHeuristic) -> Self {
-        let mut seed_matches = count_matches_exact(a, b, alph, params.match_config);
+        let mut seed_matches = unordered_matches(a, b, alph, params.match_config);
         // Delete unused match data.
         seed_matches.matches.clear();
         // Contains start positions of all matches.
@@ -185,7 +185,6 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
         assert!(s.has_matches);
 
         //println!("Prune {pos} / {seed_cost}");
-        self.num_pruned += 1;
         // +1 because pos is at the end of the match.
         let v = self.value_with_hint(pos, hint).0 + 1;
         // println!(
@@ -209,6 +208,7 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
         }
         // Remove the match.
         self.remaining_matches.remove(v as usize);
+        self.num_pruned += 1;
 
         self.print(false, false);
 
