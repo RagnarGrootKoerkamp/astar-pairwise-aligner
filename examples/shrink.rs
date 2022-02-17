@@ -1,28 +1,25 @@
 use std::panic::AssertUnwindSafe;
 
-use pairwise_aligner::prelude::*;
+use pairwise_aligner::prelude::{unordered::UnorderedHeuristic, *};
 
 fn main() {
     PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
 
-    let n = 200;
+    let n = 40;
     let e = 0.10;
-    let seed = 54;
-    let k = 6;
-    let max_match_cost = 1;
+    let seed = 31415;
+    let k = 4;
+    let max_match_cost = 0;
     let pruning = true;
 
-    let h = GapSeedHeuristic {
+    let h = UnorderedHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost,
             ..MatchConfig::default()
         },
         pruning,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
-    }
-    .equal_to_bruteforce_contours();
+    };
 
     let (a, b, alphabet, stats) = setup_with_seed(n, e, seed);
     println!("Heuristic:\n{:?}", h);

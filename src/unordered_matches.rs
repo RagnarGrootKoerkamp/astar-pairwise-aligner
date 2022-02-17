@@ -2,7 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 
 pub use crate::prelude::*;
 
-fn unordered_matches_exact_fixed<'a>(
+fn unordered_matches_exact_fixed_hashmap<'a>(
     a: &'a Sequence,
     b: &'a Sequence,
     alph: &Alphabet,
@@ -343,7 +343,7 @@ pub fn unordered_matches<'a>(
     }
     match length {
         Fixed(k) => match algorithm {
-            MatchAlgorithm::Hash => unordered_matches_exact_fixed(a, b, alph, k),
+            MatchAlgorithm::Hash => unordered_matches_exact_fixed_hashmap(a, b, alph, k),
             MatchAlgorithm::HashSet => unordered_matches_exact_fixed_hashset(a, b, alph, k),
             MatchAlgorithm::Bloom => unordered_matches_exact_fixed_bloomfilter(a, b, alph, k),
             MatchAlgorithm::Cuckoo => unordered_matches_exact_fixed_cuckoofilter(a, b, alph, k),
