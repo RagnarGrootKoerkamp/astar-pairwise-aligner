@@ -206,16 +206,18 @@ When all contours only contain one point, this is much more compact.
 ** TODO Add bloom filters in front of hashmaps
 These can be very small, so fit in L1 cache and can quickly discard elements not
 in the hashmap.
+** TODO Or a cuckoomap
+** TODO Try out a 4^k bitvector as well
 ** TODO What about Judy / Rudy
 A fast u32 -> word map.
-** TODO Refactor Matches
+** DONE Refactor Matches
+CLOSED: [2022-02-17 Thu 03:22]
 - make a constructor that handles ~start_of_seed~ and ~potential~.
 - should also take a ~Vec<Seed>~.
-** TODO Linear Queue
-Keep a single vector and pointers to where each range starts.
-Pushing to min_f+1 can be done using a single swap.
 ** TODO Inexact unordered matches
-** TODO Dynamic unordered matches
+** DONE Dynamic unordered matches
+CLOSED: [2022-02-17 Thu 09:40]
+Reduces band by a factor up to 2. Sometimes 2x slower, sometimes 2x faster.
 ** TODO Use u64 instead of usize where appropriate (i.e. for qgrams)
 
 * Evals
