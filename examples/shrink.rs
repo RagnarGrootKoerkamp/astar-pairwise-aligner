@@ -5,11 +5,11 @@ use pairwise_aligner::prelude::{unordered::UnorderedHeuristic, *};
 fn main() {
     PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
 
-    let n = 40;
+    let n = 43;
     let e = 0.10;
-    let seed = 31415;
-    let k = 4;
-    let max_match_cost = 0;
+    let seed = 9;
+    let k = 6;
+    let max_match_cost = 1;
     let pruning = true;
 
     let h = UnorderedHeuristic {
