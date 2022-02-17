@@ -87,7 +87,8 @@ impl UnorderedHeuristicI {
 
     /// The number of matches starting at or after q.
     fn value(&self, q: Pos) -> Cost {
-        self.remaining_matches
+        (self
+            .remaining_matches
             .binary_search_by(|start| {
                 if *start >= q.0 {
                     Ordering::Less
@@ -96,45 +97,55 @@ impl UnorderedHeuristicI {
                 }
             })
             .unwrap_err() as Cost
-            - 1
+            - 1)
+            * (self.params.match_config.max_match_cost as Cost + 1)
     }
 
     /// Hint is the index from the end in self.remaining_matches.
     fn value_with_hint(&self, pos: Pos, hint: Hint) -> (Cost, Hint) {
-        let v = (self.remaining_matches.len() as Cost).saturating_sub(hint);
+        let v = (self.remaining_matches.len() as Cost).saturating_sub(max(hint, 1));
 
         const SEARCH_RANGE: Cost = 8;
 
         // Do a linear search for some steps, starting at contour v.
         let w = 'outer: {
-            if v < self.remaining_matches.len() as Cost {
-                if self.remaining_matches[v as usize] >= pos.0 {
-                    // Go up.
-                    for v in v + 1..min(v + 1 + SEARCH_RANGE, self.remaining_matches.len() as Cost)
-                    {
-                        if self.remaining_matches[v as usize] < pos.0 {
-                            break 'outer v - 1;
-                        }
+            if self.remaining_matches[v as usize] >= pos.0 {
+                // Go up.
+                for v in v + 1..min(v + 1 + SEARCH_RANGE, self.remaining_matches.len() as Cost) {
+                    if self.remaining_matches[v as usize] < pos.0 {
+                        break 'outer v - 1;
                     }
-                } else {
-                    // Go down.
-                    for v in (v.saturating_sub(SEARCH_RANGE)..v).rev() {
-                        if self.remaining_matches[v as usize] >= pos.0 {
-                            break 'outer v;
-                        }
+                }
+            } else {
+                // Go down.
+                for v in (v.saturating_sub(SEARCH_RANGE)..v).rev() {
+                    if self.remaining_matches[v as usize] >= pos.0 {
+                        break 'outer v;
                     }
                 }
             }
 
             // Fall back to binary search if not found close to the hint.
-            self.value(pos)
+            self.remaining_matches
+                .binary_search_by(|start| {
+                    if *start >= pos.0 {
+                        Ordering::Less
+                    } else {
+                        Ordering::Greater
+                    }
+                })
+                .unwrap_err() as Cost
+                - 1
         };
         //println!("{pos} : {v}, {w}, {:?}", self.remaining_matches);
         assert!(pos.0 <= self.remaining_matches[w as usize]);
         if w as usize + 1 < self.remaining_matches.len() {
             assert!(pos.0 > self.remaining_matches[w as usize + 1]);
         }
-        (w, self.remaining_matches.len() as Cost - w)
+        (
+            w * (self.params.match_config.max_match_cost as Cost + 1),
+            self.remaining_matches.len() as Cost - w,
+        )
     }
 }
 
@@ -186,7 +197,7 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
 
         //println!("Prune {pos} / {seed_cost}");
         // +1 because pos is at the end of the match.
-        let v = self.value_with_hint(pos, hint).0 + 1;
+        let idx = self.remaining_matches.len() - self.value_with_hint(pos, hint).1 as usize + 1;
         // println!(
         //     "{pos} v {v}   values {:?} {:?} {:?}",
         //     self.remaining_matches.get(v.saturating_sub(1) as usize),
@@ -199,7 +210,7 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
         // Check that we found the correct match, starting k before the current pos.
         if !self
             .remaining_matches
-            .get(v as usize)
+            .get(idx)
             .map_or(false, |&x| x == s.start)
         {
             // Match was already pruned, since it's not in remaining matches anymore.
@@ -207,7 +218,7 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
             return 0;
         }
         // Remove the match.
-        self.remaining_matches.remove(v as usize);
+        self.remaining_matches.remove(idx);
         self.num_pruned += 1;
 
         self.print(false, false);
