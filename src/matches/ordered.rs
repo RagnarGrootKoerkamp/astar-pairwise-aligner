@@ -145,25 +145,6 @@ pub fn find_matches_qgramindex<'a>(
                         }
                         k
                     }
-                    LengthConfig::Min(MinMatches {
-                        min_matches,
-                        k_min,
-                        k_max,
-                    }) => {
-                        let mut k = k_min as I;
-                        // TODO: Remove max length, which is only needed because of memory reasons.
-                        while k <= a.len() as I
-                            && k <= k_max
-                            && count_matches(
-                                k,
-                                to_qgram(&rank_transform, width, &a[..k as usize]),
-                                min_matches,
-                            ) >= min_matches
-                        {
-                            k += 1;
-                        }
-                        k - 1
-                    }
                 }
             };
             if seed_len > a.len() as I {
