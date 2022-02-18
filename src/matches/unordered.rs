@@ -308,12 +308,10 @@ pub fn unordered_matches<'a>(
                 _ => unimplemented!("This algorithm is not implemented."),
             },
             LengthConfig::Max(length) => unordered_matches_exact_dynamic(a, b, alph, length),
-            LengthConfig::Min(_) => unimplemented!("MinMatches does not make sense here."),
         },
         1 => match length {
             Fixed(k) => unordered_matches_inexact_fixed_hashmap(a, b, alph, k),
             LengthConfig::Max(_) => todo!(),
-            LengthConfig::Min(_) => unimplemented!("MinMatches does not make sense here."),
         },
         _ => unimplemented!("max_match_cost for unordered matches must be 0 or 1."),
     }

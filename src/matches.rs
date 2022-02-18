@@ -158,7 +158,6 @@ pub struct MinMatches {
 pub enum LengthConfig {
     Fixed(I),
     Max(MaxMatches),
-    Min(MinMatches),
 }
 
 impl LengthConfig {
