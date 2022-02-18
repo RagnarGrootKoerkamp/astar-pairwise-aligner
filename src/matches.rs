@@ -1,7 +1,6 @@
 pub mod ordered;
 pub mod qgrams;
 pub mod unordered;
-pub mod unordered_filters;
 
 use itertools::Itertools;
 use strum_macros::EnumString;
@@ -9,7 +8,6 @@ use strum_macros::EnumString;
 pub use ordered::*;
 pub use qgrams::*;
 pub use unordered::*;
-pub use unordered_filters::*;
 
 #[derive(Clone, Debug)]
 pub struct Seed {

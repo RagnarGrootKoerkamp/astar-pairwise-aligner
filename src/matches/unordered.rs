@@ -305,8 +305,7 @@ pub fn unordered_matches<'a>(
             Fixed(k) => match algorithm {
                 MatchAlgorithm::Hash => unordered_matches_exact_fixed_hashmap(a, b, alph, k),
                 MatchAlgorithm::HashSet => unordered_matches_exact_fixed_hashset(a, b, alph, k),
-                MatchAlgorithm::Bloom => unordered_matches_exact_fixed_bloomfilter(a, b, alph, k),
-                MatchAlgorithm::Cuckoo => unordered_matches_exact_fixed_cuckoofilter(a, b, alph, k),
+                _ => unimplemented!("This algorithm is not implemented."),
             },
             LengthConfig::Max(length) => unordered_matches_exact_dynamic(a, b, alph, length),
             LengthConfig::Min(_) => unimplemented!("MinMatches does not make sense here."),
