@@ -146,15 +146,6 @@ pub struct MaxMatches {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct MinMatches {
-    /// The largest k with at least this many matches.
-    pub min_matches: usize,
-    /// Range of k to consider.
-    pub k_min: I,
-    pub k_max: I,
-}
-
-#[derive(Clone, Copy, Debug)]
 pub enum LengthConfig {
     Fixed(I),
     Max(MaxMatches),
@@ -165,6 +156,18 @@ impl LengthConfig {
         match *self {
             Fixed(k) => Some(k),
             _ => None,
+        }
+    }
+    pub fn kmax(&self) -> I {
+        match *self {
+            Fixed(k) => k,
+            LengthConfig::Max(MaxMatches { k_max, .. }) => k_max,
+        }
+    }
+    pub fn kmin(&self) -> I {
+        match *self {
+            Fixed(k) => k,
+            LengthConfig::Max(MaxMatches { k_min, .. }) => k_min,
         }
     }
 }

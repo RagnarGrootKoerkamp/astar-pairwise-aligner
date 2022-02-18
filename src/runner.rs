@@ -91,8 +91,8 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             length: if let Some(max) = params.max_matches {
                 LengthConfig::Max(MaxMatches {
                     max_matches: max,
-                    k_min: params.kmin.unwrap(),
-                    k_max: params.kmax.unwrap(),
+                    k_min: params.kmin.unwrap_or(params.k.unwrap()),
+                    k_max: params.kmax.unwrap_or(params.k.unwrap()),
                 })
             } else {
                 Fixed(params.k.unwrap())
