@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 use super::{distance::*, *};
 use crate::{
-    matches::{find_matches, Match, MatchConfig, SeedMatches},
+    matches::{find_matches, Match, MatchConfig, Seeds},
     prelude::*,
 };
 
@@ -58,7 +58,7 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
 
-    pub seed_matches: SeedMatches,
+    pub seeds: Seeds,
     // The lowest cost match starting at each position.
     h_at_seeds: HashMap<Pos, Cost>,
     // Remaining arrows/matches
@@ -80,7 +80,7 @@ where
     default fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.distance_function.distance(from, to),
-            self.seed_matches.potential_distance(from, to),
+            self.seeds.potential_distance(from, to),
         )
     }
 }
@@ -90,7 +90,7 @@ where
 impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         let gap = self.distance_function.distance(from, to);
-        let pot = self.seed_matches.potential_distance(from, to);
+        let pot = self.seeds.potential_distance(from, to);
         if gap <= pot {
             pot
         } else if to == self.target {
@@ -115,19 +115,19 @@ where
             params,
             distance_function: Distance::build(&params.distance_function, a, b, alphabet),
             target: Pos::from_length(a, b),
-            seed_matches: find_matches(a, b, alphabet, params.match_config),
+            seeds: find_matches(a, b, alphabet, params.match_config),
             h_at_seeds: Default::default(),
             arrows: Default::default(),
             pruning_duration: Default::default(),
             num_pruned: 0,
         };
         assert!(h
-            .seed_matches
+            .seeds
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
         // Transform to Arrows.
-        let arrows_iterator = h.seed_matches.matches.iter().map(
+        let arrows_iterator = h.seeds.matches.iter().map(
             |&Match {
                  start,
                  end,
@@ -163,7 +163,7 @@ where
             end,
             match_cost,
             ..
-        } in self.seed_matches.matches.iter().rev()
+        } in self.seeds.matches.iter().rev()
         {
             if !self.arrows.contains_key(start) {
                 continue;
@@ -208,17 +208,17 @@ where
 
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
-            num_seeds: self.seed_matches.seeds.len() as I,
-            num_matches: self.seed_matches.matches.len(),
-            num_filtered_matches: self.seed_matches.matches.len(),
-            matches: self.seed_matches.matches.clone(),
+            num_seeds: self.seeds.seeds.len() as I,
+            num_matches: self.seeds.matches.len(),
+            num_filtered_matches: self.seeds.matches.len(),
+            matches: self.seeds.matches.clone(),
             pruning_duration: self.pruning_duration.as_secs_f32(),
             num_prunes: self.num_pruned,
         }
     }
 
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.seed_matches.is_seed_start_or_end(pos)
+        self.seeds.is_seed_start_or_end(pos)
     }
 
     fn prune(&mut self, pos: Pos, _hint: Self::Hint, _seed_cost: MatchCost) -> Cost {

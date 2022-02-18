@@ -11,7 +11,7 @@ pub fn find_matches_trie<'a>(
         max_match_cost,
         ..
     }: MatchConfig,
-) -> SeedMatches {
+) -> Seeds {
     let k: I = match length {
         Fixed(k) => k,
         _ => unimplemented!("Trie only works for fixed k for now."),
@@ -56,7 +56,7 @@ pub fn find_matches_trie<'a>(
         );
     }
 
-    SeedMatches::new(a, seeds, matches)
+    Seeds::new(a, seeds, matches)
 }
 
 pub fn find_matches_qgramindex<'a>(
@@ -68,7 +68,7 @@ pub fn find_matches_qgramindex<'a>(
         max_match_cost,
         ..
     }: MatchConfig,
-) -> SeedMatches {
+) -> Seeds {
     assert!(max_match_cost == 0 || max_match_cost == 1);
 
     // Qgrams of B.
@@ -250,7 +250,7 @@ pub fn find_matches_qgramindex<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, matches)
+    Seeds::new(a, seeds, matches)
 }
 
 /// Build a hashset of the kmers in b, and query all mutations of seeds in a.
@@ -263,7 +263,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         max_match_cost,
         ..
     }: MatchConfig,
-) -> SeedMatches {
+) -> Seeds {
     let k: I = match length {
         Fixed(k) => k,
         _ => unimplemented!("QGram Hashing only works for fixed k for now."),
@@ -344,7 +344,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, matches)
+    Seeds::new(a, seeds, matches)
 }
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
@@ -357,7 +357,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
         max_match_cost,
         ..
     }: MatchConfig,
-) -> SeedMatches {
+) -> Seeds {
     let k: I = match length {
         Fixed(k) => k,
         _ => unimplemented!("QGram Hashing only works for fixed k for now."),
@@ -488,7 +488,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, matches)
+    Seeds::new(a, seeds, matches)
 }
 
 pub fn find_matches<'a>(
@@ -496,7 +496,7 @@ pub fn find_matches<'a>(
     b: &'a Sequence,
     alph: &Alphabet,
     match_config: MatchConfig,
-) -> SeedMatches {
+) -> Seeds {
     if FIND_MATCHES_HASH {
         return match match_config.max_match_cost {
             0 => find_matches_qgram_hash_exact(a, b, alph, match_config),
