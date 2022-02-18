@@ -30,11 +30,11 @@ pub fn iterate_fixed_qgrams<'a>(
     rank_transform: &'a RankTransform,
     a: &'a Vec<u8>,
     k: u32,
-) -> impl Iterator<Item = (usize, usize)> + 'a {
+) -> impl Iterator<Item = (I, usize)> + 'a {
     let width = rank_transform.get_width();
     a.chunks_exact(k as usize)
         .enumerate()
-        .map(move |(i, seed)| (k as usize * i, to_qgram(&rank_transform, width, seed)))
+        .map(move |(i, seed)| (k * i as I, to_qgram(&rank_transform, width, seed)))
 }
 
 pub fn fixed_seeds(
