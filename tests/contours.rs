@@ -1,4 +1,4 @@
-use pairwise_aligner::prelude::{unordered::UnorderedHeuristic, *};
+use pairwise_aligner::prelude::{UnorderedHeuristic, *};
 
 #[test]
 fn exact_no_pruning() {

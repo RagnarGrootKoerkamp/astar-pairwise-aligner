@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::{prelude::*, unordered_matches::unordered_matches};
+use crate::prelude::*;
 
 #[derive(Debug, Copy, Clone)]
 pub struct UnorderedHeuristic {

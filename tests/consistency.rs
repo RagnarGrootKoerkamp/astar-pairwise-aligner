@@ -31,7 +31,6 @@ fn bicount_admissible() {
             },
             distance_function: BiCountCost,
             pruning: false,
-            ..SeedHeuristic::default()
         },
     );
     assert!(r.heuristic_stats2.root_h <= r.edit_distance);

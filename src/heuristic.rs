@@ -9,6 +9,7 @@ pub use distance::*;
 pub use equal_heuristic::*;
 pub use gap_seed_heuristic::*;
 pub use seed_heuristic::*;
+pub use unordered::*;
 
 use serde::Serialize;
 
