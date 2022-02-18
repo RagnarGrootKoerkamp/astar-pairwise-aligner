@@ -80,7 +80,7 @@ where
     default fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.distance_function.distance(from, to),
-            self.seed_matches.distance(from, to),
+            self.seed_matches.potential_distance(from, to),
         )
     }
 }
@@ -90,7 +90,7 @@ where
 impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         let gap = self.distance_function.distance(from, to);
-        let pot = self.seed_matches.distance(from, to);
+        let pot = self.seed_matches.potential_distance(from, to);
         if gap <= pot {
             pot
         } else if to == self.target {

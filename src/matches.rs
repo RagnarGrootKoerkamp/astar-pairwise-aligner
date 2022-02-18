@@ -132,17 +132,9 @@ impl SeedMatches {
     pub fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         self.is_seed_start(pos) || self.is_seed_end(pos)
     }
-}
 
-impl<'a> HeuristicInstance<'a> for SeedMatches {
-    fn h(&self, _: Pos) -> Cost {
-        unimplemented!("SeedMatches can only be used as a distance, not as a heuristic!");
-    }
-}
-impl<'a> DistanceInstance<'a> for SeedMatches {
-    /// The minimal distance is the potential of the seeds entirely within the `[from, to)` interval.
-    /// NOTE: Assumes disjoint seeds.
-    fn distance(&self, from: Pos, to: Pos) -> Cost {
+    #[inline]
+    pub fn potential_distance(&self, from: Pos, to: Pos) -> Cost {
         assert!(from.0 <= to.0);
         let end_i = self.seed_at(to).map_or(to.0, |s| s.start);
         self.potential[from.0 as usize] - self.potential[end_i as usize]
