@@ -509,3 +509,128 @@ pub fn find_matches<'a>(
         return find_matches_qgramindex(a, b, alph, match_config);
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn trie_matches() {
+        for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
+            for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
+                for e in [0.01, 0.1, 0.3, 1.0] {
+                    let (a, b, alph, _) = setup(n, e);
+                    println!("{}\n{}", to_string(&a), to_string(&b));
+                    let matchconfig = MatchConfig {
+                        length: crate::prelude::LengthConfig::Fixed(k),
+                        max_match_cost,
+                        ..Default::default()
+                    };
+                    println!("-----------------------");
+                    println!("n={n} e={e} k={k} mmc={max_match_cost}");
+                    let k = find_matches_trie(&a, &b, &alph, matchconfig);
+                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
+                    println!("-----------------------");
+                    for x in &k.matches {
+                        println!("{x:?}");
+                    }
+                    println!("-----------------------");
+                    for x in &r.matches {
+                        println!("{x:?}");
+                    }
+                    assert_eq!(k.matches, r.matches);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn hash_matches_exact() {
+        // TODO: Replace max match distance from 0 to 1 here once supported.
+        for (k, max_match_cost) in [(4, 0), (5, 0), (6, 0), (7, 0)] {
+            for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
+                for e in [0.01, 0.1, 0.3, 1.0] {
+                    let (a, b, alph, _) = setup(n, e);
+                    println!("{}\n{}", to_string(&a), to_string(&b));
+                    let matchconfig = MatchConfig {
+                        length: crate::prelude::LengthConfig::Fixed(k),
+                        max_match_cost,
+                        ..Default::default()
+                    };
+                    println!("-----------------------");
+                    println!("n={n} e={e} k={k} mmc={max_match_cost}");
+                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
+                    let k = find_matches_qgram_hash_exact(&a, &b, &alph, matchconfig);
+                    if !SLIDING_WINDOW_MATCHES {
+                        if r.matches != k.matches {
+                            println!("-----------------------");
+                            for x in &r.matches {
+                                println!("{x:?}");
+                            }
+                            println!("-----------------------");
+                            for x in &k.matches {
+                                println!("{x:?}");
+                            }
+                        }
+                        assert_eq!(r.matches, k.matches);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn hash_matches_inexact() {
+        // TODO: Replace max match distance from 0 to 1 here once supported.
+        for (k, max_match_cost) in [(6, 1), (7, 1), (10, 1)] {
+            for n in [40, 100, 200, 500, 1000, 10000] {
+                for e in [0.01, 0.1, 0.3, 1.0] {
+                    let (a, b, alph, _) = setup(n, e);
+                    println!("{}\n{}", to_string(&a), to_string(&b));
+                    let matchconfig = MatchConfig {
+                        length: crate::prelude::LengthConfig::Fixed(k),
+                        max_match_cost,
+                        ..Default::default()
+                    };
+                    println!("-----------------------");
+                    println!("n={n} e={e} k={k} mmc={max_match_cost}");
+                    let mut r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
+                    let mut k = find_matches_qgram_hash_inexact(&a, &b, &alph, matchconfig);
+                    assert!(r
+                        .matches
+                        .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
+                    assert!(k
+                        .matches
+                        .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
+                    r.matches.sort_by_key(
+                        |&Match {
+                             start,
+                             end,
+                             match_cost,
+                             ..
+                         }| { (LexPos(start), LexPos(end), match_cost) },
+                    );
+                    k.matches.sort_by_key(
+                        |&Match {
+                             start,
+                             end,
+                             match_cost,
+                             ..
+                         }| { (LexPos(start), LexPos(end), match_cost) },
+                    );
+                    if r.matches != k.matches {
+                        println!("-----------------------");
+                        for x in &r.matches {
+                            println!("{x:?}");
+                        }
+                        println!("-----------------------");
+                        for x in &k.matches {
+                            println!("{x:?}");
+                        }
+                    }
+                    assert_eq!(r.matches, k.matches);
+                }
+            }
+        }
+    }
+}
