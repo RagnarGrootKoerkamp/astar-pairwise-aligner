@@ -12,7 +12,6 @@ fn seed_heuristic_rebuild() {
         },
         pruning,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
     let (_a, _b, alph, stats) = setup(n, e);
 
@@ -44,7 +43,6 @@ fn never_use_gap_distance() {
         },
         pruning,
         c: PhantomData::<BruteForceContours>,
-        ..GapSeedHeuristic::default()
     }
     .equal_to_seed_heuristic();
 

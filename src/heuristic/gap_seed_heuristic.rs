@@ -69,16 +69,6 @@ impl<C: Contours> Clone for GapSeedHeuristic<C> {
 }
 impl<C: Contours> Copy for GapSeedHeuristic<C> {}
 
-impl<C: Contours> Default for GapSeedHeuristic<C> {
-    fn default() -> Self {
-        Self {
-            match_config: Default::default(),
-            pruning: false,
-            c: PhantomData,
-        }
-    }
-}
-
 impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
     type Instance<'a> = GapSeedHeuristicI<C>;
 

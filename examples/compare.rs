@@ -48,7 +48,6 @@ fn main() {
                     },
                     pruning: true,
                     c: PhantomData::<HintContours<BruteForceContour>>,
-                    ..GapSeedHeuristic::default()
                 };
                 let (a, b, alphabet, stats) = setup(n, e);
                 align(&a, &b, &alphabet, stats, h)

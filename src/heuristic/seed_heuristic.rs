@@ -18,16 +18,6 @@ pub struct SeedHeuristic<DH: Distance> {
     pub pruning: bool,
 }
 
-impl<DH: Distance> Default for SeedHeuristic<DH> {
-    fn default() -> Self {
-        Self {
-            match_config: Default::default(),
-            distance_function: DH::default(),
-            pruning: false,
-        }
-    }
-}
-
 impl<DH: Distance> Heuristic for SeedHeuristic<DH>
 where
     for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a>,

@@ -47,7 +47,6 @@ fn consistency_1() {
         },
         pruning: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
     let a = &a[361..369].to_vec();
@@ -68,7 +67,6 @@ fn consistency_2() {
         },
         pruning: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
     let a = &a[236..246].to_vec();
@@ -90,7 +88,6 @@ fn consistency_3() {
         },
         pruning: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
     let a = &a.to_vec();
@@ -111,7 +108,6 @@ fn consistency_4() {
         },
         pruning: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
     let a = &a[846..870].to_vec();
@@ -134,7 +130,6 @@ fn consistency_5() {
         },
         pruning: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
     let (a, b, alphabet, stats) = setup(2000, 0.20);
     let a = &a[200..310].to_vec();
