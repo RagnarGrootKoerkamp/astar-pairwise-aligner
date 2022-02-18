@@ -1,6 +1,7 @@
 pub mod ordered;
 pub mod qgrams;
 pub mod unordered;
+pub mod unordered_filters;
 
 use itertools::Itertools;
 use strum_macros::EnumString;
@@ -8,6 +9,7 @@ use strum_macros::EnumString;
 pub use ordered::*;
 pub use qgrams::*;
 pub use unordered::*;
+pub use unordered_filters::*;
 
 #[derive(Clone, Debug)]
 pub struct Seed {
@@ -55,14 +57,7 @@ impl Seeds {
             .all(|(seed1, seed2)| seed1.end <= seed2.start));
 
         // First sort by start, then by end, then by match cost.
-        matches.sort_unstable_by_key(
-            |&Match {
-                 start,
-                 end,
-                 match_cost,
-                 ..
-             }| (LexPos(start), LexPos(end), match_cost),
-        );
+        matches.sort_unstable_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
         // Dedup to only keep the lowest match cost.
         matches.dedup_by_key(|m| (m.start, m.end));
 
@@ -96,6 +91,13 @@ impl Seeds {
     #[inline]
     pub fn potential(&self, Pos(i, _): Pos) -> Cost {
         self.potential[i as usize]
+    }
+
+    #[inline]
+    pub fn potential_distance(&self, from: Pos, to: Pos) -> Cost {
+        assert!(from.0 <= to.0);
+        let end_i = self.seed_at(to).map_or(to.0, |s| s.start);
+        self.potential[from.0 as usize] - self.potential[end_i as usize]
     }
 
     /// The seed covering a given position.
@@ -133,13 +135,6 @@ impl Seeds {
     #[inline]
     pub fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         self.is_seed_start(pos) || self.is_seed_end(pos)
-    }
-
-    #[inline]
-    pub fn potential_distance(&self, from: Pos, to: Pos) -> Cost {
-        assert!(from.0 <= to.0);
-        let end_i = self.seed_at(to).map_or(to.0, |s| s.start);
-        self.potential[from.0 as usize] - self.potential[end_i as usize]
     }
 }
 
