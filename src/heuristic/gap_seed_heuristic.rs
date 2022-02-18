@@ -128,7 +128,7 @@ impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.gap_distance.distance(from, to),
-            self.seed_matches.distance(from, to),
+            self.seed_matches.potential_distance(from, to),
         )
     }
 }
