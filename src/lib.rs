@@ -22,7 +22,6 @@ pub mod generate;
 pub mod heuristic;
 pub mod matches;
 pub mod runner;
-pub mod unordered_matches;
 
 pub mod prelude {
     pub use super::*;

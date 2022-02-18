@@ -1,6 +1,6 @@
 use std::panic::AssertUnwindSafe;
 
-use pairwise_aligner::prelude::{unordered::UnorderedHeuristic, *};
+use pairwise_aligner::prelude::{UnorderedHeuristic, *};
 
 fn main() {
     PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
