@@ -1,7 +1,7 @@
 use super::{distance::*, *};
 use crate::{
     contour::{Arrow, Contours},
-    matches::{find_matches, Match, MatchConfig, SeedMatches},
+    matches::{find_matches, Match, MatchConfig, Seeds},
     prelude::*,
 };
 use itertools::Itertools;
@@ -102,7 +102,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
     gap_distance: GapCostI,
     target: Pos,
 
-    seed_matches: SeedMatches,
+    seeds: Seeds,
     num_filtered_matches: usize,
 
     // TODO: Put statistics into a separate struct.
@@ -128,7 +128,7 @@ impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.gap_distance.distance(from, to),
-            self.seed_matches.potential_distance(from, to),
+            self.seeds.potential_distance(from, to),
         )
     }
 }
@@ -146,7 +146,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
             params,
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos::from_length(a, b),
-            seed_matches: find_matches(a, b, alph, params.match_config),
+            seeds: find_matches(a, b, alph, params.match_config),
             num_filtered_matches: 0,
             num_pruned: 0,
 
@@ -164,19 +164,19 @@ impl<C: Contours> GapSeedHeuristicI<C> {
         // Filter the matches.
         // NOTE: Matches is already sorted by start.
         assert!(h
-            .seed_matches
+            .seeds
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
         {
-            // Need to take it out of h.seed_matches because transform also uses this.
-            let mut matches = std::mem::take(&mut h.seed_matches.matches);
+            // Need to take it out of h.seeds because transform also uses this.
+            let mut matches = std::mem::take(&mut h.seeds.matches);
             matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);
-            h.seed_matches.matches = matches;
-            h.num_filtered_matches = h.seed_matches.matches.len();
+            h.seeds.matches = matches;
+            h.num_filtered_matches = h.seeds.matches.len();
         }
 
         // Transform to Arrows.
-        let arrows_iterator = h.seed_matches.matches.iter().rev().map(
+        let arrows_iterator = h.seeds.matches.iter().rev().map(
             |&Match {
                  start,
                  end,
@@ -199,7 +199,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
             .collect();
 
         // Sort revered by start (the order needed to construct contours).
-        // TODO: Can we get away without sorting? It's probably possible if seed_matches
+        // TODO: Can we get away without sorting? It's probably possible if seeds
         // TODO: Fix the units here -- unclear whether it should be I or cost.
         h.contours = C::new(
             arrows_iterator,
@@ -216,7 +216,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
     fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
         let a = self.target.0;
         let b = self.target.1;
-        let pot = |pos| self.seed_matches.potential(pos);
+        let pot = |pos| self.seeds.potential(pos);
         Pos(
             // This is a lie. All should be converted to cost, instead of position really.
             i + b - j + pot(Pos(0, 0)) as I - pot(pos) as I,
@@ -227,7 +227,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
 
 impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     fn h(&self, pos: Pos) -> Cost {
-        let p = self.seed_matches.potential(pos);
+        let p = self.seeds.potential(pos);
         let val = self.contours.value(self.transform(pos));
         if val == 0 {
             self.distance(pos, self.target)
@@ -238,7 +238,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
     type Hint = C::Hint;
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
-        let p = self.seed_matches.potential(pos);
+        let p = self.seeds.potential(pos);
         let (val, new_hint) = self.contours.value_with_hint(self.transform(pos), hint);
         if val == 0 {
             (self.distance(pos, self.target), new_hint)
@@ -248,7 +248,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     }
 
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.seed_matches.is_seed_start_or_end(pos)
+        self.seeds.is_seed_start_or_end(pos)
     }
 
     // TODO: Prune by end pos as well (or instead of) start pos.
@@ -332,11 +332,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
-            num_seeds: self.seed_matches.seeds.len() as I,
-            num_matches: self.seed_matches.matches.len(),
+            num_seeds: self.seeds.seeds.len() as I,
+            num_matches: self.seeds.matches.len(),
             num_filtered_matches: self.num_filtered_matches,
             matches: if DEBUG {
-                self.seed_matches.matches.clone()
+                self.seeds.matches.clone()
             } else {
                 Default::default()
             },
@@ -385,8 +385,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                         dist.sample(&mut rng),
                     )
                 });
-                let is_start_of_match = self.seed_matches.matches.iter().any(|m| m.start == p);
-                let is_end_of_match = self.seed_matches.matches.iter().any(|m| m.end == p);
+                let is_start_of_match = self.seeds.matches.iter().any(|m| m.start == p);
+                let is_end_of_match = self.seeds.matches.iter().any(|m| m.end == p);
                 if is_start_of_match {
                     pixel.2 = true;
                 } else if is_end_of_match {
@@ -445,6 +445,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     }
 
     fn root_potential(&self) -> Cost {
-        self.seed_matches.potential(Pos(0, 0))
+        self.seeds.potential(Pos(0, 0))
     }
 }

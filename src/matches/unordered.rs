@@ -7,7 +7,7 @@ fn unordered_matches_exact_fixed_hashmap<'a>(
     b: &'a Sequence,
     alph: &Alphabet,
     k: I,
-) -> SeedMatches {
+) -> Seeds {
     type Key = usize;
 
     let rank_transform = RankTransform::new(alph);
@@ -43,7 +43,7 @@ fn unordered_matches_exact_fixed_hashmap<'a>(
 
     // println!("Size: {} bits", m.capacity() * 2 * 8);
 
-    SeedMatches::new(a, seeds, Vec::default())
+    Seeds::new(a, seeds, Vec::default())
 }
 
 /// Build a hashset of the kmers in b, and query all mutations of seeds in a.
@@ -52,7 +52,7 @@ pub fn unordered_matches_inexact_fixed_hashmap<'a>(
     b: &'a Sequence,
     alph: &Alphabet,
     k: I,
-) -> SeedMatches {
+) -> Seeds {
     let rank_transform = RankTransform::new(alph);
 
     // type of Qgrams
@@ -138,7 +138,7 @@ pub fn unordered_matches_inexact_fixed_hashmap<'a>(
         })
     }
 
-    SeedMatches::new(a, seeds, Vec::default())
+    Seeds::new(a, seeds, Vec::default())
 }
 
 fn unordered_matches_exact_fixed_hashset<'a>(
@@ -146,7 +146,7 @@ fn unordered_matches_exact_fixed_hashset<'a>(
     b: &'a Sequence,
     alph: &Alphabet,
     k: I,
-) -> SeedMatches {
+) -> Seeds {
     type Key = usize;
 
     let rank_transform = RankTransform::new(alph);
@@ -204,7 +204,7 @@ fn unordered_matches_exact_fixed_hashset<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, Vec::default())
+    Seeds::new(a, seeds, Vec::default())
 }
 
 fn unordered_matches_exact_fixed_cuckoofilter<'a>(
@@ -212,7 +212,7 @@ fn unordered_matches_exact_fixed_cuckoofilter<'a>(
     b: &'a Sequence,
     alph: &Alphabet,
     k: I,
-) -> SeedMatches {
+) -> Seeds {
     type Key = usize;
 
     let rank_transform = RankTransform::new(alph);
@@ -270,7 +270,7 @@ fn unordered_matches_exact_fixed_cuckoofilter<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, Vec::default())
+    Seeds::new(a, seeds, Vec::default())
 }
 
 fn unordered_matches_exact_fixed_bloomfilter<'a>(
@@ -278,7 +278,7 @@ fn unordered_matches_exact_fixed_bloomfilter<'a>(
     b: &'a Sequence,
     alph: &Alphabet,
     k: I,
-) -> SeedMatches {
+) -> Seeds {
     type Key = usize;
 
     let rank_transform = RankTransform::new(alph);
@@ -335,7 +335,7 @@ fn unordered_matches_exact_fixed_bloomfilter<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, Vec::default())
+    Seeds::new(a, seeds, Vec::default())
 }
 
 fn unordered_matches_exact_dynamic<'a>(
@@ -347,7 +347,7 @@ fn unordered_matches_exact_dynamic<'a>(
         k_min,
         k_max,
     }: MaxMatches,
-) -> SeedMatches {
+) -> Seeds {
     assert!(k_min <= k_max);
     assert!(max_matches <= 1);
     type Key = usize;
@@ -417,7 +417,7 @@ fn unordered_matches_exact_dynamic<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, Vec::default())
+    Seeds::new(a, seeds, Vec::default())
 }
 
 /// Initialize a counter to 0 for all seeds in a.
@@ -432,7 +432,7 @@ pub fn unordered_matches<'a>(
         max_match_cost,
         algorithm,
     }: MatchConfig,
-) -> SeedMatches {
+) -> Seeds {
     match max_match_cost {
         0 => match length {
             Fixed(k) => match algorithm {

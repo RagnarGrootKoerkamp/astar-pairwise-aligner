@@ -36,7 +36,7 @@ impl Heuristic for UnorderedHeuristic {
 pub struct UnorderedHeuristicI {
     params: UnorderedHeuristic,
     target: Pos,
-    seed_matches: SeedMatches,
+    seeds: Seeds,
     /// Starts of the remaining matches, in reverse order.
     /// Pruning will happen mostly from back to the front.
     remaining_matches: SplitVec<I>,
@@ -49,13 +49,13 @@ type Hint = Cost;
 
 impl UnorderedHeuristicI {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: UnorderedHeuristic) -> Self {
-        let mut seed_matches = unordered_matches(a, b, alph, params.match_config);
+        let mut seeds = unordered_matches(a, b, alph, params.match_config);
         // Delete unused match data.
-        seed_matches.matches.clear();
+        seeds.matches.clear();
         // Contains start positions of all matches.
         let mut remaining_matches = SplitVec::default();
         {
-            let mut seeds_with_matches = seed_matches
+            let mut seeds_with_matches = seeds
                 .seeds
                 .iter()
                 .rev()
@@ -69,13 +69,13 @@ impl UnorderedHeuristicI {
         }
 
         if print() {
-            println!("{:?}\n{remaining_matches:?}", seed_matches.seeds);
+            println!("{:?}\n{remaining_matches:?}", seeds.seeds);
         }
 
         let h = UnorderedHeuristicI {
             params,
             target: Pos::from_length(a, b),
-            seed_matches,
+            seeds,
             remaining_matches,
             num_pruned: 0,
         };
@@ -154,23 +154,23 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
     type Hint = Hint;
 
     fn h(&self, pos: Pos) -> Cost {
-        let p = self.seed_matches.potential(pos);
+        let p = self.seeds.potential(pos);
         let m = self.value(pos);
         p - m
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
-        let p = self.seed_matches.potential(pos);
+        let p = self.seeds.potential(pos);
         let (m, h) = self.value_with_hint(pos, hint);
         (p - m, h)
     }
 
     fn root_potential(&self) -> Cost {
-        self.seed_matches.potential[0]
+        self.seeds.potential[0]
     }
 
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.seed_matches.is_seed_start_or_end(pos)
+        self.seeds.is_seed_start_or_end(pos)
     }
 
     // Prune the match ending in `pos`.
@@ -188,7 +188,7 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
         }
         // If there is no seed ending here, there is nothing to prune.
         // This can happen if a seed is not present because it matches multiple time.
-        let s = if let Some(s) = self.seed_matches.seed_ending_at(pos) {
+        let s = if let Some(s) = self.seeds.seed_ending_at(pos) {
             s
         } else {
             return 0;
@@ -205,8 +205,8 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
         //     self.remaining_matches.get(v as usize + 1)
         // );
         // println!("V: {v}");
-        // println!("seed: {:?}", self.seed_matches.seed_ending_at(pos));
-        // println!("seed: {:?}", self.seed_matches.seed_at(pos));
+        // println!("seed: {:?}", self.seeds.seed_ending_at(pos));
+        // println!("seed: {:?}", self.seeds.seed_at(pos));
         // Check that we found the correct match, starting k before the current pos.
         if !self
             .remaining_matches
@@ -233,13 +233,13 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
 
     fn stats(&self) -> HeuristicStats {
         let num_matches = self
-            .seed_matches
+            .seeds
             .seeds
             .iter()
             .filter(|seed| seed.seed_cost < seed.seed_potential)
             .count();
         HeuristicStats {
-            num_seeds: self.seed_matches.seeds.len() as I,
+            num_seeds: self.seeds.seeds.len() as I,
             num_matches,
             num_filtered_matches: num_matches,
             matches: Default::default(),
