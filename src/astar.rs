@@ -170,6 +170,7 @@ where
             if DEBUG {
                 stats.expanded_states.push(pos);
             }
+            //println!("Expand {pos} @ f={queue_f}, g={}", state.g);
 
             // Retrace path to root and return.
             if pos == target {

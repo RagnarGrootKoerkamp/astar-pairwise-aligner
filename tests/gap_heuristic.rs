@@ -29,7 +29,6 @@ fn contour_graph() {
             },
             pruning,
             c: PhantomData::<BruteForceContours>,
-            ..GapSeedHeuristic::default()
         };
         let (_, _, alph, stats) = setup(0, 0.0);
 
@@ -63,7 +62,6 @@ fn small_test() {
         },
         pruning: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
     let r = align(&pattern, &text, &alphabet, stats, h);
     assert!(r.heuristic_stats2.root_h <= r.edit_distance);
@@ -81,7 +79,6 @@ fn seed_heuristic_rebuild() {
         },
         pruning,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
     let (_a, _b, alph, stats) = setup(n, e);
 
@@ -110,7 +107,6 @@ fn no_double_expand() {
         },
         pruning,
         c: PhantomData::<BruteForceContours>,
-        ..GapSeedHeuristic::default()
     };
 
     let (_, _, alphabet, stats) = setup(n, e);
@@ -136,7 +132,6 @@ fn no_double_expand_2() {
         },
         pruning,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (_, _, alphabet, stats) = setup(n, e);
@@ -163,7 +158,6 @@ fn missing_shadow_points() {
         },
         pruning,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (_, _, alphabet, stats) = setup(n, e);

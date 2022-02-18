@@ -13,7 +13,6 @@ fn exact_no_pruning() {
                     },
                     pruning: false,
                     c: PhantomData::<BruteForceContours>,
-                    ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
@@ -36,7 +35,6 @@ fn inexact_no_pruning() {
                     },
                     pruning: false,
                     c: PhantomData::<BruteForceContours>,
-                    ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 //print(h, &a, &b, &alph);
@@ -60,7 +58,6 @@ fn incremental_pruning_bruteforce() {
                     },
                     pruning: true,
                     c: PhantomData::<BruteForceContours>,
-                    ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
@@ -83,7 +80,6 @@ fn incremental_pruning_hint_bruteforce() {
                     },
                     pruning: true,
                     c: PhantomData::<HintContours<BruteForceContour>>,
-                    ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
@@ -106,7 +102,6 @@ fn incremental_pruning_hint_central() {
                     },
                     pruning: true,
                     c: PhantomData::<HintContours<CentralContour>>,
-                    ..GapSeedHeuristic::default()
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);

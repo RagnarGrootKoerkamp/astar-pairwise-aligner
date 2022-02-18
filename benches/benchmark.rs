@@ -20,7 +20,6 @@ fn base_100(bench: &mut Bencher) {
         },
         pruning: true,
         c: PhantomData::<HintContours<CentralContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -39,7 +38,6 @@ fn base_1000(bench: &mut Bencher) {
         },
         pruning: true,
         c: PhantomData::<HintContours<CentralContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -58,7 +56,6 @@ fn base_10000(bench: &mut Bencher) {
         },
         pruning: true,
         c: PhantomData::<HintContours<CentralContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -77,7 +74,6 @@ fn base_50000_similar(bench: &mut Bencher) {
         },
         pruning: true,
         c: PhantomData::<HintContours<CentralContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -96,7 +92,6 @@ fn fast_100(bench: &mut Bencher) {
         },
         pruning: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -115,7 +110,6 @@ fn fast_1000(bench: &mut Bencher) {
         },
         pruning: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -134,7 +128,6 @@ fn fast_10000(bench: &mut Bencher) {
         },
         pruning: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -153,7 +146,6 @@ fn fast_50000_similar(bench: &mut Bencher) {
         },
         pruning: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let (a, b, alphabet, stats) = setup(n, e);

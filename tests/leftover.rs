@@ -12,7 +12,6 @@ fn no_leftover() {
         },
         pruning,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let n = 1000;
@@ -37,7 +36,6 @@ fn needs_leftover() {
         },
         pruning: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
-        ..GapSeedHeuristic::default()
     };
 
     let n = 1000;

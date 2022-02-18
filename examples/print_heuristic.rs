@@ -16,7 +16,6 @@ fn main() {
             },
             pruning,
             c: PhantomData::<HintContours<BruteForceContour>>,
-            ..GapSeedHeuristic::default()
         };
 
         let (ref a, ref b, alphabet, stats) = setup(n, e);
