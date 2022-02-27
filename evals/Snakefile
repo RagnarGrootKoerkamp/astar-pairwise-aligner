@@ -25,6 +25,8 @@ import statistics
 
 ## INPUT DATA
 
+# Nanopore / Illumina data is here: https://github.com/Daniel-Liu-c0deb0t/block-aligner/releases
+
 # Length of each sequence
 ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000, 30_000_000, 100_000_000]
 # Error rate in [0;1]
