@@ -7,15 +7,24 @@ List of TODOs and other quick remarks.
 ** TODO Proof that =consistent pruned heuristics= works
 A lowerbound on the shortest path to the end, not using any already expanded
 states. Consistent when $f$ never decreases over edges.
-** TODO Proof that pruning heuristic yields a consistent pruned heuristic
+** DONE Proof that pruning heuristic yields a consistent pruned heuristic
+CLOSED: [2022-03-01 Tue 14:23]
+By definition, now that we are more conservative with checking neighbours before pruning.
 ** TODO ZeroCost heuristic is not consistent
 On diagonals, h can increase. Greedy Diagonal Matches requires that this doesn't happen.
 
-* Analysis
+* Run-time analysis
 ** TODO What is the expected deviation from the diagonal for a random sequence?
 Is this $\sqrt n$ like in a drunkard's walk? Or is it less, because we know
 where we end and can use $j = (m/n) * i$ as prediction.
 ** TODO Proof expected linear runtime
+*** TODO MISSING: Probability that on-diagonal matches are actually pruned is large.
+** Max edit distance for large n
+$k \geq \lg n$.
+$k \leq 1/e$.
+$e \leq 1/k \leq 1/\lg n$.
+them: $n \cdot s = n ^2 e = n^2 / \lg n$
+us: $n$
 
 * Failing assertions / Bugs
 ** DONE Investigate inconsistent heuristic before pruning
@@ -219,6 +228,8 @@ CLOSED: [2022-02-17 Thu 03:22]
 CLOSED: [2022-02-17 Thu 09:40]
 Reduces band by a factor up to 2. Sometimes 2x slower, sometimes 2x faster.
 ** TODO Use u64 instead of usize where appropriate (i.e. for qgrams)
+** TODO Update A* state for first and last state in a run of equal values.
+Instead of only the first state.
 
 * Evals
 ** DONE Put timelimit in tables
@@ -231,6 +242,19 @@ Done, but only for the table/tools_N1e5 'input' variable.
 ** DONE Big indels
 CLOSED: [2022-02-10 Thu 16:12]
 Just an insert or delete is fine. A move (or insert + delete) is much worse though.
+** TODO PacBio n=100 reads
+** TODO ONP n=400 reads
+** TODO ONP n=100k reads, from block aligner paper
+** TODO Filter our own long reads from the accession numbers at [TODO]
+
+
+* WFA merger / next version
+** TODO Do not store parent pointers
+** TODO Store wavefronts for g instead of per-cell
+** TODO For unordered heuristic, we don't need the h hint
+** TODO Try to get rid of A* state (not needed for consistent h)
+** TODO What to do with current_seed_cost?
+** TODO Extend multiple chars at a time (usize for 8 / SIMD for 16)
 
 * Tests
 ** TODO Test all pairs with n <= 6
@@ -244,6 +268,11 @@ Just an insert or delete is fine. A move (or insert + delete) is much worse thou
 ** Affine gaps
 *** Git-diff, but better?
 
+** Use much larger m and k
+Given a seed, find the best match in b. Then find a lower bound on the cost of
+aligning all other matches of the seed. For something like k=20, e=0.1, we may have
+an on-diagonal match of cost 2, and find that all other matches have cost at
+least in the range 5-10. This allows much more aggressive pruning.
 
 * Edit Distance
 ** TODO Run SeedHeuristic with k=1 as edit distance computation algorithm.
@@ -357,6 +386,7 @@ SuffixArray is not faster than Qgrams / hashmaps
 ** DONE Update ContourGraph to set the value of a match after processing the end-column, instead of doing a lookup when processing the start column.
 CLOSED: [2022-02-10 Thu 17:10]
 ContourGraph isn't used anymore.
+** TODO Use suffix tree/array of ~A$B$~ to find length of greedy matching run in $O(1)$
 
 * DONE Fast Seed+Gap heuristic implementation:
 ** Bruteforce from bottom right to top left, fully processing everything all

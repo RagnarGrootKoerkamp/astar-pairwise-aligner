@@ -165,6 +165,7 @@ where
         // Keep expanding states while we are on a matching diagonal edge.
         // This gives a ~2x speedup on highly similar sequences, because states
         // do not need to be pushed to/popped from the priority queue.
+        // TODO: Count the number of matching chars and do updates at the end.
         if loop {
             stats.expanded += 1;
             if DEBUG {
