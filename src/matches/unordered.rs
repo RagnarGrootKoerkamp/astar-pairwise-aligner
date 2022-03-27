@@ -10,8 +10,6 @@ where
     let rank_transform = RankTransform::new(alph);
     match length {
         Fixed(k) => {
-            // NOTE: We don't iterate the hashmap, since future iterations may not store
-            // seeds in the hashmap at all.
             let mut seeds = Vec::<Seed>::new();
             for (i, qgram) in iterate_fixed_qgrams(&rank_transform, a, k) {
                 if let Some(seed) = f(i, k, qgram) {
