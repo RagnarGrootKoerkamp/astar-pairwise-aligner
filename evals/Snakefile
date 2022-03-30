@@ -108,7 +108,7 @@ class Input:
     def name_pattern():
         return 'x{cnt}-n{n}-e{e}'
     def pattern():
-        return 'input/x{cnt}-n{n}-e{e}.seq'
+        return 'input/synthetic/x{cnt}-n{n}-e{e}.seq'
     def name(self):
         return Path(f'x{self.cnt}-n{self.n}-e{self.e}')
     def path(self):
@@ -183,9 +183,74 @@ def tool_runs(N):
 
 ## INPUT DATA RULES
 
+# Synthetic tests
 rule generate_input:
     output: Input.pattern()
     shell: GENERATE_CMD
+
+# ONT long reads
+# Block aligner uses data from the
+# Whole Human Genome Sequencing Project
+# Data sources: https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md
+
+# Download reference genome.
+# Gets the entire directory, but not subdirectories.
+REFERENCE_FTP = 'ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/technical/reference/GRCh38_reference_genome/'
+REFERENCE_DIR = 'input/reads/reference'
+REFERENCE_NAME = f'{REFERENCE_DIR}/GRCh38_full_analysis_set_plus_decoy_hla.fa'
+rule download_reference:
+    output: REFERENCE_NAME
+    shell: f'wget -r -nH -nc -l 1 -P {REFERENCE_DIR} --cut-dirs=5 {REFERENCE_FTP}'
+
+
+# Download reads
+# [(flowcel id, fasta url, bam url, bai url)]
+FLOWCELLS = {
+    'FAB45271': 'nanopore-human-wgs/rel3-nanopore-wgs-152889212-FAB45271.fastq.gz',
+    'FAB42316': 'nanopore-human-wgs/rel3-nanopore-wgs-216722908-FAB42316.fastq.gz',
+    'FAB49164': 'nanopore-human-wgs/rel3-nanopore-wgs-4045668814-FAB49164.fastq.gz',
+}
+
+# Copy from AWS S3.
+# Using AWS CLI is faster, but needs an AWS account and aws CLI set up and linked to your account.
+rule read:
+    output: 'input/reads/{id}.fastq.gz'
+    run:
+        path = FLOWCELLS[wildcards.id]
+        #shell('wget -O {output} http://s3.amazonaws.com/{path}')
+        shell('aws configure set default.s3.max_concurrent_requests 20')
+        shell('aws s3 cp s3://{path} {output}')
+
+rule read_bam:
+    output: 'input/reads/{id}.fastq.gz.sorted.bam'
+    run:
+        path = FLOWCELLS[wildcards.id] + '.sorted.bam'
+        for ext in ['', '.bai']:
+            #shell('wget -O {output}{ext} http://s3.amazonaws.com/{path}{ext}')
+            shell('aws configure set default.s3.max_concurrent_requests 20')
+            shell('aws s3 cp s3://{path}{ext} {output}{ext}')
+
+rule download_reads:
+    input: [f'input/reads/{id}.fastq.gz{ext}' for ext in ['', '.sorted.bam'] for id in FLOWCELLS]
+
+# Make .bed file containing reference locations of reads in .bam file:
+rule bed_file:
+    input: 'input/reads/{id}.fastq.gz.sorted.bam'
+    output: 'input/reads/{id}.bed'
+    shell: 'bedtools bamtobed -i input/reads{id}.fastq.gz.sorted.bam > {output}'
+
+# Extract parts of reference corresponding to reads:
+rule extract_reference:
+    input: ['input/reads/{id}.bed', REFERENCE_NAME]
+    output: 'input/reads/{id}.mapped.fa'
+    # -s: reverse-complement the reference when needed
+    shell: 'bedtools getfasta -s -nameOnly -fi {REFERENCE_NAME}  -bed input/reads/{id}.bed > {output}'
+
+# Reads are in the original .fasta.gz file, or can be extracted using
+# samtools fasta {id}.fastq.gz.sorted.bam
+# View the bam entry for a read with
+# samtools view {read_id}
+
 
 ## PA WITH PARAMS
 
