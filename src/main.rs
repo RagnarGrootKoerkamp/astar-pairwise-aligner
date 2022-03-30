@@ -97,6 +97,13 @@ fn main() {
                         sequences.push(record.unwrap().seq().to_vec());
                     }
                 }
+                ext if ext == "txt" => {
+                    let data = std::fs::read(&f).unwrap();
+                    for (a, b) in data.split(|c| *c == '\n' as u8).tuples() {
+                        sequences.push(a.to_vec());
+                        sequences.push(b.to_vec());
+                    }
+                }
                 _ => unreachable!("Unknown file extension"),
             };
 
