@@ -109,7 +109,7 @@ where
         );
     }
 
-    while let Some(MinScored(queue_f, mut pos, queue_g)) = queue.pop() {
+    'outer: while let Some(MinScored(queue_f, mut pos, queue_g)) = queue.pop() {
         let queue_f = queue_f + queue_offset - max_queue_offset;
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
@@ -166,7 +166,7 @@ where
         // This gives a ~2x speedup on highly similar sequences, because states
         // do not need to be pushed to/popped from the priority queue.
         // TODO: Count the number of matching chars and do updates at the end.
-        if loop {
+        loop {
             stats.expanded += 1;
             if DEBUG {
                 stats.expanded_states.push(pos);
@@ -210,7 +210,7 @@ where
             }
 
             if !GREEDY_EDGE_MATCHING_IN_ASTAR {
-                break false;
+                break;
             }
 
             if let Some(next) = graph.is_match(pos) {
@@ -230,7 +230,7 @@ where
                     let new_state = DiagonalMapTrait::get_mut(&mut states, next);
                     if new_state.g <= state.g {
                         // Continue to the next state in the queue.
-                        break true;
+                        break 'outer;
                     }
                     double_expanded = if let Expanded = new_state.status {
                         stats.double_expanded += 1;
@@ -259,10 +259,8 @@ where
                     stats.explored_states.push(pos);
                 }
             } else {
-                break false;
+                break;
             }
-        } {
-            continue;
         }
 
         graph.iterate_outgoing_edges(pos, |next, cost, parent| {
