@@ -342,6 +342,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             },
             pruning_duration: self.pruning_duration.as_secs_f32(),
             num_prunes: self.num_pruned,
+            num_ops: self.contours.ops(),
         }
     }
 

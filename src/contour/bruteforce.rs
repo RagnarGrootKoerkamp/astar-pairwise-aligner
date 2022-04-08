@@ -1,28 +1,33 @@
 use crate::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
-use std::mem;
+use std::{cell::Cell, mem};
 
 /// A contour implementation that does all operations in O(r).
 #[derive(Default, Debug, Clone)]
 pub struct BruteForceContour {
     points: SmallVec<[Pos; 2]>,
+    ops: Cell<usize>,
 }
 
 impl Contour for BruteForceContour {
     fn push(&mut self, p: Pos) {
+        self.ops.set(self.ops.get() + 1);
         self.points.push(p);
     }
 
     fn contains(&self, q: Pos) -> bool {
+        self.ops.set(self.ops.get() + self.len() + 1);
         self.points.iter().any(|s| q <= *s)
     }
 
     fn is_dominant(&self, q: Pos) -> bool {
+        self.ops.set(self.ops.get() + self.len() + 1);
         !self.points.iter().any(|s| q < *s)
     }
 
     fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, f: &mut F) -> bool {
+        self.ops.set(self.ops.get() + self.len() + 1);
         let mut change = false;
         self.points.retain(|&mut s| {
             let prune = f(s);
@@ -39,6 +44,7 @@ impl Contour for BruteForceContour {
     }
 
     fn num_dominant(&self) -> usize {
+        self.ops.set(self.ops.get() + self.len() + 1);
         let mut x = self
             .points
             .iter()
@@ -47,6 +53,10 @@ impl Contour for BruteForceContour {
         x.sort_by_key(|p| LexPos(**p));
         x.dedup();
         x.len()
+    }
+
+    fn ops(&self) -> usize {
+        self.ops.get()
     }
 }
 

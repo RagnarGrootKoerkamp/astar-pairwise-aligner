@@ -245,6 +245,7 @@ impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
             matches: Default::default(),
             pruning_duration: Default::default(),
             num_prunes: self.num_pruned,
+            num_ops: 0,
         }
     }
 

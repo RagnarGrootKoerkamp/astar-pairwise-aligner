@@ -4,7 +4,7 @@ List of TODOs and other quick remarks.
 
 * Correctness
 ** DONE Proof for consistency of $h$ at start of matches
-** TODO Proof that =consistent pruned heuristics= works
+** DONE Proof that =consistent pruned heuristics= works
 A lowerbound on the shortest path to the end, not using any already expanded
 states. Consistent when $f$ never decreases over edges.
 ** DONE Proof that pruning heuristic yields a consistent pruned heuristic
@@ -25,6 +25,11 @@ $k \leq 1/e$.
 $e \leq 1/k \leq 1/\lg n$.
 them: $n \cdot s = n ^2 e = n^2 / \lg n$
 us: $n$
+** DONE Count operations
+- h evaluation
+- pruning
+- expanded states
+  - greedy expanded states
 
 * Failing assertions / Bugs
 ** DONE Investigate inconsistent heuristic before pruning

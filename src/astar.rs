@@ -34,7 +34,7 @@ impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
 pub struct AStarStats {
     pub expanded: usize,
     pub explored: usize,
-    pub skipped_explored: usize,
+    pub greedy_expanded: usize,
     /// Number of times an already expanded node was expanded again with a lower value of f.
     pub double_expanded: usize,
     /// Number of times a node was popped and found to have an outdated value of h after pruning.
@@ -65,7 +65,7 @@ where
     let mut stats = AStarStats {
         expanded: 0,
         explored: 0,
-        skipped_explored: 0,
+        greedy_expanded: 0,
         double_expanded: 0,
         retries: 0,
         pq_shifts: 0,
@@ -252,7 +252,7 @@ where
 
                 // Count the new state as explored.
                 stats.explored += 1;
-                stats.skipped_explored += 1;
+                stats.greedy_expanded += 1;
                 if DEBUG {
                     stats.explored_states.push(pos);
                 }
