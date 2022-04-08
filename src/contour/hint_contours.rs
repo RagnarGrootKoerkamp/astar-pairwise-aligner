@@ -20,6 +20,9 @@ pub struct HintContours<C: Contour> {
     stats: RefCell<HintContourStats>,
 
     layers_removed: Cost,
+
+    // ops
+    ops: usize,
 }
 
 #[derive(Default, Debug)]
@@ -74,6 +77,7 @@ impl<C: Contour> Contours for HintContours<C> {
             max_len,
             stats: Default::default(),
             layers_removed: 0,
+            ops: 0,
         };
         this.contours[0].push(Pos(I::MAX, I::MAX));
         // Loop over all arrows from a given positions.
@@ -215,6 +219,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 for _ in 0..self.max_len {
                     //println!("Delete layer {} of len {}", v, self.contours[v].len());
                     assert!(self.contours[v as usize].len() == 0);
+                    self.ops += self.contours[v as usize].ops();
                     self.contours.remove(v as usize);
                     self.layers_removed += 1;
                     v -= 1;
@@ -494,6 +499,7 @@ impl<C: Contour> Contours for HintContours<C> {
     }
 
     fn ops(&self) -> usize {
-        self.contours.into_iter().map(|c| c.ops()).sum()
+        //self.stats.borrow().value_with_hint_calls
+        self.ops + self.contours.into_iter().map(|c| c.ops()).sum::<usize>()
     }
 }
