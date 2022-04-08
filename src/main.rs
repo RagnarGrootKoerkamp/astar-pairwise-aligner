@@ -73,7 +73,7 @@ fn main() {
 
         // True: all-vs-all comparison.
         // False: only consecutive pairs.
-        let mut all_vs_all = false;
+        let all_vs_all = false;
         let mut sequences = Vec::<Sequence>::default();
 
         for f in files {
@@ -89,8 +89,7 @@ fn main() {
                         sequences.push(b);
                     }
                 }
-                ext if ext == "fna" => {
-                    all_vs_all = true;
+                ext if ext == "fna" || ext == "fa" => {
                     for record in
                         fasta::Reader::new(BufReader::new(File::open(&f).unwrap())).records()
                     {
