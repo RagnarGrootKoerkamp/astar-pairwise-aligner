@@ -58,7 +58,7 @@ pub fn astar<'a, H>(
     start: Pos,
     target: Pos,
     h: &mut H,
-) -> Option<(Cost, Vec<Pos>, AStarStats)>
+) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
     H: HeuristicInstance<'a>,
 {
@@ -69,9 +69,9 @@ where
         double_expanded: 0,
         retries: 0,
         pq_shifts: 0,
+        diagonalmap_capacity: 0,
         explored_states: Vec::default(),
         expanded_states: Vec::default(),
-        diagonalmap_capacity: 0,
     };
 
     // f -> pos
@@ -108,6 +108,18 @@ where
             },
         );
     }
+
+    // Initialize target state
+    states.insert(
+        target,
+        State {
+            status: Unvisited,
+            g: 0,
+            seed_cost: 0,
+            parent: Parent::None,
+            hint: H::Hint::default(),
+        },
+    );
 
     'outer: while let Some(MinScored(queue_f, mut pos, queue_g)) = queue.pop() {
         let queue_f = queue_f + queue_offset - max_queue_offset;
@@ -175,22 +187,8 @@ where
 
             // Retrace path to root and return.
             if pos == target {
-                let last = pos;
-                let mut path = vec![last];
-
-                let mut current = last;
-                // If the state is not in the map, it was found via a match.
-                while let Some(previous) = DiagonalMapTrait::get(&states, current)
-                    .map_or(Parent::match_value(), |x| x.parent)
-                    .parent(&current)
-                {
-                    path.push(previous);
-                    current = previous;
-                }
-
-                path.reverse();
-                stats.diagonalmap_capacity = states.dm_capacity();
-                return Some((state.g, path, stats));
+                states[target] = state;
+                break 'outer;
             }
 
             is_seed_start_or_end = h.is_seed_start_or_end(pos);
@@ -226,7 +224,12 @@ where
                 }
 
                 // NOTE: If greedy matches are not stored, we also don't check whether they are double expanded.
-                if !DO_NOT_SAVE_GREEDY_MATCHES {
+                if DO_NOT_SAVE_GREEDY_MATCHES {
+                    // Reset double exanded flag for the new state, to prevent
+                    // reusing the original value of double_exanded when
+                    // is_start_of_seed becomes true for the first time.
+                    double_expanded = false;
+                } else {
                     let new_state = DiagonalMapTrait::get_mut(&mut states, next);
                     if new_state.g <= state.g {
                         // Continue to the next state in the queue.
@@ -239,11 +242,6 @@ where
                         false
                     };
                     *new_state = state;
-                } else {
-                    // Reset double exanded flag for the new state, to prevent
-                    // reusing the original value of double_exanded when
-                    // is_start_of_seed becomes true for the first time.
-                    double_expanded = false;
                 }
                 pos = next;
 
@@ -300,5 +298,37 @@ where
         });
     }
 
-    None
+    stats.diagonalmap_capacity = states.dm_capacity();
+    (traceback::<'a, H>(states, target), stats)
+}
+
+fn traceback<'a, H>(
+    states: HashMap<Pos, State<Parent, H::Hint>>,
+    target: Pos,
+) -> Option<(u32, Vec<Pos>)>
+where
+    H: HeuristicInstance<'a>,
+{
+    if let Some(state) = DiagonalMapTrait::get(&states, target) {
+        let mut path = vec![target];
+        let mut current = target;
+        // If the state is not in the map, it was found via a match.
+        loop {
+            let previous = if let Some(state) = DiagonalMapTrait::get(&states, current) {
+                state.parent.parent(&current)
+            } else {
+                Parent::match_value().parent(&current)
+            };
+            if let Some(previous) = previous {
+                path.push(previous);
+                current = previous;
+            } else {
+                break;
+            }
+        }
+        path.reverse();
+        Some((state.g, path))
+    } else {
+        None
+    }
 }

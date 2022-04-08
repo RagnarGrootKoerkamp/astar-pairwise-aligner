@@ -333,8 +333,9 @@ where
     let start_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = AlignmentGraph::new(a, b, GREEDY_EDGE_MATCHING);
-    let (distance, path, astar_stats) =
-        astar::astar(&graph, Pos(0, 0), Pos::from_length(a, b), &mut h).unwrap_or_default();
+    let (distance_and_path, astar_stats) =
+        astar::astar(&graph, Pos(0, 0), Pos::from_length(a, b), &mut h);
+    let (distance, path) = distance_and_path.unwrap_or_default();
     let astar_duration = start_time.elapsed();
 
     assert!(
