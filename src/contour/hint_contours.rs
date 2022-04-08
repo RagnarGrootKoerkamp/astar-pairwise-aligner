@@ -492,4 +492,8 @@ impl<C: Contour> Contours for HintContours<C> {
 
         println!("----------------------------");
     }
+
+    fn ops(&self) -> usize {
+        self.contours.into_iter().map(|c| c.ops()).sum()
+    }
 }

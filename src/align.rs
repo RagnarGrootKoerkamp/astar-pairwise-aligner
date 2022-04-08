@@ -74,6 +74,7 @@ impl AlignResult {
         self.heuristic_stats.num_matches += other.heuristic_stats.num_matches;
         self.heuristic_stats.num_filtered_matches += other.heuristic_stats.num_filtered_matches;
         self.heuristic_stats.num_prunes += other.heuristic_stats.num_prunes;
+        self.heuristic_stats.num_ops += other.heuristic_stats.num_ops;
         self.astar.expanded += other.astar.expanded;
         self.astar.explored += other.astar.explored;
         self.astar.double_expanded += other.astar.double_expanded;
@@ -159,6 +160,9 @@ impl AlignResult {
             (format!("{:>9}", "explored"), |this: &AlignResult| {
                 format!("{:>9}", this.astar.explored / this.sample_size)
             }),
+            (format!("{:>9}", "greedy"), |this: &AlignResult| {
+                format!("{:>9}", this.astar.greedy_expanded / this.sample_size)
+            }),
             (format!("{:>7}", "dbl"), |this: &AlignResult| {
                 format!("{:>7}", this.astar.double_expanded / this.sample_size)
             }),
@@ -207,6 +211,12 @@ impl AlignResult {
                     this.heuristic_stats2.root_h as f32 / this.sample_size as f32
                 )
             }),
+            (format!("{:>6}", "h_ops"), |this: &AlignResult| {
+                format!(
+                    "{:>6.0}",
+                    this.heuristic_stats.num_ops as f32 / this.sample_size as f32
+                )
+            }),
             // (format!("{:>5}", "m_pat"), |this: &AlignResult| {
             //     format!(
             //         "{:>5}",
@@ -219,12 +229,12 @@ impl AlignResult {
             //         this.heuristic_stats2.explored_matches
             //     )
             // }),
-            (format!("{:>5}", "dm-fr"), |this: &AlignResult| {
-                format!(
-                    "{:>5.3}",
-                    this.astar.explored as f32 / this.astar.diagonalmap_capacity as f32
-                )
-            }),
+            // (format!("{:>5}", "dm-fr"), |this: &AlignResult| {
+            //     format!(
+            //         "{:>5.3}",
+            //         this.astar.explored as f32 / this.astar.diagonalmap_capacity as f32
+            //     )
+            // }),
         ];
 
         let mut header = Vec::new();
