@@ -76,6 +76,7 @@ impl AlignResult {
         self.heuristic_stats.num_prunes += other.heuristic_stats.num_prunes;
         self.heuristic_stats.num_ops += other.heuristic_stats.num_ops;
         self.astar.expanded += other.astar.expanded;
+        self.astar.greedy_expanded += other.astar.greedy_expanded;
         self.astar.explored += other.astar.explored;
         self.astar.double_expanded += other.astar.double_expanded;
         self.astar.retries += other.astar.retries;
