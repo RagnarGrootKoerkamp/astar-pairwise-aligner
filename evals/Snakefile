@@ -23,9 +23,7 @@ import itertools
 import shutil
 import statistics
 
-## INPUT DATA
-
-# Nanopore / Illumina data is here: https://github.com/Daniel-Liu-c0deb0t/block-aligner/releases
+## SYNTHETIC INPUT DATA
 
 # Length of each sequence
 ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000, 30_000_000, 100_000_000]
@@ -35,19 +33,56 @@ es = [0.01, 0.05, 0.10, 0.20]
 ## PA PARAMS
 
 # Seed length, match distance pairs
-kms = [(6,0), (7,0), (8,0), (9,0), (10, 0), (11, 0), (12, 0), (14, 0), (17, 0), (20, 0), (25, 0), (31, 0),
-       (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1)]
+kms = [(7,0), (8,0), (9,0), (10, 0), (11, 0), (12, 0), (13,0), (14,0), (15,0), (16,0), (17, 0), (31, 0),
+       (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1)]
 
 ## TOOLS
 
-# 'dijkstra' is slow
-algs = ['pa', 'edlib', 'wfa']
-
 ## RUN SETTINGS
-TIMEOUT = "600s"
+TIMEOUT = "40s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
+binaries = {
+    'pa' : '../target/release/pairwise-aligner',
+    'edlib' : '../../edlib/build/bin/edlib-aligner',
+    'wfa'   : '../../wfa/bin/align_benchmark',
+    'wfa2'   : '../../wfa2/bin/align_benchmark',
+    'biwfa'   : '../../biwfa/bin/align_benchmark',
+}
+tool_command = {
+    # Version with manual parameter choosing.
+    'pa': binaries["pa"] + ' -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --silent2',
+
+    # infers k and m values.
+    'pa_inf': binaries["pa"]+' -i {input} --error-rate {wildcards.e} --silent2 ',
+
+    # slower PA variants
+    'dijkstra': binaries["pa"]+' -i {input} -a Dijkstra --silent2',
+    'pa_noprune': binaries["pa"]+' -i {input} --error-rate {wildcards.e} --silent2 --no-prune',
+
+    # Others
+    'edlib': binaries["edlib"]+' {input} -p -s',
+    'wfa': binaries["wfa"]+' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
+    'wfa2': binaries["wfa2"]+' -i {input} -a edit-wfa',
+    'biwfa': binaries["biwfa"]+' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
+}
+
+# Subset of tools to run
+tools = [
+    #'pa',
+    'pa_inf',
+    'dijkstra',
+    'pa_noprune',
+    'edlib',
+    'biwfa',
+]
+
+# Generate testcases
+GENERATE_CMD    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
+
+wildcard_constraints:
+    tool='[^-]*'
 
 # Wrap a comman in a small shell script than handles timeouts.
 # Uses the TIMEOUT variable, and writes status to params.status_path.
@@ -80,22 +115,6 @@ exit 1
 """
 
 
-# Generate testcases
-GENERATE_CMD    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
-# Run PA
-pa_bin    = '../target/release/pairwise-aligner'
-PA_CMD          = '{pa_bin} -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --silent2'
-# Run PA as Dijkstra, using a heuristic that's always 0.
-DIJKSTRA_CMD    = '{pa_bin} -i {input} -a Dijkstra --silent2'
-# -p: Return alignment
-# -s: Silent / no output
-edlib_bin = '../../edlib/build/bin/edlib-aligner'
-EDLIB_CMD       = '{edlib_bin} {input} -p -s'
-# -a: Algorithm to run
-# --affine-penalties: Use edit distance score, with gap-opening cost of 0.
-wfa_bin   = '../../wfa/bin/align_benchmark'
-WFA_CMD         = '{wfa_bin} -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"'
-
 ## WRAPPER CLASSES
 wildcard_constraints:
     e="[0-9.]+"
@@ -112,7 +131,7 @@ class Input:
     def name(self):
         return Path(f'x{self.cnt}-n{self.n}-e{self.e}')
     def path(self):
-        return Path(f'input/{self.name()}.seq')
+        return Path(f'input/synthetic/{self.name()}.seq')
 
 def inputs(N):
     N = int(float(N))
@@ -122,35 +141,31 @@ class Run:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
     def pattern_with_params():
-        alg = 'pa'
-        return f'runs/{Input.name_pattern()}-A{alg}-m{{m}}-k{{k}}.bench'
-    def pattern(alg='pa'):
-        return f'runs/{Input.name_pattern()}-A{alg}.bench'
+        tool = 'pa'
+        return f'runs/{Input.name_pattern()}-A{tool}-m{{m}}-k{{k}}.bench'
+    def pattern(tool=None):
+        if tool:
+            return f'runs/{Input.name_pattern()}-A{tool}.bench'
+        else:
+            return f'runs/{Input.name_pattern()}-A{{tool}}.bench'
     def bench_path_with_params(self):
-        assert self.alg == "pa"
-        return Path(f'runs/{self.input.name()}-A{self.alg}-m{self.m}-k{self.k}.bench')
+        assert self.tool == "pa"
+        return Path(f'runs/{self.input.name()}-A{self.tool}-m{self.m}-k{self.k}.bench')
     def stats_path_with_params(self):
         return self.bench_path_with_params().with_suffix('.stats')
     def status_path_with_params(self):
         return self.bench_path_with_params().with_suffix('.status')
     def bench_path(self):
-        return Path(f'runs/{self.input.name()}-A{self.alg}.bench')
+        return Path(f'runs/{self.input.name()}-A{self.tool}.bench')
     def status_path(self):
         return self.bench_path().with_suffix('.status')
 
 # Returns false for parameters that should be skipped.
 def run_filter(run):
-    if run.alg == 'wfa':
-        # Remove cases that go out of memory
-        if run.input.e == 0.01 and run.input.n >= 10_000_000: return False
-        if run.input.e == 0.05 and run.input.n >= 3_000_000: return False
-        if run.input.e == 0.1 and run.input.n >= 1_000_000: return False
-        if run.input.e == 0.2 and run.input.n >= 1_000_000: return False
-
-    if run.alg != 'pa': return True
+    if run.tool != 'pa': return True
     # If the error rate is larger than the max rate this (k,m) can handle, skip.
     # e is made a bit lower, since an induced error rate of 20% only gives ~15% edit distance.
-    max_error_rate = (run.m+1) / run.k
+    max_error_rate = (run.m+1) / (run.k-1) # -1 to slightly shift the boundary
     if run.input.e * 0.85 > max_error_rate:
         return False
 
@@ -159,29 +174,31 @@ def run_filter(run):
         return False
 
     # If we expect multiple matches per seed, skip since we should increase k instead.
-    if run.m == 0 and run.input.n / 4.**run.k > 2*run.k:
+    if run.m == 0 and run.input.n / 4.**(run.k+1) > 2*(run.k+1): # +1 to slightly shift the boundary
         return False
     # The number of distance-1 matches per seed is roughly 8*k.
-    if run.m == 1 and 8*run.k* run.input.n / 4.**run.k > 2*run.k:
+    if run.m == 1 and 8*(run.k+1)* run.input.n / 4.**(run.k+1) > 2*(run.k+1): # +1 to slightly shift the boundary
         return False
 
     return True
 
 def params_runs(N):
-    return list(filter(run_filter, (Run(input=input, alg='pa', m=m, k=k)
+    return list(filter(run_filter, (Run(input=input, tool='pa', m=m, k=k)
                         for input in inputs(N)
                         for (k, m) in kms)))
 
 def params_runs_for_input(input):
-    return list(filter(run_filter, (Run(input=input, alg='pa', m=m, k=k)
+    return list(filter(run_filter, (Run(input=input, tool='pa', m=m, k=k)
                         for (k, m) in kms)))
 
 def tool_runs(N):
-    return [Run(input=input, alg=alg)
+    return [Run(input=input, tool=tool)
                 for input in inputs(N)
-                for alg in algs]
+                for tool in tools]
 
 ## INPUT DATA RULES
+
+# Nanopore / Illumina data is here: https://github.com/Daniel-Liu-c0deb0t/block-aligner/releases
 
 # Synthetic tests
 rule generate_input:
@@ -258,9 +275,9 @@ rule run_pairwise_aligner:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
     params:
-        stats_path = lambda w: Run(input=Input(**w), **w, alg='pa').stats_path_with_params(),
-        status_path = lambda w: Run(input=Input(**w), **w, alg='pa').status_path_with_params()
-    shell: timeout(PA_CMD)
+        stats_path = lambda w: Run(input=Input(**w), **w, tool='pa').stats_path_with_params(),
+        status_path = lambda w: Run(input=Input(**w), **w, tool='pa').status_path_with_params()
+    shell: timeout(tool_command['pa'])
 
 def params_table(runs, output):
     headers = ["alg","cnt","n","e", "m", "k", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
@@ -282,7 +299,7 @@ def params_table(runs, output):
         except:
             stats = ''
         for bench_line in run.bench_path_with_params().read_text().splitlines()[1:]:
-            table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.m}\t{run.k}\t{bench_line}\t{status}\t{stats}\n')
+            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.m}\t{run.k}\t{bench_line}\t{status}\t{stats}\n')
 
 # Collect all .bench files into a single tsv.
 rule params_table:
@@ -296,7 +313,7 @@ def average_bench_time(f):
 # Find the run with the smallest average benchmark time and copy those files.
 rule find_best_runs:
     input: lambda w: [run.bench_path_with_params() for run in params_runs_for_input(Input(**w))]
-    output: Run.pattern()
+    output: Run.pattern('pa')
     run:
         # Loop over input bench files, find the one with the best average runtime, and copy it.
         (_, run) = min(map(lambda run: (average_bench_time(run.bench_path_with_params()), run), params_runs_for_input(Input(**wildcards))), key=lambda p: p[0], default=(None, None))
@@ -309,23 +326,12 @@ rule find_best_runs:
 
 ## RUN OTHER TOOLS
 
-rule run_dijkstra:
+rule run_tool:
     input: lambda w: Input(**w).path()
-    benchmark: repeat(Run.pattern('dijkstra'), REPEATS)
-    params: status_path = lambda w: Run(input=Input(**w), **w, alg='dijkstra').status_path()
-    shell: timeout(DIJKSTRA_CMD)
-
-rule run_edlib:
-    input: lambda w: Input(**w).path()
-    benchmark: repeat(Run.pattern('edlib'), REPEATS)
-    params: status_path = lambda w: Run(input=Input(**w), **w, alg='edlib').status_path()
-    shell: timeout(EDLIB_CMD)
-
-rule run_wfa:
-    input: lambda w: Input(**w).path()
-    benchmark: repeat(Run.pattern('wfa'), REPEATS)
-    params: status_path = lambda w: Run(input=Input(**w), **w, alg='wfa').status_path()
-    shell: timeout(WFA_CMD)
+    benchmark: repeat(Run.pattern(), REPEATS)
+    params: status_path = lambda w: Run(input=Input(**w), **w).status_path()
+    run:
+        shell(timeout(tool_command[wildcards.tool]))
 
 # Collect all .bench files into a single tsv.
 rule tools_table:
@@ -339,7 +345,7 @@ rule tools_table:
             lines = run.bench_path().read_text().splitlines()
             status = run.status_path().read_text().strip()
             for bench_line in lines[1:]:
-                table_file.write(f'{run.alg}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}\n')
+                table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}\n')
 
 # Visualizations
 

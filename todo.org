@@ -237,6 +237,12 @@ Reduces band by a factor up to 2. Sometimes 2x slower, sometimes 2x faster.
 Instead of only the first state.
 
 * Evals
+NOTE: Make sure to set a constant CPU frequency of 3200MHz:
+- ~sudo cpupower frequency-set -g powersave~
+- ~sudo cpupower frequency-set -d 1800MHz~
+- ~sudo cpupower frequency-set -u 1800MHz~
+- ~taskset -c 0,1,2,3,4,5 snakemake table/{params,tools}_N1e6.tsv~
+
 ** DONE Put timelimit in tables
 CLOSED: [2022-02-10 Thu 16:12]
 ** TODO Rerun once with 64GB of reserved memory, so only one at a time is run
@@ -252,6 +258,9 @@ Just an insert or delete is fine. A move (or insert + delete) is much worse thou
 ** TODO ONP n=100k reads, from block aligner paper
 ** TODO Filter our own long reads from the accession numbers at [TODO]
 
+* TODO Auto-parameter choosing based on e
+** TODO add ~-e~ parameter
+** TODO add rules to infer (m,k) from (n,e)
 
 * WFA merger / next version
 ** TODO Do not store parent pointers
