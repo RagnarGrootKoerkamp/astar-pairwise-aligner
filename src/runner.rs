@@ -63,6 +63,10 @@ pub struct Params {
     #[structopt(long)]
     kmax: Option<I>,
 
+    // Either k or e must be specified.
+    #[structopt(short = "e", long)]
+    error_rate: Option<f32>,
+
     #[structopt(long)]
     max_matches: Option<usize>,
 
@@ -85,19 +89,44 @@ pub struct Params {
     no_prune: bool,
 }
 
+impl Params {
+    // Returns a pair (m,k).
+    fn determine_mk(&self, _a: &Sequence, b: &Sequence) -> (MatchCost, I) {
+        if let Some(k) = self.k {
+            return (self.max_seed_cost, k);
+        }
+        let e = self
+            .error_rate
+            .expect("At least one of k and e must be specified!");
+
+        // Use inexact matches for error rates more than 7%.
+        let m = if e > 0.07 { 1 } else { 0 };
+
+        // We need at least log_4(m) for unique matches, and around 4 extra when matches are inexact.
+        let k_min = (b.len() as f32).log(4f32) + if m == 1 { 4. } else { 0. };
+        // Minimal k to handle the given error rate.
+        let k_max = (m + 1) as f32 / e;
+        // Choose the middle between the two bounds.
+        let k = (k_min + k_max) / 2.;
+        // We can only
+        (m, min(k.round() as I, 31))
+    }
+}
+
 pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
-    fn match_config(params: &Params) -> matches::MatchConfig {
+    fn match_config(params: &Params, a: &Sequence, b: &Sequence) -> matches::MatchConfig {
+        let (m, k) = params.determine_mk(a, b);
         MatchConfig {
             length: if let Some(max) = params.max_matches {
                 LengthConfig::Max(MaxMatches {
                     max_matches: max,
-                    k_min: params.kmin.unwrap_or(params.k.unwrap()),
-                    k_max: params.kmax.unwrap_or(params.k.unwrap()),
+                    k_min: params.kmin.unwrap_or(k),
+                    k_max: params.kmax.unwrap_or(k),
                 })
             } else {
-                Fixed(params.k.unwrap())
+                Fixed(k)
             },
-            max_match_cost: params.max_seed_cost,
+            max_match_cost: m,
             algorithm: params.match_algorithm,
         }
     }
@@ -147,7 +176,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 for<'a> C::DistanceInstance<'a>: HeuristicInstance<'a>,
             {
                 let heuristic = SeedHeuristic {
-                    match_config: match_config(params),
+                    match_config: match_config(params, a, b),
                     distance_function: C::default(),
                     pruning: !params.no_prune,
                 };
@@ -178,7 +207,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 params: &Params,
             ) -> AlignResult {
                 let heuristic = GapSeedHeuristic {
-                    match_config: match_config(params),
+                    match_config: match_config(params, a, b),
                     pruning: !params.no_prune,
                     c: PhantomData::<C>,
                 };
@@ -207,7 +236,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
         }
         Algorithm::Unordered => {
             let heuristic = UnorderedHeuristic {
-                match_config: match_config(params),
+                match_config: match_config(params, a, b),
                 pruning: !params.no_prune,
             };
 

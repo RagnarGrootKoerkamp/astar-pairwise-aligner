@@ -83,6 +83,7 @@ impl<C: Contour> Contours for HintContours<C> {
         // Loop over all arrows from a given positions.
         for (start, pos_arrows) in &arrows.into_iter().group_by(|a| a.start) {
             let mut v = 0;
+            // TODO: The this.value() could also be implemented using a fenwick tree, as done in LCSk++.
             for a in pos_arrows {
                 assert_eq!((a.end.0 - a.start.0) + (a.end.1 - a.start.1), 2 * max_len);
                 v = max(v, this.value(a.end) + a.len as Cost);
@@ -92,7 +93,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 this.contours
                     .resize_with(v as usize + 1, || C::with_max_len(max_len));
             }
-            ////println!("Push {} to layer {}", start, v);
+            //println!("Push {} to layer {}", start, v);
             this.contours[v as usize].push(start);
             while v > 0 && !this.contours[v as usize - 1].contains(start) {
                 v -= 1;
