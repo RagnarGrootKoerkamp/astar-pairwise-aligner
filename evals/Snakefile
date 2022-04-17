@@ -70,7 +70,7 @@ tool_command = {
 
 # Subset of tools to run
 tools = [
-    #'pa',
+    'pa',
     'pa_inf',
     'dijkstra',
     'pa_noprune',
@@ -310,20 +310,6 @@ rule params_table:
 def average_bench_time(f):
     return statistics.mean(map(lambda line: float(line.split('\t')[0]), Path(f).read_text().splitlines()[1:]))
 
-# Find the run with the smallest average benchmark time and copy those files.
-rule find_best_runs:
-    input: lambda w: [run.bench_path_with_params() for run in params_runs_for_input(Input(**w))]
-    output: Run.pattern('pa')
-    run:
-        # Loop over input bench files, find the one with the best average runtime, and copy it.
-        (_, run) = min(map(lambda run: (average_bench_time(run.bench_path_with_params()), run), params_runs_for_input(Input(**wildcards))), key=lambda p: p[0], default=(None, None))
-        if run is None:
-            assert False
-            Path(output[0]).touch()
-        else:
-            shutil.copy(run.bench_path_with_params(), run.bench_path())
-            shutil.copy(run.status_path_with_params(), run.status_path())
-
 ## RUN OTHER TOOLS
 
 rule run_tool:
@@ -331,7 +317,20 @@ rule run_tool:
     benchmark: repeat(Run.pattern(), REPEATS)
     params: status_path = lambda w: Run(input=Input(**w), **w).status_path()
     run:
-        shell(timeout(tool_command[wildcards.tool]))
+        if wildcards.tool != 'pa':
+            # If tool if not PA, just run it
+            shell(timeout(tool_command[wildcards.tool]))
+        else:
+            # For PA, find the best run over parameters.
+            # NOTE: This needs the params table to be already generated.
+            # Loop over input bench files, find the one with the best average runtime, and copy it.
+            # TODO: Fix this
+            (_, run) = min(map(lambda run: [1e9] if not run.bench_path_with_params().is_file() else (average_bench_time(run.bench_path_with_params()), run), params_runs_for_input(Input(**wildcards))), key=lambda p: p[0], default=(None, None))
+            if run is None:
+                Path(output[0]).touch()
+            else:
+                shutil.copy(run.bench_path_with_params(), run.bench_path())
+                shutil.copy(run.status_path_with_params(), run.status_path())
 
 # Collect all .bench files into a single tsv.
 rule tools_table:
