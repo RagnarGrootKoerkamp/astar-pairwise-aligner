@@ -39,7 +39,7 @@ kms = [(7,0), (8,0), (9,0), (10, 0), (11, 0), (12, 0), (13,0), (14,0), (15,0), (
 ## TOOLS
 
 ## RUN SETTINGS
-TIMEOUT = "600s"
+TIMEOUT = "1000s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -52,28 +52,27 @@ binaries = {
 }
 tool_command = {
     # Version with manual parameter choosing.
-    'pa': binaries["pa"] + ' -i {input} -o {params.stats_path} -k {wildcards.k} -m {wildcards.m} --silent2',
-
+    'pa_manual':binaries["pa"]      + ' -i {input} -o {params.stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
     # infers k and m values.
-    'pa_inf': binaries["pa"]+' -i {input} --error-rate {wildcards.e} --silent2 ',
-
+    'pa':       binaries["pa"]      + ' -i {input} --silent2 --error-rate {wildcards.e}',
     # slower PA variants
-    'dijkstra': binaries["pa"]+' -i {input} -a Dijkstra --silent2',
-    'pa_noprune': binaries["pa"]+' -i {input} --error-rate {wildcards.e} --silent2 --no-prune',
-
+    'dijkstra': binaries["pa"]      + ' -i {input} --silent2 -a Dijkstra',
+    'pa_noprune': binaries["pa"]    + ' -i {input} --silent2 --error-rate {wildcards.e} --no-prune',
     # Others
-    'edlib': binaries["edlib"]+' {input} -p -s',
-    'wfa': binaries["wfa"]+' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
-    'wfa2': binaries["wfa2"]+' -i {input} -a edit-wfa',
-    'biwfa': binaries["biwfa"]+' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
+    'edlib':    binaries["edlib"]   + ' {input} -p -s',
+    'wfa':      binaries["wfa"]     + ' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
+    'wfa2':     binaries["wfa2"]    + ' -i {input} -a edit-wfa',
+    'biwfa':    binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
 }
 
 # Subset of tools to run
 tools = [
-    'pa_inf',
+    'pa',
     'dijkstra',
     'pa_noprune',
     'edlib',
+    #'wfa',  # Replaced by wfa2
+    #'wfa2', # Replaced by biwfa
     'biwfa',
 ]
 
@@ -132,15 +131,21 @@ class Input:
     def path(self):
         return Path(f'input/synthetic/{self.name()}.seq')
 
+def input_filter(input):
+    # Skip >1M at 20%, since all tools will time out anyway.
+    if input.n > 1_000_000 and input.e > 0.15: return False
+    return True
+
 def inputs(N):
     N = int(float(N))
-    return [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    return list(filter(input_filter, (Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0)))
+
 
 class Run:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
     def pattern_with_params():
-        tool = 'pa'
+        tool = 'pa_manual'
         return f'runs/{Input.name_pattern()}-A{tool}-m{{m}}-k{{k}}.bench'
     def pattern(tool=None):
         if tool:
@@ -160,11 +165,12 @@ class Run:
         return self.bench_path().with_suffix('.status')
 
 # Returns false for parameters that should be skipped.
-def run_filter(run):
-    if run.tool != 'pa': return True
+def params_filter(run):
+    if run.tool != 'pa_manual': return True
+
     # If the error rate is larger than the max rate this (k,m) can handle, skip.
     # e is made a bit lower, since an induced error rate of 20% only gives ~15% edit distance.
-    max_error_rate = (run.m+1) / (run.k-1) # -1 to slightly shift the boundary
+    max_error_rate = (run.m+1) / (run.k-1) # -1 to allow slightly too large k.
     if run.input.e * 0.85 > max_error_rate:
         return False
 
@@ -173,21 +179,21 @@ def run_filter(run):
         return False
 
     # If we expect multiple matches per seed, skip since we should increase k instead.
-    if run.m == 0 and run.input.n / 4.**(run.k+1) > 2*(run.k+1): # +1 to slightly shift the boundary
+    if run.m == 0 and run.input.n / 4.**(run.k+1) > 2*(run.k+1): # +1 to allow slightly too small k.
         return False
     # The number of distance-1 matches per seed is roughly 8*k.
-    if run.m == 1 and 8*(run.k+1)* run.input.n / 4.**(run.k+1) > 2*(run.k+1): # +1 to slightly shift the boundary
+    if run.m == 1 and 8*(run.k+1)* run.input.n / 4.**(run.k+1) > 2*(run.k+1): # +1 allow slightly too small k.
         return False
 
     return True
 
 def params_runs(N):
-    return list(filter(run_filter, (Run(input=input, tool='pa', m=m, k=k)
+    return list(filter(params_filter, (Run(input=input, tool='pa_manual', m=m, k=k)
                         for input in inputs(N)
                         for (k, m) in kms)))
 
 def params_runs_for_input(input):
-    return list(filter(run_filter, (Run(input=input, tool='pa', m=m, k=k)
+    return list(filter(params_filter, (Run(input=input, tool='pa_manual', m=m, k=k)
                         for (k, m) in kms)))
 
 def tool_runs(N):
@@ -274,9 +280,9 @@ rule run_pairwise_aligner:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
     params:
-        stats_path = lambda w: Run(input=Input(**w), **w, tool='pa').stats_path_with_params(),
-        status_path = lambda w: Run(input=Input(**w), **w, tool='pa').status_path_with_params()
-    shell: timeout(tool_command['pa'])
+        stats_path = lambda w: Run(input=Input(**w), **w, tool='pa_manual').stats_path_with_params(),
+        status_path = lambda w: Run(input=Input(**w), **w, tool='pa_manual').status_path_with_params()
+    shell: timeout(tool_command['pa_manual'])
 
 # Concatenate the PA output to the Snakemake bench file.
 def params_table(runs, output):
