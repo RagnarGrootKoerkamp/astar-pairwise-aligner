@@ -245,21 +245,31 @@ NOTE: Make sure to set a constant CPU frequency of 3200MHz:
 
 ** DONE Put timelimit in tables
 CLOSED: [2022-02-10 Thu 16:12]
-** TODO Rerun once with 64GB of reserved memory, so only one at a time is run
+** DONE Rerun once with 64GB of reserved memory, so only one at a time is run
+CLOSED: [2022-04-18 Mon 10:26]
 - Add --mem parameter to the command line.
+- Not needed anymore, now that BiWFA doesn't go OOM anymore.
 ** DONE Rename 100000 to 1e6 everywhere (or 1M?)
 CLOSED: [2022-02-10 Thu 16:12]
 Done, but only for the table/tools_N1e5 'input' variable.
 ** DONE Big indels
 CLOSED: [2022-02-10 Thu 16:12]
 Just an insert or delete is fine. A move (or insert + delete) is much worse though.
-** TODO PacBio n=100 reads
-** TODO ONP n=400 reads
-** TODO ONP n=100k reads, from block aligner paper
-** TODO Filter our own long reads from the accession numbers at [TODO]
+
+** DATA
+*** TODO PacBio n=100 reads
+*** TODO ONP n=400 reads
+*** TODO ONP n=100k reads, from block aligner paper
+*** TODO Filter our own long reads from the accession numbers at [TODO]
+
+** Figures
+- [-] Main text: n vs time for different tools (best/inferred k)
+- [ ] Supplement: e vs time for different tools (fixed n, best k)
+- [ ] Supplement: k vs time for different n
 
 * TODO Auto-parameter choosing based on e
-** TODO add ~-e~ parameter
+** DONE add ~-e~ parameter
+CLOSED: [2022-04-18 Mon 10:26]
 ** TODO add rules to infer (m,k) from (n,e)
 
 * WFA merger / next version
