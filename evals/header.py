@@ -12,77 +12,16 @@ pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
-time_limit = 3600  # sec
-memory_limit = 20000  # MB
-
-def read_benchmarks_aggregation(benchmarks_file):
-    df = pd.read_csv(benchmarks_file, sep='\t', index_col=False)
-    df = df.replace(['astarix-seeds-illumina'],'astarix-seeds')
-    df = df.replace(['astarix-prefix-illumina'],'astarix-prefix')
-    df['algo'] = pd.Categorical(df['algo'], ["astarix-seeds-illumina", "astarix-seeds", "astarix-prefix-illumina", "astarix-prefix", "dijkstra", "graphaligner", "vargas", "pasgal"])
-    #df['c'] = df['algo'].apply(algo2color)
-    #df['marker'] = df['m'].apply(readlen2marker)
-    df['head_Mbp'] = df['head'] / 10**6
-    tech = df['sequencing_technology'].iloc[0]
-    if 'hifi-natural' == tech:
-        head = df['head'].iloc[0] if df['head'].iloc[0] != 100000000 else 5e6 if df['graph'].iloc[0] == 'MHC1' else 1e6 
-        coverage = df['N'] * 5e6 / head
-        df['bps'] = coverage * head / df['s']
-    elif 'illumina' == tech:
-        df['bps'] = df['N'] * df['m'] / df['s']
-    elif 'hifi' == tech:
-        coverage = df['N']
-        df['bps'] = coverage * df['head'] / df['s']
-    else:
-        assert(false)
-        
-    df['spkb'] = 1e3 / df['bps']
-    df['kbps'] = df['bps'] * 1e-3
-    df['GB'] = df['max_rss'] * 1e-3
-    
-    df = df.sort_values(by='algo').reset_index(drop=True)
-    return df
-
-def remove_tle_mle(df):
-    df = df.loc[df.s <= time_limit]
-    df = df.loc[df.max_rss <= memory_limit]
-    return df
-
-def num_lower(serie):
-    return serie.apply(lambda s: sum(1 for c in s if c.islower()))
-
 def read_benchmarks(tsv_fn, algo=None):
     df = pd.read_csv(tsv_fn, sep='\t', index_col=False)
     df['s_per_pair'] = df['s'] / df['cnt']
+    df['s_per_bp'] = df['s'] / (df['cnt'] * df['n'])
     
     if 'align' in df:
         df['align_frac'] = df['align'] / (df['precom'] + df['align'])
         df['prune_frac'] = df['prune'] / df['align']
         df['h_approx_frac'] = df['h0'] / df['ed']
         df['expanded_frac'] = df['expanded'] / df['explored']
-    #df = df.groupby(["alg", "cnt", "e"]).median()
-
-    #df['pushed+popped'] = df['pushed'] + df['popped']
-    #df['explored_per_bp'] = df['explored_states'] / df['len']
-    #df['t(map)_per_bp'] = df['t(map)'] / df['len']
-    #if 'crumbs' in df:
-    #    df['crumbs_per_bp'] = df['crumbs'] / df['len']
-    #df['error_rate'] = df['cost'] / df['len']
-    #df['generated_errors'] = df['readname'].apply(lambda rn: int(rn.split()[0]) if rn.split()[0].isdigit() else -1)  # TODO: uncomment
-    #df['explored_states'] = df['pushed'] * df['len']
-    #df['algo'] = df['algo'].replace(['astar-prefix'], 'astarix')
-    
-    #if algo:
-    #    df['algo'] = algo
-    #else:
-    #    df['algo'] = pd.Categorical(df['algo'], ["astarix-seeds", "astar-seeds", "astarix-seeds-illumina", "graphaligner", "dijkstra", "astar-prefix", "pasgal"], ordered=True)
-    
-    #df['algo'] = df['algo'].cat.remove_unused_categories()
-    #df['performance'] = df['len'] / df['t(map)'] / 1000000  # [MBp/sec]
-    #if 'spell' in df:  # TODO: uncomment
-    #    df['dist'] = num_lower(df['spell'])
-    #return df.set_index('readname', verify_integrity=True)
-    #return df.set_index('readname', verify_integrity=False)
     return df
 
 #green palette: #e1dd72, #a8c66c, #1b6535
