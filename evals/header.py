@@ -105,16 +105,18 @@ def algo2color(algo):
         'pa': 'black',  # (k,m) cherry-picking
         
         'edlib': '#DE4AFF',
+        'wfa': '#625AFF',
         'biwfa': '#625AFF',
-        'astarix-prefix': '#FF6D29',
-        'astar-prefix': '#FF6D29',
-        'astarix-prefix-illumina': '#FF6D29',
-        'astarix-seeds': '#EB2D12',
-        'astar-seeds': '#EB2D12',
-        'astarix-seeds-illumina': '#EB2D12',
-        'graphaligner': '#8C8CFF',
-        'pasgal': '#AC68FF',
-        'vargas': '#F387FF',
+        
+        #'astarix-prefix': '#FF6D29',
+        #'astar-prefix': '#FF6D29',
+        #'astarix-prefix-illumina': '#FF6D29',
+        #'astarix-seeds': '#EB2D12',
+        #'astar-seeds': '#EB2D12',
+        #'astarix-seeds-illumina': '#EB2D12',
+        #'graphaligner': '#8C8CFF',
+        #'pasgal': '#AC68FF',
+        #'vargas': '#F387FF',
         }
     if algo in d:
         return d[algo]
@@ -134,7 +136,22 @@ def algo2beautiful(algo):
         }
     if algo in d:
         return d[algo]
-    return str(algo)
+    
+def algo2marker(algo):
+    d = {
+        'dijkstra': '*',
+        'pa_noprune': 's',
+        'pa_inf': 'o',
+        'pa': '.',
+        
+        'edlib': '^',
+        'wfa': 'D',
+        'biwfa': 'D',
+        }
+    if algo in d:
+        return d[algo]
+    assert False, algo
+    #return str(algo)  
     
 def col2name(col):
     d = {
