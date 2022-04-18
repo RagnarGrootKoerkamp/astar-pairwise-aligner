@@ -64,7 +64,7 @@ pub struct Params {
     kmax: Option<I>,
 
     // Either k or e must be specified.
-    #[structopt(short = "e", long)]
+    #[structopt(long)]
     error_rate: Option<f32>,
 
     #[structopt(long)]
@@ -116,14 +116,15 @@ impl Params {
             0
         };
 
-        // We need at least log_4(m) for unique matches, and a bit extra when matches are inexact.
+        // We need at least log_4(n) for unique matches, and a bit extra when matches are inexact.
         let k_min = (n as f32).log(4f32) + if m == 1 { 1.5 } else { 0. };
         // Maximal k that can handle the given error rate.
         let k_max = (m + 1) as f32 / e;
         // Choose the middle between the two bounds, leaning toward the lower bound.
         // Usually, you only need to exceed the lowerbound a bit for
         // good performance, while you want to be as low (far away from the upperbound) as possible.
-        let k = (k_min * 2. + k_max * 1.) / 3.;
+        let k = k_min + 1. / 3. * (k_max - k_min);
+        //println!("kmin {k_min}, kmax {k_max}, k{k}");
         // k can be at most 31.
         (m, min(k.round() as I, 31))
     }
