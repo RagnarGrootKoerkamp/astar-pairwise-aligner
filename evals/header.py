@@ -99,6 +99,7 @@ def col2name(col):
         's':       'Runtime [s]',
         'n':       'Sequence length [bp]',
         's_per_pair': 'Time per alignment [s]',
+        's_per_bp': 'Time [s/bp]',
         'N':       'Reads',
         'm':       'Read length [bp]',
         'max_rss': 'Memory',
