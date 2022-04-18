@@ -45,7 +45,7 @@ REPEATS = 1
 ## TOOL DEFINITIONS
 binaries = {
     'pa' : '../target/release/pairwise-aligner',
-    'edlib' : '../../edlib/build/bin/edlib-aligner',
+    'edlib' : '../../edlib/meson-build/edlib-aligner',
     'wfa'   : '../../wfa/bin/align_benchmark',
     'wfa2'   : '../../wfa2/bin/align_benchmark',
     'biwfa'   : '../../biwfa/bin/align_benchmark',
@@ -68,10 +68,10 @@ tool_command = {
 # Subset of tools to run
 tools = [
     'pa',
-    #'edlib',
-    #'wfa',  # Replaced by wfa2
-    #'wfa2', # Replaced by biwfa
-    #'biwfa',
+    'edlib',
+    ##'wfa',  # Replaced by wfa2
+    ##'wfa2', # Replaced by biwfa
+    'biwfa',
 ]
 
 # Subset of tools to run for the slow table
