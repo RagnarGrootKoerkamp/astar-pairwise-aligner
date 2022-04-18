@@ -99,8 +99,8 @@ def read_benchmarks(tsv_fn, algo=None):
 def algo2color(algo):
     palette = sns.color_palette("tab10", 10)
     d = {
-        'dijkstra': '#E8841A',
-        'pa_noprune': '#FF6D29',
+        'dijkstra': '#FF913D', #'#E8841A',
+        'pa_noprune': '#FF6047',
         'pa_inf': '#EB2D12',
         'pa': 'black',  # (k,m) cherry-picking
         
@@ -139,7 +139,7 @@ def algo2beautiful(algo):
     
 def algo2marker(algo):
     d = {
-        'dijkstra': '*',
+        'dijkstra': 'P',
         'pa_noprune': 's',
         'pa_inf': 'o',
         'pa': '.',
