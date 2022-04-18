@@ -70,8 +70,6 @@ tool_command = {
 
 # Subset of tools to run
 tools = [
-    # BROKEN; just take min of param runs in python instead.
-    #'pa', # Extracts best value from multiple runs.
     'pa_inf',
     'dijkstra',
     'pa_noprune',
@@ -280,6 +278,7 @@ rule run_pairwise_aligner:
         status_path = lambda w: Run(input=Input(**w), **w, tool='pa').status_path_with_params()
     shell: timeout(tool_command['pa'])
 
+# Concatenate the PA output to the Snakemake bench file.
 def params_table(runs, output):
     headers = ["alg","cnt","n","e", "m", "k", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
     table_file = Path(output[0]).open('w')
@@ -308,30 +307,13 @@ rule params_table:
     output: 'table/params_N{N}.tsv'
     run: params_table(params_runs(**wildcards), output)
 
-def average_bench_time(f):
-    return statistics.mean(map(lambda line: float(line.split('\t')[0]), Path(f).read_text().splitlines()[1:]))
-
 ## RUN OTHER TOOLS
 
 rule run_tool:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern(), REPEATS)
     params: status_path = lambda w: Run(input=Input(**w), **w).status_path()
-    run:
-        if wildcards.tool != 'pa':
-            # If tool if not PA, just run it
-            shell(timeout(tool_command[wildcards.tool]))
-        else:
-            # For PA, find the best run over parameters.
-            # NOTE: This needs the params table to be already generated.
-            # Loop over input bench files, find the one with the best average runtime, and copy it.
-            # TODO: Fix this
-            (_, run) = min(map(lambda run: (1e9, None) if not run.bench_path_with_params().is_file() else (average_bench_time(run.bench_path_with_params()), run), params_runs_for_input(Input(**wildcards))), key=lambda p: p[0], default=(None, None))
-            if run is None:
-                Path(output[0]).touch()
-            else:
-                shutil.copy(run.bench_path_with_params(), run.bench_path())
-                shutil.copy(run.status_path_with_params(), run.status_path())
+    run: shell(timeout(tool_command[wildcards.tool]))
 
 # Collect all .bench files into a single tsv.
 rule tools_table:
