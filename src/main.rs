@@ -131,6 +131,9 @@ fn main() {
     }
 
     if avg_result.sample_size > 0 {
+        print!("\r");
+        avg_result.print();
+
         if let Some(output) = args.output {
             let (header, vals) = avg_result.values();
 

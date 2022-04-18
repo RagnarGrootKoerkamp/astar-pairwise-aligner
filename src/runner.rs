@@ -98,17 +98,33 @@ impl Params {
         let e = self
             .error_rate
             .expect("At least one of k and e must be specified!");
+        let n = b.len();
 
-        // Use inexact matches for error rates more than 7%.
-        let m = if e > 0.07 { 1 } else { 0 };
+        // True error rate:
+        //  1% => 0.90%
+        //  5% => 4.4%
+        // 10% => 8.5%
+        // 20% => 15.7%
+        // Approximation:
+        // 10% of mutations doesn't do anything, and e/2 of mutations cancels.
+        let _e_real = 0.9 * e * (1. - e / 2.);
 
-        // We need at least log_4(m) for unique matches, and around 4 extra when matches are inexact.
-        let k_min = (b.len() as f32).log(4f32) + if m == 1 { 4. } else { 0. };
-        // Minimal k to handle the given error rate.
+        // Use inexact matches for error rates more than 15%, and more than 7% when n is large.
+        let m = if e > 0.15 || (e > 0.07 && n > 500_000) {
+            1
+        } else {
+            0
+        };
+
+        // We need at least log_4(m) for unique matches, and a bit extra when matches are inexact.
+        let k_min = (n as f32).log(4f32) + if m == 1 { 1.5 } else { 0. };
+        // Maximal k that can handle the given error rate.
         let k_max = (m + 1) as f32 / e;
-        // Choose the middle between the two bounds.
-        let k = (k_min + k_max) / 2.;
-        // We can only
+        // Choose the middle between the two bounds, leaning toward the lower bound.
+        // Usually, you only need to exceed the lowerbound a bit for
+        // good performance, while you want to be as low (far away from the upperbound) as possible.
+        let k = (k_min * 2. + k_max * 1.) / 3.;
+        // k can be at most 31.
         (m, min(k.round() as I, 31))
     }
 }
