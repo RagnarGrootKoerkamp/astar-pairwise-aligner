@@ -101,8 +101,8 @@ def algo2color(algo):
     d = {
         'dijkstra': '#FF913D', #'#E8841A',
         'pa_noprune': '#FF6047',
-        'pa_inf': '#EB2D12',
-        'pa': 'black',  # (k,m) cherry-picking
+        'pa': '#EB2D12',
+        'pa_manual': 'black',  # (k,m) cherry-picking
         
         'edlib': '#DE4AFF',
         'wfa': '#625AFF',
@@ -127,8 +127,8 @@ def algo2beautiful(algo):
     d = {
         'dijkstra': 'Dijkstra',
         'pa_noprune': 'OSH-noprune',
-        'pa_inf': 'OSH',
-        'pa': 'OSH-cherrypick',
+        'pa': 'OSH',
+        'pa_manual': 'OSH-cherrypick',
         
         'edlib': 'Edlib',
         'wfa': 'WFA',
@@ -141,8 +141,8 @@ def algo2marker(algo):
     d = {
         'dijkstra': 'P',
         'pa_noprune': 's',
-        'pa_inf': 'o',
-        'pa': '.',
+        'pa': 'o',
+        'pa_manual': '.',
         
         'edlib': '^',
         'wfa': 'D',
