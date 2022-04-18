@@ -241,7 +241,9 @@ NOTE: Make sure to set a constant CPU frequency of 3200MHz:
 - ~sudo cpupower frequency-set -g powersave~
 - ~sudo cpupower frequency-set -d 1800MHz~
 - ~sudo cpupower frequency-set -u 1800MHz~
-- ~taskset -c 0,1,2,3,4,5 snakemake table/{params,tools}_N1e6.tsv~
+- ~taskset -c 0,2,4 snakemake table/{params,tools}_N1e6.tsv -j3~
+- Note: the lower half of IDs are good; 0 and n/2 will collide  with hyperthreading.
+- Understand dijkstra slowness
 
 ** DONE Put timelimit in tables
 CLOSED: [2022-02-10 Thu 16:12]
