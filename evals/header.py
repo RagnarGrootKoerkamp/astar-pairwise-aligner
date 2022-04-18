@@ -99,10 +99,10 @@ def read_benchmarks(tsv_fn, algo=None):
 def algo2color(algo):
     palette = sns.color_palette("tab10", 10)
     d = {
-        'pa': '#FF6D29',
+        'pa': '#EB2D12', #'#FF6D29',
         'dijkstra': '#DE4AFF',
         'edlib': '#4DC8FF',
-        'wfa': '#625AFF',
+        'biwfa': '#625AFF',
         
         6: '#000000',
         7: '#440000',
@@ -133,9 +133,13 @@ def algo2color(algo):
 
 def algo2beautiful(algo):
     d = {
-        'pa': 'A* PA',
+        'dijkstra': 'Dijkstra',
+        'pa_noprune': 'OSH',
+        'pa': 'OSH + pruning',
+        'pa_inf': 'PA (inferred params)',
         'edlib': 'Edlib',
         'wfa': 'WFA',
+        'biwfa': 'BiWFA',
         }
     if algo in d:
         return d[algo]
