@@ -99,24 +99,13 @@ def read_benchmarks(tsv_fn, algo=None):
 def algo2color(algo):
     palette = sns.color_palette("tab10", 10)
     d = {
-        'pa': '#EB2D12', #'#FF6D29',
-        'dijkstra': '#DE4AFF',
-        'edlib': '#4DC8FF',
+        'dijkstra': '#E8841A',
+        'pa_noprune': '#FF6D29',
+        'pa_inf': '#EB2D12',
+        'pa': 'black',  # (k,m) cherry-picking
+        
+        'edlib': '#DE4AFF',
         'biwfa': '#625AFF',
-        
-        6: '#000000',
-        7: '#440000',
-        8: '#8800',
-        9: '#BB0000',
-        10: '#FF0000',
-        11: '#FF4400',
-        12: '#FF8800',
-        14: '#FFBB00',
-        15: '#FFFF00',
-        20: '#FFFF44',
-        32: '#FFFF88',
-        
-        
         'astarix-prefix': '#FF6D29',
         'astar-prefix': '#FF6D29',
         'astarix-prefix-illumina': '#FF6D29',
@@ -129,14 +118,16 @@ def algo2color(algo):
         }
     if algo in d:
         return d[algo]
+    assert False, algo
     return '#FF6D29'
 
 def algo2beautiful(algo):
     d = {
         'dijkstra': 'Dijkstra',
-        'pa_noprune': 'OSH',
-        'pa': 'OSH + pruning',
-        'pa_inf': 'PA (inferred params)',
+        'pa_noprune': 'OSH-noprune',
+        'pa_inf': 'OSH',
+        'pa': 'OSH-cherrypick',
+        
         'edlib': 'Edlib',
         'wfa': 'WFA',
         'biwfa': 'BiWFA',
