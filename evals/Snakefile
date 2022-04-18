@@ -70,7 +70,8 @@ tool_command = {
 
 # Subset of tools to run
 tools = [
-    'pa',
+    # BROKEN; just take min of param runs in python instead.
+    #'pa', # Extracts best value from multiple runs.
     'pa_inf',
     'dijkstra',
     'pa_noprune',
@@ -325,7 +326,7 @@ rule run_tool:
             # NOTE: This needs the params table to be already generated.
             # Loop over input bench files, find the one with the best average runtime, and copy it.
             # TODO: Fix this
-            (_, run) = min(map(lambda run: [1e9] if not run.bench_path_with_params().is_file() else (average_bench_time(run.bench_path_with_params()), run), params_runs_for_input(Input(**wildcards))), key=lambda p: p[0], default=(None, None))
+            (_, run) = min(map(lambda run: (1e9, None) if not run.bench_path_with_params().is_file() else (average_bench_time(run.bench_path_with_params()), run), params_runs_for_input(Input(**wildcards))), key=lambda p: p[0], default=(None, None))
             if run is None:
                 Path(output[0]).touch()
             else:
