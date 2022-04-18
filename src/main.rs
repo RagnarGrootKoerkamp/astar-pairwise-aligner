@@ -6,7 +6,11 @@ use pairwise_aligner::{
     prelude::*,
 };
 use rand::thread_rng;
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::PathBuf,
+};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -60,6 +64,30 @@ fn main() {
 
     // Read the input
     let mut avg_result = AlignResult::default();
+    let mut run_pair = |mut a: Sequence, mut b: Sequence| {
+        // Shrink if needed.
+        let n = args.input.generate_options.length;
+        if n != 0 {
+            if a.len() > n {
+                a.resize(n, Default::default());
+            }
+            if b.len() > n {
+                b.resize(n, Default::default());
+            }
+        }
+        // Run the pair.
+        let r = run(&a, &b, &args.params);
+
+        // Record and print stats.
+        avg_result.add_sample(&r);
+        if !args.silent2 {
+            print!("\r");
+            if !args.silent {
+                r.print();
+            }
+            avg_result.print_no_newline();
+        }
+    };
     if let Some(input) = &args.input.input {
         let files = if input.is_file() {
             vec![input.clone()]
@@ -71,96 +99,35 @@ fn main() {
                 .collect_vec()
         };
 
-        // True: all-vs-all comparison.
-        // False: only consecutive pairs.
-        let all_vs_all = false;
-        let mut sequences = Vec::<Sequence>::default();
-
         for f in files {
             match f.extension().expect("Unknown file extension") {
-                ext if ext == "seq" => {
-                    let data = std::fs::read(&f).unwrap();
-                    for (a, b) in data.split(|c| *c == '\n' as u8).tuples().map(|(a, b)| {
-                        assert_eq!(a[0], '>' as u8);
-                        assert_eq!(b[0], '<' as u8);
-                        (a[1..].to_vec(), b[1..].to_vec())
-                    }) {
-                        sequences.push(a);
-                        sequences.push(b);
+                ext if ext == "seq" || ext == "txt" => {
+                    let f = std::fs::File::open(&f).unwrap();
+                    let f = BufReader::new(f);
+                    for (mut a, mut b) in f.lines().map(|l| l.unwrap().into_bytes()).tuples() {
+                        if ext == "seq" {
+                            assert_eq!(a.remove(0), '>' as u8);
+                            assert_eq!(b.remove(0), '<' as u8);
+                        }
+                        run_pair(a, b);
                     }
                 }
                 ext if ext == "fna" || ext == "fa" => {
-                    for record in
-                        fasta::Reader::new(BufReader::new(File::open(&f).unwrap())).records()
+                    for (a, b) in fasta::Reader::new(BufReader::new(File::open(&f).unwrap()))
+                        .records()
+                        .tuples()
                     {
-                        sequences.push(record.unwrap().seq().to_vec());
-                    }
-                }
-                ext if ext == "txt" => {
-                    let data = std::fs::read(&f).unwrap();
-                    for (a, b) in data.split(|c| *c == '\n' as u8).tuples() {
-                        sequences.push(a.to_vec());
-                        sequences.push(b.to_vec());
+                        run_pair(a.unwrap().seq().to_vec(), b.unwrap().seq().to_vec());
                     }
                 }
                 _ => unreachable!("Unknown file extension"),
             };
-
-            for a in &mut sequences {
-                let n = args.input.generate_options.length;
-                if n != 0 {
-                    if a.len() > n {
-                        a.resize(n, Default::default());
-                    }
-                }
-            }
-
-            if all_vs_all {
-                for ab in sequences.iter().combinations(2) {
-                    if let [a, b, ..] = ab[..] {
-                        let r = run(&a, &b, &args.params);
-                        avg_result.add_sample(&r);
-                        if !args.silent2 {
-                            print!("\r");
-                            if !args.silent {
-                                r.print();
-                            }
-                            avg_result.print_no_newline();
-                        }
-                    } else {
-                        unreachable!("Bad combinations");
-                    }
-                }
-            } else {
-                // Consecutive pairs
-                for (a, b) in sequences.iter().tuples() {
-                    let r = run(&a, &b, &args.params);
-                    avg_result.add_sample(&r);
-                    if !args.silent2 {
-                        print!("\r");
-                        if !args.silent {
-                            r.print();
-                        }
-                        avg_result.print_no_newline();
-                    }
-                }
-            }
-            if avg_result.sample_size > 0 {
-                if !args.silent2 {
-                    print!("\r");
-                }
-                avg_result.print();
-            }
         }
     } else {
         // Generate random input.
         // TODO: Propagate stats.
         let (a, b) = generate_pair(&args.input.generate_options, &mut thread_rng());
-        let r = run(&a, &b, &args.params);
-        avg_result.add_sample(&r);
-        if !args.silent2 {
-            r.print();
-        }
+        run_pair(a, b);
     }
 
     if avg_result.sample_size > 0 {
