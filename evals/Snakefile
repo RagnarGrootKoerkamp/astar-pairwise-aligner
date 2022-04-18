@@ -68,12 +68,16 @@ tool_command = {
 # Subset of tools to run
 tools = [
     'pa',
-    'dijkstra',
-    'pa_noprune',
-    'edlib',
+    #'edlib',
     #'wfa',  # Replaced by wfa2
     #'wfa2', # Replaced by biwfa
-    'biwfa',
+    #'biwfa',
+]
+
+# Subset of tools to run for the slow table
+tools_slow = [
+    'dijkstra',
+    'pa_noprune',
 ]
 
 # Generate testcases
@@ -196,7 +200,7 @@ def params_runs_for_input(input):
     return list(filter(params_filter, (Run(input=input, tool='pa_manual', m=m, k=k)
                         for (k, m) in kms)))
 
-def tool_runs(N):
+def tool_runs(tools, N):
     return [Run(input=input, tool=tool)
                 for input in inputs(N)
                 for tool in tools]
@@ -255,19 +259,27 @@ rule run_tool:
     params: status_path = lambda w: Run(input=Input(**w), **w).status_path()
     run: shell(timeout(tool_command[wildcards.tool]))
 
-# Collect all .bench files into a single tsv.
+# Collect all bench files and turn them into a single .tsv.
+def make_table(tools, wildcards, output):
+    headers = ["alg","cnt","n","e","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
+    table_file = Path(output[0]).open('w')
+    table_file.write("\t".join(headers) + '\n')
+    for run in tool_runs(tools, **wildcards):
+        lines = run.bench_path().read_text().splitlines()
+        status = run.status_path().read_text().strip()
+        for bench_line in lines[1:]:
+            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}\n')
+
+# We use two separate rules so we can run faster tools on a larger dataset
+# without slowing down the evals of slower tools.
 rule tools_table:
-    input: lambda w: [run.bench_path() for run in tool_runs(**w)]
+    input: lambda w: [run.bench_path() for run in tool_runs(tools, **w)]
     output: 'table/tools_N{N}.tsv'
-    run:
-        headers = ["alg","cnt","n","e","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
-        table_file = Path(output[0]).open('w')
-        table_file.write("\t".join(headers) + '\n')
-        for run in tool_runs(**wildcards):
-            lines = run.bench_path().read_text().splitlines()
-            status = run.status_path().read_text().strip()
-            for bench_line in lines[1:]:
-                table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}\n')
+    run: make_table(tools, wildcards, output)
+rule tools_slow_table:
+    input: lambda w: [run.bench_path() for run in tool_runs(tools_slow, **w)]
+    output: 'table/tools_slow_N{N}.tsv'
+    run: make_table(tools_slow, wildcards, output)
 
 # Visualizations
 
@@ -275,7 +287,12 @@ rule astar_visualization:
     input:
     shell: "cargo run --release --example states"
 
-### BELOW HERE IS unused AND untested REAL DATA ###
+
+
+
+
+
+# ================ BELOW HERE IS unused AND untested REAL DATA =================== #
 
 # Nanopore / Illumina data is here: https://github.com/Daniel-Liu-c0deb0t/block-aligner/releases
 
