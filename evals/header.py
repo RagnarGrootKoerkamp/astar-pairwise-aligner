@@ -97,7 +97,7 @@ def col2name(col):
         'head':    'Reference size [bp]',
         'head_Mbp':'Reference size [Mbp]',
         's':       'Runtime [s]',
-        'n':       'Sequence length [bp]',
+        'n':       'Sequence length n [bp]',
         's_per_pair': 'Time per alignment [s]',
         's_per_bp': 'Time [s/bp]',
         'N':       'Reads',
