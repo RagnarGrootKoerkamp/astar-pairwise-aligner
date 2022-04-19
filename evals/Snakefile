@@ -52,17 +52,20 @@ binaries = {
 }
 tool_command = {
     # Version with manual parameter choosing.
-    'pa_manual':binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
+    'pa_manual':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
     # infers k and m values.
-    'pa':       binaries["pa"]      + ' -i {input} --silent2 --error-rate {wildcards.e}',
+    'pa':                   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e}',
     # slower PA variants
-    'dijkstra': binaries["pa"]      + ' -i {input} --silent2 -a Dijkstra',
-    'pa_noprune': binaries["pa"]    + ' -i {input} --silent2 --error-rate {wildcards.e} --no-prune',
+    'dijkstra':             binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -a Dijkstra',
+    'dijkstra_nogreedy':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -a Dijkstra --no-greedy-matching',
+    'pa_noprune':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e} --no-prune',
+    'pa_noprune_nogreedy':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e} --no-prune --no-greedy-matching',
     # Others
-    'edlib':    binaries["edlib"]   + ' {input} -p -s',
-    'wfa':      binaries["wfa"]     + ' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
-    'wfa2':     binaries["wfa2"]    + ' -i {input} -a edit-wfa',
-    'biwfa':    binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
+    # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
+    'edlib':                binaries["edlib"]   + '    {input} -p -s', # -p: compute the path, -s: no output
+    'wfa':                  binaries["wfa"]     + ' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
+    'wfa2':                 binaries["wfa2"]    + ' -i {input} -a edit-wfa',
+    'biwfa':                binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
 }
 
 # Subset of tools to run
@@ -77,14 +80,13 @@ tools = [
 # Subset of tools to run for the slow table
 tools_slow = [
     'dijkstra',
+    'dijkstra_nogreedy',
     'pa_noprune',
+    'pa_noprune_nogreedy',
 ]
 
 # Generate testcases
 GENERATE_CMD    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
-
-wildcard_constraints:
-    tool='[^-]*'
 
 # Wrap a {command} in a small shell script than handles timeouts.
 # Uses the TIMEOUT variable, and writes status to params.status_path.
@@ -119,7 +121,9 @@ exit 1
 
 ## WRAPPER CLASSES
 wildcard_constraints:
-    e="[0-9.]+"
+    e="[0-9.]+",
+    tool='[^-]*'
+
 
 class Input:
     def __init__(self, **kwargs):
@@ -148,25 +152,27 @@ def inputs(N):
 class Run:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
-    def pattern_with_params():
-        tool = 'pa_manual'
-        return f'runs/{Input.name_pattern()}-A{tool}-m{{m}}-k{{k}}.bench'
+        self.has_params = 'k' in kwargs and 'm' in kwargs
+    def pattern_with_params(tool=None):
+        if tool:
+            return f'runs/{Input.name_pattern()}-A{tool}-m{{m}}-k{{k}}.bench'
+        else:
+            return f'runs/{Input.name_pattern()}-A{{tool}}-m{{m}}-k{{k}}.bench'
     def pattern(tool=None):
         if tool:
             return f'runs/{Input.name_pattern()}-A{tool}.bench'
         else:
+            # Infer tool as a wildcard.
             return f'runs/{Input.name_pattern()}-A{{tool}}.bench'
-    def bench_path_with_params(self):
-        assert self.tool == 'pa_manual'
-        return Path(f'runs/{self.input.name()}-A{self.tool}-m{self.m}-k{self.k}.bench')
-    def stats_path_with_params(self):
-        return self.bench_path_with_params().with_suffix('.stats')
-    def status_path_with_params(self):
-        return self.bench_path_with_params().with_suffix('.status')
     def bench_path(self):
-        return Path(f'runs/{self.input.name()}-A{self.tool}.bench')
+        if self.has_params:
+            return Path(f'runs/{self.input.name()}-A{self.tool}-m{self.m}-k{self.k}.bench')
+        else:
+            return Path(f'runs/{self.input.name()}-A{self.tool}.bench')
     def status_path(self):
         return self.bench_path().with_suffix('.status')
+    def stats_path(self):
+        return self.bench_path().with_suffix('.stats')
 
 # Returns false for parameters that should be skipped.
 def params_filter(run):
@@ -191,13 +197,9 @@ def params_filter(run):
 
     return True
 
-def params_runs(N):
-    return list(filter(params_filter, (Run(input=input, tool='pa_manual', m=m, k=k)
+def params_runs(tool, N):
+    return list(filter(params_filter, (Run(input=input, tool=tool, m=m, k=k)
                         for input in inputs(N)
-                        for (k, m) in kms)))
-
-def params_runs_for_input(input):
-    return list(filter(params_filter, (Run(input=input, tool='pa_manual', m=m, k=k)
                         for (k, m) in kms)))
 
 def tool_runs(tools, N):
@@ -215,56 +217,20 @@ rule generate_input:
 ## PA WITH PARAMS
 
 def build_command(w, params=False):
-    command = tool_command[w.tool]
     input = Input(**w)
     run = Run(input=input, **w)
-    if params:
-        status_path = run.status_path_with_params()
-        stats_path = run.stats_path_with_params()
-        command = command.format(input=input.path(), wildcards=w, status_path=status_path, stats_path = stats_path)
-    else:
-        status_path = run.status_path()
-        command = command.format(input=input.path(), wildcards=w, status_path=status_path)
-    return timeout(command, status_path, TIMEOUT)
+    command = tool_command[w.tool].format(input=input.path(), wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
+    return timeout(command, run.status_path(), TIMEOUT)
 
-rule run_pairwise_aligner:
+# Run PA with given parameters.
+rule run_pa_for_parameters:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
-    params:
-        command = lambda wildcards: build_command(wildcards, True)
+    wildcard_constraints: tool = 'pa_manual'
+    params: command = lambda wildcards: build_command(wildcards, params=True)
     shell: '{params.command}'
 
-# Concatenate the PA output to the Snakemake bench file.
-def params_table(runs, output):
-    headers = ["alg","cnt","n","e", "m", "k", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
-    table_file = Path(output[0]).open('w')
-
-    found_headers = False
-    for run in runs:
-        if run.stats_path_with_params().is_file():
-            pa_headers = run.stats_path_with_params().read_text().splitlines()[0]
-            table_file.write("\t".join(headers) + '\t' + pa_headers + '\n')
-            found_headers = True
-            break
-    assert found_headers
-
-    for run in runs:
-        status = run.status_path_with_params().read_text().strip()
-        try:
-            stats = run.stats_path_with_params().read_text().splitlines()[1]
-        except:
-            stats = ''
-        for bench_line in run.bench_path_with_params().read_text().splitlines()[1:]:
-            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{run.m}\t{run.k}\t{bench_line}\t{status}\t{stats}\n')
-
-# Collect all .bench files into a single tsv.
-rule params_table:
-    input: lambda w: [run.bench_path_with_params() for run in params_runs(**w)]
-    output: 'table/params_N{N}.tsv'
-    run: params_table(params_runs(**wildcards), output)
-
-## RUN OTHER TOOLS
-
+# Run other tools without parameters.
 rule run_tool:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern(), REPEATS)
@@ -272,27 +238,52 @@ rule run_tool:
         command = lambda wildcards: build_command(wildcards, params=False)
     shell: "{params.command}"
 
-# Collect all bench files and turn them into a single .tsv.
-def make_table(tools, wildcards, output):
-    headers = ["alg","cnt","n","e","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
+# Collect all run files into a single tsv:
+# - input parameters
+# - .bench file
+# - .status file
+# - .stats file if present
+def make_table(runs, output):
+    headers = ["alg","cnt","n","e", "m", "k", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
     table_file = Path(output[0]).open('w')
-    table_file.write("\t".join(headers) + '\n')
-    for run in tool_runs(tools, **wildcards):
-        lines = run.bench_path().read_text().splitlines()
-        status = run.status_path().read_text().strip()
-        for bench_line in lines[1:]:
-            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}\n')
 
-# We use two separate rules so we can run faster tools on a larger dataset
-# without slowing down the evals of slower tools.
+    found_headers = False
+    for run in runs:
+        if run.stats_path().is_file():
+            pa_headers = run.stats_path().read_text().splitlines()[0]
+            table_file.write("\t".join(headers) + '\t' + pa_headers + '\n')
+            found_headers = True
+            break
+    if not found_headers:
+        table_file.write("\t".join(headers) + '\n')
+
+    for run in runs:
+        status = run.status_path().read_text().strip()
+        try:
+            stats = '\t' + run.stats_path().read_text().splitlines()[1]
+        except:
+            stats = ''
+        m = run.k if run.has_params else ''
+        k = run.m if run.has_params else ''
+        for bench_line in run.bench_path().read_text().splitlines()[1:]:
+            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{m}\t{k}\t{bench_line}\t{status}{stats}\n')
+
+# Table of PA runs for all possible parameters.
+rule params_table:
+    input: lambda w: [run.bench_path() for run in params_runs('pa_manual', **w)]
+    output: 'table/params_N{N}.tsv'
+    run: make_table(params_runs('pa_manual', **wildcards), output)
+
+# Run tools.
 rule tools_table:
     input: lambda w: [run.bench_path() for run in tool_runs(tools, **w)]
     output: 'table/tools_N{N}.tsv'
-    run: make_table(tools, wildcards, output)
+    run: make_table(tool_runs(tools, **wildcards), output)
+# Run slower tools. Separate rule so we can use a smaller value of N here.
 rule tools_slow_table:
     input: lambda w: [run.bench_path() for run in tool_runs(tools_slow, **w)]
     output: 'table/tools_slow_N{N}.tsv'
-    run: make_table(tools_slow, wildcards, output)
+    run: make_table(tool_runs(tools_slow, **wildcards), output)
 
 # Visualizations
 
