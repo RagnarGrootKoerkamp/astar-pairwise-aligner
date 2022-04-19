@@ -87,6 +87,9 @@ pub struct Params {
 
     #[structopt(long)]
     no_prune: bool,
+
+    #[structopt(long)]
+    no_greedy_matching: bool,
 }
 
 impl Params {
@@ -185,7 +188,15 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 source: Source::Extern,
             };
 
-            align(a, b, &alphabet, sequence_stats, heuristic)
+            // Dijkstra disabled greedy to have more consistent runtimes.
+            align_advanced(
+                a,
+                b,
+                &alphabet,
+                sequence_stats,
+                heuristic,
+                !params.no_greedy_matching,
+            )
         }
         Algorithm::Seed => {
             fn run_cost<C: Distance>(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult
@@ -206,7 +217,14 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     source: Source::Extern,
                 };
 
-                align(a, b, &alphabet, sequence_stats, heuristic)
+                align_advanced(
+                    a,
+                    b,
+                    &alphabet,
+                    sequence_stats,
+                    heuristic,
+                    !params.no_greedy_matching,
+                )
             }
 
             match params.cost {
@@ -238,7 +256,14 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     source: Source::Extern,
                 };
 
-                align(a, b, &alphabet, sequence_stats, heuristic)
+                align_advanced(
+                    a,
+                    b,
+                    &alphabet,
+                    sequence_stats,
+                    heuristic,
+                    !params.no_greedy_matching,
+                )
             }
 
             match params.contours {
@@ -265,7 +290,14 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 source: Source::Extern,
             };
 
-            align(a, b, &alphabet, sequence_stats, heuristic)
+            align_advanced(
+                a,
+                b,
+                &alphabet,
+                sequence_stats,
+                heuristic,
+                !params.no_greedy_matching,
+            )
         }
     }
 }

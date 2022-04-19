@@ -132,7 +132,7 @@ pub struct AlignmentGraph<'a> {
     a: &'a Sequence,
     b: &'a Sequence,
     target: Pos,
-    greedy_matching: bool,
+    pub greedy_matching: bool,
 }
 
 impl<'a> AlignmentGraph<'a> {

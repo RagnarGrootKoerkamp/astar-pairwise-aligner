@@ -13,10 +13,7 @@ pub const DEBUG: bool = false;
 /// This makes contour[v].query(p) monotone in v, allowing simpler binary search/query operations.
 pub const USE_SHADOW_POINTS: bool = true;
 
-/// When true, indels are not considered when there is a match edge from the current position.
-pub const GREEDY_EDGE_MATCHING: bool = true;
-
-/// When true, do greedy matching inside the A* itself.
+/// When true, do greedy matching inside the A* itself, to avoid redundantly pushing and popping consecutive states.
 pub const GREEDY_EDGE_MATCHING_IN_ASTAR: bool = true;
 
 /// Whenever A* pops a position, if the value of h and f is outdated, the point is pushed and not expanded.
