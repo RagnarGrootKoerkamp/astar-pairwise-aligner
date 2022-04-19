@@ -52,7 +52,7 @@ binaries = {
 }
 tool_command = {
     # Version with manual parameter choosing.
-    'pa_manual':binaries["pa"]      + ' -i {input} -o {params.stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
+    'pa_manual':binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
     # infers k and m values.
     'pa':       binaries["pa"]      + ' -i {input} --silent2 --error-rate {wildcards.e}',
     # slower PA variants
@@ -86,29 +86,29 @@ GENERATE_CMD    = '../target/release/examples/generate_dataset -x {wildcards.cnt
 wildcard_constraints:
     tool='[^-]*'
 
-# Wrap a comman in a small shell script than handles timeouts.
+# Wrap a {command} in a small shell script than handles timeouts.
 # Uses the TIMEOUT variable, and writes status to params.status_path.
-def timeout(command):
+def timeout(command, status_path, timeout):
     return f"""
 # Allow this command to fail.
 set +e
-timeout {{TIMEOUT}} {command}
+timeout {timeout} {command}
 exit_code=$?
 set -e
 # Normal exit
 if [ $exit_code -eq 0 ] ; then
-    echo ok > {{params.status_path}}
+    echo ok > {status_path}
     exit 0
 fi
 # Handle timeout
 if [ $exit_code -eq 124 ] ; then
-    echo timeout {{TIMEOUT}} > {{params.status_path}}
+    echo timeout {timeout} > {status_path}
     exit 0
 fi
 # Handle out of memory (OOM);
 # typically from SIGKILL (137) (when killed by linux) or SIGSEGV (139) or SIGABRT (134)
 if [ $exit_code -eq 137 ] || [ $exit_code -eq 139 ] || [ $exit_code -eq 134 ]; then
-    echo out-of-memory $exit_code > {{params.status_path}}
+    echo out-of-memory $exit_code > {status_path}
     exit 0
 fi
 echo Unexpected exit status $exit_code
@@ -214,13 +214,25 @@ rule generate_input:
 
 ## PA WITH PARAMS
 
+def build_command(w, params=False):
+    command = tool_command[w.tool]
+    input = Input(**w)
+    run = Run(input=input, **w)
+    if params:
+        status_path = run.status_path_with_params()
+        stats_path = run.stats_path_with_params()
+        command = command.format(input=input.path(), wildcards=w, status_path=status_path, stats_path = stats_path)
+    else:
+        status_path = run.status_path()
+        command = command.format(input=input.path(), wildcards=w, status_path=status_path)
+    return timeout(command, status_path, TIMEOUT)
+
 rule run_pairwise_aligner:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
     params:
-        stats_path = lambda w: Run(input=Input(**w), **w, tool='pa_manual').stats_path_with_params(),
-        status_path = lambda w: Run(input=Input(**w), **w, tool='pa_manual').status_path_with_params()
-    shell: timeout(tool_command['pa_manual'])
+        command = lambda wildcards: build_command(wildcards, True)
+    shell: '{params.command}'
 
 # Concatenate the PA output to the Snakemake bench file.
 def params_table(runs, output):
@@ -256,8 +268,9 @@ rule params_table:
 rule run_tool:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern(), REPEATS)
-    params: status_path = lambda w: Run(input=Input(**w), **w).status_path()
-    run: shell(timeout(tool_command[wildcards.tool]))
+    params:
+        command = lambda wildcards: build_command(wildcards, params=False)
+    shell: "{params.command}"
 
 # Collect all bench files and turn them into a single .tsv.
 def make_table(tools, wildcards, output):
