@@ -334,6 +334,20 @@ pub fn align<'a, H: Heuristic>(
 where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
+    align_advanced(a, b, alphabet, sequence_stats, heuristic, false)
+}
+
+pub fn align_advanced<'a, H: Heuristic>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    alphabet: &Alphabet,
+    sequence_stats: SequenceStats,
+    heuristic: H,
+    greedy_edge_matching: bool,
+) -> AlignResult
+where
+    H::Instance<'a>: HeuristicInstance<'a>,
+{
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
     let mut h = heuristic.build(a, b, alphabet);
@@ -343,7 +357,7 @@ where
     // Run A* with heuristic.
     let start_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
-    let graph = AlignmentGraph::new(a, b, GREEDY_EDGE_MATCHING);
+    let graph = AlignmentGraph::new(a, b, greedy_edge_matching);
     let (distance_and_path, astar_stats) =
         astar::astar(&graph, Pos(0, 0), Pos::from_length(a, b), &mut h);
     let (distance, path) = distance_and_path.unwrap_or_default();

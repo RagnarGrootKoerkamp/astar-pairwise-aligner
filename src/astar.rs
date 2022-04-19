@@ -207,7 +207,7 @@ where
                 }
             }
 
-            if !GREEDY_EDGE_MATCHING_IN_ASTAR {
+            if !graph.greedy_matching {
                 break;
             }
 
