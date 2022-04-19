@@ -20,6 +20,7 @@ pub const GREEDY_EDGE_MATCHING: bool = true;
 pub const GREEDY_EDGE_MATCHING_IN_ASTAR: bool = true;
 
 /// Whenever A* pops a position, if the value of h and f is outdated, the point is pushed and not expanded.
+/// This must be true for correctness.
 pub const RETRY_OUDATED_HEURISTIC_VALUE: bool = true;
 
 /// Whether printing is enabled.
