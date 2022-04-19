@@ -102,7 +102,7 @@ def col2name(col):
         's_per_bp': 'Time [s/bp]',
         'N':       'Reads',
         'm':       'Read length [bp]',
-        'max_rss': 'Memory',
+        'max_uss': 'Memory [MB]',
         'score':   'Alignment cost',
         'explored_states':  'Explored states',
         't(map)':  'Alignment time per read',  #  [s/read]
