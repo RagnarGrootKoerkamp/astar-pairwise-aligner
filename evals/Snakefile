@@ -362,3 +362,17 @@ rule extract_reference:
 # samtools fasta {id}.fastq.gz.sorted.bam
 # View the bam entry for a read with
 # samtools view {read_id}
+
+# Large (500k+) read set from BiWFA paper:
+rule download_ont_500k:
+    output: 'input/downloads/ont_500k.zip'
+    shell: 'wget -O {output} https://github.com/smarco/BiWFA-paper/blob/main/evaluation/data/ONT_MinION_UL.500kbps.zip?raw=true'
+rule ont_500k:
+    input: 'input/downloads/ont_500k.zip'
+    output: 'input/ont_500k/all.seq'
+    params: dir = "input/ont_500k/"
+    shell: '''
+    mkdir -p input/ont_500k/
+    unzip {input} -d {params.dir}
+    cat {params.dir}/* > {output}
+    '''
