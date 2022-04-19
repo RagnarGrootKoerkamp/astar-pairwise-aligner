@@ -157,7 +157,7 @@ class Run:
         else:
             return f'runs/{Input.name_pattern()}-A{{tool}}.bench'
     def bench_path_with_params(self):
-        assert self.tool == "pa"
+        assert self.tool == 'pa_manual'
         return Path(f'runs/{self.input.name()}-A{self.tool}-m{self.m}-k{self.k}.bench')
     def stats_path_with_params(self):
         return self.bench_path_with_params().with_suffix('.stats')
