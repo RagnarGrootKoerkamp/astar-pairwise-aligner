@@ -269,10 +269,9 @@ Just an insert or delete is fine. A move (or insert + delete) is much worse thou
 - [ ] Supplement: e vs time for different tools (fixed n, best k)
 - [ ] Supplement: k vs time for different n
 
-* TODO Auto-parameter choosing based on e
+* DONE Auto-parameter choosing based on e
 ** DONE add ~-e~ parameter
-CLOSED: [2022-04-18 Mon 10:26]
-** TODO add rules to infer (m,k) from (n,e)
+** DONE add rules to infer (m,k) from (n,e)
 
 * WFA merger / next version
 ** TODO Do not store parent pointers
@@ -439,3 +438,10 @@ ContourGraph isn't used anymore.
 ** Sort nodes in IncreasingFunction for better caching
 ** incremental_h is slowly becoming more efficient (move fewer steps backwards)
 ** incremental_h: Add Pos==Hint check to incremental_h
+
+
+
+
+* short-term todolist
+** dijkstra visualization without greedy
+** nanosim for ONT simulations
