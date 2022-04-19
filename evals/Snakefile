@@ -289,6 +289,7 @@ rule tools_slow_table:
 
 rule astar_visualization:
     input:
+    output: 'astar-visualization/dijkstra.csv'
     shell: "cargo run --release --example states"
 
 

@@ -4,6 +4,9 @@ fn main() {
     let n = 500;
     let e = 0.2;
 
+    let m = 1;
+    let k = 9;
+
     {
         let h = ZeroCost;
         let (a, b, alphabet, stats) = setup(n, e);
@@ -21,23 +24,23 @@ fn main() {
     {
         let h = GapSeedHeuristic {
             match_config: MatchConfig {
-                length: Fixed(6),
-                max_match_cost: 1,
+                length: Fixed(k),
+                max_match_cost: m,
                 ..MatchConfig::default()
             },
             pruning: false,
             c: PhantomData::<HintContours<BruteForceContour>>,
         };
         let (a, b, alphabet, stats) = setup(n, e);
-        let r = align(&a, &b, &alphabet, stats, h);
+        let r = align_advanced(&a, &b, &alphabet, stats, h, false);
         r.write_explored_states("evals/astar-visualization/astar_no_pruning.csv");
         r.print();
     }
     {
         let h = GapSeedHeuristic {
             match_config: MatchConfig {
-                length: Fixed(6),
-                max_match_cost: 1,
+                length: Fixed(k),
+                max_match_cost: m,
                 ..MatchConfig::default()
             },
             pruning: true,
