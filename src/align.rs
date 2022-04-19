@@ -334,7 +334,7 @@ pub fn align<'a, H: Heuristic>(
 where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
-    align_advanced(a, b, alphabet, sequence_stats, heuristic, false)
+    align_advanced(a, b, alphabet, sequence_stats, heuristic, true)
 }
 
 pub fn align_advanced<'a, H: Heuristic>(
