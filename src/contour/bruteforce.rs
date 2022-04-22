@@ -6,18 +6,23 @@ use std::{cell::Cell, mem};
 /// A contour implementation that does all operations in O(r).
 #[derive(Default, Debug, Clone)]
 pub struct BruteForceContour {
-    points: SmallVec<[Pos; 2]>,
+    pub points: SmallVec<[Pos; 2]>,
     ops: Cell<usize>,
 }
 
 impl Contour for BruteForceContour {
-    fn push(&mut self, p: Pos) {
-        // FIXME: THIS IS A HOTPATCH.
-        let contains = self.points.contains(&p);
-        //assert!(contains);
-        if contains {
-            return;
+    fn print_points(&self) {
+        for p in &self.points {
+            println!("{p}");
         }
+    }
+    fn push(&mut self, p: Pos) {
+        // // FIXME: THIS IS A HOTPATCH.
+        // let contains = self.points.contains(&p);
+        // //assert!(contains);
+        // if contains {
+        //     return;
+        // }
         self.ops.set(self.ops.get() + 1);
         self.points.push(p);
     }

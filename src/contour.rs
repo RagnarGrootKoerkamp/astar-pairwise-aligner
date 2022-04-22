@@ -47,6 +47,8 @@ pub trait Contour: Default + Debug + Clone {
     fn ops(&self) -> usize {
         0
     }
+
+    fn print_points(&self) {}
 }
 
 /// An arrow implies f(start) >= f(end) + len.
