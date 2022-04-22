@@ -103,6 +103,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
     target: Pos,
 
     seeds: Seeds,
+    num_matches: usize,
     num_filtered_matches: usize,
 
     // TODO: Put statistics into a separate struct.
@@ -142,11 +143,14 @@ impl<C: Contours> Drop for GapSeedHeuristicI<C> {
 
 impl<C: Contours> GapSeedHeuristicI<C> {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: GapSeedHeuristic<C>) -> Self {
+        let matches = find_matches(a, b, alph, params.match_config);
+        //println!("\nfind matches.. done: {}", matches.matches.len());
         let mut h = GapSeedHeuristicI {
             params,
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos::from_length(a, b),
-            seeds: find_matches(a, b, alph, params.match_config),
+            seeds: matches,
+            num_matches: 0,
             num_filtered_matches: 0,
             num_pruned: 0,
 
@@ -170,9 +174,10 @@ impl<C: Contours> GapSeedHeuristicI<C> {
         {
             // Need to take it out of h.seeds because transform also uses this.
             let mut matches = std::mem::take(&mut h.seeds.matches);
+            h.num_matches = matches.len();
             matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);
+            h.num_filtered_matches = matches.len();
             h.seeds.matches = matches;
-            h.num_filtered_matches = h.seeds.matches.len();
         }
 
         // Transform to Arrows.
@@ -333,7 +338,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     fn stats(&self) -> HeuristicStats {
         HeuristicStats {
             num_seeds: self.seeds.seeds.len() as I,
-            num_matches: self.seeds.matches.len(),
+            num_matches: self.num_matches,
             num_filtered_matches: self.num_filtered_matches,
             matches: if DEBUG {
                 self.seeds.matches.clone()
