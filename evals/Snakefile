@@ -303,8 +303,8 @@ rule human_reference:
 # ======= Nanosim data ======= #
 
 rule nanosim:
-    output: 'input/simulated/human-x{x}-n{n}.seq'
-    input: 'input/reference/human.fa'
+    output: 'input/simulated/{ref}-x{x}-n{n}.seq'
+    input: 'input/reference/{ref}.fa'
     params:
         min = lambda w: int(w.n)*3//4,
         max = lambda w: int(w.n)*5//4,
@@ -317,8 +317,8 @@ rule nanosim:
     shell: '''
     # Run the simulator to generate a .fa file.
     simulator.py genome \
-    --ref_g input/reference/human.fa \
-    --output input/simulated/human-x{wildcards.x}-n{wildcards.n} \
+    --ref_g input/reference/{wildcards.ref}.fa \
+    --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n} \
     -dna_type linear \
     --model_prefix ../../nanosim/pre-trained_models/human_NA12878_DNA_FAB49712_guppy/training \
     --min_len {params.min} \
@@ -328,12 +328,12 @@ rule nanosim:
     --number {params.generate_x} \
     --strandness 1 \
     --seed 314151 \
-    --num_threads 4
+    --num_threads 8
     # Convert to a .seq file,
     cargo run --release --example nanosim_to_seq -- \
-    --reference input/reference/human.fa \
-    --reads input/simulated/human-x{wildcards.x}-n{wildcards.n}_aligned_reads.fasta \
-    --output input/simulated/human-x{wildcards.x}-n{wildcards.n}.seq \
+    --reference input/reference/{wildcards.ref}.fa \
+    --reads input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}_aligned_reads.fasta \
+    --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}.seq \
     --count {wildcards.x} \
     --strip-unaligned
     '''
