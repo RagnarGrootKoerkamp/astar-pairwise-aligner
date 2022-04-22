@@ -39,7 +39,9 @@ def algo2color(algo):
     palette = sns.color_palette("tab10", 10)
     d = {
         'dijkstra': '#FF913D', #'#E8841A',
+        'dijkstra_nogreedy': '#FF913D', #'#E8841A',
         'pa_noprune': '#FF6047',
+        'pa_noprune_nogreedy': '#FF6047',
         'pa': '#EB2D12',
         'pa_manual': 'black',  # (k,m) cherry-picking
         
@@ -65,9 +67,11 @@ def algo2color(algo):
 def algo2beautiful(algo):
     d = {
         'dijkstra': 'Dijkstra',
-        'pa_noprune': 'OSH-noprune',
-        'pa': 'OSH',
-        'pa_manual': 'OSH-cherrypick',
+        'dijkstra_nogreedy': 'Dijkstra',
+        'pa_noprune': 'A*PA-noprune',
+        'pa_noprune_nogreedy': 'A*PA-noprune',
+        'pa': 'A*PA',
+        'pa_manual': 'A*PA-cherrypick',
         
         'edlib': 'Edlib',
         'wfa': 'WFA',
@@ -79,7 +83,9 @@ def algo2beautiful(algo):
 def algo2marker(algo):
     d = {
         'dijkstra': 'P',
+        'dijkstra_nogreedy': 'P',
         'pa_noprune': 's',
+        'pa_noprune_nogreedy': 's',
         'pa': 'o',
         'pa_manual': '.',
         
