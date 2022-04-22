@@ -7,13 +7,13 @@ fn main() {
     let m = 1;
     let k = 9;
 
-    {
-        let h = ZeroCost;
-        let (a, b, alphabet, stats) = setup(n, e);
-        let r = align(&a, &b, &alphabet, stats, h);
-        r.write_explored_states("evals/astar-visualization/dijkstra.csv");
-        r.print();
-    }
+    // {
+    //     let h = ZeroCost;
+    //     let (a, b, alphabet, stats) = setup(n, e);
+    //     let r = align(&a, &b, &alphabet, stats, h);
+    //     r.write_explored_states("evals/astar-visualization/dijkstra.csv");
+    //     r.print();
+    // }
     {
         let h = ZeroCost;
         let (a, b, alphabet, stats) = setup(n, e);
