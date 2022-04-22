@@ -121,7 +121,7 @@ impl AlignResult {
             (format!("{:>2}", "k"), |this: &AlignResult| {
                 format!("{:>2}", this.heuristic_params.k)
             }),
-            (format!("{:>2}", "md"), |this: &AlignResult| {
+            (format!("{:>2}", "m"), |this: &AlignResult| {
                 format!("{:>2}", this.heuristic_params.max_match_cost)
             }),
             (format!("{:>2}", "pr"), |this: &AlignResult| {

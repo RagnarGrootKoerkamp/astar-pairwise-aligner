@@ -244,7 +244,7 @@ rule run_tool:
 # - .status file
 # - .stats file if present
 def make_table(runs, output):
-    headers = ["alg","cnt","n","e", "m", "k", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
+    headers = ["alg","cnt","n","e", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
@@ -263,10 +263,8 @@ def make_table(runs, output):
             stats = '\t' + run.stats_path().read_text().splitlines()[1]
         except:
             stats = ''
-        m = run.k if run.has_params else ''
-        k = run.m if run.has_params else ''
         for bench_line in run.bench_path().read_text().splitlines()[1:]:
-            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{m}\t{k}\t{bench_line}\t{status}{stats}\n')
+            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}{stats}\n')
 
 # Table of PA runs for all possible parameters.
 rule params_table:
@@ -292,7 +290,66 @@ rule astar_visualization:
     output: 'astar-visualization/dijkstra.csv'
     shell: "cargo run --release --example states"
 
+# ======= Reference ======= #
+rule human_reference:
+    #output: f'input/reference/human.fa'
+    shell: '''
+    wget -P input/reference http://ftp.ensembl.org/pub/release-106/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+    gunzip --keep input/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz {output}
+    # Make .fai
+    samtools faidx {output}
+    '''
 
+# ======= Nanosim data ======= #
+
+rule nanosim:
+    output: 'input/simulated/human-x{x}-n{n}.seq'
+    input: 'input/reference/human.fa'
+    params:
+        min = lambda w: int(w.n)*3//4,
+        max = lambda w: int(w.n)*5//4,
+        seed = 31415,
+        # Generate a few more sequences, so that we have some room for filtering (unaligned, and N regions).
+        generate_x = lambda w: int(w.x) * 3 // 2
+    # NOTE: Run this in a conda env with nanosim loaded.
+    # TODO: Add this info to the snakefile.
+    # TODO: Fix path to the nanosim datafiles.
+    shell: '''
+    # Run the simulator to generate a .fa file.
+    simulator.py genome \
+    --ref_g input/reference/human.fa \
+    --output input/simulated/human-x{wildcards.x}-n{wildcards.n} \
+    -dna_type linear \
+    --model_prefix ../../nanosim/pre-trained_models/human_NA12878_DNA_FAB49712_guppy/training \
+    --min_len {params.min} \
+    --median_len {wildcards.n} \
+    --max_len {params.max} \
+    --sd_len 1.05 \
+    --number {params.generate_x} \
+    --strandness 1 \
+    --seed 314151 \
+    --num_threads 4
+    # Convert to a .seq file,
+    cargo run --release --example nanosim_to_seq -- \
+    --reference input/reference/human.fa \
+    --reads input/simulated/human-x{wildcards.x}-n{wildcards.n}_aligned_reads.fasta \
+    --output input/simulated/human-x{wildcards.x}-n{wildcards.n}.seq \
+    --count {wildcards.x} \
+    --strip-unaligned
+    '''
+
+#
+# simulator.py genome
+# -rg ../reads/reference/GRCh38_full_analysis_set_plus_decoy_hla.fa
+# -dna_type linear
+# -c ../../../../nanosim/pre-trained_models/human_NA12878_DNA_FAB49712_guppy/training
+# -min  750000
+# -max 12500000
+# -med 1000000
+# -sd 1.05
+# -n10
+# -s 1
+# --seed 31415
 
 
 
@@ -309,11 +366,11 @@ rule astar_visualization:
 # Download reference genome.
 # Gets the entire directory, but not subdirectories.
 REFERENCE_FTP = 'ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/technical/reference/GRCh38_reference_genome/'
-REFERENCE_DIR = 'input/reads/reference'
-REFERENCE_NAME = f'{REFERENCE_DIR}/GRCh38_full_analysis_set_plus_decoy_hla.fa'
+REFERENCE2_DIR = 'input/reads/reference'
+REFERENCE_NAME = f'{REFERENCE2_DIR}/GRCh38_full_analysis_set_plus_decoy_hla.fa'
 rule download_reference:
     output: REFERENCE_NAME
-    shell: f'wget -r -nH -nc -l 1 -P {REFERENCE_DIR} --cut-dirs=5 {REFERENCE_FTP}'
+    shell: f'wget -r -nH -nc -l 1 -P {REFERENCE2_DIR} --cut-dirs=5 {REFERENCE_FTP}'
 
 
 # Download reads
