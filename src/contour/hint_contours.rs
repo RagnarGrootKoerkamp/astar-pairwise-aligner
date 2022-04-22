@@ -100,6 +100,11 @@ impl<C: Contour> Contours for HintContours<C> {
                 this.contours[v as usize].push(start);
             }
         }
+        // for k in 0..this.contours.len() {
+        //     //this.contours[k].print_points();
+        //     //println!("{}: {:?}", k, this.contours[k]);
+        // }
+
         this
     }
 
@@ -438,6 +443,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
     #[allow(unreachable_code)]
     fn print_stats(&self) {
+        // TODO: MAKE A FLAG FOR THIS.
         return;
         println!("----------------------------");
         let num = self.contours.len();
