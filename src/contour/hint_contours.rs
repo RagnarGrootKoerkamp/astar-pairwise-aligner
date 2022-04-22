@@ -422,8 +422,12 @@ impl<C: Contour> Contours for HintContours<C> {
         //     }
         // }
         for k in (0..8).rev() {
+            if v <= 4 {
+                continue;
+            }
+            let k = v as usize - 4 + k;
             if self.contours.len() > k {
-                ////println!("Contour {}: {:?}", k, self.contours[k]);
+                //println!("Contour {}: {:?}", k, self.contours[k]);
             }
         }
         // for (i, c) in self.contours.iter().enumerate().rev() {

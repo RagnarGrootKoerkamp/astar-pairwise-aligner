@@ -12,6 +12,12 @@ pub struct BruteForceContour {
 
 impl Contour for BruteForceContour {
     fn push(&mut self, p: Pos) {
+        // FIXME: THIS IS A HOTPATCH.
+        let contains = self.points.contains(&p);
+        //assert!(contains);
+        if contains {
+            return;
+        }
         self.ops.set(self.ops.get() + 1);
         self.points.push(p);
     }
