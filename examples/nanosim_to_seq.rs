@@ -83,8 +83,13 @@ fn main() {
 
             let read = if args.strip_unaligned {
                 let seq = record.seq();
-                (&seq).
-                (&seq)[prefix..length - suffix].to_vec()
+                match (&seq).get(prefix..seq.len() - suffix) {
+                    Some(subset) => subset.to_vec(),
+                    None => {
+                        println!("could not take subsequence: {prefix}..{length}-{suffix} of seq of len {}.", seq.len());
+                        continue;
+                    }
+                }
             } else {
                 record.seq().to_vec()
             };
