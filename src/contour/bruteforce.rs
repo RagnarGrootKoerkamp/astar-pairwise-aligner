@@ -11,20 +11,17 @@ pub struct BruteForceContour {
 }
 
 impl Contour for BruteForceContour {
-    fn print_points(&self) {
-        for p in &self.points {
-            println!("{p}");
-        }
-    }
     fn push(&mut self, p: Pos) {
-        // // FIXME: THIS IS A HOTPATCH.
-        // let contains = self.points.contains(&p);
-        // //assert!(contains);
-        // if contains {
-        //     return;
-        // }
+        #[cfg(debug_assertions)]
+        {
+            let contains = self.points.contains(&p);
+            assert!(!contains);
+        }
         self.ops.set(self.ops.get() + 1);
         self.points.push(p);
+    }
+    fn contains_equal(&self, q: Pos) -> bool {
+        self.points.contains(&q)
     }
 
     fn contains(&self, q: Pos) -> bool {
@@ -68,6 +65,12 @@ impl Contour for BruteForceContour {
 
     fn ops(&self) -> usize {
         self.ops.get()
+    }
+
+    fn print_points(&self) {
+        for p in &self.points {
+            println!("{p}");
+        }
     }
 }
 

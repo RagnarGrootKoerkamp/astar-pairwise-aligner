@@ -37,6 +37,10 @@ impl Contour for CentralContour {
         }
     }
 
+    fn contains_equal(&self, q: Pos) -> bool {
+        self.points.contains(&LexPos(q))
+    }
+
     fn contains(&self, q: Pos) -> bool {
         // Try the points around last_dominant.
         let last_idx = self.last_dominant.get();
