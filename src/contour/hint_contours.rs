@@ -326,12 +326,16 @@ impl<C: Contour> Contours for HintContours<C> {
                 //     "f: Push {} to {} shift {:?}",
                 //     pos, best_start_val, current_shift
                 // );
-                self.contours[best_start_val as usize].push(pos);
                 {
                     let mut v = best_start_val;
-                    while v > 0 && !self.contours[v as usize - 1].contains(pos) {
-                        v -= 1;
+                    if !self.contours[v as usize].contains_equal(pos) {
                         self.contours[v as usize].push(pos);
+                    }
+                    v -= 1;
+                    // Layer 0 is guaranteed to contain everything.
+                    while !self.contours[v as usize].contains(pos) {
+                        self.contours[v as usize].push(pos);
+                        v -= 1;
                     }
                 }
 
@@ -361,6 +365,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
+            // println!("after");
 
             if v >= last_change + self.max_len as Cost {
                 ////println!("Last change at {}, stopping at {}", last_change, v);

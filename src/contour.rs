@@ -26,6 +26,7 @@ pub trait Contour: Default + Debug + Clone {
     /// Add a new point to the graph.
     /// This point must be 'smaller' (actually: not larger) than every existing point.
     fn push(&mut self, _p: Pos);
+    fn contains_equal(&self, _q: Pos) -> bool;
     /// Is point `q` above/top-left of the contour.
     fn contains(&self, _q: Pos) -> bool;
     /// Is this point dominant?
