@@ -56,7 +56,6 @@ pub struct AStarStats {
 pub fn astar<'a, H>(
     graph: &AlignmentGraph,
     start: Pos,
-    target: Pos,
     h: &mut H,
 ) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
@@ -86,7 +85,7 @@ where
         0
     };
 
-    //let mut states = DiagonalMap::<State<Parent, H::Hint>>::new(target);
+    //let mut states = DiagonalMap::<State<Parent, H::Hint>>::new(graph.target());
     let mut states = HashMap::<Pos, State<Parent, H::Hint>>::default();
 
     // Initialization with the root state.
@@ -111,7 +110,7 @@ where
 
     // Initialize target state
     states.insert(
-        target,
+        graph.target(),
         State {
             status: Unvisited,
             g: 0,
@@ -186,8 +185,8 @@ where
             //println!("Expand {pos} @ f={queue_f}, g={}", state.g);
 
             // Retrace path to root and return.
-            if pos == target {
-                states[target] = state;
+            if pos == graph.target() {
+                states[graph.target()] = state;
                 break 'outer;
             }
 
@@ -299,7 +298,7 @@ where
     }
 
     stats.diagonalmap_capacity = states.dm_capacity();
-    (traceback::<'a, H>(states, target), stats)
+    (traceback::<'a, H>(states, graph.target()), stats)
 }
 
 fn traceback<'a, H>(
