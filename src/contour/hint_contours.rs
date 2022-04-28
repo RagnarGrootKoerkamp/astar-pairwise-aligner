@@ -82,11 +82,14 @@ impl<C: Contour> Contours for HintContours<C> {
         this.contours[0].push(Pos(I::MAX, I::MAX));
         // Loop over all arrows from a given positions.
         for (start, pos_arrows) in &arrows.into_iter().group_by(|a| a.start) {
+            //println!("ARROWS: {start:?}");
             let mut v = 0;
             // TODO: The this.value() could also be implemented using a fenwick tree, as done in LCSk++.
             for a in pos_arrows {
-                assert_eq!((a.end.0 - a.start.0) + (a.end.1 - a.start.1), 2 * max_len);
+                // TODO: This is only true for gap-cost, not in more general contour settings.
+                //assert_eq!((a.end.0 - a.start.0) + (a.end.1 - a.start.1), 2 * max_len);
                 v = max(v, this.value(a.end) + a.len as Cost);
+                //println!("ARROWS to: {a:?}: {v}");
             }
             assert!(v > 0);
             if this.contours.len() as Cost <= v {

@@ -1,16 +1,18 @@
 use pairwise_aligner::prelude::{UnorderedHeuristic, *};
 
 fn main() {
-    for n in 10.. {
-        for r in 0..100 {
-            let (k, m, n, e, pruning) = (6, 1, n, 0.1, true);
-            let h = UnorderedHeuristic {
+    for n in 40.. {
+        for r in 0..10000 {
+            let (k, m, n, e, pruning) = (4, 0, n, 0.9, true);
+            let h = GapSeedHeuristic {
                 match_config: MatchConfig {
                     length: Fixed(k),
                     max_match_cost: m,
                     ..MatchConfig::default()
                 },
                 pruning,
+                use_gap_cost: false,
+                c: PhantomData::<HintContours<BruteForceContour>>::default(),
             };
 
             println!("n={} r={} k={}", n, r, k);

@@ -5,20 +5,22 @@ use pairwise_aligner::prelude::{UnorderedHeuristic, *};
 fn main() {
     PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
 
-    let n = 43;
-    let e = 0.10;
-    let seed = 9;
-    let k = 6;
-    let max_match_cost = 1;
-    let pruning = true;
+    let n = 61;
+    let e = 0.9;
+    let seed = 7237;
+    let k = 4;
+    let max_match_cost = 0;
+    let pruning = false;
 
-    let h = UnorderedHeuristic {
+    let h = GapSeedHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost,
             ..MatchConfig::default()
         },
         pruning,
+        use_gap_cost: false,
+        c: PhantomData::<HintContours<BruteForceContour>>::default(),
     };
 
     let (a, b, alphabet, stats) = setup_with_seed(n, e, seed);
