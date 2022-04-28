@@ -16,7 +16,9 @@ fn exact_no_pruning() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+                let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+                assert_eq!(r.edit_distance, dist);
             }
         }
     }
@@ -39,7 +41,9 @@ fn inexact_no_pruning() {
                 let (a, b, alph, stats) = setup(n, e);
                 //print(h, &a, &b, &alph);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+                let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+                assert_eq!(r.edit_distance, dist);
             }
         }
     }
@@ -61,7 +65,9 @@ fn incremental_pruning_bruteforce() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+                let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+                assert_eq!(r.edit_distance, dist);
             }
         }
     }
@@ -83,7 +89,9 @@ fn incremental_pruning_hint_bruteforce() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
+                let r = align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
+                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+                assert_eq!(r.edit_distance, dist);
             }
         }
     }
@@ -105,7 +113,9 @@ fn incremental_pruning_hint_central() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
+                let r = align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
+                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+                assert_eq!(r.edit_distance, dist);
             }
         }
     }
@@ -126,7 +136,9 @@ fn unordered() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                align(&a, &b, &alph, stats, h);
+                let r = align(&a, &b, &alph, stats, h);
+                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+                assert_eq!(r.edit_distance, dist);
             }
         }
     }
