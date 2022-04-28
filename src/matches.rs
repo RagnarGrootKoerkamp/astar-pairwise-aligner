@@ -189,6 +189,7 @@ pub struct MatchConfig {
     // TODO: Move the max_match_cost into MatchLength.
     pub max_match_cost: MatchCost,
     pub algorithm: MatchAlgorithm,
+    pub window_filter: bool,
 }
 
 impl Default for MatchConfig {
@@ -197,6 +198,7 @@ impl Default for MatchConfig {
             length: Fixed(0),
             max_match_cost: 0,
             algorithm: MatchAlgorithm::default(),
+            window_filter: true,
         }
     }
 }

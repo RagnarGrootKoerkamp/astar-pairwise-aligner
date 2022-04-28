@@ -148,6 +148,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             },
             max_match_cost: m,
             algorithm: params.match_algorithm,
+            window_filter: true,
         }
     }
 

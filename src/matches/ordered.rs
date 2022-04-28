@@ -336,6 +336,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
     MatchConfig {
         length,
         max_match_cost,
+        window_filter,
         ..
     }: MatchConfig,
 ) -> Seeds {
@@ -356,7 +357,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
     let mut m = HashMap::<Key, SmallVec<[I; 4]>>::default();
     let mut matches = Vec::<Match>::new();
 
-    if SLIDING_WINDOW_MATCHES {
+    if SLIDING_WINDOW_MATCHES && window_filter {
         let capacity = a.len() / k as usize / (k - 1) as usize / 2;
         m.reserve(capacity);
 
