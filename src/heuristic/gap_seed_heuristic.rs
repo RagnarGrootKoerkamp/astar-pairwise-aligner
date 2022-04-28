@@ -131,10 +131,14 @@ pub struct GapSeedHeuristicI<C: Contours> {
 /// are visited in between `from` and `to`.
 impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
-        max(
-            self.gap_distance.distance(from, to),
-            self.seeds.potential_distance(from, to),
-        )
+        if self.params.use_gap_cost {
+            max(
+                self.gap_distance.distance(from, to),
+                self.seeds.potential_distance(from, to),
+            )
+        } else {
+            self.seeds.potential_distance(from, to)
+        }
     }
 }
 
@@ -223,14 +227,18 @@ impl<C: Contours> GapSeedHeuristicI<C> {
     // TODO: Transform maps from position domain into cost domain.
     // Contours should take a template for the type of point they deal with.
     fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
-        let a = self.target.0;
-        let b = self.target.1;
-        let pot = |pos| self.seeds.potential(pos);
-        Pos(
-            // This is a lie. All should be converted to cost, instead of position really.
-            i + b - j + pot(Pos(0, 0)) as I - pot(pos) as I,
-            j + a - i + pot(Pos(0, 0)) as I - pot(pos) as I,
-        )
+        if self.params.use_gap_cost {
+            let a = self.target.0;
+            let b = self.target.1;
+            let pot = |pos| self.seeds.potential(pos);
+            Pos(
+                // This is a lie. All should be converted to cost, instead of position really.
+                i + b - j + pot(Pos(0, 0)) as I - pot(pos) as I,
+                j + a - i + pot(Pos(0, 0)) as I - pot(pos) as I,
+            )
+        } else {
+            pos
+        }
     }
 }
 
