@@ -153,8 +153,6 @@ where
             }
         }
 
-        println!("Expand {pos} {} {queue_f}", state.g);
-
         // Expand the state.
         let mut double_expanded = match state.status {
             Unvisited => {

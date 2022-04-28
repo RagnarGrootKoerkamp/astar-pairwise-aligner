@@ -158,6 +158,7 @@ fn no_gap_cost() {
                     match_config: MatchConfig {
                         length: Fixed(k),
                         max_match_cost,
+                        window_filter: false,
                         ..MatchConfig::default()
                     },
                     pruning: true,
