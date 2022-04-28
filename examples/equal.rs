@@ -14,6 +14,7 @@ fn main() {
             ..MatchConfig::default()
         },
         pruning,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let h_base = GapSeedHeuristic {
@@ -23,6 +24,7 @@ fn main() {
             ..MatchConfig::default()
         },
         pruning,
+        use_gap_cost: true,
         c: PhantomData::<BruteForceContours>,
     };
     let h = EqualHeuristic {

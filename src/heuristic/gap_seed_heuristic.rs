@@ -15,6 +15,8 @@ use std::{
 pub struct GapSeedHeuristic<C: Contours> {
     pub match_config: MatchConfig,
     pub pruning: bool,
+    // When false, gaps are free and only the max chain of matches is found.
+    pub use_gap_cost: bool,
     pub c: PhantomData<C>,
 }
 
@@ -41,6 +43,7 @@ impl<C: 'static + Contours> GapSeedHeuristic<C> {
             h1: GapSeedHeuristic {
                 match_config: self.match_config,
                 pruning: self.pruning,
+                use_gap_cost: self.use_gap_cost,
                 c: Default::default(),
             },
             h2: *self,
@@ -63,6 +66,7 @@ impl<C: Contours> Clone for GapSeedHeuristic<C> {
         Self {
             match_config: self.match_config,
             pruning: self.pruning,
+            use_gap_cost: self.use_gap_cost,
             c: self.c,
         }
     }
