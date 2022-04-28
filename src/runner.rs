@@ -155,6 +155,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
         Algorithm::Naive => {
             let dist = bio::alignment::distance::levenshtein(a, b);
             AlignResult {
+                sample_size: 1,
                 input: SequenceStats {
                     len_a: a.len(),
                     len_b: b.len(),
@@ -166,8 +167,8 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
         }
         Algorithm::Simd => {
             let dist = bio::alignment::distance::simd::levenshtein(a, b);
-            println!("SIMD {:>8} {:>8} {:>6}", a.len(), b.len(), dist);
             AlignResult {
+                sample_size: 1,
                 input: SequenceStats {
                     len_a: a.len(),
                     len_b: b.len(),

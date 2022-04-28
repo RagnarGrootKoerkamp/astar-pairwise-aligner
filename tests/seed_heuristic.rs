@@ -25,7 +25,9 @@ fn seed_heuristic_rebuild() {
     let b = "TCAGTCCCACACTCCTAGCAGACGTTCCTGCAGGACAGTGGACGCTGACGCCTATAGGAGAGGCATCGAGGTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
     println!("TESTING n {} e {}: {:?}", n, e, h);
     println!("{}\n{}", to_string(&a), to_string(&b));
-    align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+    let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
 
 /// In the GapSeedHeuristic, we never use a gap distance, unless it's towards the target.
@@ -50,8 +52,10 @@ fn never_use_gap_distance() {
     let a = "CTAAGGAGTCCCAT".as_bytes().to_vec();
     let b = "GTAAGAGTCCACT".as_bytes().to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let result = align(&a, &b, &alphabet, stats, h);
-    result.print();
+    let r = align(&a, &b, &alphabet, stats, h);
+    r.print();
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
 
 /// Zero distance should be consistent.
@@ -74,7 +78,9 @@ fn seed_heuristic_zero_dist_consistent() {
                 println!("TESTING n {} e {}: {:?}", n, e, h);
 
                 let (a, b, alphabet, stats) = setup(n, e);
-                align(&a, &b, &alphabet, stats, h);
+                let r = align(&a, &b, &alphabet, stats, h);
+                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+                assert_eq!(r.edit_distance, dist);
             }
         }
     }

@@ -32,7 +32,9 @@ fn contour_graph() {
         };
         let (_, _, alph, stats) = setup(0, 0.0);
 
-        align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+        let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+        let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+        assert_eq!(r.edit_distance, dist);
     }
 }
 
@@ -43,13 +45,13 @@ fn small_test() {
     let _n = 25;
     let _e = 0.2;
     let k = 4;
-    let pattern = "AGACGTCC".as_bytes().to_vec();
+    let a = "AGACGTCC".as_bytes().to_vec();
     let ___text = "AGACGTCCA".as_bytes().to_vec();
-    let text = ___text;
+    let b = ___text;
 
     let stats = SequenceStats {
-        len_a: pattern.len(),
-        len_b: text.len(),
+        len_a: a.len(),
+        len_b: b.len(),
         error_rate: 0.,
         source: Source::Manual,
     };
@@ -63,8 +65,10 @@ fn small_test() {
         pruning: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
-    let r = align(&pattern, &text, &alphabet, stats, h);
+    let r = align(&a, &b, &alphabet, stats, h);
     assert!(r.heuristic_stats2.root_h <= r.edit_distance);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
 
 /// This was broken because seed_heuristic didn't clear the previous state before rebuilding.
@@ -92,7 +96,9 @@ fn seed_heuristic_rebuild() {
     let b = "TCAGTCCCACACTCCTAGCAGACGTTCCTGCAGGACAGTGGACGCTGACGCCTATAGGAGAGGCATCGAGGTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
     println!("TESTING n {} e {}: {:?}", n, e, h);
     println!("{}\n{}", to_string(&a), to_string(&b));
-    align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+    let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
 
 /// This and the test below are fixed by disabling greedy matching.
@@ -117,8 +123,11 @@ fn no_double_expand() {
         .as_bytes()
         .to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    align(&a, &b, &alphabet, stats, h.to_seed_heuristic()).print();
-    align(&a, &b, &alphabet, stats, h).print();
+    let r1 = align(&a, &b, &alphabet, stats, h.to_seed_heuristic());
+    let r2 = align(&a, &b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r1.edit_distance, dist);
+    assert_eq!(r2.edit_distance, dist);
 }
 
 #[test]
@@ -142,8 +151,11 @@ fn no_double_expand_2() {
         .as_bytes()
         .to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    align(&a, &b, &alphabet, stats, h.to_seed_heuristic()).print();
-    align(&a, &b, &alphabet, stats, h).print();
+    let r1 = align(&a, &b, &alphabet, stats, h.to_seed_heuristic());
+    let r2 = align(&a, &b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r1.edit_distance, dist);
+    assert_eq!(r2.edit_distance, dist);
 }
 
 /// When points are removed from a layer, we may have to add new shadow points to cover for the next layer.
@@ -166,6 +178,9 @@ fn missing_shadow_points() {
     let b = "GGGGAGCGACAGCAGCCGCCGGCTTGCCCTAGCCAATTACTAGTCGCATTAAGGTGCAAAAAACCCCATCGGCTAAATGTGACCCTCAAGACGAGATGT";
     let b = b.as_bytes().to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    align(&a, &b, &alphabet, stats, h.to_seed_heuristic()).print();
-    align(&a, &b, &alphabet, stats, h).print();
+    let r1 = align(&a, &b, &alphabet, stats, h.to_seed_heuristic());
+    let r2 = align(&a, &b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r1.edit_distance, dist);
+    assert_eq!(r2.edit_distance, dist);
 }
