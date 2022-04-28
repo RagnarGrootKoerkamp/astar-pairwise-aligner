@@ -245,6 +245,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 let heuristic = GapSeedHeuristic {
                     match_config: match_config(params, a, b),
                     pruning: !params.no_prune,
+                    use_gap_cost: true,
                     c: PhantomData::<C>,
                 };
                 //println!("Heuristic:\n{:?}", heuristic);

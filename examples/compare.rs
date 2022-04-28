@@ -47,6 +47,7 @@ fn main() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
+                    use_gap_cost: true,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 };
                 let (a, b, alphabet, stats) = setup(n, e);

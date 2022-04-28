@@ -19,6 +19,7 @@ fn base_100(bench: &mut Bencher) {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<CentralContour>>,
     };
 
@@ -37,6 +38,7 @@ fn base_1000(bench: &mut Bencher) {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<CentralContour>>,
     };
 
@@ -55,6 +57,7 @@ fn base_10000(bench: &mut Bencher) {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<CentralContour>>,
     };
 
@@ -73,6 +76,7 @@ fn base_50000_similar(bench: &mut Bencher) {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<CentralContour>>,
     };
 
@@ -91,6 +95,7 @@ fn fast_100(bench: &mut Bencher) {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
@@ -109,6 +114,7 @@ fn fast_1000(bench: &mut Bencher) {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
@@ -127,6 +133,7 @@ fn fast_10000(bench: &mut Bencher) {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
@@ -145,6 +152,7 @@ fn fast_50000_similar(bench: &mut Bencher) {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 

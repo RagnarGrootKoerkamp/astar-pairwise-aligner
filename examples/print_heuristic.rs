@@ -15,6 +15,7 @@ fn main() {
                 ..MatchConfig::default()
             },
             pruning,
+            use_gap_cost: true,
             c: PhantomData::<HintContours<BruteForceContour>>,
         };
 

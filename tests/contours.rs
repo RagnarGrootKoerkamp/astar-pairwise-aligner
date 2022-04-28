@@ -12,6 +12,7 @@ fn exact_no_pruning() {
                         ..MatchConfig::default()
                     },
                     pruning: false,
+                    use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
                 let (a, b, alph, stats) = setup(n, e);
@@ -36,6 +37,7 @@ fn inexact_no_pruning() {
                         ..MatchConfig::default()
                     },
                     pruning: false,
+                    use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
                 let (a, b, alph, stats) = setup(n, e);
@@ -61,6 +63,7 @@ fn incremental_pruning_bruteforce() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
+                    use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
                 let (a, b, alph, stats) = setup(n, e);
@@ -85,6 +88,7 @@ fn incremental_pruning_hint_bruteforce() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
+                    use_gap_cost: true,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 };
                 let (a, b, alph, stats) = setup(n, e);
@@ -109,6 +113,7 @@ fn incremental_pruning_hint_central() {
                         ..MatchConfig::default()
                     },
                     pruning: true,
+                    use_gap_cost: true,
                     c: PhantomData::<HintContours<CentralContour>>,
                 };
                 let (a, b, alph, stats) = setup(n, e);

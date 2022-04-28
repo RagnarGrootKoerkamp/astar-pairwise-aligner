@@ -28,6 +28,7 @@ fn contour_graph() {
                 ..MatchConfig::default()
             },
             pruning,
+            use_gap_cost: true,
             c: PhantomData::<BruteForceContours>,
         };
         let (_, _, alph, stats) = setup(0, 0.0);
@@ -63,6 +64,7 @@ fn small_test() {
             ..MatchConfig::default()
         },
         pruning: false,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let r = align(&a, &b, &alphabet, stats, h);
@@ -82,6 +84,7 @@ fn seed_heuristic_rebuild() {
             ..MatchConfig::default()
         },
         pruning,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let (_a, _b, alph, stats) = setup(n, e);
@@ -112,6 +115,7 @@ fn no_double_expand() {
             ..MatchConfig::default()
         },
         pruning,
+        use_gap_cost: true,
         c: PhantomData::<BruteForceContours>,
     };
 
@@ -140,6 +144,7 @@ fn no_double_expand_2() {
             ..MatchConfig::default()
         },
         pruning,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
@@ -169,6 +174,7 @@ fn missing_shadow_points() {
             ..MatchConfig::default()
         },
         pruning,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 

@@ -46,6 +46,7 @@ fn consistency_1() {
             ..MatchConfig::default()
         },
         pruning: false,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -66,6 +67,7 @@ fn consistency_2() {
             ..MatchConfig::default()
         },
         pruning: false,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -87,6 +89,7 @@ fn consistency_3() {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -107,6 +110,7 @@ fn consistency_4() {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let (a, b, alphabet, stats) = setup(2000, 0.10);
@@ -129,6 +133,7 @@ fn consistency_5() {
             ..MatchConfig::default()
         },
         pruning: true,
+        use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let (a, b, alphabet, stats) = setup(2000, 0.20);
