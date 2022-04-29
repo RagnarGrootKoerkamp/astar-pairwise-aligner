@@ -63,6 +63,13 @@ impl Default for Hint {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+enum Shift {
+    None,
+    Layers(Cost),
+    Inconsistent,
+}
+
 impl<C: Contour> Contours for HintContours<C> {
     fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
         let mut this = HintContours {
@@ -235,7 +242,7 @@ impl<C: Contour> Contours for HintContours<C> {
         // Loop over the dominant matches in the next layer, and repeatedly prune while needed.
         let mut last_change = v;
         let mut num_emptied = 0;
-        let mut previous_shift = None;
+        let mut previous_shift = Shift::None;
         loop {
             v += 1;
             if v >= self.contours.len() as Cost {
@@ -248,7 +255,7 @@ impl<C: Contour> Contours for HintContours<C> {
             // Extract the current layer so we can modify it while reading the other layers.
             let mut current = std::mem::take(&mut self.contours[v as usize]);
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
-            let mut current_shift = None;
+            let mut current_shift = Shift::None;
             let mut layer_best_start_val = 0;
             let changes = current.prune_filter(&mut |pos| -> bool {
                 // This function decides whether the point pos from contour v
@@ -260,7 +267,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 let pos_arrows = match arrows.get(&pos) {
                     None => {
                         //println!("f: Prune {} no arrows left", pos);
-                        current_shift = Some(Cost::MAX);
+                        current_shift = Shift::Inconsistent;
                         // If no arrows left for this position, prune it without propagating.
                         self.stats.borrow_mut().checked_true += 1;
                         return true;
@@ -299,7 +306,7 @@ impl<C: Contour> Contours for HintContours<C> {
                     assert!(best_start_val == v);
                     //println!("f: {} keeps value {}", pos, best_start_val);
                     self.stats.borrow_mut().checked_false += 1;
-                    current_shift = Some(Cost::MAX);
+                    current_shift = Shift::Inconsistent;
 
                     // Make sure this point is contained in its parent, and add shadow points if not.
                     // NOTE: This adds around 1% of total runtime for HintContours<CentralContour>.
@@ -337,10 +344,14 @@ impl<C: Contour> Contours for HintContours<C> {
                     }
                 }
 
-                if current_shift.is_none() {
-                    current_shift = Some(v - best_start_val);
-                } else if current_shift.unwrap() != v - best_start_val {
-                    current_shift = Some(Cost::MAX);
+                match current_shift {
+                    Shift::None => {
+                        current_shift = Shift::Layers(v - best_start_val);
+                    }
+                    Shift::Layers(l) if l != v - best_start_val => {
+                        current_shift = Shift::Inconsistent;
+                    }
+                    _ => (),
                 }
                 self.stats.borrow_mut().checked_true += 1;
                 self.stats.borrow_mut().num_prune_shifts += 1;
@@ -372,27 +383,25 @@ impl<C: Contour> Contours for HintContours<C> {
                 break;
             }
 
-            //println!(
-            //"emptied {:?} shift {:?} last_change {:?}",
-            //emptied_shift, shift_to, last_change
-            //);
-            if self.contours[v as usize].len() == 0
-                && (current_shift.is_none() || current_shift.unwrap() != Cost::MAX)
-            {
-                if previous_shift.is_none()
-                    || current_shift.is_none()
+            // println!(
+            //     "emptied {:?} shift {:?} last_change {:?}",
+            //     emptied_shift, shift_to, last_change
+            // );
+            if self.contours[v as usize].len() == 0 && current_shift != Shift::Inconsistent {
+                if previous_shift == Shift::None
+                    || current_shift == Shift::None
                     || previous_shift == current_shift
                 {
                     num_emptied += 1;
-                    if previous_shift.is_none() {
+                    if previous_shift == Shift::None {
                         previous_shift = current_shift;
                     }
                 }
-                //println!("Num emptied to {} shift {:?}", num_emptied, emptied_shift);
+                // println!("Num emptied to {} shift {:?}", num_emptied, emptied_shift);
             } else {
                 num_emptied = 0;
-                previous_shift = None;
                 //println!("Num emptied reset");
+                previous_shift = Shift::None;
             }
             assert!(
                 // 0 happens when the layer was already empty.
@@ -408,7 +417,7 @@ impl<C: Contour> Contours for HintContours<C> {
             if num_emptied >= self.max_len {
                 //println!("Emptied {}, stopping at {}", num_emptied, v);
                 // Shift all other contours one down.
-                if let Some(previous_shift) = previous_shift {
+                if let Shift::Layers(previous_shift) = previous_shift {
                     self.stats.borrow_mut().shift_layers += 1;
 
                     for _ in 0..previous_shift {
