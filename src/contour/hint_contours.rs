@@ -90,6 +90,8 @@ impl Shift {
 }
 
 impl<C: Contour> Contours for HintContours<C> {
+    // NOTE: Arrows must satisfy the following 'consistency' properties:
+    // - If there is an arrow A->B of cost c>1, there is also an arrow A'->B of cost c-1, where A' is an indel away from A.
     fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
         let mut this = HintContours {
             contours: {
@@ -101,16 +103,21 @@ impl<C: Contour> Contours for HintContours<C> {
             stats: Default::default(),
             layers_removed: 0,
         };
-        this.contours[0].push(Pos(I::MAX, I::MAX));
+        this.contours[0usize].push(Pos(I::MAX, I::MAX));
         // Loop over all arrows from a given positions.
         for (start, pos_arrows) in &arrows.into_iter().group_by(|a| a.start) {
             //println!("ARROWS: {start:?}");
             let mut v = 0;
+            let mut l = 0;
             // TODO: The this.value() could also be implemented using a fenwick tree, as done in LCSk++.
             for a in pos_arrows {
                 // TODO: This is only true for gap-cost, not in more general contour settings.
                 //assert_eq!((a.end.0 - a.start.0) + (a.end.1 - a.start.1), 2 * max_len);
-                v = max(v, this.value(a.end) + a.len as Cost);
+                let nv = this.value(a.end) + a.len as Cost;
+                if nv > v || (nv == v && a.len < l) {
+                    v = nv;
+                    l = a.len;
+                }
                 //println!("ARROWS to: {a:?}: {v}");
             }
             assert!(v > 0);
@@ -118,11 +125,9 @@ impl<C: Contour> Contours for HintContours<C> {
                 this.contours
                     .resize_with(v as usize + 1, || C::with_max_len(max_len));
             }
-            //println!("Push {} to layer {}", start, v);
-            this.contours[v as usize].push(start);
-            while v > 0 && !this.contours[v as usize - 1].contains(start) {
-                v -= 1;
-                this.contours[v as usize].push(start);
+            for w in v + 1 - l as Cost..=v {
+                //println!("Push {} to layer {}", start, v);
+                this.contours[w].push(start);
             }
         }
         // for k in 0..this.contours.len() {
@@ -163,11 +168,11 @@ impl<C: Contour> Contours for HintContours<C> {
         // Do a linear search for 5 steps, starting at contour v.
         if v < self.contours.len() as Cost {
             self.stats.borrow_mut().contains_calls += 1;
-            if self.contours[v as usize].contains(q) {
+            if self.contours[v].contains(q) {
                 // Go up.
                 for v in v + 1..min(v + 1 + SEARCH_RANGE, self.contours.len() as Cost) {
                     self.stats.borrow_mut().contains_calls += 1;
-                    if !self.contours[v as usize].contains(q) {
+                    if !self.contours[v].contains(q) {
                         return (
                             v - 1,
                             Hint {
@@ -180,7 +185,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 // Go down.
                 self.stats.borrow_mut().contains_calls += 1;
                 for v in (v.saturating_sub(SEARCH_RANGE)..v).rev() {
-                    if self.contours[v as usize].contains(q) {
+                    if self.contours[v].contains(q) {
                         return (
                             v,
                             Hint {
@@ -214,35 +219,30 @@ impl<C: Contour> Contours for HintContours<C> {
         let mut v = self.value_with_hint(p, hint).0;
         // println!("BEFORE PRUNE of {p} layer {v}");
         // for i in v.saturating_sub(4)..min(v + 4, self.contours.len() as Cost) {
-        //     println!("{}: {:?}", i, self.contours[i as usize]);
+        //     println!("{}: {:?}", i, self.contours[i]);
         // }
 
-        // Prune the current point, and also any other lazily pruned points that become dominant.
-        // If nothing changed, return false.
-        if v == 0 || !self.contours[v as usize].prune_filter(&mut |pos| !arrows.contains_key(&pos))
+        assert!(v > 0);
+        // Remove the point from all layers where it is present.
         {
-            //println!("SKIP");
-            return (false, 0);
-        }
-
-        {
-            // Also remove the point from other contours where it is dominant.
-            let mut shadow_v = v - 1;
-            while self.contours[shadow_v as usize].is_dominant(p) {
-                self.contours[shadow_v as usize].prune(p);
-                shadow_v -= 1;
+            let mut pruned = false;
+            for w in v.saturating_sub(self.max_len)..=v {
+                pruned |= self.contours[w].prune(p);
             }
+            assert!(
+                pruned,
+                "Did not prune {p} from any of the layers {} to {v}",
+                v.saturating_sub(self.max_len)
+            );
         }
 
         self.stats.borrow_mut().prunes += 1;
         //println!("PRUNE {} at LAYER {}", p, v);
 
-        // If this layer becomes empty, and the max_len-1 layers below it are
-        // also empty, shift everything down by max_dist, and report this back
-        // for efficient updating of heuristic values in the queue.
-        if self.contours[v as usize].len() == 0 {
+        // If max_len consecutive layers are empty, shift everything down by this distance.
+        {
             let mut all_empty = true;
-            for w in (v + 1 - self.max_len) as usize..v as usize {
+            for w in (v + 1 - self.max_len) as usize..=v as usize {
                 all_empty &= self.contours[w].len() == 0;
             }
             if all_empty {
@@ -272,10 +272,11 @@ impl<C: Contour> Contours for HintContours<C> {
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
             // Extract the current layer so we can modify it while reading the other layers.
-            let mut current = std::mem::take(&mut self.contours[v as usize]);
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
+            let mut current = std::mem::take(&mut self.contours[v]);
             let mut current_shift = Shift::None;
-            let mut layer_best_start_val = 0;
+            // This is the max layer that is a 'dependency' for the arrows in the current layer.
+            let mut max_new_layer = 0;
             let changes = current.prune_filter(&mut |pos| -> bool {
                 // This function decides whether the point pos from contour v
                 // needs to be pruned from it.  For this, we (re)compute the
@@ -283,26 +284,18 @@ impl<C: Contour> Contours for HintContours<C> {
                 // of its value.
                 self.stats.borrow_mut().checked += 1;
                 //println!("f: {}", pos);
-                let pos_arrows = match arrows.get(&pos) {
-                    None => {
-                        //println!("f: Prune {} no arrows left", pos);
-                        current_shift = Shift::Inconsistent;
-                        // If no arrows left for this position, prune it without propagating.
-                        self.stats.borrow_mut().checked_true += 1;
-                        return true;
-                    }
-                    Some(arrows) => arrows,
-                };
+                let pos_arrows = arrows.get(&pos).expect("No arrows found for position.");
                 assert!(!pos_arrows.is_empty());
-                let mut best_start_val = 0;
+                let mut new_layer = 0;
+                let mut l = 0;
                 for arrow in pos_arrows {
                     // Find the value at end_val via a backwards search.
-                    let mut end_val = v - arrow.len as Cost;
-                    while !self.contours[end_val as usize].contains(arrow.end) {
-                        end_val -= 1;
+                    let mut end_layer = v - arrow.len as Cost;
+                    while !self.contours[end_layer].contains(arrow.end) {
+                        end_layer -= 1;
 
                         // No need to continue when this value isn't going to be optimal anyway.
-                        if end_val + arrow.len as Cost <= best_start_val {
+                        if end_layer + arrow.len as Cost <= new_layer {
                             break;
                         }
 
@@ -310,29 +303,37 @@ impl<C: Contour> Contours for HintContours<C> {
                             // We know that max_new_val will be within [v-max_len, v].
                             // Thus, value(arrow.end) will be in [v-max_len-arrow.len, v-arrow.len].
                             // For simplicity, we skip this check.
-                            if end_val + self.max_len == v - arrow.len as Cost {
+                            if end_layer + self.max_len == v - arrow.len as Cost {
                                 break;
                             }
                         }
                     }
 
-                    let start_val = end_val + arrow.len as Cost;
-                    best_start_val = max(best_start_val, start_val);
-                    layer_best_start_val = max(layer_best_start_val, start_val);
+                    let start_layer = end_layer + arrow.len as Cost;
+                    if start_layer > new_layer || (start_layer == new_layer && arrow.len < l) {
+                        new_layer = start_layer;
+                        l = arrow.len;
+                    }
                 }
+                max_new_layer = max(max_new_layer, new_layer);
+                assert!(new_layer <= v);
                 // Value v is still up to date. No need to loop over the remaining arrows starting here.
-                if best_start_val >= v {
-                    assert!(best_start_val == v);
+                if new_layer == v {
                     //println!("f: {} keeps value {}", pos, best_start_val);
                     self.stats.borrow_mut().checked_false += 1;
                     current_shift = Shift::Inconsistent;
 
                     // Make sure this point is contained in its parent, and add shadow points if not.
                     // NOTE: This adds around 1% of total runtime for HintContours<CentralContour>.
-                    let mut v = best_start_val;
+                    let mut v = new_layer;
                     while v > 0 && !self.contours[v as usize - 1].contains(pos) {
                         v -= 1;
-                        self.contours[v as usize].push(pos);
+                        self.contours[v].push(pos);
+                    }
+                    for w in new_layer + 1 - l as Cost..new_layer {
+                        if !self.contours[w].contains_equal(pos) {
+                            self.contours[w].push(pos);
+                        }
                     }
 
                     return false;
@@ -350,29 +351,22 @@ impl<C: Contour> Contours for HintContours<C> {
                 //     "f: Push {} to {} shift {:?}",
                 //     pos, best_start_val, current_shift
                 // );
-                {
-                    let mut v = best_start_val;
-                    if !self.contours[v as usize].contains_equal(pos) {
-                        self.contours[v as usize].push(pos);
-                    }
-                    v -= 1;
-                    // Layer 0 is guaranteed to contain everything.
-                    while !self.contours[v as usize].contains(pos) {
-                        self.contours[v as usize].push(pos);
-                        v -= 1;
+                for w in new_layer + 1 - l as Cost..=new_layer {
+                    if !self.contours[w].contains_equal(pos) {
+                        self.contours[w].push(pos);
                     }
                 }
 
                 current_shift.merge(Shift::Layers(v - new_layer));
                 self.stats.borrow_mut().checked_true += 1;
                 self.stats.borrow_mut().num_prune_shifts += 1;
-                self.stats.borrow_mut().sum_prune_shifts += v - best_start_val;
+                self.stats.borrow_mut().sum_prune_shifts += v - new_layer;
                 self.stats.borrow_mut().max_prune_shift = max(
                     {
                         let x = self.stats.borrow().max_prune_shift;
                         x
                     },
-                    v - best_start_val,
+                    v - new_layer,
                 );
                 true
             });
@@ -416,13 +410,13 @@ impl<C: Contour> Contours for HintContours<C> {
             }
             assert!(
                 // 0 happens when the layer was already empty.
-                layer_best_start_val == 0 || layer_best_start_val + self.max_len >= v,
+                max_new_layer == 0 || max_new_layer + self.max_len >= v,
                 "Pruning {} now layer {} new max {} drops more than {}.\nlast_change: {}, shift_to {:?}, layer size: {}",
                 p,
                 v,
-                layer_best_start_val,
+                max_new_layer,
                 self.max_len,
-                last_change, current_shift, self.contours[v as usize].len()
+                last_change, current_shift, self.contours[v ].len()
             );
 
             if num_emptied >= self.max_len {
