@@ -22,6 +22,7 @@ pub struct GapSeedHeuristic<C: Contours> {
 
 impl<C: 'static + Contours> GapSeedHeuristic<C> {
     pub fn to_seed_heuristic(&self) -> SeedHeuristic<GapCost> {
+        assert!(self.use_gap_cost);
         SeedHeuristic {
             match_config: self.match_config,
             distance_function: GapCost,
@@ -29,9 +30,27 @@ impl<C: 'static + Contours> GapSeedHeuristic<C> {
         }
     }
 
+    pub fn to_zero_cost_seed_heuristic(&self) -> SeedHeuristic<ZeroCost> {
+        assert!(!self.use_gap_cost);
+        SeedHeuristic {
+            match_config: self.match_config,
+            distance_function: ZeroCost,
+            pruning: self.pruning,
+        }
+    }
+
     pub fn equal_to_seed_heuristic(&self) -> EqualHeuristic<SeedHeuristic<GapCost>, Self> {
         EqualHeuristic {
             h1: self.to_seed_heuristic(),
+            h2: *self,
+        }
+    }
+
+    pub fn equal_to_zero_cost_seed_heuristic(
+        &self,
+    ) -> EqualHeuristic<SeedHeuristic<ZeroCost>, Self> {
+        EqualHeuristic {
+            h1: self.to_zero_cost_seed_heuristic(),
             h2: *self,
         }
     }

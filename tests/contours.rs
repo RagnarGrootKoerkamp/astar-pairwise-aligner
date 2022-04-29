@@ -52,7 +52,7 @@ fn inexact_no_pruning() {
 }
 
 #[test]
-fn incremental_pruning_bruteforce() {
+fn pruning_bruteforce() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
@@ -77,7 +77,7 @@ fn incremental_pruning_bruteforce() {
 }
 
 #[test]
-fn incremental_pruning_hint_bruteforce() {
+fn pruning_hint_bruteforce() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
@@ -102,7 +102,7 @@ fn incremental_pruning_hint_bruteforce() {
 }
 
 #[test]
-fn incremental_pruning_hint_central() {
+fn pruning_hint_central() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
@@ -167,7 +167,7 @@ fn no_gap_cost() {
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, &alph, stats, h);
+                let r = align(&a, &b, &alph, stats, h.equal_to_zero_cost_seed_heuristic());
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
                 assert_eq!(r.edit_distance, dist);
             }

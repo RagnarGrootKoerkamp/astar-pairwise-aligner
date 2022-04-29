@@ -53,6 +53,20 @@ impl<C> IndexMut<usize> for SplitVec<C> {
     }
 }
 
+impl<C> Index<u32> for SplitVec<C> {
+    type Output = C;
+
+    fn index(&self, index: u32) -> &Self::Output {
+        &self[index as usize]
+    }
+}
+
+impl<C> IndexMut<u32> for SplitVec<C> {
+    fn index_mut(&mut self, index: u32) -> &mut Self::Output {
+        &mut self[index as usize]
+    }
+}
+
 impl<C> SplitVec<C> {
     pub fn len(&self) -> usize {
         self.prefix.len() + self.suffix.len()

@@ -106,6 +106,7 @@ pub trait Contours: Default + Debug {
         &mut self,
         p: Pos,
         hint: Self::Hint,
+        // TODO: Consider giving ownership to Contours, and add a getter to access it from the heuristic.
         arrows: &HashMap<Pos, Vec<Arrow>>,
     ) -> (bool, Cost);
 
