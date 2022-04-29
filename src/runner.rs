@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use structopt::StructOpt;
 use strum_macros::EnumString;
 
-#[derive(EnumString, Default, Debug)]
+#[derive(EnumString, Default, Debug, PartialEq, Eq)]
 #[strum(ascii_case_insensitive)]
 pub enum CostFunction {
     Zero,
@@ -190,7 +190,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 source: Source::Extern,
             };
 
-            // Dijkstra disabled greedy to have more consistent runtimes.
+            // Greedy matching is disabled for Dijkstra to have more consistent runtimes.
             align_advanced(
                 a,
                 b,
@@ -243,13 +243,13 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 b: &Sequence,
                 params: &Params,
             ) -> AlignResult {
+                assert!(params.cost == CostFunction::Zero || params.cost == CostFunction::Gap);
                 let heuristic = GapSeedHeuristic {
                     match_config: match_config(params, a, b),
                     pruning: !params.no_prune,
-                    use_gap_cost: true,
+                    use_gap_cost: params.cost == CostFunction::Gap,
                     c: PhantomData::<C>,
                 };
-                //println!("Heuristic:\n{:?}", heuristic);
 
                 let alphabet = Alphabet::new(b"ACTG");
                 let sequence_stats = SequenceStats {
