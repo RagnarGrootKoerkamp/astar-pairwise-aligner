@@ -111,8 +111,6 @@ impl<C: Contour> Contours for HintContours<C> {
             let mut l = 0;
             // TODO: The this.value() could also be implemented using a fenwick tree, as done in LCSk++.
             for a in pos_arrows {
-                // TODO: This is only true for gap-cost, not in more general contour settings.
-                //assert_eq!((a.end.0 - a.start.0) + (a.end.1 - a.start.1), 2 * max_len);
                 let nv = this.value(a.end) + a.len as Cost;
                 if nv > v || (nv == v && a.len < l) {
                     v = nv;
@@ -258,7 +256,7 @@ impl<C: Contour> Contours for HintContours<C> {
             }
         }
 
-        // Loop over the dominant matches in the next layer, and repeatedly prune while needed.
+        // Loop over the matches in the next layer, and repeatedly prune while needed.
         let mut last_change = v;
         let mut num_emptied = 0;
         let mut previous_shift = Shift::None;
@@ -340,11 +338,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
 
                 //println!("f: {} new value {}", pos, max_new_val);
-                // NOTE: This assertion does not always hold. In particular,
-                // when the Contour implementation is lazy about pruning
-                // non-dominant points, it may happen that e.g. a value 8 contour contains points with value 7.
-                // After removing a match of length max_len=2, this would drop to 5, which is less than 8 - 2.
-                // assert!(v - max_len <= max_new_val && max_new_val <= v,);
+                assert!(v - self.max_len <= max_new_layer && max_new_layer <= v);
 
                 // Either no arrows left (position already pruned), or none of its arrows yields value v.
                 // println!(
