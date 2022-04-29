@@ -304,11 +304,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
+        // TODO: Make this smarter and allow pruning long arrows even when pruning short arrows is not possible.
         for d in 1..=self.params.match_config.max_match_cost {
-            if tpos.1 >= d as Cost {
-                if let Some(pos_arrows) = self
-                    .arrows
-                    .get(&Pos(tpos.0 + d as Cost, tpos.1 - d as Cost))
+            if pos.0 >= d as Cost {
+                if let Some(pos_arrows) =
+                    self.arrows.get(&self.transform(Pos(pos.0, pos.1 - d as I)))
                 {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
                         self.pruning_duration += start.elapsed();
@@ -316,10 +316,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
                     }
                 }
             }
-            if tpos.0 >= d as Cost {
-                if let Some(pos_arrows) = self
-                    .arrows
-                    .get(&Pos(tpos.0 - d as Cost, tpos.1 + d as Cost))
+            {
+                if let Some(pos_arrows) =
+                    self.arrows.get(&self.transform(Pos(pos.0, pos.1 + d as I)))
                 {
                     if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
                         self.pruning_duration += start.elapsed();
