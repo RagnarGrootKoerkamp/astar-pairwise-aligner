@@ -208,23 +208,18 @@ impl<C: Contours> GapSeedHeuristicI<C> {
         }
 
         // Transform to Arrows.
-        let arrows_iterator = h.seeds.matches.iter().rev().map(
-            |&Match {
-                 start,
-                 end,
-                 match_cost,
-                 seed_potential,
-             }| {
-                Arrow {
-                    start: h.transform(start),
-                    end: h.transform(end),
-                    len: seed_potential - match_cost,
-                }
-            },
-        );
+        // For arrows with length > 1, also make arrows for length down to 1.
+        let match_to_arrow = |m: &Match| Arrow {
+            start: h.transform(m.start),
+            end: h.transform(m.end),
+            len: m.seed_potential - m.match_cost,
+        };
 
-        let arrows_map = arrows_iterator
-            .clone()
+        let arrows = h
+            .seeds
+            .matches
+            .iter()
+            .map(match_to_arrow)
             .group_by(|a| a.start)
             .into_iter()
             .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
@@ -234,10 +229,10 @@ impl<C: Contours> GapSeedHeuristicI<C> {
         // TODO: Can we get away without sorting? It's probably possible if seeds
         // TODO: Fix the units here -- unclear whether it should be I or cost.
         h.contours = C::new(
-            arrows_iterator,
+            h.seeds.matches.iter().rev().map(match_to_arrow),
             h.params.match_config.max_match_cost as I + 1,
         );
-        h.arrows = arrows_map;
+        h.arrows = arrows;
         h.print(false, false);
         h.contours.print_stats();
         h
