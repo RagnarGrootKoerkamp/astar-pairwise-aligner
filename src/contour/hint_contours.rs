@@ -70,6 +70,25 @@ enum Shift {
     Inconsistent,
 }
 
+impl Shift {
+    fn merge(&mut self, other: Shift) -> Shift {
+        match *self {
+            Shift::None => {
+                *self = other;
+            }
+            Shift::Layers(s) => match other {
+                Shift::None => {}
+                Shift::Layers(o) if o == s => {}
+                _ => {
+                    *self = Shift::Inconsistent;
+                }
+            },
+            Shift::Inconsistent => {}
+        };
+        *self
+    }
+}
+
 impl<C: Contour> Contours for HintContours<C> {
     fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
         let mut this = HintContours {
@@ -230,7 +249,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 // Delete these max_len layers.
                 for _ in 0..self.max_len {
                     //println!("Delete layer {} of len {}", v, self.contours[v].len());
-                    assert!(self.contours[v as usize].len() == 0);
+                    assert!(self.contours[v].len() == 0);
                     self.contours.remove(v as usize);
                     self.layers_removed += 1;
                     v -= 1;
@@ -344,15 +363,7 @@ impl<C: Contour> Contours for HintContours<C> {
                     }
                 }
 
-                match current_shift {
-                    Shift::None => {
-                        current_shift = Shift::Layers(v - best_start_val);
-                    }
-                    Shift::Layers(l) if l != v - best_start_val => {
-                        current_shift = Shift::Inconsistent;
-                    }
-                    _ => (),
-                }
+                current_shift.merge(Shift::Layers(v - new_layer));
                 self.stats.borrow_mut().checked_true += 1;
                 self.stats.borrow_mut().num_prune_shifts += 1;
                 self.stats.borrow_mut().sum_prune_shifts += v - best_start_val;
@@ -370,7 +381,7 @@ impl<C: Contour> Contours for HintContours<C> {
             }
 
             // Put current layer back in place
-            self.contours[v as usize] = current;
+            self.contours[v] = current;
 
             //println!("{}: {:?}", v, self.contours[v]);
             //println!("{}: {:?}", v - 1, self.contours[v - 1]);
@@ -387,7 +398,7 @@ impl<C: Contour> Contours for HintContours<C> {
             //     "emptied {:?} shift {:?} last_change {:?}",
             //     emptied_shift, shift_to, last_change
             // );
-            if self.contours[v as usize].len() == 0 && current_shift != Shift::Inconsistent {
+            if self.contours[v].len() == 0 && current_shift != Shift::Inconsistent {
                 if previous_shift == Shift::None
                     || current_shift == Shift::None
                     || previous_shift == current_shift
@@ -422,7 +433,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
                     for _ in 0..previous_shift {
                         //println!("Delete layer {} of len {}", v, self.contours[v].len());
-                        assert!(self.contours[v as usize].len() == 0);
+                        assert!(self.contours[v].len() == 0);
                         self.contours.remove(v as usize);
                         self.layers_removed += 1;
                         v -= 1;
