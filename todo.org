@@ -25,11 +25,6 @@ $k \leq 1/e$.
 $e \leq 1/k \leq 1/\lg n$.
 them: $n \cdot s = n ^2 e = n^2 / \lg n$
 us: $n$
-** DONE Count operations
-- h evaluation
-- pruning
-- expanded states
-  - greedy expanded states
 
 * Failing assertions / Bugs
 ** DONE Investigate inconsistent heuristic before pruning

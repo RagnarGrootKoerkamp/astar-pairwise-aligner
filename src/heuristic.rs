@@ -34,7 +34,6 @@ pub struct HeuristicStats {
     pub matches: Vec<Match>,
     pub pruning_duration: f32,
     pub num_prunes: usize,
-    pub num_ops: usize,
 }
 
 impl Default for HeuristicStats {
@@ -46,7 +45,6 @@ impl Default for HeuristicStats {
             matches: Default::default(),
             pruning_duration: 0.,
             num_prunes: 0,
-            num_ops: 0,
         }
     }
 }

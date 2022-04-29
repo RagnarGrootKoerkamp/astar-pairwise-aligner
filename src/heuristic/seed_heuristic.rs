@@ -214,7 +214,6 @@ where
             matches: self.seeds.matches.clone(),
             pruning_duration: self.pruning_duration.as_secs_f32(),
             num_prunes: self.num_pruned,
-            num_ops: 0,
         }
     }
 

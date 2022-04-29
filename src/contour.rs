@@ -44,11 +44,6 @@ pub trait Contour: Default + Debug + Clone {
     fn len(&self) -> usize;
     fn num_dominant(&self) -> usize;
 
-    // A measure of the number of contour operations done.
-    fn ops(&self) -> usize {
-        0
-    }
-
     fn print_points(&self) {}
 }
 
@@ -116,9 +111,4 @@ pub trait Contours: Default + Debug {
 
     /// Returns some statistics.
     fn print_stats(&self) {}
-
-    // A measure of the number of contour operations done.
-    fn ops(&self) -> usize {
-        0
-    }
 }
