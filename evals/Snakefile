@@ -55,6 +55,8 @@ tool_command = {
     'pa_manual':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
     # infers k and m values.
     'pa':                   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e}',
+    'pa_zero':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e} --cost Zero',
+    'pa_unordered':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e} --algorithm Unordered',
     # slower PA variants
     'dijkstra':             binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -a Dijkstra',
     'dijkstra_nogreedy':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -a Dijkstra --no-greedy-matching',
@@ -71,6 +73,8 @@ tool_command = {
 # Subset of tools to run
 tools = [
     'pa',
+    'pa_zero',
+    'pa_unordered',
     'edlib',
     ##'wfa',  # Replaced by wfa2
     ##'wfa2', # Replaced by biwfa
@@ -289,6 +293,11 @@ rule astar_visualization:
     input:
     output: 'astar-visualization/dijkstra.csv'
     shell: "cargo run --release --example states"
+
+# ONT Runs
+rule ont_table:
+    input: 'input/simulated/{ref}-x{x}-n{n}.seq'
+    output: 'table/ont-{ref}-x{x}-n{n}.tsv'
 
 # ======= Reference ======= #
 rule human_reference:
