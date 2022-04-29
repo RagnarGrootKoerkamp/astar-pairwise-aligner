@@ -443,5 +443,32 @@ ContourGraph isn't used anymore.
 
 
 * short-term todolist
-** dijkstra visualization without greedy
-** nanosim for ONT simulations
+** Convert manual experiments into snakemake
+** Fix bug workaround
+** add visualizations from rust
+** note on induced vs observed error rates in paper
+** report memory usage on one datapoint
+*** discussion: diagonal-transition will reduce memory
+** Experiment setup:
+- Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+- pinned to run at 1.8GHz instead. (TODO: Run at 2.6?)
+    - sudo cpupower
+- running 3 jobs on 3 cores in parallel: taskset -c 0,2,4
+- benchmarking using snakemake
+- timeout of 1000s on 10MB sets
+- write that we should be good on actual ONT reads, i.e. de-novo assembly
+** Analysis
+- $k \geq log_\Sigma(n)$
+- $k \ll q/e$, but by how much? $k\leq 3/4\cdot 1/e$ seems good? -> next
+  theoretical paper.
+** Supplement
+- Expanded states plots
+- Memory usage plots
+** Result vs method vs generic titles
+- we do method
+** Cite A* paper
+** Ordered seed heuristic -> Chained-seeds heuristic (CSH)
+** Run experiments for unordered heuristic
+** Run experiments for version without gapcost
+** Test that we give the same distance as edlib/WFA
+** cite paper that does PA of random strings
