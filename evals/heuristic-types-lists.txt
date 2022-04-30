@@ -1,0 +1,3 @@
+Seed heuristic: seedh, pruning, inexact matches, variable length seeds, online seeds
+Chained-seeds heuristic: seedh, pruning, seed chaining, transition seed cost
+Future work: seedh, pruning, seed chaining, inexact matches, transition seed cost, transition gap costs, transition letter cost, variable length seeds, online seeds
