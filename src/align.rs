@@ -39,6 +39,7 @@ pub struct TimingStats {
 #[derive(Serialize, Default, Clone)]
 pub struct HeuristicStats2 {
     pub root_h: Cost,
+    pub root_h_end: Cost,
     pub path_matches: usize,
     pub explored_matches: usize,
 }
@@ -88,6 +89,7 @@ impl AlignResult {
         self.heuristic_stats.pruning_duration += other.heuristic_stats.pruning_duration;
         self.edit_distance += other.edit_distance;
         self.heuristic_stats2.root_h += other.heuristic_stats2.root_h;
+        self.heuristic_stats2.root_h_end += other.heuristic_stats2.root_h_end;
         self.sample_size += other.sample_size;
     }
 
@@ -208,6 +210,12 @@ impl AlignResult {
                 format!(
                     "{:>6.0}",
                     this.heuristic_stats2.root_h as f32 / this.sample_size as f32
+                )
+            }),
+            (format!("{:>6}", "h0end"), |this: &AlignResult| {
+                format!(
+                    "{:>6.0}",
+                    this.heuristic_stats2.root_h_end as f32 / this.sample_size as f32
                 )
             }),
             // (format!("{:>5}", "m_pat"), |this: &AlignResult| {
@@ -353,6 +361,7 @@ where
     let (distance_and_path, astar_stats) = astar::astar(&graph, Pos(0, 0), &mut h);
     let (distance, path) = distance_and_path.unwrap_or_default();
     let astar_duration = start_time.elapsed();
+    let end_val = h.h(Pos(0, 0));
 
     assert!(
         start_val <= distance,
@@ -389,6 +398,7 @@ where
         heuristic_stats: h_stats,
         heuristic_stats2: HeuristicStats2 {
             root_h: start_val,
+            root_h_end: end_val,
             path_matches,
             explored_matches,
         },
