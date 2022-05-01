@@ -61,6 +61,8 @@ pub fn astar<'a, H>(
 where
     H: HeuristicInstance<'a>,
 {
+    const D: bool = false;
+
     let mut stats = AStarStats {
         expanded: 0,
         explored: 0,
@@ -139,8 +141,8 @@ where
             state.hint = new_hint;
             let current_f = state.g + current_h;
             assert!(
-                current_f >= queue_f,
-                "Current_f {current_f} smaller than queue_f {queue_f}!"
+                current_f >= queue_f && current_h >= queue_f - queue_g,
+                "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.g={} queue_g={} queue_h={} current_h={}", state.g, queue_g, queue_f-queue_g, current_h
             );
             if current_f > queue_f {
                 stats.retries += 1;
@@ -150,6 +152,13 @@ where
                     queue_g,
                 ));
                 continue;
+            }
+            assert!(current_f == queue_f);
+            if D {
+                println!(
+                    "Expand {pos} at \tg={queue_g} \tf={queue_f} \th={current_h}\tqueue_h={}",
+                    queue_f - queue_g
+                );
             }
         }
 
@@ -182,7 +191,6 @@ where
             if DEBUG {
                 stats.expanded_states.push(pos);
             }
-            //println!("Expand {pos} @ f={queue_f}, g={}", state.g);
 
             // Retrace path to root and return.
             if pos == graph.target() {
