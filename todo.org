@@ -472,3 +472,9 @@ Has to do with h0 being smaller
 ** TODO Is zero-heuristic consistent?
 Yes, but need to fix greedy matching.
 ** TODO ONLY WORK ON CSH / zero heuristic
+** DONE Improve pruning: do delayed pruning where needed
+CLOSED: [2022-05-02 Mon 01:08]
+We now prune matches by end as well, when the start of an exact match is expanded.
+** TODO Prune inexact matches next to an exact match that is on a greedy path
+Currently these matches are not pruned at all.
+Could be fixed by also pruning by match-end, orby clustering matches.
