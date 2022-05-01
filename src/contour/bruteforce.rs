@@ -57,6 +57,12 @@ impl Contour for BruteForceContour {
         x.len()
     }
 
+    fn iterate_points<F: FnMut(Pos) -> ()>(&self, mut f: F) {
+        for p in &self.points {
+            f(*p);
+        }
+    }
+
     fn print_points(&self) {
         for p in &self.points {
             println!("{p}");
