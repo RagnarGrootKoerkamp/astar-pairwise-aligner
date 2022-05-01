@@ -134,7 +134,12 @@ impl Params {
 }
 
 pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
-    fn match_config(params: &Params, a: &Sequence, b: &Sequence) -> matches::MatchConfig {
+    fn match_config(
+        params: &Params,
+        a: &Sequence,
+        b: &Sequence,
+        window_filter: bool,
+    ) -> matches::MatchConfig {
         let (m, k) = params.determine_mk(a, b);
         MatchConfig {
             length: if let Some(max) = params.max_matches {
@@ -148,7 +153,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             },
             max_match_cost: m,
             algorithm: params.match_algorithm,
-            window_filter: true,
+            window_filter,
         }
     }
 
@@ -206,7 +211,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 for<'a> C::DistanceInstance<'a>: HeuristicInstance<'a>,
             {
                 let heuristic = SeedHeuristic {
-                    match_config: match_config(params, a, b),
+                    match_config: match_config(params, a, b, false),
                     distance_function: C::default(),
                     pruning: !params.no_prune,
                 };
@@ -245,7 +250,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             ) -> AlignResult {
                 assert!(params.cost == CostFunction::Zero || params.cost == CostFunction::Gap);
                 let heuristic = GapSeedHeuristic {
-                    match_config: match_config(params, a, b),
+                    match_config: match_config(params, a, b, params.cost == CostFunction::Gap),
                     pruning: !params.no_prune,
                     use_gap_cost: params.cost == CostFunction::Gap,
                     c: PhantomData::<C>,
@@ -281,7 +286,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
         }
         Algorithm::Unordered => {
             let heuristic = UnorderedHeuristic {
-                match_config: match_config(params, a, b),
+                match_config: match_config(params, a, b, false),
                 pruning: !params.no_prune,
             };
 
