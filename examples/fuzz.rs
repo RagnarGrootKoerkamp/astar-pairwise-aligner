@@ -1,4 +1,4 @@
-use pairwise_aligner::prelude::{UnorderedHeuristic, *};
+use pairwise_aligner::prelude::*;
 
 fn main() {
     for n in 40.. {
@@ -17,7 +17,7 @@ fn main() {
 
             println!("n={} r={} k={}", n, r, k);
             let (a, b, alphabet, stats) = setup_with_seed(n, e, r);
-            println!("{}\n{}", to_string(&a), to_string(&b));
+            //println!("{}\n{}", to_string(&a), to_string(&b));
             let result = align(&a, &b, &alphabet, stats, h);
             result.print();
         }

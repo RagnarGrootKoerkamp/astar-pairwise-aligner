@@ -1,38 +1,33 @@
 use pairwise_aligner::prelude::*;
 
 fn main() {
-    let pruning = false;
-    for do_transform in [false, true] {
-        let n = 50;
-        let e: f32 = 0.2;
-        let k = 4;
-        let max_match_cost = 1;
+    let pruning = true;
+    let n = 55;
+    let e: f32 = 0.2;
+    let k = 10;
+    let max_match_cost = 1;
 
-        let heuristic = GapSeedHeuristic {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost,
-                ..MatchConfig::default()
-            },
-            pruning,
-            use_gap_cost: true,
-            c: PhantomData::<HintContours<BruteForceContour>>,
-        };
+    let heuristic = UnorderedHeuristic {
+        match_config: MatchConfig {
+            length:
+            //Fixed(6),
+            LengthConfig::Max(MaxMatches {
+                max_matches: 1,
+                k_min: 4,
+                k_max: 10,
+            }),
+            max_match_cost,
+            ..MatchConfig::default()
+        },
+        pruning,
+    };
 
-        let (ref a, ref b, alphabet, stats) = setup(n, e);
-        println!("{}\n{}", to_string(a), to_string(b));
-        let h = heuristic.build(&a, &b, &alphabet);
+    let (ref a, ref b, alphabet, stats) = setup(n, e);
+    println!("{}\n{}", to_string(a), to_string(b));
+    let h = heuristic.build(&a, &b, &alphabet);
 
-        h.print(do_transform, false);
+    PRINT.store(true, std::sync::atomic::Ordering::Relaxed);
+    h.print(false, false);
 
-        if do_transform {
-            align(
-                &a,
-                &b,
-                &alphabet,
-                stats,
-                heuristic.equal_to_seed_heuristic(),
-            );
-        }
-    }
+    align(&a, &b, &alphabet, stats, heuristic).print();
 }
