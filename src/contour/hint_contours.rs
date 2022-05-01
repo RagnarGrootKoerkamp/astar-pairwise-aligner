@@ -89,6 +89,27 @@ impl Shift {
     }
 }
 
+impl<C: Contour> HintContours<C> {
+    fn debug(&self, pos: Pos, v: Cost, arrows: &HashMap<Pos, Vec<Arrow>>) {
+        println!("BEFORE PRUNE of {pos} layer {v}");
+        let radius = 6;
+        for i in max(v.saturating_sub(radius), 1)..min(v + radius, self.contours.len() as Cost) {
+            println!("{}: {:?}", i, self.contours[i]);
+            self.contours[i].iterate_points(|p: Pos| {
+                let l = arrows.get(&p).map_or(0, |arrows| {
+                    arrows.iter().map(|a| a.len).max().expect("Empty arrows")
+                });
+                println!("{i} {p}: {l}");
+                assert!(
+                    l > 0 || p == pos,
+                    "No arrows found for position {p} at layer {i}"
+                );
+            })
+        }
+        self.display_box(Pos(pos.0 - 100, pos.1 - 100), Pos(pos.0 + 100, pos.1 + 100));
+    }
+}
+
 impl<C: Contour> Contours for HintContours<C> {
     // NOTE: Arrows must satisfy the following 'consistency' properties:
     // - If there is an arrow A->B of cost c>1, there is also an arrow A'->B of cost c-1, where A' is an indel away from A.
@@ -106,7 +127,6 @@ impl<C: Contour> Contours for HintContours<C> {
         this.contours[0usize].push(Pos(I::MAX, I::MAX));
         // Loop over all arrows from a given positions.
         for (start, pos_arrows) in &arrows.into_iter().group_by(|a| a.start) {
-            //println!("ARROWS: {start:?}");
             let mut v = 0;
             let mut l = 0;
             // TODO: The this.value() could also be implemented using a fenwick tree, as done in LCSk++.
@@ -114,9 +134,8 @@ impl<C: Contour> Contours for HintContours<C> {
                 let nv = this.value(a.end) + a.len as Cost;
                 if nv > v || (nv == v && a.len < l) {
                     v = nv;
-                    l = a.len;
                 }
-                //println!("ARROWS to: {a:?}: {v}");
+                l = max(l, a.len);
             }
             assert!(v > 0);
             if this.contours.len() as Cost <= v {
@@ -124,14 +143,9 @@ impl<C: Contour> Contours for HintContours<C> {
                     .resize_with(v as usize + 1, || C::with_max_len(max_len));
             }
             for w in v + 1 - l as Cost..=v {
-                //println!("Push {} to layer {}", start, v);
                 this.contours[w].push(start);
             }
         }
-        // for k in 0..this.contours.len() {
-        //     //this.contours[k].print_points();
-        //     //println!("{}: {:?}", k, this.contours[k]);
-        // }
 
         this
     }
@@ -212,13 +226,14 @@ impl<C: Contour> Contours for HintContours<C> {
         hint: Hint,
         arrows: &HashMap<Pos, Vec<Arrow>>,
     ) -> (bool, Cost) {
+        const D: bool = false;
         // Work contour by contour.
         // 1. Remove p from it's first contour.
         let mut v = self.value_with_hint(p, hint).0;
-        // println!("BEFORE PRUNE of {p} layer {v}");
-        // for i in v.saturating_sub(4)..min(v + 4, self.contours.len() as Cost) {
-        //     println!("{}: {:?}", i, self.contours[i]);
-        // }
+        if D {
+            self.debug(p, v, arrows);
+        }
+
 
         assert!(v > 0);
         // Remove the point from all layers where it is present.
@@ -227,15 +242,17 @@ impl<C: Contour> Contours for HintContours<C> {
             for w in v.saturating_sub(self.max_len)..=v {
                 pruned |= self.contours[w].prune(p);
             }
-            assert!(
-                pruned,
-                "Did not prune {p} from any of the layers {} to {v}",
-                v.saturating_sub(self.max_len)
-            );
+            if !pruned {
+                self.debug(p, v, arrows);
+                assert!(
+                    pruned,
+                    "Did not prune {p} from any of the layers {} to {v}",
+                    v.saturating_sub(self.max_len)
+                );
+            }
         }
 
         self.stats.borrow_mut().prunes += 1;
-        //println!("PRUNE {} at LAYER {}", p, v);
 
         // If max_len consecutive layers are empty, shift everything down by this distance.
         {
@@ -246,7 +263,9 @@ impl<C: Contour> Contours for HintContours<C> {
             if all_empty {
                 // Delete these max_len layers.
                 for _ in 0..self.max_len {
-                    //println!("Delete layer {} of len {}", v, self.contours[v].len());
+                    if D {
+                        println!("Delete layer {} of len {}", v, self.contours[v].len());
+                    }
                     assert!(self.contours[v].len() == 0);
                     self.contours.remove(v as usize);
                     self.layers_removed += 1;
@@ -266,9 +285,6 @@ impl<C: Contour> Contours for HintContours<C> {
                 break;
             }
             self.stats.borrow_mut().contours += 1;
-            //println!("layer {}", v);
-            //println!("{}: {:?}", v, self.contours[v]);
-            //println!("{}: {:?}", v - 1, self.contours[v - 1]);
             // Extract the current layer so we can modify it while reading the other layers.
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
             let mut current = std::mem::take(&mut self.contours[v]);
@@ -281,7 +297,6 @@ impl<C: Contour> Contours for HintContours<C> {
                 // value at pos and if it's < v, we push is to the new contour
                 // of its value.
                 self.stats.borrow_mut().checked += 1;
-                //println!("f: {}", pos);
                 let pos_arrows = arrows.get(&pos).expect("No arrows found for position.");
                 assert!(!pos_arrows.is_empty());
                 let mut new_layer = 0;
@@ -313,11 +328,18 @@ impl<C: Contour> Contours for HintContours<C> {
                         l = arrow.len;
                     }
                 }
+                assert!(
+                    v - self.max_len <= new_layer,
+                    "Point {pos} drops by more than max_len={} from current={v} to new_layer={new_layer}",
+                    self.max_len
+                );
+
                 max_new_layer = max(max_new_layer, new_layer);
-                assert!(new_layer <= v);
                 // Value v is still up to date. No need to loop over the remaining arrows starting here.
                 if new_layer == v {
-                    //println!("f: {} keeps value {}", pos, best_start_val);
+                    if D{
+                    println!("f: {pos} from {v} to at least {new_layer}");
+                    }
                     self.stats.borrow_mut().checked_false += 1;
                     current_shift = Shift::Inconsistent;
 
@@ -337,14 +359,10 @@ impl<C: Contour> Contours for HintContours<C> {
                     return false;
                 }
 
-                //println!("f: {} new value {}", pos, max_new_val);
-                assert!(v - self.max_len <= max_new_layer && max_new_layer <= v);
-
                 // Either no arrows left (position already pruned), or none of its arrows yields value v.
-                // println!(
-                //     "f: Push {} to {} shift {:?}",
-                //     pos, best_start_val, current_shift
-                // );
+                if D{
+                println!("f: Push {} to {} shift {:?}", pos, new_layer, current_shift);
+                }
                 for w in new_layer + 1 - l as Cost..=new_layer {
                     if !self.contours[w].contains_equal(pos) {
                         self.contours[w].push(pos);
@@ -371,21 +389,12 @@ impl<C: Contour> Contours for HintContours<C> {
             // Put current layer back in place
             self.contours[v] = current;
 
-            //println!("{}: {:?}", v, self.contours[v]);
-            //println!("{}: {:?}", v - 1, self.contours[v - 1]);
-            // println!("after");
-
             if v >= last_change + self.max_len as Cost {
-                ////println!("Last change at {}, stopping at {}", last_change, v);
                 // No further changes can happen.
                 self.stats.borrow_mut().no_change += 1;
                 break;
             }
 
-            // println!(
-            //     "emptied {:?} shift {:?} last_change {:?}",
-            //     emptied_shift, shift_to, last_change
-            // );
             if self.contours[v].len() == 0 && current_shift != Shift::Inconsistent {
                 if previous_shift == Shift::None
                     || current_shift == Shift::None
@@ -396,10 +405,8 @@ impl<C: Contour> Contours for HintContours<C> {
                         previous_shift = current_shift;
                     }
                 }
-                // println!("Num emptied to {} shift {:?}", num_emptied, emptied_shift);
             } else {
                 num_emptied = 0;
-                //println!("Num emptied reset");
                 previous_shift = Shift::None;
             }
             assert!(
@@ -414,13 +421,11 @@ impl<C: Contour> Contours for HintContours<C> {
             );
 
             if num_emptied >= self.max_len {
-                //println!("Emptied {}, stopping at {}", num_emptied, v);
                 // Shift all other contours one down.
                 if let Shift::Layers(previous_shift) = previous_shift {
                     self.stats.borrow_mut().shift_layers += 1;
 
                     for _ in 0..previous_shift {
-                        //println!("Delete layer {} of len {}", v, self.contours[v].len());
                         assert!(self.contours[v].len() == 0);
                         self.contours.remove(v as usize);
                         self.layers_removed += 1;
@@ -430,25 +435,6 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             }
         }
-        // while let Some(c) = self.contours.last() {
-        //     if c.len() == 0 {
-        //         self.contours.pop();
-        //     } else {
-        //         break;
-        //     }
-        // }
-        for k in (0..8).rev() {
-            if v <= 4 {
-                continue;
-            }
-            let k = v as usize - 4 + k;
-            if self.contours.len() > k {
-                //println!("Contour {}: {:?}", k, self.contours[k]);
-            }
-        }
-        // for (i, c) in self.contours.iter().enumerate().rev() {
-        //     //println!("{}: {:?}", i, c);
-        // }
         (true, 0)
     }
 
