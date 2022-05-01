@@ -293,31 +293,36 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
         let tpos = self.transform(pos);
 
-        if !self.arrows.contains_key(&tpos) {
+        // Maximum length arrow at given pos.
+        let a = if let Some(arrows) = self.arrows.get(&tpos) {
+            arrows.iter().max_by_key(|a| a.len).unwrap().clone()
+        } else {
             self.pruning_duration += start.elapsed();
             return 0;
-        }
+        };
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
         // TODO: Make this smarter and allow pruning long arrows even when pruning short arrows is not possible.
-        for d in 1..=self.params.match_config.max_match_cost {
-            if pos.0 >= d as Cost {
-                if let Some(pos_arrows) =
-                    self.arrows.get(&self.transform(Pos(pos.0, pos.1 - d as I)))
-                {
-                    if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
-                        self.pruning_duration += start.elapsed();
-                        return 0;
+        if a.len < self.params.match_config.max_match_cost + 1 {
+            for d in 1..=self.params.match_config.max_match_cost {
+                if pos.0 >= d as Cost {
+                    if let Some(pos_arrows) =
+                        self.arrows.get(&self.transform(Pos(pos.0, pos.1 - d as I)))
+                    {
+                        if pos_arrows.iter().map(|a| a.len).max().unwrap() >= a.len + d {
+                            self.pruning_duration += start.elapsed();
+                            return 0;
+                        }
                     }
                 }
-            }
-            {
-                if let Some(pos_arrows) =
-                    self.arrows.get(&self.transform(Pos(pos.0, pos.1 + d as I)))
                 {
-                    if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
-                        self.pruning_duration += start.elapsed();
-                        return 0;
+                    if let Some(pos_arrows) =
+                        self.arrows.get(&self.transform(Pos(pos.0, pos.1 + d as I)))
+                    {
+                        if pos_arrows.iter().map(|a| a.len).max().unwrap() >= a.len + d {
+                            self.pruning_duration += start.elapsed();
+                            return 0;
+                        }
                     }
                 }
             }
@@ -328,8 +333,30 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         }
 
         self.arrows.remove(&tpos).unwrap();
-        let change = self.contours.prune_with_hint(tpos, hint, &self.arrows);
+        let mut change = self.contours.prune_with_hint(tpos, hint, &self.arrows);
         self.pruning_duration += start.elapsed();
+        // If there is an exact match here, also prune neighbouring states if all their arrows end in the same position.
+        // TODO: Make this more precise for larger inexact matches.
+        if a.len == self.params.match_config.max_match_cost + 1 {
+            // See if there are neighbouring points that can now be fully pruned.
+            for d in 1..=self.params.match_config.max_match_cost {
+                if pos.0 >= d as Cost {
+                    let p = Pos(pos.0, pos.1 - d as I);
+                    let arrows = self.arrows.get(&p).expect("Arrows are not consistent!");
+                    if arrows.iter().all(|a2| a2.end == a.end) {
+                        change.1 += self.prune(p, hint, _seed_cost);
+                    }
+                }
+                {
+                    let p = Pos(pos.0, pos.1 + d as I);
+                    let arrows = self.arrows.get(&p).expect("Arrows are not consistent!");
+                    if arrows.iter().all(|a2| a2.end == a.end) {
+                        change.1 += self.prune(p, hint, _seed_cost);
+                    }
+                }
+            }
+        }
+
         self.num_pruned += 1;
         if print() {
             self.print(false, false);
