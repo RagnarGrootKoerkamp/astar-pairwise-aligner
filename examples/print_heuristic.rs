@@ -4,7 +4,7 @@ fn main() {
     let pruning = true;
     let n = 55;
     let e: f32 = 0.2;
-    let k = 10;
+    let _k = 10;
     let max_match_cost = 1;
 
     let heuristic = UnorderedHeuristic {
