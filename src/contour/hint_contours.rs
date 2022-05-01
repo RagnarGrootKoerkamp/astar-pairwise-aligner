@@ -300,10 +300,11 @@ impl<C: Contour> Contours for HintContours<C> {
                 let pos_arrows = arrows.get(&pos).expect("No arrows found for position.");
                 assert!(!pos_arrows.is_empty());
                 let mut new_layer = 0;
-                let mut l = 0;
+                let l = pos_arrows.iter().map(|a| a.len).max().unwrap();
                 for arrow in pos_arrows {
-                    // Find the value at end_val via a backwards search.
-                    let mut end_layer = v - arrow.len as Cost;
+                    // Find the value at end_val via a forward or backward linear search.
+                    let mut end_layer = v as Cost - 1;
+                    assert!(!self.contours[v].contains(arrow.end));
                     while !self.contours[end_layer].contains(arrow.end) {
                         end_layer -= 1;
 
@@ -325,7 +326,6 @@ impl<C: Contour> Contours for HintContours<C> {
                     let start_layer = end_layer + arrow.len as Cost;
                     if start_layer > new_layer || (start_layer == new_layer && arrow.len < l) {
                         new_layer = start_layer;
-                        l = arrow.len;
                     }
                 }
                 assert!(
@@ -336,7 +336,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
                 max_new_layer = max(max_new_layer, new_layer);
                 // Value v is still up to date. No need to loop over the remaining arrows starting here.
-                if new_layer == v {
+                if new_layer >= v {
                     if D{
                     println!("f: {pos} from {v} to at least {new_layer}");
                     }
@@ -345,12 +345,9 @@ impl<C: Contour> Contours for HintContours<C> {
 
                     // Make sure this point is contained in its parent, and add shadow points if not.
                     // NOTE: This adds around 1% of total runtime for HintContours<CentralContour>.
-                    let mut v = new_layer;
-                    while v > 0 && !self.contours[v as usize - 1].contains(pos) {
-                        v -= 1;
-                        self.contours[v].push(pos);
-                    }
-                    for w in new_layer + 1 - l as Cost..new_layer {
+                    for w in new_layer + 1 - l as Cost..=new_layer {
+                        // We're currently iterating over layer v, where `pos` is preserved by returning false below.
+                        if w == v { continue; }
                         if !self.contours[w].contains_equal(pos) {
                             self.contours[w].push(pos);
                         }
