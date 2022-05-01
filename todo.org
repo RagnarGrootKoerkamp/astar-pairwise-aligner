@@ -467,3 +467,8 @@ ContourGraph isn't used anymore.
 ** Run experiments for version without gapcost
 ** Test that we give the same distance as edlib/WFA
 ** cite paper that does PA of random strings
+** TODO Fixed k performs better than dynamic k for unordered
+Has to do with h0 being smaller
+** TODO Is zero-heuristic consistent?
+Yes, but need to fix greedy matching.
+** TODO ONLY WORK ON CSH / zero heuristic
