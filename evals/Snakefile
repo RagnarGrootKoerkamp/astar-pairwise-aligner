@@ -34,12 +34,16 @@ es = [0.01, 0.05, 0.10, 0.20]
 
 # Seed length, match distance pairs
 kms = [(7,0), (8,0), (9,0), (10, 0), (11, 0), (12, 0), (13,0), (14,0), (15,0), (16,0), (17, 0), (31, 0),
-       (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1)]
+       (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1)]
+
+## SIMULATED INPUT DATA
+ont_ns = [10_000, 100_000, 300_000, 1_000_000]
+ont_models = ['random', 'human']
 
 ## TOOLS
 
 ## RUN SETTINGS
-TIMEOUT = "1000s"
+TIMEOUT = "10s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -51,17 +55,19 @@ binaries = {
     'biwfa'   : '../../biwfa/bin/align_benchmark',
 }
 tool_command = {
-    # Version with manual parameter choosing.
+    # Versions with manual parameter choosing.
     'pa_manual':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
+    'pa_manual_zero':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --cost Zero',
+    'pa_manual_unordered':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm Unordered',
     # infers k and m values.
-    'pa':                   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e}',
-    'pa_zero':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e} --cost Zero',
-    'pa_unordered':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e} --algorithm Unordered',
+    'pa':                   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e}',
+    'pa_zero':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --cost Zero',
+    'pa_unordered':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm Unordered',
     # slower PA variants
     'dijkstra':             binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -a Dijkstra',
     'dijkstra_nogreedy':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -a Dijkstra --no-greedy-matching',
-    'pa_noprune':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e} --no-prune',
-    'pa_noprune_nogreedy':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {wildcards.e} --no-prune --no-greedy-matching',
+    'pa_noprune':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune',
+    'pa_noprune_nogreedy':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --no-greedy-matching',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':                binaries["edlib"]   + '    {input} -p -s', # -p: compute the path, -s: no output
@@ -133,15 +139,36 @@ class Input:
     def __init__(self, **kwargs):
         self.cnt = int(kwargs['cnt'])
         self.n = int(kwargs['n'])
-        self.e = float(kwargs['e'])
-    def name_pattern():
-        return 'x{cnt}-n{n}-e{e}'
-    def pattern():
-        return 'input/synthetic/x{cnt}-n{n}-e{e}.seq'
+        self.ont = 'model' in kwargs
+        if self.ont:
+            self.model = kwargs['model']
+            # ONT has roughly 10% error rate
+            self.e = 0.1
+        else:
+            self.model = 'synthetic'
+            self.e = float(kwargs['e'])
+    def name_pattern(ont=False):
+        if ont:
+            return '{model}-x{cnt}-n{n}'
+        else:
+            return 'x{cnt}-n{n}-e{e}'
+    def dir(ont=False):
+        if ont:
+            return 'simulated'
+        else:
+            return 'synthetic'
+    def pattern(ont=False):
+        if ont:
+            return f'input/{Input.dir(ont)}/{Input.name_pattern(ont)}.seq'
+        else:
+            return f'input/{Input.dir(ont)}/{Input.name_pattern(ont)}.seq'
     def name(self):
-        return Path(f'x{self.cnt}-n{self.n}-e{self.e}')
+        if self.ont:
+            return Path(f'{self.model}-x{self.cnt}-n{self.n}')
+        else:
+            return Path(f'x{self.cnt}-n{self.n}-e{self.e}')
     def path(self):
-        return Path(f'input/synthetic/{self.name()}.seq')
+        return Path(f'input/{Input.dir(self.ont)}/{self.name()}.seq')
 
 def input_filter(input):
     # Skip >1M at 20%, since all tools will time out anyway.
@@ -152,22 +179,24 @@ def inputs(N):
     N = int(float(N))
     return list(filter(input_filter, (Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0)))
 
+# This runs on 3 types of data:
+# - synthetic data
+# - random sequences with ONT errors
+# - human sequences with ONT errors
+def ont_inputs(N):
+    N = int(float(N))
+    return ([Input(cnt=N//n, n=n, e=0.1) for n in ont_ns if N//n > 0]
+            + [Input(model=model, cnt=N//n, n=n) for n in ont_ns for model in ont_models if N//n > 0])
+
 
 class Run:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
         self.has_params = 'k' in kwargs and 'm' in kwargs
-    def pattern_with_params(tool=None):
-        if tool:
-            return f'runs/{Input.name_pattern()}-A{tool}-m{{m}}-k{{k}}.bench'
-        else:
-            return f'runs/{Input.name_pattern()}-A{{tool}}-m{{m}}-k{{k}}.bench'
-    def pattern(tool=None):
-        if tool:
-            return f'runs/{Input.name_pattern()}-A{tool}.bench'
-        else:
-            # Infer tool as a wildcard.
-            return f'runs/{Input.name_pattern()}-A{{tool}}.bench'
+    def pattern_with_params(ont=False):
+        return f'runs/{Input.name_pattern(ont)}-A{{tool}}-m{{m}}-k{{k}}.bench'
+    def pattern(ont=False):
+        return f'runs/{Input.name_pattern(ont)}-A{{tool}}.bench'
     def bench_path(self):
         if self.has_params:
             return Path(f'runs/{self.input.name()}-A{self.tool}-m{self.m}-k{self.k}.bench')
@@ -201,14 +230,15 @@ def params_filter(run):
 
     return True
 
-def params_runs(tool, N):
+def params_runs(tools, inputs):
     return list(filter(params_filter, (Run(input=input, tool=tool, m=m, k=k)
-                        for input in inputs(N)
-                        for (k, m) in kms)))
+                        for input in inputs
+                        for (k, m) in kms
+                        for tool in tools)))
 
-def tool_runs(tools, N):
+def tool_runs(tools, inputs):
     return [Run(input=input, tool=tool)
-                for input in inputs(N)
+                for input in inputs
                 for tool in tools]
 
 ## SYNTHETIC INPUT DATA
@@ -223,23 +253,22 @@ rule generate_input:
 def build_command(w, params=False):
     input = Input(**w)
     run = Run(input=input, **w)
-    command = tool_command[w.tool].format(input=input.path(), wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
+    command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
     return timeout(command, run.status_path(), TIMEOUT)
 
 # Run PA with given parameters.
 rule run_pa_for_parameters:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
-    wildcard_constraints: tool = 'pa_manual'
-    params: command = lambda wildcards: build_command(wildcards, params=True)
+    wildcard_constraints: tool = '.*pa_manual.*'
+    params: command = lambda w: build_command(w, params=True)
     shell: '{params.command}'
 
 # Run other tools without parameters.
 rule run_tool:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern(), REPEATS)
-    params:
-        command = lambda wildcards: build_command(wildcards, params=False)
+    params: command = lambda w: build_command(w, params=False)
     shell: "{params.command}"
 
 # Collect all run files into a single tsv:
@@ -248,7 +277,7 @@ rule run_tool:
 # - .status file
 # - .stats file if present
 def make_table(runs, output):
-    headers = ["alg","cnt","n","e", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
+    headers = ["alg","model", "cnt","n","e", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
@@ -268,36 +297,58 @@ def make_table(runs, output):
         except:
             stats = ''
         for bench_line in run.bench_path().read_text().splitlines()[1:]:
-            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}{stats}\n')
+            table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}{stats}\n')
 
 # Table of PA runs for all possible parameters.
 rule params_table:
-    input: lambda w: [run.bench_path() for run in params_runs('pa_manual', **w)]
+    input: lambda w: [run.bench_path() for run in params_runs(['pa_manual'], inputs(w.N))]
     output: 'table/params_N{N}.tsv'
-    run: make_table(params_runs('pa_manual', **wildcards), output)
+    run: make_table(params_runs(['pa_manual'], inputs(wildcards.N)), output)
 
 # Run tools.
 rule tools_table:
-    input: lambda w: [run.bench_path() for run in tool_runs(tools, **w)]
+    input: lambda w: [run.bench_path() for run in tool_runs(tools, inputs(w.N))]
     output: 'table/tools_N{N}.tsv'
-    run: make_table(tool_runs(tools, **wildcards), output)
+    run: make_table(tool_runs(tools, inputs(wildcards.N)), output)
+
 # Run slower tools. Separate rule so we can use a smaller value of N here.
 rule tools_slow_table:
-    input: lambda w: [run.bench_path() for run in tool_runs(tools_slow, **w)]
+    input: lambda w: [run.bench_path() for run in tool_runs(tools_slow, inputs(w.N))]
     output: 'table/tools_slow_N{N}.tsv'
-    run: make_table(tool_runs(tools_slow, **wildcards), output)
+    run: make_table(tool_runs(tools_slow, inputs(wildcards.N)), output)
 
-# Visualizations
+# ==== ONT Runs ==== #
+# Run PA with given parameters.
+rule ont_run_pa_for_parameters:
+    input: lambda w: Input(**w).path()
+    benchmark: repeat(Run.pattern_with_params(ont=True), REPEATS)
+    wildcard_constraints: tool = '.*pa_manual.*'
+    params: command = lambda w: build_command(w, params=True)
+    shell: '{params.command}'
+
+rule ont_run_tool:
+    input: lambda w: Input(**w).path()
+    benchmark: repeat(Run.pattern(ont=True), REPEATS)
+    params: command = lambda w: build_command(w, params=False)
+    shell: "{params.command}"
+
+rule ont_params_table:
+    input: lambda w: [run.bench_path() for run in params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], ont_inputs(w.N))]
+    output: 'table/params_ont_N{N}.tsv'
+    run: make_table(params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], ont_inputs(wildcards.N)), output)
+
+rule ont_tools_table:
+    input: lambda w: [run.bench_path() for run in tool_runs(tools, ont_inputs(w.N))]
+    output: 'table/tools_ont_N{N}.tsv'
+    run: make_table(tool_runs(tools, ont_inputs(wildcards.N)), output)
+
+
+# ==== Visualizations ==== #
 
 rule astar_visualization:
     input:
     output: 'astar-visualization/dijkstra.csv'
     shell: "cargo run --release --example states"
-
-# ONT Runs
-rule ont_table:
-    input: 'input/simulated/{ref}-x{x}-n{n}.seq'
-    output: 'table/ont-{ref}-x{x}-n{n}.tsv'
 
 # ======= Reference ======= #
 rule human_reference:
@@ -326,25 +377,25 @@ rule nanosim:
     shell: '''
     # Run the simulator to generate a .fa file.
     simulator.py genome \
-    --ref_g input/reference/{wildcards.ref}.fa \
-    --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n} \
-    -dna_type linear \
-    --model_prefix ../../nanosim/pre-trained_models/human_NA12878_DNA_FAB49712_guppy/training \
-    --min_len {params.min} \
-    --median_len {wildcards.n} \
-    --max_len {params.max} \
-    --sd_len 1.05 \
-    --number {params.generate_x} \
-    --strandness 1 \
-    --seed 314151 \
-    --num_threads 8
+      --ref_g input/reference/{wildcards.ref}.fa \
+      --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n} \
+      -dna_type linear \
+      --model_prefix ../../nanosim/pre-trained_models/human_NA12878_DNA_FAB49712_guppy/training \
+      --min_len {params.min} \
+      --median_len {wildcards.n} \
+      --max_len {params.max} \
+      --sd_len 1.05 \
+      --number {params.generate_x} \
+      --strandness 1 \
+      --seed 314151 \
+      --num_threads 8
     # Convert to a .seq file,
     cargo run --release --example nanosim_to_seq -- \
-    --reference input/reference/{wildcards.ref}.fa \
-    --reads input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}_aligned_reads.fasta \
-    --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}.seq \
-    --count {wildcards.x} \
-    --strip-unaligned
+      --reference input/reference/{wildcards.ref}.fa \
+      --reads input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}_aligned_reads.fasta \
+      --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}.seq \
+      --count {wildcards.x} \
+      --strip-unaligned
     '''
 
 #
