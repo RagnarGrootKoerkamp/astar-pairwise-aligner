@@ -338,7 +338,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 // Value v is still up to date. No need to loop over the remaining arrows starting here.
                 if new_layer >= v {
                     if D{
-                    println!("f: {pos} from {v} to at least {new_layer}");
+                        println!("f: {pos} from {v} to at least {new_layer}");
                     }
                     self.stats.borrow_mut().checked_false += 1;
                     current_shift = Shift::Inconsistent;
@@ -356,9 +356,11 @@ impl<C: Contour> Contours for HintContours<C> {
                     return false;
                 }
 
+                current_shift.merge(Shift::Layers(v - new_layer));
+
                 // Either no arrows left (position already pruned), or none of its arrows yields value v.
                 if D{
-                println!("f: Push {} to {} shift {:?}", pos, new_layer, current_shift);
+                    println!("f: Push {} to {} shift {:?}", pos, new_layer, current_shift);
                 }
                 for w in new_layer + 1 - l as Cost..=new_layer {
                     if !self.contours[w].contains_equal(pos) {
@@ -366,7 +368,6 @@ impl<C: Contour> Contours for HintContours<C> {
                     }
                 }
 
-                current_shift.merge(Shift::Layers(v - new_layer));
                 self.stats.borrow_mut().checked_true += 1;
                 self.stats.borrow_mut().num_prune_shifts += 1;
                 self.stats.borrow_mut().sum_prune_shifts += v - new_layer;
