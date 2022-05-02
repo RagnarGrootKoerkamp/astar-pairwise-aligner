@@ -53,3 +53,6 @@ pub const DO_NOT_SAVE_GREEDY_MATCHES: bool = true;
 /// Whether to use a sliding window approach for finding exact matches for fixed k.
 /// This reduces the size of the hashmap by a factor k.
 pub const SLIDING_WINDOW_MATCHES: bool = true;
+
+/// Whether to prune inexact matches adjacent to an exact match by end position.
+pub const PRUNE_INEXACT_MATCHES_BY_END: bool = true;
