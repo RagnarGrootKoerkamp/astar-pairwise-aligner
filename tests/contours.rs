@@ -163,7 +163,7 @@ fn no_gap_cost() {
                     },
                     pruning: true,
                     use_gap_cost: false,
-                    c: PhantomData::<HintContours<CentralContour>>,
+                    c: PhantomData::<HintContours<BruteForceContour>>,
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
