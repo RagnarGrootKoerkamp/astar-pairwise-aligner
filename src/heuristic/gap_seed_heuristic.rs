@@ -332,30 +332,36 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             println!("PRUNE GAP SEED HEURISTIC {} / {}", pos, tpos);
         }
 
-        self.arrows.remove(&tpos).unwrap();
-        let mut change = self.contours.prune_with_hint(tpos, hint, &self.arrows);
-        self.pruning_duration += start.elapsed();
-        // If there is an exact match here, also prune neighbouring states if all their arrows end in the same position.
+        // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
         // TODO: Make this more precise for larger inexact matches.
-        if a.len == self.params.match_config.max_match_cost + 1 {
+        if PRUNE_INEXACT_MATCHES_BY_END && a.len == self.params.match_config.max_match_cost + 1 {
             // See if there are neighbouring points that can now be fully pruned.
             for d in 1..=self.params.match_config.max_match_cost {
                 if pos.0 >= d as Cost {
-                    let p = Pos(pos.0, pos.1 - d as I);
-                    let arrows = self.arrows.get(&p).expect("Arrows are not consistent!");
+                    let tp = self.transform(Pos(pos.0, pos.1 - d as I));
+                    let arrows = self.arrows.get(&tp).expect("Arrows are not consistent!");
                     if arrows.iter().all(|a2| a2.end == a.end) {
-                        change.1 += self.prune(p, hint, _seed_cost);
+                        self.num_pruned += 1;
+                        self.arrows.remove(&tp);
+                        self.contours.prune_with_hint(tp, hint, &self.arrows);
                     }
                 }
                 {
-                    let p = Pos(pos.0, pos.1 + d as I);
-                    let arrows = self.arrows.get(&p).expect("Arrows are not consistent!");
+                    let tp = self.transform(Pos(pos.0, pos.1 + d as I));
+                    let arrows = self.arrows.get(&tp).expect("Arrows are not consistent!");
                     if arrows.iter().all(|a2| a2.end == a.end) {
-                        change.1 += self.prune(p, hint, _seed_cost);
+                        self.num_pruned += 1;
+                        self.arrows.remove(&tp);
+                        self.contours.prune_with_hint(tp, hint, &self.arrows);
                     }
                 }
             }
         }
+
+        self.arrows.remove(&tpos).unwrap();
+        let change = self.contours.prune_with_hint(tpos, hint, &self.arrows);
+
+        self.pruning_duration += start.elapsed();
 
         self.num_pruned += 1;
         if print() {
