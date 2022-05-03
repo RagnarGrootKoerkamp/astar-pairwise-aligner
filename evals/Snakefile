@@ -39,11 +39,12 @@ kms = [(7,0), (8,0), (9,0), (10, 0), (11, 0), (12, 0), (13,0), (14,0), (15,0), (
 ## SIMULATED INPUT DATA
 ont_ns = [10_000, 100_000, 300_000, 1_000_000]
 ont_models = ['random', 'human']
+ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1), (18, 1)]
 
 ## TOOLS
 
 ## RUN SETTINGS
-TIMEOUT = "10s"
+TIMEOUT = "100s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -230,10 +231,10 @@ def params_filter(run):
 
     return True
 
-def params_runs(tools, inputs):
+def params_runs(tools, inputs, ont=False):
     return list(filter(params_filter, (Run(input=input, tool=tool, m=m, k=k)
                         for input in inputs
-                        for (k, m) in kms
+                        for (k, m) in (ont_kms if ont else kms)
                         for tool in tools)))
 
 def tool_runs(tools, inputs):
@@ -301,7 +302,7 @@ def make_table(runs, output):
 
 # Table of PA runs for all possible parameters.
 rule params_table:
-    input: lambda w: [run.bench_path() for run in params_runs(['pa_manual'], inputs(w.N))]
+    input: lambda w: [run.bench_path() for run in params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], inputs(w.N))]
     output: 'table/params_N{N}.tsv'
     run: make_table(params_runs(['pa_manual'], inputs(wildcards.N)), output)
 
@@ -333,9 +334,9 @@ rule ont_run_tool:
     shell: "{params.command}"
 
 rule ont_params_table:
-    input: lambda w: [run.bench_path() for run in params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], ont_inputs(w.N))]
+    input: lambda w: [run.bench_path() for run in params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], ont_inputs(w.N), ont=True)]
     output: 'table/params_ont_N{N}.tsv'
-    run: make_table(params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], ont_inputs(wildcards.N)), output)
+    run: make_table(params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], ont_inputs(wildcards.N), ont=True), output)
 
 rule ont_tools_table:
     input: lambda w: [run.bench_path() for run in tool_runs(tools, ont_inputs(w.N))]
@@ -365,6 +366,7 @@ rule human_reference:
 rule nanosim:
     output: 'input/simulated/{ref}-x{x}-n{n}.seq'
     input: 'input/reference/{ref}.fa'
+    threads: 8
     params:
         min = lambda w: int(w.n)*3//4,
         max = lambda w: int(w.n)*5//4,
@@ -390,7 +392,7 @@ rule nanosim:
       --seed 314151 \
       --num_threads 8
     # Convert to a .seq file,
-    cargo run --release --example nanosim_to_seq -- \
+    ../target/release/examples/nanosim_to_seq \
       --reference input/reference/{wildcards.ref}.fa \
       --reads input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}_aligned_reads.fasta \
       --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}.seq \
