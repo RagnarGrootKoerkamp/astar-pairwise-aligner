@@ -20,6 +20,8 @@ pub struct HintContours<C: Contour> {
     stats: RefCell<HintContourStats>,
 
     layers_removed: Cost,
+    start: Pos,
+    target: Pos,
 }
 
 #[derive(Default, Debug)]
@@ -92,7 +94,7 @@ impl Shift {
 impl<C: Contour> HintContours<C> {
     fn debug(&self, pos: Pos, v: Cost, arrows: &HashMap<Pos, Vec<Arrow>>) {
         println!("BEFORE PRUNE of {pos} layer {v}");
-        let radius = 6;
+        let radius = 4;
         for i in max(v.saturating_sub(radius), 1)..min(v + radius, self.contours.len() as Cost) {
             println!("{}: {:?}", i, self.contours[i]);
             self.contours[i].iterate_points(|p: Pos| {
@@ -106,7 +108,6 @@ impl<C: Contour> HintContours<C> {
                 );
             })
         }
-        self.display_box(Pos(pos.0 - 100, pos.1 - 100), Pos(pos.0 + 100, pos.1 + 100));
     }
 }
 
@@ -123,6 +124,8 @@ impl<C: Contour> Contours for HintContours<C> {
             max_len,
             stats: Default::default(),
             layers_removed: 0,
+            start: Pos(I::MAX, I::MAX),
+            target: Pos(0, 0),
         };
         this.contours[0usize].push(Pos(I::MAX, I::MAX));
         // Loop over all arrows from a given positions.
@@ -131,6 +134,10 @@ impl<C: Contour> Contours for HintContours<C> {
             let mut l = 0;
             // TODO: The this.value() could also be implemented using a fenwick tree, as done in LCSk++.
             for a in pos_arrows {
+                this.start.0 = min(this.start.0, a.end.0);
+                this.start.1 = min(this.start.1, a.end.1);
+                this.target.0 = max(this.target.0, a.end.0);
+                this.target.1 = max(this.target.1, a.end.1);
                 let nv = this.value(a.end) + a.len as Cost;
                 if nv > v || (nv == v && a.len < l) {
                     v = nv;
@@ -236,23 +243,85 @@ impl<C: Contour> Contours for HintContours<C> {
 
 
         assert!(v > 0);
-        // Remove the point from all layers where it is present.
-        {
-            let mut pruned = false;
-            for w in v.saturating_sub(self.max_len)..=v {
-                pruned |= self.contours[w].prune(p);
+
+        self.stats.borrow_mut().prunes += 1;
+
+        // Returns the max layer from using an arrow starting in the giving
+        // position, and the maximum length of these arrows.
+        let value_at_pos = |contours: &SplitVec<C>, pos: Pos, v: Cost| -> (Cost, Cost) {
+            let pos_arrows = arrows.get(&pos).expect("No arrows found for position.");
+            assert!(!pos_arrows.is_empty());
+            let mut max_layer = 0;
+            let l = pos_arrows.iter().map(|a| a.len).max().unwrap();
+            for arrow in pos_arrows {
+                // Find the value at end_val via a forward or backward linear search.
+                let mut end_layer = v as Cost - 1;
+                assert!(!contours[v].contains(arrow.end));
+                while !contours[end_layer].contains(arrow.end) {
+                    end_layer -= 1;
+
+                    // No need to continue when this value isn't going to be optimal anyway.
+                    if end_layer + arrow.len as Cost <= max_layer {
+                        break;
+                    }
+
+                    if FAST_ASSUMPTIONS {
+                        // We know that max_new_val will be within [v-max_len, v].
+                        // Thus, value(arrow.end) will be in [v-max_len-arrow.len, v-arrow.len].
+                        // For simplicity, we skip this check.
+                        if end_layer + self.max_len == v - arrow.len as Cost {
+                            break;
+                        }
+                    }
+                }
+
+                let start_layer = end_layer + arrow.len as Cost;
+                if start_layer > max_layer || (start_layer == max_layer && arrow.len < l) {
+                    max_layer = start_layer;
+                }
             }
-            if !pruned {
+            (max_layer, l as Cost)
+        };
+
+        let (new_value, l) = if arrows.contains_key(&p) {
+            value_at_pos(&self.contours, p, v)
+        } else {
+            (0, 0)
+        };
+
+        let mut min_changed = v + 1;
+        {
+            // Remove the point from all layers where it is present.
+            for w in v.saturating_sub(self.max_len)..=v {
+                if self.contours[w].prune(p) {
+                    // if new_value > 0 {
+                    //     println!("Partial prune {p} from {w} layers {prune_from} to {v}");
+                    // }
+                    min_changed = min(min_changed, w);
+                }
+            }
+            if min_changed == v + 1 {
                 self.debug(p, v, arrows);
                 assert!(
-                    pruned,
+                    min_changed <= v,
                     "Did not prune {p} from any of the layers {} to {v}",
                     v.saturating_sub(self.max_len)
                 );
             }
+
+            // Add new points as needed.
+            if new_value > 0 {
+                for w in new_value + 1 - l as Cost..=new_value {
+                    assert!(!self.contours[w].contains_equal(p));
+                    self.contours[w].push(p);
+                }
+            }
         }
 
-        self.stats.borrow_mut().prunes += 1;
+        // In case the longer arrows were not relevant, the value does not change.
+        if new_value == v {
+            return (false, 0);
+        }
 
         // If max_len consecutive layers are empty, shift everything down by this distance.
         {
@@ -277,6 +346,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // Loop over the matches in the next layer, and repeatedly prune while needed.
         let mut last_change = v;
+        v = min_changed;
         let mut num_emptied = 0;
         let mut previous_shift = Shift::None;
         loop {
@@ -297,37 +367,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 // value at pos and if it's < v, we push is to the new contour
                 // of its value.
                 self.stats.borrow_mut().checked += 1;
-                let pos_arrows = arrows.get(&pos).expect("No arrows found for position.");
-                assert!(!pos_arrows.is_empty());
-                let mut new_layer = 0;
-                let l = pos_arrows.iter().map(|a| a.len).max().unwrap();
-                for arrow in pos_arrows {
-                    // Find the value at end_val via a forward or backward linear search.
-                    let mut end_layer = v as Cost - 1;
-                    assert!(!self.contours[v].contains(arrow.end));
-                    while !self.contours[end_layer].contains(arrow.end) {
-                        end_layer -= 1;
-
-                        // No need to continue when this value isn't going to be optimal anyway.
-                        if end_layer + arrow.len as Cost <= new_layer {
-                            break;
-                        }
-
-                        if FAST_ASSUMPTIONS {
-                            // We know that max_new_val will be within [v-max_len, v].
-                            // Thus, value(arrow.end) will be in [v-max_len-arrow.len, v-arrow.len].
-                            // For simplicity, we skip this check.
-                            if end_layer + self.max_len == v - arrow.len as Cost {
-                                break;
-                            }
-                        }
-                    }
-
-                    let start_layer = end_layer + arrow.len as Cost;
-                    if start_layer > new_layer || (start_layer == new_layer && arrow.len < l) {
-                        new_layer = start_layer;
-                    }
-                }
+                let (new_layer, l) = value_at_pos(&self.contours, pos, v);
                 assert!(
                     v - self.max_len <= new_layer,
                     "Point {pos} drops by more than max_len={} from current={v} to new_layer={new_layer}",
