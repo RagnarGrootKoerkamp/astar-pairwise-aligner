@@ -285,6 +285,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
     // TODO: Prune by end pos as well (or instead of) start pos.
     // In this case, `seed_cost` can be used to filter out lookups for states that won't have a match ending there.
     fn prune(&mut self, pos: Pos, hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
+        const D: bool = false;
         if !self.params.pruning {
             return 0;
         }
@@ -303,33 +304,26 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
         // TODO: Make this smarter and allow pruning long arrows even when pruning short arrows is not possible.
-        if a.len < self.params.match_config.max_match_cost + 1 {
-            for d in 1..=self.params.match_config.max_match_cost {
-                if pos.0 >= d as Cost {
-                    if let Some(pos_arrows) =
-                        self.arrows.get(&self.transform(Pos(pos.0, pos.1 - d as I)))
-                    {
-                        if pos_arrows.iter().map(|a| a.len).max().unwrap() >= a.len + d {
-                            self.pruning_duration += start.elapsed();
-                            return 0;
-                        }
-                    }
+        // The minimum length required for consistency here.
+        let mut min_len = 0;
+        for d in 1..=self.params.match_config.max_match_cost {
+            let mut check = |pos: Pos| {
+                if let Some(pos_arrows) = self.arrows.get(&self.transform(pos)) {
+                    min_len = max(min_len, pos_arrows.iter().map(|a| a.len).max().unwrap() - d);
                 }
-                {
-                    if let Some(pos_arrows) =
-                        self.arrows.get(&self.transform(Pos(pos.0, pos.1 + d as I)))
-                    {
-                        if pos_arrows.iter().map(|a| a.len).max().unwrap() >= a.len + d {
-                            self.pruning_duration += start.elapsed();
-                            return 0;
-                        }
-                    }
-                }
+            };
+            if pos.0 >= d as Cost {
+                check(Pos(pos.0, pos.1 - d as I));
             }
+            check(Pos(pos.0, pos.1 + d as I));
         }
 
-        if print() {
-            println!("PRUNE GAP SEED HEURISTIC {} / {}", pos, tpos);
+        if a.len <= min_len {
+            return 0;
+        }
+
+        if D || print() {
+            println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 
         // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
@@ -337,29 +331,39 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
         if PRUNE_INEXACT_MATCHES_BY_END && a.len == self.params.match_config.max_match_cost + 1 {
             // See if there are neighbouring points that can now be fully pruned.
             for d in 1..=self.params.match_config.max_match_cost {
+                let mut check = |pos: Pos| {
+                    let tp = self.transform(pos);
+                    if !self.arrows.contains_key(&tp) {
+                        println!("Did not find nb arrow at {tp} while pruning {a} at {pos}");
+                    }
+                    let arrows = self.arrows.get(&tp).expect("Arrows are not consistent!");
+                    if arrows.iter().all(|a2| a2.end == a.end) {
+                        self.num_pruned += 1;
+                        self.arrows.remove(&tp);
+                        self.contours.prune_with_hint(tp, hint, &self.arrows);
+                    }
+                };
                 if pos.0 >= d as Cost {
-                    let tp = self.transform(Pos(pos.0, pos.1 - d as I));
-                    let arrows = self.arrows.get(&tp).expect("Arrows are not consistent!");
-                    if arrows.iter().all(|a2| a2.end == a.end) {
-                        self.num_pruned += 1;
-                        self.arrows.remove(&tp);
-                        self.contours.prune_with_hint(tp, hint, &self.arrows);
-                    }
+                    check(Pos(pos.0, pos.1 - d as I));
                 }
-                {
-                    let tp = self.transform(Pos(pos.0, pos.1 + d as I));
-                    let arrows = self.arrows.get(&tp).expect("Arrows are not consistent!");
-                    if arrows.iter().all(|a2| a2.end == a.end) {
-                        self.num_pruned += 1;
-                        self.arrows.remove(&tp);
-                        self.contours.prune_with_hint(tp, hint, &self.arrows);
-                    }
-                }
+                check(Pos(pos.0, pos.1 + d as I));
             }
         }
 
-        self.arrows.remove(&tpos).unwrap();
-        let change = self.contours.prune_with_hint(tpos, hint, &self.arrows);
+        let change = if min_len == 0 {
+            self.arrows.remove(&tpos).unwrap();
+            self.contours.prune_with_hint(tpos, hint, &self.arrows).1
+        } else {
+            // If we only remove a subset of arrows, do no actual pruning.
+            // TODO: Also update contours on partial pruning.
+            let arrows = self.arrows.get_mut(&tpos).unwrap();
+            if D {
+                println!("Remove arrows of length > {min_len} at pos {pos}.");
+            }
+            arrows.drain_filter(|a| a.len > min_len).count();
+            assert!(arrows.len() > 0);
+            self.contours.prune_with_hint(tpos, hint, &self.arrows).1
+        };
 
         self.pruning_duration += start.elapsed();
 
@@ -368,7 +372,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
             self.print(false, false);
         }
         if tpos >= self.max_transformed_pos {
-            return change.1;
+            return change;
         } else {
             return 0;
         }
