@@ -34,12 +34,12 @@ es = [0.01, 0.05, 0.10, 0.20]
 
 # Seed length, match distance pairs
 kms = [(7,0), (8,0), (9,0), (10, 0), (11, 0), (12, 0), (13,0), (14,0), (15,0), (16,0), (17, 0), (31, 0),
-       (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1)]
+       (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1), (18, 1)]
 
 ## SIMULATED INPUT DATA
-ont_ns = [10_000, 100_000, 300_000, 1_000_000]
+ont_ns = [100_000, 300_000, 1_000_000]
 ont_models = ['random', 'human']
-ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1), (18, 1)]
+ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1)]
 
 ## TOOLS
 
@@ -210,7 +210,7 @@ class Run:
 
 # Returns false for parameters that should be skipped.
 def params_filter(run):
-    if run.tool != 'pa_manual': return True
+    assert run.has_params
 
     # If the error rate is larger than the max rate this (k,m) can handle, skip.
     # e is made a bit lower, since an induced error rate of 20% only gives ~15% edit distance.
@@ -223,10 +223,10 @@ def params_filter(run):
         return False
 
     # If we expect multiple matches per seed, skip since we should increase k instead.
-    if run.m == 0 and run.input.n / 4.**(run.k+1) > 2*(run.k+1): # +1 to allow slightly too small k.
+    if run.m == 0 and run.input.n / 4.**(run.k+2) > 2*(run.k+1): # +1 to allow slightly too small k.
         return False
     # The number of distance-1 matches per seed is roughly 8*k.
-    if run.m == 1 and 8*(run.k+1)* run.input.n / 4.**(run.k+1) > 2*(run.k+1): # +1 allow slightly too small k.
+    if run.m == 1 and 8*(run.k+1)* run.input.n / 4.**(run.k+2) > 2*(run.k+2): # +2 allow slightly too small k.
         return False
 
     return True
@@ -278,7 +278,7 @@ rule run_tool:
 # - .status file
 # - .stats file if present
 def make_table(runs, output):
-    headers = ["alg","model", "cnt","n","e", "s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
+    headers = ["alg","model", "cnt","n","e","m","k","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
@@ -298,13 +298,13 @@ def make_table(runs, output):
         except:
             stats = ''
         for bench_line in run.bench_path().read_text().splitlines()[1:]:
-            table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{bench_line}\t{status}{stats}\n')
+            table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "m", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
 
 # Table of PA runs for all possible parameters.
 rule params_table:
     input: lambda w: [run.bench_path() for run in params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], inputs(w.N))]
     output: 'table/params_N{N}.tsv'
-    run: make_table(params_runs(['pa_manual'], inputs(wildcards.N)), output)
+    run: make_table(params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], inputs(wildcards.N)), output)
 
 # Run tools.
 rule tools_table:
