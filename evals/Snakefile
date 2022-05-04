@@ -350,7 +350,8 @@ rule ont_tools_table:
 rule astar_visualization:
     input:
     output: 'astar-visualization/dijkstra.csv'
-    shell: "cargo run --release --example states"
+    # Note: no --release, since this data is only tracked in debug mode.
+    shell: "cargo run --example astar_visualization"
 
 # ======= Reference ======= #
 rule human_reference:
