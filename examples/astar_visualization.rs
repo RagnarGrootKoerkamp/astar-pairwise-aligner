@@ -7,46 +7,43 @@ fn main() {
     let m = 1;
     let k = 9;
 
-    // {
-    //     let h = ZeroCost;
-    //     let (a, b, alphabet, stats) = setup(n, e);
-    //     let r = align(&a, &b, &alphabet, stats, h);
-    //     r.write_explored_states("evals/astar-visualization/dijkstra.csv");
-    //     r.print();
-    // }
     {
         let h = ZeroCost;
         let (a, b, alphabet, stats) = setup(n, e);
-        let r = align_advanced(&a, &b, &alphabet, stats, h, false);
-        r.write_explored_states("evals/astar-visualization/dijkstra-nogreedy.csv");
+        let r = align(&a, &b, &alphabet, stats, h);
+        r.write_explored_states("evals/astar-visualization/dijkstra.csv");
         r.print();
     }
     {
-        let h = SH {
+        let h = CSH {
             match_config: MatchConfig {
                 length: Fixed(k),
                 max_match_cost: m,
                 ..MatchConfig::default()
             },
             pruning: false,
+            use_gap_cost: false,
+            c: PhantomData::<BruteForceContours>::default(),
         };
         let (a, b, alphabet, stats) = setup(n, e);
-        let r = align_advanced(&a, &b, &alphabet, stats, h, false);
-        r.write_explored_states("evals/astar-visualization/sh-noprune.csv");
+        let r = align(&a, &b, &alphabet, stats, h);
+        r.write_explored_states("evals/astar-visualization/csh-noprune.csv");
         r.print();
     }
     {
-        let h = SH {
+        let h = CSH {
             match_config: MatchConfig {
                 length: Fixed(k),
                 max_match_cost: m,
                 ..MatchConfig::default()
             },
             pruning: true,
+            use_gap_cost: false,
+            c: PhantomData::<BruteForceContours>::default(),
         };
         let (a, b, alphabet, stats) = setup(n, e);
         let r = align(&a, &b, &alphabet, stats, h);
-        r.write_explored_states("evals/astar-visualization/sh.csv");
+        r.write_explored_states("evals/astar-visualization/csh.csv");
         r.print();
     }
 }
