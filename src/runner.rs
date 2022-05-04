@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use contour::central::CentralContour;
 use heuristic::unordered::UnorderedHeuristic;
-use std::marker::PhantomData;
+use std::{marker::PhantomData, process::exit};
 use structopt::StructOpt;
 use strum_macros::EnumString;
 
@@ -32,7 +32,7 @@ pub enum Contours {
     Hint,
 }
 
-#[derive(EnumString, Debug)]
+#[derive(EnumString, Debug, PartialEq)]
 #[strum(ascii_case_insensitive)]
 pub enum Algorithm {
     // The basic n^2 DP
@@ -90,6 +90,10 @@ pub struct Params {
 
     #[structopt(long)]
     no_greedy_matching: bool,
+
+    // Do not run anything, but only print the automatically chosen parameters.
+    #[structopt(long)]
+    only_print_parameters: bool,
 }
 
 impl Params {
@@ -129,7 +133,12 @@ impl Params {
         let k = k_min + 1. / 3. * (k_max - k_min);
         //println!("kmin {k_min}, kmax {k_max}, k{k}");
         // k can be at most 31.
-        (m, min(k.round() as I, 31))
+        let k = min(k.round() as I, 31);
+        if self.only_print_parameters {
+            println!("m = {m}  k = {k}");
+            exit(0);
+        }
+        (m, k)
     }
 }
 
