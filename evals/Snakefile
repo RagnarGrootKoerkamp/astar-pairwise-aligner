@@ -57,18 +57,18 @@ binaries = {
 }
 tool_command = {
     # Versions with manual parameter choosing.
-    'pa_manual':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
-    'pa_manual_zero':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --cost Zero',
-    'pa_manual_unordered':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm Unordered',
+    'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm Unordered',
+    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --cost Zero',
+    'cp-csh+gap':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m}',
     # infers k and m values.
-    'pa':                   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e}',
-    'pa_zero':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --cost Zero',
-    'pa_unordered':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm Unordered',
+    'sh':                   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm Unordered',
+    'csh':                  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --cost Zero',
+    'csh+gap':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e}',
     # slower PA variants
-    'dijkstra':             binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -a Dijkstra',
-    'dijkstra_nogreedy':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -a Dijkstra --no-greedy-matching',
-    'pa_noprune':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune',
-    'pa_noprune_nogreedy':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --no-greedy-matching',
+    'dijkstra':             binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm Dijkstra',
+    'sh-noprune':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm Unordered',
+    'csh-noprune':          binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --cost Zero',
+    'csh+gap-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':                binaries["edlib"]   + '    {input} -p -s', # -p: compute the path, -s: no output
@@ -79,21 +79,22 @@ tool_command = {
 
 # Subset of tools to run
 tools = [
-    'pa',
-    'pa_zero',
-    'pa_unordered',
+    'sh',
+    'csh',
+    #'csh+gap',
     'edlib',
     ##'wfa',  # Replaced by wfa2
     ##'wfa2', # Replaced by biwfa
     'biwfa',
 ]
 
+tools_cp = ['cp-sh', 'cp-csh']
+
 # Subset of tools to run for the slow table
 tools_slow = [
     'dijkstra',
-    'dijkstra_nogreedy',
-    'pa_noprune',
-    'pa_noprune_nogreedy',
+    'sh-noprune',
+    'csh-noprune',
 ]
 
 # Generate testcases
@@ -261,7 +262,7 @@ def build_command(w, params=False):
 rule run_pa_for_parameters:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(), REPEATS)
-    wildcard_constraints: tool = '.*pa_manual.*'
+    wildcard_constraints: tool = '.*cp-.*'
     params: command = lambda w: build_command(w, params=True)
     shell: '{params.command}'
 
@@ -302,9 +303,9 @@ def make_table(runs, output):
 
 # Table of PA runs for all possible parameters.
 rule params_table:
-    input: lambda w: [run.bench_path() for run in params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], inputs(w.N))]
+    input: lambda w: [run.bench_path() for run in params_runs(tools_cp, inputs(w.N))]
     output: 'table/params_N{N}.tsv'
-    run: make_table(params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], inputs(wildcards.N)), output)
+    run: make_table(params_runs(tools_cp, inputs(wildcards.N)), output)
 
 # Run tools.
 rule tools_table:
@@ -323,7 +324,7 @@ rule tools_slow_table:
 rule ont_run_pa_for_parameters:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern_with_params(ont=True), REPEATS)
-    wildcard_constraints: tool = '.*pa_manual.*'
+    wildcard_constraints: tool = '.*cp-.*'
     params: command = lambda w: build_command(w, params=True)
     shell: '{params.command}'
 
@@ -334,9 +335,9 @@ rule ont_run_tool:
     shell: "{params.command}"
 
 rule ont_params_table:
-    input: lambda w: [run.bench_path() for run in params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], ont_inputs(w.N), ont=True)]
+    input: lambda w: [run.bench_path() for run in params_runs(tools_cp, ont_inputs(w.N), ont=True)]
     output: 'table/params_ont_N{N}.tsv'
-    run: make_table(params_runs(['pa_manual', 'pa_manual_zero', 'pa_manual_unordered'], ont_inputs(wildcards.N), ont=True), output)
+    run: make_table(params_runs(tools_cp, ont_inputs(wildcards.N), ont=True), output)
 
 rule ont_tools_table:
     input: lambda w: [run.bench_path() for run in tool_runs(tools, ont_inputs(w.N))]
