@@ -1,15 +1,15 @@
+pub mod bruteforce_csr;
+pub mod chained_seed_heuristic;
 pub mod distance;
 pub mod equal_heuristic;
-pub mod gap_seed_heuristic;
 pub mod print;
 pub mod seed_heuristic;
-pub mod unordered;
 
+pub use bruteforce_csr::*;
+pub use chained_seed_heuristic::*;
 pub use distance::*;
 pub use equal_heuristic::*;
-pub use gap_seed_heuristic::*;
 pub use seed_heuristic::*;
-pub use unordered::*;
 
 use serde::Serialize;
 
