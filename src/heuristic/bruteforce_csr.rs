@@ -221,54 +221,92 @@ where
         self.seeds.is_seed_start_or_end(pos)
     }
 
+    // TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
     fn prune(&mut self, pos: Pos, _hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
+        const D: bool = false;
         if !self.params.pruning {
             return 0;
         }
 
         let start = time::Instant::now();
 
-        if !self.arrows.contains_key(&pos) {
+        // Maximum length arrow at given pos.
+        let a = if let Some(arrows) = self.arrows.get(&pos) {
+            arrows.iter().max_by_key(|a| a.len).unwrap().clone()
+        } else {
             self.pruning_duration += start.elapsed();
             return 0;
-        }
+        };
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
-        // FIXME: Replace this logic by the version from ChainedSeedsHeuristic
+        // TODO: Make this smarter and allow pruning long arrows even when pruning short arrows is not possible.
+        // The minimum length required for consistency here.
+        let mut min_len = 0;
         for d in 1..=self.params.match_config.max_match_cost {
-            if pos.1 >= d as Cost {
-                if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 - d as Cost)) {
-                    if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
-                        self.pruning_duration += start.elapsed();
-                        return 0;
-                    }
+            let mut check = |pos: Pos| {
+                if let Some(pos_arrows) = self.arrows.get(&pos) {
+                    min_len = max(min_len, pos_arrows.iter().map(|a| a.len).max().unwrap() - d);
                 }
+            };
+            if pos.0 >= d as Cost {
+                check(Pos(pos.0, pos.1 - d as I));
             }
-            if pos.1 + d as Cost <= self.target.1 {
-                if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 + d as Cost)) {
-                    if pos_arrows.iter().map(|a| a.len).max().unwrap() > d {
-                        self.pruning_duration += start.elapsed();
-                        return 0;
-                    }
-                }
-            }
+            check(Pos(pos.0, pos.1 + d as I));
         }
 
-        //Prune the current position.
-        if print() {
-            println!("PRUNE SEED HEURISTIC: {}", pos);
-        }
-
-        self.arrows.remove(&pos).unwrap();
-
-        if self.h_at_seeds.remove(&pos).is_none() {
-            // No need to rebuild.
+        if a.len <= min_len {
             return 0;
         }
+
+        if D || print() {
+            println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
+        }
+
+        // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
+        // TODO: Make this more precise for larger inexact matches.
+        if PRUNE_INEXACT_MATCHES_BY_END && a.len == self.params.match_config.max_match_cost + 1 {
+            // See if there are neighbouring points that can now be fully pruned.
+            for d in 1..=self.params.match_config.max_match_cost {
+                let mut check = |pos: Pos| {
+                    if !self.arrows.contains_key(&pos) {
+                        println!("Did not find nb arrow at {pos} while pruning {a} at {pos}");
+                    }
+                    let arrows = self.arrows.get(&pos).expect("Arrows are not consistent!");
+                    if arrows.iter().all(|a2| a2.end == a.end) {
+                        self.num_pruned += 1;
+                        self.arrows.remove(&pos);
+                    }
+                };
+                if pos.0 >= d as Cost {
+                    check(Pos(pos.0, pos.1 - d as I));
+                }
+                check(Pos(pos.0, pos.1 + d as I));
+            }
+        }
+
+        if min_len == 0 {
+            self.arrows.remove(&pos).unwrap();
+        } else {
+            // If we only remove a subset of arrows, do no actual pruning.
+            // TODO: Also update contours on partial pruning.
+            let arrows = self.arrows.get_mut(&pos).unwrap();
+            if D {
+                println!("Remove arrows of length > {min_len} at pos {pos}.");
+            }
+            arrows.drain_filter(|a| a.len > min_len).count();
+            assert!(arrows.len() > 0);
+        };
+
+        // Rebuild the datastructure.
         self.build();
+
         self.pruning_duration += start.elapsed();
-        self.print(false, false);
-        0
+
+        self.num_pruned += 1;
+        if print() {
+            self.print(false, false);
+        }
+        return 0;
     }
 
     fn print(&self, _transform: bool, wait_for_user: bool) {
