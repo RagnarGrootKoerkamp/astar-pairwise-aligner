@@ -42,12 +42,12 @@ def algo2color(algo):
         'dijkstra_nogreedy': '#FF913D', #'#E8841A',
         'pa_noprune': '#FF6047',
         'pa_noprune_nogreedy': '#FF6047',
-        'pa': '#EB2D12',
-        'pa_zero': 'green',
-        'pa_unordered': 'blue',
-        'pa_manual': 'black',  # (k,m) cherry-picking
-        'pa_manual_zero': 'green',
-        'pa_manual_unordered': 'blue',
+        'csh+gap': '#EB2D12',
+        'csh': 'green',
+        'sh': 'blue',
+        'cp-csh+gap': 'black',  # (k,m) cherry-picking
+        'cp-csh': 'green',
+        'cp-sh': 'blue',
         
         'edlib': '#DE4AFF',
         'wfa': '#625AFF',
@@ -73,8 +73,8 @@ def algo2beautiful(algo):
         'dijkstra_nogreedy': 'Dijkstra',
         'pa_noprune': 'A*PA-noprune',
         'pa_noprune_nogreedy': 'A*PA-noprune',
-        'pa': 'A*PA',
-        'pa_manual': 'A*PA-cherrypick',
+        'csh+gap': 'A*PA',
+        'cp-csh+gap': 'A*PA-cherrypick',
         
         'edlib': 'Edlib',
         'wfa': 'WFA',
@@ -90,8 +90,8 @@ def algo2marker(algo):
         'dijkstra_nogreedy': 'P',
         'pa_noprune': 's',
         'pa_noprune_nogreedy': 's',
-        'pa': 'o',
-        'pa_manual': '.',
+        'csh+gap': 'o',
+        'cp-csh+gap': '.',
         
         'edlib': '^',
         'wfa': 'D',
