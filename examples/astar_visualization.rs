@@ -18,39 +18,35 @@ fn main() {
         let h = ZeroCost;
         let (a, b, alphabet, stats) = setup(n, e);
         let r = align_advanced(&a, &b, &alphabet, stats, h, false);
-        r.write_explored_states("evals/astar-visualization/dijkstra_nogreedy.csv");
+        r.write_explored_states("evals/astar-visualization/dijkstra-nogreedy.csv");
         r.print();
     }
     {
-        let h = GapSeedHeuristic {
+        let h = UnorderedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(k),
                 max_match_cost: m,
                 ..MatchConfig::default()
             },
             pruning: false,
-            use_gap_cost: true,
-            c: PhantomData::<HintContours<BruteForceContour>>,
         };
         let (a, b, alphabet, stats) = setup(n, e);
         let r = align_advanced(&a, &b, &alphabet, stats, h, false);
-        r.write_explored_states("evals/astar-visualization/astar_no_pruning.csv");
+        r.write_explored_states("evals/astar-visualization/sh-noprune.csv");
         r.print();
     }
     {
-        let h = GapSeedHeuristic {
+        let h = UnorderedHeuristic {
             match_config: MatchConfig {
                 length: Fixed(k),
                 max_match_cost: m,
                 ..MatchConfig::default()
             },
             pruning: true,
-            use_gap_cost: true,
-            c: PhantomData::<HintContours<BruteForceContour>>,
         };
         let (a, b, alphabet, stats) = setup(n, e);
         let r = align(&a, &b, &alphabet, stats, h);
-        r.write_explored_states("evals/astar-visualization/astar_pruning.csv");
+        r.write_explored_states("evals/astar-visualization/sh.csv");
         r.print();
     }
 }
