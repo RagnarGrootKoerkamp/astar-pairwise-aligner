@@ -478,3 +478,48 @@ We now prune matches by end as well, when the start of an exact match is expande
 ** TODO Prune inexact matches next to an exact match that is on a greedy path
 Currently these matches are not pruned at all.
 Could be fixed by also pruning by match-end, orby clustering matches.
+
+* Parameter tuning
+** CSH [no gapcost]
+|    e | n    | k (m=0)  | k (m=1) | remark         |
+| 0.01 | 10k  | 8+       |         |                |
+| 0.01 | 100k | 10+      |         |                |
+| 0.01 | 1M   | 12+      |         |                |
+| 0.05 | 10k  | 9 - ~15  |         |                |
+| 0.05 | 100k | 10 - ~15 |         |                |
+| 0.05 | 1M   | 12 - ~15 |         |                |
+|  0.1 | 10k  | 8 - 9    | 11 - 18 | m=1 30% slower |
+|  0.1 | 100k | 9 - 10   | 12 - 18 | m=1 40% faster |
+|  0.1 | 1M   | *        | 14 - 18 |                |
+|  0.2 | 10k  | *        | 10 (11) |                |
+|  0.2 | 100k | *        | 11      |                |
+|  0.2 | 1M   | *        | *       |                |
+
+Parameter choice:
+|    e | m |  k | remark                  |
+| 0.01 | 0 | 31 |                         |
+| 0.05 | 0 | 14 |                         |
+|  0.1 | 1 | 16 | for simplicity, fix m=1 |
+|  0.2 | 1 | 11 |                         |
+
+** SH
+|    e | n    | k (m=0)  | k (m=1) | remark         |
+| 0.01 | 10k  | 8+       |         |                |
+| 0.01 | 100k | 10+      |         |                |
+| 0.01 | 1M   | 12+      |         |                |
+| 0.05 | 10k  | 9 - ~15  |         |                |
+| 0.05 | 100k | 10 - ~15 |         |                |
+| 0.05 | 1M   | 12 - ~15 |         |                |
+|  0.1 | 10k  | 8 - 9    | 11 - 18 | m=1 10% faster |
+|  0.1 | 100k | *        | 13 - 18 |                |
+|  0.1 | 1M   | *        | 15 - 18 |                |
+|  0.2 | 10k  | *        | 12      |                |
+|  0.2 | 100k | *        | *       |                |
+|  0.2 | 1M   | *        | *       |                |
+
+Parameter choice:
+|    e | m |  k | remark                  |
+| 0.01 | 0 | 31 |                         |
+| 0.05 | 0 | 14 |                         |
+|  0.1 | 1 | 16 | for simplicity, fix m=1 |
+|  0.2 | 1 | 12 |                         |
