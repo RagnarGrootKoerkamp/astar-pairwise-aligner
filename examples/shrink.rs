@@ -12,7 +12,7 @@ fn main() {
     let max_match_cost = 0;
     let pruning = false;
 
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost,

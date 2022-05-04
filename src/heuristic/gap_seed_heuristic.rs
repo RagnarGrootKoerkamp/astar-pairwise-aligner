@@ -12,7 +12,7 @@ use std::{
     time::{self, Duration},
 };
 
-pub struct GapSeedHeuristic<C: Contours> {
+pub struct ChainedSeedsHeuristic<C: Contours> {
     pub match_config: MatchConfig,
     pub pruning: bool,
     // When false, gaps are free and only the max chain of matches is found.
@@ -20,7 +20,7 @@ pub struct GapSeedHeuristic<C: Contours> {
     pub c: PhantomData<C>,
 }
 
-impl<C: 'static + Contours> GapSeedHeuristic<C> {
+impl<C: 'static + Contours> ChainedSeedsHeuristic<C> {
     pub fn to_seed_heuristic(&self) -> SeedHeuristic<GapCost> {
         assert!(self.use_gap_cost);
         SeedHeuristic {
@@ -57,9 +57,9 @@ impl<C: 'static + Contours> GapSeedHeuristic<C> {
 
     pub fn equal_to_bruteforce_contours(
         &self,
-    ) -> EqualHeuristic<GapSeedHeuristic<BruteForceContours>, Self> {
+    ) -> EqualHeuristic<ChainedSeedsHeuristic<BruteForceContours>, Self> {
         EqualHeuristic {
-            h1: GapSeedHeuristic {
+            h1: ChainedSeedsHeuristic {
                 match_config: self.match_config,
                 pruning: self.pruning,
                 use_gap_cost: self.use_gap_cost,
@@ -71,16 +71,16 @@ impl<C: 'static + Contours> GapSeedHeuristic<C> {
 }
 
 // Manual implementations because C is not Debug, Clone, or Copy.
-impl<C: 'static + Contours> std::fmt::Debug for GapSeedHeuristic<C> {
+impl<C: 'static + Contours> std::fmt::Debug for ChainedSeedsHeuristic<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GapSeedHeuristic")
+        f.debug_struct("ChainedSeedsHeuristic")
             .field("match_config", &self.match_config)
             .field("pruning", &self.pruning)
             .field("contours", &std::any::type_name::<C>())
             .finish()
     }
 }
-impl<C: Contours> Clone for GapSeedHeuristic<C> {
+impl<C: Contours> Clone for ChainedSeedsHeuristic<C> {
     fn clone(&self) -> Self {
         Self {
             match_config: self.match_config,
@@ -90,10 +90,10 @@ impl<C: Contours> Clone for GapSeedHeuristic<C> {
         }
     }
 }
-impl<C: Contours> Copy for GapSeedHeuristic<C> {}
+impl<C: Contours> Copy for ChainedSeedsHeuristic<C> {}
 
-impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
-    type Instance<'a> = GapSeedHeuristicI<C>;
+impl<C: 'static + Contours> Heuristic for ChainedSeedsHeuristic<C> {
+    type Instance<'a> = ChainedSeedsHeuristicI<C>;
 
     fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
         // TODO: Warning
@@ -101,7 +101,7 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
-        GapSeedHeuristicI::new(a, b, alph, *self)
+        ChainedSeedsHeuristicI::new(a, b, alph, *self)
     }
 
     fn name(&self) -> String {
@@ -120,8 +120,8 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
     }
 }
 
-pub struct GapSeedHeuristicI<C: Contours> {
-    params: GapSeedHeuristic<C>,
+pub struct ChainedSeedsHeuristicI<C: Contours> {
+    params: ChainedSeedsHeuristic<C>,
     gap_distance: GapCostI,
     target: Pos,
 
@@ -148,7 +148,7 @@ pub struct GapSeedHeuristicI<C: Contours> {
 /// provided distance function and the potential difference between the two
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
-impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
+impl<'a, C: Contours> DistanceInstance<'a> for ChainedSeedsHeuristicI<C> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         if self.params.use_gap_cost {
             max(
@@ -162,17 +162,17 @@ impl<'a, C: Contours> DistanceInstance<'a> for GapSeedHeuristicI<C> {
 }
 
 // TODO: Get rid of this.
-impl<C: Contours> Drop for GapSeedHeuristicI<C> {
+impl<C: Contours> Drop for ChainedSeedsHeuristicI<C> {
     fn drop(&mut self) {
         self.contours.print_stats();
     }
 }
 
-impl<C: Contours> GapSeedHeuristicI<C> {
-    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: GapSeedHeuristic<C>) -> Self {
+impl<C: Contours> ChainedSeedsHeuristicI<C> {
+    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: ChainedSeedsHeuristic<C>) -> Self {
         let matches = find_matches(a, b, alph, params.match_config);
         //println!("\nfind matches.. done: {}", matches.matches.len());
-        let mut h = GapSeedHeuristicI {
+        let mut h = ChainedSeedsHeuristicI {
             params,
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos::from_length(a, b),
@@ -256,7 +256,7 @@ impl<C: Contours> GapSeedHeuristicI<C> {
     }
 }
 
-impl<'a, C: Contours> HeuristicInstance<'a> for GapSeedHeuristicI<C> {
+impl<'a, C: Contours> HeuristicInstance<'a> for ChainedSeedsHeuristicI<C> {
     fn h(&self, pos: Pos) -> Cost {
         let p = self.seeds.potential(pos);
         let val = self.contours.value(self.transform(pos));

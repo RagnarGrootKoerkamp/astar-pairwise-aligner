@@ -63,7 +63,7 @@ pruning silently pruned potential new dominant points in the layer.
 
 ** DONE Make sure SeedHeuristic never uses the GapCost.
 CLOSED: [2022-01-11 Tue 20:34]
-In the GapSeedHeuristic, we never use a gap distance, unless it's towards the target.
+In the ChainedSeedsHeuristic, we never use a gap distance, unless it's towards the target.
 This test makes sure that SeedHeuristic<Gap> does the same:
 Instead of taking max(gap distance, potential distance), in cases when gap >
 potential, this parent should be skipped completely.
@@ -89,7 +89,7 @@ If we have a situation where we prune a position with $h$ larger than a
 neighbour above or below, after pruning this difference will be at least $2$,
 which is not consistent.
 
-As a fix, both ~SeedHeuristic~ and ~GapSeedHeuristic~ now check whether the
+As a fix, both ~SeedHeuristic~ and ~ChainedSeedsHeuristic~ now check whether the
 current $h$ value is larger than any of the neighbours above/below, and if so,
 skip pruning.
 

@@ -5,7 +5,7 @@ fn exact_no_pruning() {
     for k in [4, 5] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GapSeedHeuristic {
+                let h = ChainedSeedsHeuristic {
                     match_config: MatchConfig {
                         length: Fixed(k),
                         max_match_cost: 0,
@@ -30,7 +30,7 @@ fn inexact_no_pruning() {
     for k in [6, 7] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GapSeedHeuristic {
+                let h = ChainedSeedsHeuristic {
                     match_config: MatchConfig {
                         length: Fixed(k),
                         max_match_cost: 1,
@@ -56,7 +56,7 @@ fn pruning_bruteforce() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GapSeedHeuristic {
+                let h = ChainedSeedsHeuristic {
                     match_config: MatchConfig {
                         length: Fixed(k),
                         max_match_cost,
@@ -81,7 +81,7 @@ fn pruning_hint_bruteforce() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GapSeedHeuristic {
+                let h = ChainedSeedsHeuristic {
                     match_config: MatchConfig {
                         length: Fixed(k),
                         max_match_cost,
@@ -106,7 +106,7 @@ fn pruning_hint_central() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GapSeedHeuristic {
+                let h = ChainedSeedsHeuristic {
                     match_config: MatchConfig {
                         length: Fixed(k),
                         max_match_cost,
@@ -154,7 +154,7 @@ fn no_gap_cost() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GapSeedHeuristic {
+                let h = ChainedSeedsHeuristic {
                     match_config: MatchConfig {
                         length: Fixed(k),
                         max_match_cost,

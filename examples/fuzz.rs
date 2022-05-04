@@ -4,7 +4,7 @@ fn main() {
     for n in 40.. {
         for r in 0..10000 {
             let (k, m, n, e, pruning) = (4, 0, n, 0.9, true);
-            let h = GapSeedHeuristic {
+            let h = ChainedSeedsHeuristic {
                 match_config: MatchConfig {
                     length: Fixed(k),
                     max_match_cost: m,
