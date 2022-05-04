@@ -9,7 +9,7 @@ pub struct SH {
 }
 
 impl Heuristic for SH {
-    type Instance<'a> = UnorderedHeuristicI;
+    type Instance<'a> = SHI;
 
     fn build<'a>(
         &self,
@@ -17,11 +17,11 @@ impl Heuristic for SH {
         b: &'a Sequence,
         alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
-        UnorderedHeuristicI::new(a, b, alphabet, *self)
+        SHI::new(a, b, alphabet, *self)
     }
 
     fn name(&self) -> String {
-        "Unordered".into()
+        "SH".into()
     }
 
     fn params(&self) -> HeuristicParams {
@@ -37,7 +37,7 @@ impl Heuristic for SH {
     }
 }
 
-pub struct UnorderedHeuristicI {
+pub struct SHI {
     params: SH,
     target: Pos,
     seeds: Seeds,
@@ -51,7 +51,7 @@ pub struct UnorderedHeuristicI {
 
 type Hint = Cost;
 
-impl UnorderedHeuristicI {
+impl SHI {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: SH) -> Self {
         let mut seeds = unordered_matches(a, b, alph, params.match_config);
         // Delete unused match data.
@@ -76,7 +76,7 @@ impl UnorderedHeuristicI {
             println!("{:?}\n{remaining_matches:?}", seeds.seeds);
         }
 
-        let h = UnorderedHeuristicI {
+        let h = SHI {
             params,
             target: Pos::from_length(a, b),
             seeds,
@@ -153,7 +153,7 @@ impl UnorderedHeuristicI {
     }
 }
 
-impl<'a> HeuristicInstance<'a> for UnorderedHeuristicI {
+impl<'a> HeuristicInstance<'a> for SHI {
     /// The index of the next match, from the end of the splitvec.
     type Hint = Hint;
 
