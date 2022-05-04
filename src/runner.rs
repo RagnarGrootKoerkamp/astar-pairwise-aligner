@@ -110,8 +110,8 @@ impl Params {
             .expect("At least one of k and e must be specified!");
         let n = b.len();
 
-        // For Unordered and ZeroCost, use a fixed mapping:
-        if self.algorithm == Algorithm::SH || self.cost == CostFunction::Zero {
+        // For SH and CSH, use a fixed mapping:
+        if self.algorithm == Algorithm::SH || self.algorithm == Algorithm::CSH {
             return match self.error_rate.unwrap() {
                 e if e < 0.025 => (0, 31),
                 e if e < 0.06 => (0, 14),

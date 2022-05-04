@@ -22,7 +22,7 @@ impl<DH: Distance> Heuristic for BruteForceCSH<DH>
 where
     for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a>,
 {
-    type Instance<'a> = SimpleSeedHeuristicI<'a, DH>;
+    type Instance<'a> = BruteForceCSHI<'a, DH>;
 
     fn build<'a>(
         &self,
@@ -34,7 +34,7 @@ where
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
-        SimpleSeedHeuristicI::new(a, b, alphabet, *self)
+        BruteForceCSHI::new(a, b, alphabet, *self)
     }
 
     fn name(&self) -> String {
@@ -53,7 +53,7 @@ where
     }
 }
 
-pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
+pub struct BruteForceCSHI<'a, DH: Distance> {
     params: BruteForceCSH<DH>,
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
@@ -73,7 +73,7 @@ pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
 /// provided distance function and the potential difference between the two
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
-impl<'a, DH: Distance> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, DH>
+impl<'a, DH: Distance> DistanceInstance<'a> for BruteForceCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
@@ -87,7 +87,7 @@ where
 
 /// For GapCost, we can show that it's never optimal to actually pay for a gap (unless going to the target)
 /// -- the potential difference to the parent will always be smaller.
-impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
+impl<'a> DistanceInstance<'a> for BruteForceCSHI<'a, GapCost> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         let gap = self.distance_function.distance(from, to);
         let pot = self.seeds.potential_distance(from, to);
@@ -101,7 +101,7 @@ impl<'a> DistanceInstance<'a> for SimpleSeedHeuristicI<'a, GapCost> {
     }
 }
 
-impl<'a, DH: Distance> SimpleSeedHeuristicI<'a, DH>
+impl<'a, DH: Distance> BruteForceCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
@@ -111,7 +111,7 @@ where
         alphabet: &Alphabet,
         params: BruteForceCSH<DH>,
     ) -> Self {
-        let mut h = SimpleSeedHeuristicI::<'a> {
+        let mut h = BruteForceCSHI::<'a> {
             params,
             distance_function: Distance::build(&params.distance_function, a, b, alphabet),
             target: Pos::from_length(a, b),
@@ -182,7 +182,7 @@ where
     }
 }
 
-impl<'a, DH: Distance> HeuristicInstance<'a> for SimpleSeedHeuristicI<'a, DH>
+impl<'a, DH: Distance> HeuristicInstance<'a> for BruteForceCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {

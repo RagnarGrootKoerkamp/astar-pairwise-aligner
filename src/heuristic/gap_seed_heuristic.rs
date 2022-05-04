@@ -91,7 +91,7 @@ impl<C: Contours> Clone for CSH<C> {
 impl<C: Contours> Copy for CSH<C> {}
 
 impl<C: 'static + Contours> Heuristic for CSH<C> {
-    type Instance<'a> = ChainedSeedsHeuristicI<C>;
+    type Instance<'a> = CSHI<C>;
 
     fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
         // TODO: Warning
@@ -99,7 +99,7 @@ impl<C: 'static + Contours> Heuristic for CSH<C> {
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
-        ChainedSeedsHeuristicI::new(a, b, alph, *self)
+        CSHI::new(a, b, alph, *self)
     }
 
     fn name(&self) -> String {
@@ -118,7 +118,7 @@ impl<C: 'static + Contours> Heuristic for CSH<C> {
     }
 }
 
-pub struct ChainedSeedsHeuristicI<C: Contours> {
+pub struct CSHI<C: Contours> {
     params: CSH<C>,
     gap_distance: GapCostI,
     target: Pos,
@@ -146,7 +146,7 @@ pub struct ChainedSeedsHeuristicI<C: Contours> {
 /// provided distance function and the potential difference between the two
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
-impl<'a, C: Contours> DistanceInstance<'a> for ChainedSeedsHeuristicI<C> {
+impl<'a, C: Contours> DistanceInstance<'a> for CSHI<C> {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         if self.params.use_gap_cost {
             max(
@@ -160,17 +160,17 @@ impl<'a, C: Contours> DistanceInstance<'a> for ChainedSeedsHeuristicI<C> {
 }
 
 // TODO: Get rid of this.
-impl<C: Contours> Drop for ChainedSeedsHeuristicI<C> {
+impl<C: Contours> Drop for CSHI<C> {
     fn drop(&mut self) {
         self.contours.print_stats();
     }
 }
 
-impl<C: Contours> ChainedSeedsHeuristicI<C> {
+impl<C: Contours> CSHI<C> {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: CSH<C>) -> Self {
         let matches = find_matches(a, b, alph, params.match_config);
         //println!("\nfind matches.. done: {}", matches.matches.len());
-        let mut h = ChainedSeedsHeuristicI {
+        let mut h = CSHI {
             params,
             gap_distance: Distance::build(&GapCost, a, b, alph),
             target: Pos::from_length(a, b),
@@ -254,7 +254,7 @@ impl<C: Contours> ChainedSeedsHeuristicI<C> {
     }
 }
 
-impl<'a, C: Contours> HeuristicInstance<'a> for ChainedSeedsHeuristicI<C> {
+impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     fn h(&self, pos: Pos) -> Cost {
         let p = self.seeds.potential(pos);
         let val = self.contours.value(self.transform(pos));
