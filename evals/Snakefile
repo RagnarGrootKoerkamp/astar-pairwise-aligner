@@ -44,7 +44,7 @@ ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1)]
 ## TOOLS
 
 ## RUN SETTINGS
-TIMEOUT = "100s"
+TIMEOUT = "1000s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS

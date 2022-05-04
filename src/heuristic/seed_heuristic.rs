@@ -234,6 +234,7 @@ where
         }
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
+        // FIXME: Replace this logic by the version from GapSeedHeuristic
         for d in 1..=self.params.match_config.max_match_cost {
             if pos.1 >= d as Cost {
                 if let Some(pos_arrows) = self.arrows.get(&Pos(pos.0, pos.1 - d as Cost)) {
