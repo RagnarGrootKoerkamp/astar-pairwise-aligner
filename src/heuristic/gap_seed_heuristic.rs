@@ -114,7 +114,7 @@ impl<C: 'static + Contours> Heuristic for GapSeedHeuristic<C> {
             k: self.match_config.length.k().unwrap_or(0),
             max_match_cost: self.match_config.max_match_cost,
             pruning: self.pruning,
-            distance_function: "Gap".to_string(),
+            distance_function: (if self.use_gap_cost { "Gap" } else { "Zero" }).to_string(),
             ..Default::default()
         }
     }
