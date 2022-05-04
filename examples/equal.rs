@@ -7,7 +7,7 @@ fn main() {
     let max_match_cost = 1;
     let pruning = true;
 
-    let h_fast = ChainedSeedsHeuristic {
+    let h_fast = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost,
@@ -17,7 +17,7 @@ fn main() {
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
-    let h_base = ChainedSeedsHeuristic {
+    let h_base = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost,

@@ -4,7 +4,7 @@ use pairwise_aligner::prelude::*;
 #[test]
 fn seed_heuristic_rebuild() {
     let (k, m, n, e, pruning) = (4, 0, 100, 0.3, true);
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: m,
@@ -38,7 +38,7 @@ fn seed_heuristic_rebuild() {
 #[test]
 fn never_use_gap_distance() {
     let (k, m, n, e, pruning) = (5, 1, 14, 0.3, true);
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: m,
@@ -67,7 +67,7 @@ fn seed_heuristic_zero_dist_consistent() {
     for (k, m) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = SeedHeuristic {
+                let h = BruteForceCSH {
                     match_config: MatchConfig {
                         length: Fixed(k),
                         max_match_cost: m,

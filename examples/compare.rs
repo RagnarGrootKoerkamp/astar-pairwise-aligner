@@ -40,7 +40,7 @@ fn main() {
     for (&n, e) in ns.iter().cartesian_product(es) {
         for (length, max_match_cost) in lm {
             let result = {
-                let h = ChainedSeedsHeuristic {
+                let h = CSH {
                     match_config: MatchConfig {
                         length,
                         max_match_cost,

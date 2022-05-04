@@ -172,7 +172,7 @@ impl LengthConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, EnumString)]
+#[derive(Clone, Copy, Debug, Default, EnumString, strum_macros::Display)]
 #[strum(ascii_case_insensitive)]
 pub enum MatchAlgorithm {
     #[default]

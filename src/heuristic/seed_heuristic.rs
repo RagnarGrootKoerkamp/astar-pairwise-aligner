@@ -12,13 +12,13 @@ use crate::{
 };
 
 #[derive(Debug, Copy, Clone)]
-pub struct SeedHeuristic<DH: Distance> {
+pub struct BruteForceCSH<DH: Distance> {
     pub match_config: MatchConfig,
     pub distance_function: DH,
     pub pruning: bool,
 }
 
-impl<DH: Distance> Heuristic for SeedHeuristic<DH>
+impl<DH: Distance> Heuristic for BruteForceCSH<DH>
 where
     for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a>,
 {
@@ -54,7 +54,7 @@ where
 }
 
 pub struct SimpleSeedHeuristicI<'a, DH: Distance> {
-    params: SeedHeuristic<DH>,
+    params: BruteForceCSH<DH>,
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
 
@@ -109,7 +109,7 @@ where
         a: &'a Sequence,
         b: &'a Sequence,
         alphabet: &Alphabet,
-        params: SeedHeuristic<DH>,
+        params: BruteForceCSH<DH>,
     ) -> Self {
         let mut h = SimpleSeedHeuristicI::<'a> {
             params,

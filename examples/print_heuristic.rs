@@ -7,7 +7,7 @@ fn main() {
     let _k = 10;
     let max_match_cost = 1;
 
-    let heuristic = UnorderedHeuristic {
+    let heuristic = SH {
         match_config: MatchConfig {
             length:
             //Fixed(6),
