@@ -43,9 +43,11 @@ def algo2color(algo):
         'pa_noprune': '#FF6047',
         'pa_noprune_nogreedy': '#FF6047',
         'pa': '#EB2D12',
-        'pa_zero': 'black',
+        'pa_zero': 'green',
         'pa_unordered': 'blue',
         'pa_manual': 'black',  # (k,m) cherry-picking
+        'pa_manual_zero': 'green',
+        'pa_manual_unordered': 'blue',
         
         'edlib': '#DE4AFF',
         'wfa': '#625AFF',
@@ -63,7 +65,6 @@ def algo2color(algo):
         }
     if algo in d:
         return d[algo]
-    assert False, algo
     return 'black'
 
 def algo2beautiful(algo):
