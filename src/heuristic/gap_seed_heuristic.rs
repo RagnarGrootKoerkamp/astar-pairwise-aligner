@@ -12,7 +12,7 @@ use std::{
     time::{self, Duration},
 };
 
-pub struct ChainedSeedsHeuristic<C: Contours> {
+pub struct CSH<C: Contours> {
     pub match_config: MatchConfig,
     pub pruning: bool,
     // When false, gaps are free and only the max chain of matches is found.
@@ -20,26 +20,26 @@ pub struct ChainedSeedsHeuristic<C: Contours> {
     pub c: PhantomData<C>,
 }
 
-impl<C: 'static + Contours> ChainedSeedsHeuristic<C> {
-    pub fn to_seed_heuristic(&self) -> SeedHeuristic<GapCost> {
+impl<C: 'static + Contours> CSH<C> {
+    pub fn to_seed_heuristic(&self) -> BruteForceCSH<GapCost> {
         assert!(self.use_gap_cost);
-        SeedHeuristic {
+        BruteForceCSH {
             match_config: self.match_config,
             distance_function: GapCost,
             pruning: self.pruning,
         }
     }
 
-    pub fn to_zero_cost_seed_heuristic(&self) -> SeedHeuristic<ZeroCost> {
+    pub fn to_zero_cost_seed_heuristic(&self) -> BruteForceCSH<ZeroCost> {
         assert!(!self.use_gap_cost);
-        SeedHeuristic {
+        BruteForceCSH {
             match_config: self.match_config,
             distance_function: ZeroCost,
             pruning: self.pruning,
         }
     }
 
-    pub fn equal_to_seed_heuristic(&self) -> EqualHeuristic<SeedHeuristic<GapCost>, Self> {
+    pub fn equal_to_seed_heuristic(&self) -> EqualHeuristic<BruteForceCSH<GapCost>, Self> {
         EqualHeuristic {
             h1: self.to_seed_heuristic(),
             h2: *self,
@@ -48,18 +48,16 @@ impl<C: 'static + Contours> ChainedSeedsHeuristic<C> {
 
     pub fn equal_to_zero_cost_seed_heuristic(
         &self,
-    ) -> EqualHeuristic<SeedHeuristic<ZeroCost>, Self> {
+    ) -> EqualHeuristic<BruteForceCSH<ZeroCost>, Self> {
         EqualHeuristic {
             h1: self.to_zero_cost_seed_heuristic(),
             h2: *self,
         }
     }
 
-    pub fn equal_to_bruteforce_contours(
-        &self,
-    ) -> EqualHeuristic<ChainedSeedsHeuristic<BruteForceContours>, Self> {
+    pub fn equal_to_bruteforce_contours(&self) -> EqualHeuristic<CSH<BruteForceContours>, Self> {
         EqualHeuristic {
-            h1: ChainedSeedsHeuristic {
+            h1: CSH {
                 match_config: self.match_config,
                 pruning: self.pruning,
                 use_gap_cost: self.use_gap_cost,
@@ -71,7 +69,7 @@ impl<C: 'static + Contours> ChainedSeedsHeuristic<C> {
 }
 
 // Manual implementations because C is not Debug, Clone, or Copy.
-impl<C: 'static + Contours> std::fmt::Debug for ChainedSeedsHeuristic<C> {
+impl<C: 'static + Contours> std::fmt::Debug for CSH<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ChainedSeedsHeuristic")
             .field("match_config", &self.match_config)
@@ -80,7 +78,7 @@ impl<C: 'static + Contours> std::fmt::Debug for ChainedSeedsHeuristic<C> {
             .finish()
     }
 }
-impl<C: Contours> Clone for ChainedSeedsHeuristic<C> {
+impl<C: Contours> Clone for CSH<C> {
     fn clone(&self) -> Self {
         Self {
             match_config: self.match_config,
@@ -90,9 +88,9 @@ impl<C: Contours> Clone for ChainedSeedsHeuristic<C> {
         }
     }
 }
-impl<C: Contours> Copy for ChainedSeedsHeuristic<C> {}
+impl<C: Contours> Copy for CSH<C> {}
 
-impl<C: 'static + Contours> Heuristic for ChainedSeedsHeuristic<C> {
+impl<C: 'static + Contours> Heuristic for CSH<C> {
     type Instance<'a> = ChainedSeedsHeuristicI<C>;
 
     fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
@@ -121,7 +119,7 @@ impl<C: 'static + Contours> Heuristic for ChainedSeedsHeuristic<C> {
 }
 
 pub struct ChainedSeedsHeuristicI<C: Contours> {
-    params: ChainedSeedsHeuristic<C>,
+    params: CSH<C>,
     gap_distance: GapCostI,
     target: Pos,
 
@@ -169,7 +167,7 @@ impl<C: Contours> Drop for ChainedSeedsHeuristicI<C> {
 }
 
 impl<C: Contours> ChainedSeedsHeuristicI<C> {
-    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: ChainedSeedsHeuristic<C>) -> Self {
+    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: CSH<C>) -> Self {
         let matches = find_matches(a, b, alph, params.match_config);
         //println!("\nfind matches.. done: {}", matches.matches.len());
         let mut h = ChainedSeedsHeuristicI {

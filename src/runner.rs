@@ -1,22 +1,22 @@
 use crate::prelude::*;
 use contour::central::CentralContour;
-use heuristic::unordered::UnorderedHeuristic;
+use heuristic::unordered::SH;
 use std::{marker::PhantomData, process::exit};
 use structopt::StructOpt;
 use strum_macros::EnumString;
 
-#[derive(EnumString, Default, Debug, PartialEq, Eq)]
+#[derive(EnumString, Default, Debug, PartialEq, Eq, strum_macros::Display)]
 #[strum(ascii_case_insensitive)]
 pub enum CostFunction {
-    Zero,
     #[default]
+    Zero,
     Gap,
     Max,
     Count,
     BiCount,
 }
 
-#[derive(EnumString, Default, Debug)]
+#[derive(EnumString, Default, Debug, strum_macros::Display)]
 #[strum(ascii_case_insensitive)]
 pub enum Contour {
     #[default]
@@ -24,7 +24,7 @@ pub enum Contour {
     Central,
 }
 
-#[derive(EnumString, Debug, Default)]
+#[derive(EnumString, Debug, Default, strum_macros::Display)]
 #[strum(ascii_case_insensitive)]
 pub enum Contours {
     BruteForce,
@@ -32,8 +32,9 @@ pub enum Contours {
     Hint,
 }
 
-#[derive(EnumString, Debug, PartialEq)]
+#[derive(EnumString, Debug, PartialEq, Default, strum_macros::Display)]
 #[strum(ascii_case_insensitive)]
+#[allow(non_camel_case_types)]
 pub enum Algorithm {
     // The basic n^2 DP
     Naive,
@@ -41,17 +42,19 @@ pub enum Algorithm {
     Simd,
     // Dijkstra
     Dijkstra,
-    // SeedHeuristic, with the provided --cost
-    Seed,
-    // ChainedSeedsHeuristic, using an efficient implementation from contours
-    GapSeed,
-    // UnorderedHeuristic
-    Unordered,
+    // Slow CSH implementation with the provided --cost function.
+    BruteForceCSH,
+    // ChainedSeedsHeuristic with/without gapcost
+    CSH,
+    CSH_GapCost,
+    // SeedHeuristic
+    #[default]
+    SH,
 }
 
 #[derive(StructOpt, Debug)]
 pub struct Params {
-    #[structopt(short, long, default_value = "GapSeed")]
+    #[structopt(short, long, default_value)]
     algorithm: Algorithm,
 
     #[structopt(short)]
@@ -73,16 +76,16 @@ pub struct Params {
     #[structopt(short, default_value = "0")]
     max_seed_cost: MatchCost,
 
-    #[structopt(long, default_value = "Hash")]
+    #[structopt(long, default_value)]
     match_algorithm: MatchAlgorithm,
 
-    #[structopt(long, default_value = "Gap")]
+    #[structopt(long, default_value)]
     cost: CostFunction,
 
-    #[structopt(short = "C", long, default_value = "Hint")]
+    #[structopt(short = "C", long, default_value)]
     contours: Contours,
 
-    #[structopt(short = "c", long, default_value = "BruteForce")]
+    #[structopt(short = "c", long, default_value)]
     contour: Contour,
 
     #[structopt(long)]
@@ -108,7 +111,7 @@ impl Params {
         let n = b.len();
 
         // For Unordered and ZeroCost, use a fixed mapping:
-        if self.algorithm == Algorithm::Unordered || self.cost == CostFunction::Zero {
+        if self.algorithm == Algorithm::SH || self.cost == CostFunction::Zero {
             return match self.error_rate.unwrap() {
                 e if e < 0.025 => (0, 31),
                 e if e < 0.06 => (0, 14),
@@ -225,12 +228,12 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 !params.no_greedy_matching,
             )
         }
-        Algorithm::Seed => {
+        Algorithm::BruteForceCSH => {
             fn run_cost<C: Distance>(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult
             where
                 for<'a> C::DistanceInstance<'a>: HeuristicInstance<'a>,
             {
-                let heuristic = SeedHeuristic {
+                let heuristic = BruteForceCSH {
                     match_config: match_config(params, a, b, false),
                     distance_function: C::default(),
                     pruning: !params.no_prune,
@@ -262,17 +265,21 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 CostFunction::BiCount => run_cost::<BiCountCost>(a, b, params),
             }
         }
-        Algorithm::GapSeed => {
+        Algorithm::CSH | Algorithm::CSH_GapCost => {
+            assert!(
+                params.cost == CostFunction::Zero,
+                "Use --algorithm CSH_gapcost instead."
+            );
             fn run_contours<C: 'static + crate::contour::Contours>(
                 a: &Sequence,
                 b: &Sequence,
                 params: &Params,
             ) -> AlignResult {
                 assert!(params.cost == CostFunction::Zero || params.cost == CostFunction::Gap);
-                let heuristic = ChainedSeedsHeuristic {
+                let heuristic = CSH {
                     match_config: match_config(params, a, b, params.cost == CostFunction::Gap),
                     pruning: !params.no_prune,
-                    use_gap_cost: params.cost == CostFunction::Gap,
+                    use_gap_cost: params.algorithm == Algorithm::CSH_GapCost,
                     c: PhantomData::<C>,
                 };
 
@@ -304,8 +311,8 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 },
             }
         }
-        Algorithm::Unordered => {
-            let heuristic = UnorderedHeuristic {
+        Algorithm::SH => {
+            let heuristic = SH {
                 match_config: match_config(params, a, b, false),
                 pruning: !params.no_prune,
             };

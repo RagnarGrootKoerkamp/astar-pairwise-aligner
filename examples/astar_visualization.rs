@@ -22,7 +22,7 @@ fn main() {
         r.print();
     }
     {
-        let h = UnorderedHeuristic {
+        let h = SH {
             match_config: MatchConfig {
                 length: Fixed(k),
                 max_match_cost: m,
@@ -36,7 +36,7 @@ fn main() {
         r.print();
     }
     {
-        let h = UnorderedHeuristic {
+        let h = SH {
             match_config: MatchConfig {
                 length: Fixed(k),
                 max_match_cost: m,

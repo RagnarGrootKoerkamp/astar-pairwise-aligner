@@ -23,7 +23,7 @@ fn bicount_admissible() {
         &text,
         &alphabet,
         stats,
-        SeedHeuristic {
+        BruteForceCSH {
             match_config: MatchConfig {
                 length: Fixed(k),
                 max_match_cost: 1,
@@ -39,7 +39,7 @@ fn bicount_admissible() {
 // Failed because of match distance > 0
 #[test]
 fn consistency_1() {
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(4),
             max_match_cost: 1,
@@ -60,7 +60,7 @@ fn consistency_1() {
 // Failed because of match distance > 0 and stricter consistency check
 #[test]
 fn consistency_2() {
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(5),
             max_match_cost: 1,
@@ -82,7 +82,7 @@ fn consistency_2() {
 #[test]
 #[ignore]
 fn consistency_3() {
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(4),
             max_match_cost: 0,
@@ -103,7 +103,7 @@ fn consistency_3() {
 // Failed because of pruning and match distance
 #[test]
 fn consistency_4() {
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(6),
             max_match_cost: 1,
@@ -126,7 +126,7 @@ fn consistency_4() {
 // Failed because of pruning and large edit distance
 #[test]
 fn consistency_5() {
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(4),
             max_match_cost: 0,

@@ -21,7 +21,7 @@ fn contour_graph() {
         let k = 7;
         let max_match_cost = 1;
         let pruning = false;
-        let h = ChainedSeedsHeuristic {
+        let h = CSH {
             match_config: MatchConfig {
                 length: Fixed(k),
                 max_match_cost,
@@ -57,7 +57,7 @@ fn small_test() {
         source: Source::Manual,
     };
 
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: 1,
@@ -77,7 +77,7 @@ fn small_test() {
 #[test]
 fn seed_heuristic_rebuild() {
     let (k, m, n, e, pruning) = (4, 0, 100, 0.3, true);
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: m,
@@ -108,7 +108,7 @@ fn seed_heuristic_rebuild() {
 #[test]
 fn no_double_expand() {
     let (k, m, n, e, pruning) = (5, 1, 78, 0.3, true);
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: m,
@@ -137,7 +137,7 @@ fn no_double_expand() {
 #[test]
 fn no_double_expand_2() {
     let (k, m, n, e, pruning) = (7, 1, 61, 0.3, true);
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: m,
@@ -167,7 +167,7 @@ fn no_double_expand_2() {
 #[test]
 fn missing_shadow_points() {
     let (k, m, n, e, pruning) = (10, 1, 61, 0.3, true);
-    let h = ChainedSeedsHeuristic {
+    let h = CSH {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: m,

@@ -3,12 +3,12 @@ use std::cmp::Ordering;
 use crate::prelude::*;
 
 #[derive(Debug, Copy, Clone)]
-pub struct UnorderedHeuristic {
+pub struct SH {
     pub match_config: MatchConfig,
     pub pruning: bool,
 }
 
-impl Heuristic for UnorderedHeuristic {
+impl Heuristic for SH {
     type Instance<'a> = UnorderedHeuristicI;
 
     fn build<'a>(
@@ -38,7 +38,7 @@ impl Heuristic for UnorderedHeuristic {
 }
 
 pub struct UnorderedHeuristicI {
-    params: UnorderedHeuristic,
+    params: SH,
     target: Pos,
     seeds: Seeds,
     /// Starts of the remaining matches, in reverse order.
@@ -52,7 +52,7 @@ pub struct UnorderedHeuristicI {
 type Hint = Cost;
 
 impl UnorderedHeuristicI {
-    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: UnorderedHeuristic) -> Self {
+    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: SH) -> Self {
         let mut seeds = unordered_matches(a, b, alph, params.match_config);
         // Delete unused match data.
         seeds.matches.clear();
