@@ -41,10 +41,10 @@ impl Parent {
     pub fn parent(&self, &Pos(i, j): &Pos) -> Option<Pos> {
         match self {
             Parent::None => None,
-            Parent::Match => Some(Pos(i - 1, j - 1)),
-            Parent::Substitution => Some(Pos(i - 1, j - 1)),
-            Parent::Left => Some(Pos(i - 1, j)),
-            Parent::Up => Some(Pos(i, j - 1)),
+            Parent::Match => Some(Pos(i.checked_sub(1)?, j.checked_sub(1)?)),
+            Parent::Substitution => Some(Pos(i.checked_sub(1)?, j.checked_sub(1)?)),
+            Parent::Left => Some(Pos(i.checked_sub(1)?, j)),
+            Parent::Up => Some(Pos(i, j.checked_sub(1)?)),
         }
     }
 
