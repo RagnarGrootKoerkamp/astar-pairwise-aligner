@@ -43,7 +43,7 @@ pub enum Algorithm {
     Dijkstra,
     // SeedHeuristic, with the provided --cost
     Seed,
-    // GapSeedHeuristic, using an efficient implementation from contours
+    // ChainedSeedsHeuristic, using an efficient implementation from contours
     GapSeed,
     // UnorderedHeuristic
     Unordered,
@@ -269,7 +269,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 params: &Params,
             ) -> AlignResult {
                 assert!(params.cost == CostFunction::Zero || params.cost == CostFunction::Gap);
-                let heuristic = GapSeedHeuristic {
+                let heuristic = ChainedSeedsHeuristic {
                     match_config: match_config(params, a, b, params.cost == CostFunction::Gap),
                     pruning: !params.no_prune,
                     use_gap_cost: params.cost == CostFunction::Gap,

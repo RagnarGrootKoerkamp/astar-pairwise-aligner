@@ -12,7 +12,7 @@ use test::Bencher;
 fn base_100(bench: &mut Bencher) {
     let n = 100;
     let e = 0.2;
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(6),
             max_match_cost: 1,
@@ -31,7 +31,7 @@ fn base_100(bench: &mut Bencher) {
 fn base_1000(bench: &mut Bencher) {
     let n = 1000;
     let e = 0.2;
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(7),
             max_match_cost: 1,
@@ -50,7 +50,7 @@ fn base_1000(bench: &mut Bencher) {
 fn base_10000(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.2;
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(8),
             max_match_cost: 1,
@@ -69,7 +69,7 @@ fn base_10000(bench: &mut Bencher) {
 fn base_50000_similar(bench: &mut Bencher) {
     let n = 50000;
     let e = 0.05;
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(10),
             max_match_cost: 1,
@@ -88,7 +88,7 @@ fn base_50000_similar(bench: &mut Bencher) {
 fn fast_100(bench: &mut Bencher) {
     let n = 100;
     let e = 0.2;
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(6),
             max_match_cost: 1,
@@ -107,7 +107,7 @@ fn fast_100(bench: &mut Bencher) {
 fn fast_1000(bench: &mut Bencher) {
     let n = 1000;
     let e = 0.2;
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(7),
             max_match_cost: 1,
@@ -126,7 +126,7 @@ fn fast_1000(bench: &mut Bencher) {
 fn fast_10000(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.2;
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(8),
             max_match_cost: 1,
@@ -145,7 +145,7 @@ fn fast_10000(bench: &mut Bencher) {
 fn fast_50000_similar(bench: &mut Bencher) {
     let n = 50000;
     let e = 0.05;
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(10),
             max_match_cost: 1,

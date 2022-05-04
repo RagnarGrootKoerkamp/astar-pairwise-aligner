@@ -4,7 +4,7 @@ use pairwise_aligner::prelude::*;
 #[test]
 fn seed_heuristic_rebuild() {
     let (k, m, n, e, pruning) = (4, 0, 100, 0.3, true);
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: m,
@@ -31,14 +31,14 @@ fn seed_heuristic_rebuild() {
     assert_eq!(r.edit_distance, dist);
 }
 
-/// In the GapSeedHeuristic, we never use a gap distance, unless it's towards the target.
+/// In the ChainedSeedsHeuristic, we never use a gap distance, unless it's towards the target.
 /// This test makes sure that SeedHeuristic<Gap> does the same:
 /// Instead of taking max(gap distance, potential distance), in cases when gap >
 /// potential, this parent should be skipped completely.
 #[test]
 fn never_use_gap_distance() {
     let (k, m, n, e, pruning) = (5, 1, 14, 0.3, true);
-    let h = GapSeedHeuristic {
+    let h = ChainedSeedsHeuristic {
         match_config: MatchConfig {
             length: Fixed(k),
             max_match_cost: m,
