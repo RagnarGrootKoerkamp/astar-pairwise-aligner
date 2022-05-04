@@ -107,6 +107,17 @@ impl Params {
             .expect("At least one of k and e must be specified!");
         let n = b.len();
 
+        // For Unordered and ZeroCost, use a fixed mapping:
+        if self.algorithm == Algorithm::Unordered || self.cost == CostFunction::Zero {
+            return match self.error_rate.unwrap() {
+                e if e < 0.025 => (0, 31),
+                e if e < 0.06 => (0, 14),
+                e if e < 0.14 => (1, 16),
+                e if e < 0.25 => (1, 11),
+                _ => todo!("Error rate too high!"),
+            };
+        }
+
         // True error rate:
         //  1% => 0.90%
         //  5% => 4.4%
