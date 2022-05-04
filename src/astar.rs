@@ -10,7 +10,7 @@ enum Status {
 use Status::*;
 
 #[derive(Clone, Copy, Debug)]
-struct State<Parent, Hint> {
+struct State<Hint> {
     status: Status,
     g: Cost,
     seed_cost: MatchCost,
@@ -18,7 +18,7 @@ struct State<Parent, Hint> {
     hint: Hint,
 }
 
-impl<Parent: Default, Hint: Default> Default for State<Parent, Hint> {
+impl<Hint: Default> Default for State<Hint> {
     fn default() -> Self {
         Self {
             status: Unvisited,
@@ -87,8 +87,8 @@ where
         0
     };
 
-    //let mut states = DiagonalMap::<State<Parent, H::Hint>>::new(graph.target());
-    let mut states = HashMap::<Pos, State<Parent, H::Hint>>::default();
+    //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
+    let mut states = HashMap::<Pos, State<H::Hint>>::default();
 
     // Initialization with the root state.
     {
@@ -309,10 +309,7 @@ where
     (traceback::<'a, H>(states, graph.target()), stats)
 }
 
-fn traceback<'a, H>(
-    states: HashMap<Pos, State<Parent, H::Hint>>,
-    target: Pos,
-) -> Option<(u32, Vec<Pos>)>
+fn traceback<'a, H>(states: HashMap<Pos, State<H::Hint>>, target: Pos) -> Option<(u32, Vec<Pos>)>
 where
     H: HeuristicInstance<'a>,
 {
