@@ -518,8 +518,8 @@ Parameter choice:
 |  0.2 | 1M   | *        | *       |                |
 
 Parameter choice:
-|    e | m |  k | remark                  |
-| 0.01 | 0 | 31 |                         |
-| 0.05 | 0 | 14 |                         |
-|  0.1 | 1 | 16 | for simplicity, fix m=1 |
-|  0.2 | 1 | 12 |                         |
+|    e | m |  k | remark                                              |
+| 0.01 | 0 | 31 |                                                     |
+| 0.05 | 0 | 14 |                                                     |
+|  0.1 | 1 | 16 | for simplicity, fix m=1                             |
+|  0.2 | 1 | 11 | 12 is better at large n, but 11 consistent with CSH |

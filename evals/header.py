@@ -40,11 +40,11 @@ def algo2color(algo):
     d = {
         'dijkstra': '#FF913D', #'#E8841A',
         'csh+gap-noprune': '#FF6047',
-        'csh+gap': '#EB2D12',
-        'csh': 'green',
+        'csh+gap': 'black',
+        'csh': '#EB2D12',
         'sh': 'blue',
         'cp-csh+gap': 'black',  # (k,m) cherry-picking
-        'cp-csh': 'green',
+        'cp-csh': '#EB2D12',
         'cp-sh': 'blue',
         
         'edlib': '#DE4AFF',
@@ -71,6 +71,8 @@ def algo2beautiful(algo):
         'csh+gap-noprune': 'A*PA-noprune',
         'csh+gap': 'A*PA',
         'cp-csh+gap': 'A*PA-cherrypick',
+        'sh': 'A*PA-SH',
+        'csh': 'A*PA-CSH',
         
         'edlib': 'Edlib',
         'wfa': 'WFA',
@@ -84,6 +86,8 @@ def algo2marker(algo):
     d = {
         'dijkstra': 'P',
         'csh+gap-noprune': 's',
+        'sh': 's',
+        'csh': 'o',
         'csh+gap': 'o',
         'cp-csh+gap': '.',
         
