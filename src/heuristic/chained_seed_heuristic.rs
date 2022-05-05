@@ -365,6 +365,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         }
     }
 
+    fn contour_value(&self, pos: Pos) -> Cost {
+        self.contours.value(self.transform(pos))
+    }
+
     type Hint = C::Hint;
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let p = self.seeds.potential(pos);

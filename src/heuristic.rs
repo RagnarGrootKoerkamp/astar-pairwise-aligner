@@ -77,6 +77,11 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 pub trait HeuristicInstance<'a> {
     fn h(&self, pos: Pos) -> Cost;
 
+    /// The internal contour value at the given position, if available.
+    fn contour_value(&self, _pos: Pos) -> Cost {
+        unimplemented!();
+    }
+
     fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
         (self.h(pos), Pos::default())
     }

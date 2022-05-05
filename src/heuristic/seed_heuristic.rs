@@ -163,6 +163,10 @@ impl<'a> HeuristicInstance<'a> for SHI {
         p - m
     }
 
+    fn contour_value(&self, pos: Pos) -> Cost {
+        self.value(pos)
+    }
+
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let p = self.seeds.potential(pos);
         let (m, h) = self.value_with_hint(pos, hint);
