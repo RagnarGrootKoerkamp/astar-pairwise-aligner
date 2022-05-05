@@ -27,7 +27,7 @@ fn main() {
     let h = heuristic.build(&a, &b, &alphabet);
 
     PRINT.store(true, std::sync::atomic::Ordering::Relaxed);
-    h.print(false, false);
+    h.terminal_print(Pos::from_length(a, b));
 
     align(&a, &b, &alphabet, stats, heuristic).print();
 }

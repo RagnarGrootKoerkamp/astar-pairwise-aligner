@@ -84,7 +84,7 @@ impl SHI {
             num_pruned: 0,
         };
         if print() {
-            h.print(false, false);
+            h.terminal_print(h.target);
         }
         h
     }
@@ -225,7 +225,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
         self.remaining_matches.remove(idx);
         self.num_pruned += 1;
 
-        self.print(false, false);
+        self.terminal_print(self.target);
 
         // TODO: Add Shifting.
         0
@@ -252,7 +252,11 @@ impl<'a> HeuristicInstance<'a> for SHI {
         }
     }
 
-    fn print(&self, _transform: bool, wait_for_user: bool) {
-        super::print::terminal_print(self, self.target, wait_for_user);
+    fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
+        (self.h(pos), Pos::default())
+    }
+
+    fn root_state(&self, _root_pos: Pos) -> Self::Hint {
+        Default::default()
     }
 }
