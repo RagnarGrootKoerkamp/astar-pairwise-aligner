@@ -93,8 +93,8 @@ pub trait HeuristicInstance<'a> {
     fn h(&self, pos: Pos) -> Cost;
 
     /// The internal contour value at the given position, if available.
-    fn contour_value(&self, _pos: Pos) -> Cost {
-        unimplemented!();
+    fn contour_value(&self, _pos: Pos) -> Option<Cost> {
+        None
     }
 
     fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
@@ -133,6 +133,10 @@ pub trait HeuristicInstance<'a> {
 
     fn stats(&self) -> HeuristicStats {
         Default::default()
+    }
+
+    fn matches(&self) -> Option<&SeedMatches> {
+        None
     }
 
     fn terminal_print(&self, target: Pos) {

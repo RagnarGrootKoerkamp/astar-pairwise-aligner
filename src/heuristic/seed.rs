@@ -163,14 +163,22 @@ impl<'a> HeuristicInstance<'a> for SHI {
         p - m
     }
 
-    fn contour_value(&self, pos: Pos) -> Cost {
-        self.value(pos)
+    fn contour_value(&self, pos: Pos) -> Option<Cost> {
+        Some(self.value(pos))
+    }
+
+    fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
+        (self.h(pos), Pos::default())
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let p = self.seeds.potential(pos);
         let (m, h) = self.value_with_hint(pos, hint);
         (p - m, h)
+    }
+
+    fn root_state(&self, _root_pos: Pos) -> Self::Hint {
+        Default::default()
     }
 
     fn root_potential(&self) -> Cost {
@@ -254,11 +262,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
         }
     }
 
-    fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
-        (self.h(pos), Pos::default())
-    }
-
-    fn root_state(&self, _root_pos: Pos) -> Self::Hint {
-        Default::default()
+    fn matches(&self) -> Option<&SeedMatches> {
+        Some(&self.seeds)
     }
 }

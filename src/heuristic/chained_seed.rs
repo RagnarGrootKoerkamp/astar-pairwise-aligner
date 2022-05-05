@@ -365,11 +365,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         }
     }
 
-    fn contour_value(&self, pos: Pos) -> Cost {
-        self.contours.value(self.transform(pos))
+    fn contour_value(&self, pos: Pos) -> Option<Cost> {
+        Some(self.contours.value(self.transform(pos)))
     }
 
-    type Hint = C::Hint;
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let p = self.seeds.potential(pos);
         let (val, new_hint) = self.contours.value_with_hint(self.transform(pos), hint);
@@ -378,6 +377,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         } else {
             (p - val, new_hint)
         }
+    }
+
+    type Hint = C::Hint;
+    fn root_potential(&self) -> Cost {
+        self.seeds.potential(Pos(0, 0))
     }
 
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
@@ -514,7 +518,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         }
     }
 
-    fn root_potential(&self) -> Cost {
-        self.seeds.potential(Pos(0, 0))
+    fn matches(&self) -> Option<&SeedMatches> {
+        Some(&self.seeds)
     }
 }
