@@ -292,4 +292,8 @@ where
             num_prunes: self.num_pruned,
         }
     }
+
+    fn matches(&self) -> Option<&SeedMatches> {
+        Some(&self.seeds)
+    }
 }
