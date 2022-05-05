@@ -1,9 +1,7 @@
 use crate::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
-pub struct MirrorHeuristic<H: Heuristic> {
-    pub h: H,
-}
+pub struct MirrorHeuristic<H: Heuristic>(pub H);
 
 pub struct MirrorHeuristicI<'a, H: Heuristic> {
     h: H::Instance<'a>,
@@ -17,7 +15,7 @@ where
     type Instance<'a> = MirrorHeuristicI<'a, H>;
 
     fn name(&self) -> String {
-        "mirror(".to_owned() + &self.h.name() + ")"
+        "mirror(".to_owned() + &self.0.name() + ")"
     }
 
     fn build<'a>(
@@ -27,14 +25,14 @@ where
         alphabet: &bio::alphabets::Alphabet,
     ) -> Self::Instance<'a> {
         MirrorHeuristicI {
-            h: self.h.build(b, a, alphabet),
+            h: self.0.build(b, a, alphabet),
         }
     }
 
     fn params(&self) -> HeuristicParams {
         HeuristicParams {
             name: self.name(),
-            ..self.h.params()
+            ..self.0.params()
         }
     }
 }
