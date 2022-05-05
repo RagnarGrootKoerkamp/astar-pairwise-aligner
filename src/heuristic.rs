@@ -4,6 +4,7 @@ pub mod distance;
 pub mod equal;
 pub mod max;
 pub mod mirror;
+pub mod perfect;
 pub mod seed;
 pub mod symmetric;
 
@@ -15,6 +16,7 @@ pub use distance::*;
 pub use equal::*;
 pub use max::*;
 pub use mirror::*;
+pub use perfect::*;
 use rand::{prelude::Distribution, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Point};
