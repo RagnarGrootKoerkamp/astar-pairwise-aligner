@@ -3,7 +3,9 @@ pub mod chained_seed;
 pub mod distance;
 pub mod equal;
 pub mod max;
+pub mod mirror;
 pub mod seed;
+pub mod symmetric;
 
 use std::time::Duration;
 
@@ -11,10 +13,13 @@ pub use bruteforce_csh::*;
 pub use chained_seed::*;
 pub use distance::*;
 pub use equal::*;
+pub use max::*;
+pub use mirror::*;
 use rand::{prelude::Distribution, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Point};
 pub use seed::*;
+pub use symmetric::*;
 
 use serde::Serialize;
 

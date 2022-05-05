@@ -24,6 +24,10 @@ impl Pos {
     pub fn from_length(a: &Sequence, b: &Sequence) -> Self {
         Pos(a.len() as I, b.len() as I)
     }
+
+    pub fn mirror(&self) -> Pos {
+        Pos(self.1, self.0)
+    }
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
