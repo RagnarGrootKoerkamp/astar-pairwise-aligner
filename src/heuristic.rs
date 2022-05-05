@@ -1,11 +1,11 @@
-pub mod bruteforce_csr;
+pub mod bruteforce_csh;
 pub mod chained_seed_heuristic;
 pub mod distance;
 pub mod equal_heuristic;
 pub mod print;
 pub mod seed_heuristic;
 
-pub use bruteforce_csr::*;
+pub use bruteforce_csh::*;
 pub use chained_seed_heuristic::*;
 pub use distance::*;
 pub use equal_heuristic::*;
