@@ -61,27 +61,27 @@ tool_command = {
     'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
     'cp-csh+gap':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH_GapCost',
     # choosed k and m values automatically.
-    'sh':                   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm SH',
-    'csh':                  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm CSH',
-    'csh+gap':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm CSH_GapCost',
+    'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm SH',
+    'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm CSH',
+    'csh+gap':          binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm CSH_GapCost',
     # slower PA variants
-    'dijkstra':             binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm Dijkstra',
-    'sh-noprune':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm SH',
-    'csh-noprune':          binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm CSH',
-    'csh+gap-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm CSH_GapCost',
+    'dijkstra':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm Dijkstra',
+    'sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm SH',
+    'csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm CSH',
+    'csh+gap-noprune':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm CSH_GapCost',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
-    'edlib':                binaries["edlib"]   + '    {input} -p -s', # -p: compute the path, -s: no output
-    'wfa':                  binaries["wfa"]     + ' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
-    'wfa2':                 binaries["wfa2"]    + ' -i {input} -a edit-wfa',
-    'biwfa':                binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
+    'edlib':            binaries["edlib"]   + '    {input} -p -s', # -p: compute the path, -s: no output
+    'wfa':              binaries["wfa"]     + ' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
+    'wfa2':             binaries["wfa2"]    + ' -i {input} -a edit-wfa',
+    'biwfa':            binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
 }
 
 # Subset of tools to run
 tools = [
     'sh',
     'csh',
-    #'csh+gap',
+    'csh+gap',
     'edlib',
     ##'wfa',  # Replaced by wfa2
     ##'wfa2', # Replaced by biwfa
