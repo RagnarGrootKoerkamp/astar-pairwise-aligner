@@ -28,6 +28,7 @@ lazy_static = "*"
 smallvec = {version="*", features=["union"]}
 ropey = "*"
 num-traits = "*"
+sdl2 = "*"
 
 [dev-dependencies]
 # For benchmarking only.
