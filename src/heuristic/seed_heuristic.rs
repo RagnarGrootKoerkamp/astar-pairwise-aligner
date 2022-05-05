@@ -253,6 +253,6 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn print(&self, _transform: bool, wait_for_user: bool) {
-        super::print::print(self, self.target, wait_for_user);
+        super::print::terminal_print(self, self.target, wait_for_user);
     }
 }
