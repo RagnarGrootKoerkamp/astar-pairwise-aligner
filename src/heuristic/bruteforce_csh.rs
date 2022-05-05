@@ -134,7 +134,7 @@ where
             .collect();
 
         h.build();
-        h.print(false, false);
+        h.terminal_print(h.target);
         h
     }
 
@@ -188,17 +188,6 @@ where
             .map(|(parent, val)| (self.distance(pos, *parent).saturating_add(*val), *parent))
             .min_by_key(|(val, pos)| (*val, Reverse(LexPos(*pos))))
             .unwrap()
-    }
-
-    fn stats(&self) -> HeuristicStats {
-        HeuristicStats {
-            num_seeds: self.seeds.seeds.len() as I,
-            num_matches: self.seeds.matches.len(),
-            num_filtered_matches: self.seeds.matches.len(),
-            matches: self.seeds.matches.clone(),
-            pruning_duration: self.pruning_duration.as_secs_f32(),
-            num_prunes: self.num_pruned,
-        }
     }
 
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
@@ -288,12 +277,19 @@ where
 
         self.num_pruned += 1;
         if print() {
-            self.print(false, false);
+            self.terminal_print(self.target);
         }
         return 0;
     }
 
-    fn print(&self, _transform: bool, wait_for_user: bool) {
-        super::print::terminal_print(self, self.target, wait_for_user);
+    fn stats(&self) -> HeuristicStats {
+        HeuristicStats {
+            num_seeds: self.seeds.seeds.len() as I,
+            num_matches: self.seeds.matches.len(),
+            num_filtered_matches: self.seeds.matches.len(),
+            matches: self.seeds.matches.clone(),
+            pruning_duration: self.pruning_duration.as_secs_f32(),
+            num_prunes: self.num_pruned,
+        }
     }
 }

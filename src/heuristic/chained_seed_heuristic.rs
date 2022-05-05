@@ -231,7 +231,7 @@ impl<C: Contours> CSHI<C> {
             h.params.match_config.max_match_cost as I + 1,
         );
         h.arrows = arrows;
-        h.print(false, false);
+        h.terminal_print(h.target);
         h.contours.print_stats();
         h
     }
@@ -250,6 +250,106 @@ impl<C: Contours> CSHI<C> {
             )
         } else {
             pos
+        }
+    }
+
+    // TODO: Unify this with the base print function.
+    #[allow(unused)]
+    fn print_transformed(&self, do_transform: bool, wait_for_user: bool) {
+        if !print() {
+            return;
+        }
+        let k = self.params.match_config.length.k().unwrap();
+        let max_match_cost = self.params.match_config.max_match_cost as I;
+        let reset = termion::color::Rgb(230, 230, 230);
+        let mut ps = HashMap::default();
+        // ps.insert(1, termion::color::Rgb(255, 0, 0));
+        //ps.insert(1, termion::color::Rgb(255, 255, 200));
+        //ps.insert(0, termion::color::Rgb(2, 255, 210));
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
+        let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
+        let Pos(a, b) = self.target;
+        let mut pixels = vec![vec![(None, None, false, false); 20 * b as usize]; 20 * a as usize];
+        let start_i = Pos(
+            b * (max_match_cost + 1) / (k + max_match_cost + 1) + a - b,
+            0,
+        );
+        let start_j = Pos(0, a * (max_match_cost + 1) / k + b - a);
+        let start = Pos(self.transform(start_j).0, self.transform(start_i).1);
+        let target = self.transform(Pos(a, b));
+        for i in 0..=a {
+            for j in 0..=b {
+                let p = Pos(i, j);
+                // Transformation: draw (i,j) at ((k+1)*i + k*(B-j), k*j + (A-i)*(k-1))
+                // scaling: divide draw coordinate by k, using the right offset.
+                let draw_pos = if do_transform { self.transform(p) } else { p };
+                let pixel = &mut pixels[draw_pos.0 as usize][draw_pos.1 as usize];
+
+                let layer = self.contours.value(self.transform(p));
+                let (_val, _parent_pos) = self.h_with_parent(p);
+                let color = ps.entry(layer).or_insert_with(|| {
+                    termion::color::Rgb(
+                        dist.sample(&mut rng),
+                        dist.sample(&mut rng),
+                        dist.sample(&mut rng),
+                    )
+                });
+                let is_start_of_match = self.seeds.matches.iter().any(|m| m.start == p);
+                let is_end_of_match = self.seeds.matches.iter().any(|m| m.end == p);
+                if is_start_of_match {
+                    pixel.2 = true;
+                } else if is_end_of_match {
+                    pixel.3 = true;
+                }
+                pixel.0 = Some(*color);
+                pixel.1 = Some(_val); // _val, layer
+            }
+        }
+        let print = |i: I, j: I| {
+            let pixel = pixels[i as usize][j as usize];
+            if pixel.2 {
+                print!(
+                    "{}{}",
+                    termion::color::Fg(termion::color::Black),
+                    termion::style::Bold
+                );
+            } else if pixel.3 {
+                print!(
+                    "{}{}",
+                    termion::color::Fg(termion::color::Rgb(100, 100, 100)),
+                    termion::style::Bold
+                );
+            }
+            print!(
+                "{}{:3} ",
+                termion::color::Bg(pixel.0.unwrap_or(reset)),
+                pixel.1.map(|x| format!("{:3}", x)).unwrap_or_default()
+            );
+            print!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
+        };
+        if do_transform {
+            for j in start.1..=target.1 {
+                for i in start.0..=target.0 {
+                    print(i, j);
+                }
+                println!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
+            }
+        } else {
+            for j in 0..=b {
+                for i in 0..=a {
+                    print(i, j);
+                }
+                println!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
+            }
+        };
+        print!(
+            "{}{}",
+            termion::color::Fg(termion::color::Reset),
+            termion::color::Bg(termion::color::Reset)
+        );
+        if wait_for_user {
+            let mut ret = String::new();
+            io::stdin().read_line(&mut ret).unwrap();
         }
     }
 }
@@ -367,7 +467,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         self.num_pruned += 1;
         if print() {
-            self.print(false, false);
+            self.terminal_print(self.target);
         }
         if tpos >= self.max_transformed_pos {
             return change;
@@ -407,105 +507,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             },
             pruning_duration: self.pruning_duration.as_secs_f32(),
             num_prunes: self.num_pruned,
-        }
-    }
-
-    // TODO: Unify this with the base print function.
-    fn print(&self, do_transform: bool, wait_for_user: bool) {
-        if !print() {
-            return;
-        }
-        let k = self.params.match_config.length.k().unwrap();
-        let max_match_cost = self.params.match_config.max_match_cost as I;
-        let reset = termion::color::Rgb(230, 230, 230);
-        let mut ps = HashMap::default();
-        // ps.insert(1, termion::color::Rgb(255, 0, 0));
-        //ps.insert(1, termion::color::Rgb(255, 255, 200));
-        //ps.insert(0, termion::color::Rgb(2, 255, 210));
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(31415);
-        let dist = rand::distributions::Uniform::new_inclusive(0u8, 255u8);
-        let Pos(a, b) = self.target;
-        let mut pixels = vec![vec![(None, None, false, false); 20 * b as usize]; 20 * a as usize];
-        let start_i = Pos(
-            b * (max_match_cost + 1) / (k + max_match_cost + 1) + a - b,
-            0,
-        );
-        let start_j = Pos(0, a * (max_match_cost + 1) / k + b - a);
-        let start = Pos(self.transform(start_j).0, self.transform(start_i).1);
-        let target = self.transform(Pos(a, b));
-        for i in 0..=a {
-            for j in 0..=b {
-                let p = Pos(i, j);
-                // Transformation: draw (i,j) at ((k+1)*i + k*(B-j), k*j + (A-i)*(k-1))
-                // scaling: divide draw coordinate by k, using the right offset.
-                let draw_pos = if do_transform { self.transform(p) } else { p };
-                let pixel = &mut pixels[draw_pos.0 as usize][draw_pos.1 as usize];
-
-                let layer = self.contours.value(self.transform(p));
-                let (_val, _parent_pos) = self.h_with_parent(p);
-                let color = ps.entry(layer).or_insert_with(|| {
-                    termion::color::Rgb(
-                        dist.sample(&mut rng),
-                        dist.sample(&mut rng),
-                        dist.sample(&mut rng),
-                    )
-                });
-                let is_start_of_match = self.seeds.matches.iter().any(|m| m.start == p);
-                let is_end_of_match = self.seeds.matches.iter().any(|m| m.end == p);
-                if is_start_of_match {
-                    pixel.2 = true;
-                } else if is_end_of_match {
-                    pixel.3 = true;
-                }
-                pixel.0 = Some(*color);
-                pixel.1 = Some(_val); // _val, layer
-            }
-        }
-        let print = |i: I, j: I| {
-            let pixel = pixels[i as usize][j as usize];
-            if pixel.2 {
-                print!(
-                    "{}{}",
-                    termion::color::Fg(termion::color::Black),
-                    termion::style::Bold
-                );
-            } else if pixel.3 {
-                print!(
-                    "{}{}",
-                    termion::color::Fg(termion::color::Rgb(100, 100, 100)),
-                    termion::style::Bold
-                );
-            }
-            print!(
-                "{}{:3} ",
-                termion::color::Bg(pixel.0.unwrap_or(reset)),
-                pixel.1.map(|x| format!("{:3}", x)).unwrap_or_default()
-            );
-            print!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
-        };
-        if do_transform {
-            for j in start.1..=target.1 {
-                for i in start.0..=target.0 {
-                    print(i, j);
-                }
-                println!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
-            }
-        } else {
-            for j in 0..=b {
-                for i in 0..=a {
-                    print(i, j);
-                }
-                println!("{}{}", termion::color::Fg(reset), termion::color::Bg(reset));
-            }
-        };
-        print!(
-            "{}{}",
-            termion::color::Fg(termion::color::Reset),
-            termion::color::Bg(termion::color::Reset)
-        );
-        if wait_for_user {
-            let mut ret = String::new();
-            io::stdin().read_line(&mut ret).unwrap();
         }
     }
 
