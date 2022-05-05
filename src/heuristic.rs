@@ -1,20 +1,20 @@
 pub mod bruteforce_csh;
-pub mod chained_seed_heuristic;
+pub mod chained_seed;
 pub mod distance;
-pub mod equal_heuristic;
-pub mod max_heuristic;
-pub mod seed_heuristic;
+pub mod equal;
+pub mod max;
+pub mod seed;
 
 use std::time::Duration;
 
 pub use bruteforce_csh::*;
-pub use chained_seed_heuristic::*;
+pub use chained_seed::*;
 pub use distance::*;
-pub use equal_heuristic::*;
+pub use equal::*;
 use rand::{prelude::Distribution, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Point};
-pub use seed_heuristic::*;
+pub use seed::*;
 
 use serde::Serialize;
 

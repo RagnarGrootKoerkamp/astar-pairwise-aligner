@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use contour::central::CentralContour;
-use heuristic::seed_heuristic::SH;
 use std::{marker::PhantomData, process::exit};
 use structopt::StructOpt;
 use strum_macros::EnumString;
