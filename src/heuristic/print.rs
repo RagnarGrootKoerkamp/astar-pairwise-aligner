@@ -4,7 +4,7 @@ use std::io;
 
 use crate::prelude::*;
 
-pub fn print<'a, 'b, H>(h: &H, target: Pos, wait_for_user: bool)
+pub fn terminal_print<'a, 'b, H>(h: &H, target: Pos, wait_for_user: bool)
 where
     H: HeuristicInstance<'a>,
 {
