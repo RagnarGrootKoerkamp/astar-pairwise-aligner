@@ -2,6 +2,7 @@ pub mod bruteforce_csh;
 pub mod chained_seed_heuristic;
 pub mod distance;
 pub mod equal_heuristic;
+pub mod max_heuristic;
 pub mod seed_heuristic;
 
 use std::time::Duration;
