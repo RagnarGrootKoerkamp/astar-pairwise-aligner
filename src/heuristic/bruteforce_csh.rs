@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 use super::{distance::*, *};
 use crate::{
-    matches::{find_matches, Match, MatchConfig, Seeds},
+    matches::{find_matches, Match, MatchConfig, SeedMatches},
     prelude::*,
 };
 
@@ -58,7 +58,7 @@ pub struct BruteForceCSHI<'a, DH: Distance> {
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
 
-    pub seeds: Seeds,
+    pub seeds: SeedMatches,
     // The lowest cost match starting at each position.
     h_at_seeds: HashMap<Pos, Cost>,
     // Remaining arrows/matches
