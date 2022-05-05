@@ -85,22 +85,6 @@ where
     }
 }
 
-/// For GapCost, we can show that it's never optimal to actually pay for a gap (unless going to the target)
-/// -- the potential difference to the parent will always be smaller.
-impl<'a> DistanceInstance<'a> for BruteForceCSHI<'a, GapCost> {
-    fn distance(&self, from: Pos, to: Pos) -> Cost {
-        let gap = self.distance_function.distance(from, to);
-        let pot = self.seeds.potential_distance(from, to);
-        if gap <= pot {
-            pot
-        } else if to == self.target {
-            gap
-        } else {
-            Cost::MAX
-        }
-    }
-}
-
 impl<'a, DH: Distance> BruteForceCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
