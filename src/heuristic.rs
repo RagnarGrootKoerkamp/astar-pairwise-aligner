@@ -19,7 +19,14 @@ pub use mirror::*;
 pub use perfect::*;
 use rand::{prelude::Distribution, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Point};
+use sdl2::{
+    event::Event,
+    keyboard::Keycode,
+    pixels::Color,
+    rect::{Point, Rect},
+    render::Canvas,
+    video::Window,
+};
 pub use seed::*;
 pub use symmetric::*;
 
@@ -83,10 +90,8 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     }
 }
 
-pub enum DisplayType {
-    Heuristic,
-    Contours,
-}
+#[derive(Clone, Copy)]
+pub struct DisplayOptions {}
 
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
@@ -209,9 +214,29 @@ pub trait HeuristicInstance<'a> {
         }
     }
 
-    // hmax is used to cap the color gradient.
-    fn display(&self, target: Pos, display_type: DisplayType, max_val: Option<Cost>) {
+    // `max_val` is used to cap the color gradient.
+    fn display(
+        &self,
+        a: &Sequence,
+        b: &Sequence,
+        target: Pos,
+        _display_type: DisplayOptions,
+        max_val: Option<Cost>,
+        explored: Option<Vec<Pos>>,
+        expanded: Option<Vec<Pos>>,
+        path: Option<Vec<Pos>>,
+    ) {
         //println!("Root h: {}", h.h(Pos(0, 0)));
+
+        const PIXEL_SIZE: u32 = 10;
+        const SMALL_PIXEL_BORDER: u32 = 2;
+
+        const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
+        const CONTOUR_COLOR: Color = Color::RGB(0, 216, 0);
+        const PATH_COLOR: Color = Color::RED;
+        const H_COLOR: Color = Color::BLACK;
+        const EXPANDED_COLOR: Color = Color::BLUE;
+        const EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
 
         let low = Pos(0, 0);
         let high = target;
@@ -225,13 +250,13 @@ pub trait HeuristicInstance<'a> {
         );
 
         let pos_to_point = |Pos(x, y): Pos| -> Point {
-            //return Point::new(x as i32, y as i32);
-            Point::new(
-                ((x - low.0) as usize * (canvas_size.x() + 1) as usize
-                    / (high.0 - low.0 + 1) as usize) as i32,
-                ((y - low.1) as usize * (canvas_size.y() + 1) as usize
-                    / (high.1 - low.1 + 1) as usize) as i32,
-            )
+            return Point::new(x as i32, y as i32);
+            // Point::new(
+            //     ((x - low.0) as usize * (canvas_size.x() + 1) as usize
+            //         / (high.0 - low.0 + 1) as usize) as i32,
+            //     ((y - low.1) as usize * (canvas_size.y() + 1) as usize
+            //         / (high.1 - low.1 + 1) as usize) as i32,
+            // )
         };
 
         let point_to_pos = |p: Point| -> Pos {
@@ -248,44 +273,248 @@ pub trait HeuristicInstance<'a> {
 
         let window = video_subsystem
             .window(
-                "rust-sdl2 demo",
-                canvas_size.x() as u32,
-                canvas_size.y() as u32,
+                "A*PA",
+                canvas_size.x() as u32 * PIXEL_SIZE,
+                canvas_size.y() as u32 * PIXEL_SIZE,
             )
-            .position_centered()
+            .borderless()
             .build()
             .unwrap();
         let mut canvas = window.into_canvas().build().unwrap();
         canvas.set_draw_color(Color::WHITE);
         canvas.clear();
 
-        fn from_to_gradient(f: f32, c1: Color, c2: Color) -> Color {
+        let cell_center = |p: Point| -> Point {
+            Point::new(
+                p.x * PIXEL_SIZE as i32 + PIXEL_SIZE as i32 / 2,
+                p.y * PIXEL_SIZE as i32 + PIXEL_SIZE as i32 / 2,
+            )
+        };
+
+        let draw_pixel = |canvas: &mut Canvas<Window>, point: Point, c: Color, small: bool| {
+            canvas.set_draw_color(c);
+            canvas
+                .fill_rect(Rect::new(
+                    point.x * PIXEL_SIZE as i32 + if small { SMALL_PIXEL_BORDER as i32 } else { 0 },
+                    point.y * PIXEL_SIZE as i32 + if small { SMALL_PIXEL_BORDER as i32 } else { 0 },
+                    PIXEL_SIZE - if small { 2 * SMALL_PIXEL_BORDER } else { 0 },
+                    PIXEL_SIZE - if small { 2 * SMALL_PIXEL_BORDER } else { 0 },
+                ))
+                .unwrap();
+        };
+
+        let draw_thick_line =
+            |canvas: &mut Canvas<Window>, from: Point, to: Point, width: usize| {
+                canvas.draw_line(from, to).unwrap();
+                for mut w in 1..width as i32 {
+                    if w % 2 == 1 {
+                        w = (w + 1) / 2;
+                        canvas
+                            .draw_line(
+                                Point::new(from.x + w, from.y - w + 1),
+                                Point::new(to.x + w - 1, to.y - w),
+                            )
+                            .unwrap();
+                        canvas
+                            .draw_line(
+                                Point::new(from.x - w, from.y + w - 1),
+                                Point::new(to.x - w + 1, to.y + w),
+                            )
+                            .unwrap();
+                        canvas
+                            .draw_line(
+                                Point::new(from.x + w - 1, from.y - w),
+                                Point::new(to.x + w, to.y - w + 1),
+                            )
+                            .unwrap();
+                        canvas
+                            .draw_line(
+                                Point::new(from.x - w + 1, from.y + w),
+                                Point::new(to.x - w, to.y + w - 1),
+                            )
+                            .unwrap();
+                    } else {
+                        w /= 2;
+                        canvas
+                            .draw_line(
+                                Point::new(from.x + w, from.y - w),
+                                Point::new(to.x + w, to.y - w),
+                            )
+                            .unwrap();
+                        canvas
+                            .draw_line(
+                                Point::new(from.x - w, from.y + w),
+                                Point::new(to.x - w, to.y + w),
+                            )
+                            .unwrap();
+                    }
+                }
+            };
+
+        fn gradient(f: f32, c1: Color, c2: Color) -> Color {
             let frac = |a: u8, b: u8| -> u8 { ((1. - f) * a as f32 + f * b as f32) as u8 };
 
             return Color::RGB(frac(c1.r, c2.r), frac(c1.g, c2.g), frac(c1.b, c2.b));
         }
 
-        let val = |pos| match display_type {
-            DisplayType::Heuristic => self.h(pos),
-            DisplayType::Contours => self.contour_value(pos),
-        };
+        let val = |pos| self.h(pos);
 
         let max_val = max_val.unwrap_or_else(|| max(val(Pos(0, 0)), val(Pos(0, target.1))));
 
-        // Draw background in color, matches in black.
-        let gradient = |h: Cost| -> Color {
+        // Draw the heuristic.
+        let h_gradient = |h: Cost| -> Color {
             if h <= max_val {
-                from_to_gradient(h as f32 / max_val as f32, Color::WHITE, Color::BLACK)
+                gradient(h as f32 / max_val as f32, Color::WHITE, H_COLOR)
             } else {
-                Color::GRAY
+                H_COLOR
             }
         };
         for i in 0..canvas_size.x {
             for j in 0..canvas_size.y {
                 let point = Point::new(i as i32, j as i32);
                 let v = val(point_to_pos(point));
-                canvas.set_draw_color(gradient(v));
-                canvas.draw_point(point).unwrap();
+                draw_pixel(&mut canvas, point, h_gradient(v), false);
+            }
+        }
+
+        // Draw explored
+        if let Some(explored) = explored {
+            for p in explored {
+                draw_pixel(&mut canvas, pos_to_point(p), EXPLORED_COLOR, false);
+            }
+        }
+
+        // Draw contours
+        if let Some(_) = self.contour_value(Pos(0, 0)) {
+            canvas.set_draw_color(CONTOUR_COLOR);
+            let draw_right_border = |canvas: &mut Canvas<Window>, point: Point| {
+                canvas
+                    .draw_line(
+                        Point::new(
+                            (point.x + 1) * PIXEL_SIZE as i32,
+                            (point.y + 0) * PIXEL_SIZE as i32,
+                        ),
+                        Point::new(
+                            (point.x + 1) * PIXEL_SIZE as i32,
+                            (point.y + 1) * PIXEL_SIZE as i32,
+                        ),
+                    )
+                    .unwrap();
+            };
+            let draw_bottom_border = |canvas: &mut Canvas<Window>, point: Point| {
+                canvas
+                    .draw_line(
+                        Point::new(
+                            (point.x + 0) * PIXEL_SIZE as i32,
+                            (point.y + 1) * PIXEL_SIZE as i32,
+                        ),
+                        Point::new(
+                            (point.x + 1) * PIXEL_SIZE as i32,
+                            (point.y + 1) * PIXEL_SIZE as i32,
+                        ),
+                    )
+                    .unwrap();
+            };
+            // Right borders
+            for i in 0..canvas_size.x - 1 {
+                for j in 0..canvas_size.y {
+                    let point = Point::new(i as i32, j as i32);
+                    let v = self.contour_value(point_to_pos(point)).unwrap();
+                    let point_r = Point::new(i + 1 as i32, j as i32);
+                    let v_r = self.contour_value(point_to_pos(point_r)).unwrap();
+                    if v_r != v {
+                        draw_right_border(&mut canvas, point);
+                    }
+                }
+            }
+            // Bottom borders
+            for i in 0..canvas_size.x {
+                for j in 0..canvas_size.y - 1 {
+                    let point = Point::new(i as i32, j as i32);
+                    let v = self.contour_value(point_to_pos(point)).unwrap();
+                    // Bottom
+                    let point_b = Point::new(i as i32, j + 1 as i32);
+                    let v_b = self.contour_value(point_to_pos(point_b)).unwrap();
+                    if v_b != v {
+                        draw_bottom_border(&mut canvas, point);
+                    }
+                }
+            }
+        }
+
+        // Draw expanded
+        if let Some(expanded) = expanded {
+            for p in expanded {
+                draw_pixel(&mut canvas, pos_to_point(p), EXPANDED_COLOR, false);
+            }
+        }
+
+        // Draw path
+        // if let Some(path) = path {
+        //     canvas.set_draw_color(PATH_COLOR);
+        //     let mut prev = pos_to_point(Pos(0, 0));
+        //     for p in path {
+        //         let p = pos_to_point(p);
+        //         //draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 2);
+        //         draw_pixel(&mut canvas, p, PATH_COLOR, false);
+        //         prev = p;
+        //     }
+        // }
+
+        // Draw character matches
+        if false {
+            canvas.set_draw_color(MATCH_COLOR);
+            for i in 0..a.len() as I {
+                for j in 0..b.len() as I {
+                    if a[i as usize] == b[j as usize] {
+                        canvas
+                            .draw_line(
+                                cell_center(pos_to_point(Pos(i, j))),
+                                cell_center(pos_to_point(Pos(i, j).add_diagonal(1))),
+                            )
+                            .unwrap();
+                    }
+                }
+            }
+        }
+
+        // Draw matches
+        if let Some(seed_matches) = self.matches() {
+            canvas.set_draw_color(MATCH_COLOR);
+            for m in &seed_matches.matches {
+                if m.match_cost > 0 {
+                    continue;
+                }
+                if true {
+                    draw_thick_line(
+                        &mut canvas,
+                        cell_center(pos_to_point(m.start)),
+                        cell_center(pos_to_point(m.end)),
+                        4,
+                    );
+                } else {
+                    let mut p = m.start;
+                    draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
+                    draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
+                    loop {
+                        p = p.add_diagonal(1);
+                        draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
+                        if p == m.end {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Draw path
+        if let Some(path) = path {
+            canvas.set_draw_color(PATH_COLOR);
+            let mut prev = pos_to_point(Pos(0, 0));
+            for p in path {
+                let p = pos_to_point(p);
+                draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 1);
+                prev = p;
             }
         }
 
@@ -298,7 +527,7 @@ pub trait HeuristicInstance<'a> {
                         keycode: Some(Keycode::Q),
                         ..
                     } => {
-                        todo!();
+                        panic!();
                     }
                     Event::KeyDown {
                         keycode: Some(Keycode::Escape),
