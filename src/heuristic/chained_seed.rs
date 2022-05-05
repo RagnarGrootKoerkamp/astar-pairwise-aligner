@@ -1,7 +1,7 @@
 use super::{distance::*, *};
 use crate::{
     contour::{Arrow, Contours},
-    matches::{find_matches, Match, MatchConfig, Seeds},
+    matches::{find_matches, Match, MatchConfig, SeedMatches},
     prelude::*,
 };
 use itertools::Itertools;
@@ -123,7 +123,7 @@ pub struct CSHI<C: Contours> {
     gap_distance: GapCostI,
     target: Pos,
 
-    seeds: Seeds,
+    seeds: SeedMatches,
     num_matches: usize,
     num_filtered_matches: usize,
 

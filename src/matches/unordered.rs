@@ -2,7 +2,12 @@ pub use crate::prelude::*;
 
 type Key = usize;
 
-fn determine_seeds<'a, F>(a: &'a Sequence, alph: &Alphabet, length: LengthConfig, mut f: F) -> Seeds
+fn determine_seeds<'a, F>(
+    a: &'a Sequence,
+    alph: &Alphabet,
+    length: LengthConfig,
+    mut f: F,
+) -> SeedMatches
 where
     // f(i, k, qgram) returns true when the qgram was used.
     F: FnMut(I, I, usize) -> Option<Seed>,
@@ -17,7 +22,7 @@ where
                 }
             }
 
-            Seeds::new(a, seeds, Vec::default())
+            SeedMatches::new(a, seeds, Vec::default())
         }
         LengthConfig::Max(MaxMatches {
             max_matches,
@@ -56,7 +61,7 @@ where
                 }
             }
 
-            Seeds::new(a, seeds, Vec::default())
+            SeedMatches::new(a, seeds, Vec::default())
         }
     }
 }
@@ -139,7 +144,7 @@ fn unordered_matches_hash<'a>(
         max_match_cost,
         ..
     }: MatchConfig,
-) -> Seeds {
+) -> SeedMatches {
     let rank_transform = RankTransform::new(alph);
 
     // 1. Put all k-mers (and k+-1 mers) of b in a map.
@@ -188,7 +193,7 @@ pub fn unordered_matches<'a>(
     b: &'a Sequence,
     alph: &Alphabet,
     match_config @ MatchConfig { algorithm, .. }: MatchConfig,
-) -> Seeds {
+) -> SeedMatches {
     match algorithm {
         MatchAlgorithm::Hash => unordered_matches_hash(a, b, alph, match_config),
         _ => unimplemented!("This algorithm is not implemented."),

@@ -30,7 +30,7 @@ pub struct Match {
 }
 
 #[derive(Default)]
-pub struct Seeds {
+pub struct SeedMatches {
     /// Sorted by start.
     pub seeds: Vec<Seed>,
     /// Sorted by start (i, j).
@@ -43,7 +43,7 @@ pub struct Seeds {
     pub potential: Vec<Cost>,
 }
 
-impl Seeds {
+impl SeedMatches {
     /// Seeds must be sorted by start.
     /// Matches will be sorted and deduplicated in this function.
     pub fn new(a: &Sequence, seeds: Vec<Seed>, mut matches: Vec<Match>) -> Self {
@@ -77,7 +77,7 @@ impl Seeds {
             }
             potential[i] = cur_potential;
         }
-        Seeds {
+        SeedMatches {
             seeds,
             matches,
             seed_at,

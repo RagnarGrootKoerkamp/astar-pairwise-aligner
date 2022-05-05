@@ -40,7 +40,7 @@ impl Heuristic for SH {
 pub struct SHI {
     params: SH,
     target: Pos,
-    seeds: Seeds,
+    seeds: SeedMatches,
     /// Starts of the remaining matches, in reverse order.
     /// Pruning will happen mostly from back to the front.
     remaining_matches: SplitVec<I>,
@@ -234,8 +234,6 @@ impl<'a> HeuristicInstance<'a> for SHI {
         // TODO: Add Shifting.
         0
     }
-
-    // All below here is using just the default implementation.
 
     fn explore(&mut self, _pos: Pos) {}
 
