@@ -33,3 +33,6 @@ sdl2 = {version="*", optional=true}
 [dev-dependencies]
 # For benchmarking only.
 aho-corasick = "*"
+
+[features]
+default = ["sdl2"]
