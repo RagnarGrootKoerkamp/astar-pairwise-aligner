@@ -32,41 +32,53 @@ fn main() {
     //     let h = Heuristic::build(&h, &a, &b, &alphabet);
     //     h.display(target, DisplayType::Heuristic, hmax);
     // }
-    // {
-    //     let h = SH {
-    //         match_config: MatchConfig {
-    //             length: Fixed(k),
-    //             max_match_cost: m,
-    //             ..MatchConfig::default()
-    //         },
-    //         pruning: false,
-    //     };
-    //     let h = Heuristic::build(&h, &a, &b, &alphabet);
-    //     h.display(target, hmax);
-    // }
-    {
-        let h = CSH {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost: m,
-                ..MatchConfig::default()
-            },
-            pruning: true,
-            use_gap_cost: false,
-            c: PhantomData::<HintContours<BruteForceContour>>::default(),
-        };
-        let mut h = Heuristic::build(&h, &a, &b, &alphabet);
-        //h.display(target, hmax, None, None, None);
-        let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
-        let (_distance, path) = distance_and_path.unwrap_or_default();
+    for pruning in [false, true] {
+        {
+            let h = SH {
+                match_config: MatchConfig {
+                    length: Fixed(k),
+                    max_match_cost: m,
+                    ..MatchConfig::default()
+                },
+                pruning,
+            };
+            let mut h = Heuristic::build(&h, &a, &b, &alphabet);
             let graph = EditGraph::new(a, b, true);
+            let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
+            let (_distance, path) = distance_and_path.unwrap_or_default();
 
-        h.display(
-            target,
-            hmax,
-            Some(astar.explored_states),
-            Some(astar.expanded_states),
-            Some(path),
-        );
+            // TODO: Add matches
+            h.display(
+                target,
+                hmax,
+                Some(astar.explored_states),
+                Some(astar.expanded_states),
+                Some(path),
+            );
+        }
+        {
+            let h = CSH {
+                match_config: MatchConfig {
+                    length: Fixed(k),
+                    max_match_cost: m,
+                    ..MatchConfig::default()
+                },
+                pruning,
+                use_gap_cost: false,
+                c: PhantomData::<HintContours<BruteForceContour>>::default(),
+            };
+            let mut h = Heuristic::build(&h, &a, &b, &alphabet);
+            let graph = EditGraph::new(a, b, true);
+            let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
+            let (_distance, path) = distance_and_path.unwrap_or_default();
+
+            h.display(
+                target,
+                hmax,
+                Some(astar.explored_states),
+                Some(astar.expanded_states),
+                Some(path),
+            );
+        }
     }
 }
