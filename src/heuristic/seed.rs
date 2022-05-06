@@ -39,7 +39,7 @@ impl Heuristic for SH {
 
 pub struct SHI {
     params: SH,
-    target: Pos,
+    _target: Pos,
     seeds: SeedMatches,
     /// Starts of the remaining matches, in reverse order.
     /// Pruning will happen mostly from back to the front.
@@ -78,7 +78,7 @@ impl SHI {
 
         let h = SHI {
             params,
-            target: Pos::from_length(a, b),
+            _target: Pos::from_length(a, b),
             seeds,
             remaining_matches,
             num_pruned: 0,

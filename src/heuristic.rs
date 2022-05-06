@@ -15,8 +15,6 @@ pub use equal::*;
 pub use max::*;
 pub use mirror::*;
 pub use perfect::*;
-use rand::{prelude::Distribution, SeedableRng};
-use rand_chacha::ChaCha8Rng;
 
 pub use seed::*;
 pub use symmetric::*;
