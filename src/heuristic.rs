@@ -173,13 +173,14 @@ pub trait HeuristicInstance<'a> {
         // Cell: position in drawing, of size CELL_SIZE x CELL_SIZE
         // Pixel: one pixel
 
-        const CELL_SIZE: u32 = 10;
-        const SMALL_CELL_MARGIN: u32 = 2;
+        const CELL_SIZE: u32 = 14;
+        const SMALL_CELL_MARGIN: u32 = 4;
 
+        const SEED_COLOR: Color = Color::RGB(64, 64, 64);
         const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
-        const PRUNED_MATCH_COLOR: Color = Color::RGB(255, 165, 0);
+        const PRUNED_MATCH_COLOR: Color = Color::RED;
         const CONTOUR_COLOR: Color = Color::RGB(0, 216, 0);
-        const PATH_COLOR: Color = Color::RED;
+        const PATH_COLOR: Color = Color::WHITE;
         const H_COLOR: Color = Color::BLACK;
         const EXPANDED_COLOR: Color = Color::BLUE;
         const EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
@@ -229,7 +230,7 @@ pub trait HeuristicInstance<'a> {
                 .unwrap();
         };
 
-        let draw_thick_line =
+        let draw_thick_line_diag =
             |canvas: &mut Canvas<Window>, from: Point, to: Point, width: usize| {
                 canvas.draw_line(from, to).unwrap();
                 for mut w in 1..width as i32 {
@@ -277,6 +278,18 @@ pub trait HeuristicInstance<'a> {
                 }
             };
 
+        let draw_thick_line_horizontal =
+            |canvas: &mut Canvas<Window>, from: Point, to: Point, width: i32, margin: i32| {
+                for w in -width / 2..width - width / 2 {
+                    canvas
+                        .draw_line(
+                            Point::new(from.x + margin, from.y + w),
+                            Point::new(to.x - margin, to.y + w),
+                        )
+                        .unwrap();
+                }
+            };
+
         fn gradient(f: f32, c1: Color, c2: Color) -> Color {
             let frac = |a: u8, b: u8| -> u8 { ((1. - f) * a as f32 + f * b as f32) as u8 };
 
@@ -315,18 +328,6 @@ pub trait HeuristicInstance<'a> {
             }
         }
 
-        // Draw path
-        // if let Some(path) = path {
-        //     canvas.set_draw_color(PATH_COLOR);
-        //     let mut prev = pos_to_point(Pos(0, 0));
-        //     for p in path {
-        //         let p = pos_to_point(p);
-        //         //draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 2);
-        //         draw_pixel(&mut canvas, p, PATH_COLOR, false);
-        //         prev = p;
-        //     }
-        // }
-
         // Draw matches
         if let Some(matches) = self.matches() {
             for m in &matches {
@@ -338,7 +339,7 @@ pub trait HeuristicInstance<'a> {
                         MatchStatus::Active => MATCH_COLOR,
                         MatchStatus::Pruned => PRUNED_MATCH_COLOR,
                     });
-                    draw_thick_line(&mut canvas, cell_center(m.start), cell_center(m.end), 4);
+                    draw_thick_line_diag(&mut canvas, cell_center(m.start), cell_center(m.end), 4);
                 } else {
                     let mut p = m.start;
                     draw_pixel(&mut canvas, p, MATCH_COLOR, false);
@@ -351,6 +352,16 @@ pub trait HeuristicInstance<'a> {
                         }
                     }
                 }
+            }
+        }
+
+        // Draw path
+        if let Some(path) = path {
+            canvas.set_draw_color(PATH_COLOR);
+            let mut prev = Pos(0, 0);
+            for p in path {
+                draw_thick_line_diag(&mut canvas, cell_center(prev), cell_center(p), 1);
+                prev = p;
             }
         }
 
@@ -394,13 +405,17 @@ pub trait HeuristicInstance<'a> {
             }
         }
 
-        // Draw path
-        if let Some(path) = path {
-            canvas.set_draw_color(PATH_COLOR);
-            let mut prev = Pos(0, 0);
-            for p in path {
-                draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 2);
-                prev = p;
+        // Draw seeds
+        if let Some(seeds) = self.seeds() {
+            for s in seeds {
+                canvas.set_draw_color(SEED_COLOR);
+                draw_thick_line_horizontal(
+                    &mut canvas,
+                    cell_center(Pos(s.start, 0)),
+                    cell_center(Pos(s.end, 0)),
+                    5,
+                    2,
+                );
             }
         }
 
