@@ -205,7 +205,7 @@ impl Default for MatchConfig {
             length: Fixed(0),
             max_match_cost: 0,
             algorithm: MatchAlgorithm::default(),
-            window_filter: true,
+            window_filter: false,
         }
     }
 }
