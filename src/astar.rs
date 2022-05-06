@@ -200,9 +200,9 @@ where
             break 'outer;
         }
 
-        graph.iterate_outgoing_edges(pos, |mut next, cost, parent| {
+        graph.iterate_outgoing_edges(pos, |mut next, edge| {
             // Explore next
-            let next_g = state.g + cost as Cost;
+            let next_g = state.g + edge.cost() as Cost;
             // TODO: Move this logic to some function internal to h. Not all
             // heuristics necessarily have seeds along A.
             let next_seed_cost = if h.is_seed_start_or_end(pos) && !h.is_seed_start_or_end(next) {
@@ -210,7 +210,7 @@ where
             } else {
                 state.seed_cost
             }
-            .saturating_add(cost);
+            .saturating_add(edge.match_cost());
 
             // Do greedy matching within the current seed.
             if graph.greedy_matching {
@@ -262,7 +262,7 @@ where
                 next_g,
             ));
             if D {
-                println!("Explore {next} from {pos} g {next_g} cost {cost} parent {parent:?}");
+                println!("Explore {next} from {pos} g {next_g}");
             }
 
             h.explore(next);
@@ -290,8 +290,8 @@ where
         // If the state is not in the map, it was found via a match.
         while current != Pos(0, 0) {
             current = 'c: {
-                for parent in [Parent::Substitution, Parent::Left, Parent::Up] {
-                    if let Some(p) = parent.of(&current) {
+                for parent in [Edge::Substitution, Edge::Right, Edge::Down] {
+                    if let Some(p) = parent.back(&current) {
                         if let Some(state) = DiagonalMapTrait::get(&states, p) {
                             if state.g + parent.cost() + cost == g {
                                 cost += parent.cost();
@@ -300,8 +300,8 @@ where
                         }
                     }
                 }
-                Parent::Match
-                    .of(&current)
+                Edge::Match
+                    .back(&current)
                     .expect("No parent found for position!")
             };
             path.push(current);

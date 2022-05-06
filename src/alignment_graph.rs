@@ -31,33 +31,49 @@ impl Pos {
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Parent {
+pub enum Edge {
     // The root, or an unvisited state.
     #[default]
     None,
     Match,
     Substitution,
-    Left,
-    Up,
+    /// Deletion
+    Right,
+    /// Insertion
+    Down,
 }
 
-impl Parent {
-    pub fn of(&self, &Pos(i, j): &Pos) -> Option<Pos> {
-        match self {
-            Parent::None => None,
-            Parent::Match => Some(Pos(i.checked_sub(1)?, j.checked_sub(1)?)),
-            Parent::Substitution => Some(Pos(i.checked_sub(1)?, j.checked_sub(1)?)),
-            Parent::Left => Some(Pos(i.checked_sub(1)?, j)),
-            Parent::Up => Some(Pos(i, j.checked_sub(1)?)),
-        }
+impl Edge {
+    pub fn back(&self, &Pos(i, j): &Pos) -> Option<Pos> {
+        Some(match self {
+            Edge::None => None?,
+            Edge::Match => Pos(i.checked_sub(1)?, j.checked_sub(1)?),
+            Edge::Substitution => Pos(i.checked_sub(1)?, j.checked_sub(1)?),
+            Edge::Right => Pos(i.checked_sub(1)?, j),
+            Edge::Down => Pos(i, j.checked_sub(1)?),
+        })
+    }
+
+    pub fn forward(&self, &Pos(i, j): &Pos) -> Option<Pos> {
+        Some(match self {
+            Edge::None => None?,
+            Edge::Match => Pos(i + 1, j + 1),
+            Edge::Substitution => Pos(i + 1, j + 1),
+            Edge::Right => Pos(i + 1, j),
+            Edge::Down => Pos(i, j + 1),
+        })
     }
 
     pub fn cost(&self) -> Cost {
         match self {
-            Parent::Match => 0,
-            Parent::None => panic!("Cost of None parent!"),
+            Edge::Match => 0,
+            Edge::None => panic!("Cost of None!"),
             _ => 1,
         }
+    }
+
+    pub fn match_cost(&self) -> MatchCost {
+        self.cost() as MatchCost
     }
 }
 
@@ -188,30 +204,30 @@ impl<'a> AlignmentGraph<'a> {
     #[inline]
     pub fn iterate_outgoing_edges<F>(&self, n @ Pos(i, j): Pos, mut f: F)
     where
-        F: FnMut(Pos, MatchCost, Parent),
+        F: FnMut(Pos, Edge),
     {
         // Take any of the 3 edges, and then walk as much diagonally as possible.
         let is_match = self.is_match(n);
         if self.greedy_matching {
             if let Some(n) = is_match {
-                f(n, 0, Parent::Match);
+                f(n, Edge::Match);
                 return;
             }
         }
-        for (di, dj, cost, parent) in [
-            (1, 0, 1, Parent::Left),
-            (0, 1, 1, Parent::Up),
+        for (di, dj, parent) in [
+            (1, 0, Edge::Right),
+            (0, 1, Edge::Down),
             // This edge is last, so that the LIFO behaviour of the priority
             // queue picks up diagonal edges first.
             if is_match.is_some() {
-                (1, 1, 0, Parent::Match)
+                (1, 1, Edge::Match)
             } else {
-                (1, 1, 1, Parent::Substitution)
+                (1, 1, Edge::Substitution)
             },
         ] {
             let pos = Pos(i + di, j + dj);
             if pos <= self.target {
-                f(pos, cost, parent)
+                f(pos, parent)
             }
         }
     }
