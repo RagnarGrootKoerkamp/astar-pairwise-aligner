@@ -14,7 +14,6 @@ struct State<Hint> {
     status: Status,
     g: Cost,
     seed_cost: MatchCost,
-    parent: Parent,
     hint: Hint,
 }
 
@@ -24,7 +23,6 @@ impl<Hint: Default> Default for State<Hint> {
             status: Unvisited,
             g: Cost::MAX,
             seed_cost: MatchCost::MAX,
-            parent: Parent::default(),
             hint: Hint::default(),
         }
     }
@@ -61,7 +59,7 @@ pub fn astar<'a, H>(
 where
     H: HeuristicInstance<'a>,
 {
-    const D: bool = true;
+    const D: bool = false;
 
     let mut stats = AStarStats {
         expanded: 0,
@@ -98,29 +96,20 @@ where
             start,
             0,
         ));
+        stats.explored += 1;
+        if DEBUG {
+            stats.explored_states.push(Pos(0, 0));
+        }
         states.insert(
             start,
             State {
                 status: Explored,
                 g: 0,
                 seed_cost: 0,
-                parent: Default::default(),
                 hint,
             },
         );
     }
-
-    // Initialize target state
-    states.insert(
-        graph.target(),
-        State {
-            status: Unvisited,
-            g: 0,
-            seed_cost: 0,
-            parent: Parent::None,
-            hint: H::Hint::default(),
-        },
-    );
 
     'outer: while let Some(MinScored(queue_f, mut pos, queue_g)) = queue.pop() {
         let queue_f = queue_f + queue_offset - max_queue_offset;
@@ -163,138 +152,110 @@ where
         }
 
         // Expand the state.
-        let mut double_expanded = match state.status {
+        match state.status {
             Unvisited => {
                 unreachable!("Cannot explore an unvisited node")
             }
             // Expand the currently explored state.
             Explored => {
                 state.status = Expanded;
-                false
             }
             Expanded => {
                 stats.double_expanded += 1;
-                true
+                assert!(
+                    !h.is_seed_start_or_end(pos),
+                    "Double expanded start of seed {:?}",
+                    pos
+                );
             }
         };
-        let mut is_seed_start_or_end;
 
-        // Store the state for copying to matching states.
-        let mut state = *state;
+        // Copy for local usage.
+        let state = *state;
 
-        // Keep expanding states while we are on a matching diagonal edge.
-        // This gives a ~2x speedup on highly similar sequences, because states
-        // do not need to be pushed to/popped from the priority queue.
-        // TODO: Count the number of matching chars and do updates at the end.
-        loop {
-            stats.expanded += 1;
-            if DEBUG {
-                stats.expanded_states.push(pos);
-            }
+        stats.expanded += 1;
+        if DEBUG {
+            stats.expanded_states.push(pos);
+        }
 
-            // Retrace path to root and return.
-            if pos == graph.target() {
-                states[graph.target()] = state;
-                break 'outer;
-            }
-
-            is_seed_start_or_end = h.is_seed_start_or_end(pos);
-            if is_seed_start_or_end {
-                // Check that we don't double expand start-of-seed states.
-                // Starts of seeds should only be expanded once.
-                assert!(!double_expanded, "Double expanded start of seed {:?}", pos);
-
-                // Prune expanded states.
-                // TODO: Make this return a new hint?
-                // Or just call h manually for a new hint.
-                let pq_shift = h.prune(pos, state.hint, state.seed_cost);
-                if REDUCE_RETRIES && pq_shift > 0 {
-                    stats.pq_shifts += 1;
-                    queue_offset += pq_shift;
-                }
-            }
-
-            if !graph.greedy_matching {
-                break;
-            }
-
-            if let Some(next) = graph.is_match(pos) {
-                // Matching states will need a match parent.
-                state.parent = Parent::match_value();
-
-                // Directly expand the next pos, by copying over the current state to there.
-
-                // Just after the start of a seed, the seed cost is reset to 0.
-                // We do not reset it earlier, because an insert could still be inside the same seed.
-                if is_seed_start_or_end {
-                    state.seed_cost = 0;
-                }
-
-                // NOTE: If greedy matches are not stored, we also don't check whether they are double expanded.
-                if DO_NOT_SAVE_GREEDY_MATCHES {
-                    // Reset double exanded flag for the new state, to prevent
-                    // reusing the original value of double_exanded when
-                    // is_start_of_seed becomes true for the first time.
-                    double_expanded = false;
-                } else {
-                    let new_state = DiagonalMapTrait::get_mut(&mut states, next);
-                    if new_state.g <= state.g {
-                        // Continue to the next state in the queue.
-                        break 'outer;
-                    }
-                    double_expanded = if let Expanded = new_state.status {
-                        stats.double_expanded += 1;
-                        true
-                    } else {
-                        false
-                    };
-                    *new_state = state;
-                }
-                pos = next;
-
-                if D {
-                    println!("Greedy expand {pos} at {state:?}");
-                }
-
-                // NOTE: We do not call h.explore() here, because it isn't needed for pruning-propagation:
-                // Pruned positions on this diagonal will always be larger than
-                // the expanded positions in front of it, and problems only
-                // arise for non-diagonal edges.
-
-                // Count the new state as explored.
-                stats.explored += 1;
-                stats.greedy_expanded += 1;
-                if DEBUG {
-                    stats.explored_states.push(pos);
-                }
-            } else {
-                break;
+        // Prune is needed
+        if h.is_seed_start_or_end(pos) {
+            let pq_shift = h.prune(pos, state.hint, state.seed_cost);
+            if REDUCE_RETRIES && pq_shift > 0 {
+                stats.pq_shifts += pq_shift as usize;
+                queue_offset += pq_shift;
             }
         }
 
-        graph.iterate_outgoing_edges(pos, |next, cost, parent| {
-            let next_g = state.g + cost as Cost;
+        if D {
+            println!("Expand {pos} {}/{}", state.g, state.seed_cost);
+        }
 
+        // Retrace path to root and return.
+        if pos == graph.target() {
+            DiagonalMapTrait::insert(&mut states, pos, state);
+            if D {
+                println!("Reached target {pos} with state {state:?}");
+            }
+            break 'outer;
+        }
+
+        graph.iterate_outgoing_edges(pos, |mut next, cost, parent| {
             // Explore next
-            let next_state = DiagonalMapTrait::get_mut(&mut states, next);
-            if let Unvisited = next_state.status {
-                next_state.status = Explored;
-            } else if next_g >= next_state.g {
-                return;
-            };
-
-            let (next_h, next_hint) = h.h_with_hint(next, state.hint);
-            let next_f = next_g + next_h;
-
-            next_state.g = next_g;
-            next_state.seed_cost = if is_seed_start_or_end && parent != Parent::Up {
+            let next_g = state.g + cost as Cost;
+            // TODO: Move this logic to some function internal to h. Not all
+            // heuristics necessarily have seeds along A.
+            let next_seed_cost = if h.is_seed_start_or_end(pos) && parent != Parent::Up {
                 0
             } else {
                 state.seed_cost
             }
             .saturating_add(cost);
-            next_state.parent = parent;
-            next_state.hint = next_hint;
+
+            // Do greedy matching within the current seed.
+            if graph.greedy_matching {
+                while let Some(n) = graph.is_match(next) {
+                    // Never greedy expand the start of a seed.
+                    // Doing so may cause problems when h is not consistent and is
+                    // larger at the start of seed than at the position where the
+                    // greedy run started.
+                    if h.is_seed_start_or_end(n) {
+                        break;
+                    }
+
+                    // Explore & expand `next`
+                    stats.explored += 1;
+                    stats.expanded += 1;
+                    stats.greedy_expanded += 1;
+                    if DEBUG {
+                        stats.explored_states.push(next);
+                        stats.expanded_states.push(next);
+                    }
+                    if D {
+                        println!("Greedy expand {next} {}/{}", state.g, state.seed_cost);
+                    }
+
+                    // Move to the next state.
+                    next = n;
+                }
+            }
+
+            let cur_next = DiagonalMapTrait::get_mut(&mut states, next);
+
+            // If the next state was already visited with smaller g, skip exploring again.
+            if cur_next.g <= next_g {
+                return;
+            };
+            cur_next.g = next_g;
+            if cur_next.status == Unvisited {
+                cur_next.status = Explored;
+            }
+            cur_next.seed_cost = min(cur_next.seed_cost, next_seed_cost);
+
+            let (next_h, next_hint) = h.h_with_hint(next, state.hint);
+            cur_next.hint = next_hint;
+            let next_f = next_g + next_h;
+
             queue.push(MinScored(
                 next_f + (max_queue_offset - queue_offset),
                 next,

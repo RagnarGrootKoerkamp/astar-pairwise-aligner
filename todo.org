@@ -92,6 +92,12 @@ which is not consistent.
 As a fix, both ~SeedHeuristic~ and ~ChainedSeedsHeuristic~ now check whether the
 current $h$ value is larger than any of the neighbours above/below, and if so,
 skip pruning.
+** DONE Greedy matching on expand instead of explore
+- NOTE: Never expand starts of matches this way.
+- This makes the PQ smaller -- only states at end of greedy runs are ever stored.
+- Broken, because we may be able to get to the diagonal with smaller ~g~ than
+  the current ~g+1~.
+- Could be fixed by doing A* in order or ~(f, g)~.
 
 * Statistics
 ** DONE avg total estimated distance
@@ -478,6 +484,8 @@ We now prune matches by end as well, when the start of an exact match is expande
 ** TODO Prune inexact matches next to an exact match that is on a greedy path
 Currently these matches are not pruned at all.
 Could be fixed by also pruning by match-end, orby clustering matches.
+** TODO Find reason for slowdown in benchmarks
+https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/
 
 * Parameter tuning
 ** CSH [no gapcost]

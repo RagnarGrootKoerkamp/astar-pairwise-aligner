@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use pairwise_aligner::prelude::*;
 
 #[test]
@@ -54,7 +55,9 @@ fn consistency_1() {
     let b = &b[363..371].to_vec();
 
     println!("{}\n{}\n", to_string(&a), to_string(&b));
-    align(a, b, &alphabet, stats, h);
+    let r = align(a, b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
 
 // Failed because of match distance > 0 and stricter consistency check
@@ -75,7 +78,9 @@ fn consistency_2() {
     let b = &b[236..246].to_vec();
 
     println!("{}\n{}\n", to_string(&a), to_string(&b));
-    align(a, b, &alphabet, stats, h);
+    let r = align(a, b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
 
 // Failed because of pruning
@@ -97,7 +102,9 @@ fn consistency_3() {
     let b = &b.to_vec();
 
     println!("{}\n{}\n", to_string(&a), to_string(&b));
-    align(a, b, &alphabet, stats, h);
+    let r = align(a, b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
 
 // Failed because of pruning and match distance
@@ -120,7 +127,9 @@ fn consistency_4() {
     // TTTTTGGGCCCTTTAACTTCCAAC
 
     println!("{}\n{}\n", to_string(&a), to_string(&b));
-    align(a, b, &alphabet, stats, h);
+    let r = align(a, b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
 
 // Failed because of pruning and large edit distance
@@ -141,5 +150,75 @@ fn consistency_5() {
     let b = &b[203..313].to_vec();
 
     println!("{}\n{}\n", to_string(&a), to_string(&b));
-    align(a, b, &alphabet, stats, h);
+    let r = align(a, b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
+}
+
+// Failed because of pruning and large edit distance
+#[test]
+fn consistency_6() {
+    let h = CSH {
+        match_config: MatchConfig {
+            length: Fixed(4),
+            max_match_cost: 0,
+            ..MatchConfig::default()
+        },
+        pruning: false,
+        use_gap_cost: false,
+        c: PhantomData::<HintContours<BruteForceContour>>,
+    };
+    let (_, _, alphabet, stats) = setup(2000, 0.20);
+    let ref a = "GTCGGGCG".bytes().collect_vec();
+    let ref b = "CGTCGGCG".bytes().collect_vec();
+
+    println!("{}\n{}\n", to_string(&a), to_string(&b));
+    let r = align(a, b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
+}
+
+// Failed because of pruning and large edit distance
+#[test]
+fn consistency_7() {
+    let h = CSH {
+        match_config: MatchConfig {
+            length: Fixed(4),
+            max_match_cost: 0,
+            ..MatchConfig::default()
+        },
+        pruning: false,
+        use_gap_cost: false,
+        c: PhantomData::<HintContours<BruteForceContour>>,
+    };
+    let (_, _, alphabet, stats) = setup(2000, 0.20);
+    let ref a = "AGGCCAGC".bytes().collect_vec();
+    let ref b = "AGCAGC".bytes().collect_vec();
+
+    println!("{}\n{}\n", to_string(&a), to_string(&b));
+    let r = align(a, b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
+}
+
+#[test]
+fn consistency_8() {
+    let h = CSH {
+        match_config: MatchConfig {
+            length: Fixed(4),
+            max_match_cost: 0,
+            ..MatchConfig::default()
+        },
+        pruning: false,
+        use_gap_cost: false,
+        c: PhantomData::<HintContours<BruteForceContour>>,
+    };
+    let (_, _, alphabet, stats) = setup(2000, 0.20);
+    let ref a = "CCTCTC".bytes().collect_vec();
+    let ref b = "CCCCC".bytes().collect_vec();
+
+    println!("{}\n{}\n", to_string(&a), to_string(&b));
+    let r = align(a, b, &alphabet, stats, h);
+    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+    assert_eq!(r.edit_distance, dist);
 }
