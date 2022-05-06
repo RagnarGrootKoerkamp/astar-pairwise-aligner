@@ -416,7 +416,21 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         }
     }
 
-    fn matches(&self) -> Option<&SeedMatches> {
-        Some(&self.seeds)
+    fn matches(&self) -> Option<Vec<Match>> {
+        Some(
+            self.seeds
+                .matches
+                .iter()
+                .map(|m| {
+                    let mut m = m.clone();
+                    m.pruned = if self.arrows.contains_key(&m.start) {
+                        MatchStatus::Active
+                    } else {
+                        MatchStatus::Pruned
+                    };
+                    m
+                })
+                .collect(),
+        )
     }
 }

@@ -263,7 +263,25 @@ impl<'a> HeuristicInstance<'a> for SHI {
         }
     }
 
-    fn matches(&self) -> Option<&SeedMatches> {
-        Some(&self.seeds)
+    fn matches(&self) -> Option<Vec<Match>> {
+        Some(
+            self.seeds
+                .matches
+                .iter()
+                .map(|m: &Match| {
+                    let mut m = m.clone();
+                    m.pruned = if self
+                        .remaining_matches
+                        .into_iter()
+                        .any(|r_m| m.start.0 == *r_m)
+                    {
+                        MatchStatus::Active
+                    } else {
+                        MatchStatus::Pruned
+                    };
+                    m
+                })
+                .collect(),
+        )
     }
 }

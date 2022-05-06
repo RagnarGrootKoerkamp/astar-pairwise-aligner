@@ -50,6 +50,7 @@ pub fn find_matches_trie<'a>(
                     end: Pos(end, match_start + match_len as I),
                     match_cost: cost as MatchCost,
                     seed_potential,
+                    pruned: MatchStatus::Active,
                 });
                 seed.seed_cost = min(seed.seed_cost, cost);
             },
@@ -190,6 +191,7 @@ pub fn find_matches_qgramindex<'a>(
                 end: Pos(end, j as I + len),
                 match_cost: 0,
                 seed_potential,
+                pruned: MatchStatus::Active,
             });
         }
         // Inexact matches.
@@ -203,6 +205,7 @@ pub fn find_matches_qgramindex<'a>(
                         end: Pos(end, j as I + len - 1),
                         match_cost: 1,
                         seed_potential,
+                        pruned: MatchStatus::Active,
                     });
                 }
             }
@@ -214,6 +217,7 @@ pub fn find_matches_qgramindex<'a>(
                         end: Pos(end, j as I + len),
                         match_cost: 1,
                         seed_potential,
+                        pruned: MatchStatus::Active,
                     });
                 }
             }
@@ -225,6 +229,7 @@ pub fn find_matches_qgramindex<'a>(
                         end: Pos(end, j as I + len + 1),
                         match_cost: 1,
                         seed_potential,
+                        pruned: MatchStatus::Active,
                     });
                 }
             }
@@ -279,6 +284,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
                     end: Pos(start + k, j + k),
                     match_cost: 0,
                     seed_potential: 2,
+                    pruned: MatchStatus::Active,
                 });
             }
         }
@@ -293,6 +299,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
                         end: Pos(start + k, j + k - 1),
                         match_cost: 1,
                         seed_potential: 2,
+                        pruned: MatchStatus::Active,
                     });
                 }
             }
@@ -306,6 +313,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
                         end: Pos(start + k, j + k),
                         match_cost: 1,
                         seed_potential: 2,
+                        pruned: MatchStatus::Active,
                     });
                 }
             }
@@ -319,6 +327,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
                         end: Pos(start + k, j + k + 1),
                         match_cost: 1,
                         seed_potential: 2,
+                        pruned: MatchStatus::Active,
                     });
                 }
             }
@@ -445,6 +454,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
                         end: Pos(i + k, j as I + k),
                         match_cost: 0,
                         seed_potential: 1,
+                        pruned: MatchStatus::Active,
                     });
                 }
             }
@@ -464,6 +474,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
                         end: Pos(i + k, j as I + k),
                         match_cost: 0,
                         seed_potential: 1,
+                        pruned: MatchStatus::Active,
                     });
                 }
             }

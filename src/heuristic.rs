@@ -129,7 +129,8 @@ pub trait HeuristicInstance<'a> {
         Default::default()
     }
 
-    fn matches(&self) -> Option<&SeedMatches> {
+    /// Returns all non-pruned matches.
+    fn matches(&self) -> Option<Vec<Match>> {
         None
     }
 
@@ -173,6 +174,7 @@ pub trait HeuristicInstance<'a> {
         const SMALL_CELL_MARGIN: u32 = 2;
 
         const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
+        const PRUNED_MATCH_COLOR: Color = Color::RGB(255, 165, 0);
         const CONTOUR_COLOR: Color = Color::RGB(0, 216, 0);
         const PATH_COLOR: Color = Color::RED;
         const H_COLOR: Color = Color::BLACK;
@@ -323,13 +325,16 @@ pub trait HeuristicInstance<'a> {
         // }
 
         // Draw matches
-        if let Some(seed_matches) = self.matches() {
-            canvas.set_draw_color(MATCH_COLOR);
-            for m in &seed_matches.matches {
+        if let Some(matches) = self.matches() {
+            for m in &matches {
                 if m.match_cost > 0 {
                     continue;
                 }
                 if true {
+                    canvas.set_draw_color(match m.pruned {
+                        MatchStatus::Active => MATCH_COLOR,
+                        MatchStatus::Pruned => PRUNED_MATCH_COLOR,
+                    });
                     draw_thick_line(&mut canvas, cell_center(m.start), cell_center(m.end), 4);
                 } else {
                     let mut p = m.start;
