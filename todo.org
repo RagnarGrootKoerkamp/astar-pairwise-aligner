@@ -490,6 +490,9 @@ https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/
 This results in fewer skipped prunes
 ** TODO Only consider inexact matches that satisfy greedy matching
 Inexact matches that can not occur as a result of greedy matching can be disregarded.
+** TODO Batch pruning
+When pruning is slow, we can batch multiple prunes and wait untill the band
+becomes too large.
 
 * Parameter tuning
 ** CSH [no gapcost]
