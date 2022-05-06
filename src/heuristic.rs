@@ -237,10 +237,12 @@ pub trait HeuristicInstance<'a> {
         };
         use std::time::Duration;
 
-        //println!("Root h: {}", h.h(Pos(0, 0)));
+        // Pos: position in edit graph
+        // Cell: position in drawing, of size CELL_SIZE x CELL_SIZE
+        // Pixel: one pixel
 
-        const PIXEL_SIZE: u32 = 10;
-        const SMALL_PIXEL_BORDER: u32 = 2;
+        const CELL_SIZE: u32 = 10;
+        const SMALL_CELL_MARGIN: u32 = 2;
 
         const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
         const CONTOUR_COLOR: Color = Color::RGB(0, 216, 0);
@@ -255,38 +257,24 @@ pub trait HeuristicInstance<'a> {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
         video_subsystem.gl_attr().set_double_buffer(true);
-        let canvas_size = Point::new(
-            min(1000, high.0 - low.0 + 1) as i32,
-            min(1000, high.1 - low.1 + 1) as i32,
-        );
+        let canvas_size_cells = Pos(high.0 - low.0 + 1, high.1 - low.1 + 1);
 
-        let pos_to_point = |Pos(x, y): Pos| -> Point {
-            return Point::new(x as i32, y as i32);
-            // Point::new(
-            //     ((x - low.0) as usize * (canvas_size.x() + 1) as usize
-            //         / (high.0 - low.0 + 1) as usize) as i32,
-            //     ((y - low.1) as usize * (canvas_size.y() + 1) as usize
-            //         / (high.1 - low.1 + 1) as usize) as i32,
-            // )
-        };
-
-        let point_to_pos = |p: Point| -> Pos {
-            //return Pos(p.x() as u32, p.y() as u32);
-            Pos(
-                low.0
-                    + (p.x() as usize * (high.0 - low.0 + 1) as usize / canvas_size.x() as usize)
-                        as u32,
-                low.1
-                    + (p.y() as usize * (high.1 - low.1 + 1) as usize / canvas_size.y() as usize)
-                        as u32,
+        // Conversions
+        let cell_center = |Pos(i, j): Pos| -> Point {
+            Point::new(
+                (i * CELL_SIZE + CELL_SIZE / 2) as i32,
+                (j * CELL_SIZE + CELL_SIZE / 2) as i32,
             )
+        };
+        let cell_begin = |Pos(i, j): Pos| -> Point {
+            Point::new((i * CELL_SIZE) as i32, (j * CELL_SIZE) as i32)
         };
 
         let window = video_subsystem
             .window(
                 "A*PA",
-                canvas_size.x() as u32 * PIXEL_SIZE,
-                canvas_size.y() as u32 * PIXEL_SIZE,
+                canvas_size_cells.0 as u32 * CELL_SIZE,
+                canvas_size_cells.1 as u32 * CELL_SIZE,
             )
             .borderless()
             .build()
@@ -295,21 +283,15 @@ pub trait HeuristicInstance<'a> {
         canvas.set_draw_color(Color::WHITE);
         canvas.clear();
 
-        let cell_center = |p: Point| -> Point {
-            Point::new(
-                p.x * PIXEL_SIZE as i32 + PIXEL_SIZE as i32 / 2,
-                p.y * PIXEL_SIZE as i32 + PIXEL_SIZE as i32 / 2,
-            )
-        };
-
-        let draw_pixel = |canvas: &mut Canvas<Window>, point: Point, c: Color, small: bool| {
+        let draw_pixel = |canvas: &mut Canvas<Window>, p: Pos, c: Color, small: bool| {
             canvas.set_draw_color(c);
+            let begin = cell_begin(p);
             canvas
                 .fill_rect(Rect::new(
-                    point.x * PIXEL_SIZE as i32 + if small { SMALL_PIXEL_BORDER as i32 } else { 0 },
-                    point.y * PIXEL_SIZE as i32 + if small { SMALL_PIXEL_BORDER as i32 } else { 0 },
-                    PIXEL_SIZE - if small { 2 * SMALL_PIXEL_BORDER } else { 0 },
-                    PIXEL_SIZE - if small { 2 * SMALL_PIXEL_BORDER } else { 0 },
+                    begin.x,
+                    begin.y,
+                    CELL_SIZE - if small { 2 * SMALL_CELL_MARGIN } else { 0 },
+                    CELL_SIZE - if small { 2 * SMALL_CELL_MARGIN } else { 0 },
                 ))
                 .unwrap();
         };
@@ -368,37 +350,35 @@ pub trait HeuristicInstance<'a> {
             return Color::RGB(frac(c1.r, c2.r), frac(c1.g, c2.g), frac(c1.b, c2.b));
         }
 
-        let val = |pos| self.h(pos);
-
-        let max_val = max_val.unwrap_or_else(|| max(val(Pos(0, 0)), val(Pos(0, target.1))));
+        let max_h_val = max_val.unwrap_or_else(|| max(self.h(Pos(0, 0)), self.h(Pos(0, target.1))));
 
         // Draw the heuristic.
         let h_gradient = |h: Cost| -> Color {
-            if h <= max_val {
-                gradient(h as f32 / max_val as f32, Color::WHITE, H_COLOR)
+            if h <= max_h_val {
+                gradient(h as f32 / max_h_val as f32, Color::WHITE, H_COLOR)
             } else {
                 H_COLOR
             }
         };
-        for i in 0..canvas_size.x {
-            for j in 0..canvas_size.y {
-                let point = Point::new(i as i32, j as i32);
-                let v = val(point_to_pos(point));
-                draw_pixel(&mut canvas, point, h_gradient(v), false);
+        for i in 0..canvas_size_cells.0 {
+            for j in 0..canvas_size_cells.1 {
+                let pos = Pos(i, j);
+                let v = self.h(pos);
+                draw_pixel(&mut canvas, pos, h_gradient(v), false);
             }
         }
 
         // Draw explored
         if let Some(explored) = explored {
             for p in explored {
-                draw_pixel(&mut canvas, pos_to_point(p), EXPLORED_COLOR, false);
+                draw_pixel(&mut canvas, p, EXPLORED_COLOR, false);
             }
         }
 
         // Draw expanded
         if let Some(expanded) = expanded {
             for p in expanded {
-                draw_pixel(&mut canvas, pos_to_point(p), EXPANDED_COLOR, false);
+                draw_pixel(&mut canvas, p, EXPANDED_COLOR, false);
             }
         }
 
@@ -422,19 +402,14 @@ pub trait HeuristicInstance<'a> {
                     continue;
                 }
                 if true {
-                    draw_thick_line(
-                        &mut canvas,
-                        cell_center(pos_to_point(m.start)),
-                        cell_center(pos_to_point(m.end)),
-                        4,
-                    );
+                    draw_thick_line(&mut canvas, cell_center(m.start), cell_center(m.end), 4);
                 } else {
                     let mut p = m.start;
-                    draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
-                    draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
+                    draw_pixel(&mut canvas, p, MATCH_COLOR, false);
+                    draw_pixel(&mut canvas, p, MATCH_COLOR, false);
                     loop {
                         p = p.add_diagonal(1);
-                        draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
+                        draw_pixel(&mut canvas, p, MATCH_COLOR, false);
                         if p == m.end {
                             break;
                         }
@@ -446,56 +421,38 @@ pub trait HeuristicInstance<'a> {
         // Draw contours
         if let Some(_) = self.contour_value(Pos(0, 0)) {
             canvas.set_draw_color(CONTOUR_COLOR);
-            let draw_right_border = |canvas: &mut Canvas<Window>, point: Point| {
+            let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
                 canvas
-                    .draw_line(
-                        Point::new(
-                            (point.x + 1) * PIXEL_SIZE as i32,
-                            (point.y + 0) * PIXEL_SIZE as i32,
-                        ),
-                        Point::new(
-                            (point.x + 1) * PIXEL_SIZE as i32,
-                            (point.y + 1) * PIXEL_SIZE as i32,
-                        ),
-                    )
+                    .draw_line(cell_begin(Pos(i + 1, j)), cell_begin(Pos(i + 1, j + 1)))
                     .unwrap();
             };
-            let draw_bottom_border = |canvas: &mut Canvas<Window>, point: Point| {
+            let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
                 canvas
-                    .draw_line(
-                        Point::new(
-                            (point.x + 0) * PIXEL_SIZE as i32,
-                            (point.y + 1) * PIXEL_SIZE as i32,
-                        ),
-                        Point::new(
-                            (point.x + 1) * PIXEL_SIZE as i32,
-                            (point.y + 1) * PIXEL_SIZE as i32,
-                        ),
-                    )
+                    .draw_line(cell_begin(Pos(i, j + 1)), cell_begin(Pos(i + 1, j + 1)))
                     .unwrap();
             };
+
             // Right borders
-            for i in 0..canvas_size.x - 1 {
-                for j in 0..canvas_size.y {
-                    let point = Point::new(i as i32, j as i32);
-                    let v = self.contour_value(point_to_pos(point)).unwrap();
-                    let point_r = Point::new(i + 1 as i32, j as i32);
-                    let v_r = self.contour_value(point_to_pos(point_r)).unwrap();
+            for i in 0..canvas_size_cells.0 - 1 {
+                for j in 0..canvas_size_cells.1 {
+                    let pos = Pos(i, j);
+                    let v = self.contour_value(pos).unwrap();
+                    let pos_r = Pos(i + 1, j);
+                    let v_r = self.contour_value(pos_r).unwrap();
                     if v_r != v {
-                        draw_right_border(&mut canvas, point);
+                        draw_right_border(&mut canvas, pos);
                     }
                 }
             }
             // Bottom borders
-            for i in 0..canvas_size.x {
-                for j in 0..canvas_size.y - 1 {
-                    let point = Point::new(i as i32, j as i32);
-                    let v = self.contour_value(point_to_pos(point)).unwrap();
-                    // Bottom
-                    let point_b = Point::new(i as i32, j + 1 as i32);
-                    let v_b = self.contour_value(point_to_pos(point_b)).unwrap();
-                    if v_b != v {
-                        draw_bottom_border(&mut canvas, point);
+            for i in 0..canvas_size_cells.0 {
+                for j in 0..canvas_size_cells.1 - 1 {
+                    let pos = Pos(i, j);
+                    let v = self.contour_value(pos).unwrap();
+                    let pos_l = Pos(i, j + 1);
+                    let v_l = self.contour_value(pos_l).unwrap();
+                    if v_l != v {
+                        draw_bottom_border(&mut canvas, pos);
                     }
                 }
             }
@@ -504,9 +461,8 @@ pub trait HeuristicInstance<'a> {
         // Draw path
         if let Some(path) = path {
             canvas.set_draw_color(PATH_COLOR);
-            let mut prev = pos_to_point(Pos(0, 0));
+            let mut prev = Pos(0, 0);
             for p in path {
-                let p = pos_to_point(p);
                 draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 2);
                 prev = p;
             }
