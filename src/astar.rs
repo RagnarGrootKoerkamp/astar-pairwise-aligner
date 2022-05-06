@@ -111,7 +111,7 @@ where
         );
     }
 
-    'outer: while let Some(MinScored(queue_f, mut pos, queue_g)) = queue.pop() {
+    'outer: while let Some(MinScored(queue_f, pos, queue_g)) = queue.pop() {
         let queue_f = queue_f + queue_offset - max_queue_offset;
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
@@ -281,46 +281,30 @@ fn traceback<'a, H>(states: HashMap<Pos, State<H::Hint>>, target: Pos) -> Option
 where
     H: HeuristicInstance<'a>,
 {
-    const D: bool = true;
     if let Some(state) = DiagonalMapTrait::get(&states, target) {
         let g = state.g;
+        assert_eq!(state.status, Expanded);
         let mut cost = 0;
         let mut path = vec![target];
         let mut current = target;
         // If the state is not in the map, it was found via a match.
         while current != Pos(0, 0) {
-            let previous = if let Some(state) = DiagonalMapTrait::get(&states, current) {
-                // TODO: Generalize this for non-unit edit costs.
-                let c = if state.parent == Parent::Match { 0 } else { 1 };
-                // If following this parent gives the right cost, use it.
-                // If not, go to a parent and assume we came here via greedy matches.
-                if state.g + cost + c == g {
-                    cost += c;
-                    let p = state.parent.parent(&current);
-                    if D {
-                        println!(
-                            "In {current} Parent {p:?} cost {c} total {cost}\t state {state:?}"
-                        );
+            current = 'c: {
+                for parent in [Parent::Substitution, Parent::Left, Parent::Up] {
+                    if let Some(p) = parent.of(&current) {
+                        if let Some(state) = DiagonalMapTrait::get(&states, p) {
+                            if state.g + parent.cost() + cost == g {
+                                cost += parent.cost();
+                                break 'c p;
+                            }
+                        }
                     }
-                    p
-                } else {
-                    if D {
-                        println!("In {current} assuming match; parent did not match: {state:?}");
-                    }
-                    Parent::Match.parent(&current)
                 }
-            } else {
-                if D {
-                    println!("In {current} assuming match");
-                }
-                Parent::Match.parent(&current)
+                Parent::Match
+                    .of(&current)
+                    .expect("No parent found for position!")
             };
-            if let Some(previous) = previous {
-                path.push(previous);
-                current = previous;
-            } else {
-                panic!("Did not find parent of {current}");
-            }
+            path.push(current);
         }
         path.reverse();
         assert_eq!(

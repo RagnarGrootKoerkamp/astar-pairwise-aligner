@@ -42,7 +42,7 @@ pub enum Parent {
 }
 
 impl Parent {
-    pub fn follow(&self, &Pos(i, j): &Pos) -> Option<Pos> {
+    pub fn of(&self, &Pos(i, j): &Pos) -> Option<Pos> {
         match self {
             Parent::None => None,
             Parent::Match => Some(Pos(i.checked_sub(1)?, j.checked_sub(1)?)),
