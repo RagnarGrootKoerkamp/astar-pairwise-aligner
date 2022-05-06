@@ -486,6 +486,10 @@ Currently these matches are not pruned at all.
 Could be fixed by also pruning by match-end, orby clustering matches.
 ** TODO Find reason for slowdown in benchmarks
 https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/
+** TODO Prune matches by end
+This results in fewer skipped prunes
+** TODO Only consider inexact matches that satisfy greedy matching
+Inexact matches that can not occur as a result of greedy matching can be disregarded.
 
 * Parameter tuning
 ** CSH [no gapcost]
