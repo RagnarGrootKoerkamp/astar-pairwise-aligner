@@ -1,4 +1,3 @@
-#![feature(derive_default_enum)]
 use pairwise_aligner::generate::{generate_pair, GenerateOptions};
 use std::{io::Write, path::PathBuf};
 use structopt::StructOpt;
