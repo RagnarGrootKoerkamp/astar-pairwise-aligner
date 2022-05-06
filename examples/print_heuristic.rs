@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use pairwise_aligner::prelude::*;
 
 fn main() {
@@ -23,15 +22,13 @@ fn main() {
     };
 
     let (ref a, ref b, alphabet, _stats) = setup_with_seed(n, e, r);
-    let ref a = "CCTCTC".bytes().collect_vec();
-    let ref b = "CCCCC".bytes().collect_vec();
 
     println!("{}\n{}", to_string(a), to_string(b));
     let mut h = h.build(&a, &b, &alphabet);
     h.display(Pos::from_length(a, b), None, None, None, None);
     let graph = AlignmentGraph::new(a, b, true);
-    let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
-    let (distance, path): (u32, Vec<Pos>) = distance_and_path.unwrap_or_default();
+    let (distance_and_path, _astar) = astar::astar(&graph, Pos(0, 0), &mut h);
+    let (distance, _path): (u32, Vec<Pos>) = distance_and_path.unwrap_or_default();
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(distance, dist);
     // h.display(
