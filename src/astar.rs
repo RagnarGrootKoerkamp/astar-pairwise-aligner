@@ -56,7 +56,7 @@ pub struct AStarStats {
 // f: g+h
 // TODO: Inline on_expand and on_explore functions by direct calls to h.
 pub fn astar<'a, H>(
-    graph: &AlignmentGraph,
+    graph: &EditGraph,
     start: Pos,
     h: &mut H,
 ) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
