@@ -188,7 +188,7 @@ where
         }
 
         if D {
-            println!("Expand {pos} {}/{}", state.g, state.seed_cost);
+            println!("Expand {pos} {}", state.g);
         }
 
         // Retrace path to root and return.
@@ -219,7 +219,7 @@ where
                     // Doing so may cause problems when h is not consistent and is
                     // larger at the start of seed than at the position where the
                     // greedy run started.
-                    if h.is_seed_start_or_end(n) {
+                    if h.is_seed_start_or_end(next) {
                         break;
                     }
 
@@ -232,7 +232,7 @@ where
                         stats.expanded_states.push(next);
                     }
                     if D {
-                        println!("Greedy expand {next} {}/{}", state.g, state.seed_cost);
+                        println!("Greedy expand {next} {}", state.g);
                     }
 
                     // Move to the next state.
