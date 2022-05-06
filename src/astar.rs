@@ -1,3 +1,5 @@
+use std::time;
+
 use crate::prelude::*;
 use serde::Serialize;
 
@@ -45,6 +47,8 @@ pub struct AStarStats {
     pub explored_states: Vec<Pos>,
     #[serde(skip_serializing)]
     pub expanded_states: Vec<Pos>,
+
+    pub traceback: f32,
 }
 
 // h: heuristic = lower bound on cost from node to end
@@ -71,6 +75,7 @@ where
         diagonalmap_capacity: 0,
         explored_states: Vec::default(),
         expanded_states: Vec::default(),
+        traceback: 0.,
     };
 
     // f -> pos
@@ -274,7 +279,10 @@ where
     }
 
     stats.diagonalmap_capacity = states.dm_capacity();
-    (traceback::<'a, H>(states, graph.target()), stats)
+    let traceback_start = time::Instant::now();
+    let traceback = traceback::<'a, H>(states, graph.target());
+    stats.traceback = traceback_start.elapsed().as_secs_f32();
+    (traceback, stats)
 }
 
 fn traceback<'a, H>(states: HashMap<Pos, State<H::Hint>>, target: Pos) -> Option<(u32, Vec<Pos>)>

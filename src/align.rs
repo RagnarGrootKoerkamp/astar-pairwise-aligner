@@ -78,6 +78,7 @@ impl AlignResult {
         self.astar.expanded += other.astar.expanded;
         self.astar.explored += other.astar.explored;
         self.astar.double_expanded += other.astar.double_expanded;
+        self.astar.greedy_expanded += other.astar.greedy_expanded;
         self.astar.retries += other.astar.retries;
         self.astar.pq_shifts += other.astar.pq_shifts;
         self.astar.diagonalmap_capacity += other.astar.diagonalmap_capacity;
@@ -86,6 +87,7 @@ impl AlignResult {
         self.path = other.path.clone();
         self.timing.precomputation += other.timing.precomputation;
         self.timing.astar += other.timing.astar;
+        self.astar.traceback += other.astar.traceback;
         self.heuristic_stats.pruning_duration += other.heuristic_stats.pruning_duration;
         self.edit_distance += other.edit_distance;
         self.heuristic_stats2.root_h += other.heuristic_stats2.root_h;
@@ -198,6 +200,12 @@ impl AlignResult {
                 format!(
                     "{:>8.2}",
                     1000. * this.heuristic_stats.pruning_duration / this.sample_size as f32
+                )
+            }),
+            (format!("{:>8}", "trace"), |this: &AlignResult| {
+                format!(
+                    "{:>8.2}",
+                    1000. * this.astar.traceback / this.sample_size as f32
                 )
             }),
             (format!("{:>7}", "ed"), |this: &AlignResult| {
@@ -392,7 +400,7 @@ where
         input: sequence_stats,
         timing: TimingStats {
             precomputation: heuristic_initialization.as_secs_f32(),
-            astar: astar_duration.as_secs_f32(),
+            astar: astar_duration.as_secs_f32() - astar_stats.traceback,
         },
         astar: astar_stats,
         heuristic_stats: h_stats,
