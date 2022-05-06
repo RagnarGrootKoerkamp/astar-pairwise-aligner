@@ -103,30 +103,33 @@ def algo2marker(algo):
     
 def col2name(col):
     d = {
-        'head':    'Reference size [bp]',
-        'head_Mbp':'Reference size [Mbp]',
+        'e':       'Error rate [proportion]',
+        'expanded':       'Error rate [proportion]',
         's':       'Runtime [s]',
-        'n':       'Sequence length n [bp]',
+        'n':       'Sequence length [bp]',
         's_per_pair': 'Time per alignment [s]',
-        's_per_bp': 'Time [s/bp]',
-        'N':       'Reads',
-        'm':       'Read length [bp]',
         'max_uss': 'Memory [MB]',
-        'score':   'Alignment cost',
-        'explored_states':  'Explored states',
-        't(map)':  'Alignment time per read',  #  [s/read]
-        't(map)_per_bp': 'Alignment time per bp [s]',
-        'align_sec':  'Alignment time [s]',
-        'cost':    'Alignment cost',
-        'explored_per_bp': 'Explored states per bp',
-        'error_rate': 'Error rate',
-        'bps':     'Alignment rate [bp/s]',
-        'spkb':    'Alignment time [s/kbp]',
+#        'head':    'Reference size [bp]',
+#        'head_Mbp':'Reference size [Mbp]',
+#        's_per_bp': 'Time [s/bp]',
+#        'N':       'Reads',
+#        'm':       'Read length [bp]',
+#        'score':   'Alignment cost',
+#        'explored_states':  'Explored states',
+#        't(map)':  'Alignment time per read',  #  [s/read]
+#        't(map)_per_bp': 'Alignment time per bp [s]',
+#        'align_sec':  'Alignment time [s]',
+#        'cost':    'Alignment cost',
+#        'explored_per_bp': 'Explored states per bp',
+#        'error_rate': 'Error rate',
+#        'bps':     'Alignment rate [bp/s]',
+#        'spkb':    'Alignment time [s/kbp]',
         #'performance': 'MBp/s'
         }
     if col in d:
         return d[col]
-    #print(col)
+    print(col)
+    assert(False)
     return col
 
 def col2unit(col):
