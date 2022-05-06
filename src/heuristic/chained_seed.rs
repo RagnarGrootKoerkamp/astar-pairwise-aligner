@@ -433,4 +433,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                 .collect(),
         )
     }
+
+    fn seeds(&self) -> Option<&Vec<Seed>> {
+        Some(&self.seeds.seeds)
+    }
 }
