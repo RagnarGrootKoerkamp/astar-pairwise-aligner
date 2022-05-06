@@ -53,9 +53,7 @@ type Hint = Cost;
 
 impl SHI {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: SH) -> Self {
-        let mut seeds = unordered_matches(a, b, alph, params.match_config);
-        // Delete unused match data.
-        seeds.matches.clear();
+        let seeds = unordered_matches(a, b, alph, params.match_config);
         // Contains start positions of all matches.
         let mut remaining_matches = SplitVec::default();
         {
