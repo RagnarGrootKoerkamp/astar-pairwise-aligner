@@ -57,9 +57,9 @@ fn main() {
         };
         let mut h = Heuristic::build(&h, &a, &b, &alphabet);
         //h.display(target, hmax, None, None, None);
-        let graph = AlignmentGraph::new(a, b, true);
         let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
         let (_distance, path) = distance_and_path.unwrap_or_default();
+            let graph = EditGraph::new(a, b, true);
 
         h.display(
             target,

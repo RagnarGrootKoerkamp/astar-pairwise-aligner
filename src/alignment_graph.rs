@@ -152,16 +152,16 @@ impl Pos {
 
 /// AlignmentGraph, modelling the position and transitions in a pairwise matching graph.
 #[derive(Clone)]
-pub struct AlignmentGraph<'a> {
+pub struct EditGraph<'a> {
     a: &'a Sequence,
     b: &'a Sequence,
     target: Pos,
     pub greedy_matching: bool,
 }
 
-impl<'a> AlignmentGraph<'a> {
-    pub fn new(a: &'a Sequence, b: &'a Sequence, greedy_matching: bool) -> AlignmentGraph<'a> {
-        AlignmentGraph {
+impl<'a> EditGraph<'a> {
+    pub fn new(a: &'a Sequence, b: &'a Sequence, greedy_matching: bool) -> EditGraph<'a> {
+        EditGraph {
             a,
             b,
             target: Pos::from_length(a, b),
@@ -170,7 +170,7 @@ impl<'a> AlignmentGraph<'a> {
     }
 }
 
-impl<'a> AlignmentGraph<'a> {
+impl<'a> EditGraph<'a> {
     #[inline]
     pub fn root(&self) -> Pos {
         Pos(0, 0)

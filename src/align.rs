@@ -365,7 +365,7 @@ where
     // Run A* with heuristic.
     let start_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
-    let graph = AlignmentGraph::new(a, b, greedy_edge_matching);
+    let graph = EditGraph::new(a, b, greedy_edge_matching);
     let (distance_and_path, astar_stats) = astar::astar(&graph, Pos(0, 0), &mut h);
     let (distance, path) = distance_and_path.unwrap_or_default();
     let astar_duration = start_time.elapsed();
