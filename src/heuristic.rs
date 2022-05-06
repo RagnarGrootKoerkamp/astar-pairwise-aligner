@@ -461,3 +461,7 @@ pub trait HeuristicInstance<'a> {
         }
     }
 }
+
+fn useless()-> u32{
+    5
+}

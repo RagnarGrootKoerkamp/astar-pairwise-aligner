@@ -4,7 +4,7 @@ use pairwise_aligner::{
     generate::{generate_pair, GenerateOptions},
     prelude::*,
 };
-use rand::thread_rng;
+use rand::thread_rng;sdfg
 use std::{
     fs::File,
     io::{BufRead, BufReader},
