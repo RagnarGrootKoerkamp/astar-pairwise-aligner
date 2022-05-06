@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Status {
     Unvisited,
     Explored,
@@ -39,7 +39,7 @@ pub struct AStarStats {
     pub double_expanded: usize,
     /// Number of times a node was popped and found to have an outdated value of h after pruning.
     pub retries: usize,
-    /// Number of times a prune is propagated to the priority queue.
+    /// Total priority queue shift after pruning.
     pub pq_shifts: usize,
     /// Number of states allocated in the DiagonalMap
     pub diagonalmap_capacity: usize,
@@ -61,7 +61,7 @@ pub fn astar<'a, H>(
 where
     H: HeuristicInstance<'a>,
 {
-    const D: bool = false;
+    const D: bool = true;
 
     let mut stats = AStarStats {
         expanded: 0,
@@ -252,6 +252,10 @@ where
                 }
                 pos = next;
 
+                if D {
+                    println!("Greedy expand {pos} at {state:?}");
+                }
+
                 // NOTE: We do not call h.explore() here, because it isn't needed for pruning-propagation:
                 // Pruned positions on this diagonal will always be larger than
                 // the expanded positions in front of it, and problems only
@@ -296,6 +300,9 @@ where
                 next,
                 next_g,
             ));
+            if D {
+                println!("Explore {next} from {pos} g {next_g} cost {cost} parent {parent:?}");
+            }
 
             h.explore(next);
             stats.explored += 1;
@@ -313,25 +320,53 @@ fn traceback<'a, H>(states: HashMap<Pos, State<H::Hint>>, target: Pos) -> Option
 where
     H: HeuristicInstance<'a>,
 {
+    const D: bool = true;
     if let Some(state) = DiagonalMapTrait::get(&states, target) {
+        let g = state.g;
+        let mut cost = 0;
         let mut path = vec![target];
         let mut current = target;
         // If the state is not in the map, it was found via a match.
-        loop {
+        while current != Pos(0, 0) {
             let previous = if let Some(state) = DiagonalMapTrait::get(&states, current) {
-                state.parent.parent(&current)
+                // TODO: Generalize this for non-unit edit costs.
+                let c = if state.parent == Parent::Match { 0 } else { 1 };
+                // If following this parent gives the right cost, use it.
+                // If not, go to a parent and assume we came here via greedy matches.
+                if state.g + cost + c == g {
+                    cost += c;
+                    let p = state.parent.parent(&current);
+                    if D {
+                        println!(
+                            "In {current} Parent {p:?} cost {c} total {cost}\t state {state:?}"
+                        );
+                    }
+                    p
+                } else {
+                    if D {
+                        println!("In {current} assuming match; parent did not match: {state:?}");
+                    }
+                    Parent::Match.parent(&current)
+                }
             } else {
-                Parent::match_value().parent(&current)
+                if D {
+                    println!("In {current} assuming match");
+                }
+                Parent::Match.parent(&current)
             };
             if let Some(previous) = previous {
                 path.push(previous);
                 current = previous;
             } else {
-                break;
+                panic!("Did not find parent of {current}");
             }
         }
         path.reverse();
-        Some((state.g, path))
+        assert_eq!(
+            cost, g,
+            "Traceback cost {cost} does not equal distance to end {g}!"
+        );
+        Some((g, path))
     } else {
         None
     }
