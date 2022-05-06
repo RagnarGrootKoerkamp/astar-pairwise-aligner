@@ -42,7 +42,7 @@ pub enum Parent {
 }
 
 impl Parent {
-    pub fn parent(&self, &Pos(i, j): &Pos) -> Option<Pos> {
+    pub fn follow(&self, &Pos(i, j): &Pos) -> Option<Pos> {
         match self {
             Parent::None => None,
             Parent::Match => Some(Pos(i.checked_sub(1)?, j.checked_sub(1)?)),
@@ -52,8 +52,12 @@ impl Parent {
         }
     }
 
-    pub fn match_value() -> Self {
-        Parent::Match
+    pub fn cost(&self) -> Cost {
+        match self {
+            Parent::Match => 0,
+            Parent::None => panic!("Cost of None parent!"),
+            _ => 1,
+        }
     }
 }
 
@@ -163,7 +167,7 @@ impl<'a> AlignmentGraph<'a> {
 
     #[inline]
     pub fn is_match(&self, Pos(i, j): Pos) -> Option<Pos> {
-        if i < self.target.0 && j < self.target.1 && self.a[i as usize] == self.b[j as usize] {
+        if self.a.get(i as usize)? == self.b.get(j as usize)? {
             Some(Pos(i + 1, j + 1))
         } else {
             None

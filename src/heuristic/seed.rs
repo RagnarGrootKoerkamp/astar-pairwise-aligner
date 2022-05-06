@@ -209,7 +209,10 @@ impl<'a> HeuristicInstance<'a> for SHI {
         } else {
             return 0;
         };
-        assert!(s.seed_cost < s.seed_potential);
+        assert!(
+            s.seed_cost < s.seed_potential,
+            "{pos} Seed {s:?} has too large cost"
+        );
 
         //println!("Prune {pos} / {seed_cost}");
         // +1 because pos is at the end of the match.
