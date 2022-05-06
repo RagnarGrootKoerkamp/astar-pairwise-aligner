@@ -507,7 +507,7 @@ pub trait HeuristicInstance<'a> {
             let mut prev = pos_to_point(Pos(0, 0));
             for p in path {
                 let p = pos_to_point(p);
-                draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 1);
+                draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 2);
                 prev = p;
             }
         }
