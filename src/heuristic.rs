@@ -217,10 +217,7 @@ pub trait HeuristicInstance<'a> {
     // `max_val` is used to cap the color gradient.
     fn display(
         &self,
-        a: &Sequence,
-        b: &Sequence,
         target: Pos,
-        _display_type: DisplayOptions,
         max_val: Option<Cost>,
         explored: Option<Vec<Pos>>,
         expanded: Option<Vec<Pos>>,
@@ -384,6 +381,54 @@ pub trait HeuristicInstance<'a> {
             }
         }
 
+        // Draw expanded
+        if let Some(expanded) = expanded {
+            for p in expanded {
+                draw_pixel(&mut canvas, pos_to_point(p), EXPANDED_COLOR, false);
+            }
+        }
+
+        // Draw path
+        // if let Some(path) = path {
+        //     canvas.set_draw_color(PATH_COLOR);
+        //     let mut prev = pos_to_point(Pos(0, 0));
+        //     for p in path {
+        //         let p = pos_to_point(p);
+        //         //draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 2);
+        //         draw_pixel(&mut canvas, p, PATH_COLOR, false);
+        //         prev = p;
+        //     }
+        // }
+
+        // Draw matches
+        if let Some(seed_matches) = self.matches() {
+            canvas.set_draw_color(MATCH_COLOR);
+            for m in &seed_matches.matches {
+                if m.match_cost > 0 {
+                    continue;
+                }
+                if true {
+                    draw_thick_line(
+                        &mut canvas,
+                        cell_center(pos_to_point(m.start)),
+                        cell_center(pos_to_point(m.end)),
+                        4,
+                    );
+                } else {
+                    let mut p = m.start;
+                    draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
+                    draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
+                    loop {
+                        p = p.add_diagonal(1);
+                        draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
+                        if p == m.end {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         // Draw contours
         if let Some(_) = self.contour_value(Pos(0, 0)) {
             canvas.set_draw_color(CONTOUR_COLOR);
@@ -437,71 +482,6 @@ pub trait HeuristicInstance<'a> {
                     let v_b = self.contour_value(point_to_pos(point_b)).unwrap();
                     if v_b != v {
                         draw_bottom_border(&mut canvas, point);
-                    }
-                }
-            }
-        }
-
-        // Draw expanded
-        if let Some(expanded) = expanded {
-            for p in expanded {
-                draw_pixel(&mut canvas, pos_to_point(p), EXPANDED_COLOR, false);
-            }
-        }
-
-        // Draw path
-        // if let Some(path) = path {
-        //     canvas.set_draw_color(PATH_COLOR);
-        //     let mut prev = pos_to_point(Pos(0, 0));
-        //     for p in path {
-        //         let p = pos_to_point(p);
-        //         //draw_thick_line(&mut canvas, cell_center(prev), cell_center(p), 2);
-        //         draw_pixel(&mut canvas, p, PATH_COLOR, false);
-        //         prev = p;
-        //     }
-        // }
-
-        // Draw character matches
-        if false {
-            canvas.set_draw_color(MATCH_COLOR);
-            for i in 0..a.len() as I {
-                for j in 0..b.len() as I {
-                    if a[i as usize] == b[j as usize] {
-                        canvas
-                            .draw_line(
-                                cell_center(pos_to_point(Pos(i, j))),
-                                cell_center(pos_to_point(Pos(i, j).add_diagonal(1))),
-                            )
-                            .unwrap();
-                    }
-                }
-            }
-        }
-
-        // Draw matches
-        if let Some(seed_matches) = self.matches() {
-            canvas.set_draw_color(MATCH_COLOR);
-            for m in &seed_matches.matches {
-                if m.match_cost > 0 {
-                    continue;
-                }
-                if true {
-                    draw_thick_line(
-                        &mut canvas,
-                        cell_center(pos_to_point(m.start)),
-                        cell_center(pos_to_point(m.end)),
-                        4,
-                    );
-                } else {
-                    let mut p = m.start;
-                    draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
-                    draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
-                    loop {
-                        p = p.add_diagonal(1);
-                        draw_pixel(&mut canvas, pos_to_point(p), MATCH_COLOR, false);
-                        if p == m.end {
-                            break;
-                        }
                     }
                 }
             }

@@ -46,10 +46,6 @@ pub const REDUCE_RETRIES: bool = true;
 /// Whether to use an offset array in the DiagonalMap.
 pub const DIAGONAL_MAP_OFFSET: bool = false;
 
-/// Do not save states after greedy matching.
-/// Instead, quickly jump over them and redo work later if needed.
-pub const DO_NOT_SAVE_GREEDY_MATCHES: bool = true;
-
 /// Whether to use a sliding window approach for finding exact matches for fixed k.
 /// This reduces the size of the hashmap by a factor k.
 pub const SLIDING_WINDOW_MATCHES: bool = true;
