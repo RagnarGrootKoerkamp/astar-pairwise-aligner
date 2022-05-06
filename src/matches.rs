@@ -22,11 +22,18 @@ pub struct Seed {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MatchStatus {
+    Active,
+    Pruned,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Match {
     pub start: Pos,
     pub end: Pos,
     pub match_cost: MatchCost,
     pub seed_potential: MatchCost,
+    pub pruned: MatchStatus,
 }
 
 #[derive(Default)]

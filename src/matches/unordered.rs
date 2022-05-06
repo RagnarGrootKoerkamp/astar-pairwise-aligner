@@ -179,6 +179,7 @@ fn unordered_matches_hash<'a>(
                         end: Pos(start + k, x[0] + k),
                         match_cost: 0,
                         seed_potential: 1,
+                        pruned: MatchStatus::Active,
                     };
                     (0, Some(m))
                 }
