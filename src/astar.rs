@@ -205,7 +205,7 @@ where
             let next_g = state.g + cost as Cost;
             // TODO: Move this logic to some function internal to h. Not all
             // heuristics necessarily have seeds along A.
-            let next_seed_cost = if h.is_seed_start_or_end(pos) && parent != Parent::Up {
+            let next_seed_cost = if h.is_seed_start_or_end(pos) && !h.is_seed_start_or_end(next) {
                 0
             } else {
                 state.seed_cost
