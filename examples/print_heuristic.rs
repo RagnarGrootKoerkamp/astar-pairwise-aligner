@@ -27,7 +27,7 @@ fn main() {
     let mut h = h.build(&a, &b, &alphabet);
     h.display(Pos::from_length(a, b), None, None, None, None, None);
     let graph = EditGraph::new(a, b, true);
-    let (distance_and_path, _astar) = astar::astar(&graph, Pos(0, 0), &mut h);
+    let (distance_and_path, _astar) = astar::astar(&graph, Pos(0, 0), &mut h, Some(0));
     let (distance, _path): (u32, Vec<Pos>) = distance_and_path.unwrap_or_default();
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(distance, dist);

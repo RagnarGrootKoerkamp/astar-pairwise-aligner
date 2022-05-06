@@ -39,12 +39,12 @@ fn main() {
                 max_match_cost: m,
                 ..MatchConfig::default()
             },
-            pruning: false,
+            pruning: true,
         };
         let mut h = Heuristic::build(&h, &a, &b, &alphabet);
         //h.display(target, hmax, None, None, None);
-        let graph = AlignmentGraph::new(a, b, true);
-        let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
+        let graph = EditGraph::new(a, b, true);
+        let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h, hmax);
         let (_distance, path) = distance_and_path.unwrap_or_default();
 
         h.display(
@@ -53,6 +53,7 @@ fn main() {
             Some(astar.explored_states),
             Some(astar.expanded_states),
             Some(path),
+            Some(astar.tree),
         );
     }
     {
@@ -68,16 +69,18 @@ fn main() {
         };
         let mut h = Heuristic::build(&h, &a, &b, &alphabet);
         //h.display(target, hmax, None, None, None);
-        let graph = AlignmentGraph::new(a, b, true);
-        let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
+        let graph = EditGraph::new(a, b, true);
+        let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h, hmax);
         let (_distance, path) = distance_and_path.unwrap_or_default();
 
-        h.display(
+        /*h.display(
             target,
             hmax,
-            Some(astar.explored_states),
-            Some(astar.expanded_states),
-            Some(path),
-        );
+            Some(&astar.explored_states),
+            Some(&astar.expanded_states),
+            Some(&path),
+
+                Some(astar.tree),
+        );*/
     }
 }

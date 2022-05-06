@@ -61,10 +61,31 @@ pub fn astar<'a, H>(
     graph: &EditGraph,
     start: Pos,
     h: &mut H,
+    hmax: Option<u32>,
 ) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
     H: HeuristicInstance<'a>,
 {
+    let mut delay = 0.2;
+    let mut is_playing = false;
+    let low = Pos(0, 0);
+    let high = graph.target();
+    const CELL_SIZE: u32 = 8;
+    let mut sdl_context = sdl2::init().unwrap();
+    let canvas_size_cells = Pos(high.0 - low.0 + 1, high.1 - low.1 + 1);
+    let video_subsystem = sdl_context.video().unwrap();
+    video_subsystem.gl_attr().set_double_buffer(true);
+    let window = video_subsystem
+        .window(
+            "A*PA",
+            canvas_size_cells.0 as u32 * CELL_SIZE,
+            canvas_size_cells.1 as u32 * CELL_SIZE,
+        )
+        .borderless()
+        .build()
+        .unwrap();
+    let ref mut canvas = window.into_canvas().build().unwrap();
+    //let hmax = h.h(Pos(0, 0));
     const D: bool = false;
 
     let mut stats = AStarStats {
@@ -282,6 +303,36 @@ where
                 //stats.tree.push((next, edge));
             }
         });
+
+        //VIDEO_DISPLAY
+        (is_playing, delay) = h.display2(
+            graph.target(),
+            hmax,
+            Some(&stats.explored_states),
+            Some(&stats.expanded_states),
+            None,
+            {
+                let mut tree = Vec::default();
+                for &p in &stats.explored_states {
+                    let g = {
+                        let mut p = p;
+                        loop {
+                            if let Some(s) = DiagonalMapTrait::get(&states, p) {
+                                break s.g;
+                            }
+                            p = p.add_diagonal(1);
+                        }
+                    };
+                    tree.push((p, parent::<H>(&states, p, g)));
+                }
+                Some(tree)
+            },
+            canvas_size_cells,
+            canvas,
+            &mut sdl_context,
+            is_playing,
+            delay,
+        );
     }
 
     stats.diagonalmap_capacity = states.dm_capacity();

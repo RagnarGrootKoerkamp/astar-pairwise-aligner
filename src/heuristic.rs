@@ -152,15 +152,21 @@ pub trait HeuristicInstance<'a> {
 
     // `max_val` is used to cap the color gradient.
     #[cfg(feature = "sdl2")]
-    fn display(
+
+    fn display2(
         &self,
         target: Pos,
         max_val: Option<Cost>,
-        explored: Option<Vec<Pos>>,
-        expanded: Option<Vec<Pos>>,
-        path: Option<Vec<Pos>>,
+        explored: Option<&Vec<Pos>>,
+        expanded: Option<&Vec<Pos>>,
+        path: Option<&Vec<Pos>>,
         tree: Option<Vec<(Pos, Edge)>>,
-    ) {
+        canvas_size_cells: Pos,
+        canvas: &mut sdl2::render::Canvas<sdl2::video::Window>,
+        sdl_context: &mut sdl2::Sdl,
+        mut is_playing: bool,
+        mut delay: f32,
+    ) -> (bool, f32) {
         use sdl2::{
             event::Event,
             keyboard::Keycode,
@@ -175,8 +181,8 @@ pub trait HeuristicInstance<'a> {
         // Cell: position in drawing, of size CELL_SIZE x CELL_SIZE
         // Pixel: one pixel
 
-        const CELL_SIZE: u32 = 14;
-        const SMALL_CELL_MARGIN: u32 = 4;
+        const CELL_SIZE: u32 = 8;
+        const SMALL_CELL_MARGIN: u32 = 2;
 
         const SEED_COLOR: Color = Color::RGB(0, 0, 0);
         const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
@@ -189,14 +195,6 @@ pub trait HeuristicInstance<'a> {
         const EXPANDED_COLOR: Color = Color::BLUE;
         const EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
 
-        let low = Pos(0, 0);
-        let high = target;
-
-        let sdl_context = sdl2::init().unwrap();
-        let video_subsystem = sdl_context.video().unwrap();
-        video_subsystem.gl_attr().set_double_buffer(true);
-        let canvas_size_cells = Pos(high.0 - low.0 + 1, high.1 - low.1 + 1);
-
         // Conversions
         let cell_center = |Pos(i, j): Pos| -> Point {
             Point::new(
@@ -208,16 +206,6 @@ pub trait HeuristicInstance<'a> {
             Point::new((i * CELL_SIZE) as i32, (j * CELL_SIZE) as i32)
         };
 
-        let window = video_subsystem
-            .window(
-                "A*PA",
-                canvas_size_cells.0 as u32 * CELL_SIZE,
-                canvas_size_cells.1 as u32 * CELL_SIZE,
-            )
-            .borderless()
-            .build()
-            .unwrap();
-        let mut canvas = window.into_canvas().build().unwrap();
         canvas.set_draw_color(Color::WHITE);
         canvas.clear();
 
@@ -314,21 +302,21 @@ pub trait HeuristicInstance<'a> {
             for j in 0..canvas_size_cells.1 {
                 let pos = Pos(i, j);
                 let v = self.h(pos);
-                draw_pixel(&mut canvas, pos, h_gradient(v), false);
+                draw_pixel(canvas, pos, h_gradient(v), false);
             }
         }
 
         // // Draw explored
         // if let Some(explored) = explored {
         //     for p in explored {
-        //         draw_pixel(&mut canvas, p, EXPLORED_COLOR, false);
+        //         draw_pixel(canvas, *p, EXPLORED_COLOR, false);
         //     }
         // }
 
         // // Draw expanded
         // if let Some(expanded) = expanded {
         //     for p in expanded {
-        //         draw_pixel(&mut canvas, p, EXPANDED_COLOR, false);
+        //         draw_pixel(canvas, *p, EXPANDED_COLOR, false);
         //     }
         // }
 
@@ -343,14 +331,14 @@ pub trait HeuristicInstance<'a> {
                         MatchStatus::Active => MATCH_COLOR,
                         MatchStatus::Pruned => PRUNED_MATCH_COLOR,
                     });
-                    draw_thick_line_diag(&mut canvas, cell_center(m.start), cell_center(m.end), 4);
+                    draw_thick_line_diag(canvas, cell_center(m.start), cell_center(m.end), 4);
                 } else {
                     let mut p = m.start;
-                    draw_pixel(&mut canvas, p, MATCH_COLOR, false);
-                    draw_pixel(&mut canvas, p, MATCH_COLOR, false);
+                    draw_pixel(canvas, p, MATCH_COLOR, false);
+                    draw_pixel(canvas, p, MATCH_COLOR, false);
                     loop {
                         p = p.add_diagonal(1);
-                        draw_pixel(&mut canvas, p, MATCH_COLOR, false);
+                        draw_pixel(canvas, p, MATCH_COLOR, false);
                         if p == m.end {
                             break;
                         }
@@ -368,7 +356,7 @@ pub trait HeuristicInstance<'a> {
                     } else {
                         TREE_COLOR
                     });
-                    draw_thick_line_diag(&mut canvas, cell_center(prev), cell_center(p), 1);
+                    draw_thick_line_diag(canvas, cell_center(prev), cell_center(p), 1);
                 }
             }
         }
@@ -378,8 +366,8 @@ pub trait HeuristicInstance<'a> {
             canvas.set_draw_color(PATH_COLOR);
             let mut prev = Pos(0, 0);
             for p in path {
-                draw_thick_line_diag(&mut canvas, cell_center(prev), cell_center(p), 2);
-                prev = p;
+                draw_thick_line_diag(canvas, cell_center(prev), cell_center(*p), 2);
+                prev = *p;
             }
         }
 
@@ -405,7 +393,7 @@ pub trait HeuristicInstance<'a> {
                     let pos_r = Pos(i + 1, j);
                     let v_r = self.contour_value(pos_r).unwrap();
                     if v_r != v {
-                        draw_right_border(&mut canvas, pos);
+                        draw_right_border(canvas, pos);
                     }
                 }
             }
@@ -417,7 +405,7 @@ pub trait HeuristicInstance<'a> {
                     let pos_l = Pos(i, j + 1);
                     let v_l = self.contour_value(pos_l).unwrap();
                     if v_l != v {
-                        draw_bottom_border(&mut canvas, pos);
+                        draw_bottom_border(canvas, pos);
                     }
                 }
             }
@@ -428,7 +416,7 @@ pub trait HeuristicInstance<'a> {
             for s in seeds {
                 canvas.set_draw_color(SEED_COLOR);
                 draw_thick_line_horizontal(
-                    &mut canvas,
+                    canvas,
                     cell_center(Pos(s.start, 0)),
                     cell_center(Pos(s.end, 0)),
                     5,
@@ -436,7 +424,18 @@ pub trait HeuristicInstance<'a> {
                 );
             }
         }
+        // Draw path
+        if let Some(path) = path {
+            canvas.set_draw_color(PATH_COLOR);
+            let mut prev = Pos(0, 0);
+            for p in path {
+                draw_thick_line_diag(canvas, cell_center(prev), cell_center(*p), 2);
+                prev = *p;
+            }
+        }
 
+        let sleep_duration = 0.01;
+        let mut duration: f32 = 0.;
         canvas.present();
         'outer: loop {
             for event in sdl_context.event_pump().unwrap().poll_iter() {
@@ -449,19 +448,122 @@ pub trait HeuristicInstance<'a> {
                         panic!();
                     }
                     Event::KeyDown {
+                        keycode: Some(key), ..
+                    } => match key {
+                        Keycode::P => {
+                            is_playing = !is_playing;
+                            return (is_playing, delay);
+                        }
+                        Keycode::Escape => {
+                            break 'outer;
+                        }
+                        Keycode::S => {
+                            delay = 0.8 * delay;
+                        }
+                        Keycode::F => {
+                            delay = 1.2 * delay;
+                        }
+                        _ => {}
+                    },
+                    Event::KeyDown {
                         keycode: Some(Keycode::Escape),
                         ..
                     } => {
                         break 'outer;
                     }
+                    Event::KeyDown {
+                        keycode: Some(Keycode::P),
+                        ..
+                    } => {
+                        is_playing = !is_playing;
+                        return (is_playing, delay);
+                    }
+                    _ => {}
+                    Event::KeyDown {
+                        keycode: Some(Keycode::S),
+                        ..
+                    } => {
+                        delay = 0.8 * delay;
+                    }
                     _ => {}
                 }
             }
-            ::std::thread::sleep(Duration::from_secs_f32(0.01));
+            ::std::thread::sleep(Duration::from_secs_f32(sleep_duration));
+            duration += sleep_duration;
+            if is_playing && duration >= delay {
+                return (is_playing, delay);
+            }
         }
+        (is_playing, delay)
+    }
+
+    fn display(
+        &self,
+        target: Pos,
+        max_val: Option<Cost>,
+        explored: Option<Vec<Pos>>,
+        expanded: Option<Vec<Pos>>,
+        path: Option<Vec<Pos>>,
+        tree: Option<Vec<(Pos, Edge)>>,
+    ) {
+        use sdl2::{
+            event::Event,
+            keyboard::Keycode,
+            pixels::Color,
+            rect::{Point, Rect},
+            render::Canvas,
+            video::Window,
+        };
+        use std::time::Duration;
+
+        // Pos: position in edit graph
+        // Cell: position in drawing, of size CELL_SIZE x CELL_SIZE
+        // Pixel: one pixel
+
+        const CELL_SIZE: u32 = 8;
+        const SMALL_CELL_MARGIN: u32 = 2;
+
+        const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
+        const CONTOUR_COLOR: Color = Color::RGB(0, 216, 0);
+        const PATH_COLOR: Color = Color::RED;
+        const H_COLOR: Color = Color::BLACK;
+        const EXPANDED_COLOR: Color = Color::BLUE;
+        const EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
+
+        let low = Pos(0, 0);
+        let high = target;
+
+        let mut sdl_context = sdl2::init().unwrap();
+        let video_subsystem = sdl_context.video().unwrap();
+        video_subsystem.gl_attr().set_double_buffer(true);
+        let canvas_size_cells = Pos(high.0 - low.0 + 1, high.1 - low.1 + 1);
+
+        let window = video_subsystem
+            .window(
+                "A*PA",
+                canvas_size_cells.0 as u32 * CELL_SIZE,
+                canvas_size_cells.1 as u32 * CELL_SIZE,
+            )
+            .borderless()
+            .build()
+            .unwrap();
+        let mut canvas = window.into_canvas().build().unwrap();
+        self.display2(
+            target,
+            Some(0),
+            explored.as_ref(),
+            expanded.as_ref(),
+            None,
+            tree,
+            canvas_size_cells,
+            &mut canvas,
+            &mut sdl_context,
+            false,
+            0f32,
+        );
     }
 }
 
-fn useless()-> u32{
+fn useless() -> u32 {
     5
 }
