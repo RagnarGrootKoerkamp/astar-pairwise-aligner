@@ -19,6 +19,7 @@ pub use mirror::*;
 pub use perfect::*;
 use rand::{prelude::Distribution, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+#[cfg(feature = "sdl2")]
 use sdl2::{
     event::Event,
     keyboard::Keycode,
@@ -214,7 +215,20 @@ pub trait HeuristicInstance<'a> {
         }
     }
 
+    /// Display is only implemented when the `sdl2` feature is enabled.
+    #[cfg(not(feature = "sdl2"))]
+    fn display(
+        &self,
+        _target: Pos,
+        _max_val: Option<Cost>,
+        _explored: Option<Vec<Pos>>,
+        _expanded: Option<Vec<Pos>>,
+        _path: Option<Vec<Pos>>,
+    ) {
+    }
+
     // `max_val` is used to cap the color gradient.
+    #[cfg(feature = "sdl2")]
     fn display(
         &self,
         target: Pos,
