@@ -311,4 +311,8 @@ where
                 .collect(),
         )
     }
+
+    fn seeds(&self) -> Option<&Vec<Seed>> {
+        Some(&self.seeds.seeds)
+    }
 }

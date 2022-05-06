@@ -129,8 +129,11 @@ pub trait HeuristicInstance<'a> {
         Default::default()
     }
 
-    /// Returns all non-pruned matches.
     fn matches(&self) -> Option<Vec<Match>> {
+        None
+    }
+
+    fn seeds(&self) -> Option<&Vec<Seed>> {
         None
     }
 
