@@ -134,7 +134,7 @@ where
             .collect();
 
         h.build();
-        h.terminal_print(h.target);
+        //h.terminal_print(h.target);
         h
     }
 
@@ -277,7 +277,7 @@ where
 
         self.num_pruned += 1;
         if print() {
-            self.terminal_print(self.target);
+            //self.terminal_print(self.target);
         }
         return 0;
     }
