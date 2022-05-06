@@ -8,8 +8,6 @@ pub mod perfect;
 pub mod seed;
 pub mod symmetric;
 
-use std::time::Duration;
-
 pub use bruteforce_csh::*;
 pub use chained_seed::*;
 pub use distance::*;
@@ -19,15 +17,7 @@ pub use mirror::*;
 pub use perfect::*;
 use rand::{prelude::Distribution, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-#[cfg(feature = "sdl2")]
-use sdl2::{
-    event::Event,
-    keyboard::Keycode,
-    pixels::Color,
-    rect::{Point, Rect},
-    render::Canvas,
-    video::Window,
-};
+
 pub use seed::*;
 pub use symmetric::*;
 
@@ -237,6 +227,16 @@ pub trait HeuristicInstance<'a> {
         expanded: Option<Vec<Pos>>,
         path: Option<Vec<Pos>>,
     ) {
+        use sdl2::{
+            event::Event,
+            keyboard::Keycode,
+            pixels::Color,
+            rect::{Point, Rect},
+            render::Canvas,
+            video::Window,
+        };
+        use std::time::Duration;
+
         //println!("Root h: {}", h.h(Pos(0, 0)));
 
         const PIXEL_SIZE: u32 = 10;

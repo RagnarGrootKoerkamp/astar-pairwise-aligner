@@ -1,4 +1,3 @@
-#![feature(derive_default_enum)]
 use bio::io::fasta;
 use itertools::Itertools;
 use pairwise_aligner::{

@@ -2,7 +2,6 @@
     test,
     iter_intersperse,
     label_break_value,
-    derive_default_enum,
     min_specialization,
     is_sorted,
     exclusive_range_pattern,

@@ -1,4 +1,3 @@
-#![feature(derive_default_enum)]
 use bio::io::fasta::{self, IndexedReader};
 use itertools::Itertools;
 use std::{io::Write, path::PathBuf};

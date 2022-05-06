@@ -1,4 +1,3 @@
-#![feature(derive_default_enum)]
 use itertools::Itertools;
 use std::{io::Write, path::PathBuf};
 use structopt::StructOpt;
