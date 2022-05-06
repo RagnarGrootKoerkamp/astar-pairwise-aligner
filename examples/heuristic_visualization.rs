@@ -32,7 +32,6 @@ fn main() {
     //     let h = Heuristic::build(&h, &a, &b, &alphabet);
     //     h.display(target, DisplayType::Heuristic, hmax);
     // }
-    let d = DisplayOptions {};
     // {
     //     let h = SH {
     //         match_config: MatchConfig {
@@ -43,7 +42,7 @@ fn main() {
     //         pruning: false,
     //     };
     //     let h = Heuristic::build(&h, &a, &b, &alphabet);
-    //     h.display(target, d, hmax);
+    //     h.display(target, hmax);
     // }
     {
         let h = CSH {
@@ -63,10 +62,7 @@ fn main() {
         let (_distance, path) = distance_and_path.unwrap_or_default();
 
         h.display(
-            a,
-            b,
             target,
-            d,
             hmax,
             Some(astar.explored_states),
             Some(astar.expanded_states),
