@@ -1,13 +1,13 @@
 use pairwise_aligner::prelude::*;
 
 fn main() {
-    let n = 100;
-    let e = 0.2;
+    let n = 70;
+    let e = 0.3;
 
     let m = 0;
     let k = 4;
 
-    let (ref a, ref b, ref alphabet, stats) = setup(n, e);
+    let (ref a, ref b, ref alphabet, stats) = setup_with_seed(n, e, 1);
 
     let target = Pos::from_length(&a, &b);
     let hmax = Some(align(a, b, alphabet, stats, ZeroCost).edit_distance);
