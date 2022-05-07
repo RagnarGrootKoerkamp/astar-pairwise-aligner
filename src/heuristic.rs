@@ -146,6 +146,7 @@ pub trait HeuristicInstance<'a> {
         _explored: Option<Vec<Pos>>,
         _expanded: Option<Vec<Pos>>,
         _path: Option<Vec<Pos>>,
+        _tree: Option<Vec<(Pos, Edge)>>,
     ) {
     }
 
@@ -158,6 +159,7 @@ pub trait HeuristicInstance<'a> {
         explored: Option<Vec<Pos>>,
         expanded: Option<Vec<Pos>>,
         path: Option<Vec<Pos>>,
+        tree: Option<Vec<(Pos, Edge)>>,
     ) {
         use sdl2::{
             event::Event,
@@ -176,12 +178,14 @@ pub trait HeuristicInstance<'a> {
         const CELL_SIZE: u32 = 14;
         const SMALL_CELL_MARGIN: u32 = 4;
 
-        const SEED_COLOR: Color = Color::RGB(64, 64, 64);
+        const SEED_COLOR: Color = Color::RGB(0, 0, 0);
         const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
         const PRUNED_MATCH_COLOR: Color = Color::RED;
         const CONTOUR_COLOR: Color = Color::RGB(0, 216, 0);
-        const PATH_COLOR: Color = Color::WHITE;
-        const H_COLOR: Color = Color::BLACK;
+        const TREE_COLOR: Color = Color::BLUE;
+        const TREE_COLOR_MATCH: Color = Color::CYAN;
+        const PATH_COLOR: Color = Color::BLUE;
+        const H_COLOR: Color = Color::RGB(64, 64, 64);
         const EXPANDED_COLOR: Color = Color::BLUE;
         const EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
 
@@ -314,19 +318,19 @@ pub trait HeuristicInstance<'a> {
             }
         }
 
-        // Draw explored
-        if let Some(explored) = explored {
-            for p in explored {
-                draw_pixel(&mut canvas, p, EXPLORED_COLOR, false);
-            }
-        }
+        // // Draw explored
+        // if let Some(explored) = explored {
+        //     for p in explored {
+        //         draw_pixel(&mut canvas, p, EXPLORED_COLOR, false);
+        //     }
+        // }
 
-        // Draw expanded
-        if let Some(expanded) = expanded {
-            for p in expanded {
-                draw_pixel(&mut canvas, p, EXPANDED_COLOR, false);
-            }
-        }
+        // // Draw expanded
+        // if let Some(expanded) = expanded {
+        //     for p in expanded {
+        //         draw_pixel(&mut canvas, p, EXPANDED_COLOR, false);
+        //     }
+        // }
 
         // Draw matches
         if let Some(matches) = self.matches() {
@@ -355,12 +359,26 @@ pub trait HeuristicInstance<'a> {
             }
         }
 
+        // Draw tree
+        if let Some(tree) = tree {
+            for (p, e) in tree {
+                if let Some(prev) = e.back(&p) {
+                    canvas.set_draw_color(if e == Edge::Match {
+                        TREE_COLOR_MATCH
+                    } else {
+                        TREE_COLOR
+                    });
+                    draw_thick_line_diag(&mut canvas, cell_center(prev), cell_center(p), 1);
+                }
+            }
+        }
+
         // Draw path
         if let Some(path) = path {
             canvas.set_draw_color(PATH_COLOR);
             let mut prev = Pos(0, 0);
             for p in path {
-                draw_thick_line_diag(&mut canvas, cell_center(prev), cell_center(p), 1);
+                draw_thick_line_diag(&mut canvas, cell_center(prev), cell_center(p), 2);
                 prev = p;
             }
         }

@@ -493,6 +493,8 @@ Inexact matches that can not occur as a result of greedy matching can be disrega
 ** TODO Batch pruning
 When pruning is slow, we can batch multiple prunes and wait untill the band
 becomes too large.
+** TODO Greedy matching and diagonal-transition
+What if in the D-T method we do not allow leaving the path of a greedy match?
 
 * Parameter tuning
 ** CSH [no gapcost]

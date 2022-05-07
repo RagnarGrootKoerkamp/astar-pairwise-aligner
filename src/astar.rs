@@ -47,6 +47,8 @@ pub struct AStarStats {
     pub explored_states: Vec<Pos>,
     #[serde(skip_serializing)]
     pub expanded_states: Vec<Pos>,
+    #[serde(skip_serializing)]
+    pub tree: Vec<(Pos, Edge)>,
 
     pub traceback_duration: f32,
 }
@@ -75,6 +77,7 @@ where
         diagonalmap_capacity: 0,
         explored_states: Vec::default(),
         expanded_states: Vec::default(),
+        tree: Vec::default(),
         traceback_duration: 0.,
     };
 
@@ -205,7 +208,7 @@ where
             break 'outer;
         }
 
-        graph.iterate_outgoing_edges(pos, |mut next, edge| {
+        graph.iterate_outgoing_edges(pos, |mut next, mut edge| {
             // Explore next
             let next_g = state.g + edge.cost() as Cost;
             // TODO: Move this logic to some function internal to h. Not all
@@ -235,6 +238,8 @@ where
                     if DEBUG {
                         stats.explored_states.push(next);
                         stats.expanded_states.push(next);
+                        //stats.tree.push((next, edge));
+                        //edge = Edge::GreedyMatch
                     }
                     if D {
                         println!("Greedy expand {next} {}", state.g);
@@ -274,6 +279,7 @@ where
             stats.explored += 1;
             if DEBUG {
                 stats.explored_states.push(next);
+                //stats.tree.push((next, edge));
             }
         });
     }
@@ -282,14 +288,44 @@ where
     let traceback_start = time::Instant::now();
     let path = traceback::<H>(&states, graph.target());
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
+    if DEBUG {
+        for &p in &stats.explored_states {
+            let g = {
+                let mut p = p;
+                loop {
+                    if let Some(s) = DiagonalMapTrait::get(&states, p) {
+                        break s.g;
+                    }
+                    p = p.add_diagonal(1);
+                }
+            };
+            stats.tree.push((p, parent::<H>(&states, p, g)));
+        }
+    }
     (path, stats)
 }
 
-fn traceback<'a, H>(states: HashMap<Pos, State<H::Hint>>, target: Pos) -> Option<(u32, Vec<Pos>)>
+fn parent<'a, H>(states: &HashMap<Pos, State<H::Hint>>, pos: Pos, g: Cost) -> Edge
 where
     H: HeuristicInstance<'a>,
 {
-    if let Some(state) = DiagonalMapTrait::get(&states, target) {
+    for edge in [Edge::Substitution, Edge::Right, Edge::Down] {
+        if let Some(p) = edge.back(&pos) {
+            if let Some(state) = DiagonalMapTrait::get(states, p) {
+                if state.g + edge.cost() == g {
+                    return edge;
+                }
+            }
+        }
+    }
+    Edge::Match
+}
+
+fn traceback<'a, H>(states: &HashMap<Pos, State<H::Hint>>, target: Pos) -> Option<(u32, Vec<Pos>)>
+where
+    H: HeuristicInstance<'a>,
+{
+    if let Some(state) = DiagonalMapTrait::get(states, target) {
         let g = state.g;
         assert_eq!(state.status, Expanded);
         let mut cost = 0;
@@ -297,21 +333,9 @@ where
         let mut current = target;
         // If the state is not in the map, it was found via a match.
         while current != Pos(0, 0) {
-            current = 'c: {
-                for parent in [Edge::Substitution, Edge::Right, Edge::Down] {
-                    if let Some(p) = parent.back(&current) {
-                        if let Some(state) = DiagonalMapTrait::get(&states, p) {
-                            if state.g + parent.cost() + cost == g {
-                                cost += parent.cost();
-                                break 'c p;
-                            }
-                        }
-                    }
-                }
-                Edge::Match
-                    .back(&current)
-                    .expect("No parent found for position!")
-            };
+            let e = parent::<H>(states, current, g - cost);
+            cost += e.cost();
+            current = e.back(&current).expect("No parent found for position!");
             path.push(current);
         }
         path.reverse();
