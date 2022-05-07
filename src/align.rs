@@ -87,7 +87,7 @@ impl AlignResult {
         self.path = other.path.clone();
         self.timing.precomputation += other.timing.precomputation;
         self.timing.astar += other.timing.astar;
-        self.astar.traceback += other.astar.traceback;
+        self.astar.traceback_duration += other.astar.traceback_duration;
         self.heuristic_stats.pruning_duration += other.heuristic_stats.pruning_duration;
         self.edit_distance += other.edit_distance;
         self.heuristic_stats2.root_h += other.heuristic_stats2.root_h;
@@ -205,7 +205,7 @@ impl AlignResult {
             (format!("{:>8}", "trace"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
-                    1000. * this.astar.traceback / this.sample_size as f32
+                    1000. * this.astar.traceback_duration / this.sample_size as f32
                 )
             }),
             (format!("{:>7}", "ed"), |this: &AlignResult| {
@@ -400,7 +400,7 @@ where
         input: sequence_stats,
         timing: TimingStats {
             precomputation: heuristic_initialization.as_secs_f32(),
-            astar: astar_duration.as_secs_f32() - astar_stats.traceback,
+            astar: astar_duration.as_secs_f32() - astar_stats.traceback_duration,
         },
         astar: astar_stats,
         heuristic_stats: h_stats,
