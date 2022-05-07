@@ -54,6 +54,7 @@ fn main() {
                 Some(astar.explored_states),
                 Some(astar.expanded_states),
                 Some(path),
+                Some(astar.tree),
             );
         }
         {
@@ -78,6 +79,7 @@ fn main() {
                 Some(astar.explored_states),
                 Some(astar.expanded_states),
                 Some(path),
+                Some(astar.tree),
             );
         }
     }
