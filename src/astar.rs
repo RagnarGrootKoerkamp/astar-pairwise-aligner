@@ -62,6 +62,8 @@ pub fn astar<'a, H>(
     start: Pos,
     h: &mut H,
     hmax: Option<u32>,
+    saving: bool,
+    filepath: &String,
 ) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
     H: HeuristicInstance<'a>,
@@ -332,6 +334,8 @@ where
             &mut sdl_context,
             is_playing,
             delay,
+            saving,
+            filepath,
         );
     }
 

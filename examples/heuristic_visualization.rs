@@ -44,7 +44,8 @@ fn main() {
             };
             let mut h = Heuristic::build(&h, &a, &b, &alphabet);
             let graph = EditGraph::new(a, b, true);
-            let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h, hmax);
+            let (distance_and_path, astar) =
+                astar::astar(&graph, Pos(0, 0), &mut h, hmax, false, &String::from(""));
             let (_distance, path) = distance_and_path.unwrap_or_default();
 
             // TODO: Add matches
@@ -70,7 +71,8 @@ fn main() {
             };
             let mut h = Heuristic::build(&h, &a, &b, &alphabet);
             let graph = EditGraph::new(a, b, true);
-            let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h, hmax);
+            let (distance_and_path, astar) =
+                astar::astar(&graph, Pos(0, 0), &mut h, hmax, false, &String::from(""));
             let (_distance, path) = distance_and_path.unwrap_or_default();
 
             h.display(

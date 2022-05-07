@@ -153,6 +153,24 @@ pub trait HeuristicInstance<'a> {
     // `max_val` is used to cap the color gradient.
     #[cfg(feature = "sdl2")]
 
+    fn save_canvas(canvas: &sdl2::render::Canvas<sdl2::video::Window>, filepath: &String) {
+        let pixel_format = canvas.default_pixel_format();
+        let mut pixels = canvas.read_pixels(canvas.viewport(), pixel_format).unwrap();
+        let (width, height) = canvas.output_size().unwrap();
+        let pitch = pixel_format.byte_size_of_pixels(width as usize);
+        let surf = sdl2::surface::Surface::from_data(
+            pixels.as_mut_slice(),
+            width,
+            height,
+            pitch as u32,
+            pixel_format,
+        )
+        .unwrap();
+        surf.save_bmp(filepath).unwrap_or_else(|error| {
+            print!("Problem saving the file: {:?}", error);
+        });
+    }
+
     fn display2(
         &self,
         target: Pos,
@@ -166,6 +184,8 @@ pub trait HeuristicInstance<'a> {
         sdl_context: &mut sdl2::Sdl,
         mut is_playing: bool,
         mut delay: f32,
+        saving: bool,
+        filepath: &String,
     ) -> (bool, f32) {
         use sdl2::{
             event::Event,
@@ -433,7 +453,9 @@ pub trait HeuristicInstance<'a> {
                 prev = *p;
             }
         }
-
+        if saving {
+            Self::save_canvas(canvas, filepath);
+        }
         let sleep_duration = 0.01;
         let mut duration: f32 = 0.;
         canvas.present();
@@ -560,6 +582,8 @@ pub trait HeuristicInstance<'a> {
             &mut sdl_context,
             false,
             0f32,
+            false,
+            &String::from(""),
         );
     }
 }
