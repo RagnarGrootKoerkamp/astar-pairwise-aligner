@@ -52,3 +52,9 @@ pub const SLIDING_WINDOW_MATCHES: bool = true;
 
 /// Whether to prune inexact matches adjacent to an exact match by end position.
 pub const PRUNE_INEXACT_MATCHES_BY_END: bool = true;
+
+//verical offset for seeds
+pub const v_offset: u32 = 11;
+
+//canvas scaling coeficient
+pub const SCALE: u32 = 2;

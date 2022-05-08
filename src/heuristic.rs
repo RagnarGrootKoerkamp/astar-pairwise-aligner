@@ -16,12 +16,14 @@ pub use max::*;
 pub use mirror::*;
 pub use perfect::*;
 
+use sdl2::{pixels::Color, render::BlendMode};
 pub use seed::*;
 pub use symmetric::*;
 
 use serde::Serialize;
+use std::{cell::Cell, env};
 
-use crate::{matches::Match, prelude::*};
+use crate::{astar::Config, matches::Match, prelude::*};
 
 #[derive(Serialize, Default, Clone)]
 pub struct HeuristicParams {
@@ -153,7 +155,11 @@ pub trait HeuristicInstance<'a> {
     // `max_val` is used to cap the color gradient.
     #[cfg(feature = "sdl2")]
 
-    fn save_canvas(canvas: &sdl2::render::Canvas<sdl2::video::Window>, filepath: &String) {
+    fn save_canvas(
+        canvas: &sdl2::render::Canvas<sdl2::video::Window>,
+        filepath: &str,
+        number: u32,
+    ) {
         let pixel_format = canvas.default_pixel_format();
         let mut pixels = canvas.read_pixels(canvas.viewport(), pixel_format).unwrap();
         let (width, height) = canvas.output_size().unwrap();
@@ -166,15 +172,15 @@ pub trait HeuristicInstance<'a> {
             pixel_format,
         )
         .unwrap();
-        surf.save_bmp(filepath).unwrap_or_else(|error| {
-            print!("Problem saving the file: {:?}", error);
-        });
+        surf.save_bmp(format!("{}{}.bmp", filepath, number))
+            .unwrap_or_else(|error| {
+                print!("Problem saving the file: {:?}", error);
+            });
     }
 
     fn display2(
         &self,
         target: Pos,
-        max_val: Option<Cost>,
         explored: Option<&Vec<Pos>>,
         expanded: Option<&Vec<Pos>>,
         path: Option<&Vec<Pos>>,
@@ -183,10 +189,15 @@ pub trait HeuristicInstance<'a> {
         canvas: &mut sdl2::render::Canvas<sdl2::video::Window>,
         sdl_context: &mut sdl2::Sdl,
         mut is_playing: bool,
-        mut delay: f32,
-        saving: bool,
-        filepath: &String,
-    ) -> (bool, f32) {
+        config: &Config,
+        file_number: u32,
+        skip: u32, // 0 - do not skip, 1 - skip, 2 - stay on the picture
+        PATH_COLOR1: Color,
+    ) -> (bool, u32, u32) {
+        //is_playing, file_number, skip
+        if (!config.drawing && !config.saving) {
+            return (is_playing, file_number + 1, skip);
+        }
         use sdl2::{
             event::Event,
             keyboard::Keycode,
@@ -203,11 +214,14 @@ pub trait HeuristicInstance<'a> {
 
         const CELL_SIZE: u32 = 8;
         const SMALL_CELL_MARGIN: u32 = 2;
+        const CONTOUR_WIDTH: i32 = 2;
+
+        const radius: i32 = (0.5 * SCALE as f32) as i32; // radius of small dots on the background
 
         const SEED_COLOR: Color = Color::RGB(0, 0, 0);
-        const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
-        const PRUNED_MATCH_COLOR: Color = Color::RED;
-        const CONTOUR_COLOR: Color = Color::RGB(0, 216, 0);
+        const MATCH_COLOR: Color = Color::RGB(0, 150, 0);
+        const PRUNED_MATCH_COLOR: Color = Color::RGB(0, 216, 0);
+        const CONTOUR_COLOR: Color = Color::RGB(0, 150, 0);
         const TREE_COLOR: Color = Color::BLUE;
         const TREE_COLOR_MATCH: Color = Color::CYAN;
         const PATH_COLOR: Color = Color::BLUE;
@@ -215,15 +229,20 @@ pub trait HeuristicInstance<'a> {
         const EXPANDED_COLOR: Color = Color::BLUE;
         const EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
 
+        canvas.set_blend_mode(BlendMode::Blend);
+
         // Conversions
         let cell_center = |Pos(i, j): Pos| -> Point {
             Point::new(
                 (i * CELL_SIZE + CELL_SIZE / 2) as i32,
-                (j * CELL_SIZE + CELL_SIZE / 2) as i32,
+                (j * CELL_SIZE + CELL_SIZE / 2) as i32 + v_offset as i32,
             )
         };
         let cell_begin = |Pos(i, j): Pos| -> Point {
-            Point::new((i * CELL_SIZE) as i32, (j * CELL_SIZE) as i32)
+            Point::new(
+                (i * CELL_SIZE) as i32,
+                (j * CELL_SIZE) as i32 + v_offset as i32,
+            )
         };
 
         canvas.set_draw_color(Color::WHITE);
@@ -231,19 +250,23 @@ pub trait HeuristicInstance<'a> {
 
         let draw_pixel = |canvas: &mut Canvas<Window>, p: Pos, c: Color, small: bool| {
             canvas.set_draw_color(c);
-            let begin = cell_begin(p);
+            let mut begin = cell_begin(p);
+            begin *= SCALE as i32;
             canvas
                 .fill_rect(Rect::new(
                     begin.x,
                     begin.y,
-                    CELL_SIZE - if small { 2 * SMALL_CELL_MARGIN } else { 0 },
-                    CELL_SIZE - if small { 2 * SMALL_CELL_MARGIN } else { 0 },
+                    (CELL_SIZE - if small { 2 * SMALL_CELL_MARGIN } else { 0 }) * SCALE,
+                    (CELL_SIZE - if small { 2 * SMALL_CELL_MARGIN } else { 0 }) * SCALE,
                 ))
                 .unwrap();
         };
 
         let draw_thick_line_diag =
-            |canvas: &mut Canvas<Window>, from: Point, to: Point, width: usize| {
+            |canvas: &mut Canvas<Window>, mut from: Point, mut to: Point, mut width: usize| {
+                to *= SCALE as i32;
+                from *= SCALE as i32;
+                width *= SCALE as usize;
                 canvas.draw_line(from, to).unwrap();
                 for mut w in 1..width as i32 {
                     if w % 2 == 1 {
@@ -291,7 +314,15 @@ pub trait HeuristicInstance<'a> {
             };
 
         let draw_thick_line_horizontal =
-            |canvas: &mut Canvas<Window>, from: Point, to: Point, width: i32, margin: i32| {
+            |canvas: &mut Canvas<Window>,
+             mut from: Point,
+             mut to: Point,
+             mut width: i32,
+             mut margin: i32| {
+                from *= SCALE as i32;
+                to *= SCALE as i32;
+                width *= SCALE as i32;
+                margin *= SCALE as i32;
                 for w in -width / 2..width - width / 2 {
                     canvas
                         .draw_line(
@@ -302,13 +333,34 @@ pub trait HeuristicInstance<'a> {
                 }
             };
 
+        let draw_thick_line_vertical = |canvas: &mut Canvas<Window>,
+                                        mut from: Point,
+                                        mut to: Point,
+                                        mut width: i32,
+                                        mut margin: i32| {
+            from *= SCALE as i32;
+            to *= SCALE as i32;
+            width *= SCALE as i32;
+            margin *= SCALE as i32;
+            for w in -width / 2..width - width / 2 {
+                canvas
+                    .draw_line(
+                        Point::new(from.x + w, from.y + margin),
+                        Point::new(to.x + w, to.y - margin),
+                    )
+                    .unwrap();
+            }
+        };
+
         fn gradient(f: f32, c1: Color, c2: Color) -> Color {
             let frac = |a: u8, b: u8| -> u8 { ((1. - f) * a as f32 + f * b as f32) as u8 };
 
             return Color::RGB(frac(c1.r, c2.r), frac(c1.g, c2.g), frac(c1.b, c2.b));
         }
 
-        let max_h_val = max_val.unwrap_or_else(|| max(self.h(Pos(0, 0)), self.h(Pos(0, target.1))));
+        let max_h_val = config
+            .hmax
+            .unwrap_or_else(|| max(self.h(Pos(0, 0)), self.h(Pos(0, target.1))));
 
         // Draw the heuristic.
         let h_gradient = |h: Cost| -> Color {
@@ -318,13 +370,43 @@ pub trait HeuristicInstance<'a> {
                 H_COLOR
             }
         };
+        const color_offset: u8 = 50;
         for i in 0..canvas_size_cells.0 {
             for j in 0..canvas_size_cells.1 {
                 let pos = Pos(i, j);
                 let v = self.h(pos);
-                draw_pixel(canvas, pos, h_gradient(v), false);
+                let h_color = h_gradient(v);
+                draw_pixel(canvas, pos, h_color, false);
+                let f: u8 = h_color.r.saturating_sub(color_offset);
+                let color = Color::RGB(f, f, f);
+                canvas.set_draw_color(color);
+                let point = cell_center(pos) * SCALE as i32;
+                //draw_pixel(canvas, pos, Color::BLACK, true);
+                for y in -radius..radius + 1 {
+                    let x = ((radius * radius - y * y) as f32).sqrt();
+                    canvas.draw_line(
+                        Point::new(point.x - x as i32, point.y + y),
+                        Point::new(point.x + x as i32, point.y + y),
+                    );
+                }
             }
         }
+
+        /*canvas.set_draw_color(Color::RGB(150, 150, 150));
+        for i in 0..target.0 + 1 {
+            for j in 0..target.1 + 1 {
+                let pos = Pos(i, j);
+                let point = cell_center(pos) * SCALE as i32;
+                //draw_pixel(canvas, pos, Color::BLACK, true);
+                for y in -radius..radius + 1 {
+                    let x = ((radius * radius - y * y) as f32).sqrt();
+                    canvas.draw_line(
+                        Point::new(point.x - x as i32, point.y + y),
+                        Point::new(point.x + x as i32, point.y + y),
+                    );
+                }
+            }
+        }*/
 
         // // Draw explored
         // if let Some(explored) = explored {
@@ -351,7 +433,11 @@ pub trait HeuristicInstance<'a> {
                         MatchStatus::Active => MATCH_COLOR,
                         MatchStatus::Pruned => PRUNED_MATCH_COLOR,
                     });
-                    draw_thick_line_diag(canvas, cell_center(m.start), cell_center(m.end), 4);
+                    let center1 = cell_center(m.start);
+                    let center2 = cell_center(m.end);
+                    let point1 = Point::new(center1.x + radius, center1.y + radius);
+                    let point2 = Point::new(center2.x - radius, center2.y - radius);
+                    draw_thick_line_diag(canvas, point1, point2, 4);
                 } else {
                     let mut p = m.start;
                     draw_pixel(canvas, p, MATCH_COLOR, false);
@@ -383,7 +469,7 @@ pub trait HeuristicInstance<'a> {
 
         // Draw path
         if let Some(path) = path {
-            canvas.set_draw_color(PATH_COLOR);
+            canvas.set_draw_color(PATH_COLOR1);
             let mut prev = Pos(0, 0);
             for p in path {
                 draw_thick_line_diag(canvas, cell_center(prev), cell_center(*p), 2);
@@ -394,15 +480,40 @@ pub trait HeuristicInstance<'a> {
         // Draw contours
         if let Some(_) = self.contour_value(Pos(0, 0)) {
             canvas.set_draw_color(CONTOUR_COLOR);
-            let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+            /*let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
                 canvas
-                    .draw_line(cell_begin(Pos(i + 1, j)), cell_begin(Pos(i + 1, j + 1)))
+                    .draw_line(
+                        cell_begin(Pos(i + 1, j)) * SCALE as i32,
+                        cell_begin(Pos(i + 1, j + 1)) * SCALE as i32,
+                    )
                     .unwrap();
             };
             let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
                 canvas
-                    .draw_line(cell_begin(Pos(i, j + 1)), cell_begin(Pos(i + 1, j + 1)))
+                    .draw_line(
+                        cell_begin(Pos(i, j + 1)) * SCALE as i32,
+                        cell_begin(Pos(i + 1, j + 1)) * SCALE as i32,
+                    )
                     .unwrap();
+            };*/
+
+            let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                draw_thick_line_vertical(
+                    canvas,
+                    cell_begin(Pos(i + 1, j)),
+                    cell_begin(Pos(i + 1, j + 1)),
+                    CONTOUR_WIDTH,
+                    0,
+                );
+            };
+            let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                draw_thick_line_horizontal(
+                    canvas,
+                    cell_begin(Pos(i, j + 1)),
+                    cell_begin(Pos(i + 1, j + 1)),
+                    CONTOUR_WIDTH,
+                    0,
+                );
             };
 
             // Right borders
@@ -431,92 +542,109 @@ pub trait HeuristicInstance<'a> {
             }
         }
 
-        // Draw seeds
+        // Draw seeds and potentials
+        canvas.set_draw_color(Color::RGB(255, 255, 255));
+        canvas.fill_rect(Rect::new(0, 0, canvas.window().size().0, v_offset * SCALE));
         if let Some(seeds) = self.seeds() {
+            canvas.set_draw_color(SEED_COLOR);
             for s in seeds {
-                canvas.set_draw_color(SEED_COLOR);
                 draw_thick_line_horizontal(
                     canvas,
-                    cell_center(Pos(s.start, 0)),
-                    cell_center(Pos(s.end, 0)),
-                    5,
+                    Point::new(
+                        cell_center(Pos(s.start, 0)).x,
+                        ((CELL_SIZE / 2) + v_offset / 2 - 1) as i32,
+                    ),
+                    Point::new(
+                        cell_center(Pos(s.end, 0)).x,
+                        ((CELL_SIZE / 2) + v_offset / 2 - 1) as i32,
+                    ),
+                    3,
                     2,
                 );
+            }
+            for i in 0..canvas_size_cells.0 {
+                let pos = Pos(i, 0);
+                let v = self.h(pos) + self.contour_value(pos).unwrap();
+                let h_color = h_gradient(v);
+                canvas.set_draw_color(h_color);
+                let mut begin = cell_begin(pos);
+                begin *= SCALE as i32;
+                canvas
+                    .fill_rect(Rect::new(begin.x, 0, CELL_SIZE * SCALE, 5 * SCALE))
+                    .unwrap();
             }
         }
         // Draw path
         if let Some(path) = path {
-            canvas.set_draw_color(PATH_COLOR);
+            canvas.set_draw_color(PATH_COLOR1);
             let mut prev = Pos(0, 0);
             for p in path {
                 draw_thick_line_diag(canvas, cell_center(prev), cell_center(*p), 2);
                 prev = *p;
             }
         }
-        if saving {
-            Self::save_canvas(canvas, filepath);
+        if config.saving {
+            Self::save_canvas(canvas, &config.filepath, file_number);
         }
         let sleep_duration = 0.01;
         let mut duration: f32 = 0.;
-        canvas.present();
-        'outer: loop {
-            for event in sdl_context.event_pump().unwrap().poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Q),
-                        ..
-                    } => {
-                        panic!();
-                    }
-                    Event::KeyDown {
-                        keycode: Some(key), ..
-                    } => match key {
-                        Keycode::P => {
-                            is_playing = !is_playing;
-                            return (is_playing, delay);
+        let delay_tmp = config.delay.get();
+        if config.drawing {
+            if skip == 1 {
+                return (is_playing, file_number + 1, skip);
+            } else if skip == 2 {
+                config.delay.set(1000.);
+            }
+            canvas.present();
+            'outer: loop {
+                for event in sdl_context.event_pump().unwrap().poll_iter() {
+                    match event {
+                        Event::Quit { .. }
+                        | Event::KeyDown {
+                            keycode: Some(Keycode::Q),
+                            ..
+                        } => {
+                            panic!();
                         }
-                        Keycode::Escape => {
-                            break 'outer;
-                        }
-                        Keycode::S => {
-                            delay = 0.8 * delay;
-                        }
-                        Keycode::F => {
-                            delay = 1.2 * delay;
-                        }
+                        Event::KeyDown {
+                            keycode: Some(key), ..
+                        } => match key {
+                            Keycode::P => {
+                                config.delay.set(delay_tmp);
+                                is_playing = !is_playing;
+                                return (is_playing, file_number + 1, 0);
+                            }
+                            Keycode::Escape => {
+                                config.delay.set(delay_tmp);
+                                break 'outer;
+                            }
+                            Keycode::F => {
+                                config.delay.set(delay_tmp);
+                                config.delay.set(0.8 * config.delay.get());
+                            }
+                            Keycode::S => {
+                                config.delay.set(delay_tmp);
+                                config.delay.set(1. / 0.8 * config.delay.get());
+                            }
+                            Keycode::A => {
+                                config.delay.set(delay_tmp);
+                                return (is_playing, file_number + 1, 1);
+                            }
+                            _ => {}
+                        },
                         _ => {}
-                    },
-                    Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => {
-                        break 'outer;
                     }
-                    Event::KeyDown {
-                        keycode: Some(Keycode::P),
-                        ..
-                    } => {
-                        is_playing = !is_playing;
-                        return (is_playing, delay);
-                    }
-                    _ => {}
-                    Event::KeyDown {
-                        keycode: Some(Keycode::S),
-                        ..
-                    } => {
-                        delay = 0.8 * delay;
-                    }
-                    _ => {}
+                }
+                ::std::thread::sleep(Duration::from_secs_f32(sleep_duration));
+                duration += sleep_duration;
+                if is_playing && duration >= config.delay.get() {
+                    config.delay.set(delay_tmp);
+                    return (is_playing, file_number + 1, 0);
                 }
             }
-            ::std::thread::sleep(Duration::from_secs_f32(sleep_duration));
-            duration += sleep_duration;
-            if is_playing && duration >= delay {
-                return (is_playing, delay);
-            }
         }
-        (is_playing, delay)
+        config.delay.set(delay_tmp);
+        (is_playing, file_number + 1, skip)
     }
 
     fn display(
@@ -572,7 +700,6 @@ pub trait HeuristicInstance<'a> {
         let mut canvas = window.into_canvas().build().unwrap();
         self.display2(
             target,
-            Some(0),
             explored.as_ref(),
             expanded.as_ref(),
             None,
@@ -581,9 +708,16 @@ pub trait HeuristicInstance<'a> {
             &mut canvas,
             &mut sdl_context,
             false,
-            0f32,
-            false,
-            &String::from(""),
+            &Config {
+                filepath: String::from(""),
+                saving: false,
+                drawing: true,
+                hmax: Some(0),
+                delay: Cell::new(0.2),
+            },
+            0,
+            0,
+            Color::BLUE,
         );
     }
 }

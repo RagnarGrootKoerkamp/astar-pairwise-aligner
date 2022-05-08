@@ -1,8 +1,9 @@
-use crate::prelude::*;
+use crate::{astar::Config, prelude::*};
 
 use csv::Writer;
 use serde::Serialize;
 use std::{
+    cell::Cell,
     fmt,
     io::{stdout, Write},
     path::Path,
@@ -366,8 +367,17 @@ where
     let start_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = EditGraph::new(a, b, greedy_edge_matching);
-    let (distance_and_path, astar_stats) =
-        astar::astar(&graph, Pos(0, 0), &mut h, Some(0), false, &String::from(""));
+    let (distance_and_path, astar_stats) = astar::astar(
+        &graph,
+        Pos(0, 0),
+        &mut h,
+        &Config {
+            saving: false,
+            filepath: String::from("c:/rust_photos3/1/"),
+            drawing: false,
+            ..Default::default()
+        },
+    );
     let (distance, path) = distance_and_path.unwrap_or_default();
     let astar_duration = start_time.elapsed();
     let end_val = h.h(Pos(0, 0));

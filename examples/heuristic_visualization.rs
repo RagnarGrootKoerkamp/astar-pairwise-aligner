@@ -1,4 +1,7 @@
-use pairwise_aligner::prelude::*;
+use std::cell::Cell;
+
+use pairwise_aligner::{astar::Config, prelude::*};
+use serde::__private::de;
 
 fn main() {
     let n = 70;
@@ -44,8 +47,18 @@ fn main() {
             };
             let mut h = Heuristic::build(&h, &a, &b, &alphabet);
             let graph = EditGraph::new(a, b, true);
-            let (distance_and_path, astar) =
-                astar::astar(&graph, Pos(0, 0), &mut h, hmax, false, &String::from(""));
+            let (distance_and_path, astar) = astar::astar(
+                &graph,
+                Pos(0, 0),
+                &mut h,
+                &Config {
+                    filepath: String::default(),
+                    saving: false,
+                    drawing: true,
+                    hmax: hmax,
+                    delay: Cell::new(0.2),
+                },
+            );
             let (_distance, path) = distance_and_path.unwrap_or_default();
 
             // TODO: Add matches
@@ -71,8 +84,16 @@ fn main() {
             };
             let mut h = Heuristic::build(&h, &a, &b, &alphabet);
             let graph = EditGraph::new(a, b, true);
-            let (distance_and_path, astar) =
-                astar::astar(&graph, Pos(0, 0), &mut h, hmax, false, &String::from(""));
+            let (distance_and_path, astar) = astar::astar(
+                &graph,
+                Pos(0, 0),
+                &mut h,
+                &Config {
+                    drawing: true,
+                    hmax: hmax,
+                    ..Default::default()
+                },
+            );
             let (_distance, path) = distance_and_path.unwrap_or_default();
 
             h.display(

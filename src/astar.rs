@@ -1,7 +1,28 @@
-use std::time;
+use std::{cell::Cell, time};
 
 use crate::prelude::*;
+use sdl2::pixels::Color;
 use serde::Serialize;
+
+pub struct Config {
+    pub saving: bool,
+    pub filepath: String,
+    pub drawing: bool,
+    pub delay: Cell<f32>,
+    pub hmax: Option<Cost>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            saving: false,
+            filepath: String::from(""),
+            drawing: false,
+            delay: Cell::new(0.2),
+            hmax: Some(0),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Status {
@@ -61,14 +82,13 @@ pub fn astar<'a, H>(
     graph: &EditGraph,
     start: Pos,
     h: &mut H,
-    hmax: Option<u32>,
-    saving: bool,
-    filepath: &String,
+    config: &Config,
 ) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
     H: HeuristicInstance<'a>,
 {
-    let mut delay = 0.2;
+    let mut skip = 0;
+    let mut file_number = 0;
     let mut is_playing = false;
     let low = Pos(0, 0);
     let high = graph.target();
@@ -80,10 +100,10 @@ where
     let window = video_subsystem
         .window(
             "A*PA",
-            canvas_size_cells.0 as u32 * CELL_SIZE,
-            canvas_size_cells.1 as u32 * CELL_SIZE,
+            canvas_size_cells.0 as u32 * CELL_SIZE * SCALE,
+            (canvas_size_cells.1 as u32) * CELL_SIZE * SCALE + v_offset * SCALE,
         )
-        .borderless()
+        //.borderless()
         .build()
         .unwrap();
     let ref mut canvas = window.into_canvas().build().unwrap();
@@ -306,13 +326,19 @@ where
             }
         });
 
+        let path = traceback::<H>(&states, pos);
+        let tmp3: Option<(u32, Vec<Pos>)>;
+        let mut tmp4: Vec<Pos> = vec![Pos(0, 0)];
+        if (path != None) {
+            tmp3 = path.clone();
+            tmp4 = tmp3.unwrap_or_default().1;
+        }
         //VIDEO_DISPLAY
-        (is_playing, delay) = h.display2(
+        (is_playing, file_number, skip) = h.display2(
             graph.target(),
-            hmax,
             Some(&stats.explored_states),
             Some(&stats.expanded_states),
-            None,
+            if (path == None) { None } else { Some(&tmp4) },
             {
                 let mut tree = Vec::default();
                 for &p in &stats.explored_states {
@@ -333,9 +359,10 @@ where
             canvas,
             &mut sdl_context,
             is_playing,
-            delay,
-            saving,
-            filepath,
+            &config,
+            file_number,
+            skip,
+            Color::RGBA(0, 0, 255, 50),
         );
     }
 
@@ -357,6 +384,45 @@ where
             stats.tree.push((p, parent::<H>(&states, p, g)));
         }
     }
+
+    let tmp3: Option<(u32, Vec<Pos>)>;
+    let mut tmp4: Vec<Pos> = vec![Pos(0, 0)];
+    if (path != None) {
+        tmp3 = path.clone();
+        tmp4 = tmp3.unwrap_or_default().1;
+    }
+    //VIDEO_DISPLAY
+    (is_playing, file_number, skip) = h.display2(
+        graph.target(),
+        Some(&stats.explored_states),
+        Some(&stats.expanded_states),
+        if (path == None) { None } else { Some(&tmp4) },
+        {
+            let mut tree = Vec::default();
+            for &p in &stats.explored_states {
+                let g = {
+                    let mut p = p;
+                    loop {
+                        if let Some(s) = DiagonalMapTrait::get(&states, p) {
+                            break s.g;
+                        }
+                        p = p.add_diagonal(1);
+                    }
+                };
+                tree.push((p, parent::<H>(&states, p, g)));
+            }
+            Some(tree)
+        },
+        canvas_size_cells,
+        canvas,
+        &mut sdl_context,
+        is_playing,
+        &config,
+        file_number,
+        2,
+        Color::RGBA(255, 0, 255, 50),
+    );
+
     (path, stats)
 }
 

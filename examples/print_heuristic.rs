@@ -1,4 +1,6 @@
-use pairwise_aligner::prelude::*;
+use std::cell::Cell;
+
+use pairwise_aligner::{astar::Config, prelude::*};
 
 fn main() {
     let pruning = false;
@@ -27,8 +29,18 @@ fn main() {
     let mut h = h.build(&a, &b, &alphabet);
     h.display(Pos::from_length(a, b), None, None, None, None, None);
     let graph = EditGraph::new(a, b, true);
-    let (distance_and_path, _astar) =
-        astar::astar(&graph, Pos(0, 0), &mut h, Some(0), false, &String::from(""));
+    let (distance_and_path, _astar) = astar::astar(
+        &graph,
+        Pos(0, 0),
+        &mut h,
+        &Config {
+            filepath: String::default(),
+            saving: false,
+            drawing: true,
+            hmax: Some(0),
+            delay: Cell::new(0.),
+        },
+    );
     let (distance, _path): (u32, Vec<Pos>) = distance_and_path.unwrap_or_default();
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(distance, dist);
