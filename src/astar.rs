@@ -208,7 +208,7 @@ where
             break 'outer;
         }
 
-        graph.iterate_outgoing_edges(pos, |mut next, mut edge| {
+        graph.iterate_outgoing_edges(pos, |mut next, edge| {
             // Explore next
             let next_g = state.g + edge.cost() as Cost;
             // TODO: Move this logic to some function internal to h. Not all
