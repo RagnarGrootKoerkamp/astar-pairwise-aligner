@@ -110,7 +110,7 @@ pub trait HeuristicInstance<'a> {
 
     /// A* will checked for consistency whenever this returns true.
     fn is_seed_start_or_end(&self, _pos: Pos) -> bool {
-        true
+        false
     }
 
     /// Returns the offset by which all expanded states in the priority queue can be shifted.
@@ -156,8 +156,8 @@ pub trait HeuristicInstance<'a> {
         &self,
         target: Pos,
         max_val: Option<Cost>,
-        explored: Option<Vec<Pos>>,
-        expanded: Option<Vec<Pos>>,
+        _explored: Option<Vec<Pos>>,
+        _expanded: Option<Vec<Pos>>,
         path: Option<Vec<Pos>>,
         tree: Option<Vec<(Pos, Edge)>>,
     ) {
@@ -186,8 +186,8 @@ pub trait HeuristicInstance<'a> {
         const TREE_COLOR_MATCH: Color = Color::CYAN;
         const PATH_COLOR: Color = Color::BLUE;
         const H_COLOR: Color = Color::RGB(64, 64, 64);
-        const EXPANDED_COLOR: Color = Color::BLUE;
-        const EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
+        const _EXPANDED_COLOR: Color = Color::BLUE;
+        const _EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
 
         let low = Pos(0, 0);
         let high = target;
