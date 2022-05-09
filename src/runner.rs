@@ -111,12 +111,20 @@ impl Params {
 
         // For SH and CSH, use a fixed mapping:
         if self.algorithm == Algorithm::SH || self.algorithm == Algorithm::CSH {
+            // V1
+            if false {
+                return match self.error_rate.unwrap() {
+                    e if e < 0.025 => (0, 31),
+                    e if e < 0.06 => (0, 14),
+                    e if e < 0.14 => (1, 16),
+                    e if e < 0.25 => (1, 11),
+                    _ => todo!("Error rate too high!"),
+                };
+            }
             return match self.error_rate.unwrap() {
-                e if e < 0.025 => (0, 31),
-                e if e < 0.06 => (0, 14),
-                e if e < 0.14 => (1, 16),
-                e if e < 0.25 => (1, 11),
-                _ => todo!("Error rate too high!"),
+                e if e < 0.09 => (0, 14),
+                e if e <= 1. => (1, 14),
+                _ => todo!("Error rate not in [0,1]!"),
             };
         }
 
