@@ -32,6 +32,8 @@ pub struct SequenceStats {
 
 #[derive(Serialize, Default, Clone)]
 pub struct TimingStats {
+    pub total: f32,
+    pub total_sum_squares: f32,
     pub precomputation: f32,
     pub astar: f32,
 }
@@ -87,6 +89,8 @@ impl AlignResult {
         self.path = other.path.clone();
         self.timing.precomputation += other.timing.precomputation;
         self.timing.astar += other.timing.astar;
+        self.timing.total += other.timing.total;
+        self.timing.total_sum_squares += other.timing.total_sum_squares;
         self.astar.traceback_duration += other.astar.traceback_duration;
         self.heuristic_stats.pruning_duration += other.heuristic_stats.pruning_duration;
         self.edit_distance += other.edit_distance;
@@ -183,6 +187,19 @@ impl AlignResult {
                     "{:>8.2}",
                     this.astar.explored as f32 / max(this.input.len_a, this.input.len_b) as f32
                 )
+            }),
+            (format!("{:>8}", "t"), |this: &AlignResult| {
+                format!(
+                    "{:>8.2}",
+                    1000. * this.timing.total / this.sample_size as f32
+                )
+            }),
+            (format!("{:>8}", "t_std"), |this: &AlignResult| {
+                let n = this.sample_size as f32;
+                let avg = this.timing.total / n;
+                let sum_squares = this.timing.total_sum_squares;
+                let stddev = (1. / n * (sum_squares - n * avg * avg)).sqrt();
+                format!("{:>8.2}", 1000. * stddev)
             }),
             (format!("{:>8}", "precom"), |this: &AlignResult| {
                 format!(
@@ -363,12 +380,13 @@ where
     let start_val = h.h(Pos(0, 0));
 
     // Run A* with heuristic.
-    let start_time = time::Instant::now();
+    let astar_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = EditGraph::new(a, b, greedy_edge_matching);
     let (distance_and_path, astar_stats) = astar::astar(&graph, Pos(0, 0), &mut h);
     let (distance, path) = distance_and_path.unwrap_or_default();
-    let astar_duration = start_time.elapsed();
+    let astar_duration = astar_time.elapsed();
+    let total_duration = start_time.elapsed();
     let end_val = h.h(Pos(0, 0));
 
     assert!(
@@ -399,6 +417,8 @@ where
         heuristic_params: heuristic.params(),
         input: sequence_stats,
         timing: TimingStats {
+            total: total_duration.as_secs_f32(),
+            total_sum_squares: total_duration.as_secs_f32() * total_duration.as_secs_f32(),
             precomputation: heuristic_initialization.as_secs_f32(),
             astar: astar_duration.as_secs_f32() - astar_stats.traceback_duration,
         },
