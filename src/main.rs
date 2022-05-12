@@ -9,6 +9,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader},
     path::PathBuf,
+    time::{self, Duration},
 };
 use structopt::StructOpt;
 
@@ -52,6 +53,10 @@ struct Cli {
     // Only print a summary line, for benchmarking.
     #[structopt(short = "S", long)]
     silent2: bool,
+
+    /// Maximum duration to run for.
+    #[structopt(long, parse(try_from_str = parse_duration::parse))]
+    timeout: Option<Duration>,
 }
 
 fn main() {
@@ -87,6 +92,7 @@ fn main() {
             avg_result.print_no_newline();
         }
     };
+    let start = time::Instant::now();
     if let Some(input) = &args.input.input {
         let files = if input.is_file() {
             vec![input.clone()]
@@ -98,7 +104,7 @@ fn main() {
                 .collect_vec()
         };
 
-        for f in files {
+        'outer: for f in files {
             match f.extension().expect("Unknown file extension") {
                 ext if ext == "seq" || ext == "txt" => {
                     let f = std::fs::File::open(&f).unwrap();
@@ -109,6 +115,11 @@ fn main() {
                             assert_eq!(b.remove(0), '<' as u8);
                         }
                         run_pair(a, b);
+                        if let Some(d) = args.timeout {
+                            if start.elapsed() > d {
+                                break 'outer;
+                            }
+                        }
                     }
                 }
                 ext if ext == "fna" || ext == "fa" => {
@@ -117,6 +128,11 @@ fn main() {
                         .tuples()
                     {
                         run_pair(a.unwrap().seq().to_vec(), b.unwrap().seq().to_vec());
+                        if let Some(d) = args.timeout {
+                            if start.elapsed() > d {
+                                break 'outer;
+                            }
+                        }
                     }
                 }
                 _ => unreachable!("Unknown file extension"),
