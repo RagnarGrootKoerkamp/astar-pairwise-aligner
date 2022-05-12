@@ -104,6 +104,16 @@ impl Params {
         if let Some(k) = self.k {
             return (self.max_seed_cost, k);
         }
+
+        // New simpler version.
+        if true {
+            return match self.error_rate.unwrap() {
+                e if e < 0.09 => (0, 14),
+                e if e <= 1. => (1, 14),
+                _ => todo!("Error rate not in [0,1]!"),
+            };
+        }
+
         let e = self
             .error_rate
             .expect("At least one of k and e must be specified!");
