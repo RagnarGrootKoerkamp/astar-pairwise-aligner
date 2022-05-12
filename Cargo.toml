@@ -28,6 +28,7 @@ smallvec = {version="*", features=["union"]}
 ropey = "*"
 num-traits = "*"
 sdl2 = {version="*", optional=true}
+parse_duration = "*"
 
 [dev-dependencies]
 # For benchmarking only.
