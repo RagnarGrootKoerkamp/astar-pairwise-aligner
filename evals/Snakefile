@@ -25,18 +25,12 @@ import statistics
 
 ## SYNTHETIC INPUT DATA
 
-# Length of each sequence
+# Input files and parameters
 ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000, 30_000_000, 100_000_000]
-# Error rate in [0;1]
 es = [0.01, 0.05, 0.10, 0.20]
-
-## PA PARAMS
-
-# Seed length, match distance pairs
 kms = [(7,0), (8,0), (9,0), (10, 0), (11, 0), (12, 0), (13,0), (14,0), (15,0), (16,0), (17, 0), (31, 0),
        (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1), (18, 1)]
-
-## SIMULATED INPUT DATA
+## ONT input
 ont_ns = [100_000, 300_000, 1_000_000]
 ont_models = ['random', 'human']
 ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1)]
@@ -44,7 +38,10 @@ ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1)]
 ## TOOLS
 
 ## RUN SETTINGS
-TIMEOUT = "2000s"
+# Time after which snakemake kills the program.
+TIMEOUT = "20s"
+# Time passed to the program.
+TOOL_TIMEOUT = "10s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -57,18 +54,21 @@ binaries = {
 }
 tool_command = {
     # Versions with manual parameter choosing.
-    'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm SH',
-    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
-    'cp-csh+gap':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH_GapCost',
+    'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm SH',
+    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
+    'cp-csh+gap':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_GapCost',
+    'cp-sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm SH',
+    'cp-csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH',
+    'cp-csh+gap-noprune':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH_GapCost',
     # choosed k and m values automatically.
-    'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm SH',
-    'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm CSH',
-    'csh+gap':          binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm CSH_GapCost',
+    'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm SH',
+    'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH',
+    'csh+gap':          binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH_GapCost',
     # slower PA variants
-    'dijkstra':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm Dijkstra',
-    'sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm SH',
-    'csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm CSH',
-    'csh+gap-noprune':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm CSH_GapCost',
+    'dijkstra':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm Dijkstra',
+    'sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm SH',
+    'csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm CSH',
+    'csh+gap-noprune':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm CSH_GapCost',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':            binaries["edlib"]   + '    {input} -p -s', # -p: compute the path, -s: no output
@@ -88,7 +88,9 @@ tools = [
     'biwfa',
 ]
 
+# for iterating over variables
 tools_cp = ['cp-sh', 'cp-csh']
+
 
 # Subset of tools to run for the slow table
 tools_slow = [
@@ -114,7 +116,6 @@ if [ $exit_code -eq 0 ] ; then
     echo ok > {status_path}
     exit 0
 fi
-# Handle timeout
 if [ $exit_code -eq 124 ] ; then
     echo timeout {timeout} > {status_path}
     exit 0
@@ -134,7 +135,7 @@ exit 1
 ## WRAPPER CLASSES
 wildcard_constraints:
     e="[0-9.]+",
-    tool='[^-]*'
+    tool='[^.0-9]*'
 
 
 class Input:
@@ -177,7 +178,7 @@ def input_filter(input):
     if input.n > 1_000_000 and input.e > 0.15: return False
     return True
 
-def inputs(N):
+def inputs(N, ns=ns, es=es):
     N = int(float(N))
     return list(filter(input_filter, (Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0)))
 
@@ -255,7 +256,7 @@ rule generate_input:
 def build_command(w, params=False):
     input = Input(**w)
     run = Run(input=input, **w)
-    command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
+    command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path(), timeout=TOOL_TIMEOUT)
     return timeout(command, run.status_path(), TIMEOUT)
 
 # Run PA with given parameters.
@@ -318,6 +319,102 @@ rule tools_slow_table:
     input: lambda w: [run.bench_path() for run in tool_runs(tools_slow, inputs(w.N))]
     output: 'table/tools_slow_N{N}.tsv'
     run: make_table(tool_runs(tools_slow, inputs(wildcards.N)), output)
+
+# === SCALING WITH E ===
+
+def scaling_e_runs(N):
+    N = int(float(N))
+    ns = [10000]
+    es = [0.01] + [x/100 for x in range(2, 40, 2)]
+    ms = [0, 1]
+    ks = [11]
+    tools = ['cp-sh', 'cp-csh', 'cp-csh+gap']
+
+    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    # Dijkstra is separate because it does not use parameters.
+    dijkstra_runs = [Run(input=input, tool=tool)
+                        for input in inputs
+                        for tool in ['dijkstra']]
+    our_runs = [Run(input=input, tool=tool, m=m, k=k)
+                        for k in ks
+                        for m in ms
+                        for input in inputs
+                        for tool in tools]
+    return dijkstra_runs + our_runs
+
+rule scaling_e_table:
+    input: lambda w: [run.bench_path() for run in scaling_e_runs(w.N)]
+    output: 'table/scaling_e_N{N}.tsv'
+    run: make_table(scaling_e_runs(wildcards.N), output)
+
+# === SCALING WITH N ===
+
+def scaling_n_runs(N):
+    N = int(float(N))
+    ns = [100, 300, 1000, 3000, 10_000, 30_000, 100_000, 300_000, 1_000_000]
+    es = [0.01]
+    ms = [0]
+    ks = [15]
+    tools = ['cp-sh-noprune', 'cp-csh-noprune', 'cp-sh', 'cp-csh']
+    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    # Dijkstra is separate because it does not use parameters.
+    dijkstra_runs = [Run(input=input, tool=tool)
+                        for input in inputs
+                        for tool in ['dijkstra']]
+    our_runs = [Run(input=input, tool=tool, m=m, k=k)
+                        for k in ks
+                        for m in ms
+                        for input in inputs
+                        for tool in tools]
+    return dijkstra_runs + our_runs
+
+rule scaling_n_table:
+    input: lambda w: [run.bench_path() for run in scaling_n_runs(w.N)]
+    output: 'table/scaling_n_N{N}.tsv'
+    run: make_table(scaling_n_runs(wildcards.N), output)
+
+# === SCALING WITH K (vary n) ===
+
+def scaling_k_runs(N):
+    N = int(float(N))
+    ns = [100, 300, 1000, 3000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000]
+    es = [0.05]
+    ms = [0]
+    ks = range(5, 26, 1)
+    tools = ['cp-sh', 'cp-csh']
+    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    return [Run(input=input, tool=tool, m=m, k=k)
+                        for k in ks
+                        for m in ms
+                        for input in inputs
+                        for tool in tools]
+
+rule scaling_k_table:
+    input: lambda w: [run.bench_path() for run in scaling_k_runs(w.N)]
+    output: 'table/scaling_k_N{N}.tsv'
+    run: make_table(scaling_k_runs(wildcards.N), output)
+
+# === SCALING WITH K (vary e) ===
+
+def scaling_k_e_runs(N):
+    N = int(float(N))
+    ns = [10000]
+    es = [0.01] + [x/100 for x in range(2, 15, 2)]
+    ms = [0]
+    ks = range(5, 26, 1)
+    tools = ['cp-sh', 'cp-csh']
+    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    return [Run(input=input, tool=tool, m=m, k=k)
+                        for k in ks
+                        for m in ms
+                        for input in inputs
+                        for tool in tools]
+
+rule scaling_k_e_table:
+    input: lambda w: [run.bench_path() for run in scaling_k_e_runs(w.N)]
+    output: 'table/scaling_k_e_N{N}.tsv'
+    run: make_table(scaling_k_e_runs(wildcards.N), output)
+
 
 # ==== ONT Runs ==== #
 # Run PA with given parameters.
