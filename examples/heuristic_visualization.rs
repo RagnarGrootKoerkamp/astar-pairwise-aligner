@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 use pairwise_aligner::{astar::Config, prelude::*};
-use serde::__private::de;
+
 
 fn main() {
     let n = 70;

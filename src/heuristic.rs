@@ -21,7 +21,7 @@ pub use seed::*;
 pub use symmetric::*;
 
 use serde::Serialize;
-use std::{cell::Cell, env};
+use std::{cell::Cell};
 
 use crate::{astar::Config, matches::Match, prelude::*};
 
@@ -181,8 +181,8 @@ pub trait HeuristicInstance<'a> {
     fn display2(
         &self,
         target: Pos,
-        explored: Option<&Vec<Pos>>,
-        expanded: Option<&Vec<Pos>>,
+        _explored: Option<&Vec<Pos>>,
+        _expanded: Option<&Vec<Pos>>,
         path: Option<&Vec<Pos>>,
         tree: Option<Vec<(Pos, Edge)>>,
         canvas_size_cells: Pos,
@@ -195,7 +195,7 @@ pub trait HeuristicInstance<'a> {
         PATH_COLOR1: Color,
     ) -> (bool, u32, u32) {
         //is_playing, file_number, skip
-        if (!config.drawing && !config.saving) {
+        if !config.drawing && !config.saving {
             return (is_playing, file_number + 1, skip);
         }
         use sdl2::{
@@ -650,21 +650,16 @@ pub trait HeuristicInstance<'a> {
     fn display(
         &self,
         target: Pos,
-        max_val: Option<Cost>,
+        _max_val: Option<Cost>,
         explored: Option<Vec<Pos>>,
         expanded: Option<Vec<Pos>>,
-        path: Option<Vec<Pos>>,
+        _path: Option<Vec<Pos>>,
         tree: Option<Vec<(Pos, Edge)>>,
     ) {
         use sdl2::{
-            event::Event,
-            keyboard::Keycode,
             pixels::Color,
-            rect::{Point, Rect},
-            render::Canvas,
-            video::Window,
         };
-        use std::time::Duration;
+        
 
         // Pos: position in edit graph
         // Cell: position in drawing, of size CELL_SIZE x CELL_SIZE

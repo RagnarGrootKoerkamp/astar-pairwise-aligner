@@ -31,7 +31,7 @@ fn main() {
 
     let (ref a, ref b, ref alphabet, stats) = setup_with_seed(n, e, 1524);
 
-    let target = Pos::from_length(&a, &b);
+    let _target = Pos::from_length(&a, &b);
     let hmax = Some(align(a, b, alphabet, stats, ZeroCost).edit_distance);
     config.hmax = hmax;
 
@@ -68,10 +68,10 @@ fn main() {
         //h.display(target, hmax, None, None, None);
         let graph = EditGraph::new(a, b, true);
         let tmp = config.filepath.clone();
-        config.filepath = (format!("{}{}", &config.filepath, "/SH/"));
-        let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h, &config);
+        config.filepath = format!("{}{}", &config.filepath, "/SH/");
+        let (distance_and_path, _astar) = astar::astar(&graph, Pos(0, 0), &mut h, &config);
         config.filepath = tmp;
-        let (_distance, path) = distance_and_path.unwrap_or_default();
+        let (_distance, _path) = distance_and_path.unwrap_or_default();
 
         // h.display(
         //     target,
@@ -97,10 +97,10 @@ fn main() {
         //h.display(target, hmax, None, None, None);
         let graph = EditGraph::new(a, b, true);
         let tmp = config.filepath.clone();
-        config.filepath = (format!("{}{}", config.filepath, "/CSH/"));
-        let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h, &config);
+        config.filepath = format!("{}{}", config.filepath, "/CSH/");
+        let (distance_and_path, _astar) = astar::astar(&graph, Pos(0, 0), &mut h, &config);
         config.filepath = tmp;
-        let (_distance, path) = distance_and_path.unwrap_or_default();
+        let (_distance, _path) = distance_and_path.unwrap_or_default();
 
         /*h.display(
             target,

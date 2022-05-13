@@ -97,16 +97,22 @@ where
     let canvas_size_cells = Pos(high.0 - low.0 + 1, high.1 - low.1 + 1);
     let video_subsystem = sdl_context.video().unwrap();
     video_subsystem.gl_attr().set_double_buffer(true);
-    let window = video_subsystem
-        .window(
-            "A*PA",
-            canvas_size_cells.0 as u32 * CELL_SIZE * SCALE,
-            (canvas_size_cells.1 as u32) * CELL_SIZE * SCALE + v_offset * SCALE,
+    let window = if config.drawing {
+        Some(
+            video_subsystem
+                .window(
+                    "A*PA",
+                    canvas_size_cells.0 as u32 * CELL_SIZE * SCALE,
+                    (canvas_size_cells.1 as u32) * CELL_SIZE * SCALE + v_offset * SCALE,
+                )
+                //.borderless()
+                .build()
+                .unwrap(),
         )
-        //.borderless()
-        .build()
-        .unwrap();
-    let ref mut canvas = window.into_canvas().build().unwrap();
+    } else {
+        None
+    };
+    let ref mut canvas = window.map(|w| w.into_canvas().build().unwrap());
     //let hmax = h.h(Pos(0, 0));
     const D: bool = false;
 
@@ -251,7 +257,7 @@ where
             break 'outer;
         }
 
-        graph.iterate_outgoing_edges(pos, |mut next, mut edge| {
+        graph.iterate_outgoing_edges(pos, |mut next, edge| {
             // Explore next
             let next_g = state.g + edge.cost() as Cost;
             // TODO: Move this logic to some function internal to h. Not all
@@ -326,19 +332,81 @@ where
             }
         });
 
-        let path = traceback::<H>(&states, pos);
+        //VIDEO_DISPLAY
+        if let Some(canvas) = canvas {
+            let path = traceback::<H>(&states, pos);
+            let tmp3: Option<(u32, Vec<Pos>)>;
+            let mut tmp4: Vec<Pos> = vec![Pos(0, 0)];
+            if path != None {
+                tmp3 = path.clone();
+                tmp4 = tmp3.unwrap_or_default().1;
+            }
+
+            (is_playing, file_number, skip) = h.display2(
+                graph.target(),
+                Some(&stats.explored_states),
+                Some(&stats.expanded_states),
+                if path == None { None } else { Some(&tmp4) },
+                {
+                    let mut tree = Vec::default();
+                    for &p in &stats.explored_states {
+                        let g = {
+                            let mut p = p;
+                            loop {
+                                if let Some(s) = DiagonalMapTrait::get(&states, p) {
+                                    break s.g;
+                                }
+                                p = p.add_diagonal(1);
+                            }
+                        };
+                        tree.push((p, parent::<H>(&states, p, g)));
+                    }
+                    Some(tree)
+                },
+                canvas_size_cells,
+                canvas,
+                &mut sdl_context,
+                is_playing,
+                &config,
+                file_number,
+                skip,
+                Color::RGBA(0, 0, 255, 50),
+            );
+        }
+    }
+
+    stats.diagonalmap_capacity = states.dm_capacity();
+    let traceback_start = time::Instant::now();
+    let path = traceback::<H>(&states, graph.target());
+    stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
+    if DEBUG {
+        for &p in &stats.explored_states {
+            let g = {
+                let mut p = p;
+                loop {
+                    if let Some(s) = DiagonalMapTrait::get(&states, p) {
+                        break s.g;
+                    }
+                    p = p.add_diagonal(1);
+                }
+            };
+            stats.tree.push((p, parent::<H>(&states, p, g)));
+        }
+    }
+
+    //VIDEO_DISPLAY
+    if let Some(canvas) = canvas {
         let tmp3: Option<(u32, Vec<Pos>)>;
         let mut tmp4: Vec<Pos> = vec![Pos(0, 0)];
-        if (path != None) {
+        if path != None {
             tmp3 = path.clone();
             tmp4 = tmp3.unwrap_or_default().1;
         }
-        //VIDEO_DISPLAY
         (is_playing, file_number, skip) = h.display2(
             graph.target(),
             Some(&stats.explored_states),
             Some(&stats.expanded_states),
-            if (path == None) { None } else { Some(&tmp4) },
+            if path == None { None } else { Some(&tmp4) },
             {
                 let mut tree = Vec::default();
                 for &p in &stats.explored_states {
@@ -361,67 +429,10 @@ where
             is_playing,
             &config,
             file_number,
-            skip,
-            Color::RGBA(0, 0, 255, 50),
+            2,
+            Color::RGBA(255, 0, 255, 50),
         );
     }
-
-    stats.diagonalmap_capacity = states.dm_capacity();
-    let traceback_start = time::Instant::now();
-    let path = traceback::<H>(&states, graph.target());
-    stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
-    if DEBUG {
-        for &p in &stats.explored_states {
-            let g = {
-                let mut p = p;
-                loop {
-                    if let Some(s) = DiagonalMapTrait::get(&states, p) {
-                        break s.g;
-                    }
-                    p = p.add_diagonal(1);
-                }
-            };
-            stats.tree.push((p, parent::<H>(&states, p, g)));
-        }
-    }
-
-    let tmp3: Option<(u32, Vec<Pos>)>;
-    let mut tmp4: Vec<Pos> = vec![Pos(0, 0)];
-    if (path != None) {
-        tmp3 = path.clone();
-        tmp4 = tmp3.unwrap_or_default().1;
-    }
-    //VIDEO_DISPLAY
-    (is_playing, file_number, skip) = h.display2(
-        graph.target(),
-        Some(&stats.explored_states),
-        Some(&stats.expanded_states),
-        if (path == None) { None } else { Some(&tmp4) },
-        {
-            let mut tree = Vec::default();
-            for &p in &stats.explored_states {
-                let g = {
-                    let mut p = p;
-                    loop {
-                        if let Some(s) = DiagonalMapTrait::get(&states, p) {
-                            break s.g;
-                        }
-                        p = p.add_diagonal(1);
-                    }
-                };
-                tree.push((p, parent::<H>(&states, p, g)));
-            }
-            Some(tree)
-        },
-        canvas_size_cells,
-        canvas,
-        &mut sdl_context,
-        is_playing,
-        &config,
-        file_number,
-        2,
-        Color::RGBA(255, 0, 255, 50),
-    );
 
     (path, stats)
 }

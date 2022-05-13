@@ -17,6 +17,7 @@ pub mod astar;
 pub mod config;
 pub mod contour;
 pub mod datastructures;
+pub mod diagonal_transition;
 pub mod generate;
 pub mod heuristic;
 pub mod matches;

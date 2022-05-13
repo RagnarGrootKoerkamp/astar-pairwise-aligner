@@ -3,7 +3,6 @@ use crate::{astar::Config, prelude::*};
 use csv::Writer;
 use serde::Serialize;
 use std::{
-    cell::Cell,
     fmt,
     io::{stdout, Write},
     path::Path,
