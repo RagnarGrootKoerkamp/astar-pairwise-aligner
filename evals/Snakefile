@@ -233,12 +233,6 @@ def params_filter(run):
 
     return True
 
-def params_runs(tools, inputs, ont=False):
-    return list(filter(params_filter, (Run(input=input, tool=tool, m=m, k=k)
-                        for input in inputs
-                        for (k, m) in (ont_kms if ont else kms)
-                        for tool in tools)))
-
 def tool_runs(tools, inputs):
     return [Run(input=input, tool=tool)
                 for input in inputs
@@ -303,10 +297,23 @@ def make_table(runs, output):
             table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "m", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
 
 # Table of PA runs for all possible parameters.
+def params_runs(N):
+    N = int(float(N))
+    ns = [100_000, 1_000_000, 3_000_000, 10_000_000]
+    es = [0.10, 0.15]
+    mks = [
+       #(0,7), (0,8), (9,0), (0, 10), (0, 11), (0, 12), (0,13), (0,14), (0,15), (0,16), (0, 17), (0, 31),
+       (1, 14), (1, 15), (1, 16)]
+    tools = ['cp-sh', 'cp-csh']
+    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    return [Run(input=input, tool=tool, m=m, k=k)
+                        for (m, k) in mks
+                        for input in inputs
+                        for tool in tools]
 rule params_table:
-    input: lambda w: [run.bench_path() for run in params_runs(tools_cp, inputs(w.N))]
+    input: lambda w: [run.bench_path() for run in params_runs(w.N)]
     output: 'table/params_N{N}.tsv'
-    run: make_table(params_runs(tools_cp, inputs(wildcards.N)), output)
+    run: make_table(params_runs(wildcards.N), output)
 
 # Run tools.
 rule tools_table:
