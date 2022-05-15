@@ -14,8 +14,10 @@ pd.set_option('display.width', 1000)
 
 def read_benchmarks(tsv_fn, algo=None):
     df = pd.read_csv(tsv_fn, sep='\t', index_col=False)
-    df['s_per_pair'] = df['s'] /df['nr']
-    df['s_per_bp'] = df['s'] / (df['nr'] * df['n'])
+    #ns = np.max(df['nr'],  df['cnt'].nan_to_num())
+    ns = df['cnt'].fillna(value=df['nr'])
+    df['s_per_pair'] = df['s'] / ns
+    df['s_per_bp'] = df['s'] / (ns * df['n'])
     
     if 'align' in df:
         df['align_frac'] = df['align'] / (df['precom'] + df['align'])
@@ -43,7 +45,7 @@ def algo2color(algo):
         'csh+gap': 'black',
         'csh': '#EB2D12',
         'cp-csh-noprune': '#EB6D52',
-        'sh': '#00ff00',
+        'sh': '#0000ff',
         'cp-sh-noprune': '#4444ff',
         'cp-csh+gap': 'black',  # (k,m) cherry-picking
         'cp-csh': '#EB2D12',
