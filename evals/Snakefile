@@ -65,23 +65,8 @@ tool_command = {
     'biwfa':            binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
 }
 
-# Subset of tools to run
-tools = [
-    'sh',
-    'csh',
-    #'csh+gap',
-    'edlib',
-    ##'wfa',  # Replaced by wfa2
-    ##'wfa2', # Replaced by biwfa
-    'biwfa',
-]
-
-# for iterating over variables
-tools_cp = ['cp-sh', 'cp-csh']
-
-
 # Generate testcases
-GENERATE_CMD    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
+generate_command    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
 
 # Wrap a {command} in a small shell script than handles timeouts.
 # Uses the TIMEOUT variable, and writes status to params.status_path.
@@ -196,35 +181,34 @@ def params_filter(run):
 
     return True
 
-## SYNTHETIC INPUT DATA
+# === GENERATE INPUT ===
 
-# Synthetic tests
 rule generate_input:
     output: Input.pattern()
-    shell: GENERATE_CMD
+    shell: generate_command
 
-## PA WITH PARAMS
+# === RULES TO RUN ON TESTCASES ===
 
-def build_command(w, params=False):
+def build_command(w):
     input = Input(**w)
     run = Run(input=input, **w)
     command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path(), timeout=TOOL_TIMEOUT)
     return timeout(command, run.status_path(), TIMEOUT)
 
-# Run PA with given parameters.
-rule run_pa_for_parameters:
-    input: lambda w: Input(**w).path()
-    benchmark: repeat(Run.pattern_with_params(), REPEATS)
-    wildcard_constraints: tool = '.*cp-.*'
-    params: command = lambda w: build_command(w, params=True)
-    shell: '{params.command}'
-
-# Run other tools without parameters.
 rule run_tool:
     input: lambda w: Input(**w).path()
     benchmark: repeat(Run.pattern(), REPEATS)
-    params: command = lambda w: build_command(w, params=False)
+    params: command = lambda w: build_command(w)
     shell: "{params.command}"
+
+rule run_tool_with_parameters:
+    input: lambda w: Input(**w).path()
+    benchmark: repeat(Run.pattern_with_params(), REPEATS)
+    wildcard_constraints: tool = '.*cp-.*'
+    params: command = lambda w: build_command(w)
+    shell: '{params.command}'
+
+# === TABLE CONSTRUCTION ===
 
 # Collect all run files into a single tsv:
 # - input parameters
