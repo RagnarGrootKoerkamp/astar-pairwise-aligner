@@ -44,6 +44,7 @@ def algo2color(algo):
         'csh+gap': 'black',
         'csh': '#EB2D12',
         'cp-csh-noprune': '#EB6D52',
+        'csh-noprune': '#EB6D52',
         'sh': '#0000ff',
         'cp-sh-noprune': '#4444ff',
         'cp-csh+gap': 'black',  # (k,m) cherry-picking
@@ -107,7 +108,7 @@ def algo2marker(algo):
 def col2name(col):
     d = {
         'e':       'Error rate [proportion]',
-        'expanded':       'Error rate [proportion]',
+        'expanded':       'Expanded states',
         's':       'Runtime [s]',
         'n':       'Sequence length [bp]',
         's_per_pair': 'Time per alignment [s]',
