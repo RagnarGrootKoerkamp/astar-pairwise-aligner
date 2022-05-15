@@ -39,9 +39,9 @@ ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1)]
 
 ## RUN SETTINGS
 # Time after which snakemake kills the program.
-TIMEOUT = "20s"
+TIMEOUT = "3600s"
 # Time passed to the program.
-TOOL_TIMEOUT = "10s"
+TOOL_TIMEOUT = "4000s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -81,7 +81,7 @@ tool_command = {
 tools = [
     'sh',
     'csh',
-    'csh+gap',
+    #'csh+gap',
     'edlib',
     ##'wfa',  # Replaced by wfa2
     ##'wfa2', # Replaced by biwfa
