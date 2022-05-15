@@ -14,8 +14,7 @@ pd.set_option('display.width', 1000)
 
 def read_benchmarks(tsv_fn, algo=None):
     df = pd.read_csv(tsv_fn, sep='\t', index_col=False)
-    #ns = np.max(df['nr'],  df['cnt'].nan_to_num())
-    ns = df['cnt'].fillna(value=df['nr'])
+    ns = df['nr'].fillna(value=df['cnt'])
     df['s_per_pair'] = df['s'] / ns
     df['s_per_bp'] = df['s'] / (ns * df['n'])
     
