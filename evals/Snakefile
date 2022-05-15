@@ -23,18 +23,6 @@ import itertools
 import shutil
 import statistics
 
-## SYNTHETIC INPUT DATA
-
-# Input files and parameters
-ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000, 30_000_000, 100_000_000]
-es = [0.01, 0.05, 0.10, 0.20]
-kms = [(7,0), (8,0), (9,0), (10, 0), (11, 0), (12, 0), (13,0), (14,0), (15,0), (16,0), (17, 0), (31, 0),
-       (11, 1), (12, 1), (13, 1), (14, 1), (15, 1), (16, 1), (17, 1), (18, 1)]
-## ONT input
-ont_ns = [100_000, 300_000, 1_000_000]
-ont_models = ['random', 'human']
-ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1)]
-
 ## TOOLS
 
 ## RUN SETTINGS
@@ -91,13 +79,6 @@ tools = [
 # for iterating over variables
 tools_cp = ['cp-sh', 'cp-csh']
 
-
-# Subset of tools to run for the slow table
-tools_slow = [
-    'dijkstra',
-    'sh-noprune',
-    'csh-noprune',
-]
 
 # Generate testcases
 GENERATE_CMD    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
@@ -173,24 +154,6 @@ class Input:
     def path(self):
         return Path(f'input/{Input.dir(self.ont)}/{self.name()}.seq')
 
-def input_filter(input):
-    # Skip >1M at 20%, since all tools will time out anyway.
-    if input.n > 1_000_000 and input.e > 0.15: return False
-    return True
-
-def inputs(N, ns=ns, es=es):
-    N = int(float(N))
-    return list(filter(input_filter, (Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0)))
-
-# This runs on 3 types of data:
-# - synthetic data
-# - random sequences with ONT errors
-# - human sequences with ONT errors
-def ont_inputs(N):
-    N = int(float(N))
-    return ([Input(cnt=N//n, n=n, e=0.1) for n in ont_ns if N//n > 0]
-            + [Input(model=model, cnt=N//n, n=n) for n in ont_ns for model in ont_models if N//n > 0])
-
 
 class Run:
     def __init__(self, **kwargs):
@@ -232,11 +195,6 @@ def params_filter(run):
         return False
 
     return True
-
-def tool_runs(tools, inputs):
-    return [Run(input=input, tool=tool)
-                for input in inputs
-                for tool in tools]
 
 ## SYNTHETIC INPUT DATA
 
@@ -296,7 +254,8 @@ def make_table(runs, output):
         for bench_line in run.bench_path().read_text().splitlines()[1:]:
             table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "m", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
 
-# Table of PA runs for all possible parameters.
+# === PARAMETER COMPARISON ===
+
 def params_runs(N):
     N = int(float(N))
     ns = [100_000, 1_000_000, 3_000_000, 10_000_000]
@@ -315,17 +274,33 @@ rule params_table:
     output: 'table/params_N{N}.tsv'
     run: make_table(params_runs(wildcards.N), output)
 
-# Run tools.
-rule tools_table:
-    input: lambda w: [run.bench_path() for run in tool_runs(tools, inputs(w.N))]
-    output: 'table/tools_N{N}.tsv'
-    run: make_table(tool_runs(tools, inputs(wildcards.N)), output)
+# === TOOL COMPARISON ===
 
-# Run slower tools. Separate rule so we can use a smaller value of N here.
-rule tools_slow_table:
-    input: lambda w: [run.bench_path() for run in tool_runs(tools_slow, inputs(w.N))]
-    output: 'table/tools_slow_N{N}.tsv'
-    run: make_table(tool_runs(tools_slow, inputs(wildcards.N)), output)
+def tools_runs(N):
+    N = int(float(N))
+    ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000]
+    es = [0.01, 0.05, 0.10, 0.15]
+    tools = ['edlib', 'biwfa', 'sh', 'csh']
+    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    fast_runs = [Run(input=input, tool=tool)
+                        for input in inputs
+                        for tool in tools]
+
+    # Change range for slower tools.
+    ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
+    tools= [
+        'dijkstra',
+        'csh-noprune',
+    ]
+    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    slow_runs = [Run(input=input, tool=tool)
+                        for input in inputs
+                        for tool in tools]
+    return fast_runs + slow_runs
+rule tools_table:
+    input: lambda w: [run.bench_path() for run in tools_runs(w.N)]
+    output: 'table/tools_N{N}.tsv'
+    run: make_table(tools_runs(wildcards.N), output)
 
 # === SCALING WITH E ===
 
@@ -424,6 +399,20 @@ rule scaling_k_e_table:
 
 
 # ==== ONT Runs ==== #
+
+ont_ns = [100_000, 300_000, 1_000_000]
+ont_models = ['random', 'human']
+ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1)]
+
+# This runs on 3 types of data:
+# - synthetic data
+# - random sequences with ONT errors
+# - human sequences with ONT errors
+def ont_inputs(N):
+    N = int(float(N))
+    return ([Input(cnt=N//n, n=n, e=0.1) for n in ont_ns if N//n > 0]
+            + [Input(model=model, cnt=N//n, n=n) for n in ont_ns for model in ont_models if N//n > 0])
+
 # Run PA with given parameters.
 rule ont_run_pa_for_parameters:
     input: lambda w: Input(**w).path()
