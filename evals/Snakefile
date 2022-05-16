@@ -27,9 +27,9 @@ import statistics
 
 ## RUN SETTINGS
 # Time after which snakemake kills the program.
-TIMEOUT = "3600s"
+TIMEOUT = "7200s"
 # Time passed to the program.
-TOOL_TIMEOUT = "4000s"
+TOOL_TIMEOUT = "8000s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -271,7 +271,7 @@ def tools_runs(N):
                         for tool in tools]
 
     # Change range for slower tools.
-    ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
+    N //= 100
     tools= [
         'dijkstra',
         'csh-noprune',
