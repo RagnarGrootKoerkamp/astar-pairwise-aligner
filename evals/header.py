@@ -72,7 +72,8 @@ def algo2color(algo):
 def algo2beautiful(algo):
     d = {
         'dijkstra': 'Dijkstra',
-        'csh+gap-noprune': 'CSH-noprune',
+        'csh-noprune': 'CSH (no prune)',
+        'csh+gap-noprune': 'CSH (no prune)',
         'csh+gap': 'A*PA',
         'cp-csh+gap': 'A*PA-cherrypick',
         'sh': 'SH',
