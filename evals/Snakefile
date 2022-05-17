@@ -27,9 +27,9 @@ import statistics
 
 ## RUN SETTINGS
 # Time after which snakemake kills the program.
-TIMEOUT = "7200s"
+TIMEOUT = "14400s"
 # Time passed to the program.
-TOOL_TIMEOUT = "8000s"
+TOOL_TIMEOUT = "15400s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
