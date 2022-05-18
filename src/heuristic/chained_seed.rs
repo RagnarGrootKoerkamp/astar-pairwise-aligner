@@ -339,14 +339,17 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             for d in 1..=self.params.match_config.max_match_cost {
                 let mut check = |pos: Pos| {
                     let tp = self.transform(pos);
-                    if !self.arrows.contains_key(&tp) {
-                        println!("Did not find nb arrow at {tp} while pruning {a} at {pos}");
-                    }
-                    let arrows = self.arrows.get(&tp).expect("Arrows are not consistent!");
-                    if arrows.iter().all(|a2| a2.end == a.end) {
-                        self.num_pruned += 1;
-                        self.arrows.remove(&tp);
-                        self.contours.prune_with_hint(tp, hint, &self.arrows);
+                    if let Some(arrows) = self.arrows.get(&tp) {
+                        if arrows.iter().all(|a2| a2.end == a.end) {
+                            self.num_pruned += 1;
+                            self.arrows.remove(&tp);
+                            self.contours.prune_with_hint(tp, hint, &self.arrows);
+                        }
+                    } else {
+                        if CHECK_MATCH_CONSISTENCY {
+                            println!("Did not find nb arrow at {tp} while pruning {a} at {pos}");
+                            panic!("Arrows are not consistent!");
+                        }
                     }
                 };
                 if pos.0 >= d as Cost {
