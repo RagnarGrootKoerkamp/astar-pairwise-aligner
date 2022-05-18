@@ -310,16 +310,18 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         // TODO: Make this smarter and allow pruning long arrows even when pruning short arrows is not possible.
         // The minimum length required for consistency here.
         let mut min_len = 0;
-        for d in 1..=self.params.match_config.max_match_cost {
-            let mut check = |pos: Pos| {
-                if let Some(pos_arrows) = self.arrows.get(&self.transform(pos)) {
-                    min_len = max(min_len, pos_arrows.iter().map(|a| a.len).max().unwrap() - d);
+        if CHECK_MATCH_CONSISTENCY || self.params.use_gap_cost {
+            for d in 1..=self.params.match_config.max_match_cost {
+                let mut check = |pos: Pos| {
+                    if let Some(pos_arrows) = self.arrows.get(&self.transform(pos)) {
+                        min_len = max(min_len, pos_arrows.iter().map(|a| a.len).max().unwrap() - d);
+                    }
+                };
+                if pos.0 >= d as Cost {
+                    check(Pos(pos.0, pos.1 - d as I));
                 }
-            };
-            if pos.0 >= d as Cost {
-                check(Pos(pos.0, pos.1 - d as I));
+                check(Pos(pos.0, pos.1 + d as I));
             }
-            check(Pos(pos.0, pos.1 + d as I));
         }
 
         if a.len <= min_len {
