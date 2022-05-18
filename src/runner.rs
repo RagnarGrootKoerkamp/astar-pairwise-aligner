@@ -107,7 +107,7 @@ impl Params {
 
         // New simpler version.
         if true {
-            return match self.error_rate.unwrap() {
+            return match self.error_rate.expect("--error-rate is needed!") {
                 e if e < 0.09 => (0, 15),
                 e if e <= 1. => (1, 15),
                 _ => todo!("Error rate not in [0,1]!"),
