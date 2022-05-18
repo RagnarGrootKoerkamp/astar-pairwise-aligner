@@ -51,4 +51,8 @@ pub const DIAGONAL_MAP_OFFSET: bool = false;
 pub const SLIDING_WINDOW_MATCHES: bool = true;
 
 /// Whether to prune inexact matches adjacent to an exact match by end position.
-pub const PRUNE_INEXACT_MATCHES_BY_END: bool = true;
+pub const PRUNE_INEXACT_MATCHES_BY_END: bool = false;
+
+/// Whether to check for consistency before pruning for SH and CSH.
+/// NOTE: For CSH+gaps consistency is always checked.
+pub const CHECK_MATCH_CONSISTENCY: bool = false;
