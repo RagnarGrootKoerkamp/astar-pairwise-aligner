@@ -44,20 +44,14 @@ def algo2color(algo):
     d = {
 # mono red: , , EB2D12
         'dijkstra': '#5F2001',
-        'csh-noprune': '#E27121',
-        'sh-noprune': '#FF6D29',
-        'csh': '#E8480C',
-        'sh': '#317D32', #'#0D7E4A',
+        'sh-noprune': '#E27121',
+        'csh-noprune': '#FF6D29',
+        'sh': '#E8480C',
+        'csh': '#317D32', #'#0D7E4A',
         
         'edlib': '#DE4AFF',
         'wfa': '#625AFF',
         'biwfa': '#625AFF',
-        
-        'cp-csh-noprune': '#EB6D52',
-        'cp-sh-noprune': '#4444ff',
-        'cp-csh+gap': 'black',  # (k,m) cherry-picking
-        'cp-csh': '#EB2D12',
-        'cp-sh': 'blue',
         
         'csh+gap-noprune': '#FF6047',
         'csh+gap': 'black',
@@ -72,6 +66,7 @@ def algo2color(algo):
         #'pasgal': '#AC68FF',
         #'vargas': '#F387FF',
         }
+    algo = algo.removeprefix('cp-')
     if algo in d:
         return d[algo]
     return 'black'
