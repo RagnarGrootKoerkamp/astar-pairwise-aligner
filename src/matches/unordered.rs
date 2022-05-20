@@ -144,7 +144,8 @@ fn count_inexact_matches(
     Some(seed_cost)
 }
 
-fn unordered_matches_hash<'a>(
+/// Build a hashset of the seeds in a, and query all kmers in b.
+pub fn find_matches_qgram_hash_exact_unordered<'a>(
     a: &'a Sequence,
     b: &'a Sequence,
     alph: &Alphabet,
@@ -154,7 +155,62 @@ fn unordered_matches_hash<'a>(
         ..
     }: MatchConfig,
 ) -> SeedMatches {
+    let k: I = match length {
+        Fixed(k) => k,
+        _ => unimplemented!("QGram Hashing only works for fixed k for now."),
+    };
+    assert!(max_match_cost == 0);
+
     let rank_transform = RankTransform::new(alph);
+
+    let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
+
+    type Key = u64;
+
+    // TODO: See if we can get rid of the Vec alltogether.
+    let mut m = HashMap::<Key, SmallVec<[I; 4]>>::default();
+    let mut matches = Vec::<Match>::new();
+
+    m.reserve(a.len() / k as usize + 1);
+    for (i, w) in rank_transform.qgrams(k, a).enumerate().step_by(k as usize) {
+        m.entry(w as Key).or_default().push(i as I);
+    }
+
+    for (j, w) in rank_transform.qgrams(k, b).enumerate() {
+        if let Some(is) = m.get(&(w as Key)) {
+            for &i in is {
+                seeds[(i / k) as usize].seed_cost = 0;
+                matches.push(Match {
+                    start: Pos(i, j as I),
+                    end: Pos(i + k, j as I + k),
+                    match_cost: 0,
+                    seed_potential: 1,
+                    pruned: MatchStatus::Active,
+                });
+            }
+        }
+    }
+
+    SeedMatches::new(a, seeds, matches)
+}
+
+fn unordered_matches_hash<'a>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    alph: &Alphabet,
+    match_config @ MatchConfig {
+        length,
+        max_match_cost,
+        ..
+    }: MatchConfig,
+) -> SeedMatches {
+    let rank_transform = RankTransform::new(alph);
+
+    if max_match_cost == 0 {
+        if let Fixed(_) = length {
+            return find_matches_qgram_hash_exact_unordered(a, b, alph, match_config);
+        }
+    }
 
     // 1. Put all k-mers (and k+-1 mers) of b in a map.
     let mut m = HashMap::<Key, SmallVec<[I; 2]>>::default();
