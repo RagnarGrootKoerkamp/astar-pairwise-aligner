@@ -44,11 +44,11 @@ def algo2color(algo):
     palette = sns.color_palette("tab10", 10)
     d = {
 # mono red: , , EB2D12
-        'dijkstra': '#D5B895',
-        'csh': '#E23201',
-        'csh-noprune': '#A67A5B',
-        'sh': '#FD9415',
+        'dijkstra': '#5F2001',
+        'csh-noprune': '#E27121',
         'sh-noprune': '#FF6D29',
+        'csh': '#E8480C',
+        'sh': '#317D32', #'#0D7E4A',
         
         'edlib': '#DE4AFF',
         'wfa': '#625AFF',
