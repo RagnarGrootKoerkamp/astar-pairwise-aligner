@@ -18,7 +18,7 @@ def read_benchmarks(tsv_fn, algo=None):
     df['s_per_pair'] = df['s'] / ns
     df['s_per_bp'] = df['s'] / (ns * df['n'])
     df['e_pct'] = 100*df['e']
-    df['r'] = df['m'] + 1
+    df['r'] = df['m.1'] + 1
     df['r'].fillna(value=0)
     
     if 'align' in df:
