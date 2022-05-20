@@ -495,6 +495,9 @@ When pruning is slow, we can batch multiple prunes and wait untill the band
 becomes too large.
 ** TODO Greedy matching and diagonal-transition
 What if in the D-T method we do not allow leaving the path of a greedy match?
+** TODO Speed up exact match finding for SH
+For CSH, we first put seeds in a map and then only store seeds matching a key.
+For SH, we currently make a map of all kmers of B, which is inefficient.
 
 * Parameter tuning
 ** CSH [no gapcost]

@@ -17,6 +17,8 @@ def read_benchmarks(tsv_fn, algo=None):
     ns = df['nr'].fillna(value=df['cnt'])
     df['s_per_pair'] = df['s'] / ns
     df['s_per_bp'] = df['s'] / (ns * df['n'])
+    df['e_pct'] = 100*df['e']
+    df['r'] = df['m'] + 1
     
     if 'align' in df:
         df['align_frac'] = df['align'] / (df['precom'] + df['align'])
@@ -78,6 +80,8 @@ def algo2beautiful(algo):
         'cp-csh+gap': 'A*PA-cherrypick',
         'sh': 'SH',
         'csh': 'CSH',
+        'cp-sh': 'SH',
+        'cp-csh': 'CSH',
         
         'edlib': 'Edlib',
         'wfa': 'WFA',
@@ -93,6 +97,8 @@ def algo2marker(algo):
         'csh+gap-noprune': 's',
         'sh': 's',
         'csh': 'o',
+        'cp-sh': 's',
+        'cp-csh': 'o',
         'csh+gap': 'o',
         'cp-csh+gap': '.',
         
@@ -108,11 +114,12 @@ def algo2marker(algo):
     
 def col2name(col):
     d = {
-        'e':       'Error rate [proportion]',
+        'e':       'Error rate',
+        'e_pct':       'Error rate',
         'expanded':       'Expanded states',
         's':       'Runtime [s]',
         'n':       'Sequence length [bp]',
-        's_per_pair': 'Time per alignment [s]',
+        's_per_pair': 'Runtime [s]',
         'max_uss': 'Memory [MB]',
 #        'head':    'Reference size [bp]',
 #        'head_Mbp':'Reference size [Mbp]',
