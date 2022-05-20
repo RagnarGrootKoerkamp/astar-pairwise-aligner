@@ -164,34 +164,44 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
     let rank_transform = RankTransform::new(alph);
 
     let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
+    let mut num_matches = vec![0; seeds.len()];
 
     type Key = u64;
 
     // TODO: See if we can get rid of the Vec alltogether.
     let mut m = HashMap::<Key, SmallVec<[I; 4]>>::default();
-    let mut matches = Vec::<Match>::new();
+    //let mut matches = Vec::<Match>::new();
 
     m.reserve(a.len() / k as usize + 1);
     for (i, w) in rank_transform.qgrams(k, a).enumerate().step_by(k as usize) {
         m.entry(w as Key).or_default().push(i as I);
     }
 
-    for (j, w) in rank_transform.qgrams(k, b).enumerate() {
+    for (_j, w) in rank_transform.qgrams(k, b).enumerate() {
         if let Some(is) = m.get(&(w as Key)) {
             for &i in is {
                 seeds[(i / k) as usize].seed_cost = 0;
-                matches.push(Match {
-                    start: Pos(i, j as I),
-                    end: Pos(i + k, j as I + k),
-                    match_cost: 0,
-                    seed_potential: 1,
-                    pruned: MatchStatus::Active,
-                });
+                num_matches[(i / k) as usize] += 1;
+                // Only make one match per seed.
+                if num_matches[(i / k) as usize] > 1 {
+                    continue;
+                }
+                // matches.push(Match {
+                //     start: Pos(i, j as I),
+                //     end: Pos(i + k, j as I + k),
+                //     match_cost: 0,
+                //     seed_potential: 1,
+                //     pruned: MatchStatus::Active,
+                // });
             }
         }
     }
+    // Only keep seeds with one match.
+    seeds
+        .drain_filter(|s| num_matches[(s.start / k) as usize] > 1)
+        .count();
 
-    SeedMatches::new(a, seeds, matches)
+    SeedMatches::new(a, seeds, vec![])
 }
 
 fn unordered_matches_hash<'a>(
