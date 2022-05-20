@@ -41,21 +41,25 @@ def read_benchmarks(tsv_fn, algo=None):
 def algo2color(algo):
     palette = sns.color_palette("tab10", 10)
     d = {
-        'dijkstra': '#FF913D', #'#E8841A',
-        'csh+gap-noprune': '#FF6047',
-        'csh+gap': 'black',
-        'csh': '#EB2D12',
+# mono red: , , EB2D12
+        'dijkstra': '#D5B895',
+        'csh': '#E23201',
+        'csh-noprune': '#A67A5B',
+        'sh': '#FD9415',
+        'sh-noprune': '#FF6D29',
+        
+        'edlib': '#DE4AFF',
+        'wfa': '#625AFF',
+        'biwfa': '#625AFF',
+        
         'cp-csh-noprune': '#EB6D52',
-        'csh-noprune': '#EB6D52',
-        'sh': '#0000ff',
         'cp-sh-noprune': '#4444ff',
         'cp-csh+gap': 'black',  # (k,m) cherry-picking
         'cp-csh': '#EB2D12',
         'cp-sh': 'blue',
         
-        'edlib': '#DE4AFF',
-        'wfa': '#625AFF',
-        'biwfa': '#625AFF',
+        'csh+gap-noprune': '#FF6047',
+        'csh+gap': 'black',
         
         #'astarix-prefix': '#FF6D29',
         #'astar-prefix': '#FF6D29',
@@ -111,6 +115,15 @@ def algo2marker(algo):
     return 'o'
     assert False, algo
     #return str(algo)  
+    
+def r2marker(algo):
+    d = {
+        1: '^',
+        2: 's',
+        }
+    if algo in d:
+        return d[algo]
+    return 'o'
     
 def col2name(col):
     d = {
