@@ -266,25 +266,37 @@ def tools_runs(N):
     es = [0.01, 0.05, 0.10, 0.15]
     tools = ['edlib', 'biwfa', 'sh', 'csh']
     inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    fast_runs = [Run(input=input, tool=tool)
+    return [Run(input=input, tool=tool)
                         for input in inputs
                         for tool in tools]
-
-    # Change range for slower tools.
-    N //= 100
-    tools= [
-        'dijkstra',
-        'csh-noprune',
-    ]
-    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    slow_runs = [Run(input=input, tool=tool)
-                        for input in inputs
-                        for tool in tools]
-    return fast_runs + slow_runs
 rule tools_table:
     input: lambda w: [run.bench_path() for run in tools_runs(w.N)]
     output: 'table/tools_N{N}.tsv'
     run: make_table(tools_runs(wildcards.N), output)
+
+# === PRUNING ===
+
+def pruning_runs(N):
+    N = int(float(N))
+    ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
+    es = [0.05]
+    # Change range for slower tools.
+    fast_tools = ['sh', 'csh',]
+    fast_inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    fast_runs = [Run(input=input, tool=tool)
+                        for input in fast_inputs
+                        for tool in fast_tools]
+    N /= 100
+    slow_tools = ['dijkstra', 'sh-noprune', 'csh-noprune']
+    slow_inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    slow_runs = [Run(input=input, tool=tool)
+                        for input in slow_inputs
+                        for tool in slow_tools]
+    return fast_runs + slow_runs
+rule pruning_table:
+    input: lambda w: [run.bench_path() for run in pruning_runs(w.N)]
+    output: 'table/pruning_N{N}.tsv'
+    run: make_table(pruning_runs(wildcards.N), output)
 
 # === SCALING WITH E ===
 

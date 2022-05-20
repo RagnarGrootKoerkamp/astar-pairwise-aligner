@@ -44,8 +44,8 @@ def algo2color(algo):
     d = {
 # mono red: , , EB2D12
         'dijkstra': '#5F2001',
-        'sh-noprune': '#E27121',
-        'csh-noprune': '#FF6D29',
+        #'sh-noprune': '#E27121',
+        #'csh-noprune': '#FF6D29',
         'sh': '#E8480C',
         'csh': '#317D32', #'#0D7E4A',
         
@@ -53,7 +53,6 @@ def algo2color(algo):
         'wfa': '#625AFF',
         'biwfa': '#625AFF',
         
-        'csh+gap-noprune': '#FF6047',
         'csh+gap': 'black',
         
         #'astarix-prefix': '#FF6D29',
@@ -67,6 +66,7 @@ def algo2color(algo):
         #'vargas': '#F387FF',
         }
     algo = algo.removeprefix('cp-')
+    algo = algo.removesuffix('-noprune')
     if algo in d:
         return d[algo]
     return 'black'
