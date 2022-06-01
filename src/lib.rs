@@ -18,10 +18,12 @@ pub mod config;
 pub mod contour;
 pub mod datastructures;
 pub mod diagonal_transition;
+pub mod drawing;
 pub mod generate;
 pub mod heuristic;
 pub mod matches;
 pub mod runner;
+pub mod ukkonen;
 
 pub mod prelude {
     pub use super::*;

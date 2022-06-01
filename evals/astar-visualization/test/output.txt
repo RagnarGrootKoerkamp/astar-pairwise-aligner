@@ -1,0 +1,407 @@
+CGCAACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACTATTCTTTCCCACGCAGGGACTATTTTAGGCGGTGCCCGGAGACTGAGAACCCGGTGAACACATCGCGTAACCCTGACTGTAGCAACACCCTCTGCCTCTACCCGCAAGCAAATAACGACGACCATCGGACCGCAGACCAGGTCGTGATACCTGCAAAAATTCGATGAGACGCTACAGTGGCTGGACAGCGCATTCAGAATCTTACATTCGTCGCCGATGACATCACTCGTTGCTAATAGCGGTGTACCTTTTCACCCACAACTATACGCCAAATTCCGGCGTGATAGTGCACTTGTGCTTCGGCCAACACTAGACGTAACCCGAACCGTAACAAGCCGGTGTGCGCGTCCAACGGCATGTGCTCTGTTGCGTCAAACACGACTTTTGGCTCTATCCATAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCATAACCCTCTCTTAGTATGGAGAG
+CCAACTGCAATCGGGAGTCGTTCATTAACCAGACGTACGACTATTCTTTCCCGTCAAGAAAATATTTTAGGCGGGTCCCTGGTGACTGAGAACCCGGTTAACACCGCGCGTACCCTGACTGTAGCTATACACCCTCTTGCCTCTTACCGCAGCAACATAACGAACGCCCATCGGACCGGCAGACCAGGTCGTGATACGTCAAATATTCGATGACCTGTTAAGTGGCTGGCCGATTCGAATCTTGCATCCGTCATGCCGATGACATCACTCGTTGCTAAGCGGTGTACCTTTTCACTGACAACGTATACGCCAAATCCGGCGTCATAGTGCAACTTGTGCTTCGCCAACACTAGACGTAATCCCGAACCATCACAACCCGGTGTGGCGACCAACGGCATGTGCTCTGTTGCGTCAAACACGACTATTGGCTTTATCCCAAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCGATAACCTCTCTCCTTAGTTAGGAGAG
+
+Path size is 354
+d = 2 r = 235
+Path size is 292
+d = 4 r = 184
+Path size is 130
+d = 8 r = 71
+Path size is 130
+d = 16 r = 71
+Path size is 130
+d = 32 r = 71
+Path size is 130
+d = 64 r = 71
+Path size is 130
+d = 128 r = 71
+Ukkonen says that edit distance is 71
+Problem saving the file: "Couldn't open evals/astar-visualization/edlib20.bmp"0	500	500:
+CGCAACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACTATTCTTTCCCACGCAGGGACTATTTTAGGCGGTGCCCGGAGACTGAGAACCCGGTGAACACATCGCGTAACCCTGACTGTAGCAACACCCTCTGCCTCTACCCGCAAGCAAATAACGACGACCATCGGACCGCAGACCAGGTCGTGATACCTGCAAAAATTCGATGAGACGCTACAGTGGCTGGACAGCGCATTCAGAATCTTACATTCGTCGCCGATGACATCACTCGTTGCTAATAGCGGTGTACCTTTTCACCCACAACTATACGCCAAATTCCGGCGTGATAGTGCACTTGTGCTTCGGCCAACACTAGACGTAACCCGAACCGTAACAAGCCGGTGTGCGCGTCCAACGGCATGTGCTCTGTTGCGTCAAACACGACTTTTGGCTCTATCCATAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCATAACCCTCTCTTAGTATGGAGAG
+CCAACTGCAATCGGGAGTCGTTCATTAACCAGACGTACGACTATTCTTTCCCGTCAAGAAAATATTTTAGGCGGGTCCCTGGTGACTGAGAACCCGGTTAACACCGCGCGTACCCTGACTGTAGCTATACACCCTCTTGCCTCTTACCGCAGCAACATAACGAACGCCCATCGGACCGGCAGACCAGGTCGTGATACGTCAAATATTCGATGACCTGTTAAGTGGCTGGCCGATTCGAATCTTGCATCCGTCATGCCGATGACATCACTCGTTGCTAAGCGGTGTACCTTTTCACTGACAACGTATACGCCAAATCCGGCGTCATAGTGCAACTTGTGCTTCGCCAACACTAGACGTAATCCCGAACCATCACAACCCGGTGTGGCGACCAACGGCATGTGCTCTGTTGCGTCAAACACGACTATTGGCTTTATCCCAAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCGATAACCTCTCTCCTTAGTTAGGAGAG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/0.bmp"1	214	217:
+CGCAACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACTATTCTTTCCCACGCAGGGACTATTTTAGGCGGTGCCCGGAGACTGAGAACCCGGTGAACACATCGCGTAACCCTGACTGTAGCAACACCCTCTGCCTCTACCCGCAAGCAAATAACGACGACCATCGGACCGCAGACCAGGTCGTGATACCTGCAAAAATTCGATGAGACG
+CCAACTGCAATCGGGAGTCGTTCATTAACCAGACGTACGACTATTCTTTCCCGTCAAGAAAATATTTTAGGCGGGTCCCTGGTGACTGAGAACCCGGTTAACACCGCGCGTACCCTGACTGTAGCTATACACCCTCTTGCCTCTTACCGCAGCAACATAACGAACGCCCATCGGACCGGCAGACCAGGTCGTGATACGTCAAATATTCGATGACCTG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/1.bmp"2	112	112:
+CGCAACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACTATTCTTTCCCACGCAGGGACTATTTTAGGCGGTGCCCGGAGACTGAGAACCCGGTGAACACATCGCGTA
+CCAACTGCAATCGGGAGTCGTTCATTAACCAGACGTACGACTATTCTTTCCCGTCAAGAAAATATTTTAGGCGGGTCCCTGGTGACTGAGAACCCGGTTAACACCGCGCGTA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/2.bmp"3	60	62:
+CCAACTGCAATCGGGAGTCGTTCATTAACCAGACGTACGACTATTCTTTCCCGTCAAGAA
+CGCAACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACTATTCTTTCCCACGCAGGGA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/3.bmp"4	34	35:
+CCAACTGCAATCGGGAGTCGTTCATTAACCAGAC
+CGCAACTGCAATCGGGAGTCAGTTCAGTAACAAGC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/4.bmp"5	29	31:
+CCAACTGCAATCGGGAGTCGTTCATTAAC
+CGCAACTGCAATCGGGAGTCAGTTCAGTAAC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/5.bmp"6	24	26:
+CCAACTGCAATCGGGAGTCGTTCA
+CGCAACTGCAATCGGGAGTCAGTTCA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/6.bmp"7	19	20:
+CCAACTGCAATCGGGAGTC
+CGCAACTGCAATCGGGAGTC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/7.bmp"8	4	5:
+TTCA
+GTTCA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/8.bmp"9	3	4:
+AGC
+AGAC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/9.bmp"10	25	26:
+TACGACTATTCTTTCCCGTCAAGAA
+TACGACTATTCTTTCCCACGCAGGGA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/10.bmp"11	21	22:
+TACGACTATTCTTTCCCGTCA
+TACGACTATTCTTTCCCACGCA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/11.bmp"12	1	2:
+A
+CA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/12.bmp"13	3	3:
+GGA
+GAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/13.bmp"14	49	51:
+TATTTTAGGCGGTGCCCGGAGACTGAGAACCCGGTGAACACATCGCGTA
+ATATTTTAGGCGGGTCCCTGGTGACTGAGAACCCGGTTAACACCGCGCGTA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/14.bmp"15	19	21:
+TATTTTAGGCGGTGCCCGG
+ATATTTTAGGCGGGTCCCTGG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/15.bmp"16	13	15:
+TATTTTAGGCGGT
+ATATTTTAGGCGGGT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/16.bmp"17	1	2:
+T
+AT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/17.bmp"18	11	12:
+TTTTAGGCGGT
+TTTTAGGCGGGT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/18.bmp"19	5	5:
+CCCGG
+CCTGG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/19.bmp"20	29	29:
+GACTGAGAACCCGGTGAACACATCGCGTA
+GACTGAGAACCCGGTTAACACCGCGCGTA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/20.bmp"21	21	22:
+GACTGAGAACCCGGTGAACAC
+GACTGAGAACCCGGTTAACACC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/21.bmp"22	17	17:
+GACTGAGAACCCGGTGA
+GACTGAGAACCCGGTTA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/22.bmp"23	3	4:
+CAC
+CACC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/23.bmp"24	6	7:
+CGCGTA
+TCGCGTA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/24.bmp"25	101	104:
+CCCTGACTGTAGCAACACCCTCTGCCTCTACCCGCAAGCAAATAACGACGACCATCGGACCGCAGACCAGGTCGTGATACCTGCAAAAATTCGATGAGACG
+CCTGACTGTAGCTATACACCCTCTTGCCTCTTACCGCAGCAACATAACGAACGCCCATCGGACCGGCAGACCAGGTCGTGATACGTCAAATATTCGATGACCTG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/25.bmp"26	50	53:
+CCCTGACTGTAGCAACACCCTCTGCCTCTACCCGCAAGCAAATAACGACG
+CCTGACTGTAGCTATACACCCTCTTGCCTCTTACCGCAGCAACATAACGAACG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/26.bmp"27	29	32:
+CCCTGACTGTAGCAACACCCTCTGCCTCT
+CCTGACTGTAGCTATACACCCTCTTGCCTCTT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/27.bmp"28	23	24:
+CCCTGACTGTAGCAACACCCTCT
+CCTGACTGTAGCTATACACCCTCT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/28.bmp"29	14	14:
+CCCTGACTGTAGCA
+CCTGACTGTAGCTA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/29.bmp"30	12	13:
+CCTGACTGTAGC
+CCCTGACTGTAGC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/30.bmp"31	8	9:
+CACCCTCT
+ACACCCTCT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/31.bmp"32	5	7:
+CCTCT
+GCCTCTT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/32.bmp"33	1	2:
+C
+GC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/33.bmp"34	3	4:
+TCT
+TCTT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/34.bmp"35	20	20:
+CCCGCAAGCAAATAACGACG
+CCGCAGCAACATAACGAACG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/35.bmp"36	8	10:
+TAACGACG
+ATAACGAACG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/36.bmp"37	1	2:
+T
+AT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/37.bmp"38	6	7:
+ACGACG
+ACGAACG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/38.bmp"39	50	50:
+CCATCGGACCGCAGACCAGGTCGTGATACCTGCAAAAATTCGATGAGACG
+CCATCGGACCGGCAGACCAGGTCGTGATACGTCAAATATTCGATGACCTG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/39.bmp"40	46	46:
+CCATCGGACCGCAGACCAGGTCGTGATACCTGCAAAAATTCGATGA
+CCATCGGACCGGCAGACCAGGTCGTGATACGTCAAATATTCGATGA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/40.bmp"41	31	32:
+CCATCGGACCGCAGACCAGGTCGTGATACCT
+CCATCGGACCGGCAGACCAGGTCGTGATACGT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/41.bmp"42	29	30:
+CCATCGGACCGCAGACCAGGTCGTGATAC
+CCATCGGACCGGCAGACCAGGTCGTGATAC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/42.bmp"43	13	14:
+AAATATTCGATGA
+CAAAAATTCGATGA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/43.bmp"44	3	4:
+AAA
+CAAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/44.bmp"45	3	3:
+ACG
+CTG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/45.bmp"46	1	2:
+C
+AC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/46.bmp"47	282	285:
+TAAGTGGCTGGCCGATTCGAATCTTGCATCCGTCATGCCGATGACATCACTCGTTGCTAAGCGGTGTACCTTTTCACTGACAACGTATACGCCAAATCCGGCGTCATAGTGCAACTTGTGCTTCGCCAACACTAGACGTAATCCCGAACCATCACAACCCGGTGTGGCGACCAACGGCATGTGCTCTGTTGCGTCAAACACGACTATTGGCTTTATCCCAAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCGATAACCTCTCTCCTTAGTTAGGAGAG
+TACAGTGGCTGGACAGCGCATTCAGAATCTTACATTCGTCGCCGATGACATCACTCGTTGCTAATAGCGGTGTACCTTTTCACCCACAACTATACGCCAAATTCCGGCGTGATAGTGCACTTGTGCTTCGGCCAACACTAGACGTAACCCGAACCGTAACAAGCCGGTGTGCGCGTCCAACGGCATGTGCTCTGTTGCGTCAAACACGACTTTTGGCTCTATCCATAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCATAACCCTCTCTTAGTATGGAGAG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/47.bmp"48	113	119:
+TAAGTGGCTGGCCGATTCGAATCTTGCATCCGTCATGCCGATGACATCACTCGTTGCTAAGCGGTGTACCTTTTCACTGACAACGTATACGCCAAATCCGGCGTCATAGTGCA
+TACAGTGGCTGGACAGCGCATTCAGAATCTTACATTCGTCGCCGATGACATCACTCGTTGCTAATAGCGGTGTACCTTTTCACCCACAACTATACGCCAAATTCCGGCGTGATAGTGCA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/48.bmp"49	35	41:
+TAAGTGGCTGGCCGATTCGAATCTTGCATCCGTCA
+TACAGTGGCTGGACAGCGCATTCAGAATCTTACATTCGTCG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/49.bmp"50	18	23:
+TAAGTGGCTGGCCGATTC
+TACAGTGGCTGGACAGCGCATTC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/50.bmp"51	12	15:
+TAAGTGGCTGGC
+TACAGTGGCTGGACA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/51.bmp"52	12	14:
+TAAGTGGCTGGC
+TACAGTGGCTGGAC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/52.bmp"53	11	12:
+TAAGTGGCTGG
+TACAGTGGCTGG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/53.bmp"54	5	7:
+GATTC
+CGCATTC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/54.bmp"55	1	2:
+G
+CG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/55.bmp"56	3	4:
+TTC
+ATTC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/56.bmp"57	16	17:
+AATCTTGCATCCGTCA
+GAATCTTACATTCGTCG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/57.bmp"58	10	11:
+AATCTTGCAT
+GAATCTTACAT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/58.bmp"59	6	7:
+AATCTT
+GAATCTT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/59.bmp"60	5	5:
+CGTCG
+CGTCA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/60.bmp"61	77	77:
+CGATGACATCACTCGTTGCTAATAGCGGTGTACCTTTTCACCCACAACTATACGCCAAATTCCGGCGTGATAGTGCA
+GCCGATGACATCACTCGTTGCTAAGCGGTGTACCTTTTCACTGACAACGTATACGCCAAATCCGGCGTCATAGTGCA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/61.bmp"62	42	42:
+CGATGACATCACTCGTTGCTAATAGCGGTGTACCTTTTCACC
+GCCGATGACATCACTCGTTGCTAAGCGGTGTACCTTTTCACT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/62.bmp"63	23	24:
+CGATGACATCACTCGTTGCTAAT
+GCCGATGACATCACTCGTTGCTAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/63.bmp"64	22	24:
+CGATGACATCACTCGTTGCTAA
+GCCGATGACATCACTCGTTGCTAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/64.bmp"65	1	2:
+C
+GC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/65.bmp"66	20	21:
+ATGACATCACTCGTTGCTAA
+GATGACATCACTCGTTGCTAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/66.bmp"67	17	18:
+CGGTGTACCTTTTCACT
+GCGGTGTACCTTTTCACC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/67.bmp"68	16	17:
+CGGTGTACCTTTTCAC
+GCGGTGTACCTTTTCAC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/68.bmp"69	34	34:
+ACAACTATACGCCAAATTCCGGCGTGATAGTGCA
+ACAACGTATACGCCAAATCCGGCGTCATAGTGCA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/69.bmp"70	25	25:
+ACAACTATACGCCAAATTCCGGCGT
+ACAACGTATACGCCAAATCCGGCGT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/70.bmp"71	17	18:
+ACAACTATACGCCAAAT
+ACAACGTATACGCCAAAT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/71.bmp"72	6	7:
+CGGCGT
+CCGGCGT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/72.bmp"73	165	168:
+TTGTGCTTCGGCCAACACTAGACGTAACCCGAACCGTAACAAGCCGGTGTGCGCGTCCAACGGCATGTGCTCTGTTGCGTCAAACACGACTTTTGGCTCTATCCATAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCATAACCCTCTCTTAGTATGGAGAG
+CTTGTGCTTCGCCAACACTAGACGTAATCCCGAACCATCACAACCCGGTGTGGCGACCAACGGCATGTGCTCTGTTGCGTCAAACACGACTATTGGCTTTATCCCAAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCGATAACCTCTCTCCTTAGTTAGGAGAG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/73.bmp"74	98	98:
+TTGTGCTTCGGCCAACACTAGACGTAACCCGAACCGTAACAAGCCGGTGTGCGCGTCCAACGGCATGTGCTCTGTTGCGTCAAACACGACTTTTGGCT
+CTTGTGCTTCGCCAACACTAGACGTAATCCCGAACCATCACAACCCGGTGTGGCGACCAACGGCATGTGCTCTGTTGCGTCAAACACGACTATTGGCT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/74.bmp"75	42	43:
+TTGTGCTTCGGCCAACACTAGACGTAACCCGAACCGTAACAA
+CTTGTGCTTCGCCAACACTAGACGTAATCCCGAACCATCACAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/75.bmp"76	35	36:
+TTGTGCTTCGGCCAACACTAGACGTAACCCGAACC
+CTTGTGCTTCGCCAACACTAGACGTAATCCCGAACC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/76.bmp"77	27	27:
+TTGTGCTTCGGCCAACACTAGACGTAA
+CTTGTGCTTCGCCAACACTAGACGTAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/77.bmp"78	10	11:
+TTGTGCTTCG
+CTTGTGCTTCG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/78.bmp"79	15	16:
+CAACACTAGACGTAA
+CCAACACTAGACGTAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/79.bmp"80	7	8:
+CCGAACC
+CCCGAACC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/80.bmp"81	6	6:
+TAACAA
+TCACAA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/81.bmp"82	54	55:
+CCGGTGTGGCGACCAACGGCATGTGCTCTGTTGCGTCAAACACGACTATTGGCT
+CCGGTGTGCGCGTCCAACGGCATGTGCTCTGTTGCGTCAAACACGACTTTTGGCT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/82.bmp"83	47	48:
+CCGGTGTGGCGACCAACGGCATGTGCTCTGTTGCGTCAAACACGACT
+CCGGTGTGCGCGTCCAACGGCATGTGCTCTGTTGCGTCAAACACGACT
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/83.bmp"84	11	12:
+CCGGTGTGGCG
+CCGGTGTGCGCG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/84.bmp"85	66	69:
+TATCCATAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCATAACCCTCTCTTAGTATGGAGAG
+TATCCCAAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCGATAACCTCTCTCCTTAGTTAGGAGAG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/85.bmp"86	49	51:
+TATCCATAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCATAACCC
+TATCCCAAGCCTGTCGCACCGACCTGCACATCGACTTAGCCCGATAACCTC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/86.bmp"87	42	42:
+TATCCATAGCCTGTCGCACCGACCTGCACATCGACTTAGCCC
+TATCCCAAGCCTGTCGCACCGACCTGCACATCGACTTAGCCC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/87.bmp"88	6	7:
+TATCCA
+TATCCCA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/88.bmp"89	34	35:
+GCCTGTCGCACCGACCTGCACATCGACTTAGCCC
+AGCCTGTCGCACCGACCTGCACATCGACTTAGCCC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/89.bmp"90	6	8:
+TAACCC
+ATAACCTC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/90.bmp"91	5	6:
+TAACC
+ATAACC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/91.bmp"92	16	17:
+CTCTTAGTATGGAGAG
+CTCCTTAGTTAGGAGAG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/92.bmp"93	9	11:
+CTCTTAGTA
+CTCCTTAGTTA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/93.bmp"94	3	4:
+CTC
+CTCC
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/94.bmp"95	5	6:
+TAGTA
+TAGTTA
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/95.bmp"96	5	6:
+GAGAG
+GGAGAG
+
+Problem saving the file: "Couldn't open evals/astar-visualization/test/96.bmp"Problem saving the file: "Couldn't open evals/astar-visualization/biwfa20.bmp"Problem saving the file: "Couldn't open evals/astar-visualization/biwfa_short20.bmp"

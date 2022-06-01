@@ -21,7 +21,7 @@ pub use seed::*;
 pub use symmetric::*;
 
 use serde::Serialize;
-use std::{cell::Cell};
+use std::cell::Cell;
 
 use crate::{astar::Config, matches::Match, prelude::*};
 
@@ -656,10 +656,7 @@ pub trait HeuristicInstance<'a> {
         _path: Option<Vec<Pos>>,
         tree: Option<Vec<(Pos, Edge)>>,
     ) {
-        use sdl2::{
-            pixels::Color,
-        };
-        
+        use sdl2::pixels::Color;
 
         // Pos: position in edit graph
         // Cell: position in drawing, of size CELL_SIZE x CELL_SIZE

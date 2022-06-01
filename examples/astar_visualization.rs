@@ -1,4 +1,4 @@
-use pairwise_aligner::prelude::*;
+use pairwise_aligner::{drawing::draw_explored_states, prelude::*};
 
 fn main() {
     let n = 500;
@@ -12,6 +12,7 @@ fn main() {
         let (a, b, alphabet, stats) = setup(n, e);
         let r = align(&a, &b, &alphabet, stats, h);
         r.write_explored_states("evals/astar-visualization/dijkstra.csv");
+        draw_explored_states(&r, "evals/astar-visualization/dijkstra_transp");
         r.print();
     }
     {
@@ -28,6 +29,7 @@ fn main() {
         let (a, b, alphabet, stats) = setup(n, e);
         let r = align(&a, &b, &alphabet, stats, h);
         r.write_explored_states("evals/astar-visualization/csh-noprune.csv");
+        draw_explored_states(&r, "evals/astar-visualization/csh-noprune_transp");
         r.print();
     }
     {
@@ -44,6 +46,37 @@ fn main() {
         let (a, b, alphabet, stats) = setup(n, e);
         let r = align(&a, &b, &alphabet, stats, h);
         r.write_explored_states("evals/astar-visualization/csh.csv");
+        draw_explored_states(&r, "evals/astar-visualization/csh_transp");
+        r.print();
+    }
+    {
+        let h = SH {
+            match_config: MatchConfig {
+                length: Fixed(15),
+                max_match_cost: 0,
+                ..Default::default()
+            },
+            pruning: false,
+        };
+        let (a, b, alphabet, stats) = setup(n, e);
+        let r = align(&a, &b, &alphabet, stats, h);
+        r.write_explored_states("evals/astar-visualization/sh-noprune.csv");
+        draw_explored_states(&r, "evals/astar-visualization/sh-noprune_transp");
+        r.print();
+    }
+    {
+        let h = SH {
+            match_config: MatchConfig {
+                length: Fixed(15),
+                max_match_cost: 0,
+                ..Default::default()
+            },
+            pruning: true,
+        };
+        let (a, b, alphabet, stats) = setup(n, e);
+        let r = align(&a, &b, &alphabet, stats, h);
+        r.write_explored_states("evals/astar-visualization/sh.csv");
+        draw_explored_states(&r, "evals/astar-visualization/sh_transp");
         r.print();
     }
 }

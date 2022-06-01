@@ -11,6 +11,9 @@ incremental = true
 debug = true
 
 [dependencies]
+colorgrad = "0.5.0"
+csscolorparser = "0.5.0"
+image = "0.23.14"
 bio-types = "*"
 bio = "*"
 rand = "*"

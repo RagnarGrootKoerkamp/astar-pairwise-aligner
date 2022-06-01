@@ -54,7 +54,7 @@ pub const SLIDING_WINDOW_MATCHES: bool = true;
 pub const PRUNE_INEXACT_MATCHES_BY_END: bool = true;
 
 //verical offset for seeds
-pub const v_offset: u32 = 11;
+pub const v_offset: u32 = 0; //11 for seeds and heuristic; 0 if no heuristic
 
 //canvas scaling coeficient
 pub const SCALE: u32 = 2;

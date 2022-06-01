@@ -5,14 +5,20 @@ use num_traits::abs;
 use pairwise_aligner::{
     align,
     diagonal_transition::{
-        diagonal_transition, diagonal_transition_a, diagonal_transition_a_oxy,
-        diagonal_transition_a_oxy_linear, diagonal_transition_linear,
+        biwfa, biwfa2, biwfa3, diagonal_transition, diagonal_transition_a,
+        diagonal_transition_a_oxy, diagonal_transition_a_oxy_linear,
+        diagonal_transition_a_oxy_linear_oxy, diagonal_transition_linear,
         diagonal_transition_linear_fast, diagonal_transition_short,
     },
-    prelude::{setup, to_string, LengthConfig::Fixed, MatchConfig, Sequence, ZeroCost, CSH, SH},
+    prelude::{
+        setup, setup_with_seed, to_string, LengthConfig::Fixed, MatchConfig, Sequence, ZeroCost,
+        CSH, SH,
+    },
+    ukkonen::ukkonen,
 };
 
-fn ukkonen<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, d: usize) -> usize {
+fn ukkonen_unused<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, d: usize) -> usize {
+    //It was moved to src/ukkonen.rs
     /*println!("String1 is {}", to_string(s1));
     println!("String2 is {}", to_string(s2));*/
     let mut len1 = s1.len();
@@ -104,16 +110,16 @@ fn ukkonen<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, d: usize) -> usize {
 }
 
 fn main() {
-    let n = 50000;
-    let e = 0.05;
+    let n = 500;
+    let e = 0.5;
 
     let _m = 0;
     let _k = 3;
 
     let (ref a, ref b, ref _alphabet, _stats) = setup(n, e);
 
-    /*println!("First string: {}", to_string(a));
-    println!("Second string: {}", to_string(b));*/
+    println!("First string: {}", to_string(a));
+    println!("Second string: {}", to_string(b));
 
     let start = std::time::Instant::now();
     let r = align::align(
@@ -187,9 +193,9 @@ fn main() {
 
     println!("DTM_oxy2 has needed for this {duration} seconds");
 
-    let start = std::time::Instant::now();
+    /*let start = std::time::Instant::now();
 
-    let r = diagonal_transition_a_oxy_linear(a, b);
+    let r = diagonal_transition_a_oxy_linear_oxy(a, b);
 
     let duration = start.elapsed().as_secs_f32();
 
@@ -198,7 +204,7 @@ fn main() {
         r
     );
 
-    println!("DTM_oxy2 with linear memory has needed for this {duration} seconds");
+    println!("DTM_oxy2 with linear memory has needed for this {duration} seconds");*/
 
     let start = std::time::Instant::now();
 
@@ -209,6 +215,36 @@ fn main() {
     println!("DTM says that edit distance is {}", r);
 
     println!("DTM has needed for this {duration} seconds");
+
+    let start = std::time::Instant::now();
+
+    let r = biwfa(a, b, &mut vec![]);
+
+    let duration = start.elapsed().as_secs_f32();
+
+    println!("BiWFA says that edit distance is {}", r);
+
+    println!("BiWFA has needed for this {duration} seconds");
+
+    /*let start = std::time::Instant::now();
+
+    let r = biwfa2(a, b);
+
+    let duration = start.elapsed().as_secs_f32();
+
+    println!("BiWFA2 says that edit distance is {}", r.0);
+
+    println!("BiWFA2 has needed for this {duration} seconds");*/
+
+    let start = std::time::Instant::now();
+
+    let r = biwfa3(a, b, &mut vec![], 0, 0);
+
+    let duration = start.elapsed().as_secs_f32();
+
+    println!("BiWFA3 says that edit distance is {}", r);
+
+    println!("BiWFA3 has needed for this {duration} seconds");
 
     let mut d = max(2, abs(a.len() as i32 - b.len() as i32) as usize);
     let mut r = d + 1;
