@@ -1,3 +1,13 @@
+// To create a video from images use this command:
+
+// ffmpeg -framerate 4 -i %d.bmp -vf fps=4 -pix_fmt yuv420p output1.mp4
+
+// (You need to have ffmpeg installed. And make sure that binary is in the folder that is included in PATH (I have no idea tbh does Mac have PATH or not. Maybe this thing with PATH is only for windows))
+
+// Sometimes there can be an error like this: height(or width) not divisible by 2. Use this command in this case:
+
+// ffmpeg -framerate 4 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p output1.mp4
+
 use std::cell::Cell;
 
 use num_traits::abs;
