@@ -1,3 +1,13 @@
+// To create a video from images use this command:
+
+// ffmpeg -framerate 4 -i %d.bmp -vf fps=4 -pix_fmt yuv420p output1.mp4
+
+// (You need to have ffmpeg installed. And make sure that binary is in the folder that is included in PATH (I have no idea tbh does Mac have PATH or not. Maybe this thing with PATH is only for windows))
+
+// Sometimes there can be an error like this: height(or width) not divisible by 2. Use this command in this case:
+
+// ffmpeg -framerate 4 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p output1.mp4
+
 use std::cell::Cell;
 
 use pairwise_aligner::{astar::Config, prelude::*};
@@ -35,26 +45,6 @@ fn main() {
     let hmax = Some(align(a, b, alphabet, stats, ZeroCost).edit_distance);
     config.hmax = hmax;
 
-    // {
-    //     let h = ZeroCost;
-    //     let h = Heuristic::build(&h, &a, &b, &alphabet);
-    //     h.display(target, DisplayType::Heuristic, hmax);
-    // }
-    // {
-    //     let h = PerfectHeuristic;
-    //     let h = Heuristic::build(&h, &a, &b, &alphabet);
-    //     h.display(target, DisplayType::Heuristic, hmax);
-    // }
-    // {
-    //     let h = GapCost;
-    //     let h = Heuristic::build(&h, &a, &b, &alphabet);
-    //     h.display(target, DisplayType::Heuristic, hmax);
-    // }
-    // {
-    //     let h = CountCost;
-    //     let h = Heuristic::build(&h, &a, &b, &alphabet);
-    //     h.display(target, DisplayType::Heuristic, hmax);
-    // }
     {
         let h = SH {
             match_config: MatchConfig {
@@ -65,23 +55,14 @@ fn main() {
             pruning: true,
         };
         let mut h = Heuristic::build(&h, &a, &b, &alphabet);
-        //h.display(target, hmax, None, None, None);
         let graph = EditGraph::new(a, b, true);
         let tmp = config.filepath.clone();
         config.filepath = format!("{}{}", &config.filepath, "/SH/");
         let (distance_and_path, _astar) = astar::astar(&graph, Pos(0, 0), &mut h, &config);
         config.filepath = tmp;
         let (_distance, _path) = distance_and_path.unwrap_or_default();
-
-        // h.display(
-        //     target,
-        //     hmax,
-        //     Some(astar.explored_states),
-        //     Some(astar.expanded_states),
-        //     Some(path),
-        //     Some(astar.tree),
-        // );
     }
+
     {
         let h = CSH {
             match_config: MatchConfig {
@@ -94,22 +75,11 @@ fn main() {
             c: PhantomData::<HintContours<BruteForceContour>>::default(),
         };
         let mut h = Heuristic::build(&h, &a, &b, &alphabet);
-        //h.display(target, hmax, None, None, None);
         let graph = EditGraph::new(a, b, true);
         let tmp = config.filepath.clone();
         config.filepath = format!("{}{}", config.filepath, "/CSH/");
         let (distance_and_path, _astar) = astar::astar(&graph, Pos(0, 0), &mut h, &config);
         config.filepath = tmp;
         let (_distance, _path) = distance_and_path.unwrap_or_default();
-
-        /*h.display(
-            target,
-            hmax,
-            Some(&astar.explored_states),
-            Some(&astar.expanded_states),
-            Some(&path),
-
-                Some(astar.tree),
-        );*/
     }
 }

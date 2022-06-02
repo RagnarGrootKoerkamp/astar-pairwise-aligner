@@ -73,18 +73,8 @@ pub fn display2(
 
     const CELL_SIZE: u32 = 8;
     const SMALL_CELL_MARGIN: u32 = 2;
-    const CONTOUR_WIDTH: i32 = 2;
-
-    const radius: i32 = (0.5 * SCALE as f32) as i32; // radius of small dots on the background
-
-    const SEED_COLOR: Color = Color::RGB(0, 0, 0);
-    const MATCH_COLOR: Color = Color::RGB(0, 150, 0);
-    const PRUNED_MATCH_COLOR: Color = Color::RGB(0, 216, 0);
-    const CONTOUR_COLOR: Color = Color::RGB(0, 150, 0);
     const TREE_COLOR: Color = Color::BLUE;
     const TREE_COLOR_MATCH: Color = Color::CYAN;
-    const PATH_COLOR: Color = Color::BLUE;
-    const H_COLOR: Color = Color::RGB(64, 64, 64);
     const EXPANDED_COLOR: Color = Color::BLUE;
     const EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
     const PREV_COLOR: Color = Color::RGBA(0, 255, 255, 100);
@@ -217,56 +207,6 @@ pub fn display2(
         return Color::RGB(frac(c1.r, c2.r), frac(c1.g, c2.g), frac(c1.b, c2.b));
     }
 
-    /*let max_h_val = config
-        .hmax
-        .unwrap_or_else(|| max(h.h(Pos(0, 0)), h.h(Pos(0, target.1))));
-
-    // Draw the heuristic.
-    let h_gradient = |h: Cost| -> Color {
-        if h <= max_h_val {
-            gradient(h as f32 / max_h_val as f32, Color::WHITE, H_COLOR)
-        } else {
-            H_COLOR
-        }
-    };
-    const color_offset: u8 = 50;
-    for i in 0..canvas_size_cells.0 {
-        for j in 0..canvas_size_cells.1 {
-            let pos = Pos(i, j);
-            let v = h.h(pos);
-            let h_color = h_gradient(v);
-            draw_pixel(canvas, pos, h_color, false);
-            let f: u8 = h_color.r.saturating_sub(color_offset);
-            let color = Color::RGB(f, f, f);
-            canvas.set_draw_color(color);
-            let point = cell_center(pos) * SCALE as i32;
-            //draw_pixel(canvas, pos, Color::BLACK, true);
-            for y in -radius..radius + 1 {
-                let x = ((radius * radius - y * y) as f32).sqrt();
-                canvas.draw_line(
-                    Point::new(point.x - x as i32, point.y + y),
-                    Point::new(point.x + x as i32, point.y + y),
-                );
-            }
-        }
-    }
-
-    /*canvas.set_draw_color(Color::RGB(150, 150, 150));
-    for i in 0..target.0 + 1 {
-        for j in 0..target.1 + 1 {
-            let pos = Pos(i, j);
-            let point = cell_center(pos) * SCALE as i32;
-            //draw_pixel(canvas, pos, Color::BLACK, true);
-            for y in -radius..radius + 1 {
-                let x = ((radius * radius - y * y) as f32).sqrt();
-                canvas.draw_line(
-                    Point::new(point.x - x as i32, point.y + y),
-                    Point::new(point.x + x as i32, point.y + y),
-                );
-            }
-        }
-    }*/*/
-
     // Draw explored
     if let Some(explored) = _explored {
         for p in explored {
@@ -287,37 +227,6 @@ pub fn display2(
             draw_pixel(canvas, *p, EXPANDED_COLOR, false);
         }
     }
-
-    // Draw matches
-    /*if let Some(matches) = h.matches() {
-        for m in &matches {
-            if m.match_cost > 0 {
-                continue;
-            }
-            if true {
-                canvas.set_draw_color(match m.pruned {
-                    MatchStatus::Active => MATCH_COLOR,
-                    MatchStatus::Pruned => PRUNED_MATCH_COLOR,
-                });
-                let center1 = cell_center(m.start);
-                let center2 = cell_center(m.end);
-                let point1 = Point::new(center1.x + radius, center1.y + radius);
-                let point2 = Point::new(center2.x - radius, center2.y - radius);
-                draw_thick_line_diag(canvas, point1, point2, 4);
-            } else {
-                let mut p = m.start;
-                draw_pixel(canvas, p, MATCH_COLOR, false);
-                draw_pixel(canvas, p, MATCH_COLOR, false);
-                loop {
-                    p = p.add_diagonal(1);
-                    draw_pixel(canvas, p, MATCH_COLOR, false);
-                    if p == m.end {
-                        break;
-                    }
-                }
-            }
-        }
-    }*/
 
     // Draw tree
     if let Some(tree) = tree {
@@ -342,88 +251,6 @@ pub fn display2(
             prev = *p;
         }
     }
-
-    // Draw contours
-    /*if let Some(_) = h.contour_value(Pos(0, 0)) {
-        canvas.set_draw_color(CONTOUR_COLOR);
-
-        let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
-            draw_thick_line_vertical(
-                canvas,
-                cell_begin(Pos(i + 1, j)),
-                cell_begin(Pos(i + 1, j + 1)),
-                CONTOUR_WIDTH,
-                0,
-            );
-        };
-        let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
-            draw_thick_line_horizontal(
-                canvas,
-                cell_begin(Pos(i, j + 1)),
-                cell_begin(Pos(i + 1, j + 1)),
-                CONTOUR_WIDTH,
-                0,
-            );
-        };
-
-        // Right borders
-        for i in 0..canvas_size_cells.0 - 1 {
-            for j in 0..canvas_size_cells.1 {
-                let pos = Pos(i, j);
-                let v = h.contour_value(pos).unwrap();
-                let pos_r = Pos(i + 1, j);
-                let v_r = h.contour_value(pos_r).unwrap();
-                if v_r != v {
-                    draw_right_border(canvas, pos);
-                }
-            }
-        }
-        // Bottom borders
-        for i in 0..canvas_size_cells.0 {
-            for j in 0..canvas_size_cells.1 - 1 {
-                let pos = Pos(i, j);
-                let v = h.contour_value(pos).unwrap();
-                let pos_l = Pos(i, j + 1);
-                let v_l = h.contour_value(pos_l).unwrap();
-                if v_l != v {
-                    draw_bottom_border(canvas, pos);
-                }
-            }
-        }
-    }
-
-    // Draw seeds and potentials
-    canvas.set_draw_color(Color::RGB(255, 255, 255));
-    canvas.fill_rect(Rect::new(0, 0, canvas.window().size().0, v_offset * SCALE));
-    if let Some(seeds) = h.seeds() {
-        canvas.set_draw_color(SEED_COLOR);
-        for s in seeds {
-            draw_thick_line_horizontal(
-                canvas,
-                Point::new(
-                    cell_center(Pos(s.start, 0)).x,
-                    ((CELL_SIZE / 2) + v_offset / 2 - 1) as i32,
-                ),
-                Point::new(
-                    cell_center(Pos(s.end, 0)).x,
-                    ((CELL_SIZE / 2) + v_offset / 2 - 1) as i32,
-                ),
-                3,
-                2,
-            );
-        }
-        for i in 0..canvas_size_cells.0 {
-            let pos = Pos(i, 0);
-            let v = h.h(pos) + h.contour_value(pos).unwrap();
-            let h_color = h_gradient(v);
-            canvas.set_draw_color(h_color);
-            let mut begin = cell_begin(pos);
-            begin *= SCALE as i32;
-            canvas
-                .fill_rect(Rect::new(begin.x, 0, CELL_SIZE * SCALE, 5 * SCALE))
-                .unwrap();
-        }
-    }*/
 
     // Draw path
     if let Some(path) = path {
@@ -528,18 +355,6 @@ pub fn draw_explored_states1(r: &AlignResult, filename: &str) {
         //img[row.i-lbox, row.j-lbox] = mcolors.to_rgba('xkcd:black')
         imgbuf.put_pixel(pos.0, pos.1, image::Rgb([0., 0., 0.]));
     }
-
-    let path = Path::new(filename);
-    //image::
-    //image::Rgb(imgbuf).save(path).unwrap();
-    /*save_buffer(
-        path,
-        imgbuf.into_raw(),
-        width,
-        height,
-        image::ColorType::Rgb32F,
-    );*/
-    //imgbuf.save(filename).unwrap();
 }
 
 pub fn draw_explored_states(r: &AlignResult, filename: &str) {
@@ -570,8 +385,6 @@ pub fn draw_explored_states(r: &AlignResult, filename: &str) {
     let ref mut canvas = window.into_canvas().build().unwrap();
     canvas.set_blend_mode(BlendMode::Blend);
 
-    //let mut imgbuf = ImageBuffer::new(width, height);
-
     /*let gray_bg = 0.97; // BG COLOR
     canvas.set_draw_color(Color::RGB(
         (gray_bg * 255.) as u8,
@@ -580,10 +393,6 @@ pub fn draw_explored_states(r: &AlignResult, filename: &str) {
     ));*/
     canvas.set_draw_color(Color::RGBA(0, 0, 0, 0));
     canvas.fill_rect(Rect::new(0, 0, width, height));
-
-    /*for pixel in imgbuf.enumerate_pixels_mut() {
-        *pixel.2 = image::Rgb([gray_bg, gray_bg, gray_bg]);
-    }*/
 
     let grad = colorgrad::turbo();
     let min_step = 0;
@@ -594,29 +403,14 @@ pub fn draw_explored_states(r: &AlignResult, filename: &str) {
         let clr = grad.at(0.25 + (val * 0.65)).rgba_u8();
         canvas.set_draw_color(Color::RGBA(clr.0, clr.1, clr.2, clr.3));
         canvas.draw_point(Point::new(pos.0 as i32, pos.1 as i32));
-        //imgbuf.put_pixel(pos.0, pos.1, image::Rgb([clr.0, clr.1, clr.2]));
     }
 
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     for pos in &r.path {
-        //img[row.i-lbox, row.j-lbox] = mcolors.to_rgba('xkcd:black')
         canvas.draw_point(Point::new(pos.0 as i32, pos.1 as i32));
-        //imgbuf.put_pixel(pos.0, pos.1, image::Rgb([0., 0., 0.]));
     }
 
     save_canvas(&canvas, filename, 0);
-
-    //let path = Path::new(filename);
-    //image::
-    //image::Rgb(imgbuf).save(path).unwrap();
-    /*save_buffer(
-        path,
-        imgbuf.into_raw(),
-        width,
-        height,
-        image::ColorType::Rgb32F,
-    );*/
-    //imgbuf.save(filename).unwrap();
 }
 
 pub fn display3(
@@ -641,10 +435,6 @@ pub fn display3(
     //canvas.set_draw_color(Color::RGBA(0, 0, 0, 0));
     canvas.fill_rect(Rect::new(0, 0, width, height));
 
-    /*for pixel in imgbuf.enumerate_pixels_mut() {
-        *pixel.2 = image::Rgb([gray_bg, gray_bg, gray_bg]);
-    }*/
-
     let grad = colorgrad::turbo();
     let min_step = 0;
     let max_steps = 11618 - 1;
@@ -653,7 +443,6 @@ pub fn display3(
         let clr = grad.at(0.25 + (val * 0.65)).rgba_u8();
         canvas.set_draw_color(Color::RGB(clr.0, clr.1, clr.2));
         canvas.draw_point(Point::new(pos.1 as i32, pos.0 as i32));
-        //imgbuf.put_pixel(pos.0, pos.1, image::Rgb([clr.0, clr.1, clr.2]));
     }
 
     save_canvas(&canvas, filepath, file_number);

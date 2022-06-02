@@ -581,9 +581,10 @@ pub fn diagonal_transition_a_oxy_linear_oxy<'a>(
     let mut j = 0;
     A[num][j] = 0;
     j = 1;
-    A[num][j] = A[num][j - 1];
-
-    explore_diagonal(s1, s2, &mut A[num][j], i, j);
+    if j < sz {
+        A[num][j] = A[num][j - 1];
+        explore_diagonal(s1, s2, &mut A[num][j], i, j);
+    }
 
     for j in 2..(len - 1) {
         A[num][j] = A[num][j - 1];
@@ -632,10 +633,11 @@ pub fn diagonal_transition_a_oxy_linear_oxy<'a>(
         A[num][j] = max(A[num][j], A[num1][j - (if i % 2 == 1 { 0 } else { 1 })] + 1);
     }
     j = 1;
-    A[num][j] = A[num][j - 1];
-    A[num][j] = max(A[num][j], A[num1][j - (if i % 2 == 1 { 0 } else { 1 })] + 1);
-
-    explore_diagonal(s1, s2, &mut A[num][j], i, j);
+    if j < sz {
+        A[num][j] = A[num][j - 1];
+        A[num][j] = max(A[num][j], A[num1][j - (if i % 2 == 1 { 0 } else { 1 })] + 1);
+        explore_diagonal(s1, s2, &mut A[num][j], i, j);
+    }
 
     for j in 2..(len - 1) {
         A[num][j] = A[num][j - 1];
@@ -699,7 +701,10 @@ pub fn diagonal_transition_a_oxy_linear_oxy<'a>(
         j = 1;
         A[num][j] = max(
             A[num][j - 1],
-            max(A[num1][j - (if i % 2 == 1 { 0 } else { 1 })], A[num2][j]) + 1,
+            max(
+                A[num1][j - (if i % 2 == 1 { 0 } else { 1 })],
+                if A[num2].len() > j { A[num2][j] } else { 0 },
+            ) + 1,
         );
 
         explore_diagonal(s1, s2, &mut A[num][j], i, j);
@@ -943,7 +948,7 @@ pub fn biwfa<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, explored: &mut Vec<
     let mut w = 1;
 
     for i in 0..s2.len() {
-        //println!("\ni = {i} first\n\n");
+        println!("\ni = {i} first\n\n");
         if i > 0 {
             A.push(vec![0usize; w]);
             B.push(vec![0usize; w]);
@@ -980,8 +985,8 @@ pub fn biwfa<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, explored: &mut Vec<
             k_min = 2;
         }
 
-        // println!("k_min = {k_min}\nk_max = {k_max}\n");
-        // println!("Comparison\n");
+        println!("k_min = {k_min}\nk_max = {k_max}\n");
+        println!("Comparison\n");
         if i > 0 {
             B[i - 1].reverse();
         }
@@ -992,11 +997,18 @@ pub fn biwfa<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, explored: &mut Vec<
             //     B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
             // );
             let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i - 1, (((w - 2) / 2) as isize + k - k0) as usize);
+            let t2 = check_point2(
+                &B,
+                i - 1,
+                B[i - 1].len() - 1 - (((w - 2) / 2) as isize + k - k0) as usize,
+            );
             //println!("t1 == {} t2 == {}", t1, t2);
-            if (A[i][((w / 2) as isize + k) as usize]
-                >= (s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                && A[i][((w / 2) as isize + k) as usize] <= s1.len() + 1 - t2)
+            if A[i][((w / 2) as isize + k) as usize]
+                + B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
+                == s1.len()
+                || (A[i][((w / 2) as isize + k) as usize]
+                    >= (s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
+                    && A[i][((w / 2) as isize + k) as usize] <= s1.len() + 1 - t2)
                 || ((s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]) >= t1
                     && (s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
                         <= A[i][((w / 2) as isize + k) as usize])
@@ -1007,19 +1019,21 @@ pub fn biwfa<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, explored: &mut Vec<
         if i > 0 {
             B[i - 1].reverse();
         }
-        //println!("Comparison End\n");
+        println!("Comparison End\n");
 
-        // print_vector(&A);
-        // print_vector(&B);
+        print_vector(&A);
+        print_vector(&B);
 
-        //println!("\ni = {i}\n\n");
+        println!("\ni = {i}\n\n");
         for j in 0..w {
             check_point(&mut B, i, j);
-            explored.push(Pos(
-                (s1.len() - B[i][j]) as u32,
-                ((s1.len() - B[i][j]) as isize - (B[i].len() as isize / 2 - j as isize + k0))
-                    as u32,
-            ));
+            if s1.len() >= B[i][j] {
+                explored.push(Pos(
+                    (s1.len() - B[i][j]) as u32,
+                    ((s1.len() - B[i][j]) as isize - (B[i].len() as isize / 2 - j as isize + k0))
+                        as u32,
+                ));
+            }
             if s1.len() >= B[i][j] + 1 {
                 let d: isize = -(j as isize) + (w - 1) as isize - (w / 2) as isize + k0;
                 //print!("i = {i}\nj = {j}\nA[i][j] = {}\nd ={d}\nw = {w}", A[i][j]);
@@ -1047,13 +1061,16 @@ pub fn biwfa<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, explored: &mut Vec<
             }
         }
 
-        // print_vector(&A);
-        // print_vector(&B);
+        print_vector(&A);
+        print_vector(&B);
 
         let k_min = -((w / 2) as isize);
         let k_max = ((w / 2) as isize) + k0;
-        // println!("k_min = {k_min}\nk_max = {k_max}\n");
-        // println!("Comparison\n");
+        println!("k_min = {k_min}\nk_max = {k_max}\n");
+        println!("Comparison\n");
+        /*if i > 0 {
+            B[i - 1].reverse();
+        }*/
         B[i].reverse();
         for k in k_min..=k_max {
             // println!(
@@ -1062,10 +1079,14 @@ pub fn biwfa<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, explored: &mut Vec<
             //     B[i][((w / 2) as isize + k - k0) as usize]
             // );
             let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i, ((w / 2) as isize + k - k0) as usize);
-            if (A[i][((w / 2) as isize + k) as usize]
-                >= (s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize])
-                && A[i][((w / 2) as isize + k) as usize] <= (s1.len() + 1 - t2))
+            let t2 = check_point2(&B, i, B[i].len() - 1 - ((w / 2) as isize + k - k0) as usize);
+            println!("{k} {t1} {t2}");
+            println!("{} {}", ((w / 2) as isize + k), ((w / 2) as isize + k - k0));
+            if A[i][((w / 2) as isize + k) as usize] + B[i][((w / 2) as isize + k - k0) as usize]
+                == s1.len()
+                || (A[i][((w / 2) as isize + k) as usize]
+                    >= (s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize])
+                    && A[i][((w / 2) as isize + k) as usize] <= (s1.len() + 1 - t2))
                 || ((s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize]) >= t1
                     && (s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize])
                         <= A[i][((w / 2) as isize + k) as usize])
@@ -1073,968 +1094,15 @@ pub fn biwfa<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, explored: &mut Vec<
                 return 2 * i;
             }
         }
+        /*if i > 0 {
+            B[i - 1].reverse();
+        }*/
         B[i].reverse();
-        // println!("Comparison End\n");
+        println!("Comparison End\n");
 
         w += 2;
     }
     unreachable!("Error! Shouldn't be here!");
-}
-
-pub fn biwfa2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> (usize, Vec<Pos>) {
-    if s1.len() > s2.len() {
-        (s1, s2) = (s2, s1);
-    }
-    println!("{} {}", s1.len(), s2.len());
-    let print_vector = |C: &Vec<Vec<usize>>| -> () {
-        print!("\n");
-        for i in 0..C.len() {
-            for j in 0..C[i].len() {
-                print!("{} ", C[i][j]);
-            }
-            print!("\n");
-        }
-        print!("\n");
-    };
-
-    let check_point = |C: &mut Vec<Vec<usize>>, i: usize, j: usize| -> () {
-        C[i][j] = 0;
-        if i > 0 {
-            //println!("HALOOOOOOOOOOOOOOOOOO!!!!!{i} {j}");
-            if j > 1 && j - 2 < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j - 2] + 1);
-            }
-            if j > 0 && j - 1 < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j - 1] + 1);
-            }
-            if j < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j]);
-            }
-        }
-    };
-
-    let check_point2 = |C: &Vec<Vec<usize>>, i: usize, j: usize| -> usize {
-        let mut t = 0;
-        if i > 0 {
-            //println!("HALOOOOOOOOOOOOOOOOOO!!!!!{i} {j}");
-            if j > 1 && j - 2 < C[i - 1].len() {
-                t = max(t, C[i - 1][j - 2] + 1);
-            }
-            if j > 0 && j - 1 < C[i - 1].len() {
-                t = max(t, C[i - 1][j - 1] + 1);
-            }
-            if j < C[i - 1].len() {
-                t = max(t, C[i - 1][j]);
-            }
-        }
-        t
-    };
-
-    let k0: isize = s1.len() as isize - s2.len() as isize;
-    let mut A = vec![vec![]];
-    let mut B = vec![vec![]];
-    let mut w = 1;
-
-    for i in 0..s2.len() {
-        if i > 0 {
-            A.push(vec![0usize; w]);
-            B.push(vec![0usize; w]);
-        }
-        A[i] = vec![0usize; w];
-        B[i] = vec![0usize; w];
-        for j in 0..w {
-            check_point(&mut A, i, j);
-
-            let d: isize = j as isize - (w / 2) as isize;
-            let mut k = (A[i][j] as isize - d) as usize;
-            while k < s2.len() && A[i][j] < s1.len() {
-                if s1[A[i][j]] == s2[k] {
-                    A[i][j] += 1;
-                    k += 1;
-                } else {
-                    break;
-                }
-            }
-            if i == 0 && d == s1.len() as isize - s2.len() as isize {
-                if A[i][j] >= s1.len() {
-                    return (i, vec![]);
-                }
-            }
-        }
-
-        let mut k_min = 0;
-        if w > 1 {
-            k_min = max(-((w / 2) as isize), -(((w - 2) / 2) as isize) + k0);
-        }
-        let mut k_max = 0;
-
-        if i > 0 {
-            k_max = (((w - 2) / 2) as isize) + k0;
-        } else {
-            k_min = 2;
-        }
-        if i > 0 {
-            B[i - 1].reverse();
-        }
-        for k in k_min..=k_max {
-            let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i - 1, (((w - 2) / 2) as isize + k - k0) as usize);
-            if s1.len() + 1 >= t2
-                && (A[i][((w / 2) as isize + k) as usize] as isize
-                    >= (s1.len() as isize + 1
-                        - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize] as isize)
-                    && A[i][((w / 2) as isize + k) as usize] <= s1.len() + 1 - t2)
-            {
-                if i == 0 {
-                    return (0, vec![]);
-                }
-                let mut path = vec![Pos(
-                    A[i][((w / 2) as isize + k) as usize] as u32,
-                    (A[i][((w / 2) as isize + k) as usize] as isize - k) as u32,
-                )];
-                let (l1, mut path1) = if i > 0 && A[i][((w / 2) as isize + k) as usize] > 0 {
-                    biwfa2(
-                        &s1[..A[i][((w / 2) as isize + k) as usize]].to_vec(),
-                        &s2[..(A[i][((w / 2) as isize + k) as usize] as isize - k) as usize]
-                            .to_vec(),
-                    )
-                } else {
-                    (0, vec![])
-                };
-                let (l2, mut path2) = if i > 1
-                    && A[i][((w / 2) as isize + k) as usize] + 1 < A[i].len()
-                {
-                    biwfa2(
-                        &s1[(A[i][((w / 2) as isize + k) as usize] + 1)..].to_vec(),
-                        &s2[((A[i][((w / 2) as isize + k) as usize] as isize - k) as usize + 1)..]
-                            .to_vec(),
-                    )
-                } else {
-                    (0, vec![])
-                };
-                for m in 0..path2.len() {
-                    path2[m].0 += (A[i][((w / 2) as isize + k) as usize] + 1) as u32;
-                    path2[m].1 +=
-                        ((A[i][((w / 2) as isize + k) as usize] as isize - k) as usize + 1) as u32;
-                }
-                path1.append(&mut path);
-                path1.append(&mut path2);
-                return (2 * i - 1, path1);
-            }
-            if ((s1.len() as isize + 1
-                - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize] as isize)
-                >= t1 as isize
-                && (s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                    <= A[i][((w / 2) as isize + k) as usize])
-            {
-                let mut path = vec![Pos(
-                    (s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]) as u32,
-                    ((s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]) as isize
-                        - k) as u32,
-                )];
-                let (l1, mut path1) = if i > 0
-                    && (s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                        <= s1.len()
-                {
-                    biwfa2(
-                    &s1[..(s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])]
-                        .to_vec(),
-                    &s2[..((s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                        as isize
-                        - k) as usize]
-                        .to_vec(),
-                )
-                } else {
-                    (0, vec![])
-                };
-                let (l2, mut path2) = if i > 1
-                    && ((s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]) + 1)
-                        <= s2.len()
-                    && ((s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]) + 1)
-                        < s1.len()
-                {
-                    biwfa2(
-                        &s1[((s1.len() + 1
-                            - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                            + 1)..]
-                            .to_vec(),
-                        &s2[(((s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                            as isize
-                            - k) as usize
-                            + 1)..]
-                            .to_vec(),
-                    )
-                } else {
-                    (0, vec![])
-                };
-                for m in 0..path2.len() {
-                    path2[m].0 += (A[i][((w / 2) as isize + k) as usize] + 1) as u32;
-                    path2[m].1 += ((s1.len() + 1
-                        - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                        + 1) as u32;
-                }
-                path1.append(&mut path);
-                path1.append(&mut path2);
-                return (2 * i - 1, path1);
-            }
-        }
-        if i > 0 {
-            B[i - 1].reverse();
-        }
-        for j in 0..w {
-            check_point(&mut B, i, j);
-            if s1.len() >= B[i][j] + 1 {
-                let d: isize = -(j as isize) + (w - 1) as isize - (w / 2) as isize + k0;
-                let mut x = s1.len() - B[i][j] - 1;
-                let mut k = (x as isize - d) as usize;
-                while k < s2.len() && x < s1.len() {
-                    if s1[x] == s2[k] {
-                        B[i][j] += 1;
-                        if x == 0 || k == 0 {
-                            break;
-                        }
-                        k -= 1;
-                        x -= 1;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            if i == 0
-                && -(j as isize) + (w - 1) as isize - (w / 2) as isize + k0
-                    == s1.len() as isize - s2.len() as isize
-            {
-                if A[i][j] >= s1.len() {
-                    return (i, vec![]);
-                }
-            }
-        }
-
-        let k_min = -((w / 2) as isize);
-        let k_max = ((w / 2) as isize) + k0;
-        B[i].reverse();
-        for k in k_min..=k_max {
-            let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i, ((w / 2) as isize + k - k0) as usize);
-            if s1.len() + 1 >= t2
-                && (A[i][((w / 2) as isize + k) as usize] as isize
-                    >= (s1.len() as isize + 1
-                        - B[i][((w / 2) as isize + k - k0) as usize] as isize)
-                    && A[i][((w / 2) as isize + k) as usize] <= (s1.len() + 1 - t2))
-            {
-                if 2 * i == 0 {
-                    return (0, vec![]);
-                }
-                let mut path = vec![Pos(
-                    A[i][((w / 2) as isize + k) as usize] as u32,
-                    (A[i][((w / 2) as isize + k) as usize] as isize - k) as u32,
-                )];
-                let (l1, mut path1) = if i > 0 {
-                    biwfa2(
-                        &s1[..A[i][((w / 2) as isize + k) as usize]].to_vec(),
-                        &s2[..(A[i][((w / 2) as isize + k) as usize] as isize - k) as usize]
-                            .to_vec(),
-                    )
-                } else {
-                    (0, vec![])
-                };
-                let (l2, mut path2) = if 2 * i > 1 {
-                    biwfa2(
-                        &s1[(A[i][((w / 2) as isize + k) as usize] + 1)..].to_vec(),
-                        &s2[((A[i][((w / 2) as isize + k) as usize] as isize - k) as usize + 1)..]
-                            .to_vec(),
-                    )
-                } else {
-                    (0, vec![])
-                };
-                for m in 0..path2.len() {
-                    path2[m].0 += (A[i][((w / 2) as isize + k) as usize] + 1) as u32;
-                    path2[m].1 +=
-                        ((A[i][((w / 2) as isize + k) as usize] as isize - k) as usize + 1) as u32;
-                }
-                path1.append(&mut path);
-                path1.append(&mut path2);
-                return (2 * i, path1);
-            }
-            if ((s1.len() as isize + 1 - B[i][((w / 2) as isize + k - k0) as usize] as isize)
-                >= t1 as isize
-                && (s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize])
-                    <= A[i][((w / 2) as isize + k) as usize])
-            {
-                if 2 * i == 0 {
-                    return (0, vec![]);
-                }
-                let mut path = vec![Pos(
-                    (s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize]) as u32,
-                    ((s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize]) as isize - k)
-                        as u32,
-                )];
-                let (l1, mut path1) = if 2 * i > 1 {
-                    biwfa2(
-                        &s1[..(s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize])].to_vec(),
-                        &s2[..((s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize]) as isize
-                            - k) as usize]
-                            .to_vec(),
-                    )
-                } else {
-                    (0, vec![])
-                };
-                let (mut l2, mut path2) = if 2 * i > 1 {
-                    biwfa2(
-                        &s1[((s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize]) + 1)..]
-                            .to_vec(),
-                        &s2[(((s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize]) as isize
-                            - k) as usize
-                            + 1)..]
-                            .to_vec(),
-                    )
-                } else {
-                    (0, vec![])
-                };
-                for m in 0..path2.len() {
-                    path2[m].0 +=
-                        ((s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize]) + 1) as u32;
-                    path2[m].1 += (((s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize])
-                        as isize
-                        - k) as usize
-                        + 1) as u32;
-                }
-                path1.append(&mut path);
-                path1.append(&mut path2);
-                return (2 * i, path1);
-            }
-        }
-        B[i].reverse();
-
-        w += 2;
-    }
-    unreachable!("Error! Shouldn't be here!");
-}
-
-pub fn biwfa3<'a>(
-    mut s1: &'a Sequence,
-    mut s2: &'a Sequence,
-    explored: &mut Vec<Pos>,
-    mut x_offset: u32,
-    mut y_offset: u32,
-) -> usize {
-    let mut f: bool = true; // if we switch sequences, proably, we need to switch positions also, I am not sure. It's only an assumption.
-    if s1.len() > s2.len() {
-        (s1, s2) = (s2, s1);
-        (x_offset, y_offset) = (y_offset, x_offset);
-        f = false;
-    }
-
-    let mut convert = |a: Pos| -> Pos {
-        if f {
-            return a;
-        } else {
-            return Pos(a.1, a.0);
-        }
-    };
-
-    // println!(
-    //     "{} {}\n{}\n{}\n",
-    //     s1.len(),
-    //     s2.len(),
-    //     to_string(s1),
-    //     to_string(s2)
-    // );
-
-    let mut check_point = |C: &mut Vec<Vec<usize>>, i: usize, j: usize| -> () {
-        C[i][j] = 0;
-        if i > 0 {
-            if j > 1 && j - 2 < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j - 2] + 1);
-            }
-            if j > 0 && j - 1 < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j - 1] + 1);
-            }
-            if j < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j]);
-            }
-        }
-    };
-
-    let check_point2 = |C: &Vec<Vec<usize>>, i: usize, j: usize| -> usize {
-        let mut t = 0;
-        if i > 0 {
-            if j > 1 && j - 2 < C[i - 1].len() {
-                t = max(t, C[i - 1][j - 2] + 1);
-            }
-            if j > 0 && j - 1 < C[i - 1].len() {
-                t = max(t, C[i - 1][j - 1] + 1);
-            }
-            if j < C[i - 1].len() {
-                t = max(t, C[i - 1][j]);
-            }
-        }
-        t
-    };
-
-    let mut start_wfa = |index: usize, k: isize, explored1: &mut Vec<Pos>| -> () {
-        if index > 0
-            && (index < s1.len() || (index as isize - k) < s2.len() as isize)
-            && (index as isize - k) > 0
-            && index <= s1.len()
-            && (index as isize - k) as usize <= s2.len()
-        {
-            if f {
-                biwfa3(
-                    &s1[..index].to_vec(),
-                    &s2[..(index as isize - k) as usize].to_vec(),
-                    explored1,
-                    x_offset,
-                    y_offset,
-                );
-            } else {
-                biwfa3(
-                    &s2[..(index as isize - k) as usize].to_vec(),
-                    &s1[..index].to_vec(),
-                    explored1,
-                    y_offset,
-                    x_offset,
-                );
-            }
-        }
-        if s2.len() > (index as isize - k + 1) as usize
-            && s1.len() > index + 1
-            && index + 1 < s1.len()
-            && ((index as isize - k + 1) as usize) < s2.len()
-        {
-            if f {
-                biwfa3(
-                    &s1[(index + 1)..].to_vec(),
-                    &s2[((index as isize - k + 1) as usize)..].to_vec(),
-                    explored1,
-                    x_offset + index as u32 + 1,
-                    y_offset + (index as isize - k + 1) as u32,
-                );
-            } else {
-                biwfa3(
-                    &s2[((index as isize - k + 1) as usize)..].to_vec(),
-                    &s1[(index + 1)..].to_vec(),
-                    explored1,
-                    y_offset + (index as isize - k + 1) as u32,
-                    x_offset + index as u32 + 1,
-                );
-            }
-        }
-    };
-
-    let k0: isize = s1.len() as isize - s2.len() as isize;
-    let mut A = vec![vec![]];
-    let mut B = vec![vec![]];
-    let mut w = 1;
-
-    for i in 0..s2.len() {
-        if i > 0 {
-            A.push(vec![0usize; w]);
-            B.push(vec![0usize; w]);
-        }
-        A[i] = vec![0usize; w];
-        B[i] = vec![0usize; w];
-        for j in 0..w {
-            check_point(&mut A, i, j);
-
-            explored.push(convert(Pos(
-                A[i][j] as u32 + x_offset,
-                (A[i][j] + A[i].len() / 2 - j) as u32 + y_offset,
-            )));
-
-            let d: isize = j as isize - (w / 2) as isize;
-            let mut k = (A[i][j] as isize - d) as usize;
-            while k < s2.len() && A[i][j] < s1.len() {
-                if s1[A[i][j]] == s2[k] {
-                    A[i][j] += 1;
-                    explored.push(convert(Pos(
-                        A[i][j] as u32 + x_offset,
-                        (A[i][j] + A[i].len() / 2 - j) as u32 + y_offset,
-                    )));
-                    k += 1;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        let mut k_min = 0;
-        if w > 1 {
-            k_min = max(-((w / 2) as isize), -(((w - 2) / 2) as isize) + k0);
-        }
-        let mut k_max = 0;
-
-        if i > 0 {
-            k_max = (((w - 2) / 2) as isize) + k0;
-        } else {
-            if s1.len() == s2.len() && A[0][0] >= s1.len() {
-                return 0;
-            }
-            k_min = 2;
-        }
-
-        if i > 0 {
-            B[i - 1].reverse();
-        }
-        for k in k_min..=k_max {
-            let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i - 1, (((w - 2) / 2) as isize + k - k0) as usize);
-            if (A[i][((w / 2) as isize + k) as usize]
-                + B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
-                >= (s1.len() + 1)
-                && A[i][((w / 2) as isize + k) as usize] + t2 <= s1.len() + 1)
-            {
-                if 2 * i - 1 > 1 {
-                    start_wfa(A[i][((w / 2) as isize + k) as usize], k, explored);
-                }
-                return 2 * i - 1;
-            }
-            if ((s1.len() + 1) >= t1 + B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
-                && (s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                    <= A[i][((w / 2) as isize + k) as usize])
-            {
-                if 2 * i - 1 > 1 {
-                    start_wfa(
-                        s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize],
-                        k,
-                        explored,
-                    );
-                }
-                return 2 * i - 1;
-            }
-        }
-        if i > 0 {
-            B[i - 1].reverse();
-        }
-
-        for j in 0..w {
-            check_point(&mut B, i, j);
-            if s1.len() >= B[i][j]
-                && s1.len() as isize + j as isize + k0 >= B[i][j] as isize + B[i].len() as isize / 2
-            {
-                /*println!(
-                    "{}\n",
-                    (s1.len() - B[i][j]) as isize - (B[i].len() as isize / 2 - j as isize + k0)
-                );*/
-                explored.push(convert(Pos(
-                    (s1.len() - B[i][j]) as u32 + x_offset,
-                    ((s1.len() - B[i][j]) as isize - (B[i].len() as isize / 2 - j as isize + k0))
-                        as u32
-                        + y_offset,
-                )));
-            }
-
-            if s1.len() >= B[i][j] + 1 {
-                let d: isize = -(j as isize) + (w - 1) as isize - (w / 2) as isize + k0;
-                let mut x = s1.len() - B[i][j] - 1;
-                let mut k = (x as isize - d) as usize;
-                while k < s2.len() && x < s1.len() {
-                    if s1[x] == s2[k] {
-                        B[i][j] += 1;
-                        explored.push(convert(Pos(
-                            (s1.len() - B[i][j]) as u32 + x_offset,
-                            ((s1.len() - B[i][j]) as isize
-                                - (B[i].len() as isize / 2 - j as isize + k0))
-                                as u32
-                                + y_offset,
-                        )));
-                        if x == 0 || k == 0 {
-                            break;
-                        }
-                        k -= 1;
-                        x -= 1;
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-
-        let k_min = -((w / 2) as isize);
-        let k_max = ((w / 2) as isize) + k0;
-        B[i].reverse();
-        for k in k_min..=k_max {
-            let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i, ((w / 2) as isize + k - k0) as usize);
-            if (A[i][((w / 2) as isize + k) as usize] + B[i][((w / 2) as isize + k - k0) as usize]
-                >= (s1.len() + 1)
-                && A[i][((w / 2) as isize + k) as usize] + t2 <= (s1.len() + 1))
-            {
-                if i > 0 {
-                    start_wfa(A[i][((w / 2) as isize + k) as usize], k, explored);
-                }
-                return 2 * i;
-            }
-            if ((s1.len() + 1) >= t1 + B[i][((w / 2) as isize + k - k0) as usize]
-                && (s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize])
-                    <= A[i][((w / 2) as isize + k) as usize])
-            {
-                if i > 0 {
-                    start_wfa(
-                        s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize],
-                        k,
-                        explored,
-                    );
-                }
-                return 2 * i;
-            }
-        }
-        B[i].reverse();
-
-        w += 2;
-    }
-    0
-    //unreachable!("Error! Shouldn't be here!");
-}
-
-pub fn biwfa4<'a>(
-    mut s1: &'a Sequence,
-    mut s2: &'a Sequence,
-    explored: &mut Vec<Pos>,
-    mut x_offset: u32,
-    mut y_offset: u32,
-    _target: Pos,
-    mut file_number: usize,
-    canvas: &mut Canvas<Window>,
-) -> (usize, usize) {
-    let expl = explored.len();
-    let file_number1 = (file_number).clone();
-    let mut f: bool = true; // if we switch sequences, proably, we need to switch positions also, I am not sure. It's only an assumption.
-    if s1.len() > s2.len() {
-        (s1, s2) = (s2, s1);
-        (x_offset, y_offset) = (y_offset, x_offset);
-        f = false;
-    }
-
-    let mut convert = |a: Pos| -> Pos {
-        if f {
-            return a;
-        } else {
-            return Pos(a.1, a.0);
-        }
-    };
-
-    // println!(
-    //     "{} {}\n{}\n{}\n",
-    //     s1.len(),
-    //     s2.len(),
-    //     to_string(s1),
-    //     to_string(s2)
-    // );
-
-    let mut check_point = |C: &mut Vec<Vec<usize>>, i: usize, j: usize| -> () {
-        C[i][j] = 0;
-        if i > 0 {
-            if j > 1 && j - 2 < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j - 2] + 1);
-            }
-            if j > 0 && j - 1 < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j - 1] + 1);
-            }
-            if j < C[i - 1].len() {
-                C[i][j] = max(C[i][j], C[i - 1][j]);
-            }
-        }
-    };
-
-    let check_point2 = |C: &Vec<Vec<usize>>, i: usize, j: usize| -> usize {
-        let mut t = 0;
-        if i > 0 {
-            if j > 1 && j - 2 < C[i - 1].len() {
-                t = max(t, C[i - 1][j - 2] + 1);
-            }
-            if j > 0 && j - 1 < C[i - 1].len() {
-                t = max(t, C[i - 1][j - 1] + 1);
-            }
-            if j < C[i - 1].len() {
-                t = max(t, C[i - 1][j]);
-            }
-        }
-        t
-    };
-
-    let mut start_wfa = |index: usize,
-                         k: isize,
-                         explored1: &mut Vec<Pos>,
-                         canvas2: &mut Canvas<Window>,
-                         mut file_number3: usize|
-     -> usize {
-        let mut d;
-        if index > 0
-            && (index < s1.len() || (index as isize - k) < s2.len() as isize)
-            && (index as isize - k) > 0
-            && index <= s1.len()
-            && (index as isize - k) as usize <= s2.len()
-        {
-            if f {
-                (d, file_number3) = biwfa4(
-                    &s1[..index].to_vec(),
-                    &s2[..(index as isize - k) as usize].to_vec(),
-                    explored1,
-                    x_offset,
-                    y_offset,
-                    _target,
-                    file_number3,
-                    canvas2,
-                );
-            } else {
-                (d, file_number3) = biwfa4(
-                    &s2[..(index as isize - k) as usize].to_vec(),
-                    &s1[..index].to_vec(),
-                    explored1,
-                    y_offset,
-                    x_offset,
-                    _target,
-                    file_number3,
-                    canvas2,
-                );
-            }
-        }
-        if s2.len() > (index as isize - k + 1) as usize
-            && s1.len() > index + 1
-            && index + 1 < s1.len()
-            && ((index as isize - k + 1) as usize) < s2.len()
-        {
-            if f {
-                (d, file_number3) = biwfa4(
-                    &s1[(index + 1)..].to_vec(),
-                    &s2[((index as isize - k + 1) as usize)..].to_vec(),
-                    explored1,
-                    x_offset + index as u32 + 1,
-                    y_offset + (index as isize - k + 1) as u32,
-                    _target,
-                    file_number3,
-                    canvas2,
-                );
-            } else {
-                (d, file_number3) = biwfa4(
-                    &s2[((index as isize - k + 1) as usize)..].to_vec(),
-                    &s1[(index + 1)..].to_vec(),
-                    explored1,
-                    y_offset + (index as isize - k + 1) as u32,
-                    x_offset + index as u32 + 1,
-                    _target,
-                    file_number3,
-                    canvas2,
-                );
-            }
-        }
-        file_number3
-    };
-
-    let mut draw = |explored2: &Vec<Pos>, canvas1: &mut Canvas<Window>| -> () {
-        println!(
-            "{file_number1}\t{}\t{}:\n{}\n{}\n",
-            s1.len(),
-            s2.len(),
-            to_string(s1),
-            to_string(s2)
-        );
-        display3(
-            _target,
-            explored2,
-            file_number1,
-            canvas1,
-            "evals/astar-visualization/test/",
-        );
-    };
-
-    let k0: isize = s1.len() as isize - s2.len() as isize;
-    let mut A = vec![vec![]];
-    let mut B = vec![vec![]];
-    let mut w = 1;
-
-    for i in 0..s2.len() {
-        if i > 0 {
-            A.push(vec![0usize; w]);
-            B.push(vec![0usize; w]);
-        }
-        A[i] = vec![0usize; w];
-        B[i] = vec![0usize; w];
-        for j in 0..w {
-            check_point(&mut A, i, j);
-
-            explored.push(convert(Pos(
-                A[i][j] as u32 + x_offset,
-                (A[i][j] + A[i].len() / 2 - j) as u32 + y_offset,
-            )));
-
-            let d: isize = j as isize - (w / 2) as isize;
-            let mut k = (A[i][j] as isize - d) as usize;
-            while k < s2.len() && A[i][j] < s1.len() {
-                if s1[A[i][j]] == s2[k] {
-                    A[i][j] += 1;
-                    explored.push(convert(Pos(
-                        A[i][j] as u32 + x_offset,
-                        (A[i][j] + A[i].len() / 2 - j) as u32 + y_offset,
-                    )));
-                    k += 1;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        let mut k_min = 0;
-        if w > 1 {
-            k_min = max(-((w / 2) as isize), -(((w - 2) / 2) as isize) + k0);
-        }
-        let mut k_max = 0;
-
-        if i > 0 {
-            k_max = (((w - 2) / 2) as isize) + k0;
-        } else {
-            if s1.len() == s2.len() && A[0][0] >= s1.len() {
-                return (0, file_number);
-            }
-            k_min = 2;
-        }
-
-        if i > 0 {
-            B[i - 1].reverse();
-        }
-        for k in k_min..=k_max {
-            let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i - 1, (((w - 2) / 2) as isize + k - k0) as usize);
-            if (A[i][((w / 2) as isize + k) as usize]
-                + B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
-                >= (s1.len() + 1)
-                && A[i][((w / 2) as isize + k) as usize] + t2 <= s1.len() + 1)
-            {
-                draw(explored, canvas);
-                if 2 * i - 1 > 1 {
-                    file_number = start_wfa(
-                        A[i][((w / 2) as isize + k) as usize],
-                        k,
-                        explored,
-                        canvas,
-                        file_number + 1,
-                    );
-                } else {
-                    file_number += 1;
-                }
-                return (2 * i - 1, file_number);
-            }
-            if ((s1.len() + 1) >= t1 + B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
-                && (s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize])
-                    <= A[i][((w / 2) as isize + k) as usize])
-            {
-                draw(explored, canvas);
-                if 2 * i - 1 > 1 {
-                    file_number = start_wfa(
-                        s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize],
-                        k,
-                        explored,
-                        canvas,
-                        file_number + 1,
-                    );
-                } else {
-                    file_number += 1;
-                }
-                return (2 * i - 1, file_number);
-            }
-        }
-        if i > 0 {
-            B[i - 1].reverse();
-        }
-
-        for j in 0..w {
-            check_point(&mut B, i, j);
-            if s1.len() >= B[i][j]
-                && s1.len() as isize + j as isize + k0 >= B[i][j] as isize + B[i].len() as isize / 2
-            {
-                /*println!(
-                    "{}\n",
-                    (s1.len() - B[i][j]) as isize - (B[i].len() as isize / 2 - j as isize + k0)
-                );*/
-                explored.push(convert(Pos(
-                    (s1.len() - B[i][j]) as u32 + x_offset,
-                    ((s1.len() - B[i][j]) as isize - (B[i].len() as isize / 2 - j as isize + k0))
-                        as u32
-                        + y_offset,
-                )));
-            }
-
-            if s1.len() >= B[i][j] + 1 {
-                let d: isize = -(j as isize) + (w - 1) as isize - (w / 2) as isize + k0;
-                let mut x = s1.len() - B[i][j] - 1;
-                let mut k = (x as isize - d) as usize;
-                while k < s2.len() && x < s1.len() {
-                    if s1[x] == s2[k] {
-                        B[i][j] += 1;
-                        explored.push(convert(Pos(
-                            (s1.len() - B[i][j]) as u32 + x_offset,
-                            ((s1.len() - B[i][j]) as isize
-                                - (B[i].len() as isize / 2 - j as isize + k0))
-                                as u32
-                                + y_offset,
-                        )));
-                        if x == 0 || k == 0 {
-                            break;
-                        }
-                        k -= 1;
-                        x -= 1;
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-
-        let k_min = -((w / 2) as isize);
-        let k_max = ((w / 2) as isize) + k0;
-        B[i].reverse();
-        for k in k_min..=k_max {
-            let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i, ((w / 2) as isize + k - k0) as usize);
-            if (A[i][((w / 2) as isize + k) as usize] + B[i][((w / 2) as isize + k - k0) as usize]
-                >= (s1.len() + 1)
-                && A[i][((w / 2) as isize + k) as usize] + t2 <= (s1.len() + 1))
-            {
-                draw(explored, canvas);
-                if i > 0 {
-                    file_number = start_wfa(
-                        A[i][((w / 2) as isize + k) as usize],
-                        k,
-                        explored,
-                        canvas,
-                        file_number + 1,
-                    );
-                } else {
-                    file_number += 1;
-                }
-                return (2 * i, file_number);
-            }
-            if ((s1.len() + 1) >= t1 + B[i][((w / 2) as isize + k - k0) as usize]
-                && (s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize])
-                    <= A[i][((w / 2) as isize + k) as usize])
-            {
-                draw(explored, canvas);
-                if i > 0 {
-                    file_number = start_wfa(
-                        s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize],
-                        k,
-                        explored,
-                        canvas,
-                        file_number + 1,
-                    );
-                } else {
-                    file_number += 1;
-                }
-                return (2 * i, file_number);
-            }
-        }
-        B[i].reverse();
-
-        w += 2;
-    }
-    //*file_number -= 1;
-    let expl2 = explored.len();
-    for i in expl..expl2 {
-        explored.pop();
-    }
-    (0, file_number)
-    //unreachable!("Error! Shouldn't be here!");
 }
 
 #[derive(Clone)]
@@ -2065,6 +1133,10 @@ pub fn biwfa5<'a>(
         (s1, s2) = (s2, s1);
         (x_offset, y_offset) = (y_offset, x_offset);
         f = false;
+    }
+
+    if s1.len() == 1 {
+        return (0, file_number);
     }
 
     let mut convert = |a: Pos| -> Pos {
@@ -2291,7 +1363,11 @@ pub fn biwfa5<'a>(
         }
         for k in k_min..=k_max {
             let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i - 1, (((w - 2) / 2) as isize + k - k0) as usize);
+            let t2 = check_point2(
+                &B,
+                i - 1,
+                B[i - 1].len() - 1 - (((w - 2) / 2) as isize + k - k0) as usize,
+            );
             if (A[i][((w / 2) as isize + k) as usize]
                 + B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
                 >= (s1.len() + 1)
@@ -2319,6 +1395,24 @@ pub fn biwfa5<'a>(
                 if 2 * i - 1 > 1 {
                     file_number = start_wfa(
                         s1.len() + 1 - B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize],
+                        k,
+                        explored,
+                        canvas,
+                        file_number + 1,
+                    );
+                } else {
+                    file_number += 1;
+                }
+                return (2 * i - 1, file_number);
+            }
+            if B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
+                + A[i][((w / 2) as isize + k) as usize]
+                == s1.len()
+            {
+                draw(explored, canvas);
+                if 2 * i - 1 > 1 {
+                    file_number = start_wfa(
+                        A[i][((w / 2) as isize + k) as usize],
                         k,
                         explored,
                         canvas,
@@ -2382,7 +1476,7 @@ pub fn biwfa5<'a>(
         B[i].reverse();
         for k in k_min..=k_max {
             let t1 = check_point2(&A, i, ((w / 2) as isize + k) as usize);
-            let t2 = check_point2(&B, i, ((w / 2) as isize + k - k0) as usize);
+            let t2 = check_point2(&B, i, B[i].len() - 1 - ((w / 2) as isize + k - k0) as usize);
             if (A[i][((w / 2) as isize + k) as usize] + B[i][((w / 2) as isize + k - k0) as usize]
                 >= (s1.len() + 1)
                 && A[i][((w / 2) as isize + k) as usize] + t2 <= (s1.len() + 1))
@@ -2419,16 +1513,34 @@ pub fn biwfa5<'a>(
                 }
                 return (2 * i, file_number);
             }
+            if B[i][((w / 2) as isize + k - k0) as usize] + A[i][((w / 2) as isize + k) as usize]
+                == s1.len()
+            {
+                draw(explored, canvas);
+                if i > 0 {
+                    file_number = start_wfa(
+                        s1.len() + 1 - B[i][((w / 2) as isize + k - k0) as usize],
+                        k,
+                        explored,
+                        canvas,
+                        file_number + 1,
+                    );
+                } else {
+                    file_number += 1;
+                }
+                return (2 * i, file_number);
+            }
         }
         B[i].reverse();
 
         w += 2;
     }
     //*file_number -= 1;
-    let expl2 = explored.len();
-    for i in expl..expl2 {
-        explored.pop();
-    }
-    (0, file_number)
-    //unreachable!("Error! Shouldn't be here!");
+    // let expl2 = explored.len();
+    // for i in expl..expl2 {
+    //     explored.pop();
+    // }
+    // (0, file_number)
+    println!("{}\n{}", to_string(s1), to_string(s2));
+    unreachable!("Error! Shouldn't be here!");
 }

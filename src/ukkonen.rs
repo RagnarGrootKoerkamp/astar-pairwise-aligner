@@ -16,15 +16,9 @@ fn ukkonen_track_path<'a>(
     let mut path = vec![];
     let mut i = A.len() - 1;
     let mut j = t - p;
-    //println!("Hey!\ni is {i}\nj is {j}");
-    let convert = |x: usize, y: usize| -> Pos {
-        //println!("i is {x}\nj is {y}");
-        Pos((x + y - p) as u32, x as u32)
-    };
-    //path[len - 1] = convert(i, j);
+    let convert = |x: usize, y: usize| -> Pos { Pos((x + y - p) as u32, x as u32) };
     let mut f = false;
     let mut save_pos = |i, j| -> () {
-        //println!("HERE\n");
         path.push(convert(i, j));
     };
     save_pos(i, j);
@@ -57,13 +51,6 @@ fn ukkonen_track_path<'a>(
             println!("Path size is {}", path.len());
             return path;
         }
-        /*if f {
-            path[index] = convert(i, j);
-            if index == 0 {
-                return path;
-            }
-            index -= 1;
-        }*/
     }
 }
 

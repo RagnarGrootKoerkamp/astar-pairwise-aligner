@@ -13,7 +13,7 @@ use std::cell::Cell;
 use num_traits::abs;
 use pairwise_aligner::{
     astar::Config,
-    diagonal_transition::{biwfa, biwfa3, biwfa4, biwfa5, Args},
+    diagonal_transition::{biwfa, biwfa5, Args},
     drawing::save_canvas,
     prelude::*,
     ukkonen::ukkonen_vis,
@@ -75,9 +75,6 @@ fn main() {
         .build()
         .unwrap();
     let ref mut canvas = window.into_canvas().build().unwrap();
-    //canvas.set_blend_mode(BlendMode::Blend);
-
-    //let mut imgbuf = ImageBuffer::new(width, height);
 
     let gray_bg = 0.97; //BG COLOR
     canvas.set_draw_color(Color::RGB(
@@ -87,10 +84,6 @@ fn main() {
     ));
     //canvas.set_draw_color(Color::RGBA(0, 0, 0, 0));
     canvas.fill_rect(Rect::new(0, 0, width, height));
-
-    /*for pixel in imgbuf.enumerate_pixels_mut() {
-        *pixel.2 = image::Rgb([gray_bg, gray_bg, gray_bg]);
-    }*/
 
     let grad = colorgrad::turbo();
     let min_step = 0;
@@ -168,16 +161,7 @@ fn main() {
         prev = p;
     }
 
-    /*canvas.set_draw_color(Color::RGB(0, 0, 0));
-    for pos in path {
-        //img[row.i-lbox, row.j-lbox] = mcolors.to_rgba('xkcd:black')
-        canvas.draw_point(Point::new(pos.0 as i32, pos.1 as i32));
-        //imgbuf.put_pixel(pos.0, pos.1, image::Rgb([0., 0., 0.]));
-    }*/
-
     save_canvas(&canvas, "evals/astar-visualization/edlib2", 0);
-
-    let mut explored = vec![];
 
     let video_subsystem = sdl_context.video().unwrap();
     video_subsystem.gl_attr().set_double_buffer(true);
@@ -192,7 +176,37 @@ fn main() {
         .unwrap();
     let ref mut canvas = window.into_canvas().build().unwrap();
 
-    let mut dist = biwfa4(a, b, &mut explored, 0, 0, _target, 0, canvas);
+    let args = Args {
+        a1: 0,
+        a2: a.len(),
+        b1: 0,
+        b2: b.len(),
+        x_offset: 0,
+        y_offset: 0,
+    };
+
+    let mut sz = 0;
+    let mut explored = vec![];
+    let mut queue: Vec<Args> = vec![];
+    queue.push(args);
+    let mut file_number = 0;
+    let mut dist = 0;
+
+    while sz < queue.len() {
+        let arg = queue[sz].clone();
+        (dist, file_number) = biwfa5(
+            &a[arg.a1..arg.a2].to_vec(),
+            &b[arg.b1..arg.b2].to_vec(),
+            &mut explored,
+            arg.x_offset,
+            arg.y_offset,
+            _target,
+            file_number,
+            canvas,
+            &mut queue,
+        );
+        sz += 1;
+    }
 
     let gray_bg = 0.97; //BG COLOR
     canvas.set_draw_color(Color::RGB(
@@ -207,7 +221,6 @@ fn main() {
     let grad = colorgrad::turbo();
     let min_step = 0;
     let max_steps = explored.len() - 1;
-    //explored.reverse();
     for (i, pos) in explored.iter().enumerate() {
         let val = (i - min_step) as f64 / (max_steps - min_step) as f64;
         let clr = grad.at(0.25 + (val * 0.65)).rgba_u8();
@@ -261,7 +274,6 @@ fn main() {
     let grad = colorgrad::turbo();
     let min_step = 0;
     let max_steps = explored.len() - 1;
-    //explored.reverse();
     for (i, pos) in explored.iter().enumerate() {
         let val = (i - min_step) as f64 / (max_steps - min_step) as f64;
         let clr = grad.at(0.25 + (val * 0.65)).rgba_u8();
@@ -282,36 +294,4 @@ fn main() {
     }
 
     save_canvas(&canvas, "evals/astar-visualization/biwfa_short2", 0);
-
-    let args = Args {
-        a1: 0,
-        a2: a.len(),
-        b1: 0,
-        b2: b.len(),
-        x_offset: 0,
-        y_offset: 0,
-    };
-
-    let mut sz = 0;
-    let mut explored = vec![];
-    let mut queue: Vec<Args> = vec![];
-    queue.push(args);
-    let mut file_number = 0;
-    let mut file_number2 = 0;
-
-    while sz < queue.len() {
-        let arg = queue[sz].clone();
-        (dist, file_number) = biwfa5(
-            &a[arg.a1..arg.a2].to_vec(),
-            &b[arg.b1..arg.b2].to_vec(),
-            &mut explored,
-            arg.x_offset,
-            arg.y_offset,
-            _target,
-            file_number,
-            canvas,
-            &mut queue,
-        );
-        sz += 1;
-    }
 }

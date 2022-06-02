@@ -5,10 +5,9 @@ use num_traits::abs;
 use pairwise_aligner::{
     align,
     diagonal_transition::{
-        biwfa, biwfa2, biwfa3, diagonal_transition, diagonal_transition_a,
-        diagonal_transition_a_oxy, diagonal_transition_a_oxy_linear,
-        diagonal_transition_a_oxy_linear_oxy, diagonal_transition_linear,
-        diagonal_transition_linear_fast, diagonal_transition_short,
+        biwfa, diagonal_transition, diagonal_transition_a, diagonal_transition_a_oxy,
+        diagonal_transition_a_oxy_linear, diagonal_transition_a_oxy_linear_oxy,
+        diagonal_transition_linear, diagonal_transition_linear_fast, diagonal_transition_short,
     },
     prelude::{
         setup, setup_with_seed, to_string, LengthConfig::Fixed, MatchConfig, Sequence, ZeroCost,
@@ -111,7 +110,7 @@ fn ukkonen_unused<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, d: usize) -> u
 
 fn main() {
     let n = 500;
-    let e = 0.5;
+    let e = 0.2;
 
     let _m = 0;
     let _k = 3;
@@ -193,7 +192,7 @@ fn main() {
 
     println!("DTM_oxy2 has needed for this {duration} seconds");
 
-    /*let start = std::time::Instant::now();
+    let start = std::time::Instant::now();
 
     let r = diagonal_transition_a_oxy_linear_oxy(a, b);
 
@@ -204,7 +203,7 @@ fn main() {
         r
     );
 
-    println!("DTM_oxy2 with linear memory has needed for this {duration} seconds");*/
+    println!("DTM_oxy2 with linear memory has needed for this {duration} seconds");
 
     let start = std::time::Instant::now();
 
@@ -225,26 +224,6 @@ fn main() {
     println!("BiWFA says that edit distance is {}", r);
 
     println!("BiWFA has needed for this {duration} seconds");
-
-    /*let start = std::time::Instant::now();
-
-    let r = biwfa2(a, b);
-
-    let duration = start.elapsed().as_secs_f32();
-
-    println!("BiWFA2 says that edit distance is {}", r.0);
-
-    println!("BiWFA2 has needed for this {duration} seconds");*/
-
-    let start = std::time::Instant::now();
-
-    let r = biwfa3(a, b, &mut vec![], 0, 0);
-
-    let duration = start.elapsed().as_secs_f32();
-
-    println!("BiWFA3 says that edit distance is {}", r);
-
-    println!("BiWFA3 has needed for this {duration} seconds");
 
     let mut d = max(2, abs(a.len() as i32 - b.len() as i32) as usize);
     let mut r = d + 1;

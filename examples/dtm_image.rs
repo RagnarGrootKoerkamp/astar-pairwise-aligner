@@ -49,9 +49,6 @@ fn main() {
         .build()
         .unwrap();
     let ref mut canvas = window.into_canvas().build().unwrap();
-    //canvas.set_blend_mode(BlendMode::Blend);
-
-    //let mut imgbuf = ImageBuffer::new(width, height);
 
     /*let gray_bg = 0.97; //BG COLOR
     canvas.set_draw_color(Color::RGB(
@@ -64,10 +61,6 @@ fn main() {
     canvas.set_draw_color(Color::RGBA(0, 0, 0, 0));
     canvas.fill_rect(Rect::new(0, 0, width, height));
 
-    /*for pixel in imgbuf.enumerate_pixels_mut() {
-        *pixel.2 = image::Rgb([gray_bg, gray_bg, gray_bg]);
-    }*/
-
     let grad = colorgrad::turbo();
     let min_step = 0;
     let max_steps = explored.len() - 1;
@@ -77,7 +70,6 @@ fn main() {
         let clr = grad.at(0.25 + (val * 0.65)).rgba_u8();
         canvas.set_draw_color(Color::RGB(clr.0, clr.1, clr.2));
         canvas.draw_point(Point::new(pos.1 as i32, pos.0 as i32));
-        //imgbuf.put_pixel(pos.0, pos.1, image::Rgb([clr.0, clr.1, clr.2]));
     }
 
     let draw_thick_line_diag =
