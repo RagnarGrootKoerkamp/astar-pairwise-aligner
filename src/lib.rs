@@ -15,6 +15,7 @@
 pub mod align;
 pub mod alignment_graph;
 pub mod astar;
+pub mod astar_dt;
 pub mod config;
 pub mod contour;
 pub mod datastructures;
