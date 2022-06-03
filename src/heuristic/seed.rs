@@ -54,7 +54,8 @@ type Hint = Cost;
 impl SHI {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: SH) -> Self {
         let seeds = unordered_matches(a, b, alph, params.match_config);
-        // Contains start positions of all matches.
+        // Contains start of all matches.
+        // TODO: Make this contain positions instead of only i coordinate.
         let mut remaining_matches = SplitVec::default();
         {
             let mut seeds_with_matches = seeds
@@ -187,7 +188,8 @@ impl<'a> HeuristicInstance<'a> for SHI {
         self.seeds.is_seed_start_or_end(pos)
     }
 
-    // Prune the match ending in `pos`.
+    /// Prune the match ending in `pos`.
+    /// TODO: Remove `seed_cost`, and prune matches starting in `pos` again.
     fn prune(&mut self, pos: Pos, hint: Self::Hint, seed_cost: MatchCost) -> Cost {
         if !self.params.pruning {
             return 0;

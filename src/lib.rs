@@ -1,6 +1,7 @@
 #![feature(
     test,
     iter_intersperse,
+    let_else,
     label_break_value,
     min_specialization,
     is_sorted,

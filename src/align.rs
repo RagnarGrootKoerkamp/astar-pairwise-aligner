@@ -375,7 +375,7 @@ where
 {
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
-    let mut h = heuristic.build(a, b, alphabet);
+    let ref mut h = heuristic.build(a, b, alphabet);
     let heuristic_initialization = start_time.elapsed();
     let start_val = h.h(Pos(0, 0));
 
@@ -383,7 +383,11 @@ where
     let astar_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = EditGraph::new(a, b, greedy_edge_matching);
-    let (distance_and_path, astar_stats) = astar::astar(&graph, Pos(0, 0), &mut h);
+    let (distance_and_path, astar_stats) = if diagonal_transition {
+        astar_dt(&graph, h)
+    } else {
+        astar(&graph, h)
+    };
     let (distance, path) = distance_and_path.unwrap_or_default();
     let astar_duration = astar_time.elapsed();
     let total_duration = start_time.elapsed();
