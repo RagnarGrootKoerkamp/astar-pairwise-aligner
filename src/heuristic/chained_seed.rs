@@ -101,7 +101,7 @@ impl<C: 'static + Contours> Heuristic for CSH<C> {
     }
 
     fn name(&self) -> String {
-        "GapSeed".into()
+        "CSH".into()
     }
 
     fn params(&self) -> HeuristicParams {

@@ -57,29 +57,13 @@ pub struct AStarStats {
 // g: computed cost to reach node from the start
 // f: g+h
 // TODO: Inline on_expand and on_explore functions by direct calls to h.
-pub fn astar<'a, H>(
-    graph: &EditGraph,
-    start: Pos,
-    h: &mut H,
-) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
+pub fn astar<'a, H>(graph: &EditGraph, h: &mut H) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
     H: HeuristicInstance<'a>,
 {
     const D: bool = false;
 
-    let mut stats = AStarStats {
-        expanded: 0,
-        explored: 0,
-        greedy_expanded: 0,
-        double_expanded: 0,
-        retries: 0,
-        pq_shifts: 0,
-        diagonalmap_capacity: 0,
-        explored_states: Vec::default(),
-        expanded_states: Vec::default(),
-        tree: Vec::default(),
-        traceback_duration: 0.,
-    };
+    let mut stats = AStarStats::default();
 
     // f -> pos
     let mut queue = BucketQueue::<Cost>::default();
@@ -98,6 +82,7 @@ where
 
     // Initialization with the root state.
     {
+        let start = Pos(0, 0);
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
         queue.push(MinScored(
             hroot + (max_queue_offset - queue_offset),
@@ -328,8 +313,8 @@ where
     if let Some(state) = DiagonalMapTrait::get(states, target) {
         let g = state.g;
         assert_eq!(state.status, Expanded);
-        let mut cost = 0;
         let mut path = vec![target];
+        let mut cost = 0;
         let mut current = target;
         // If the state is not in the map, it was found via a match.
         while current != Pos(0, 0) {
