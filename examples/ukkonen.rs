@@ -109,8 +109,8 @@ fn ukkonen_unused<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, d: usize) -> u
 }
 
 fn main() {
-    let n = 500;
-    let e = 0.2;
+    let n = 3;
+    let e = 0.5;
 
     let _m = 0;
     let _k = 3;
@@ -184,6 +184,19 @@ fn main() {
 
     let start = std::time::Instant::now();
 
+    let r = diagonal_transition_a_oxy_linear(a, b);
+
+    let duration = start.elapsed().as_secs_f32();
+
+    println!(
+        "DTM_oxy with linear memory says that edit distance is {}",
+        r
+    );
+
+    println!("DTM_oxy2 with linear memory has needed for this {duration} seconds");
+
+    let start = std::time::Instant::now();
+
     let r = diagonal_transition_a_oxy(a, b);
 
     let duration = start.elapsed().as_secs_f32();
@@ -215,7 +228,7 @@ fn main() {
 
     println!("DTM has needed for this {duration} seconds");
 
-    let start = std::time::Instant::now();
+    /*let start = std::time::Instant::now();
 
     let r = biwfa(a, b, &mut vec![]);
 
@@ -223,7 +236,7 @@ fn main() {
 
     println!("BiWFA says that edit distance is {}", r);
 
-    println!("BiWFA has needed for this {duration} seconds");
+    println!("BiWFA has needed for this {duration} seconds");*/
 
     let mut d = max(2, abs(a.len() as i32 - b.len() as i32) as usize);
     let mut r = d + 1;

@@ -8,6 +8,7 @@ use crate::{
 };
 
 pub fn diagonal_transition_linear_fast<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
+    //This is an optimization of standart DTM, which uses only two vectors. But this disables getting the path. We resize existing vectors in the main loop
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -67,6 +68,7 @@ pub fn diagonal_transition_linear_fast<'a>(mut s1: &'a Sequence, mut s2: &'a Seq
 }
 
 pub fn diagonal_transition_linear<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
+    //This is an optimization of standart DTM, which uses only two vectors. But this disables getting the path. Also, new vector object is creating on evvery loop iteration, which possibly can hurt the performance
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -125,6 +127,7 @@ pub fn diagonal_transition_linear<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence
 }
 
 pub fn diagonal_transition<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
+    //Diagonal transition method. Saves all the staes, so we can track the path
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -148,7 +151,6 @@ pub fn diagonal_transition<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> us
     for i in 1..s2.len() {
         w += 2;
         A.push(vec![0usize; w]);
-        //A[i] = vec![0usize; w];
         for j in 0..w {
             A[i][j] = 0;
 
@@ -163,7 +165,6 @@ pub fn diagonal_transition<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> us
             }
 
             let d: isize = j as isize - (w / 2) as isize;
-            //print!("i = {i}\nj = {j}\nA[i][j] = {}\nd ={d}\nw = {w}", A[i][j]);
             k = (A[i][j] as isize - d) as usize;
             while k < s2.len() && A[i][j] < s1.len() {
                 if s1[A[i][j]] == s2[k] {
@@ -184,6 +185,7 @@ pub fn diagonal_transition<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> us
 }
 
 pub fn diagonal_transition_short<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
+    //sufffix short here means that main storage type here is u32 instead of usize (u64 on 64bit machines). This allows to align bigger sequences, although may hurt the performence for usually 64bit machines work better with 64bit numbers (empirical finding)
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -243,6 +245,7 @@ pub fn diagonal_transition_short<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence)
 }
 
 fn explore_diagonal1(
+    //old protype of the function for exploring (checking matches on the diagonal). The interface does not imply references. Obsolete.
     s1: &Sequence,
     s2: &Sequence,
     mut A: usize, // A = A[j][i]
@@ -269,6 +272,7 @@ fn explore_diagonal1(
 }
 
 fn explore_diagonal(
+    //Function for exploring (checking matches on the diagonal).
     s1: &Sequence,
     s2: &Sequence,
     A: &mut usize, // A = A[j][i]
@@ -294,6 +298,10 @@ fn explore_diagonal(
 }
 
 pub fn diagonal_transition_a<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
+    //Advanced DTM
+    //DTM optimization, which theoretically should give approximetely two times faster calculations and opportunity to track path. Because of architecture flaws, the function envokes great amount of memory allocation requests, which causes bad performance!
+    //Beware that it uses infinite loop! Theoretically can cause tailing!
+    //Experiments show that it is even more than two times faster than usual DTM (without linear memory optimization)
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -396,6 +404,8 @@ pub fn diagonal_transition_a<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> 
 }
 
 pub fn diagonal_transition_a_oxy<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
+    //Slight optimization of advanced DTM function (less memory allocations. gives slight speed-up)
+    //Contains bugs!!!
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -560,6 +570,7 @@ pub fn diagonal_transition_a_oxy_linear_oxy<'a>(
     mut s1: &'a Sequence,
     mut s2: &'a Sequence,
 ) -> usize {
+    //Contains bugs!!!
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -894,6 +905,8 @@ pub fn diagonal_transition2<'a>(
 }
 
 pub fn biwfa<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence, explored: &mut Vec<Pos>) -> usize {
+    //Regular BiWFA. Bugs are not found
+    //Debug output is enabled!
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -1126,7 +1139,9 @@ pub fn biwfa5<'a>(
     canvas: &mut Canvas<Window>,
     queue: &mut Vec<Args>,
 ) -> (usize, usize) {
-    let expl = explored.len();
+    //Modification of BiWFA for making pictures and screens
+    //Bugs are not found
+    //Debug output is disabled
     let file_number1 = (file_number).clone();
     let mut f: bool = true; // if we switch sequences, proably, we need to switch positions also, I am not sure. It's only an assumption.
     if s1.len() > s2.len() {
