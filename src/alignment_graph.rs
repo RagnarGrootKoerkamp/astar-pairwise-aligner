@@ -8,6 +8,8 @@ use bio_types::sequence::Sequence;
 use serde::Serialize;
 use std::cmp::Ordering;
 
+use crate::matches::DtPos;
+
 /// Type for positions in a sequence, and derived quantities.
 pub type I = u32;
 /// Type for costs.
@@ -54,6 +56,25 @@ impl Edge {
         })
     }
 
+    pub fn dt_back(&self, &DtPos { diagonal, g }: &DtPos) -> Option<DtPos> {
+        Some(match self {
+            Edge::None => None?,
+            Edge::Match => DtPos { diagonal, g },
+            Edge::Substitution => DtPos {
+                diagonal,
+                g: g.checked_sub(1)?,
+            },
+            Edge::Right => DtPos {
+                diagonal: diagonal - 1,
+                g: g.checked_sub(1)?,
+            },
+            Edge::Down => DtPos {
+                diagonal: diagonal + 1,
+                g: g.checked_sub(1)?,
+            },
+        })
+    }
+
     pub fn forward(&self, &Pos(i, j): &Pos) -> Option<Pos> {
         Some(match self {
             Edge::None => None?,
@@ -61,6 +82,22 @@ impl Edge {
             Edge::Substitution => Pos(i + 1, j + 1),
             Edge::Right => Pos(i + 1, j),
             Edge::Down => Pos(i, j + 1),
+        })
+    }
+
+    pub fn dt_forward(&self, &DtPos { diagonal, g }: &DtPos) -> Option<DtPos> {
+        Some(match self {
+            Edge::None => None?,
+            Edge::Match => DtPos { diagonal, g },
+            Edge::Substitution => DtPos { diagonal, g: g + 1 },
+            Edge::Right => DtPos {
+                diagonal: diagonal + 1,
+                g: g + 1,
+            },
+            Edge::Down => DtPos {
+                diagonal: diagonal - 1,
+                g: g + 1,
+            },
         })
     }
 
