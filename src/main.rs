@@ -4,7 +4,7 @@ use pairwise_aligner::{
     generate::{generate_pair, GenerateOptions},
     prelude::*,
 };
-use rand::thread_rng;
+use rand::SeedableRng;
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -17,6 +17,14 @@ use structopt::StructOpt;
 struct Input {
     #[structopt(short, long, parse(from_os_str))]
     input: Option<PathBuf>,
+
+    /// Length of the sequences to generate.
+    #[structopt(short = "x", long, default_value = "1")]
+    pub cnt: usize,
+
+    /// Seed to initialize RNG.
+    #[structopt(long)]
+    pub seed: Option<u64>,
 
     /// Options to generate an input pair.
     #[structopt(flatten)]
@@ -140,9 +148,15 @@ fn main() {
         }
     } else {
         // Generate random input.
-        // TODO: Propagate stats.
-        let (a, b) = generate_pair(&args.input.generate_options, &mut thread_rng());
-        run_pair(a, b);
+        let ref mut rng = if let Some(seed) = args.input.seed {
+            rand_chacha::ChaCha8Rng::seed_from_u64(seed)
+        } else {
+            rand_chacha::ChaCha8Rng::from_entropy()
+        };
+        for _ in 0..args.input.cnt {
+            let (a, b) = generate_pair(&args.input.generate_options, rng);
+            run_pair(a, b);
+        }
     }
 
     if avg_result.sample_size > 0 {
