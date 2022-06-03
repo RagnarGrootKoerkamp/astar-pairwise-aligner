@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use std::{
     cell::RefCell,
+    fmt::Display,
     ops::{Index, IndexMut},
 };
 
@@ -223,9 +224,17 @@ impl<V: Default> IndexMut<Pos> for HashMap<Pos, V> {
         self.get_mut(&pos).unwrap()
     }
 }
-impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V> {
+impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V>
+where
+    HashMap<Pos, V>: Index<Pos, Output = V>,
+    HashMap<Pos, V>: IndexMut<Pos>,
+{
     fn new(_target: Pos) -> Self {
         Default::default()
+    }
+
+    fn insert(&mut self, pos: Pos, v: V) {
+        self.insert(pos, v);
     }
 
     fn get(&self, pos: Pos) -> Option<&V> {
@@ -236,8 +245,73 @@ impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V> {
         self.entry(pos).or_default()
     }
 
-    fn insert(&mut self, pos: Pos, v: V) {
+    fn dm_capacity(&self) -> usize {
+        self.capacity()
+    }
+}
+
+// DtPos
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+pub struct DtPos {
+    pub diagonal: i32,
+    pub g: Cost,
+}
+impl<V> Index<DtPos> for HashMap<DtPos, V> {
+    type Output = V;
+
+    #[inline]
+    fn index(&self, pos: DtPos) -> &Self::Output {
+        &self[&pos]
+    }
+}
+impl<V: Default> IndexMut<DtPos> for HashMap<DtPos, V> {
+    #[inline]
+    fn index_mut(&mut self, pos: DtPos) -> &mut Self::Output {
+        self.get_mut(&pos).unwrap()
+    }
+}
+
+impl Display for DtPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <Self as std::fmt::Debug>::fmt(self, f)
+    }
+}
+
+impl DtPos {
+    pub fn from_pos(Pos(i, j): Pos, g: Cost) -> Self {
+        Self {
+            diagonal: i as i32 - j as i32,
+            g,
+        }
+    }
+    pub fn to_pos(self, fr: I) -> Pos {
+        Pos(fr, (fr as i32 - self.diagonal) as I)
+    }
+
+    pub fn fr(Pos(i, _j): Pos) -> I {
+        i
+    }
+}
+
+impl<V: Default> DiagonalMapTrait<DtPos, V> for HashMap<DtPos, V>
+where
+    HashMap<DtPos, V>: Index<DtPos, Output = V>,
+    HashMap<DtPos, V>: IndexMut<DtPos>,
+{
+    fn new(_target: DtPos) -> Self {
+        Default::default()
+    }
+
+    fn insert(&mut self, pos: DtPos, v: V) {
         self.insert(pos, v);
+    }
+
+    fn get(&self, pos: DtPos) -> Option<&V> {
+        self.get(&pos)
+    }
+
+    fn get_mut(&mut self, pos: DtPos) -> &mut V {
+        self.entry(pos).or_default()
     }
 
     fn dm_capacity(&self) -> usize {
