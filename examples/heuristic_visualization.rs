@@ -1,11 +1,11 @@
 use pairwise_aligner::prelude::*;
 
 fn main() {
-    let n = 70;
-    let e = 0.3;
+    let n = 250;
+    let e = 0.15;
 
     let m = 0;
-    let k = 4;
+    let k = 6;
 
     let (ref a, ref b, ref alphabet, stats) = setup_with_seed(n, e, 1);
 
@@ -32,55 +32,61 @@ fn main() {
     //     let h = Heuristic::build(&h, &a, &b, &alphabet);
     //     h.display(target, DisplayType::Heuristic, hmax);
     // }
-    for pruning in [false, true] {
-        {
-            let h = SH {
-                match_config: MatchConfig {
-                    length: Fixed(k),
-                    max_match_cost: m,
-                    ..MatchConfig::default()
-                },
-                pruning,
-            };
-            let mut h = Heuristic::build(&h, &a, &b, &alphabet);
-            let graph = EditGraph::new(a, b, true);
-            let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
-            let (_distance, path) = distance_and_path.unwrap_or_default();
+    if true {
+        let h = ZeroCost;
+        let mut h = Heuristic::build(&h, &a, &b, &alphabet);
+        let graph = EditGraph::new(a, b, true);
+        let (distance_and_path, astar) = astar::astar(&graph, &mut h);
+        let (_distance, path) = distance_and_path.unwrap_or_default();
 
-            // TODO: Add matches
-            h.display(
-                target,
-                hmax,
-                Some(astar.explored_states),
-                Some(astar.expanded_states),
-                Some(path),
-                Some(astar.tree),
-            );
-        }
-        {
-            let h = CSH {
-                match_config: MatchConfig {
-                    length: Fixed(k),
-                    max_match_cost: m,
-                    ..MatchConfig::default()
-                },
-                pruning,
-                use_gap_cost: false,
-                c: PhantomData::<HintContours<BruteForceContour>>::default(),
-            };
-            let mut h = Heuristic::build(&h, &a, &b, &alphabet);
-            let graph = EditGraph::new(a, b, true);
-            let (distance_and_path, astar) = astar::astar(&graph, Pos(0, 0), &mut h);
-            let (_distance, path) = distance_and_path.unwrap_or_default();
+        h.display(
+            target,
+            hmax,
+            Some(astar.explored_states),
+            Some(astar.expanded_states),
+            Some(path),
+            Some(astar.tree),
+        );
+    }
+    if true {
+        let h = ZeroCost;
+        let mut h = Heuristic::build(&h, &a, &b, &alphabet);
+        let graph = EditGraph::new(a, b, true);
+        let (distance_and_path, astar) = astar_dt::astar_dt(&graph, &mut h);
+        let (_distance, path) = distance_and_path.unwrap_or_default();
 
-            h.display(
-                target,
-                hmax,
-                Some(astar.explored_states),
-                Some(astar.expanded_states),
-                Some(path),
-                Some(astar.tree),
-            );
-        }
+        h.display(
+            target,
+            hmax,
+            Some(astar.explored_states),
+            Some(astar.expanded_states),
+            Some(path),
+            Some(astar.tree),
+        );
+    }
+    {
+        let h = CSH {
+            match_config: MatchConfig {
+                length: Fixed(k),
+                max_match_cost: m,
+                ..MatchConfig::default()
+            },
+            pruning: true,
+            use_gap_cost: false,
+            c: PhantomData::<HintContours<BruteForceContour>>::default(),
+        };
+        let mut h = Heuristic::build(&h, &a, &b, &alphabet);
+        let graph = EditGraph::new(a, b, true);
+        let (distance_and_path, astar) = astar_dt::astar_dt(&graph, &mut h);
+        let (_distance, path) = distance_and_path.unwrap_or_default();
+
+        h.display(
+            target,
+            hmax,
+            Some(astar.explored_states),
+            Some(astar.expanded_states),
+            Some(path),
+            Some(astar.tree),
+        );
     }
 }

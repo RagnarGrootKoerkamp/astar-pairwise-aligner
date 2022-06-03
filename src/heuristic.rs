@@ -175,16 +175,16 @@ pub trait HeuristicInstance<'a> {
         // Cell: position in drawing, of size CELL_SIZE x CELL_SIZE
         // Pixel: one pixel
 
-        const CELL_SIZE: u32 = 14;
-        const SMALL_CELL_MARGIN: u32 = 4;
+        const CELL_SIZE: u32 = 4;
+        const SMALL_CELL_MARGIN: u32 = 2;
 
         const SEED_COLOR: Color = Color::RGB(0, 0, 0);
         const MATCH_COLOR: Color = Color::RGB(0, 200, 0);
         const PRUNED_MATCH_COLOR: Color = Color::RED;
         const CONTOUR_COLOR: Color = Color::RGB(0, 216, 0);
-        const TREE_COLOR: Color = Color::BLUE;
+        const TREE_COLOR: Color = Color::CYAN;
         const TREE_COLOR_MATCH: Color = Color::CYAN;
-        const PATH_COLOR: Color = Color::BLUE;
+        const PATH_COLOR: Color = Color::WHITE;
         const H_COLOR: Color = Color::RGB(64, 64, 64);
         const _EXPANDED_COLOR: Color = Color::BLUE;
         const _EXPLORED_COLOR: Color = Color::RGB(128, 0, 128);
@@ -318,19 +318,19 @@ pub trait HeuristicInstance<'a> {
             }
         }
 
-        // // Draw explored
-        // if let Some(explored) = explored {
-        //     for p in explored {
-        //         draw_pixel(&mut canvas, p, EXPLORED_COLOR, false);
-        //     }
-        // }
+        // Draw explored
+        if let Some(explored) = _explored {
+            for p in explored {
+                draw_pixel(&mut canvas, p, _EXPLORED_COLOR, false);
+            }
+        }
 
-        // // Draw expanded
-        // if let Some(expanded) = expanded {
-        //     for p in expanded {
-        //         draw_pixel(&mut canvas, p, EXPANDED_COLOR, false);
-        //     }
-        // }
+        // Draw expanded
+        if let Some(expanded) = _expanded {
+            for p in expanded {
+                draw_pixel(&mut canvas, p, _EXPANDED_COLOR, false);
+            }
+        }
 
         // Draw matches
         if let Some(matches) = self.matches() {
