@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{astar::astar, astar_dt::astar_dt, prelude::*};
 
 use csv::Writer;
 use serde::Serialize;
@@ -359,7 +359,7 @@ pub fn align<'a, H: Heuristic>(
 where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
-    align_advanced(a, b, alphabet, sequence_stats, heuristic, true)
+    align_advanced(a, b, alphabet, sequence_stats, heuristic, true, false)
 }
 
 pub fn align_advanced<'a, H: Heuristic>(
@@ -369,6 +369,7 @@ pub fn align_advanced<'a, H: Heuristic>(
     sequence_stats: SequenceStats,
     heuristic: H,
     greedy_edge_matching: bool,
+    diagonal_transition: bool,
 ) -> AlignResult
 where
     H::Instance<'a>: HeuristicInstance<'a>,

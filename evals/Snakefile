@@ -43,7 +43,8 @@ binaries = {
 tool_command = {
     # Versions with manual parameter choosing.
     'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm SH',
-    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
+    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_DT',
+    'cp-csh+dt':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
     'cp-csh+gap':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_GapCost',
     'cp-sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm SH',
     'cp-csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH',
@@ -51,6 +52,7 @@ tool_command = {
     # choosed k and m values automatically.
     'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm SH',
     'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH',
+    'csh+dt':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH_DT',
     'csh+gap':          binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH_GapCost',
     # slower PA variants
     'dijkstra':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm Dijkstra',

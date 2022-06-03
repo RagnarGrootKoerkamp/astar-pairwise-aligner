@@ -31,7 +31,7 @@ pub enum Contours {
     Hint,
 }
 
-#[derive(EnumString, Debug, PartialEq, Default, strum_macros::Display)]
+#[derive(EnumString, Debug, PartialEq, Default, strum_macros::Display, Clone, Copy)]
 #[strum(ascii_case_insensitive)]
 #[allow(non_camel_case_types)]
 pub enum Algorithm {
@@ -49,6 +49,23 @@ pub enum Algorithm {
     // SeedHeuristic
     #[default]
     SH,
+    // Heuristic variants based with Diagonal Transition
+    Dijkstra_DT,
+    CSH_DT,
+    CSH_GapCost_DT,
+    SH_DT,
+}
+
+impl Algorithm {
+    fn diagonal_transition(self) -> bool {
+        match self {
+            Algorithm::Dijkstra_DT
+            | Algorithm::CSH_DT
+            | Algorithm::CSH_GapCost_DT
+            | Algorithm::SH_DT => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(StructOpt, Debug)]
@@ -224,7 +241,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 ..Default::default()
             }
         }
-        Algorithm::Dijkstra => {
+        Algorithm::Dijkstra | Algorithm::Dijkstra_DT => {
             let heuristic = ZeroCost;
 
             let alphabet = Alphabet::new(b"ACTG");
@@ -243,6 +260,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 sequence_stats,
                 heuristic,
                 !params.no_greedy_matching,
+                params.algorithm.diagonal_transition(),
             )
         }
         Algorithm::BruteForceCSH => {
@@ -271,6 +289,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     sequence_stats,
                     heuristic,
                     !params.no_greedy_matching,
+                    params.algorithm.diagonal_transition(),
                 )
             }
 
@@ -282,7 +301,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 CostFunction::BiCount => run_cost::<BiCountCost>(a, b, params),
             }
         }
-        Algorithm::CSH | Algorithm::CSH_GapCost => {
+        Algorithm::CSH | Algorithm::CSH_GapCost | Algorithm::CSH_DT | Algorithm::CSH_GapCost_DT => {
             assert!(
                 params.cost == CostFunction::Zero,
                 "Use --algorithm CSH_gapcost instead."
@@ -296,7 +315,8 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 let heuristic = CSH {
                     match_config: match_config(params, a, b, params.cost == CostFunction::Gap),
                     pruning: !params.no_prune,
-                    use_gap_cost: params.algorithm == Algorithm::CSH_GapCost,
+                    use_gap_cost: params.algorithm == Algorithm::CSH_GapCost
+                        || params.algorithm == Algorithm::CSH_GapCost_DT,
                     c: PhantomData::<C>,
                 };
 
@@ -315,6 +335,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                     sequence_stats,
                     heuristic,
                     !params.no_greedy_matching,
+                    params.algorithm.diagonal_transition(),
                 )
             }
 
@@ -328,7 +349,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 },
             }
         }
-        Algorithm::SH => {
+        Algorithm::SH | Algorithm::SH_DT => {
             let heuristic = SH {
                 match_config: match_config(params, a, b, false),
                 pruning: !params.no_prune,
@@ -349,6 +370,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 sequence_stats,
                 heuristic,
                 !params.no_greedy_matching,
+                params.algorithm.diagonal_transition(),
             )
         }
     }
