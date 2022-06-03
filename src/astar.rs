@@ -13,6 +13,8 @@ use Status::*;
 
 #[derive(Clone, Copy, Debug)]
 struct State<Hint> {
+    /// TODO: `status` is only used for double-expand checks.
+    /// The field should be removed at some point or only used in debug mode.
     status: Status,
     g: Cost,
     seed_cost: MatchCost,
@@ -27,6 +29,15 @@ impl<Hint: Default> Default for State<Hint> {
             seed_cost: MatchCost::MAX,
             hint: Hint::default(),
         }
+    }
+}
+
+impl QueueOrder for (Pos, Cost) {
+    type O = I;
+
+    // Sort by Pos.i.
+    fn key(&self) -> Self::O {
+        self.0 .0
     }
 }
 
@@ -66,7 +77,7 @@ where
     let mut stats = AStarStats::default();
 
     // f -> pos
-    let mut queue = BucketQueue::<Cost>::default();
+    let mut queue = BucketQueue::<Pos, Cost>::default();
     // When > 0, queue[x] corresponds to f=x+offset.
     // Increasing the offset implicitly shifts all elements of the queue up.
     let mut queue_offset: Cost = 0;

@@ -134,11 +134,6 @@ impl Ord for LexPos {
 
 impl Pos {
     #[inline]
-    pub fn key(&self) -> LexPos {
-        LexPos(*self)
-    }
-
-    #[inline]
     pub fn add_diagonal(&self, step: I) -> Self {
         Pos(self.0 + step, self.1 + step)
     }
