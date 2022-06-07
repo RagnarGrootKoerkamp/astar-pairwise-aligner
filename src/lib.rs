@@ -22,6 +22,7 @@ pub mod drawing;
 pub mod generate;
 pub mod heuristic;
 pub mod matches;
+pub mod nw_affine;
 pub mod runner;
 pub mod ukkonen;
 
