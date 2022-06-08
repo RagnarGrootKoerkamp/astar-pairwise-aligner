@@ -14,12 +14,12 @@ fn main() {
     let (ref a, ref b, ref _alphabet, _stats) = setup(13, 0.6);
     print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
 
-    for i in 1..5000 {
-        let (ref a, ref b, ref _alphabet, _stats) = setup(i, 1.);
-        println!("{i}");
-        print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
-        assert_eq!(nw_affine(a, b), diagonal_transition_affine(a, b));
-    }
+    // for i in 10..5000 { // Test section
+    //     let (ref a, ref b, ref _alphabet, _stats) = setup(i, 1.);
+    //     println!("{i}");
+    //     print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
+    //     assert_eq!(nw_affine(a, b), diagonal_transition_affine(a, b));
+    // }
 
     let start = std::time::Instant::now();
 

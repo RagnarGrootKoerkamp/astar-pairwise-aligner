@@ -1,9 +1,6 @@
-use std::f64::consts::PI;
-
 use crate::prelude::*;
 
 const INF: usize = usize::MAX / 2;
-const NULL: usize = ((usize::MAX as f64) / PI) as usize;
 
 fn print_vec(A: &Vec<Vec<usize>>) {
     //This function prints matrix for debug purposes
@@ -78,14 +75,17 @@ fn explore_diagonal(
     //Function for exploring (checking matches on the diagonal). Only for standard DTM and compatible algorithms!
     s1: &Sequence,
     s2: &Sequence,
-    A: &mut usize, // A = A[j][i]
+    A: &mut isize, // A = A[j][i]
     i: usize,
     j: usize,
 ) {
+    if *A < 0 {
+        return;
+    }
     let d = 1 + i * 2;
-    let mut x = *A;
+    let mut x = *A as usize;
     let mut y = x + d / 2 - j;
-    while *A < s1.len() && y < s2.len() {
+    while x < s1.len() && y < s2.len() {
         if s1[x] == s2[y] {
             *A += 1;
             x += 1;
@@ -102,6 +102,7 @@ pub fn diagonal_transition_affine<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence
         (s1, s2) = (s2, s1);
     }
 
+    const NEG: isize = isize::MIN;
     let mut M = vec![vec![]]; // Main layer
     let mut I = vec![vec![]]; // Insertion layer
     let mut D = vec![vec![]]; // Deletion layer
@@ -121,28 +122,28 @@ pub fn diagonal_transition_affine<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence
         Some((s - d, p as usize))
     };
 
-    M[0] = vec![0usize; w];
-    I[0] = vec![0usize; w];
-    D[0] = vec![0usize; w];
+    M[0] = vec![0isize; w];
+    I[0] = vec![NEG; w];
+    D[0] = vec![NEG; w];
     explore_diagonal(s1, s2, &mut M[0][0], 0, 0);
-    if s2.len() == s1.len() && M[0][0] >= s1.len() {
+    if s2.len() == s1.len() && M[0][0] as usize >= s1.len() {
         return 0;
     }
     for s in 1..=s2.len() {
         w += 2;
-        M.push(vec![0usize; w]); //Probably it's better to store all three values in one object - less memory allocations - more speed
-        I.push(vec![0usize; w]);
-        D.push(vec![0usize; w]);
+        M.push(vec![NEG; w]); //Probably it's better to store all three values in one object - less memory allocations - more speed
+        I.push(vec![NEG; w]);
+        D.push(vec![NEG; w]);
         let mut k: isize = -(w as isize / 2);
         for j in 0..w {
-            I[s][j] = NULL;
+            I[s][j] = NEG;
             if let Some((i1, j1)) = get_j(s, o + e, k - 1) {
                 I[s][j] = M[i1][j1] + 1;
             }
             if let Some((i1, j1)) = get_j(s, e, k - 1) {
                 I[s][j] = max(I[i1][j1] + 1, I[s][j]);
             }
-            D[s][j] = NULL;
+            D[s][j] = NEG;
             if let Some((i1, j1)) = get_j(s, o + e, k + 1) {
                 D[s][j] = M[i1][j1];
             }
@@ -165,11 +166,11 @@ pub fn diagonal_transition_affine<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence
             // }
 
             if j as isize - (w / 2) as isize == s1.len() as isize - s2.len() as isize {
-                if M[s][j] >= s1.len() {
-                    print_vec2(&M);
-                    print_vec2(&I);
-                    print_vec2(&D);
-                    println!("A {s}\t{j}\n");
+                if M[s][j] >= s1.len() as isize {
+                    // print_vec2(&M);
+                    // print_vec2(&I);
+                    // print_vec2(&D);
+                    // println!("A {s}\t{j}\n");
                     return s;
                 }
             }
