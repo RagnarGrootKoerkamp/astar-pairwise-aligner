@@ -272,7 +272,7 @@ fn explore_diagonal1(
 }
 
 fn explore_diagonal(
-    //Function for exploring (checking matches on the diagonal).
+    //Function for exploring (checking matches on the diagonal). Only for advanced DTM and compatible algorithms!
     s1: &Sequence,
     s2: &Sequence,
     A: &mut usize, // A = A[j][i]

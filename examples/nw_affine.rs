@@ -2,16 +2,24 @@ use std::cmp::max;
 
 use num_traits::abs;
 use pairwise_aligner::{
+    nw_affine::{diagonal_transition_affine, nw_affine},
     prelude::{setup, to_string, Sequence},
     ukkonen::ukkonen,
 };
 
 fn main() {
     let c = String::from("CG").as_bytes();
-    let s1 = Vec::from(String::from("CG").as_bytes());
-    let s2 = Vec::from(String::from("TGTC").as_bytes());
-    let (ref a, ref b, ref _alphabet, _stats) = setup(500, 0.6);
+    let s1 = Vec::from(String::from("CGC").as_bytes());
+    let s2 = Vec::from(String::from("GCGC").as_bytes());
+    let (ref a, ref b, ref _alphabet, _stats) = setup(13, 0.6);
     print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
+
+    for i in 1..5000 {
+        let (ref a, ref b, ref _alphabet, _stats) = setup(i, 1.);
+        println!("{i}");
+        print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
+        assert_eq!(nw_affine(a, b), diagonal_transition_affine(a, b));
+    }
 
     let start = std::time::Instant::now();
 
@@ -20,13 +28,24 @@ fn main() {
     let duration = start.elapsed().as_secs_f32();
 
     println!(
-        "Needleman-Wunsch with affine gap penalty with u32 says that edit distance is {}",
+        "Needleman-Wunsch with affine gap penalty says that edit distance is {}",
         r
     );
 
+    println!("Needleman-Wunsch with affine gap penalty has needed for this {duration} seconds");
+
+    let start = std::time::Instant::now();
+
+    let r = pairwise_aligner::nw_affine::diagonal_transition_affine(a, b);
+
+    let duration = start.elapsed().as_secs_f32();
+
     println!(
-        "Needleman-Wunsch with affine gap penalty with u32 has needed for this {duration} seconds"
+        "DTM with affine gap penalty says that edit distance is {}",
+        r
     );
+
+    println!("DTM with affine gap penalty has needed for this {duration} seconds");
 
     let mut d = max(2, abs(a.len() as i32 - b.len() as i32) as usize);
     let mut r = d + 1;
