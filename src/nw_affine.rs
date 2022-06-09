@@ -179,3 +179,797 @@ pub fn diagonal_transition_affine<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence
     }
     unreachable!("Error! Shouldn't be here!");
 }
+
+pub fn biwfa_affine<'a>(
+    mut s1: &'a Sequence,
+    mut s2: &'a Sequence,
+    explored: &mut Vec<Pos>,
+) -> usize {
+    //Regular BiWFA. Bugs are not found
+    //Debug output is enabled!
+    if s1.len() > s2.len() {
+        (s1, s2) = (s2, s1);
+    }
+
+    let print_vector = |C: &Vec<Vec<isize>>| -> () {
+        print!("\n");
+        for i in 0..C.len() {
+            for j in 0..C[i].len() {
+                print!("{} ", C[i][j]);
+            }
+            print!("\n");
+        }
+        print!("\n");
+    };
+
+    let get_j = |s: usize, d: usize, k: isize| -> Option<(usize, usize)> {
+        if s < d {
+            return None;
+        }
+        let p = (s - d) as isize + k;
+        if p < 0 || p as usize > (s - d) * 2 {
+            return None;
+        }
+        Some((s - d, p as usize))
+    };
+
+    let get_j2 = |s: usize, d: usize, k: isize| -> Option<(usize, usize)> {
+        if s < d {
+            return None;
+        }
+        let p = (s - d) as isize - k;
+        if p < 0 || p as usize > (s - d) * 2 {
+            return None;
+        }
+        Some((s - d, p as usize))
+    };
+
+    let mut check_point5 = |C: &mut Vec<Vec<usize>>, i: usize, j: usize| -> () {
+        //unused
+        C[i][j] = 0;
+        if i > 0 {
+            //println!("HALOOOOOOOOOOOOOOOOOO!!!!!{i} {j}");
+            if j > 1 && j - 2 < C[i - 1].len() {
+                C[i][j] = max(C[i][j], C[i - 1][j - 2] + 1);
+            }
+            if j > 0 && j - 1 < C[i - 1].len() {
+                C[i][j] = max(C[i][j], C[i - 1][j - 1] + 1);
+            }
+            if j < C[i - 1].len() {
+                C[i][j] = max(C[i][j], C[i - 1][j]);
+            }
+        }
+    };
+
+    let check_point2 = |M: &Vec<Vec<isize>>,
+                        I: &Vec<Vec<isize>>,
+                        D: &Vec<Vec<isize>>,
+                        i: usize,
+                        j: usize,
+                        k: isize|
+     -> usize {
+        let mut t = 0;
+        let s = i;
+        if i > 0 {
+            //println!("HALOOOOOOOOOOOOOOOOOO!!!!!{i} {j}");
+            // if j > 1 && j - 2 < C[i - 1].len() {
+            //     t = max(t, C[i - 1][j - 2] + 1);
+            // }
+            // if j > 0 && j - 1 < C[i - 1].len() {
+            //     t = max(t, C[i - 1][j - 1] + 1);
+            // }
+            // if j < C[i - 1].len() {
+            //     t = max(t, C[i - 1][j]);
+            // }
+            t = max(I[s][j], D[s][j]);
+
+            if let Some((i1, j1)) = get_j(s, x, k) {
+                // println!("S {i1}\t{j1}\t{s}\t{k}\n");
+                t = max(M[i1][j1] + 1, M[s][j]);
+            }
+        }
+        t as usize
+    };
+
+    let check_point3 = |M: &Vec<Vec<isize>>,
+                        I: &Vec<Vec<isize>>,
+                        D: &Vec<Vec<isize>>,
+                        i: usize,
+                        j: usize,
+                        k: isize|
+     -> usize {
+        let mut t = 0;
+        let s = i;
+        if i > 0 {
+            t = max(I[s][j], D[s][j]);
+
+            if let Some((i1, j1)) = get_j2(s, x, -(j as isize) + (s as isize - x as isize) / 2) {
+                // println!("S {i1}\t{j1}\t{s}\t{k}\n");
+                t = max(M[i1][j1] + 1, M[s][j]);
+            }
+        }
+        t as usize
+    };
+
+    let a = |a1: isize, b1: isize, c1: usize| -> bool {
+        if a1 > 0 && b1 > 0 && a1 + b1 == c1 as isize {
+            return true;
+        }
+        return false;
+    };
+
+    let k0: isize = s1.len() as isize - s2.len() as isize;
+    const NEG: isize = isize::MIN;
+    let mut M = vec![vec![]]; // Main layer
+    let mut I = vec![vec![]]; // Insertion layer
+    let mut D = vec![vec![]]; // Deletion layer
+    let mut Mr = vec![vec![]]; // Reverse main layer
+    let mut Ir = vec![vec![]]; // Reverse insertion layer
+    let mut Dr = vec![vec![]]; // Reverse deletion layer
+    const x: usize = 1; // mismatch cost
+    const o: usize = 1; // open gap cost
+    const e: usize = 1; // extand gap cost
+    let mut w = 1;
+
+    for i in 0..(3 * s2.len()) {
+        println!("\ni = {i} first\n\n");
+        if i > 0 {
+            M.push(vec![NEG; w]);
+            I.push(vec![NEG; w]);
+            D.push(vec![NEG; w]);
+            Mr.push(vec![NEG; w]);
+            Ir.push(vec![NEG; w]);
+            Dr.push(vec![NEG; w]);
+            M[i] = vec![NEG; w];
+            Mr[i] = vec![NEG; w];
+        } else {
+            M[i] = vec![0isize; w];
+            Mr[i] = vec![0isize; w];
+        }
+        I[i] = vec![NEG; w];
+        D[i] = vec![NEG; w];
+        Ir[i] = vec![NEG; w];
+        Dr[i] = vec![NEG; w];
+        let s = i;
+        let mut k: isize = -(w as isize / 2);
+        for j in 0..w {
+            if let Some((i1, j1)) = get_j(s, o + e, k - 1) {
+                I[s][j] = M[i1][j1] + 1;
+            }
+            if let Some((i1, j1)) = get_j(s, e, k - 1) {
+                I[s][j] = max(I[i1][j1] + 1, I[s][j]);
+            }
+
+            if let Some((i1, j1)) = get_j(s, o + e, k + 1) {
+                D[s][j] = M[i1][j1];
+            }
+            if let Some((i1, j1)) = get_j(s, e, k + 1) {
+                D[s][j] = max(D[i1][j1], D[s][j]);
+            }
+
+            if i > 0 {
+                M[s][j] = max(I[s][j], D[s][j]);
+
+                if let Some((i1, j1)) = get_j(s, x, k) {
+                    // println!("S {i1}\t{j1}\t{s}\t{k}\n");
+                    M[s][j] = max(M[i1][j1] + 1, M[s][j]);
+                }
+            }
+
+            explore_diagonal(s1, s2, &mut M[s][j], s, j);
+            k += 1;
+        }
+
+        let mut k_min = 0;
+        if w > 1 {
+            k_min = max(-((w / 2) as isize), -(((w - 2) / 2) as isize) + k0);
+        }
+        let mut k_max = 0;
+
+        if i > 0 {
+            k_max = (((w - 2) / 2) as isize) + k0;
+        } else {
+            k_min = 2;
+        }
+
+        // print_vector(&M);
+        // print_vector(&I);
+        // print_vector(&D);
+        // println!("Mr:\n");
+        // print_vector(&Mr);
+
+        println!("k_min = {k_min}\nk_max = {k_max}\n");
+        println!("Comparison\n");
+        let mut f = 0usize;
+        if i > 0 {
+            Mr[i - 1].reverse();
+            Ir[i - 1].reverse();
+            Dr[i - 1].reverse();
+        }
+        //fix for gaps!!!
+        if i > 0 && k_min - k_max == 1 {
+            if a(
+                D[i][((w / 2) as isize + k_min) as usize],
+                Mr[i - 1][(((w - 2) / 2) as isize + k_max - k0) as usize],
+                s1.len(),
+            ) {
+                f = 1;
+            }
+            if a(
+                M[i][((w / 2) as isize + k_min) as usize],
+                Dr[i - 1][(((w - 2) / 2) as isize + k_max - k0) as usize],
+                s1.len(),
+            ) {
+                f = 2;
+            }
+            if a(
+                D[i][((w / 2) as isize + k_min) as usize],
+                Dr[i - 1][(((w - 2) / 2) as isize + k_max - k0) as usize],
+                s1.len(),
+            ) {
+                return 2 * i - 1 - o;
+            }
+        } else if (((w / 2) as isize + k_max + 1) as usize) < w {
+            if a(
+                D[i][((w / 2) as isize + k_max + 1) as usize],
+                Mr[i - 1][(((w - 2) / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                f = 10;
+            }
+            if a(
+                M[i][((w / 2) as isize + k_max + 1) as usize],
+                Dr[i - 1][(((w - 2) / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                f = 11;
+            }
+            if a(
+                D[i][((w / 2) as isize + k_max + 1) as usize],
+                Dr[i - 1][(((w - 2) / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                return 2 * i - 1 - o;
+            }
+        }
+        for k in k_min..=k_max {
+            println!(
+                "I&D SECTIONS:\t{i}\t{k}\t{}\t{}\n",
+                ((w / 2) as isize + k),
+                (((w - 2) / 2) as isize + k - k0 + 1)
+            );
+
+            println!("\nACCESSED\n");
+            if ((w - 2) / 2) as isize + k - k0 - 1 > 0 {
+                if (s1.len() != s2.len() || k > k_min) {
+                    //D section
+                    if a(
+                        D[i][((w / 2) as isize + k) as usize],
+                        Mr[i - 1][(((w - 2) / 2) as isize + k - k0 - 1) as usize],
+                        s1.len() + 1,
+                    ) {
+                        f = 3;
+                    }
+                    if a(
+                        M[i][((w / 2) as isize + k) as usize],
+                        Dr[i - 1][(((w - 2) / 2) as isize + k - k0 - 1) as usize],
+                        s1.len() + 1,
+                    ) {
+                        f = 4;
+                    }
+                    if a(
+                        D[i][((w / 2) as isize + k) as usize],
+                        Dr[i - 1][(((w - 2) / 2) as isize + k - k0 - 1) as usize],
+                        s1.len() + 1,
+                    ) {
+                        println!("EXIT 1");
+                        return 2 * i - 1 - o;
+                    }
+                }
+            }
+            if k < k_max {
+                //I section
+                if a(
+                    // Can be optimized by adding !f && ...
+                    I[i][((w / 2) as isize + k) as usize],
+                    Mr[i - 1][(((w - 2) / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    f = 5;
+                }
+                if a(
+                    M[i][((w / 2) as isize + k) as usize],
+                    Ir[i - 1][(((w - 2) / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    f = 6;
+                }
+                if a(
+                    I[i][((w / 2) as isize + k) as usize],
+                    Ir[i - 1][(((w - 2) / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    println!("EXIT 2");
+                    return 2 * i - o - 1;
+                }
+            }
+
+            if M[i][((w / 2) as isize + k) as usize] < 0
+                || Mr[i - 1][(((w - 2) / 2) as isize + k - k0) as usize] < 0
+            {
+                continue;
+            }
+
+            if k == s1.len() as isize - s2.len() as isize {
+                if M[i][((w / 2) as isize + k) as usize] >= s1.len() as isize {
+                    println!("EXIT 3");
+                    return i;
+                }
+            }
+
+            // println!(
+            //     "{} {}",
+            //     A[i][((w / 2) as isize + k) as usize],
+            //     B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
+            // );
+            let t1 = check_point2(&M, &I, &D, i, ((w / 2) as isize + k) as usize, k);
+            let t2 = check_point3(
+                //k+1 -> k-1; k-1 -> k+1
+                &Mr,
+                &Ir,
+                &Dr,
+                i - 1,
+                Mr[i - 1].len() - 1 - (((w - 2) / 2) as isize + k - k0) as usize,
+                k,
+            );
+            //println!("t1 == {} t2 == {}", t1, t2);
+            if M[i][((w / 2) as isize + k) as usize] as usize
+                + Mr[i - 1][(((w - 2) / 2) as isize + k - k0) as usize] as usize
+                == s1.len()
+            {
+                f = 8
+            }
+            if (M[i][((w / 2) as isize + k) as usize] as usize
+                + Mr[i - 1][(((w - 2) / 2) as isize + k - k0) as usize] as usize
+                >= (s1.len() + 1)
+                && M[i][((w / 2) as isize + k) as usize] as usize + t2 <= s1.len() + 1)
+            {
+                f = 9;
+            }
+            if ((s1.len() + 1)
+                >= t1 + Mr[i - 1][(((w - 2) / 2) as isize + k - k0) as usize] as usize
+                && (s1.len() + 1 - Mr[i - 1][(((w - 2) / 2) as isize + k - k0) as usize] as usize)
+                    <= M[i][((w / 2) as isize + k) as usize] as usize)
+            {
+                f = 7;
+            }
+        }
+        if i > 0 {
+            Mr[i - 1].reverse();
+            Ir[i - 1].reverse();
+            Dr[i - 1].reverse();
+        }
+        if f > 0 {
+            println!("F flag {f}\n");
+            return 2 * i - 1;
+        }
+        println!("Comparison End\n");
+
+        println!("\ni = {i}\n\n");
+        let mut k: isize = (w as isize / 2);
+        for j in 0..w {
+            if let Some((i1, j1)) = get_j2(s, o + e, k + 1) {
+                Ir[s][j] = Mr[i1][j1] + 1;
+                println!("Ir\t{i}\t{j}\t{}\tMr\t{i1}\t{j1}", Ir[s][j]);
+            }
+            if let Some((i1, j1)) = get_j2(s, e, k + 1) {
+                Ir[s][j] = max(Ir[i1][j1] + 1, Ir[s][j]);
+                println!("Ir\t{i}\t{j}\t{}\tIr\t{i1}\t{j1}", Ir[s][j]);
+            }
+
+            if let Some((i1, j1)) = get_j2(s, o + e, k - 1) {
+                Dr[s][j] = Mr[i1][j1];
+            }
+            if let Some((i1, j1)) = get_j2(s, e, k - 1) {
+                Dr[s][j] = max(Dr[i1][j1], Dr[s][j]);
+            }
+            if i > 0 {
+                Mr[s][j] = max(Ir[s][j], Dr[s][j]);
+
+                if let Some((i1, j1)) = get_j2(s, x, k) {
+                    // println!("S {i1}\t{j1}\t{s}\t{k}\n");
+                    Mr[s][j] = max(Mr[i1][j1] + 1, Mr[s][j]);
+                }
+            }
+
+            if Mr[i][j] >= 0 && s1.len() >= Mr[i][j] as usize {
+                explored.push(Pos(
+                    (s1.len() - Mr[i][j] as usize) as u32,
+                    ((s1.len() - Mr[i][j] as usize) as isize
+                        - (Mr[i].len() as isize / 2 - j as isize + k0)) as u32,
+                ));
+            }
+            if Mr[i][j] >= 0 && s1.len() >= Mr[i][j] as usize + 1 {
+                let d: isize = -(j as isize) + (w - 1) as isize - (w / 2) as isize + k0;
+                //print!("i = {i}\nj = {j}\nA[i][j] = {}\nd ={d}\nw = {w}", A[i][j]);
+                // println!("B[i][j] == {}\ni == {i}\nj == {j}\nd == {d}\n\n", B[i][j]);
+                let mut x2 = s1.len() - Mr[i][j] as usize - 1;
+                let mut k = (x2 as isize - d) as usize;
+                while k < s2.len() && x2 < s1.len() {
+                    if s1[x2] == s2[k] {
+                        Mr[i][j] += 1;
+                        explored.push(Pos(
+                            (s1.len() - Mr[i][j] as usize) as u32,
+                            ((s1.len() - Mr[i][j] as usize) as isize
+                                - (Mr[i].len() as isize / 2 - j as isize + k0))
+                                as u32,
+                        ));
+                        if x2 == 0 || k == 0 {
+                            break;
+                        }
+                        k -= 1;
+                        x2 -= 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            k -= 1;
+        }
+
+        let mut k_min = 0;
+        if w > 1 {
+            k_min = max(-(((w - 2) / 2) as isize), -((w / 2) as isize) + k0);
+        }
+        let mut k_max = 0;
+
+        if i > 0 {
+            k_max = min((((w - 2) / 2) as isize) + k0, (w as isize - 2) / 2);
+        } else {
+            k_min = 2;
+        }
+
+        println!("k_min = {k_min}\nk_max = {k_max}\n");
+        println!("Comparison Middle\n");
+        let mut f = false;
+        // if i > 0 {
+        //     Mr[i - 1].reverse();
+        // }
+        Mr[i].reverse();
+        Ir[i].reverse();
+        Dr[i].reverse();
+        if i > 0 && k_min - k_max == 1 {
+            if a(
+                D[i - 1][(((w - 2) / 2) as isize + k_min) as usize],
+                Mr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len(),
+            ) {
+                f = true;
+            }
+            if a(
+                M[i - 1][(((w - 2) / 2) as isize + k_min) as usize],
+                Dr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len(),
+            ) {
+                f = true;
+            }
+            if a(
+                D[i - 1][(((w - 2) / 2) as isize + k_min) as usize],
+                Dr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len(),
+            ) {
+                return 2 * i - 1 - o;
+            }
+        } else if ((((w - 2) / 2) as isize + k_max + 1) as usize) < w {
+            if a(
+                D[i - 1][(((w - 2) / 2) as isize + k_max + 1) as usize],
+                Mr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                f = true;
+            }
+            if a(
+                M[i - 1][(((w - 2) / 2) as isize + k_max + 1) as usize],
+                Dr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                f = true;
+            }
+            if a(
+                D[i - 1][(((w - 2) / 2) as isize + k_max + 1) as usize],
+                Dr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                return 2 * i - 1 - o;
+            }
+        }
+        for k in k_min..=k_max {
+            // println!(
+            //     "I&D SECTIONS:\t{i}\t{k}\t{}\t{}\n",
+            //     ((w / 2) as isize + k),
+            //     (((w - 2) / 2) as isize + k - k0 + 1)
+            // );
+
+            // println!("\nACCESSED\n");
+            if true {
+                if (s1.len() != s2.len() || k > k_min) {
+                    //D section
+                    if a(
+                        D[i - 1][(((w - 2) / 2) as isize + k) as usize],
+                        Mr[i][((w / 2) as isize + k - k0 - 1) as usize],
+                        s1.len() + 1,
+                    ) {
+                        f = true;
+                    }
+                    if a(
+                        M[i - 1][(((w - 2) / 2) as isize + k) as usize],
+                        Dr[i][((w / 2) as isize + k - k0 - 1) as usize],
+                        s1.len() + 1,
+                    ) {
+                        f = true;
+                    }
+                    if a(
+                        D[i - 1][(((w - 2) / 2) as isize + k) as usize],
+                        Dr[i][((w / 2) as isize + k - k0 - 1) as usize],
+                        s1.len() + 1,
+                    ) {
+                        return 2 * i - 1 - o;
+                    }
+                }
+            }
+            if k < k_max {
+                //I section
+                if a(
+                    // Can be optimized by adding !f && ...
+                    I[i - 1][(((w - 2) / 2) as isize + k) as usize],
+                    Mr[i][((w / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    f = true;
+                }
+                if a(
+                    M[i - 1][(((w - 2) / 2) as isize + k) as usize],
+                    Ir[i][((w / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    f = true;
+                }
+                if a(
+                    I[i - 1][(((w - 2) / 2) as isize + k) as usize],
+                    Ir[i][((w / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    return 2 * i - o - 1;
+                }
+            }
+
+            if M[i - 1][(((w - 2) / 2) as isize + k) as usize] < 0
+                || Mr[i][((w / 2) as isize + k - k0) as usize] < 0
+            {
+                continue;
+            }
+
+            if k == s1.len() as isize - s2.len() as isize {
+                if M[i - 1][(((w - 2) / 2) as isize + k) as usize] >= s1.len() as isize {
+                    return i;
+                }
+                if Mr[i][((w / 2) as isize + k - k0) as usize] >= s1.len() as isize {
+                    return i - 1;
+                }
+            }
+
+            // println!(
+            //     "{} {}",
+            //     A[i][((w / 2) as isize + k) as usize],
+            //     B[i - 1][(((w - 2) / 2) as isize + k - k0) as usize]
+            // );
+            let t1 = check_point2(&M, &I, &D, i - 1, (((w - 2) / 2) as isize + k) as usize, k);
+            let t2 = check_point3(
+                //k+1 -> k-1; k-1 -> k+1
+                &Mr,
+                &Ir,
+                &Dr,
+                i,
+                Mr[i].len() - 1 - ((w / 2) as isize + k - k0) as usize,
+                k,
+            );
+            //println!("t1 == {} t2 == {}", t1, t2);
+            if M[i - 1][(((w - 2) / 2) as isize + k) as usize] as usize
+                + Mr[i][((w / 2) as isize + k - k0) as usize] as usize
+                == s1.len()
+                || (M[i - 1][(((w - 2) / 2) as isize + k) as usize] as usize
+                    + Mr[i][((w / 2) as isize + k - k0) as usize] as usize
+                    >= (s1.len() + 1)
+                    && M[i - 1][(((w - 2) / 2) as isize + k) as usize] as usize + t2
+                        <= s1.len() + 1)
+                || ((s1.len() + 1) >= t1 + Mr[i][((w / 2) as isize + k - k0) as usize] as usize
+                    && (s1.len() + 1 - Mr[i][((w / 2) as isize + k - k0) as usize] as usize)
+                        <= M[i - 1][(((w - 2) / 2) as isize + k) as usize] as usize)
+            {
+                f = true;
+            }
+        }
+        // if i > 0 {
+        //     Mr[i - 1].reverse();
+        // }
+        Mr[i].reverse();
+        Ir[i].reverse();
+        Dr[i].reverse();
+        if f {
+            return 2 * i - 1;
+        }
+        println!("Comparison Middle End\n");
+
+        print_vector(&M);
+        print_vector(&I);
+        print_vector(&D);
+        println!("Mrs:\n");
+        print_vector(&Mr);
+        print_vector(&Ir);
+        print_vector(&Dr);
+
+        let k_min = -((w / 2) as isize);
+        let k_max = ((w / 2) as isize) + k0;
+        println!("k_min = {k_min}\nk_max = {k_max}\n");
+        println!("Comparison\n");
+        let mut f = false;
+        /*if i > 0 {
+            B[i - 1].reverse();
+        }*/
+        Mr[i].reverse();
+        Ir[i].reverse();
+        Dr[i].reverse();
+        if k_min - k_max == 1 {
+            if a(D[i][0], Mr[i][w - 1], s1.len()) {
+                f = true;
+            }
+            if a(
+                M[i][((w / 2) as isize + k_min) as usize],
+                Dr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len(),
+            ) {
+                f = true;
+            }
+            if a(
+                D[i][((w / 2) as isize + k_min) as usize],
+                Dr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len(),
+            ) {
+                return 2 * i - o;
+            }
+        } else if (((w / 2) as isize + k_max + 1) as usize) < w {
+            if a(
+                D[i][((w / 2) as isize + k_max + 1) as usize],
+                Mr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                f = true;
+            }
+            if a(
+                M[i][((w / 2) as isize + k_max + 1) as usize],
+                Dr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                f = true;
+            }
+            if a(
+                D[i][((w / 2) as isize + k_max + 1) as usize],
+                Dr[i][((w / 2) as isize + k_max - k0) as usize],
+                s1.len() + 1,
+            ) {
+                return 2 * i - o;
+            }
+        }
+        for k in k_min..=k_max {
+            if s1.len() != s2.len() || k > k_min {
+                //D section
+                println!(
+                    "D-indexes:\t{i}\t{}\t{}",
+                    ((w / 2) as isize + k) as usize,
+                    ((w / 2) as isize + k - k0 - 1) as usize
+                );
+                println!(
+                    "{}\t{}",
+                    M[i][((w / 2) as isize + k) as usize],
+                    Dr[i][((w / 2) as isize + k - k0 - 1) as usize]
+                );
+                if a(
+                    D[i][((w / 2) as isize + k) as usize],
+                    Mr[i][((w / 2) as isize + k - k0 - 1) as usize],
+                    s1.len() + 1,
+                ) {
+                    f = true;
+                }
+                if a(
+                    M[i][((w / 2) as isize + k) as usize],
+                    Dr[i][((w / 2) as isize + k - k0 - 1) as usize],
+                    s1.len() + 1,
+                ) {
+                    f = true;
+                }
+                if a(
+                    D[i][((w / 2) as isize + k) as usize],
+                    Dr[i][((w / 2) as isize + k - k0 - 1) as usize],
+                    s1.len() + 1,
+                ) {
+                    return 2 * i - o;
+                }
+            }
+            if k < k_max {
+                //I section
+                if a(
+                    // Can be optimized by adding !f && ...
+                    I[i][((w / 2) as isize + k) as usize],
+                    Mr[i][((w / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    f = true;
+                }
+                if a(
+                    M[i][((w / 2) as isize + k) as usize],
+                    Ir[i][((w / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    f = true;
+                }
+                if a(
+                    I[i][((w / 2) as isize + k) as usize],
+                    Ir[i][((w / 2) as isize + k - k0 + 1) as usize],
+                    s1.len(),
+                ) {
+                    return 2 * i - o;
+                }
+            }
+
+            if M[i][((w / 2) as isize + k) as usize] < 0
+                || Mr[i][((w / 2) as isize + k - k0) as usize] < 0
+            {
+                continue;
+            }
+
+            println!(
+                "{} {}",
+                M[i][((w / 2) as isize + k) as usize],
+                Mr[i][((w / 2) as isize + k - k0) as usize]
+            );
+            let t1 = check_point2(&M, &I, &D, i, ((w / 2) as isize + k) as usize, k);
+            let t2 = check_point3(
+                //k+1 -> k-1; k-1 -> k+1
+                &Mr,
+                &Ir,
+                &Dr,
+                i,
+                Mr[i].len() - 1 - ((w / 2) as isize + k - k0) as usize,
+                k,
+            );
+            // println!("{k} {t1} {t2}");
+            // println!("{} {}", ((w / 2) as isize + k), ((w / 2) as isize + k - k0));
+            if M[i][((w / 2) as isize + k) as usize] as usize
+                + Mr[i][((w / 2) as isize + k - k0) as usize] as usize
+                == s1.len()
+                || (M[i][((w / 2) as isize + k) as usize] as usize
+                    + Mr[i][((w / 2) as isize + k - k0) as usize] as usize
+                    >= (s1.len() + 1)
+                    && M[i][((w / 2) as isize + k) as usize] as usize + t2 <= (s1.len() + 1))
+                || ((s1.len() + 1) >= t1 + Mr[i][((w / 2) as isize + k - k0) as usize] as usize
+                    && (s1.len() + 1 - Mr[i][((w / 2) as isize + k - k0) as usize] as usize)
+                        <= M[i][((w / 2) as isize + k) as usize] as usize)
+            {
+                f = true;
+            }
+        }
+        /*if i > 0 {
+            B[i - 1].reverse();
+        }*/
+        Mr[i].reverse();
+        Ir[i].reverse();
+        Dr[i].reverse();
+        println!("Comparison End\n");
+        if f {
+            return 2 * i;
+        }
+
+        w += 2;
+    }
+    unreachable!("Error! Shouldn't be here!");
+}
