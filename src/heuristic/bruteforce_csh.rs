@@ -141,7 +141,6 @@ where
             .collect();
 
         h.build();
-        //h.terminal_print(h.target);
         h
     }
 
@@ -285,9 +284,6 @@ where
         self.pruning_duration += start.elapsed();
 
         self.num_pruned += 1;
-        if print() {
-            //self.terminal_print(self.target);
-        }
         return 0;
     }
 

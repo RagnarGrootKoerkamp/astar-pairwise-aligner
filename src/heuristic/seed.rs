@@ -82,9 +82,6 @@ impl SHI {
             remaining_matches,
             num_pruned: 0,
         };
-        if print() {
-            //h.terminal_print(h.target);
-        }
         h
     }
 
@@ -239,8 +236,6 @@ impl<'a> HeuristicInstance<'a> for SHI {
         // Remove the match.
         self.remaining_matches.remove(idx);
         self.num_pruned += 1;
-
-        //self.terminal_print(self.target);
 
         // TODO: Add Shifting.
         0
