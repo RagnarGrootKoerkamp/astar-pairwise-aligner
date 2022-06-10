@@ -166,7 +166,7 @@ impl<C: Contours> Drop for CSHI<C> {
 
 impl<C: Contours> CSHI<C> {
     fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: CSH<C>) -> Self {
-        let matches = find_matches(a, b, alph, params.match_config);
+        let matches = find_matches(a, b, alph, params.match_config, params.use_gap_cost);
         //println!("\nfind matches.. done: {}", matches.matches.len());
         let mut h = CSHI {
             params,

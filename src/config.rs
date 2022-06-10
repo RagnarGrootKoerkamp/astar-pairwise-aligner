@@ -56,3 +56,7 @@ pub const PRUNE_INEXACT_MATCHES_BY_END: bool = false;
 /// Whether to check for consistency before pruning for SH and CSH.
 /// NOTE: For CSH+gaps consistency is always checked.
 pub const CHECK_MATCH_CONSISTENCY: bool = false;
+
+/// When true, inexact matches with an insertion at the start/end are skipped.
+/// TODO: This is not yet in the paper.
+pub const SKIP_INEXACT_INSERT_START_END: bool = true;

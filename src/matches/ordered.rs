@@ -69,6 +69,7 @@ pub fn find_matches_qgramindex<'a>(
         max_match_cost,
         ..
     }: MatchConfig,
+    gapcost: bool,
 ) -> SeedMatches {
     assert!(max_match_cost == 0 || max_match_cost == 1);
 
@@ -97,7 +98,7 @@ pub fn find_matches_qgramindex<'a>(
             return max_count;
         }
         if max_match_cost == 1 {
-            let mutations = mutations(k, qgram, true);
+            let mutations = mutations(k, qgram, true, gapcost);
             for (v, k) in [
                 (mutations.deletions, k - 1),
                 (mutations.substitutions, k),
@@ -196,7 +197,7 @@ pub fn find_matches_qgramindex<'a>(
         }
         // Inexact matches.
         if seed_potential > 1 {
-            let mutations = mutations(len, qgram, true);
+            let mutations = mutations(len, qgram, true, gapcost);
             for mutation in mutations.deletions {
                 for &j in get_matches(qgrams, b, alph, len - 1, mutation) {
                     seed.seed_cost = min(seed.seed_cost, 1);
@@ -249,6 +250,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         max_match_cost,
         ..
     }: MatchConfig,
+    gapcost: bool,
 ) -> SeedMatches {
     let k: I = match length {
         Fixed(k) => k,
@@ -289,7 +291,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             }
         }
         // We don't dedup here, since we'll be sorting and deduplicating the list of all matches anyway.
-        let ms = mutations(k, qgram, false);
+        let ms = mutations(k, qgram, false, gapcost);
         for w in ms.deletions {
             if let Some(js) = m.get(&key_for_sized_qgram(k - 1, w)) {
                 for &j in js {
@@ -489,17 +491,18 @@ pub fn find_matches<'a>(
     b: &'a Sequence,
     alph: &Alphabet,
     match_config: MatchConfig,
+    gapcost: bool,
 ) -> SeedMatches {
     if FIND_MATCHES_HASH {
         return match match_config.max_match_cost {
             0 => find_matches_qgram_hash_exact(a, b, alph, match_config),
-            1 => find_matches_qgram_hash_inexact(a, b, alph, match_config),
+            1 => find_matches_qgram_hash_inexact(a, b, alph, match_config, gapcost),
             _ => unimplemented!("FIND_MATCHES with HashMap only works for max match cost 0 or 1"),
         };
     } else if FIND_MATCHES_TRIE {
         return find_matches_trie(a, b, alph, match_config);
     } else {
-        return find_matches_qgramindex(a, b, alph, match_config);
+        return find_matches_qgramindex(a, b, alph, match_config, gapcost);
     }
 }
 
@@ -522,7 +525,7 @@ mod test {
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
                     let k = find_matches_trie(&a, &b, &alph, matchconfig);
-                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
+                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
                     println!("-----------------------");
                     for x in &k.matches {
                         println!("{x:?}");
@@ -552,7 +555,7 @@ mod test {
                     };
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
-                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
+                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
                     let k = find_matches_qgram_hash_exact(&a, &b, &alph, matchconfig);
                     if !SLIDING_WINDOW_MATCHES {
                         if r.matches != k.matches {
@@ -587,8 +590,8 @@ mod test {
                     };
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
-                    let mut r = find_matches_qgramindex(&a, &b, &alph, matchconfig);
-                    let mut k = find_matches_qgram_hash_inexact(&a, &b, &alph, matchconfig);
+                    let mut r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
+                    let mut k = find_matches_qgram_hash_inexact(&a, &b, &alph, matchconfig, false);
                     assert!(r
                         .matches
                         .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));

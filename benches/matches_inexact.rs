@@ -374,6 +374,7 @@ fn n10000_inexact_hash(bench: &mut Bencher) {
                 max_match_cost: 1,
                 ..Default::default()
             },
+            false,
         )
     });
 }
@@ -392,6 +393,7 @@ fn n100000_inexact_hash(bench: &mut Bencher) {
                 max_match_cost: 1,
                 ..Default::default()
             },
+            false,
         )
     });
 }
