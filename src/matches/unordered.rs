@@ -187,13 +187,13 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
                 if num_matches[(i / k) as usize] > 1 {
                     continue;
                 }
-                // matches.push(Match {
-                //     start: Pos(i, j as I),
-                //     end: Pos(i + k, j as I + k),
-                //     match_cost: 0,
-                //     seed_potential: 1,
-                //     pruned: MatchStatus::Active,
-                // });
+                matches.push(Match {
+                    start: Pos(i, j as I),
+                    end: Pos(i + k, j as I + k),
+                    match_cost: 0,
+                    seed_potential: 1,
+                    pruned: MatchStatus::Active,
+                });
             }
         }
     }
@@ -202,7 +202,110 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
         .drain_filter(|s| num_matches[(s.start / k) as usize] > 1)
         .count();
 
-    SeedMatches::new(a, seeds, vec![])
+    SeedMatches::new(a, seeds, matches)
+}
+
+/// Build a hashset of the kmers in b, and query all mutations of seeds in a.
+/// TODO MAKE THIS UNORDERED:
+/// Store at most 6 matches.
+pub fn find_matches_qgram_hash_inexact_unordered<'a>(
+    a: &'a Sequence,
+    b: &'a Sequence,
+    alph: &Alphabet,
+    MatchConfig {
+        length,
+        max_match_cost,
+        ..
+    }: MatchConfig,
+) -> SeedMatches {
+    let k: I = match length {
+        Fixed(k) => k,
+        _ => unimplemented!("QGram Hashing only works for fixed k for now."),
+    };
+    assert!(max_match_cost == 1);
+
+    let rank_transform = RankTransform::new(alph);
+
+    let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
+
+    // type of Qgrams
+    type Q = usize;
+    assert!(k <= 31);
+
+    // TODO: See if we can get rid of the Vec alltogether.
+    let mut m = HashMap::<Q, SmallVec<[Cost; 4]>>::default();
+    m.reserve(3 * b.len());
+    for k in k - 1..=k + 1 {
+        for (j, w) in rank_transform.qgrams(k, b).enumerate() {
+            m.entry(key_for_sized_qgram(k, w))
+                .or_default()
+                .push(j as Cost);
+        }
+    }
+    let mut matches = Vec::<Match>::new();
+    for seed @ &mut Seed { start, qgram, .. } in &mut seeds {
+        if let Some(js) = m.get(&key_for_sized_qgram(k, qgram)) {
+            for &j in js {
+                seed.seed_cost = 0;
+                matches.push(Match {
+                    start: Pos(start, j),
+                    end: Pos(start + k, j + k),
+                    match_cost: 0,
+                    seed_potential: 2,
+                    pruned: MatchStatus::Active,
+                });
+            }
+        }
+        // We don't dedup here, since we'll be sorting and deduplicating the list of all matches anyway.
+        let ms = mutations(k, qgram, false, false);
+        for w in ms.deletions {
+            if let Some(js) = m.get(&key_for_sized_qgram(k - 1, w)) {
+                for &j in js {
+                    seed.seed_cost = min(seed.seed_cost, 1);
+                    matches.push(Match {
+                        start: Pos(start, j),
+                        end: Pos(start + k, j + k - 1),
+                        match_cost: 1,
+                        seed_potential: 2,
+                        pruned: MatchStatus::Active,
+                    });
+                }
+            }
+        }
+        for w in ms.substitutions {
+            if let Some(js) = m.get(&key_for_sized_qgram(k, w)) {
+                for &j in js {
+                    seed.seed_cost = min(seed.seed_cost, 1);
+                    matches.push(Match {
+                        start: Pos(start, j),
+                        end: Pos(start + k, j + k),
+                        match_cost: 1,
+                        seed_potential: 2,
+                        pruned: MatchStatus::Active,
+                    });
+                }
+            }
+        }
+        for w in ms.insertions {
+            if let Some(js) = m.get(&key_for_sized_qgram(k + 1, w)) {
+                for &j in js {
+                    seed.seed_cost = min(seed.seed_cost, 1);
+                    matches.push(Match {
+                        start: Pos(start, j),
+                        end: Pos(start + k, j + k + 1),
+                        match_cost: 1,
+                        seed_potential: 2,
+                        pruned: MatchStatus::Active,
+                    });
+                }
+            }
+        }
+
+        // If there are non-overlapping matches, remove the seed and all matches.
+        //
+    }
+
+    SeedMatches::new(a, seeds, matches)
 }
 
 fn unordered_matches_hash<'a>(
@@ -217,9 +320,11 @@ fn unordered_matches_hash<'a>(
 ) -> SeedMatches {
     let rank_transform = RankTransform::new(alph);
 
-    if max_match_cost == 0 {
-        if let Fixed(_) = length {
+    if let Fixed(_) = length {
+        if max_match_cost == 0 {
             return find_matches_qgram_hash_exact_unordered(a, b, alph, match_config);
+        } else {
+            return find_matches_qgram_hash_inexact_unordered(a, b, alph, match_config);
         }
     }
 
