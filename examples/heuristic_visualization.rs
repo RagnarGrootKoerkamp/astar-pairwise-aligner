@@ -2,7 +2,7 @@ use pairwise_aligner::prelude::*;
 
 fn main() {
     let n = 250;
-    let e = 0.15;
+    let e = 0.3;
 
     let m = 0;
     let k = 6;
