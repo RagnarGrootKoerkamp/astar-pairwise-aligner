@@ -473,7 +473,7 @@ ContourGraph isn't used anymore.
 ** Run experiments for version without gapcost
 ** Test that we give the same distance as edlib/WFA
 ** cite paper that does PA of random strings
-** TODO Fixed k performs better than dynamic k for unordered
+** TODO Fixed k performs better than dynamic k for unordered, but WHY?
 Has to do with h0 being smaller
 ** TODO Is zero-heuristic consistent?
 Yes, but need to fix greedy matching.
@@ -483,7 +483,7 @@ CLOSED: [2022-05-02 Mon 01:08]
 We now prune matches by end as well, when the start of an exact match is expanded.
 ** TODO Prune inexact matches next to an exact match that is on a greedy path
 Currently these matches are not pruned at all.
-Could be fixed by also pruning by match-end, orby clustering matches.
+Could be fixed by also pruning by match-end, or by clustering matches.
 ** TODO Find reason for slowdown in benchmarks
 https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/
 ** TODO Prune matches by end
@@ -498,6 +498,8 @@ What if in the D-T method we do not allow leaving the path of a greedy match?
 ** TODO Speed up exact match finding for SH
 For CSH, we first put seeds in a map and then only store seeds matching a key.
 For SH, we currently make a map of all kmers of B, which is inefficient.
+** DONE Skip insertions at inexact match start/end
+*** TODO Why do we need to preserve insertions at the end when using gapcost?
 
 * Parameter tuning
 ** CSH [no gapcost]
