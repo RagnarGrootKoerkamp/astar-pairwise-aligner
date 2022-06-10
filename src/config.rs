@@ -50,8 +50,8 @@ pub const DIAGONAL_MAP_OFFSET: bool = false;
 /// This reduces the size of the hashmap by a factor k.
 pub const SLIDING_WINDOW_MATCHES: bool = true;
 
-/// Whether to prune inexact matches adjacent to an exact match by end position.
-pub const PRUNE_INEXACT_MATCHES_BY_END: bool = false;
+/// Given an exact match, when this is true any other inexact matches ending in the same position are also pruned.
+pub const PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END: bool = false;
 
 /// Whether to check for consistency before pruning for SH and CSH.
 /// NOTE: For CSH+gaps consistency is always checked.
