@@ -295,14 +295,55 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         let start = time::Instant::now();
 
-        let tpos = self.transform(pos);
-
         // Maximum length arrow at given pos.
+        let tpos = self.transform(pos);
+        let max_match_cost = self.params.match_config.max_match_cost;
+
+        // Prune any matches ending here.
+        let mut change = 0;
+        if PRUNE_MATCHES_BY_END {
+            'prune_by_end: {
+                // Check all possible start positions of a match ending here.
+                if let Some(s) = self.seeds.seed_ending_at(pos) {
+                    assert_eq!(pos.0, s.end);
+                    if s.start + pos.1 < pos.0 {
+                        break 'prune_by_end;
+                    }
+                    let match_start = Pos(s.start, s.start + pos.1 - pos.0);
+                    let mut try_prune_pos = |startpos: Pos| {
+                        let tp = self.transform(startpos);
+                        let Some(arrows) = self.arrows.get_mut(&tp) else { return; };
+                        // Filter arrows starting in the current position.
+                        if arrows.drain_filter(|a| a.end == tpos).count() == 0 {
+                            return;
+                        }
+                        if arrows.is_empty() {
+                            self.arrows.remove(&tp).unwrap();
+                        }
+                        self.num_pruned += 1;
+                        // TODO: Propagate this change.
+                        self.contours.prune_with_hint(tp, hint, &self.arrows).1;
+                    };
+                    // First try pruning neighbouring start states, and prune the diagonal start state last.
+                    for d in 1..=max_match_cost {
+                        if d as Cost <= match_start.1 {
+                            try_prune_pos(Pos(match_start.0, match_start.1 - d as I));
+                        }
+                        try_prune_pos(Pos(match_start.0, match_start.1 + d as I));
+                    }
+                    try_prune_pos(match_start);
+                }
+            }
+        }
         let a = if let Some(arrows) = self.arrows.get(&tpos) {
             arrows.iter().max_by_key(|a| a.len).unwrap().clone()
         } else {
             self.pruning_duration += start.elapsed();
-            return 0;
+            return if tpos >= self.max_transformed_pos {
+                change
+            } else {
+                0
+            };
         };
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
@@ -333,7 +374,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
         // TODO: Make this more precise for larger inexact matches.
-        if PRUNE_INEXACT_MATCHES_BY_END && a.len == self.params.match_config.max_match_cost + 1 {
+        if PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END
+            && a.len == self.params.match_config.max_match_cost + 1
+        {
             // See if there are neighbouring points that can now be fully pruned.
             for d in 1..=self.params.match_config.max_match_cost {
                 let mut check = |pos: Pos| {
@@ -351,36 +394,38 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                         }
                     }
                 };
-                if pos.0 >= d as Cost {
+                if pos.1 >= d as Cost {
                     check(Pos(pos.0, pos.1 - d as I));
                 }
                 check(Pos(pos.0, pos.1 + d as I));
             }
         }
 
-        let change = if min_len == 0 {
-            self.arrows.remove(&tpos).unwrap();
-            self.contours.prune_with_hint(tpos, hint, &self.arrows).1
-        } else {
-            // If we only remove a subset of arrows, do no actual pruning.
-            // TODO: Also update contours on partial pruning.
-            let arrows = self.arrows.get_mut(&tpos).unwrap();
-            if D {
-                println!("Remove arrows of length > {min_len} at pos {pos}.");
-            }
-            arrows.drain_filter(|a| a.len > min_len).count();
-            assert!(arrows.len() > 0);
-            self.contours.prune_with_hint(tpos, hint, &self.arrows).1
-        };
+        if PRUNE_MATCHES_BY_START {
+            change += if min_len == 0 {
+                self.arrows.remove(&tpos).unwrap();
+                self.contours.prune_with_hint(tpos, hint, &self.arrows).1
+            } else {
+                // If we only remove a subset of arrows, do no actual pruning.
+                // TODO: Also update contours on partial pruning.
+                let arrows = self.arrows.get_mut(&tpos).unwrap();
+                if D {
+                    println!("Remove arrows of length > {min_len} at pos {pos}.");
+                }
+                arrows.drain_filter(|a| a.len > min_len).count();
+                assert!(arrows.len() > 0);
+                self.contours.prune_with_hint(tpos, hint, &self.arrows).1
+            };
+        }
 
         self.pruning_duration += start.elapsed();
 
         self.num_pruned += 1;
-        if tpos >= self.max_transformed_pos {
-            return change;
+        return if tpos >= self.max_transformed_pos {
+            change
         } else {
-            return 0;
-        }
+            0
+        };
     }
 
     /// Update the max_explored_pos, so we know when the priority queue can be shifted after a prune.
