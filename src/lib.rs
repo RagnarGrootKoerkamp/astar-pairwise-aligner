@@ -19,6 +19,7 @@ pub mod astar;
 pub mod astar_dt;
 pub mod config;
 pub mod contour;
+pub mod cost_model;
 pub mod datastructures;
 pub mod generate;
 pub mod heuristic;

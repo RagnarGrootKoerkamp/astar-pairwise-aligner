@@ -92,7 +92,7 @@ impl Trie {
         //cost_model: CostModel,
         mut f: F,
     ) {
-        let cost_model = crate::prelude::EDIT_DISTANCE_COSTS;
+        let cost_model = crate::cost_model::CostModel::UnitCost;
         struct QueueElement {
             /// Current state in tree
             state: State,
@@ -130,7 +130,8 @@ impl Trie {
                     let mismatch_cost = if ci == matching_index {
                         0
                     } else {
-                        cost_model.mismatch
+                        let Some(x) = cost_model.sub() else {continue;};
+                        x
                     };
                     if cost + mismatch_cost > max_cost {
                         continue;
@@ -145,12 +146,12 @@ impl Trie {
 
                 // Delete a char: the character in the seed is ignored, and we remain at the same depth.
                 // TODO: Replace with actual costs.
-                if cost + cost_model.deletion <= max_cost {
+                if cost + cost_model.del() <= max_cost {
                     queue.push(QueueElement {
                         state,
                         i: i + 1,
                         j,
-                        cost: cost + cost_model.deletion,
+                        cost: cost + cost_model.del(),
                     });
                 }
             }
@@ -168,14 +169,14 @@ impl Trie {
                 if Some(ci) == matching_index {
                     continue;
                 }
-                if cost + cost_model.insertion > max_cost {
+                if cost + cost_model.ins() > max_cost {
                     continue;
                 }
                 queue.push(QueueElement {
                     state: *state,
                     i,
                     j: j + 1,
-                    cost: cost + cost_model.insertion,
+                    cost: cost + cost_model.ins(),
                 });
             }
         }
