@@ -13,6 +13,7 @@
 )]
 
 pub mod align;
+pub mod aligners;
 pub mod alignment_graph;
 pub mod astar;
 pub mod astar_dt;
