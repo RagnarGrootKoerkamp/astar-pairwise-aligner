@@ -32,6 +32,7 @@ pub mod prelude {
     pub use crate::alignment_graph::*;
     pub use crate::config::*;
     pub use crate::contour::*;
+    pub use crate::cost_model::*;
     pub use crate::datastructures::*;
     pub use crate::generate::*;
     pub use crate::heuristic::*;
