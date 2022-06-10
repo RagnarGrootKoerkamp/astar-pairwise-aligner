@@ -2,101 +2,149 @@
 
 use crate::matches::MatchCost;
 
-/// A costmodel tells the cost of various mutation operations.
-/// Some are more general than others.
-#[derive(Clone, Copy)]
-pub enum CostModel {
-    /// Cost 1 indel, no substitutions.
-    LCSCost,
-    /// Cost 1 indel and substitutions.
-    UnitCost,
-    /// Different cost for substitutions and indels.
-    EditCost { sub: MatchCost, indel: MatchCost },
-    /// Asymmetric indel costs.
-    EditCost2 {
-        sub: MatchCost,
-        ins: MatchCost,
-        del: MatchCost,
-    },
-    /// Gap open cost.
-    Affine {
-        sub: MatchCost,
-        open: MatchCost,
-        extend: MatchCost,
-    },
-    /// Asymmetric affine costs.
-    Affine2 {
-        sub: MatchCost,
-        ins_open: MatchCost,
-        ins_extend: MatchCost,
-        del_open: MatchCost,
-        del_extend: MatchCost,
-    },
-}
-
-impl CostModel {
+/// Implement this trait to indicate that the cost model does not use affine costs.
+pub trait LinearCostModel {
     /// The cost of a substitution.
     /// TODO: Make this depend on the characters being substituted.
     /// Note that this returns an optional, because in case of LCS costs substitutions are not allowed.
-    #[inline]
-    pub fn sub(&self) -> Option<MatchCost> {
-        match *self {
-            CostModel::LCSCost => None,
-            CostModel::UnitCost => Some(1),
-            CostModel::EditCost { sub, .. }
-            | CostModel::EditCost2 { sub, .. }
-            | CostModel::Affine { sub, .. }
-            | CostModel::Affine2 { sub, .. } => Some(sub),
-        }
-    }
+    fn sub(&self) -> Option<MatchCost>;
 
+    /// The cost of inserting a character, or extending an insert.
+    fn ins(&self) -> MatchCost;
+
+    /// The cost of deleting a character, or extending a deletion.
+    fn del(&self) -> MatchCost;
+}
+
+pub trait AffineCostModel: LinearCostModel {
     /// The cost of opening an insertion.
-    #[inline]
-    pub fn ins_open(&self) -> MatchCost {
-        match *self {
-            CostModel::LCSCost
-            | CostModel::UnitCost
-            | CostModel::EditCost { .. }
-            | CostModel::EditCost2 { .. } => 0,
-            CostModel::Affine { open, .. } => open,
-            CostModel::Affine2 { ins_open, .. } => ins_open,
-        }
+    fn ins_open(&self) -> MatchCost {
+        0
     }
 
     /// The cost of opening a deletion.
-    #[inline]
-    pub fn del_open(&self) -> MatchCost {
-        match *self {
-            CostModel::LCSCost
-            | CostModel::UnitCost
-            | CostModel::EditCost { .. }
-            | CostModel::EditCost2 { .. } => 0,
-            CostModel::Affine { open, .. } => open,
-            CostModel::Affine2 { del_open, .. } => del_open,
+    fn del_open(&self) -> MatchCost {
+        0
+    }
+}
+
+pub struct EditCost {
+    /// The substitution cost. None for LCS where substitutions are not allowed.
+    sub: Option<MatchCost>,
+    ins: MatchCost,
+    del: MatchCost,
+}
+
+impl LinearCostModel for EditCost {
+    fn sub(&self) -> Option<MatchCost> {
+        self.sub
+    }
+
+    fn ins(&self) -> MatchCost {
+        self.ins
+    }
+
+    fn del(&self) -> MatchCost {
+        self.del
+    }
+}
+
+impl EditCost {
+    pub fn lcs() -> Self {
+        Self {
+            sub: None,
+            ins: 1,
+            del: 1,
+        }
+    }
+    pub fn unit() -> Self {
+        Self {
+            sub: Some(1),
+            ins: 1,
+            del: 1,
+        }
+    }
+    pub fn edit_cost(sub: MatchCost, indel: MatchCost) -> Self {
+        Self {
+            sub: Some(sub),
+            ins: indel,
+            del: indel,
+        }
+    }
+    pub fn edit_cost2(sub: MatchCost, ins: MatchCost, del: MatchCost) -> Self {
+        Self {
+            sub: Some(sub),
+            ins,
+            del,
         }
     }
 
-    /// The cost of inserting a character, or extending an insert.
-    #[inline]
-    pub fn ins(&self) -> MatchCost {
-        match *self {
-            CostModel::LCSCost | CostModel::UnitCost => 1,
-            CostModel::EditCost { indel, .. } => indel,
-            CostModel::EditCost2 { ins, .. } => ins,
-            CostModel::Affine { extend, .. } => extend,
-            CostModel::Affine2 { ins_extend, .. } => ins_extend,
+    pub fn to_affine(&self) -> AffineCost {
+        AffineCost {
+            sub: self.sub,
+            ins: self.ins,
+            del: self.del,
+            ins_open: 0,
+            del_open: 0,
         }
     }
+}
 
-    /// The cost of deleting a character, or extending a deletion.
-    #[inline]
-    pub fn del(&self) -> MatchCost {
-        match *self {
-            CostModel::LCSCost | CostModel::UnitCost => 1,
-            CostModel::EditCost { indel, .. } => indel,
-            CostModel::EditCost2 { del, .. } => del,
-            CostModel::Affine { extend, .. } => extend,
-            CostModel::Affine2 { del_extend, .. } => del_extend,
+pub struct AffineCost {
+    sub: Option<MatchCost>,
+    ins: MatchCost,
+    del: MatchCost,
+    ins_open: MatchCost,
+    del_open: MatchCost,
+}
+
+impl LinearCostModel for AffineCost {
+    fn sub(&self) -> Option<MatchCost> {
+        self.sub
+    }
+
+    fn ins(&self) -> MatchCost {
+        self.ins
+    }
+
+    fn del(&self) -> MatchCost {
+        self.del
+    }
+}
+
+impl AffineCostModel for AffineCost {
+    fn ins_open(&self) -> MatchCost {
+        self.ins_open
+    }
+
+    fn del_open(&self) -> MatchCost {
+        self.del_open
+    }
+}
+
+impl AffineCost {
+    pub fn affine(sub: MatchCost, open: MatchCost, extend: MatchCost) -> Self {
+        Self {
+            sub: Some(sub),
+            ins: extend,
+            del: extend,
+            ins_open: open,
+            del_open: open,
+        }
+    }
+    pub fn affine2(
+        sub: MatchCost,
+        ins_open: MatchCost,
+        ins: MatchCost,
+        del_open: MatchCost,
+        del: MatchCost,
+    ) -> Self {
+        Self {
+            sub: Some(sub),
+            ins,
+            del,
+            ins_open,
+            del_open,
         }
     }
 }
