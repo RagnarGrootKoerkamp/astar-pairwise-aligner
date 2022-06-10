@@ -122,7 +122,7 @@ fn count_inexact_matches(
         1 => seed_cost = 0,
         _ => return None,
     }
-    let ms = mutations(k, qgram, false);
+    let ms = mutations(k, qgram, false, false);
     for qgram in ms.deletions {
         if add(k - 1, qgram) > 1 {
             return None;
@@ -165,6 +165,7 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
 
     let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
     let mut num_matches = vec![0; seeds.len()];
+    let mut matches = vec![];
 
     type Key = u64;
 
@@ -177,7 +178,7 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
         m.entry(w as Key).or_default().push(i as I);
     }
 
-    for (_j, w) in rank_transform.qgrams(k, b).enumerate() {
+    for (j, w) in rank_transform.qgrams(k, b).enumerate() {
         if let Some(is) = m.get(&(w as Key)) {
             for &i in is {
                 seeds[(i / k) as usize].seed_cost = 0;

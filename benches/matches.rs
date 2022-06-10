@@ -190,6 +190,7 @@ fn n100_exact_qgramindex(bench: &mut Bencher) {
                 max_match_cost: 0,
                 ..Default::default()
             },
+            false,
         )
     });
 }
@@ -226,6 +227,7 @@ fn n10000_exact_qgramindex(bench: &mut Bencher) {
                 max_match_cost: 0,
                 ..Default::default()
             },
+            false,
         )
     });
 }

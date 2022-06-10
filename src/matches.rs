@@ -220,7 +220,7 @@ pub struct Mutations {
 // TODO: Do not generate insertions at the end. (Also do not generate similar
 // sequences by inserting elsewhere.)
 // TODO: Move to seeds.rs.
-pub fn mutations(k: I, qgram: usize, dedup: bool) -> Mutations {
+pub fn mutations(k: I, qgram: usize, dedup: bool, insert_at_end: bool) -> Mutations {
     // This assumes the alphabet size is 4.
     let mut deletions = Vec::with_capacity(k as usize);
     let mut substitutions = Vec::with_capacity(4 * k as usize);
@@ -237,8 +237,16 @@ pub fn mutations(k: I, qgram: usize, dedup: bool) -> Mutations {
     }
     // Insertions
     // TODO: Test that excluding insertions at the start and end doesn't matter.
-    // NOTE: Apparently skipping insertions at the start is fine, but skipping at the end is not.
-    for i in 0..=k {
+    // NOTE: Apparently skipping insertions at the start is fine, but with gapcost, skipping at the end is not.
+    // 1: skip insert at start (vs 0)
+    // ..k: skip insert at end (vs ..=k)
+    let start = if SKIP_INEXACT_INSERT_START_END { 1 } else { 0 };
+    let end = if insert_at_end || !SKIP_INEXACT_INSERT_START_END {
+        k + 1
+    } else {
+        k
+    };
+    for i in start..end {
         let mask = (1 << (2 * i)) - 1;
         for s in 0..4 {
             insertions.push((qgram & mask) | (s << (2 * i)) | ((qgram & !mask) << 2));
@@ -271,7 +279,7 @@ mod test {
     fn test_mutations() {
         let kmer = 0b00011011usize;
         let k = 4;
-        let ms = mutations(k, kmer, true);
+        let ms = mutations(k, kmer, true, true);
         // substitution
         assert!(ms.substitutions.contains(&0b11011011));
         // insertion
@@ -295,7 +303,7 @@ mod test {
     fn kmer_removal() {
         let kmer = 0b00011011usize;
         let k = 4;
-        let ms = mutations(k, kmer, true);
+        let ms = mutations(k, kmer, true, true);
         assert!(!ms.substitutions.contains(&kmer));
         assert!(ms.deletions.contains(&kmer));
         assert!(ms.insertions.contains(&kmer));
