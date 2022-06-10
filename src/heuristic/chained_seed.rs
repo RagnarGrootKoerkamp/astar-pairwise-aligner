@@ -229,7 +229,6 @@ impl<C: Contours> CSHI<C> {
             h.params.match_config.max_match_cost as I + 1,
         );
         h.arrows = arrows;
-        //h.terminal_print(h.target);
         h.contours.print_stats();
         h
     }
@@ -286,8 +285,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         self.seeds.is_seed_start_or_end(pos)
     }
 
-    // TODO: Prune by end pos as well (or instead of) start pos.
-    // In this case, `seed_cost` can be used to filter out lookups for states that won't have a match ending there.
+    /// `seed_cost` can be used to filter out lookups for states that won't have a match ending there.
+    /// TODO: Separate into one step removing as many arrows as needed, and a separate step updating the contours.
     fn prune(&mut self, pos: Pos, hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
         const D: bool = false;
         if !self.params.pruning {
@@ -377,9 +376,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         self.pruning_duration += start.elapsed();
 
         self.num_pruned += 1;
-        if print() {
-            //self.terminal_print(self.target);
-        }
         if tpos >= self.max_transformed_pos {
             return change;
         } else {
