@@ -245,7 +245,9 @@ where
 
         // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
         // TODO: Make this more precise for larger inexact matches.
-        if PRUNE_INEXACT_MATCHES_BY_END && a.len == self.params.match_config.max_match_cost + 1 {
+        if PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END
+            && a.len == self.params.match_config.max_match_cost + 1
+        {
             // See if there are neighbouring points that can now be fully pruned.
             for d in 1..=self.params.match_config.max_match_cost {
                 let mut check = |pos: Pos| {
