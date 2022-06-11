@@ -1,3 +1,4 @@
+use super::NoVisualizer;
 use super::{nw::NW, Aligner, Visualizer};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence, I};
@@ -17,11 +18,14 @@ impl NW<AffineCost> {
         ins: &mut [Vec<Cost>; 2],
         del: &mut [Vec<Cost>; 2],
         m: &mut [Vec<Cost>; 2],
+        v: &mut impl Visualizer,
     ) {
+        v.expand(Pos(i as I + 1, 0));
         del[1][0] = INF;
         ins[1][0] = self.cm.ins_open() + (i + 1) as Cost * self.cm.ins();
         m[1][0] = ins[(i + 1)][0];
         for (j, &cb) in b.iter().enumerate() {
+            v.expand(Pos(i as I + 1, j as I + 1));
             let j = j + 1;
             ins[1][j] = min(
                 ins[0][j] + self.cm.ins(),
@@ -41,6 +45,8 @@ impl NW<AffineCost> {
 }
 
 impl Aligner for NW<AffineCost> {
+    type Params = ();
+
     /// The cost-only version uses linear memory.
     fn cost(&self, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
         // TODO: Make this a single 2D vec of structs instead?
@@ -62,7 +68,7 @@ impl Aligner for NW<AffineCost> {
             ins.reverse();
             del.reverse();
             m.reverse();
-            self.next_layer_affine(i, ca, b, &mut ins, &mut del, &mut m);
+            self.next_layer_affine(i, ca, b, &mut ins, &mut del, &mut m, &mut NoVisualizer);
         }
 
         return m[1][b.len()];
@@ -93,9 +99,6 @@ impl Aligner for NW<AffineCost> {
             m[0][j] = del[0][j];
         }
         for (i, &ca) in a.iter().enumerate() {
-            for j in 0..=b.len() {
-                visualizer.expand(Pos(i as I + 1, j as I));
-            }
             self.next_layer_affine(
                 i,
                 ca,
@@ -104,6 +107,7 @@ impl Aligner for NW<AffineCost> {
                 &mut ins[i..i + 2].as_chunks_mut::<2>().0[0],
                 &mut del[i..i + 2].as_chunks_mut::<2>().0[0],
                 &mut m[i..i + 2].as_chunks_mut::<2>().0[0],
+                visualizer,
             );
         }
 

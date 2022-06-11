@@ -1,4 +1,4 @@
-use super::{Aligner, Visualizer};
+use super::{Aligner, NoVisualizer, Visualizer};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence, I};
 use std::cmp::min;
@@ -14,9 +14,20 @@ const INF: Cost = Cost::MAX / 2;
 impl NW<LinearCost> {
     /// Computes the next layer from the current one.
     /// `ca` is the `i`th character of sequence `a`.
-    fn next_layer(&self, i: usize, ca: u8, b: &Sequence, prev: &Vec<Cost>, next: &mut Vec<Cost>) {
+    #[inline]
+    fn next_layer(
+        &self,
+        i: usize,
+        ca: u8,
+        b: &Sequence,
+        prev: &Vec<Cost>,
+        next: &mut Vec<Cost>,
+        v: &mut impl Visualizer,
+    ) {
+        v.expand(Pos(i as I + 1, 0));
         next[0] = (i + 1) as Cost * self.cm.ins();
         for (j, &cb) in b.iter().enumerate() {
+            v.expand(Pos(i as I + 1, j as I + 1));
             next[j + 1] = min(
                 // Convert sub_cost to INF when substitutions are not allowed.
                 prev[j].saturating_add(self.cm.sub_cost(ca, cb).unwrap_or(INF)),
@@ -40,7 +51,7 @@ impl Aligner for NW<LinearCost> {
         // TODO: Does enumerate_from exist?
         for (i, &ca) in a.iter().enumerate() {
             swap(&mut next, &mut prev);
-            self.next_layer(i, ca, b, &prev, &mut next);
+            self.next_layer(i, ca, b, &prev, &mut next, &mut NoVisualizer);
         }
 
         return next[a.len()];
@@ -62,13 +73,17 @@ impl Aligner for NW<LinearCost> {
             m[0][j] = j as Cost * self.cm.ins();
         }
         for (i, &ca) in a.iter().enumerate() {
-            for j in 0..=b.len() {
-                visualizer.expand(Pos(i as I + 1, j as I));
-            }
             // We can't pass m[i] and m[i+1] both at the same time, so we must split the vector instead.
             // TODO: Is there a `get_two` method somewhere?
             let (front, back) = m.split_at_mut(i + 1);
-            self.next_layer(i, ca, b, front.last().unwrap(), back.first_mut().unwrap());
+            self.next_layer(
+                i,
+                ca,
+                b,
+                front.last().unwrap(),
+                back.first_mut().unwrap(),
+                visualizer,
+            );
         }
 
         return m[a.len()][b.len()];
