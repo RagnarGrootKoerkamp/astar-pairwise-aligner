@@ -1,9 +1,10 @@
 //! This module contains implementations of other alignment algorithms.
 
+use crate::prelude::{Cost, Pos, Sequence};
+
+pub mod diagonal_transition;
 pub mod nw;
 pub mod nw_affine;
-
-use crate::prelude::*;
 
 /// A visualizer can be used to visualize progress of an implementation.
 trait Visualizer {
@@ -19,6 +20,10 @@ impl Visualizer for NoVisualizer {}
 /// It should implement the most general of the methods below, and never override variants with default parameters.
 /// The cost-only variant can sometimes be implemented using less memory.
 ///
+/// There is one function for each cost model:
+/// - LinearCost
+/// - AffineCost
+///
 /// The output can be:
 /// - cost only
 /// - cost and alignment
@@ -28,20 +33,17 @@ impl Visualizer for NoVisualizer {}
 trait Aligner {
     type Params;
 
-    /// Can be either LinearCost or AffineCost, as needed by the algorithm.
-    type CostModel: CostModel;
-
-    fn cost(cm: &Self::CostModel, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
-        Self::align(cm, a, b, params)
+    fn cost(&self, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
+        self.align(a, b, params)
     }
 
     /// TODO: Make this return a path as well.
-    fn align(cm: &Self::CostModel, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
-        Self::visualize(cm, a, b, params, &mut NoVisualizer)
+    fn align(&self, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
+        self.visualize(a, b, params, &mut NoVisualizer)
     }
 
     fn visualize(
-        _cm: &Self::CostModel,
+        &self,
         _a: &Sequence,
         _b: &Sequence,
         _params: Self::Params,
