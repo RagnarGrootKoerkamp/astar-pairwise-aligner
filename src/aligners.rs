@@ -3,7 +3,6 @@
 use crate::prelude::{Cost, Pos, Sequence};
 
 pub mod diagonal_transition;
-pub mod diagonal_transition_affine;
 pub mod nw;
 
 /// A visualizer can be used to visualize progress of an implementation.

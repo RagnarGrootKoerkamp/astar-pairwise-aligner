@@ -146,38 +146,42 @@ impl Trie {
 
                 // Delete a char: the character in the seed is ignored, and we remain at the same depth.
                 // TODO: Replace with actual costs.
-                if cost + cost_model.del() as MatchCost <= max_cost {
-                    queue.push(QueueElement {
-                        state,
-                        i: i + 1,
-                        j,
-                        cost: cost + cost_model.del() as MatchCost,
-                    });
+                if let Some(del) = cost_model.del() {
+                    if cost + del as MatchCost <= max_cost {
+                        queue.push(QueueElement {
+                            state,
+                            i: i + 1,
+                            j,
+                            cost: cost + del as MatchCost,
+                        });
+                    }
                 }
             }
 
             // Insert a char: No character from the seed is needed, but we increase the depth.
             // NOTE: We never insert the next character in the string, as we could directly match that instead.
             // TODO: Replace with actual costs.
-            let matching_index = seed
-                .get(i as usize)
-                .map(|c| self.transform.get(*c) as usize);
-            for (ci, state) in self.states[state as usize].children.iter().enumerate() {
-                if *state == State::MAX {
-                    continue;
+            if let Some(ins) = cost_model.ins() {
+                let matching_index = seed
+                    .get(i as usize)
+                    .map(|c| self.transform.get(*c) as usize);
+                for (ci, state) in self.states[state as usize].children.iter().enumerate() {
+                    if *state == State::MAX {
+                        continue;
+                    }
+                    if Some(ci) == matching_index {
+                        continue;
+                    }
+                    if cost + ins as MatchCost > max_cost {
+                        continue;
+                    }
+                    queue.push(QueueElement {
+                        state: *state,
+                        i,
+                        j: j + 1,
+                        cost: cost + ins as MatchCost,
+                    });
                 }
-                if Some(ci) == matching_index {
-                    continue;
-                }
-                if cost + cost_model.ins() as MatchCost > max_cost {
-                    continue;
-                }
-                queue.push(QueueElement {
-                    state: *state,
-                    i,
-                    j: j + 1,
-                    cost: cost + cost_model.ins() as MatchCost,
-                });
             }
         }
     }
