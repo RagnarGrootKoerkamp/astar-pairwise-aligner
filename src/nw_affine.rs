@@ -185,8 +185,6 @@ pub fn biwfa_affine<'a>(
     mut s2: &'a Sequence,
     explored: &mut Vec<Pos>,
 ) -> usize {
-    //Regular BiWFA. Bugs are not found
-    //Debug output is enabled!
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
     }
@@ -360,6 +358,14 @@ pub fn biwfa_affine<'a>(
             k += 1;
         }
 
+        print_vector(&M);
+        print_vector(&I);
+        print_vector(&D);
+        println!("Mrs:\n");
+        print_vector(&Mr);
+        print_vector(&Ir);
+        print_vector(&Dr);
+
         let mut k_min = 0;
         if w > 1 {
             k_min = max(-((w / 2) as isize), -(((w - 2) / 2) as isize) + k0);
@@ -443,20 +449,20 @@ pub fn biwfa_affine<'a>(
             if ((w - 2) / 2) as isize + k - k0 - 1 > 0 {
                 if (s1.len() != s2.len() || k > k_min) {
                     //D section
-                    if a(
-                        D[i][((w / 2) as isize + k) as usize],
-                        Mr[i - 1][(((w - 2) / 2) as isize + k - k0 - 1) as usize],
-                        s1.len() + 1,
-                    ) {
-                        f = 3;
-                    }
-                    if a(
-                        M[i][((w / 2) as isize + k) as usize],
-                        Dr[i - 1][(((w - 2) / 2) as isize + k - k0 - 1) as usize],
-                        s1.len() + 1,
-                    ) {
-                        f = 4;
-                    }
+                    // if a(
+                    //     D[i][((w / 2) as isize + k) as usize],
+                    //     Mr[i - 1][(((w - 2) / 2) as isize + k - k0 - 1) as usize],
+                    //     s1.len() + 1,
+                    // ) {
+                    //     f = 3;
+                    // }
+                    // if a(
+                    //     M[i][((w / 2) as isize + k) as usize],
+                    //     Dr[i - 1][(((w - 2) / 2) as isize + k - k0 - 1) as usize],
+                    //     s1.len() + 1,
+                    // ) {
+                    //     f = 4;
+                    // }
                     if a(
                         D[i][((w / 2) as isize + k) as usize],
                         Dr[i - 1][(((w - 2) / 2) as isize + k - k0 - 1) as usize],
@@ -469,21 +475,21 @@ pub fn biwfa_affine<'a>(
             }
             if k < k_max {
                 //I section
-                if a(
-                    // Can be optimized by adding !f && ...
-                    I[i][((w / 2) as isize + k) as usize],
-                    Mr[i - 1][(((w - 2) / 2) as isize + k - k0 + 1) as usize],
-                    s1.len(),
-                ) {
-                    f = 5;
-                }
-                if a(
-                    M[i][((w / 2) as isize + k) as usize],
-                    Ir[i - 1][(((w - 2) / 2) as isize + k - k0 + 1) as usize],
-                    s1.len(),
-                ) {
-                    f = 6;
-                }
+                // if a(
+                //     // Can be optimized by adding !f && ...
+                //     I[i][((w / 2) as isize + k) as usize],
+                //     Mr[i - 1][(((w - 2) / 2) as isize + k - k0 + 1) as usize],
+                //     s1.len(),
+                // ) {
+                //     f = 5;
+                // }
+                // if a(
+                //     M[i][((w / 2) as isize + k) as usize],
+                //     Ir[i - 1][(((w - 2) / 2) as isize + k - k0 + 1) as usize],
+                //     s1.len(),
+                // ) {
+                //     f = 6;
+                // }
                 if a(
                     I[i][((w / 2) as isize + k) as usize],
                     Ir[i - 1][(((w - 2) / 2) as isize + k - k0 + 1) as usize],
@@ -660,7 +666,7 @@ pub fn biwfa_affine<'a>(
             ) {
                 return 2 * i - 1 - o;
             }
-        } else if ((((w - 2) / 2) as isize + k_max + 1) as usize) < w {
+        } else if i > 0 && ((((w - 2) / 2) as isize + k_max + 1) as usize) < w {
             if a(
                 D[i - 1][(((w - 2) / 2) as isize + k_max + 1) as usize],
                 Mr[i][((w / 2) as isize + k_max - k0) as usize],
@@ -972,4 +978,269 @@ pub fn biwfa_affine<'a>(
         w += 2;
     }
     unreachable!("Error! Shouldn't be here!");
+}
+
+fn explore_diagonal2(
+    //Function for exploring (checking matches on the diagonal). Only for standard DTM and compatible algorithms!
+    s1: &Sequence,
+    s2: &Sequence,
+    A: &mut isize, // A = A[i][j]
+    i: usize,
+    j: usize,
+    d: isize,
+) {
+    if *A < 0 {
+        return;
+    }
+    let k0: isize = s1.len() as isize - s2.len() as isize;
+    let w: isize = if d == 1 {
+        1 + (i as isize) * 2
+    } else {
+        -(j as isize) + i as isize + k0
+    };
+    let mut x = if d == 1 {
+        *A as usize
+    } else {
+        s1.len() - (*A) as usize - 1
+    };
+    let mut y = if d == 1 {
+        x + w as usize / 2 - j
+    } else {
+        (x as isize - w) as usize
+    };
+    while (d == 1 && x < s1.len() && y < s2.len()) || (d == -1) {
+        if s1[x] == s2[y] {
+            *A += 1;
+            if d == -1 && (x == 0 || y == 0) {
+                break;
+            }
+            x = (x as isize + d) as usize;
+            y = (y as isize + d) as usize;
+        } else {
+            break;
+        }
+    }
+}
+
+fn biwfa_affine2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
+    if s1.len() > s2.len() {
+        (s1, s2) = (s2, s1);
+    }
+    let k0: isize = s1.len() as isize - s2.len() as isize;
+    let len1 = s1.len();
+    let len2 = s2.len();
+
+    //Affine cost constants
+    const x: usize = 1; // mismatch cost
+    const o: usize = 1; // open gap cost
+    const e: usize = 1; // extand gap cost
+
+    //procedures
+
+    let cmp = |a1: isize, b1: isize, c1: usize| -> bool {
+        if a1 > 0 && b1 > 0 && a1 + b1 == c1 as isize {
+            return true;
+        }
+        return false;
+    };
+
+    let is_inside = |num: isize, from: isize, to: isize| -> bool {
+        return num >= from && num <= to;
+    };
+
+    let get_j = |s: usize, d: usize, k: isize| -> Option<(usize, usize)> {
+        if s < d {
+            return None;
+        }
+        let p = (s - d) as isize + k;
+        if p < 0 || p as usize > (s - d) * 2 {
+            return None;
+        }
+        Some((s - d, p as usize))
+    };
+
+    let check_point = |set: &mut (
+        &mut Vec<Vec<isize>>,
+        &mut Vec<Vec<isize>>,
+        &mut Vec<Vec<isize>>,
+    ),
+                       s: usize,
+                       j: usize,
+                       k: isize|
+     -> isize {
+        let mut t = NEG;
+        let (M, I, D) = set;
+        if s > 0 {
+            t = max(I[s][j], D[s][j]);
+
+            if let Some((i1, j1)) = get_j(s, x, k) {
+                // println!("S {i1}\t{j1}\t{s}\t{k}\n");
+                t = max(M[i1][j1] + 1, M[s][j]);
+            }
+        }
+        t
+    };
+
+    let compare = |set1: &mut (
+        &mut Vec<Vec<isize>>,
+        &mut Vec<Vec<isize>>,
+        &mut Vec<Vec<isize>>,
+    ),
+                   s1: usize,
+                   set2: &mut (
+        //set2 is reverse!!! Do not swap set1 and set2! They have different allocations!
+        &mut Vec<Vec<isize>>,
+        &mut Vec<Vec<isize>>,
+        &mut Vec<Vec<isize>>,
+    ),
+                   s2: usize|
+     -> (bool, usize) {
+        //bool - do these layers cover each other?; usize - if they do, how much do we need to substruct? (0 or o (open cost))
+
+        let (M, I, D) = set1;
+        let (Mr, Ir, Dr) = set2;
+
+        let k_min1 = -(s1 as isize);
+        let k_max1 = (s1 as isize);
+        let k_min2 = -(s2 as isize) + k0;
+        let k_max2 = (s2 as isize) + k0;
+        let k_min = max(k_min1, k_min2);
+        let k_max = min(k_max1, k_max2);
+        let mut j1 = (s1 as isize + k_min) as usize;
+        let mut j2 = (2 * s2 as isize - k_min - k0) as usize;
+        let mut f = false;
+        if k_min - k_max <= 1 {
+            if cmp(
+                D[s1][(s1 as isize + k_max + 1) as usize],
+                Dr[s2][(2 * s2 as isize - k_max) as usize],
+                len1 + 1,
+            ) {
+                return (true, o);
+            }
+        }
+        for k in k_min..=k_max {
+            //comparing...
+            if j2 + 1 < 1 + s2 * 2 && cmp(D[s1][j1], Dr[s2][j2 + 1], len1 + 1) {
+                return (true, o);
+            }
+            if k > k_min && cmp(I[s1][j1 - 1], Ir[s2][j2], len1 + 1) {
+                return (true, o);
+            }
+
+            let t1 = check_point(&mut set1, s1, j1, k);
+            let t2 = check_point(&mut set2, s2, j2, -(k - k0));
+
+            if cmp(M[s1][j1], Mr[s2][j2], len1)
+                || (M[s1][j1] > 0
+                    && Mr[s2][j2] > 0
+                    && (is_inside((len1 + 1) as isize - Mr[s2][j2], t1, M[s1][j1])
+                        || is_inside(
+                            M[s1][j1],
+                            (len1 + 1) as isize - Mr[s2][j2],
+                            (len1 + 1) as isize - t2,
+                        )))
+            {
+                f = true;
+            }
+
+            j1 += 1;
+            j2 -= 1;
+        }
+        return (f, 0);
+    };
+
+    let expand_layer = |set: &mut (
+        &mut Vec<Vec<isize>>,
+        &mut Vec<Vec<isize>>,
+        &mut Vec<Vec<isize>>,
+    ),
+                        s: usize,
+                        d: isize|
+     -> () {
+        //d == 1 for forward fron; d == -1 for reverse
+        let (M, I, D) = set;
+        let w = 1 + s * 2;
+        //memory allocations
+        if s > 0 {
+            M.push(vec![NEG; w]);
+            I.push(vec![NEG; w]);
+            D.push(vec![NEG; w]);
+            M[s] = vec![NEG; w];
+        } else {
+            M[s] = vec![0isize; w];
+        }
+        I[s] = vec![NEG; w];
+        D[s] = vec![NEG; w];
+        let mut k = -d * (w as isize / 2);
+        for j in 0..w {
+            if let Some((i1, j1)) = get_j(s, o + e, (k - d) * d) {
+                I[s][j] = M[i1][j1] + 1;
+            }
+            if let Some((i1, j1)) = get_j(s, e, (k - d) * d) {
+                I[s][j] = max(I[i1][j1] + 1, I[s][j]);
+            }
+
+            if let Some((i1, j1)) = get_j(s, o + e, (k + d) * d) {
+                D[s][j] = M[i1][j1];
+            }
+            if let Some((i1, j1)) = get_j(s, e, (k + d) * d) {
+                D[s][j] = max(D[i1][j1], D[s][j]);
+            }
+
+            if s > 0 {
+                M[s][j] = max(I[s][j], D[s][j]);
+
+                if let Some((i1, j1)) = get_j(s, x, k * d) {
+                    // println!("S {i1}\t{j1}\t{s}\t{k}\n");
+                    M[s][j] = max(M[i1][j1] + 1, M[s][j]);
+                }
+            }
+
+            explore_diagonal2(s1, s2, &mut M[s][j], s, j, d);
+            k += d;
+        }
+    };
+
+    //intialization
+    const NEG: isize = isize::MIN;
+    let mut M = vec![vec![]]; // Main layer
+    let mut I = vec![vec![]]; // Insertion layer
+    let mut D = vec![vec![]]; // Deletion layer
+    let mut Mr = vec![vec![]]; // Reverse main layer
+    let mut Ir = vec![vec![]]; // Reverse insertion layer
+    let mut Dr = vec![vec![]]; // Reverse deletion layer
+    let mut set1 = (&mut M, &mut I, &mut D);
+    let mut set2 = (&mut Mr, &mut Ir, &mut Dr);
+    let mut w = 1;
+
+    //main loop
+    let mut i: usize = 0;
+    loop {
+        //explore new wavefront for M,I,D
+        expand_layer(&mut set1, i, 1);
+
+        //comparison one
+        let (found, d) = compare(&mut set1, i, &mut set2, i - 1);
+        if found {
+            return i * 2 - 1 - d;
+        }
+
+        //explore new wavefront for Mr,Ir,Dr
+        expand_layer(&mut set2, i, -1);
+
+        //comparison two
+        let (found, d) = compare(&mut set1, i - 1, &mut set2, i);
+        if found {
+            return i * 2 - 1 - d;
+        }
+
+        //comparison three
+        let (found, d) = compare(&mut set1, i, &mut set2, i);
+        if found {
+            return i * 2 - d;
+        }
+
+        i += 1;
+        w += 2;
+    }
 }
