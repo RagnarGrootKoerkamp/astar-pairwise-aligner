@@ -11,7 +11,7 @@ impl Aligner for NW {
     type CostModel = LinearCost;
 
     /// The cost-only version uses linear memory.
-    fn cost(cm: Self::CostModel, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
+    fn cost(cm: &Self::CostModel, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
         let mut prev = vec![INF; b.len() + 1];
         let mut next = vec![INF; b.len() + 1];
         next[0] = 0;
@@ -36,7 +36,7 @@ impl Aligner for NW {
 
     // NOTE: NW does not explore states; it only expands them.
     fn visualize(
-        cm: Self::CostModel,
+        cm: &Self::CostModel,
         a: &Sequence,
         b: &Sequence,
         _params: Self::Params,

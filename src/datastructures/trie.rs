@@ -133,25 +133,25 @@ impl Trie {
                         let Some(x) = cost_model.sub() else {continue;};
                         x
                     };
-                    if cost + mismatch_cost > max_cost {
+                    if cost + mismatch_cost as MatchCost > max_cost {
                         continue;
                     }
                     queue.push(QueueElement {
                         state: *state,
                         i: i + 1,
                         j: j + 1,
-                        cost: cost + mismatch_cost,
+                        cost: cost + mismatch_cost as MatchCost,
                     });
                 }
 
                 // Delete a char: the character in the seed is ignored, and we remain at the same depth.
                 // TODO: Replace with actual costs.
-                if cost + cost_model.del() <= max_cost {
+                if cost + cost_model.del() as MatchCost <= max_cost {
                     queue.push(QueueElement {
                         state,
                         i: i + 1,
                         j,
-                        cost: cost + cost_model.del(),
+                        cost: cost + cost_model.del() as MatchCost,
                     });
                 }
             }
@@ -169,14 +169,14 @@ impl Trie {
                 if Some(ci) == matching_index {
                     continue;
                 }
-                if cost + cost_model.ins() > max_cost {
+                if cost + cost_model.ins() as MatchCost > max_cost {
                     continue;
                 }
                 queue.push(QueueElement {
                     state: *state,
                     i,
                     j: j + 1,
-                    cost: cost + cost_model.ins(),
+                    cost: cost + cost_model.ins() as MatchCost,
                 });
             }
         }
