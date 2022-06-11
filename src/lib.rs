@@ -1,6 +1,7 @@
 #![feature(
     test,
     iter_intersperse,
+    slice_as_chunks,
     let_else,
     label_break_value,
     min_specialization,

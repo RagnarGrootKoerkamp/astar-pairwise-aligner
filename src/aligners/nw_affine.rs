@@ -4,7 +4,38 @@ use std::mem::swap;
 
 struct NWAffine;
 
-const INF: Cost = Cost::MAX;
+const INF: Cost = Cost::MAX / 2;
+
+impl NWAffine {
+    /// Computes the next layer from the current one.
+    /// `ca` is the `i`th character of sequence `a`.
+    fn next_layer(
+        cm: &AffineCost,
+        i: usize,
+        ca: u8,
+        b: &Sequence,
+        ins: &mut [Vec<Cost>; 2],
+        del: &mut [Vec<Cost>; 2],
+        m: &mut [Vec<Cost>; 2],
+    ) {
+        del[1][0] = INF;
+        ins[1][0] = cm.ins_open() + (i + 1) as Cost * cm.ins();
+        m[1][0] = ins[(i + 1)][0];
+        for (j, &cb) in b.iter().enumerate() {
+            let j = j + 1;
+            ins[1][j] = min(ins[0][j] + cm.ins(), m[0][j] + cm.ins_open() + cm.ins());
+            del[1][j] = min(
+                del[1][j - 1] + cm.del(),
+                m[1][j - 1] + cm.del_open() + cm.del(),
+            );
+            m[1][j] = min(
+                // Convert sub_cost to INF when substitutions are not allowed.
+                m[0][j - 1].saturating_add(cm.sub_cost(ca, cb).unwrap_or(INF)),
+                min(ins[1][j], del[1][j]),
+            );
+        }
+    }
+}
 
 impl Aligner for NWAffine {
     type Params = ();
@@ -28,25 +59,10 @@ impl Aligner for NWAffine {
             m[1][j] = del[0][j];
         }
         for (i, &ca) in a.iter().enumerate() {
-            let i = i + 1;
-            swap(&mut ins[0], &mut ins[1]);
-            swap(&mut del[0], &mut del[1]);
-            swap(&mut m[0], &mut m[1]);
-            ins[1][0] = cm.ins_open() + i as Cost * cm.ins();
-            m[1][0] = ins[i][0];
-            for (j, &cb) in b.iter().enumerate() {
-                let j = j + 1;
-                ins[1][j] = min(ins[0][j] + cm.ins(), m[0][j] + cm.ins_open() + cm.ins());
-                del[1][j] = min(
-                    del[1][j - 1] + cm.del(),
-                    m[1][j - 1] + cm.del_open() + cm.del(),
-                );
-                m[1][j] = min(
-                    // Convert sub_cost to INF when substitutions are not allowed.
-                    m[0][j - 1].saturating_add(cm.sub_cost(ca, cb).unwrap_or(INF)),
-                    min(ins[1][j], del[1][j]),
-                );
-            }
+            ins.reverse();
+            del.reverse();
+            m.reverse();
+            NWAffine::next_layer(cm, i, ca, b, &mut ins, &mut del, &mut m);
         }
 
         return m[1][b.len()];
@@ -66,6 +82,7 @@ impl Aligner for NWAffine {
         let mut del = vec![vec![INF; b.len() + 1]; a.len() + 1];
         // End with anything.
         let mut m = vec![vec![INF; b.len() + 1]; a.len() + 1];
+
         visualizer.expand(Pos(0, 0));
         m[0][0] = 0;
         ins[0][0] = 0;
@@ -75,30 +92,20 @@ impl Aligner for NWAffine {
             del[0][j] = cm.del_open() + j as Cost * cm.del();
             m[0][j] = del[0][j];
         }
-        for i in 1..=a.len() {
-            visualizer.expand(Pos(i as I, 0));
-            ins[i][0] = cm.ins_open() + i as Cost * cm.ins();
-            m[i][0] = ins[i][0];
-        }
         for (i, &ca) in a.iter().enumerate() {
-            let i = i + 1;
-            for (j, &cb) in b.iter().enumerate() {
-                let j = j + 1;
-                visualizer.expand(Pos(i as I, j as I));
-                ins[i][j] = min(
-                    ins[i - 1][j] + cm.ins(),
-                    m[i - 1][j] + cm.ins_open() + cm.ins(),
-                );
-                del[i][j] = min(
-                    del[i][j - 1] + cm.del(),
-                    m[i][j - 1] + cm.del_open() + cm.del(),
-                );
-                m[i][j] = min(
-                    // Convert sub_cost to INF when substitutions are not allowed.
-                    m[i - 1][j - 1].saturating_add(cm.sub_cost(ca, cb).unwrap_or(INF)),
-                    min(ins[i][j], del[i][j]),
-                );
+            for j in 0..=b.len() {
+                visualizer.expand(Pos(i as I + 1, j as I));
             }
+            NWAffine::next_layer(
+                cm,
+                i,
+                ca,
+                b,
+                // Get a mutable slice of 2 rows from each of the arrays.
+                &mut ins[i..i + 2].as_chunks_mut::<2>().0[0],
+                &mut del[i..i + 2].as_chunks_mut::<2>().0[0],
+                &mut m[i..i + 2].as_chunks_mut::<2>().0[0],
+            );
         }
 
         return m[a.len()][b.len()];
