@@ -68,10 +68,10 @@ impl Aligner for NW<AffineCost> {
             ins.reverse();
             del.reverse();
             m.reverse();
-            let get_layers = |m: &mut [Vec<Cost>; 2]| {
+            fn get_layers(m: &mut [Vec<Cost>; 2]) -> [&mut Vec<u32>; 2] {
                 let [ref mut prev, ref mut next] = m;
                 [prev, next]
-            };
+            }
             self.next_layer_affine(
                 i,
                 ca,
@@ -91,7 +91,7 @@ impl Aligner for NW<AffineCost> {
         a: &Sequence,
         b: &Sequence,
         _params: Self::Params,
-        visualizer: &mut impl Visualizer,
+        v: &mut impl Visualizer,
     ) -> Cost {
         // TODO: Make this a single 2D vec of structs instead?
         // End with an insertion.
@@ -101,30 +101,31 @@ impl Aligner for NW<AffineCost> {
         // End with anything.
         let ref mut m = vec![vec![INF; b.len() + 1]; a.len() + 1];
 
-        visualizer.expand(Pos(0, 0));
+        v.expand(Pos(0, 0));
         m[0][0] = 0;
         ins[0][0] = 0;
         del[0][0] = 0;
         for j in 1..=b.len() {
-            visualizer.expand(Pos(0, j as I));
+            v.expand(Pos(0, j as I));
             del[0][j] = self.cm.del_open() + j as Cost * self.cm.del();
             m[0][j] = del[0][j];
         }
-        for (i, &ca) in a.iter().enumerate() {
-            let get_layers = |m: &mut Vec<Vec<Cost>>| {
-                let [ref mut prev, ref mut next] = m[i..i + 2];
-                [prev, next]
-            };
 
+        fn get_layers(m: &mut Vec<Vec<Cost>>, i: usize) -> [&mut Vec<Cost>; 2] {
+            let [ref mut prev, ref mut next] = m[i..i + 2] else {panic!();};
+            [prev, next]
+        }
+
+        for (i, &ca) in a.iter().enumerate() {
             self.next_layer_affine(
                 i,
                 ca,
                 b,
                 // Get a mutable slice of 2 rows from each of the arrays.
-                get_layers(ins),
-                get_layers(del),
-                get_layers(m),
-                visualizer,
+                get_layers(ins, i),
+                get_layers(del, i),
+                get_layers(m, i),
+                v,
             );
         }
 
