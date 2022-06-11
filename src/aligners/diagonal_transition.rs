@@ -6,11 +6,11 @@ use std::iter::zip;
 use std::ops::ControlFlow;
 
 pub struct DiagonalTransition<CM: CostModel> {
-    cm: CM,
+    pub cm: CM,
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
     /// making a substitution.
-    top_buffer: usize,
+    pub top_buffer: usize,
     /// We also add a buffer to the left and right of each wavefront to reduce the need for if-statements.
     /// The size of the left buffer is the number of insertions that can be done for the cost of one deletion.
     /// We also account for high substitution costs.
@@ -32,16 +32,19 @@ pub struct DiagonalTransition<CM: CostModel> {
     ///      xxxx
     ///     XxxxxX    <- when computing these cells.
     ///
-    left_buffer: usize,
-    right_buffer: usize,
+    pub left_buffer: usize,
+    pub right_buffer: usize,
 }
 
 // The type for storing FR points.
-type FR = i32;
+pub type FR = i32;
 
 impl<CM: CostModel> DiagonalTransition<CM> {
     pub fn new(cm: CM) -> Self {
-        let top_buffer = max(cm.sub().unwrap_or(0), max(cm.ins(), cm.del())) as usize;
+        let top_buffer = max(
+            cm.sub().unwrap_or(0),
+            max(cm.ins_open() + cm.ins(), cm.del_open() + cm.del()),
+        ) as usize;
         assert!(top_buffer > 0);
         let left_buffer = max(
             // substitution, if allowed
@@ -64,7 +67,87 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         }
     }
 
-    fn init_fr(
+    /// Given two sequences, a diagonal and point on it, expand it to a FR point.
+    #[inline]
+    pub fn extend_diagonal(a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
+        let j = *fr - d;
+
+        // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
+        *fr += zip(&a[*fr as usize..], &b[j as usize..])
+            .take_while(|(ca, cb)| ca == cb)
+            .count() as FR;
+        return *fr;
+    }
+
+    /// Given two sequences, a diagonal and point on it, expand it to a FR point.
+    ///
+    /// This version compares one usize at a time.
+    /// FIXME: This needs sentinels at the ends of the sequences to finish correctly.
+    #[allow(unused)]
+    #[inline]
+    pub fn extend_diagonal_packed(a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
+        let j = *fr - d;
+
+        // cast [u8] to [u64]
+        let mut a_ptr = a[*fr as usize..].as_ptr() as *const usize;
+        let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
+        let a_ptr_original = a_ptr;
+        let cmp = loop {
+            let cmp = unsafe { *a_ptr ^ *b_ptr };
+            // TODO: Make the break the `likely` case?
+            if cmp != 0 {
+                break cmp;
+            }
+            unsafe {
+                a_ptr = a_ptr.offset(1);
+                b_ptr = b_ptr.offset(1);
+            }
+        };
+        // TODO: Leading or trailing zeros?
+        *fr += unsafe { a_ptr.offset_from(a_ptr_original) } as FR
+            + (if cfg!(target_endian = "little") {
+                cmp.trailing_zeros()
+            } else {
+                cmp.leading_zeros()
+            } / u8::BITS) as FR;
+
+        return *fr;
+    }
+
+    /// The first active diagonal for the given layer.
+    #[inline]
+    pub fn dmin_for_layer(&self, s: Cost) -> isize {
+        -((s.saturating_sub(self.cm.ins_open()) / self.cm.ins()) as isize)
+    }
+    /// The last active diagonal for the given layer.
+    #[inline]
+    pub fn dmax_for_layer(&self, s: Cost) -> isize {
+        -((s.saturating_sub(self.cm.del_open()) / self.cm.del()) as isize)
+    }
+
+    #[inline]
+    pub fn get_layer<'a>(&self, layers: &'a Vec<Vec<FR>>, s: Cost, cost: Cost) -> &'a Vec<FR> {
+        &layers[self.top_buffer + s as usize - cost as usize]
+    }
+
+    #[inline]
+    pub fn index_layer(&self, layer: &Vec<FR>, idx: isize, offset: isize) -> FR {
+        layer[self.left_buffer + (idx - offset) as usize]
+    }
+
+    #[inline]
+    pub fn index_layer_mut<'a>(
+        &self,
+        layer: &'a mut Vec<FR>,
+        idx: isize,
+        offset: isize,
+    ) -> &'a mut FR {
+        &mut layer[self.left_buffer + (idx - offset) as usize]
+    }
+}
+
+impl DiagonalTransition<LinearCost> {
+    pub fn init_fr(
         &self,
         a: &Vec<u8>,
         b: &Vec<u8>,
@@ -77,7 +160,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         let mut fr = vec![vec![FR::MIN; self.left_buffer + 1 + self.right_buffer]; num_layers];
         fr[num_layers - 1][self.left_buffer] = {
             // Find the first FR point, and return 0 if it already covers both sequences.
-            let f = Self::explore_diagonal(a, b, 0, &mut 0);
+            let f = Self::extend_diagonal(a, b, 0, &mut 0);
             if f >= a.len() as FR && f >= b.len() as FR {
                 return ControlFlow::Break(());
             }
@@ -92,46 +175,6 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         ControlFlow::Continue(fr)
     }
 
-    /// Given two sequences, a diagonal and point on it, expand it to a FR point.
-    #[inline]
-    fn explore_diagonal(a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
-        let j = *fr - d;
-        // TODO: compare 8 chars at a time using a u64, or even try SIMD.
-        // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
-        *fr += zip(&a[*fr as usize..], &b[j as usize..])
-            .take_while(|(ca, cb)| ca == cb)
-            .count() as FR;
-        return *fr;
-    }
-
-    /// The first active diagonal for the given layer.
-    #[inline]
-    fn dmin_for_layer(&self, s: Cost) -> isize {
-        -((s / self.cm.ins()) as isize)
-    }
-    /// The last active diagonal for the given layer.
-    #[inline]
-    fn dmax_for_layer(&self, s: Cost) -> isize {
-        -((s / self.cm.del()) as isize)
-    }
-
-    #[inline]
-    fn get_layer<'a>(&self, layers: &'a Vec<Vec<FR>>, s: Cost, cost: Cost) -> &'a Vec<FR> {
-        &layers[self.top_buffer + s as usize - cost as usize]
-    }
-
-    #[inline]
-    fn index_layer(&self, layer: &Vec<FR>, idx: isize, offset: isize) -> FR {
-        layer[self.left_buffer + (idx - offset) as usize]
-    }
-
-    #[inline]
-    fn index_layer_mut<'a>(&self, layer: &'a mut Vec<FR>, idx: isize, offset: isize) -> &'a mut FR {
-        &mut layer[self.left_buffer + (idx - offset) as usize]
-    }
-}
-
-impl DiagonalTransition<LinearCost> {
     /// Computes the next layer from the current one.
     /// `ca` is the `i`th character of sequence `a`.
     ///
@@ -155,6 +198,7 @@ impl DiagonalTransition<LinearCost> {
             self.left_buffer + (dmax - dmin) as usize + 1 + self.right_buffer,
             FR::MIN,
         );
+        // Offsets for each layer.
         let dmin_ins = self.dmin_for_layer(s - self.cm.ins());
         let dmin_del = self.dmin_for_layer(s - self.cm.del());
         let dmin_sub = self.cm.sub().map(|sub| self.dmin_for_layer(s - sub));
@@ -182,7 +226,7 @@ impl DiagonalTransition<LinearCost> {
         for d in dmin..=dmax {
             let f = self.index_layer_mut(next, d, dmin);
             let f_old = *f;
-            let f_new = Self::explore_diagonal(a, b, d as FR, f);
+            let f_new = Self::extend_diagonal(a, b, d as FR, f);
             let mut p = Pos::from(f_old, f_old as isize + d);
             for _ in f_old..f_new {
                 p = p.add_diagonal(1);
@@ -198,8 +242,6 @@ impl DiagonalTransition<LinearCost> {
 }
 
 impl Aligner for DiagonalTransition<LinearCost> {
-    type Params = ();
-
     /// The cost-only version uses linear memory.
     ///
     /// In particular, the number of layers is max(sub, ins, del)+1.

@@ -38,8 +38,6 @@ impl NW<LinearCost> {
 }
 
 impl Aligner for NW<LinearCost> {
-    type Params = ();
-
     /// The cost-only version uses linear memory.
     fn cost(&self, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
         let mut prev = vec![INF; b.len() + 1];
