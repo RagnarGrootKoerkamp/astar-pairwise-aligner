@@ -13,26 +13,37 @@ struct NoVisualizer;
 impl Visualizer for NoVisualizer {}
 
 /// An aligner is a type that supports aligning sequences using some algorithm.
-/// It must implement one of the methods below.
-/// If possible, implement `visualize_params`, so that all of the other methods work by default.
+/// It should implement the most general of the methods below, and never override variants with default parameters.
+/// The cost-only variant can sometimes be implemented using less memory.
+///
+/// The output can be:
+/// - cost only
+/// - cost and alignment
+/// - cost, alignment, and a visualization.
+///
+/// Note that insertions are when `b` has more characters than `a`, and deletions are when `b` has less characters than `a`.
 trait Aligner {
-    type Params: Default;
-    fn align(a: &Sequence, b: &Sequence) {
-        Self::align_params(a, b, Self::Params::default())
-    }
-    fn align_params(a: &Sequence, b: &Sequence, params: Self::Params) {
-        Self::visualize_params(a, b, params, &mut NoVisualizer)
+    type Params;
+
+    /// Can be either LinearCost or AffineCost, as needed by the algorithm.
+    type CostModel: CostModel;
+
+    fn cost(cm: Self::CostModel, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
+        Self::align(cm, a, b, params)
     }
 
-    fn visualize(a: &Sequence, b: &Sequence, visualizer: &mut impl Visualizer) {
-        Self::visualize_params(a, b, Self::Params::default(), visualizer)
+    /// TODO: Make this return a path as well.
+    fn align(cm: Self::CostModel, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
+        Self::visualize(cm, a, b, params, &mut NoVisualizer)
     }
-    fn visualize_params(
+
+    fn visualize(
+        _cm: Self::CostModel,
         _a: &Sequence,
         _b: &Sequence,
         _params: Self::Params,
         _visualizer: &mut impl Visualizer,
-    ) {
+    ) -> Cost {
         unimplemented!("This aligner does not support visualizations!");
     }
 }
