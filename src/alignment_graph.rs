@@ -8,7 +8,7 @@ use bio_types::sequence::Sequence;
 use serde::Serialize;
 use std::cmp::Ordering;
 
-use crate::matches::{Cost, DtPos};
+use crate::prelude::{Cost, DtPos};
 
 /// Type for positions in a sequence, and derived quantities.
 pub type I = u32;

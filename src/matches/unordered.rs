@@ -1,6 +1,6 @@
 use smallvec::SmallVec;
 
-pub use crate::prelude::*;
+use crate::prelude::*;
 
 type Key = usize;
 

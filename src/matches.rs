@@ -5,6 +5,8 @@ pub mod unordered;
 use itertools::Itertools;
 use strum_macros::EnumString;
 
+use crate::prelude::*;
+
 pub use ordered::*;
 pub use qgrams::*;
 pub use unordered::*;
