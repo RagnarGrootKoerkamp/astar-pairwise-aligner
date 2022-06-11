@@ -1,7 +1,7 @@
 use itertools::izip;
 
 use super::NoVisualizer;
-use super::{nw::NW, Aligner, Visualizer};
+use super::{Aligner, Visualizer};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence, I};
 use std::cmp::min;
@@ -48,10 +48,10 @@ impl<const N: usize> NW<AffineCost<N>> {
         // Initialize the first state by linear insertion.
         next.m[0] = self.cm.ins_or(INF, |ins| (i + 1) as Cost * ins);
         // Initialize the first state by affine insertion.
-        for (costs, layer) in std::iter::zip(&self.cm.layers, &mut next.affine) {
-            match costs.affine_type {
+        for (cm, layer) in std::iter::zip(&self.cm.layers, &mut next.affine) {
+            match cm.affine_type {
                 Insert => {
-                    layer[0] = costs.open + (i + 1) as Cost * costs.extend;
+                    layer[0] = cm.open + (i + 1) as Cost * cm.extend;
                     next.m[0] = min(next.m[0], layer[0]);
                 }
                 Delete => {
@@ -72,21 +72,19 @@ impl<const N: usize> NW<AffineCost<N>> {
             );
 
             // Affine layers
-            for (costs, prev_layer, next_layer) in
+            for (cm, prev_layer, next_layer) in
                 izip!(&self.cm.layers, &prev.affine, &mut next.affine)
             {
-                match costs.affine_type {
+                match cm.affine_type {
                     Insert => {
                         next_layer[j + 1] = min(
-                            prev_layer[j + 1] + costs.extend,
-                            prev.m[j + 1] + costs.open + costs.extend,
+                            prev_layer[j + 1] + cm.extend,
+                            prev.m[j + 1] + cm.open + cm.extend,
                         )
                     }
                     Delete => {
-                        next_layer[j + 1] = min(
-                            next_layer[j] + costs.extend,
-                            next.m[j] + costs.open + costs.extend,
-                        )
+                        next_layer[j + 1] =
+                            min(next_layer[j] + cm.extend, next.m[j] + cm.open + cm.extend)
                     }
                 };
                 next.m[j + 1] = min(next.m[j + 1], next_layer[j + 1]);

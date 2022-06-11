@@ -10,6 +10,8 @@ pub struct DiagonalTransition<CM: CostModel> {
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
     /// making a substitution.
+    ///
+    /// The value is the max of the substitution cost and all (affine) costs of a gap of size 1.
     pub top_buffer: usize,
     /// We also add a buffer to the left and right of each wavefront to reduce the need for if-statements.
     /// The size of the left buffer is the number of insertions that can be done for the cost of one deletion.
@@ -32,6 +34,7 @@ pub struct DiagonalTransition<CM: CostModel> {
     ///      xxxx
     ///     XxxxxX    <- when computing these cells.
     ///
+    /// For affine costs, we replace the numerator by the maximum open+extend cost, and the numerator by the minimum extend cost.
     pub left_buffer: usize,
     pub right_buffer: usize,
 }
@@ -41,21 +44,35 @@ pub type FR = i32;
 
 impl<CM: CostModel> DiagonalTransition<CM> {
     pub fn new(cm: CM) -> Self {
-        let top_buffer = max(
-            cm.sub().unwrap_or(0),
-            max(cm.ins_open() + cm.ins(), cm.del_open() + cm.del()),
-        ) as usize;
-        assert!(top_buffer > 0);
+        // The maximum cost we look back:
+        // max(substitution, indel, affine indel of size 1)
+        let top_buffer = {
+            let x = max(
+                cm.sub().unwrap_or(0),
+                max(cm.ins().unwrap_or(0), cm.del().unwrap_or(0)),
+            );
+
+            for cm in cm.layers {
+                x = max(x, cm.open + cm.extend);
+            }
+
+            x as usize
+        };
+
         let left_buffer = max(
             // substitution, if allowed
-            cm.sub().unwrap_or(0).div_ceil(cm.ins()),
+            cm.sub()
+                .unwrap_or(0)
+                .div_ceil(cm.ins().unwrap_or(Cost::MAX)),
             // number of insertions (left moves) done in range of looking one deletion (right move) backwards
             1 + cm.del().div_ceil(cm.ins()),
         ) as usize;
         // Idem.
         let right_buffer = max(
             // substitution, if allowed
-            cm.sub().unwrap_or(0).div_ceil(cm.del()),
+            cm.sub()
+                .unwrap_or(0)
+                .div_ceil(cm.del().unwrap_or(Cost::MAX)),
             // number of deletions (right moves) done in range of looking one insertion (left move) backwards
             1 + cm.ins().div_ceil(cm.del()),
         ) as usize;
@@ -185,8 +202,8 @@ impl DiagonalTransition<LinearCost> {
         a: &Vec<u8>,
         b: &Vec<u8>,
         s: u32,
-        l_ins: &Vec<i32>,
-        l_del: &Vec<i32>,
+        l_ins: Option<&Vec<i32>>,
+        l_del: Option<&Vec<i32>>,
         l_sub: Option<&Vec<i32>>,
         next: &mut Vec<i32>,
         v: &mut impl Visualizer,
@@ -199,24 +216,22 @@ impl DiagonalTransition<LinearCost> {
             FR::MIN,
         );
         // Offsets for each layer.
-        let dmin_ins = self.dmin_for_layer(s - self.cm.ins());
-        let dmin_del = self.dmin_for_layer(s - self.cm.del());
+        let dmin_ins = self.cm.ins().map(|ins| self.dmin_for_layer(s - ins));
+        let dmin_del = self.cm.del().map(|del| self.dmin_for_layer(s - del));
         let dmin_sub = self.cm.sub().map(|sub| self.dmin_for_layer(s - sub));
         // Simply loop over the entire range -- the boundaries are buffered
         // so no boundary conditions are needed.
         for d in dmin..=dmax {
             let f = max(
                 // Substitution, if allowed
-                if let Some(dmin_sub) = dmin_sub {
-                    self.index_layer(l_sub.unwrap(), d, dmin_sub) + 1
-                } else {
-                    FR::MIN
-                },
+                l_sub.map_or(FR::MIN, |l| self.index_layer(l, d, dmin_sub.unwrap()) + 1),
                 max(
                     // Insertion
-                    self.index_layer(l_ins, d + 1, dmin_ins),
+                    l_ins.map_or(FR::MIN, |l| self.index_layer(l, d + 1, dmin_ins.unwrap())),
                     // Deletion
-                    self.index_layer(l_del, d - 1, dmin_del) + 1,
+                    l_del.map_or(FR::MIN, |l| {
+                        self.index_layer(l, d - 1, dmin_del.unwrap()) + 1
+                    }),
                 ),
             );
             *self.index_layer_mut(next, d, dmin) = f;
@@ -258,8 +273,14 @@ impl Aligner for DiagonalTransition<LinearCost> {
             // Take the next layer out, and put it back later.
             // This is needed to avoid borrow problems.
             let mut next = std::mem::take(&mut fr[(num_layers + s as usize) % num_layers]);
-            let ref l_ins = fr[(num_layers + s as usize - self.cm.ins() as usize) % num_layers];
-            let ref l_del = fr[(num_layers + s as usize - self.cm.del() as usize) % num_layers];
+            let l_ins = self
+                .cm
+                .ins()
+                .map(|ins| &fr[(num_layers + s as usize - ins as usize) % num_layers]);
+            let l_del = self
+                .cm
+                .del()
+                .map(|del| &fr[(num_layers + s as usize - del as usize) % num_layers]);
             let l_sub = self
                 .cm
                 .sub()
@@ -290,8 +311,8 @@ impl Aligner for DiagonalTransition<LinearCost> {
         let mut s = 0;
         loop {
             s += 1;
-            let l_ins = self.get_layer(fr, s, self.cm.ins());
-            let l_del = self.get_layer(fr, s, self.cm.del());
+            let l_ins = self.cm.ins().map(|ins| self.get_layer(fr, s, ins));
+            let l_del = self.cm.del().map(|del| self.get_layer(fr, s, del));
             let l_sub = self.cm.sub().map(|sub| self.get_layer(fr, s, sub));
 
             let mut next = vec![];
