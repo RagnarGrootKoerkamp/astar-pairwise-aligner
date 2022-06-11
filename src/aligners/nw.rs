@@ -49,13 +49,13 @@ impl<const N: usize> NW<AffineCost<N>> {
         // Initialize the first state by linear insertion.
         next.m[0] = self.cm.ins_or(INF, |ins| (i + 1) as Cost * ins);
         // Initialize the first state by affine insertion.
-        for (cm, layer) in std::iter::zip(&self.cm.layers, &mut next.affine) {
+        for (cm, layer) in std::iter::zip(&self.cm.affine, &mut next.affine) {
             match cm.affine_type {
-                Insert => {
+                AffineLayerType::Insert => {
                     layer[0] = cm.open + (i + 1) as Cost * cm.extend;
                     next.m[0] = min(next.m[0], layer[0]);
                 }
-                Delete => {
+                AffineLayerType::Delete => {
                     layer[0] = INF;
                 }
             };
@@ -74,16 +74,16 @@ impl<const N: usize> NW<AffineCost<N>> {
 
             // Affine layers
             for (cm, prev_layer, next_layer) in
-                izip!(&self.cm.layers, &prev.affine, &mut next.affine)
+                izip!(&self.cm.affine, &prev.affine, &mut next.affine)
             {
                 match cm.affine_type {
-                    Insert => {
+                    AffineLayerType::Insert => {
                         next_layer[j + 1] = min(
                             prev_layer[j + 1] + cm.extend,
                             prev.m[j + 1] + cm.open + cm.extend,
                         )
                     }
-                    Delete => {
+                    AffineLayerType::Delete => {
                         next_layer[j + 1] =
                             min(next_layer[j] + cm.extend, next.m[j] + cm.open + cm.extend)
                     }
@@ -106,12 +106,12 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
             next.m[j] = self.cm.del_or(INF, |del| j as Cost * del);
 
             // Initialize the affine deletion layers.
-            for (costs, next_layer) in izip!(&self.cm.layers, &mut next.affine) {
+            for (costs, next_layer) in izip!(&self.cm.affine, &mut next.affine) {
                 match costs.affine_type {
-                    Delete => {
+                    AffineLayerType::Delete => {
                         next_layer[j] = costs.open + j as Cost * costs.extend;
                     }
-                    Insert => {}
+                    AffineLayerType::Insert => {}
                 };
                 next.m[j] = min(next.m[j], next_layer[j]);
             }
@@ -142,14 +142,15 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
             layers[0].m[j] = self.cm.del_or(INF, |del| j as Cost * del);
 
             // Initialize the affine deletion layers.
-            for (costs, next_layer) in izip!(&self.cm.layers, &mut layers[0].affine) {
+            let Layers { m, affine } = &mut layers[0];
+            for (costs, next_layer) in izip!(&self.cm.affine, affine) {
                 match costs.affine_type {
-                    Delete => {
+                    AffineLayerType::Delete => {
                         next_layer[j] = costs.open + j as Cost * costs.extend;
                     }
-                    Insert => {}
+                    AffineLayerType::Insert => {}
                 };
-                layers[0].m[j] = min(layers[0].m[j], next_layer[j]);
+                m[j] = min(m[j], next_layer[j]);
             }
         }
 

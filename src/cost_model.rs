@@ -1,5 +1,7 @@
 //! This module contains various cost models.
 
+use std::cmp::{max, min};
+
 /// Type for costs.
 /// TODO: Make this a strong type.
 pub type Cost = u32;
@@ -61,7 +63,25 @@ pub trait CostModel {
         self.del().map_or(default, f)
     }
 
-    // FIXME: Add methods for open cost.
+    fn affine(&self) -> &[AffineLayerCosts] {
+        &[]
+    }
+
+    fn min_ins_extend_cost(&self) -> Cost {
+        self.ins().unwrap_or(Cost::MAX)
+    }
+
+    fn min_del_extend_cost(&self) -> Cost {
+        self.del().unwrap_or(Cost::MAX)
+    }
+
+    fn max_ins_cost(&self) -> Cost {
+        self.ins().unwrap_or(0)
+    }
+
+    fn max_del_cost(&self) -> Cost {
+        self.del().unwrap_or(0)
+    }
 }
 
 /// Implement this trait to indicate that the cost model does not use affine costs.
@@ -120,6 +140,7 @@ impl LinearCost {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum AffineLayerType {
     Insert,
     Delete,
@@ -142,7 +163,7 @@ pub struct AffineCost<const N: usize> {
     pub sub: Option<Cost>,
     pub ins: Option<Cost>,
     pub del: Option<Cost>,
-    pub layers: [AffineLayerCosts; N],
+    pub affine: [AffineLayerCosts; N],
 }
 
 impl<const N: usize> CostModel for AffineCost<N> {
@@ -157,6 +178,54 @@ impl<const N: usize> CostModel for AffineCost<N> {
     fn del(&self) -> Option<Cost> {
         self.del
     }
+
+    fn affine(&self) -> &[AffineLayerCosts] {
+        &self.affine[..]
+    }
+
+    fn min_ins_extend_cost(&self) -> Cost {
+        let mut c = self.ins().unwrap_or(Cost::MAX);
+        for cm in &self.affine {
+            match cm.affine_type {
+                AffineLayerType::Insert => c = min(c, cm.extend),
+                AffineLayerType::Delete => {}
+            }
+        }
+        c
+    }
+
+    fn min_del_extend_cost(&self) -> Cost {
+        let mut c = self.del().unwrap_or(Cost::MAX);
+        for cm in &self.affine {
+            match cm.affine_type {
+                AffineLayerType::Delete => c = min(c, cm.extend),
+                AffineLayerType::Insert => {}
+            }
+        }
+        c
+    }
+
+    fn max_ins_cost(&self) -> Cost {
+        let mut c = self.ins().unwrap_or(0);
+        for cm in &self.affine {
+            match cm.affine_type {
+                AffineLayerType::Insert => c = max(c, cm.open + cm.extend),
+                AffineLayerType::Delete => {}
+            }
+        }
+        c
+    }
+
+    fn max_del_cost(&self) -> Cost {
+        let mut c = self.del().unwrap_or(0);
+        for cm in &self.affine {
+            match cm.affine_type {
+                AffineLayerType::Delete => c = max(c, cm.open + cm.extend),
+                AffineLayerType::Insert => {}
+            }
+        }
+        c
+    }
 }
 
 pub fn affine(sub: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
@@ -164,7 +233,7 @@ pub fn affine(sub: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
         sub: Some(sub),
         ins: None,
         del: None,
-        layers: [
+        affine: [
             AffineLayerCosts {
                 affine_type: AffineLayerType::Insert,
                 open,
@@ -189,7 +258,7 @@ pub fn affine2(
         sub: Some(sub),
         ins: None,
         del: None,
-        layers: [
+        affine: [
             AffineLayerCosts {
                 affine_type: AffineLayerType::Insert,
                 open: ins_open,
