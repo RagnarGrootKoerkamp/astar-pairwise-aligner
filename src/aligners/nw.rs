@@ -63,20 +63,19 @@ impl Aligner for NW<LinearCost> {
         a: &Sequence,
         b: &Sequence,
         _params: Self::Params,
-        visualizer: &mut impl Visualizer,
+        v: &mut impl Visualizer,
     ) -> Cost {
         let mut m = vec![vec![INF; b.len() + 1]; a.len() + 1];
         m[0][0] = 0;
-        visualizer.expand(Pos(0, 0));
+        v.expand(Pos(0, 0));
         for j in 1..=b.len() {
-            visualizer.expand(Pos(0, j as I));
+            v.expand(Pos(0, j as I));
             m[0][j] = j as Cost * self.cm.ins();
         }
         for (i, &ca) in a.iter().enumerate() {
             // We can't pass m[i] and m[i+1] both at the same time, so we must split the vector instead.
-            // TODO: Is there a `get_two` method somewhere?
-            let [ref mut prev, ref mut next] = m[i..i + 2];
-            self.next_layer(i, ca, b, prev, next, visualizer);
+            let [ref mut prev, ref mut next] = m[i..i + 2] else {panic!();};
+            self.next_layer(i, ca, b, prev, next, v);
         }
 
         return m[a.len()][b.len()];

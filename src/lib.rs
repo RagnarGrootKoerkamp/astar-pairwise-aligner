@@ -1,5 +1,6 @@
 #![feature(
     test,
+    int_roundings,
     iter_intersperse,
     slice_as_chunks,
     let_else,
