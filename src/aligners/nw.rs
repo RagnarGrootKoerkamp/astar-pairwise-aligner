@@ -75,15 +75,8 @@ impl Aligner for NW<LinearCost> {
         for (i, &ca) in a.iter().enumerate() {
             // We can't pass m[i] and m[i+1] both at the same time, so we must split the vector instead.
             // TODO: Is there a `get_two` method somewhere?
-            let (front, back) = m.split_at_mut(i + 1);
-            self.next_layer(
-                i,
-                ca,
-                b,
-                front.last().unwrap(),
-                back.first_mut().unwrap(),
-                visualizer,
-            );
+            let [ref mut prev, ref mut next] = m[i..i + 2];
+            self.next_layer(i, ca, b, prev, next, visualizer);
         }
 
         return m[a.len()][b.len()];
