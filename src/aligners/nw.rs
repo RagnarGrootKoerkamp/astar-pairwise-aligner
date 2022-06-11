@@ -13,6 +13,7 @@ pub struct NW<CM: CostModel> {
 // TODO: Instead use saturating add everywhere?
 const INF: Cost = Cost::MAX / 2;
 
+#[derive(Clone)]
 struct Layers<const N: usize, T> {
     m: T,
     affine: [T; N],
@@ -23,7 +24,7 @@ impl<const N: usize, T> Layers<N, T> {
     where
         T: Clone,
     {
-        let affine = [m; N];
+        let affine = [(); N].map(|_| m.clone());
         Self { m, affine }
     }
 }
@@ -131,7 +132,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         _params: Self::Params,
         v: &mut impl Visualizer,
     ) -> Cost {
-        let ref mut layers = vec![NWLayers::new(vec![INF; b.len() + 1]); a.len() + 1];
+        let ref mut layers = vec![NWLayers::<N>::new(vec![INF; b.len() + 1]); a.len() + 1];
 
         v.expand(Pos(0, 0));
         layers[0].m[0] = 0;
@@ -154,7 +155,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
 
         for (i, &ca) in a.iter().enumerate() {
             let [prev, next] = &mut layers[i..i+2] else {unreachable!();};
-            self.next_layer_affine(i, ca, b, prev, next, v);
+            self.next_layer_affine(i, ca, b, &*prev, next, v);
         }
 
         // FIXME: Backtrack the optimal path.

@@ -39,7 +39,7 @@ pub trait CostModel {
         F: FnOnce(Cost) -> U,
     {
         if a == b {
-            f(Some(0))
+            f(0)
         } else {
             self.sub_or(default, f)
         }
@@ -70,8 +70,8 @@ pub trait LinearCostModel: CostModel {}
 pub struct LinearCost {
     /// The substitution cost. None for LCS where substitutions are not allowed.
     pub sub: Option<Cost>,
-    pub ins: Cost,
-    pub del: Cost,
+    pub ins: Option<Cost>,
+    pub del: Option<Cost>,
 }
 
 impl CostModel for LinearCost {
@@ -79,11 +79,11 @@ impl CostModel for LinearCost {
         self.sub
     }
 
-    fn ins(&self) -> Cost {
+    fn ins(&self) -> Option<Cost> {
         self.ins
     }
 
-    fn del(&self) -> Cost {
+    fn del(&self) -> Option<Cost> {
         self.del
     }
 }
@@ -93,29 +93,29 @@ impl LinearCost {
     pub fn lcs() -> Self {
         Self {
             sub: None,
-            ins: 1,
-            del: 1,
+            ins: Some(1),
+            del: Some(1),
         }
     }
     pub fn unit() -> Self {
         Self {
             sub: Some(1),
-            ins: 1,
-            del: 1,
+            ins: Some(1),
+            del: Some(1),
         }
     }
     pub fn edit_cost(sub: Cost, indel: Cost) -> Self {
         Self {
             sub: Some(sub),
-            ins: indel,
-            del: indel,
+            ins: Some(indel),
+            del: Some(indel),
         }
     }
     pub fn edit_cost2(sub: Cost, ins: Cost, del: Cost) -> Self {
         Self {
             sub: Some(sub),
-            ins,
-            del,
+            ins: Some(ins),
+            del: Some(del),
         }
     }
 }
@@ -132,9 +132,9 @@ pub enum AffineLayerType {
 }
 
 pub struct AffineLayerCosts {
-    affine_type: AffineLayerType,
-    open: Cost,
-    extend: Cost,
+    pub affine_type: AffineLayerType,
+    pub open: Cost,
+    pub extend: Cost,
 }
 
 /// N is the number of affine layers.
