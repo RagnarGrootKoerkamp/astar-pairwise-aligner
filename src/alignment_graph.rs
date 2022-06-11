@@ -8,14 +8,11 @@ use bio_types::sequence::Sequence;
 use serde::Serialize;
 use std::cmp::Ordering;
 
-use crate::matches::DtPos;
+use crate::matches::{Cost, DtPos};
 
 /// Type for positions in a sequence, and derived quantities.
 pub type I = u32;
-/// Type for costs.
-/// TODO: Make this a strong type.
-pub type Cost = u32;
-/// Type for the cost of a single match.
+/// Type for the cost of a single match/mutation.
 pub type MatchCost = u8;
 
 /// A position in a pairwise matching.
