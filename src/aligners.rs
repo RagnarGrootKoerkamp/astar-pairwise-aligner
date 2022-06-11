@@ -1,5 +1,8 @@
 //! This module contains implementations of other alignment algorithms.
 
+pub mod nw;
+pub mod nw_affine;
+
 use crate::prelude::*;
 
 /// A visualizer can be used to visualize progress of an implementation.
