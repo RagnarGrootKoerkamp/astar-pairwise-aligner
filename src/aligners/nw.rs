@@ -4,7 +4,8 @@ use std::mem::swap;
 
 struct NW;
 
-const INF: Cost = Cost::MAX;
+// TODO: Instead use saturating add everywhere?
+const INF: Cost = Cost::MAX / 2;
 
 impl NW {
     /// Computes the next layer from the current one.
