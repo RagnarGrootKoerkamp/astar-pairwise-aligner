@@ -1,8 +1,10 @@
-use super::{Aligner, NoVisualizer, Visualizer};
+use itertools::izip;
+
+use super::NoVisualizer;
+use super::{nw::NW, Aligner, Visualizer};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence, I};
 use std::cmp::min;
-use std::mem::swap;
 
 pub struct NW<CM: CostModel> {
     pub cm: CM,
@@ -11,51 +13,119 @@ pub struct NW<CM: CostModel> {
 // TODO: Instead use saturating add everywhere?
 const INF: Cost = Cost::MAX / 2;
 
-impl NW<LinearCost> {
+struct Layers<const N: usize, T> {
+    m: T,
+    affine: [T; N],
+}
+
+impl<const N: usize, T> Layers<N, T> {
+    fn new(m: T) -> Self
+    where
+        T: Clone,
+    {
+        let affine = [m; N];
+        Self { m, affine }
+    }
+}
+
+/// The base vector M, and one vector per affine layer.
+/// TODO: Possibly switch to a Vec<Layer> instead.
+type NWLayers<const N: usize> = Layers<N, Vec<Cost>>;
+
+impl<const N: usize> NW<AffineCost<N>> {
     /// Computes the next layer from the current one.
     /// `ca` is the `i`th character of sequence `a`.
-    #[inline]
-    fn next_layer(
+    fn next_layer_affine(
         &self,
         i: usize,
         ca: u8,
         b: &Sequence,
-        prev: &Vec<Cost>,
-        next: &mut Vec<Cost>,
+        prev: &NWLayers<N>,
+        next: &mut NWLayers<N>,
         v: &mut impl Visualizer,
     ) {
         v.expand(Pos(i as I + 1, 0));
-        next[0] = (i + 1) as Cost * self.cm.ins();
+        // Initialize the first state by linear insertion.
+        next.m[0] = self.cm.ins_or(INF, |ins| (i + 1) as Cost * ins);
+        // Initialize the first state by affine insertion.
+        for (costs, layer) in std::iter::zip(&self.cm.layers, &mut next.affine) {
+            match costs.affine_type {
+                Insert => {
+                    layer[0] = costs.open + (i + 1) as Cost * costs.extend;
+                    next.m[0] = min(next.m[0], layer[0]);
+                }
+                Delete => {
+                    layer[0] = INF;
+                }
+            };
+        }
         for (j, &cb) in b.iter().enumerate() {
             v.expand(Pos(i as I + 1, j as I + 1));
-            next[j + 1] = min(
-                // Convert sub_cost to INF when substitutions are not allowed.
-                prev[j].saturating_add(self.cm.sub_cost(ca, cb).unwrap_or(INF)),
-                min(next[j] + self.cm.ins(), prev[j + 1] + self.cm.del()),
+
+            // Main layer: substitution and linear indels
+            next.m[j + 1] = min(
+                self.cm.sub_cost_or(ca, cb, INF, |sub| prev.m[j] + sub),
+                min(
+                    self.cm.ins_or(INF, |ins| prev.m[j + 1] + ins),
+                    self.cm.del_or(INF, |del| next.m[j] + del),
+                ),
             );
+
+            // Affine layers
+            for (costs, prev_layer, next_layer) in
+                izip!(&self.cm.layers, &prev.affine, &mut next.affine)
+            {
+                match costs.affine_type {
+                    Insert => {
+                        next_layer[j + 1] = min(
+                            prev_layer[j + 1] + costs.extend,
+                            prev.m[j + 1] + costs.open + costs.extend,
+                        )
+                    }
+                    Delete => {
+                        next_layer[j + 1] = min(
+                            next_layer[j] + costs.extend,
+                            next.m[j] + costs.open + costs.extend,
+                        )
+                    }
+                };
+                next.m[j + 1] = min(next.m[j + 1], next_layer[j + 1]);
+            }
         }
     }
 }
 
-impl Aligner for NW<LinearCost> {
+impl<const N: usize> Aligner for NW<AffineCost<N>> {
     /// The cost-only version uses linear memory.
     fn cost(&self, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
-        let mut prev = vec![INF; b.len() + 1];
-        let mut next = vec![INF; b.len() + 1];
-        next[0] = 0;
+        let ref mut prev = NWLayers::new(vec![INF; b.len() + 1]);
+        let ref mut next = NWLayers::new(vec![INF; b.len() + 1]);
+
+        next.m[0] = 0;
         for j in 1..=b.len() {
-            next[j] = j as Cost * self.cm.del();
-        }
-        // TODO: Does enumerate_from exist?
-        for (i, &ca) in a.iter().enumerate() {
-            swap(&mut next, &mut prev);
-            self.next_layer(i, ca, b, &prev, &mut next, &mut NoVisualizer);
+            // Initialize the main layer with linear deletions.
+            next.m[j] = self.cm.del_or(INF, |del| j as Cost * del);
+
+            // Initialize the affine deletion layers.
+            for (costs, next_layer) in izip!(&self.cm.layers, &mut next.affine) {
+                match costs.affine_type {
+                    Delete => {
+                        next_layer[j] = costs.open + j as Cost * costs.extend;
+                    }
+                    Insert => {}
+                };
+                next.m[j] = min(next.m[j], next_layer[j]);
+            }
         }
 
-        return next[a.len()];
+        for (i, &ca) in a.iter().enumerate() {
+            std::mem::swap(prev, next);
+            self.next_layer_affine(i, ca, b, prev, next, &mut NoVisualizer);
+        }
+
+        return next.m[b.len()];
     }
 
-    // NOTE: NW does not explore states; it only expands them.
     fn visualize(
         &self,
         a: &Sequence,
@@ -63,19 +133,34 @@ impl Aligner for NW<LinearCost> {
         _params: Self::Params,
         v: &mut impl Visualizer,
     ) -> Cost {
-        let mut m = vec![vec![INF; b.len() + 1]; a.len() + 1];
-        m[0][0] = 0;
+        let ref mut layers = vec![NWLayers::new(vec![INF; b.len() + 1]); a.len() + 1];
+
         v.expand(Pos(0, 0));
+        layers[0].m[0] = 0;
         for j in 1..=b.len() {
             v.expand(Pos(0, j as I));
-            m[0][j] = j as Cost * self.cm.ins();
-        }
-        for (i, &ca) in a.iter().enumerate() {
-            // We can't pass m[i] and m[i+1] both at the same time, so we must split the vector instead.
-            let [ref mut prev, ref mut next] = m[i..i + 2] else {panic!();};
-            self.next_layer(i, ca, b, prev, next, v);
+            // Initialize the main layer with linear deletions.
+            layers[0].m[j] = self.cm.del_or(INF, |del| j as Cost * del);
+
+            // Initialize the affine deletion layers.
+            for (costs, next_layer) in izip!(&self.cm.layers, &mut layers[0].affine) {
+                match costs.affine_type {
+                    Delete => {
+                        next_layer[j] = costs.open + j as Cost * costs.extend;
+                    }
+                    Insert => {}
+                };
+                layers[0].m[j] = min(layers[0].m[j], next_layer[j]);
+            }
         }
 
-        return m[a.len()][b.len()];
+        for (i, &ca) in a.iter().enumerate() {
+            let [prev, next] = &mut layers[i..i+2] else {unreachable!();};
+            self.next_layer_affine(i, ca, b, prev, next, v);
+        }
+
+        // FIXME: Backtrack the optimal path.
+
+        return layers[a.len()].m[b.len()];
     }
 }

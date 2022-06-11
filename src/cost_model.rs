@@ -20,20 +20,48 @@ pub trait CostModel {
     }
 
     /// The cost of inserting a character, or extending an insert.
-    fn ins(&self) -> Cost;
+    fn ins(&self) -> Option<Cost>;
 
     /// The cost of deleting a character, or extending a deletion.
-    fn del(&self) -> Cost;
+    fn del(&self) -> Option<Cost>;
 
-    /// The cost of opening an insertion.
-    fn ins_open(&self) -> Cost {
-        0
+    /// Helper functions to deal with the optionals.
+    fn sub_or<U, F>(&self, default: U, f: F) -> U
+    where
+        F: FnOnce(Cost) -> U,
+    {
+        self.sub().map_or(default, f)
     }
 
-    /// The cost of opening a deletion.
-    fn del_open(&self) -> Cost {
-        0
+    /// Helper functions to deal with the optionals.
+    fn sub_cost_or<U, F>(&self, a: u8, b: u8, default: U, f: F) -> U
+    where
+        F: FnOnce(Cost) -> U,
+    {
+        if a == b {
+            f(Some(0))
+        } else {
+            self.sub_or(default, f)
+        }
     }
+
+    /// Helper functions to deal with the optionals.
+    fn ins_or<U, F>(&self, default: U, f: F) -> U
+    where
+        F: FnOnce(Cost) -> U,
+    {
+        self.ins().map_or(default, f)
+    }
+
+    /// Helper functions to deal with the optionals.
+    fn del_or<U, F>(&self, default: U, f: F) -> U
+    where
+        F: FnOnce(Cost) -> U,
+    {
+        self.del().map_or(default, f)
+    }
+
+    // FIXME: Add methods for open cost.
 }
 
 /// Implement this trait to indicate that the cost model does not use affine costs.
@@ -41,9 +69,9 @@ pub trait LinearCostModel: CostModel {}
 
 pub struct LinearCost {
     /// The substitution cost. None for LCS where substitutions are not allowed.
-    sub: Option<Cost>,
-    ins: Cost,
-    del: Cost,
+    pub sub: Option<Cost>,
+    pub ins: Cost,
+    pub del: Cost,
 }
 
 impl CostModel for LinearCost {
@@ -90,65 +118,88 @@ impl LinearCost {
             del,
         }
     }
-
-    pub fn to_affine(&self) -> AffineCost {
-        AffineCost {
-            sub: self.sub,
-            ins: self.ins,
-            del: self.del,
-            ins_open: 0,
-            del_open: 0,
-        }
-    }
 }
 
-pub struct AffineCost {
-    sub: Option<Cost>,
-    ins: Cost,
-    del: Cost,
-    ins_open: Cost,
-    del_open: Cost,
+pub enum AffineLayerType {
+    Insert,
+    Delete,
+    // TODO: Add homopolymer affine layers that only allow inserting/deleting duplicate characters.
+    // I.e.:
+    // abc -> abbbc
+    // abbbc -> abc
+    //HomoPolymerInsert,
+    //HomoPolymerDelete,
 }
 
-impl CostModel for AffineCost {
+pub struct AffineLayerCosts {
+    affine_type: AffineLayerType,
+    open: Cost,
+    extend: Cost,
+}
+
+/// N is the number of affine layers.
+pub struct AffineCost<const N: usize> {
+    pub sub: Option<Cost>,
+    pub ins: Option<Cost>,
+    pub del: Option<Cost>,
+    pub layers: [AffineLayerCosts; N],
+}
+
+impl<const N: usize> CostModel for AffineCost<N> {
     fn sub(&self) -> Option<Cost> {
         self.sub
     }
 
-    fn ins(&self) -> Cost {
+    fn ins(&self) -> Option<Cost> {
         self.ins
     }
 
-    fn del(&self) -> Cost {
+    fn del(&self) -> Option<Cost> {
         self.del
-    }
-
-    fn ins_open(&self) -> Cost {
-        self.ins_open
-    }
-
-    fn del_open(&self) -> Cost {
-        self.del_open
     }
 }
 
-impl AffineCost {
-    pub fn affine(sub: Cost, open: Cost, extend: Cost) -> Self {
-        Self {
-            sub: Some(sub),
-            ins: extend,
-            del: extend,
-            ins_open: open,
-            del_open: open,
-        }
+pub fn affine(sub: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
+    AffineCost {
+        sub: Some(sub),
+        ins: None,
+        del: None,
+        layers: [
+            AffineLayerCosts {
+                affine_type: AffineLayerType::Insert,
+                open,
+                extend,
+            },
+            AffineLayerCosts {
+                affine_type: AffineLayerType::Delete,
+                open,
+                extend,
+            },
+        ],
     }
-    pub fn affine2(sub: Cost, ins_open: Cost, ins: Cost, del_open: Cost, del: Cost) -> Self {
-        Self {
-            sub: Some(sub),
-            ins,
-            del,
-            ins_open,
-            del_open,
-        }
+}
+pub fn affine2(
+    sub: Cost,
+    ins_open: Cost,
+    ins_extend: Cost,
+    del_open: Cost,
+    del_extend: Cost,
+) -> AffineCost<2> {
+    AffineCost {
+        sub: Some(sub),
+        ins: None,
+        del: None,
+        layers: [
+            AffineLayerCosts {
+                affine_type: AffineLayerType::Insert,
+                open: ins_open,
+                extend: ins_extend,
+            },
+            AffineLayerCosts {
+                affine_type: AffineLayerType::Delete,
+                open: del_open,
+                extend: del_extend,
+            },
+        ],
     }
 }
