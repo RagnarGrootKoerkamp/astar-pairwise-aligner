@@ -1059,11 +1059,7 @@ fn biwfa_affine2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
         Some((s - d, p as usize))
     };
 
-    let check_point = |set: &mut (
-        &mut Vec<Vec<isize>>,
-        &mut Vec<Vec<isize>>,
-        &mut Vec<Vec<isize>>,
-    ),
+    let check_point = |set: &mut (Vec<Vec<isize>>, Vec<Vec<isize>>, Vec<Vec<isize>>),
                        s: usize,
                        j: usize,
                        k: isize|
@@ -1081,24 +1077,17 @@ fn biwfa_affine2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
         t
     };
 
-    let compare = |set1: &mut (
-        &mut Vec<Vec<isize>>,
-        &mut Vec<Vec<isize>>,
-        &mut Vec<Vec<isize>>,
-    ),
+    let compare = |set1: &mut (Vec<Vec<isize>>, Vec<Vec<isize>>, Vec<Vec<isize>>),
                    s1: usize,
                    set2: &mut (
         //set2 is reverse!!! Do not swap set1 and set2! They have different allocations!
-        &mut Vec<Vec<isize>>,
-        &mut Vec<Vec<isize>>,
-        &mut Vec<Vec<isize>>,
+        Vec<Vec<isize>>,
+        Vec<Vec<isize>>,
+        Vec<Vec<isize>>,
     ),
                    s2: usize|
      -> (bool, usize) {
         //bool - do these layers cover each other?; usize - if they do, how much do we need to substruct? (0 or o (open cost))
-
-        let (M, I, D) = set1;
-        let (Mr, Ir, Dr) = set2;
 
         let k_min1 = -(s1 as isize);
         let k_max1 = (s1 as isize);
@@ -1110,6 +1099,8 @@ fn biwfa_affine2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
         let mut j2 = (2 * s2 as isize - k_min - k0) as usize;
         let mut f = false;
         if k_min - k_max <= 1 {
+            let (M, I, D) = set1;
+            let (Mr, Ir, Dr) = set2;
             if cmp(
                 D[s1][(s1 as isize + k_max + 1) as usize],
                 Dr[s2][(2 * s2 as isize - k_max) as usize],
@@ -1119,6 +1110,8 @@ fn biwfa_affine2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
             }
         }
         for k in k_min..=k_max {
+            let (M, I, D) = set1;
+            let (Mr, Ir, Dr) = set2;
             //comparing...
             if j2 + 1 < 1 + s2 * 2 && cmp(D[s1][j1], Dr[s2][j2 + 1], len1 + 1) {
                 return (true, o);
@@ -1127,8 +1120,10 @@ fn biwfa_affine2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
                 return (true, o);
             }
 
-            let t1 = check_point(&mut set1, s1, j1, k);
-            let t2 = check_point(&mut set2, s2, j2, -(k - k0));
+            let t1 = check_point(set1, s1, j1, k);
+            let t2 = check_point(set2, s2, j2, -(k - k0));
+            let (M, I, D) = set1;
+            let (Mr, Ir, Dr) = set2;
 
             if cmp(M[s1][j1], Mr[s2][j2], len1)
                 || (M[s1][j1] > 0
@@ -1149,57 +1144,51 @@ fn biwfa_affine2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
         return (f, 0);
     };
 
-    let expand_layer = |set: &mut (
-        &mut Vec<Vec<isize>>,
-        &mut Vec<Vec<isize>>,
-        &mut Vec<Vec<isize>>,
-    ),
-                        s: usize,
-                        d: isize|
-     -> () {
-        //d == 1 for forward fron; d == -1 for reverse
-        let (M, I, D) = set;
-        let w = 1 + s * 2;
-        //memory allocations
-        if s > 0 {
-            M.push(vec![NEG; w]);
-            I.push(vec![NEG; w]);
-            D.push(vec![NEG; w]);
-            M[s] = vec![NEG; w];
-        } else {
-            M[s] = vec![0isize; w];
-        }
-        I[s] = vec![NEG; w];
-        D[s] = vec![NEG; w];
-        let mut k = -d * (w as isize / 2);
-        for j in 0..w {
-            if let Some((i1, j1)) = get_j(s, o + e, (k - d) * d) {
-                I[s][j] = M[i1][j1] + 1;
-            }
-            if let Some((i1, j1)) = get_j(s, e, (k - d) * d) {
-                I[s][j] = max(I[i1][j1] + 1, I[s][j]);
-            }
-
-            if let Some((i1, j1)) = get_j(s, o + e, (k + d) * d) {
-                D[s][j] = M[i1][j1];
-            }
-            if let Some((i1, j1)) = get_j(s, e, (k + d) * d) {
-                D[s][j] = max(D[i1][j1], D[s][j]);
-            }
-
+    let expand_layer =
+        |set: &mut (Vec<Vec<isize>>, Vec<Vec<isize>>, Vec<Vec<isize>>), s: usize, d: isize| -> () {
+            //d == 1 for forward fron; d == -1 for reverse
+            let (M, I, D) = set;
+            let w = 1 + s * 2;
+            //memory allocations
             if s > 0 {
-                M[s][j] = max(I[s][j], D[s][j]);
-
-                if let Some((i1, j1)) = get_j(s, x, k * d) {
-                    // println!("S {i1}\t{j1}\t{s}\t{k}\n");
-                    M[s][j] = max(M[i1][j1] + 1, M[s][j]);
-                }
+                M.push(vec![NEG; w]);
+                I.push(vec![NEG; w]);
+                D.push(vec![NEG; w]);
+                M[s] = vec![NEG; w];
+            } else {
+                M[s] = vec![0isize; w];
             }
+            I[s] = vec![NEG; w];
+            D[s] = vec![NEG; w];
+            let mut k = -d * (w as isize / 2);
+            for j in 0..w {
+                if let Some((i1, j1)) = get_j(s, o + e, (k - d) * d) {
+                    I[s][j] = M[i1][j1] + 1;
+                }
+                if let Some((i1, j1)) = get_j(s, e, (k - d) * d) {
+                    I[s][j] = max(I[i1][j1] + 1, I[s][j]);
+                }
 
-            explore_diagonal2(s1, s2, &mut M[s][j], s, j, d);
-            k += d;
-        }
-    };
+                if let Some((i1, j1)) = get_j(s, o + e, (k + d) * d) {
+                    D[s][j] = M[i1][j1];
+                }
+                if let Some((i1, j1)) = get_j(s, e, (k + d) * d) {
+                    D[s][j] = max(D[i1][j1], D[s][j]);
+                }
+
+                if s > 0 {
+                    M[s][j] = max(I[s][j], D[s][j]);
+
+                    if let Some((i1, j1)) = get_j(s, x, k * d) {
+                        // println!("S {i1}\t{j1}\t{s}\t{k}\n");
+                        M[s][j] = max(M[i1][j1] + 1, M[s][j]);
+                    }
+                }
+
+                explore_diagonal2(s1, s2, &mut M[s][j], s, j, d);
+                k += d;
+            }
+        };
 
     //intialization
     const NEG: isize = isize::MIN;
@@ -1209,8 +1198,8 @@ fn biwfa_affine2<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
     let mut Mr = vec![vec![]]; // Reverse main layer
     let mut Ir = vec![vec![]]; // Reverse insertion layer
     let mut Dr = vec![vec![]]; // Reverse deletion layer
-    let mut set1 = (&mut M, &mut I, &mut D);
-    let mut set2 = (&mut Mr, &mut Ir, &mut Dr);
+    let mut set1 = (M, I, D);
+    let mut set2 = (Mr, Ir, Dr);
     let mut w = 1;
 
     //main loop
