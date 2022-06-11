@@ -31,17 +31,17 @@ trait Aligner {
     /// Can be either LinearCost or AffineCost, as needed by the algorithm.
     type CostModel: CostModel;
 
-    fn cost(cm: Self::CostModel, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
+    fn cost(cm: &Self::CostModel, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
         Self::align(cm, a, b, params)
     }
 
     /// TODO: Make this return a path as well.
-    fn align(cm: Self::CostModel, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
+    fn align(cm: &Self::CostModel, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
         Self::visualize(cm, a, b, params, &mut NoVisualizer)
     }
 
     fn visualize(
-        _cm: Self::CostModel,
+        _cm: &Self::CostModel,
         _a: &Sequence,
         _b: &Sequence,
         _params: Self::Params,

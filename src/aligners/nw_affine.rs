@@ -11,7 +11,7 @@ impl Aligner for NWAffine {
     type CostModel = AffineCost;
 
     /// The cost-only version uses linear memory.
-    fn cost(cm: Self::CostModel, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
+    fn cost(cm: &Self::CostModel, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
         // TODO: Make this a single 2D vec of structs instead?
         // NOTE: Index 0 and 1 correspond to `prev` and `next` in the non-affine `NW`.
         // End with an insertion.
@@ -53,7 +53,7 @@ impl Aligner for NWAffine {
     }
 
     fn visualize(
-        cm: Self::CostModel,
+        cm: &Self::CostModel,
         a: &Sequence,
         b: &Sequence,
         _params: Self::Params,
