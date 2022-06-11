@@ -1,4 +1,5 @@
-use super::{cost_model::*, nw::NW, Aligner, Visualizer};
+use super::{nw::NW, Aligner, Visualizer};
+use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence, I};
 use std::cmp::min;
 

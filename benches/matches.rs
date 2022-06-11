@@ -20,7 +20,6 @@ mod matches {
 
     use aho_corasick::AhoCorasickBuilder;
     use bio::data_structures::suffix_array::suffix_array;
-    use bio_types::sequence::Sequence;
     use itertools::Itertools;
     use suffix::SuffixTable;
 
