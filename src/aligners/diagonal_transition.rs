@@ -142,10 +142,9 @@ impl DiagonalTransition<LinearCost> {
         a: &Vec<u8>,
         b: &Vec<u8>,
         s: u32,
-        // This may be a dummy layer when subs are not actually allowed.
-        l_sub: &Vec<i32>,
         l_ins: &Vec<i32>,
         l_del: &Vec<i32>,
+        l_sub: Option<&Vec<i32>>,
         next: &mut Vec<i32>,
         v: &mut impl Visualizer,
     ) -> bool {
@@ -156,16 +155,16 @@ impl DiagonalTransition<LinearCost> {
             self.left_buffer + (dmax - dmin) as usize + 1 + self.right_buffer,
             FR::MIN,
         );
-        let dmin_sub = self.cm.sub().map(|sub| self.dmin_for_layer(s - sub));
         let dmin_ins = self.dmin_for_layer(s - self.cm.ins());
         let dmin_del = self.dmin_for_layer(s - self.cm.del());
+        let dmin_sub = self.cm.sub().map(|sub| self.dmin_for_layer(s - sub));
         // Simply loop over the entire range -- the boundaries are buffered
         // so no boundary conditions are needed.
         for d in dmin..=dmax {
             let f = max(
                 // Substitution, if allowed
                 if let Some(dmin_sub) = dmin_sub {
-                    self.index_layer(l_sub, d, dmin_sub) + 1
+                    self.index_layer(l_sub.unwrap(), d, dmin_sub) + 1
                 } else {
                     FR::MIN
                 },
@@ -217,13 +216,14 @@ impl Aligner for DiagonalTransition<LinearCost> {
             // Take the next layer out, and put it back later.
             // This is needed to avoid borrow problems.
             let mut next = std::mem::take(&mut fr[(num_layers + s as usize) % num_layers]);
-            let ref l_sub = fr[(num_layers + s as usize
-                - self.cm.sub().unwrap_or_default() as usize)
-                % num_layers];
             let ref l_ins = fr[(num_layers + s as usize - self.cm.ins() as usize) % num_layers];
             let ref l_del = fr[(num_layers + s as usize - self.cm.del() as usize) % num_layers];
+            let l_sub = self
+                .cm
+                .sub()
+                .map(|sub| &fr[(num_layers + s as usize - sub as usize) % num_layers]);
 
-            if self.next_layer(a, b, s, l_sub, l_ins, l_del, &mut next, &mut NoVisualizer) {
+            if self.next_layer(a, b, s, l_ins, l_del, l_sub, &mut next, &mut NoVisualizer) {
                 return s;
             }
             fr[(num_layers + s as usize) % num_layers] = next;
@@ -248,13 +248,13 @@ impl Aligner for DiagonalTransition<LinearCost> {
         let mut s = 0;
         loop {
             s += 1;
-            let l_sub = self.get_layer(fr, s, self.cm.sub().unwrap_or(1));
             let l_ins = self.get_layer(fr, s, self.cm.ins());
             let l_del = self.get_layer(fr, s, self.cm.del());
+            let l_sub = self.cm.sub().map(|sub| self.get_layer(fr, s, sub));
 
             let mut next = vec![];
 
-            if self.next_layer(a, b, s, l_sub, l_ins, l_del, &mut next, v) {
+            if self.next_layer(a, b, s, l_ins, l_del, l_sub, &mut next, v) {
                 // TODO: Reconstruct path.
                 return s;
             }
