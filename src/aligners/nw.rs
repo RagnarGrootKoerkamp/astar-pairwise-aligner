@@ -1,4 +1,4 @@
-use itertools::izip;
+use itertools::{chain, izip};
 
 use super::NoVisualizer;
 use super::{Aligner, Visualizer};
@@ -14,18 +14,39 @@ pub struct NW<CM: CostModel> {
 const INF: Cost = Cost::MAX / 2;
 
 #[derive(Clone)]
-struct Layers<const N: usize, T> {
-    m: T,
-    affine: [T; N],
+pub struct Layers<const N: usize, T> {
+    pub m: T,
+    pub affine: [T; N],
 }
 
 impl<const N: usize, T> Layers<N, T> {
-    fn new(m: T) -> Self
+    pub fn new(m: T) -> Self
     where
         T: Clone,
     {
         let affine = [(); N].map(|_| m.clone());
         Self { m, affine }
+    }
+}
+
+impl<'a, const N: usize, T> IntoIterator for &'a Layers<N, T> {
+    type Item = &'a T;
+
+    type IntoIter = std::iter::Chain<std::array::IntoIter<&'a T, 1_usize>, std::slice::Iter<'a, T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        chain([&self.m], self.affine.iter()).into_iter()
+    }
+}
+
+impl<'a, const N: usize, T> IntoIterator for &'a mut Layers<N, T> {
+    type Item = &'a mut T;
+
+    type IntoIter =
+        std::iter::Chain<std::array::IntoIter<&'a mut T, 1_usize>, std::slice::IterMut<'a, T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        chain([&mut self.m], self.affine.iter_mut()).into_iter()
     }
 }
 
