@@ -15,9 +15,9 @@ impl NW<AffineCost> {
         i: usize,
         ca: u8,
         b: &Sequence,
-        ins: &mut [Vec<Cost>; 2],
-        del: &mut [Vec<Cost>; 2],
-        m: &mut [Vec<Cost>; 2],
+        ins: [&mut Vec<Cost>; 2],
+        del: [&mut Vec<Cost>; 2],
+        m: [&mut Vec<Cost>; 2],
         v: &mut impl Visualizer,
     ) {
         v.expand(Pos(i as I + 1, 0));
@@ -52,11 +52,11 @@ impl Aligner for NW<AffineCost> {
         // TODO: Make this a single 2D vec of structs instead?
         // NOTE: Index 0 and 1 correspond to `prev` and `next` in the non-affine `NW`.
         // End with an insertion.
-        let mut ins = [vec![INF; b.len() + 1], vec![INF; b.len() + 1]];
+        let ref mut ins = [vec![INF; b.len() + 1], vec![INF; b.len() + 1]];
         // End with a deletion.
-        let mut del = [vec![INF; b.len() + 1], vec![INF; b.len() + 1]];
+        let ref mut del = [vec![INF; b.len() + 1], vec![INF; b.len() + 1]];
         // End with anything.
-        let mut m = [vec![INF; b.len() + 1], vec![INF; b.len() + 1]];
+        let ref mut m = [vec![INF; b.len() + 1], vec![INF; b.len() + 1]];
         m[1][0] = 0;
         ins[1][0] = 0;
         del[1][0] = 0;
@@ -68,7 +68,19 @@ impl Aligner for NW<AffineCost> {
             ins.reverse();
             del.reverse();
             m.reverse();
-            self.next_layer_affine(i, ca, b, &mut ins, &mut del, &mut m, &mut NoVisualizer);
+            let get_layers = |m: &mut [Vec<Cost>; 2]| {
+                let [ref mut prev, ref mut next] = m;
+                [prev, next]
+            };
+            self.next_layer_affine(
+                i,
+                ca,
+                b,
+                get_layers(ins),
+                get_layers(del),
+                get_layers(m),
+                &mut NoVisualizer,
+            );
         }
 
         return m[1][b.len()];
@@ -83,11 +95,11 @@ impl Aligner for NW<AffineCost> {
     ) -> Cost {
         // TODO: Make this a single 2D vec of structs instead?
         // End with an insertion.
-        let mut ins = vec![vec![INF; b.len() + 1]; a.len() + 1];
+        let ref mut ins = vec![vec![INF; b.len() + 1]; a.len() + 1];
         // End with a deletion.
-        let mut del = vec![vec![INF; b.len() + 1]; a.len() + 1];
+        let ref mut del = vec![vec![INF; b.len() + 1]; a.len() + 1];
         // End with anything.
-        let mut m = vec![vec![INF; b.len() + 1]; a.len() + 1];
+        let ref mut m = vec![vec![INF; b.len() + 1]; a.len() + 1];
 
         visualizer.expand(Pos(0, 0));
         m[0][0] = 0;
@@ -99,14 +111,19 @@ impl Aligner for NW<AffineCost> {
             m[0][j] = del[0][j];
         }
         for (i, &ca) in a.iter().enumerate() {
+            let get_layers = |m: &mut Vec<Vec<Cost>>| {
+                let [ref mut prev, ref mut next] = m[i..i + 2];
+                [prev, next]
+            };
+
             self.next_layer_affine(
                 i,
                 ca,
                 b,
                 // Get a mutable slice of 2 rows from each of the arrays.
-                &mut ins[i..i + 2].as_chunks_mut::<2>().0[0],
-                &mut del[i..i + 2].as_chunks_mut::<2>().0[0],
-                &mut m[i..i + 2].as_chunks_mut::<2>().0[0],
+                get_layers(ins),
+                get_layers(del),
+                get_layers(m),
                 visualizer,
             );
         }
