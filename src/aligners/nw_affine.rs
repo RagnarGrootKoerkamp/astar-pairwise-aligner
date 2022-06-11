@@ -45,8 +45,6 @@ impl NW<AffineCost> {
 }
 
 impl Aligner for NW<AffineCost> {
-    type Params = ();
-
     /// The cost-only version uses linear memory.
     fn cost(&self, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
         // TODO: Make this a single 2D vec of structs instead?

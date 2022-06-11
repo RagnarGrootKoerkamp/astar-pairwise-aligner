@@ -3,11 +3,12 @@
 use crate::prelude::{Cost, Pos, Sequence};
 
 pub mod diagonal_transition;
+pub mod diagonal_transition_affine;
 pub mod nw;
 pub mod nw_affine;
 
 /// A visualizer can be used to visualize progress of an implementation.
-trait Visualizer {
+pub trait Visualizer {
     fn explore(&mut self, _pos: Pos) {}
     fn expand(&mut self, _pos: Pos) {}
 }
@@ -30,8 +31,8 @@ impl Visualizer for NoVisualizer {}
 /// - cost, alignment, and a visualization.
 ///
 /// Note that insertions are when `b` has more characters than `a`, and deletions are when `b` has less characters than `a`.
-trait Aligner {
-    type Params;
+pub trait Aligner {
+    type Params = ();
 
     fn cost(&self, a: &Sequence, b: &Sequence, params: Self::Params) -> Cost {
         self.align(a, b, params)
