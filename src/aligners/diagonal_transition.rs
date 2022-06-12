@@ -346,7 +346,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
     /// The cost-only version uses linear memory.
     ///
     /// In particular, the number of layers is max(sub, ins, del)+1.
-    fn cost(&self, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
+    fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
         let Some(ref mut layers) =
             self.init_layers(a, b, &mut NoVisualizer) else {return 0;};
 
@@ -362,15 +362,9 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
         }
     }
 
-    // NOTE: DT does not explore states; it only expands them.
-    fn visualize(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        _params: Self::Params,
-        v: &mut impl Visualizer,
-    ) -> Cost {
         let Some(ref mut layers) = self.init_layers(a, b, v) else {
+    /// NOTE: DT does not explore states; it only expands them.
+    fn visualize(&self, a: &Sequence, b: &Sequence, v: &mut impl Visualizer) -> Cost {
             return 0;
         };
 
