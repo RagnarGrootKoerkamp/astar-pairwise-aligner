@@ -102,6 +102,8 @@ impl Trie {
             j: MatchLen,
             /// Cost of match so far
             cost: MatchCost,
+            /// True if ending with an insert.
+            last_is_insert: bool,
         }
 
         // TODO: BFS vs DFS vs Dijkstra?
@@ -110,13 +112,24 @@ impl Trie {
             i: 0,
             j: 0,
             cost: 0,
+            last_is_insert: false,
         }];
 
-        while let Some(QueueElement { state, i, j, cost }) = queue.pop() {
+        while let Some(QueueElement {
+            state,
+            i,
+            j,
+            cost,
+            last_is_insert,
+        }) = queue.pop()
+        {
             //println!("Trie state {state} max cost {max_cost} cur cost {cost} at depth {depth} remaining {remaining_seed:?}");
             // No more matches
 
             if (i as usize) == seed.len() {
+                if SKIP_INEXACT_INSERT_START_END && last_is_insert {
+                    continue;
+                }
                 // If the remaining part is empty, emit this subtree.
                 self.emit_subtree(cost, j, state, &mut f);
             } else {
@@ -126,7 +139,6 @@ impl Trie {
                     if *state == State::MAX {
                         continue;
                     }
-                    // TODO: Replace with actual costs.
                     let mismatch_cost = if ci == matching_index {
                         0
                     } else {
@@ -141,11 +153,11 @@ impl Trie {
                         i: i + 1,
                         j: j + 1,
                         cost: cost + mismatch_cost as MatchCost,
+                        last_is_insert: false,
                     });
                 }
 
                 // Delete a char: the character in the seed is ignored, and we remain at the same depth.
-                // TODO: Replace with actual costs.
                 if let Some(del) = cost_model.del() {
                     if cost + del as MatchCost <= max_cost {
                         queue.push(QueueElement {
@@ -153,6 +165,7 @@ impl Trie {
                             i: i + 1,
                             j,
                             cost: cost + del as MatchCost,
+                            last_is_insert: false,
                         });
                     }
                 }
@@ -160,7 +173,9 @@ impl Trie {
 
             // Insert a char: No character from the seed is needed, but we increase the depth.
             // NOTE: We never insert the next character in the string, as we could directly match that instead.
-            // TODO: Replace with actual costs.
+            if SKIP_INEXACT_INSERT_START_END && state == 0 {
+                continue;
+            }
             if let Some(ins) = cost_model.ins() {
                 let matching_index = seed
                     .get(i as usize)
@@ -180,6 +195,7 @@ impl Trie {
                         i,
                         j: j + 1,
                         cost: cost + ins as MatchCost,
+                        last_is_insert: true,
                     });
                 }
             }
