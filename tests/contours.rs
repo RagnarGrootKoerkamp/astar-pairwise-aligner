@@ -274,29 +274,3 @@ fn unordered() {
         }
     }
 }
-
-#[test]
-fn no_gap_cost() {
-    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
-        for n in [40, 100, 200, 500, 1000] {
-            for e in [0.1, 0.3, 1.0] {
-                let h = CSH {
-                    match_config: MatchConfig {
-                        length: Fixed(k),
-                        max_match_cost,
-                        window_filter: false,
-                        ..MatchConfig::default()
-                    },
-                    pruning: true,
-                    use_gap_cost: false,
-                    c: PhantomData::<HintContours<BruteForceContour>>,
-                };
-                let (a, b, alph, stats) = setup(n, e);
-                println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, &alph, stats, h.equal_to_zero_cost_seed_heuristic());
-                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
-            }
-        }
-    }
-}
