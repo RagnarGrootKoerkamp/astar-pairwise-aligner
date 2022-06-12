@@ -7,8 +7,43 @@ use crate::prelude::{Pos, Sequence};
 use std::cmp::{max, min};
 use std::iter::zip;
 
+/// The type for storing FR points.
+/// Sizes, so that we can default them to -INF.
+type FR = i32;
+/// One front consists of N+1 layers of vectors of FR points.
+type Front<const N: usize> = Layers<N, Vec<FR>>;
+
+/// A reference to a single layer of a single front.
+/// Contains the offset needed to index it.
+#[derive(Clone, Copy)]
+struct Layer<'a> {
+    /// The (affine) layer to use.
+    l: &'a Vec<FR>,
+    /// The minimum value of `d` used in this layer.
+    /// When `dmin=-5`, diagonal `0` is at index `left_buffer + 5.
+    dmin: isize,
+}
+
+/// A mutable reference to a single layer of a single front.
+/// Contains the offset needed to index it.
+struct MutLayer<'a> {
+    /// The (affine) layer to use.
+    l: &'a mut Vec<FR>,
+    /// The minimum value of `d` used in this layer.
+    /// When `dmin=-5`, diagonal `0` is at index `left_buffer + 5.
+    dmin: isize,
+}
+
+
+/// Diagonal transition algorithm, with support for affine costs.
+///
+/// Terminology:
+/// - Front: the furthest reaching points for a fixed distance s.
+/// - Layer: the extra I/D matrices needed for each affine indel.
 pub struct DiagonalTransition<CM: CostModel> {
+    /// The CostModel to use, possibly affine.
     cm: CM,
+
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
     /// making a substitution.
@@ -39,27 +74,6 @@ pub struct DiagonalTransition<CM: CostModel> {
     /// For affine costs, we replace the numerator by the maximum open+extend cost, and the numerator by the minimum extend cost.
     left_buffer: usize,
     right_buffer: usize,
-}
-
-// The type for storing FR points.
-type FR = i32;
-type DTLayers<const N: usize> = Layers<N, Vec<FR>>;
-
-#[derive(Clone, Copy)]
-struct DTLayerRef<'a> {
-    /// The (affine) layer to use.
-    l: &'a Vec<FR>,
-    /// The minimum value of `d` used in this layer.
-    /// When `dmin=-5`, diagonal `0` is at index `left_buffer + 5.
-    dmin: isize,
-}
-
-struct MutDTLayerRef<'a> {
-    /// The (affine) layer to use.
-    l: &'a mut Vec<FR>,
-    /// The minimum value of `d` used in this layer.
-    /// When `dmin=-5`, diagonal `0` is at index `left_buffer + 5.
-    dmin: isize,
 }
 
 impl<CM: CostModel> DiagonalTransition<CM> {
@@ -170,28 +184,28 @@ impl<CM: CostModel> DiagonalTransition<CM> {
     }
 
     #[inline]
-    fn index_layer(&self, l: DTLayerRef, idx: isize) -> FR {
+    fn index_layer(&self, l: Layer, idx: isize) -> FR {
         l.l[self.left_buffer + (idx - l.dmin) as usize]
     }
 
     #[inline]
-    fn index_layer_mut<'a, 'b>(&self, l: &'a mut MutDTLayerRef<'b>, idx: isize) -> &'a mut FR {
+    fn index_layer_mut<'a, 'b>(&self, l: &'a mut MutLayer<'b>, idx: isize) -> &'a mut FR {
         &mut l.l[self.left_buffer + (idx - l.dmin) as usize]
     }
 }
 
 impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// Returns None when the distance is 0.
-    fn init_layers(
+    fn init_fronts(
         &self,
         a: &Vec<u8>,
         b: &Vec<u8>,
         v: &mut impl Visualizer,
-    ) -> Option<Vec<DTLayers<N>>> {
+    ) -> Option<Vec<Front<N>>> {
         let num_layers = self.top_buffer + 1;
         assert!(num_layers > self.cm.sub().unwrap_or_default() as usize);
-        assert!(num_layers > self.cm.max_ins_cost() as usize);
-        assert!(num_layers > self.cm.max_del_cost() as usize);
+        assert!(num_layers > self.cm.max_ins_open_extend_cost() as usize);
+        assert!(num_layers > self.cm.max_del_open_extend_cost() as usize);
         let mut layers =
             vec![Layers::new(vec![FR::MIN; self.left_buffer + 1 + self.right_buffer]); num_layers];
         layers[num_layers - 1].m[self.left_buffer] = {
@@ -217,13 +231,13 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     ///
     /// Returns `true` when the search completes.
     #[inline]
-    fn next_layer(
+    fn next_front(
         &self,
         a: &Vec<u8>,
         b: &Vec<u8>,
         s: u32,
-        prev: &[DTLayers<N>],
-        next: &mut DTLayers<N>,
+        prev: &[Front<N>],
+        next: &mut Front<N>,
         v: &mut impl Visualizer,
     ) -> bool {
         // The first and last active diagonal for the current layer.
@@ -240,7 +254,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         });
 
         // Wrap the m layer in a mutable reference that contains the offset, for easier indexing.
-        let ref mut next_m = MutDTLayerRef {
+        let ref mut next_m = MutLayer {
             l: &mut next.m,
             dmin,
         };
@@ -250,7 +264,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
 
         // The layer dependencies for the sub/ins/del operations, with offsets.
         let linear_layers = [self.cm.sub(), self.cm.ins(), self.cm.del()].map(|cost| {
-            cost.map(|cost| DTLayerRef {
+            cost.map(|cost| Layer {
                 l: &get_layer(cost).m,
                 dmin: self.dmin_for_layer(s - cost),
             })
@@ -265,7 +279,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 [
                     // Gap extend dependency.
                     // Depends on the affine layer itself, at cost `cm.extend` back.
-                    DTLayerRef {
+                    Layer {
                         l: &get_layer(cm.extend).affine[affine_layer as usize],
                         dmin: self.dmin_for_layer(s - cm.extend),
                     },
@@ -313,8 +327,9 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                             affine_f = max(affine_f, self.index_layer(l, d - 1) + 1);
                         }
                     }
+                    _ => todo!(),
                 };
-                *self.index_layer_mut(&mut MutDTLayerRef { l, dmin }, d) = affine_f;
+                *self.index_layer_mut(&mut MutLayer { l, dmin }, d) = affine_f;
                 f = max(f, affine_f);
             }
             *self.index_layer_mut(next_m, d) = f;
@@ -322,6 +337,18 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             v.expand(Pos::from(f, f as isize + d));
         }
         // Stage 2: extend all points in the m layer and check if we're done.
+        self.extend(dmin, dmax, next_m, a, b, v)
+    }
+
+    fn extend(
+        &self,
+        dmin: isize,
+        dmax: isize,
+        next_m: &mut MutLayer,
+        a: &Vec<u8>,
+        b: &Vec<u8>,
+        v: &mut impl Visualizer,
+    ) -> bool {
         for d in dmin..=dmax {
             let f = self.index_layer_mut(next_m, d);
             let f_old = *f;
@@ -332,7 +359,6 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 v.expand(p);
             }
         }
-
         if *self.index_layer_mut(next_m, a.len() as isize - b.len() as isize) >= a.len() as FR {
             return true;
         }
@@ -343,10 +369,10 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
 impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
     /// The cost-only version uses linear memory.
     ///
-    /// In particular, the number of layers is max(sub, ins, del)+1.
+    /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
         let Some(ref mut layers) =
-            self.init_layers(a, b, &mut NoVisualizer) else {return 0;};
+            self.init_fronts(a, b, &mut NoVisualizer) else {return 0;};
 
         let mut s = 0;
         loop {
@@ -354,15 +380,15 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
             // Rotate all layers back by one, so that we can fill the new last layer.
             layers.rotate_left(1);
             let (next, layers) = layers.split_last_mut().unwrap();
-            if self.next_layer(a, b, s, layers, next, &mut NoVisualizer) {
+            if self.next_front(a, b, s, layers, next, &mut NoVisualizer) {
                 return s;
             }
         }
     }
 
-        let Some(ref mut layers) = self.init_layers(a, b, v) else {
     /// NOTE: DT does not explore states; it only expands them.
     fn visualize(&self, a: &Sequence, b: &Sequence, v: &mut impl Visualizer) -> Cost {
+        let Some(ref mut layers) = self.init_fronts(a, b, v) else {
             return 0;
         };
 
@@ -372,9 +398,9 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
         loop {
             s += 1;
 
-            let mut next = DTLayers::<N>::new(vec![]);
+            let mut next = Front::<N>::new(vec![]);
 
-            if self.next_layer(a, b, s, layers, &mut next, v) {
+            if self.next_front(a, b, s, layers, &mut next, v) {
                 // FIXME: Reconstruct path.
                 return s;
             }
