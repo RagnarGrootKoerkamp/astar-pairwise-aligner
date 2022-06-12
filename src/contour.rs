@@ -55,7 +55,7 @@ pub trait Contour: Default + Debug + Clone {
 /// An arrow implies f(start) >= f(end) + len.
 /// This is only needed for Contours, since Contour already assumes the points all have the same value.
 /// NOTE: It is assumed that |start - end|_1 <= 2 * len. This is needed to ensure the bounded width of each contour.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Arrow {
     pub start: Pos,
     pub end: Pos,
