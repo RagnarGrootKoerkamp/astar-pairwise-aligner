@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1654986995098,
+  "lastUpdate": 1655006473211,
   "repoUrl": "https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner",
   "entries": {
     "Rust Benchmark": [
@@ -14255,6 +14255,78 @@ window.BENCHMARK_DATA = {
             "name": "fast_50000_similar",
             "value": 81879234,
             "range": "± 1261321",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ragnar.grootkoerkamp@gmail.com",
+            "name": "Ragnar Groot Koerkamp",
+            "username": "RagnarGrootKoerkamp"
+          },
+          "committer": {
+            "email": "ragnar.grootkoerkamp@gmail.com",
+            "name": "Ragnar Groot Koerkamp",
+            "username": "RagnarGrootKoerkamp"
+          },
+          "distinct": true,
+          "id": "4663d1b0e8033186206a996c4867d49a1aad72fa",
+          "message": "Make BruteforceCSH prune by arrow, not by start pos. And update pruning logic",
+          "timestamp": "2022-06-11T20:55:32-07:00",
+          "tree_id": "299050b1307662b3248125cac2ae73f07d2c6ad8",
+          "url": "https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/commit/4663d1b0e8033186206a996c4867d49a1aad72fa"
+        },
+        "date": 1655006472590,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "base_100",
+            "value": 35713,
+            "range": "± 1392",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "base_1000",
+            "value": 883582,
+            "range": "± 16108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "base_10000",
+            "value": 38135733,
+            "range": "± 728706",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "base_50000_similar",
+            "value": 81949137,
+            "range": "± 2972768",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fast_100",
+            "value": 31427,
+            "range": "± 552",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fast_1000",
+            "value": 777831,
+            "range": "± 27043",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fast_10000",
+            "value": 35511048,
+            "range": "± 596148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fast_50000_similar",
+            "value": 72129637,
+            "range": "± 2920433",
             "unit": "ns/iter"
           }
         ]
