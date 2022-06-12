@@ -194,14 +194,15 @@ impl<C: Contours> CSHI<C> {
             .seeds
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
+
+        h.num_matches = h.seeds.matches.len();
         {
             // Need to take it out of h.seeds because transform also uses this.
             let mut matches = std::mem::take(&mut h.seeds.matches);
-            h.num_matches = matches.len();
             matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);
-            h.num_filtered_matches = matches.len();
             h.seeds.matches = matches;
         }
+        h.num_filtered_matches = h.seeds.matches.len();
 
         // Transform to Arrows.
         // For arrows with length > 1, also make arrows for length down to 1.
