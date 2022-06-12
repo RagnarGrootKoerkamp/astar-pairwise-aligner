@@ -327,14 +327,24 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             );
         });
 
-        // Get the layers `cost` from the top/last one.
+        // A helper array to zip with the affine layers, for indexing.
+        let affine_indices: [usize; N] = (0..).collect();
+
+        // Before iterating over the diagonals to fill the new front, we
+        // precompute the previous layers that each layer in the new front depends on.
+
+        // Get the front `cost` before the last one.
         let get_front = |cost| &prev[prev.len() - cost as usize];
 
-        // The layer dependencies for the sub/ins/del operations, with offsets.
+        // The front dependencies for the sub/ins/del operations, with offsets.
+        // I.e., if `sub=2`, the first component will be the front 2 before.
         let linear_layers = [self.cm.sub(), self.cm.ins(), self.cm.del()]
             .map(|cost| cost.map(|cost| get_front(cost).m()));
 
-        // The layer dependencies for each of the affine layers, for both gap extend and gap open operations.
+        // We do the same for the dependencies for all affine layers.
+        // E.g.
+        // `I(s,k) = max(M(s-o-e, k-1) + 1, I(s-e,k-1)+1)`,
+        // so the dependencies for affine layer `I` are `get_layer(o+e).m` and `get_layer(e).I`.
         let affine_layers = {
             // array::map does not support enumeration, so we count manually instead.
             let mut affine_layer = -1 as isize;
