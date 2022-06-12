@@ -1,5 +1,3 @@
-use itertools::izip;
-
 use super::nw::Layers;
 use super::{Aligner, NoVisualizer, Visualizer};
 use crate::cost_model::*;
@@ -104,7 +102,8 @@ impl<'a> IndexMut<isize> for MutLayer<'a> {
 /// Terminology and notation:
 /// - Front: the furthest reaching points for a fixed distance s.
 /// - Layer: the extra I/D matrices needed for each affine indel.
-/// - `s`: iterator over fronts; s=0 is the first front at the top left.
+/// - `s`: iterator over fronts; `s=0` is the first front at the top left.
+/// - `idx`: iterator over the `N` affine layers.
 /// - `d`: iterator over diagonals; `d=0` is the diagonal through the top left.
 ///      `d=1` is above `d=0`. From `d=0` to `d=1` is a deletion.
 /// - `dmin`/`dmax`: the inclusive range of diagonals processed for a given front.
@@ -327,8 +326,15 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             );
         });
 
-        // A helper array to zip with the affine layers, for indexing.
-        let affine_indices: [usize; N] = (0..).collect();
+        // A helper array that just contains N indices.
+        // We map over this to create other [_; N] arrays.
+        let iota = {
+            let mut iota = [0; N];
+            for i in 0..N {
+                iota[i] = i;
+            }
+            iota
+        };
 
         // Before iterating over the diagonals to fill the new front, we
         // precompute the previous layers that each layer in the new front depends on.
@@ -345,21 +351,17 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         // E.g.
         // `I(s,k) = max(M(s-o-e, k-1) + 1, I(s-e,k-1)+1)`,
         // so the dependencies for affine layer `I` are `get_layer(o+e).m` and `get_layer(e).I`.
-        let affine_layers = {
-            // array::map does not support enumeration, so we count manually instead.
-            let mut affine_layer = -1 as isize;
-            self.cm.affine.each_ref().map(|cm| {
-                affine_layer += 1;
-                [
-                    // Gap extend dependency.
-                    // Depends on the affine layer itself, at cost `cm.extend` back.
-                    get_front(cm.extend).affine(affine_layer as usize),
-                    // Gap open dependency.
-                    // Depends on the `m` layer, at cost `cm.open + cm.extend` back.
-                    get_front(cm.open + cm.extend).m(),
-                ]
-            })
-        };
+        let affine_layers = iota.map(|idx| {
+            let cm = &self.cm.affine[idx];
+            [
+                // Gap extend dependency.
+                // Depends on the affine layer itself, at cost `cm.extend` back.
+                get_front(cm.extend).affine(idx),
+                // Gap open dependency.
+                // Depends on the `m` layer, at cost `cm.open + cm.extend` back.
+                get_front(cm.open + cm.extend).m(),
+            ]
+        });
 
         // Loop over the entire dmin..=dmax range.
         // The boundaries are buffered so no boundary checks are needed.
@@ -380,9 +382,9 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 f = max(f, l[d - 1] + 1);
             }
             // Affine layers
-            let mut affine_layer = -1isize;
-            for (cm, open_extend) in izip!(&self.cm.affine, &affine_layers) {
-                affine_layer += 1;
+            for idx in 0..N {
+                let cm = &self.cm.affine[idx];
+                let open_extend = &affine_layers[idx];
                 // The new value of next.affine[..][d] = l[d].
                 let mut affine_f = FR::MIN;
                 // Handle insertion and deletion similar to before.
@@ -399,7 +401,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     }
                     _ => todo!(),
                 };
-                next.affine_mut(affine_layer as usize)[d] = affine_f;
+                next.affine_mut(idx)[d] = affine_f;
                 f = max(f, affine_f);
             }
             next.m_mut()[d] = f;
