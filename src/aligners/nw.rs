@@ -117,7 +117,7 @@ impl<const N: usize> NW<AffineCost<N>> {
 
 impl<const N: usize> Aligner for NW<AffineCost<N>> {
     /// The cost-only version uses linear memory.
-    fn cost(&self, a: &Sequence, b: &Sequence, _params: Self::Params) -> Cost {
+    fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
         let ref mut prev = NWLayers::new(vec![INF; b.len() + 1]);
         let ref mut next = NWLayers::new(vec![INF; b.len() + 1]);
 
@@ -146,13 +146,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         return next.m[b.len()];
     }
 
-    fn visualize(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        _params: Self::Params,
-        v: &mut impl Visualizer,
-    ) -> Cost {
+    fn visualize(&self, a: &Sequence, b: &Sequence, v: &mut impl Visualizer) -> Cost {
         let ref mut layers = vec![NWLayers::<N>::new(vec![INF; b.len() + 1]); a.len() + 1];
 
         v.expand(Pos(0, 0));
