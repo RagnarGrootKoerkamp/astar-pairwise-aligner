@@ -413,10 +413,58 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 v.expand(p);
             }
         }
+
         if front.m_mut()[a.len() as isize - b.len() as isize] >= a.len() as FR {
             return true;
         }
         false
+    }
+
+    /// Detects if there is a diagonal such that the two fronts meet/overlap.
+    /// The overlap can be in any of the affine layers.
+    /// Returns: None is no overlap was found.
+    /// Otherwise:
+    /// - the layer where overlap was found (None for M, Some(i) for affine layer),
+    /// - the diagonal and FR for the forward direction,
+    /// - the diagonal and FR for the backward direction.
+    /// NOTE: the two FR indices may not correspond to the same character, in the case of overlapping greedy matches.
+    fn fronts_overlap(
+        &self,
+        a: &Sequence,
+        b: &Sequence,
+        forward: &mut Front<N>,
+        backward: &mut Front<N>,
+    ) -> Option<(Option<usize>, (isize, FR), (isize, FR))> {
+        // NOTE: This is the same for the forward and reverse direction.
+        let d_target = a.len() as isize - b.len() as isize;
+        let n = a.len() as FR;
+        let mirror = |d| d_target - d;
+        let d_range =
+            max(forward.dmin, mirror(backward.dmax))..=min(forward.dmax, mirror(backward.dmin));
+        // TODO: Provide an (internal) iterator over Layers from Front that merges these two cases.
+        // M
+        for d in d_range.clone() {
+            if forward.m()[d] + backward.m()[mirror(d)] >= n {
+                return Some((
+                    None,
+                    (d, forward.m()[d]),
+                    (mirror(d), forward.m()[mirror(d)]),
+                ));
+            }
+        }
+        // Affine layers
+        for i in 0..N {
+            for d in d_range.clone() {
+                if forward.affine(i)[d] + backward.affine(i)[mirror(d)] >= n {
+                    return Some((
+                        Some(i),
+                        (d, forward.affine(i)[d]),
+                        (mirror(d), forward.affine(i)[mirror(d)]),
+                    ));
+                }
+            }
+        }
+        None
     }
 
     /// Computes the next layer from the current one.
