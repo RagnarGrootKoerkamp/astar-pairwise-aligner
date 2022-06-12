@@ -76,9 +76,10 @@ impl<const N: usize> NW<AffineCost<N>> {
                     layer[0] = cm.open + (i + 1) as Cost * cm.extend;
                     next.m[0] = min(next.m[0], layer[0]);
                 }
-                AffineLayerType::Delete => {
+                DeleteLayer | HomoPolymerDelete { .. } => {
                     layer[0] = INF;
                 }
+                _ => todo!(),
             };
         }
         for (j, &cb) in b.iter().enumerate() {
