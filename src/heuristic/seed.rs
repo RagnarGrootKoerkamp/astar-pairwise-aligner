@@ -285,4 +285,8 @@ impl<'a> HeuristicInstance<'a> for SHI {
     fn seeds(&self) -> Option<&Vec<Seed>> {
         Some(&self.seeds.seeds)
     }
+
+    fn params_string(&self) -> String {
+        format!("{:?}", self.params)
+    }
 }

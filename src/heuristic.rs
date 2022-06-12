@@ -137,6 +137,10 @@ pub trait HeuristicInstance<'a> {
         None
     }
 
+    fn params_string(&self) -> String {
+        "".into()
+    }
+
     /// Display is only implemented when the `sdl2` feature is enabled.
     #[cfg(not(feature = "sdl2"))]
     fn display(

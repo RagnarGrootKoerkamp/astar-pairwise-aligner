@@ -18,7 +18,7 @@ pub struct CSH<C: Contours> {
     pub c: PhantomData<C>,
 }
 
-impl<C: 'static + Contours> CSH<C> {
+impl<C: Contours> CSH<C> {
     pub fn to_seed_heuristic(&self) -> BruteForceCSH<GapCost> {
         assert!(self.use_gap_cost);
         BruteForceCSH {
@@ -67,7 +67,7 @@ impl<C: 'static + Contours> CSH<C> {
 }
 
 // Manual implementations because C is not Debug, Clone, or Copy.
-impl<C: 'static + Contours> std::fmt::Debug for CSH<C> {
+impl<C: Contours> std::fmt::Debug for CSH<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ChainedSeedsHeuristic")
             .field("match_config", &self.match_config)
@@ -88,7 +88,7 @@ impl<C: Contours> Clone for CSH<C> {
 }
 impl<C: Contours> Copy for CSH<C> {}
 
-impl<C: 'static + Contours> Heuristic for CSH<C> {
+impl<C: Contours> Heuristic for CSH<C> {
     type Instance<'a> = CSHI<C>;
 
     fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
@@ -482,5 +482,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     fn seeds(&self) -> Option<&Vec<Seed>> {
         Some(&self.seeds.seeds)
+    }
+
+    fn params_string(&self) -> String {
+        format!("{:?}", self.params)
     }
 }
