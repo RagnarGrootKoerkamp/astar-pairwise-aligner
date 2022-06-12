@@ -102,6 +102,9 @@ impl<'a> IndexMut<isize> for MutLayer<'a> {
 /// Terminology and notation:
 /// - Front: the furthest reaching points for a fixed distance s.
 /// - Layer: the extra I/D matrices needed for each affine indel.
+/// - Run: a sequence of states on the same diagonal with matching characters in
+///   between, along which we greedy extend.
+/// - Feather: a suboptimal branch of visited states growing off the main path.
 /// - `s`: iterator over fronts; `s=0` is the first front at the top left.
 /// - `idx`: iterator over the `N` affine layers.
 /// - `d`: iterator over diagonals; `d=0` is the diagonal through the top left.
@@ -271,36 +274,30 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         b: &Vec<u8>,
         v: &mut impl Visualizer,
     ) -> Option<Vec<Front<N>>> {
-        let num_layers = self.top_buffer + 1;
-        assert!(num_layers > self.cm.sub().unwrap_or_default() as usize);
-        assert!(num_layers > self.cm.max_ins_open_extend_cost() as usize);
-        assert!(num_layers > self.cm.max_del_open_extend_cost() as usize);
+        // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
+        let f = Self::extend_diagonal(a, b, 0, &mut 0);
+        if f >= a.len() as FR && f >= b.len() as FR {
+            return None;
+        }
+
+        // Expand points on the first run.
+        let mut p = Pos::from(0, 0);
+        for _ in 0..=f {
+            v.expand(p);
+            p = p.add_diagonal(1);
+        }
+
+        // Initialize the fronts.
         let mut fronts = vec![
             Front {
                 layers: Layers::new(vec![FR::MIN; self.left_buffer + 1 + self.right_buffer]),
-                // Note: We could actually pass a negative number here and it would still be OK.
-                // But it's simpler to just use a constant for the first few layers.
-                dmin: self.dmin_for_layer(0),
-                dmax: self.dmax_for_layer(0),
-                offset: self.left_buffer as isize - self.dmin_for_layer(0),
+                dmin: 0,
+                dmax: 0,
+                offset: self.left_buffer as isize,
             };
-            num_layers
+            self.top_buffer + 1
         ];
-        fronts[num_layers - 1].layers.m[self.left_buffer] = {
-            // Find the first FR point, and return 0 if it already covers both sequences.
-            let f = Self::extend_diagonal(a, b, 0, &mut 0);
-            if f >= a.len() as FR && f >= b.len() as FR {
-                return None;
-            }
-
-            // Expand points on the first run.
-            let mut p = Pos::from(0, 0);
-            for _ in 0..=f {
-                v.expand(p);
-                p = p.add_diagonal(1);
-            }
-            f
-        };
+        fronts[self.top_buffer].m_mut()[0] = f;
         Some(fronts)
     }
 
@@ -326,42 +323,8 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             );
         });
 
-        // A helper array that just contains N indices.
-        // We map over this to create other [_; N] arrays.
-        let iota = {
-            let mut iota = [0; N];
-            for i in 0..N {
-                iota[i] = i;
-            }
-            iota
-        };
-
-        // Before iterating over the diagonals to fill the new front, we
-        // precompute the previous layers that each layer in the new front depends on.
-
         // Get the front `cost` before the last one.
         let get_front = |cost| &prev[prev.len() - cost as usize];
-
-        // The front dependencies for the sub/ins/del operations, with offsets.
-        // I.e., if `sub=2`, the first component will be the front 2 before.
-        let linear_layers = [self.cm.sub(), self.cm.ins(), self.cm.del()]
-            .map(|cost| cost.map(|cost| get_front(cost).m()));
-
-        // We do the same for the dependencies for all affine layers.
-        // E.g.
-        // `I(s,k) = max(M(s-o-e, k-1) + 1, I(s-e,k-1)+1)`,
-        // so the dependencies for affine layer `I` are `get_layer(o+e).m` and `get_layer(e).I`.
-        let affine_layers = iota.map(|idx| {
-            let cm = &self.cm.affine[idx];
-            [
-                // Gap extend dependency.
-                // Depends on the affine layer itself, at cost `cm.extend` back.
-                get_front(cm.extend).affine(idx),
-                // Gap open dependency.
-                // Depends on the `m` layer, at cost `cm.open + cm.extend` back.
-                get_front(cm.open + cm.extend).m(),
-            ]
-        });
 
         // Loop over the entire dmin..=dmax range.
         // The boundaries are buffered so no boundary checks are needed.
@@ -370,35 +333,31 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             // The new value of next.m[d].
             let mut f = FR::MIN;
             // Substitution
-            if let Some(l) = linear_layers[0] {
-                f = max(f, l[d] + 1);
+            if let Some(cost) = self.cm.sub() {
+                f = max(f, get_front(cost).m()[d] + 1);
             }
             // Insertion
-            if let Some(l) = linear_layers[1] {
-                f = max(f, l[d + 1])
+            if let Some(cost) = self.cm.ins() {
+                f = max(f, get_front(cost).m()[d + 1]);
             }
             // Deletion
-            if let Some(l) = linear_layers[2] {
-                f = max(f, l[d - 1] + 1);
+            if let Some(cost) = self.cm.del() {
+                f = max(f, get_front(cost).m()[d - 1] + 1);
             }
             // Affine layers
             for idx in 0..N {
                 let cm = &self.cm.affine[idx];
-                let open_extend = &affine_layers[idx];
                 // The new value of next.affine[..][d] = l[d].
-                let mut affine_f = FR::MIN;
                 // Handle insertion and deletion similar to before.
-                match cm.affine_type {
-                    InsertLayer => {
-                        for l in *open_extend {
-                            affine_f = max(affine_f, l[d + 1]);
-                        }
-                    }
-                    DeleteLayer => {
-                        for l in *open_extend {
-                            affine_f = max(affine_f, l[d - 1] + 1);
-                        }
-                    }
+                let affine_f = match cm.affine_type {
+                    InsertLayer => max(
+                        get_front(cm.extend).affine(idx)[d + 1],
+                        get_front(cm.open + cm.extend).m()[d + 1],
+                    ),
+                    DeleteLayer => max(
+                        get_front(cm.extend).affine(idx)[d - 1] + 1,
+                        get_front(cm.open + cm.extend).m()[d - 1] + 1,
+                    ),
                     _ => todo!(),
                 };
                 next.affine_mut(idx)[d] = affine_f;
