@@ -120,6 +120,10 @@ use GapVariant::*;
 /// - `{top,left,right}_buffer`: additional allocated fronts/diagonals that remove
 ///   the need for boundary checks.
 /// - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
+///
+/// TODO: Split into two classes: A static user supplied config, and an instance
+/// to use for a specific alignment. Similar to Heuristic vs HeuristicInstance.
+/// The latter can contain the sequences, direction, and other specifics.
 pub struct DiagonalTransition<CM: CostModel> {
     /// The CostModel to use, possibly affine.
     cm: CM,
@@ -225,7 +229,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
     #[inline]
-    fn extend_diagonal(a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
+    fn extend_diagonal(&self, a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
         let j = *fr - d;
 
         // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
@@ -271,7 +275,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
 
     /// The first active diagonal for the given layer.
     #[inline]
-    fn dmin_for_layer(&self, s: Cost) -> isize {
+    fn dmin_for_front(&self, s: Cost) -> isize {
         let mut x = -(self.cm.ins_or(0, |ins| s / ins) as isize);
         for cm in self.cm.affine() {
             match cm.affine_type {
@@ -289,7 +293,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
     }
     /// The last active diagonal for the given layer.
     #[inline]
-    fn dmax_for_layer(&self, s: Cost) -> isize {
+    fn dmax_for_front(&self, s: Cost) -> isize {
         let mut x = -(self.cm.del_or(0, |del| s / del) as isize);
         for cm in self.cm.affine() {
             match cm.affine_type {
@@ -306,8 +310,8 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// Returns None when the distance is 0.
     fn init_fronts(
         &self,
-        a: &Vec<u8>,
-        b: &Vec<u8>,
+        a: &Sequence,
+        b: &Sequence,
         v: &mut impl Visualizer,
     ) -> Option<Vec<Front<N>>> {
         // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
@@ -344,8 +348,8 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     #[inline]
     fn next_front(
         &self,
-        a: &Vec<u8>,
-        b: &Vec<u8>,
+        a: &Sequence,
+        b: &Sequence,
         prev: &[Front<N>],
         next: &mut Front<N>,
         v: &mut impl Visualizer,
@@ -510,8 +514,8 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
             layers.rotate_left(1);
             let (next, layers) = layers.split_last_mut().unwrap();
             // Update front parameters.
-            next.dmin = self.dmin_for_layer(s);
-            next.dmax = self.dmax_for_layer(s);
+            next.dmin = self.dmin_for_front(s);
+            next.dmax = self.dmax_for_front(s);
             next.offset = self.left_buffer as isize - next.dmin;
             if self.next_front(a, b, layers, next, &mut NoVisualizer) {
                 return s;
@@ -534,9 +538,9 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
             // A temporary front without any content.
             let mut next = Front::<N> {
                 layers: Layers::<N, Vec<FR>>::new(vec![]),
-                dmin: self.dmin_for_layer(s),
-                dmax: self.dmax_for_layer(s),
-                offset: self.left_buffer as isize - self.dmin_for_layer(s),
+                dmin: self.dmin_for_front(s),
+                dmax: self.dmax_for_front(s),
+                offset: self.left_buffer as isize - self.dmin_for_front(s),
             };
 
             if self.next_front(a, b, layers, &mut next, v) {
