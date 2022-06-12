@@ -97,6 +97,13 @@ impl<'a> IndexMut<isize> for MutLayer<'a> {
     }
 }
 
+/// GapOpen costs can be processed either when entering of leaving the gap.
+pub enum GapVariant {
+    GapOpen,
+    GapClose,
+}
+use GapVariant::*;
+
 /// Diagonal transition algorithm, with support for affine costs.
 ///
 /// Terminology and notation:
@@ -116,6 +123,10 @@ impl<'a> IndexMut<isize> for MutLayer<'a> {
 pub struct DiagonalTransition<CM: CostModel> {
     /// The CostModel to use, possibly affine.
     cm: CM,
+
+    /// Whether to use gap-open or gap-close costs.
+    /// https://research.curiouscoding.nl/notes/affine-gap-close-cost/
+    gap_variant: GapVariant,
 
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
@@ -144,47 +155,72 @@ pub struct DiagonalTransition<CM: CostModel> {
     ///      xxxx
     ///     XxxxxX    <- when computing these cells.
     ///
-    /// For affine costs, we replace the numerator by the maximum open+extend cost, and the numerator by the minimum extend cost.
+    /// For affine GapOpen costs, we replace the numerator by the maximum open+extend cost, and the numerator by the minimum extend cost.
+    /// FIXME: For affine GapClose costs, we add the max open cost to the substitution cost.
     left_buffer: usize,
     right_buffer: usize,
 }
 
 impl<CM: CostModel> DiagonalTransition<CM> {
-    pub fn new(cm: CM) -> Self {
+    pub fn new_variant(cm: CM, gap_variant: GapVariant) -> Self {
         // The maximum cost we look back:
         // max(substitution, indel, affine indel of size 1)
         let top_buffer = max(
-            cm.sub().unwrap_or(0),
-            max(cm.max_ins_extend_cost(), cm.max_del_extend_cost()),
+            max(
+                cm.sub().unwrap_or(0),
+                match gap_variant {
+                    GapOpen => 0,
+                    GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
+                },
+            ),
+            match gap_variant {
+                GapOpen => max(cm.max_ins_open_extend_cost(), cm.max_del_open_extend_cost()),
+                GapClose => max(cm.max_ins_extend_cost(), cm.max_del_extend_cost()),
+            },
         ) as usize;
 
         let left_buffer = max(
             // substitution, if allowed
             cm.sub()
-                .unwrap_or(0)
+                .unwrap_or(match gap_variant {
+                    GapOpen => 0,
+                    GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
+                })
                 .div_ceil(cm.ins().unwrap_or(Cost::MAX)),
             // number of insertions (left moves) done in range of looking one deletion (right move) backwards
-            1 + cm
-                .max_del_open_extend_cost()
-                .div_ceil(cm.min_ins_extend_cost()),
+            1 + match gap_variant {
+                GapOpen => cm.max_del_open_extend_cost(),
+                GapClose => cm.max_del_extend_cost(),
+            }
+            .div_ceil(cm.min_ins_extend_cost()),
         ) as usize;
         // Idem.
         let right_buffer = max(
             // substitution, if allowed
             cm.sub()
-                .unwrap_or(0)
+                .unwrap_or(match gap_variant {
+                    GapOpen => 0,
+                    GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
+                })
                 .div_ceil(cm.del().unwrap_or(Cost::MAX)),
             // number of deletions (right moves) done in range of looking one insertion (left move) backwards
-            1 + cm
-                .max_ins_open_extend_cost()
-                .div_ceil(cm.min_del_extend_cost()),
+            1 + match gap_variant {
+                GapOpen => cm.max_ins_open_extend_cost(),
+                GapClose => cm.max_ins_extend_cost(),
+            }
+            .div_ceil(cm.min_del_extend_cost()),
         ) as usize;
         Self {
             cm,
+            gap_variant,
             top_buffer,
             left_buffer,
             right_buffer,
         }
+    }
+
+    pub fn new(cm: CM) -> Self {
+        Self::new_variant(cm, GapOpen)
     }
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
@@ -326,49 +362,113 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         // Get the front `cost` before the last one.
         let get_front = |cost| &prev[prev.len() - cost as usize];
 
-        // Loop over the entire dmin..=dmax range.
-        // The boundaries are buffered so no boundary checks are needed.
-        // TODO: Vectorize this loop.
-        for d in next.dmin..=next.dmax {
-            // The new value of next.m[d].
-            let mut f = FR::MIN;
-            // Substitution
-            if let Some(cost) = self.cm.sub() {
-                f = max(f, get_front(cost).m()[d] + 1);
-            }
-            // Insertion
-            if let Some(cost) = self.cm.ins() {
-                f = max(f, get_front(cost).m()[d + 1]);
-            }
-            // Deletion
-            if let Some(cost) = self.cm.del() {
-                f = max(f, get_front(cost).m()[d - 1] + 1);
-            }
-            // Affine layers
-            for idx in 0..N {
-                let cm = &self.cm.affine[idx];
-                // The new value of next.affine[..][d] = l[d].
-                // Handle insertion and deletion similar to before.
-                let affine_f = match cm.affine_type {
-                    InsertLayer => max(
-                        get_front(cm.extend).affine(idx)[d + 1],
-                        get_front(cm.open + cm.extend).m()[d + 1],
-                    ),
-                    DeleteLayer => max(
-                        get_front(cm.extend).affine(idx)[d - 1] + 1,
-                        get_front(cm.open + cm.extend).m()[d - 1] + 1,
-                    ),
-                    _ => todo!(),
-                };
-                next.affine_mut(idx)[d] = affine_f;
-                f = max(f, affine_f);
-            }
-            next.m_mut()[d] = f;
+        match self.gap_variant {
+            GapOpen => {
+                // Loop over the entire dmin..=dmax range.
+                // The boundaries are buffered so no boundary checks are needed.
+                // TODO: Vectorize this loop.
+                // TODO: Loop over a positive range that does not need additional shifting?
+                for d in next.dmin..=next.dmax {
+                    // The new value of next.m[d].
+                    let mut f = FR::MIN;
+                    // Affine layers
+                    for idx in 0..N {
+                        let cm = &self.cm.affine[idx];
+                        let affine_f = match cm.affine_type {
+                            InsertLayer => max(
+                                // Gap open
+                                get_front(cm.open + cm.extend).m()[d + 1],
+                                // Gap extend
+                                get_front(cm.extend).affine(idx)[d + 1],
+                            ),
+                            DeleteLayer => max(
+                                // Gap open
+                                get_front(cm.open + cm.extend).m()[d - 1] + 1,
+                                // Gap extend
+                                get_front(cm.extend).affine(idx)[d - 1] + 1,
+                            ),
+                            _ => todo!(),
+                        };
+                        next.affine_mut(idx)[d] = affine_f;
+                        // Gap close
+                        f = max(f, affine_f);
+                    }
+                    // Substitution
+                    if let Some(cost) = self.cm.sub() {
+                        f = max(f, get_front(cost).m()[d] + 1);
+                    }
+                    // Insertion
+                    if let Some(cost) = self.cm.ins() {
+                        f = max(f, get_front(cost).m()[d + 1]);
+                    }
+                    // Deletion
+                    if let Some(cost) = self.cm.del() {
+                        f = max(f, get_front(cost).m()[d - 1] + 1);
+                    }
+                    next.m_mut()[d] = f;
 
-            v.expand(Pos::from(f, f as isize + d));
+                    v.expand(Pos::from(f, f as isize + d));
+                }
+                // Extend all points in the m layer and check if we're done.
+                self.extend(next, a, b, v)
+            }
+            GapClose => {
+                // See https://research.curiouscoding.nl/notes/affine-gap-close-cost/.
+                for d in next.dmin..=next.dmax {
+                    // The new value of next.m[d].
+                    let mut f = FR::MIN;
+                    // Substitution
+                    if let Some(cost) = self.cm.sub() {
+                        f = max(f, get_front(cost).m()[d] + 1);
+                    }
+                    // Insertion
+                    if let Some(cost) = self.cm.ins() {
+                        f = max(f, get_front(cost).m()[d + 1]);
+                    }
+                    // Deletion
+                    if let Some(cost) = self.cm.del() {
+                        f = max(f, get_front(cost).m()[d - 1] + 1);
+                    }
+                    // Affine layers
+                    for idx in 0..N {
+                        let cm = &self.cm.affine[idx];
+                        match cm.affine_type {
+                            InsertLayer | DeleteLayer => {
+                                // Gap close
+                                f = max(f, get_front(cm.open + cm.extend).m()[d])
+                            }
+                            _ => todo!(),
+                        };
+                    }
+                    next.m_mut()[d] = f;
+
+                    v.expand(Pos::from(f, f as isize + d));
+                }
+                // Extend all points in the m layer and check if we're done.
+                if self.extend(next, a, b, v) {
+                    return true;
+                }
+
+                for d in next.dmin..=next.dmax {
+                    // Affine layers
+                    for idx in 0..N {
+                        let cm = &self.cm.affine[idx];
+                        *&mut next.affine_mut(idx)[d] = match cm.affine_type {
+                            // max(Gap open, Gap extend)
+                            InsertLayer => max(next.m()[d + 1], get_front(cm.extend).m()[d + 1]),
+                            // max(Gap open, Gap extend)
+                            DeleteLayer => {
+                                max(next.m()[d - 1] + 1, get_front(cm.extend).m()[d] + 1)
+                            }
+                            _ => todo!(),
+                        };
+                    }
+                    // FIXME
+                    //v.expand(Pos::from(f, f as isize + d));
+                }
+                false
+            }
         }
-        // Stage 2: extend all points in the m layer and check if we're done.
-        self.extend(next, a, b, v)
     }
 
     fn extend(
