@@ -10,6 +10,7 @@ use std::ops::{Index, IndexMut};
 /// Sizes, so that we can default them to -INF.
 type FR = i32;
 /// One front consists of N+1 layers of vectors of FR points.
+/// TODO: Should we instead make dmin..=dmax ranges per affine layer?
 #[derive(Clone)]
 struct Front<const N: usize> {
     layers: Layers<N, Vec<FR>>,
@@ -329,7 +330,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
 
     /// The first active diagonal for the given layer.
     #[inline]
-    fn dmin_for_front(&self, s: Cost) -> isize {
+    fn dmin(&self, s: Cost) -> isize {
         let mut x = -(self.cm.ins_or(0, |ins| s / ins) as isize);
         for cm in self.cm.affine() {
             match cm.affine_type {
@@ -347,7 +348,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
     }
     /// The last active diagonal for the given layer.
     #[inline]
-    fn dmax_for_front(&self, s: Cost) -> isize {
+    fn dmax(&self, s: Cost) -> isize {
         let mut x = -(self.cm.del_or(0, |del| s / del) as isize);
         for cm in self.cm.affine() {
             match cm.affine_type {
@@ -422,7 +423,6 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// `ca` is the `i`th character of sequence `a`.
     ///
     /// Returns `true` when the search completes.
-    #[inline]
     fn next_front(
         &self,
         a: &Sequence,
@@ -558,20 +558,20 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
-        let Some(ref mut layers) =
+        let Some(ref mut fronts) =
             self.init_fronts(a, b, &mut NoVisualizer) else {return 0;};
 
         let mut s = 0;
         loop {
             s += 1;
-            // Rotate all layers back by one, so that we can fill the new last layer.
-            layers.rotate_left(1);
-            let (next, layers) = layers.split_last_mut().unwrap();
+            // Rotate all fronts back by one, so that we can fill the new last layer.
+            fronts.rotate_left(1);
+            let (next, fronts) = fronts.split_last_mut().unwrap();
             // Update front parameters.
-            next.dmin = self.dmin_for_front(s);
-            next.dmax = self.dmax_for_front(s);
+            next.dmin = self.dmin(s);
+            next.dmax = self.dmax(s);
             next.offset = self.left_buffer as isize - next.dmin;
-            if self.next_front(a, b, layers, next, &mut NoVisualizer) {
+            if self.next_front(a, b, fronts, next, &mut NoVisualizer) {
                 return s;
             }
         }
@@ -579,7 +579,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
 
     /// NOTE: DT does not explore states; it only expands them.
     fn visualize(&self, a: &Sequence, b: &Sequence, v: &mut impl Visualizer) -> Cost {
-        let Some(ref mut layers) = self.init_fronts(a, b, v) else {
+        let Some(ref mut fronts) = self.init_fronts(a, b, v) else {
             return 0;
         };
 
@@ -592,17 +592,17 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
             // A temporary front without any content.
             let mut next = Front::<N> {
                 layers: Layers::<N, Vec<FR>>::new(vec![]),
-                dmin: self.dmin_for_front(s),
-                dmax: self.dmax_for_front(s),
-                offset: self.left_buffer as isize - self.dmin_for_front(s),
+                dmin: self.dmin(s),
+                dmax: self.dmax(s),
+                offset: self.left_buffer as isize - self.dmin(s),
             };
 
-            if self.next_front(a, b, layers, &mut next, v) {
+            if self.next_front(a, b, fronts, &mut next, v) {
                 // FIXME: Reconstruct path.
                 return s;
             }
 
-            layers.push(next);
+            fronts.push(next);
         }
     }
 }
