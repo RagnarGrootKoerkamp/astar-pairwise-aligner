@@ -283,6 +283,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
 
         // Loop over the entire dmin..=dmax range.
         // The boundaries are buffered so no boundary checks are needed.
+        // TODO: Vectorize this loop.
         for d in dmin..=dmax {
             // The new value of next.m[d].
             let mut f = FR::MIN;
