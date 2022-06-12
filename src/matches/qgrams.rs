@@ -2,6 +2,7 @@ use itertools::Itertools;
 
 use crate::prelude::*;
 
+// NOTE: qgrams have their first character in the high-order bits.
 pub fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> usize {
     let mut q = 0;
     for &c in seed {

@@ -516,25 +516,28 @@ mod test {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b, alph, _) = setup(n, e);
-                    println!("{}\n{}", to_string(&a), to_string(&b));
                     let matchconfig = MatchConfig {
                         length: crate::prelude::LengthConfig::Fixed(k),
                         max_match_cost,
                         ..Default::default()
                     };
+                    let t = find_matches_trie(&a, &b, &alph, matchconfig);
+                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
+                    if t.matches == r.matches {
+                        return;
+                    }
+                    println!("{}\n{}", to_string(&a), to_string(&b));
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
-                    let k = find_matches_trie(&a, &b, &alph, matchconfig);
-                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
                     println!("-----------------------");
-                    for x in &k.matches {
+                    for x in &t.matches {
                         println!("{x:?}");
                     }
                     println!("-----------------------");
                     for x in &r.matches {
                         println!("{x:?}");
                     }
-                    assert_eq!(k.matches, r.matches);
+                    assert_eq!(t.matches, r.matches);
                 }
             }
         }
@@ -547,28 +550,29 @@ mod test {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b, alph, _) = setup(n, e);
-                    println!("{}\n{}", to_string(&a), to_string(&b));
                     let matchconfig = MatchConfig {
                         length: crate::prelude::LengthConfig::Fixed(k),
                         max_match_cost,
                         ..Default::default()
                     };
-                    println!("-----------------------");
-                    println!("n={n} e={e} k={k} mmc={max_match_cost}");
                     let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
-                    let k = find_matches_qgram_hash_exact(&a, &b, &alph, matchconfig);
+                    let h = find_matches_qgram_hash_exact(&a, &b, &alph, matchconfig);
                     if !SLIDING_WINDOW_MATCHES {
-                        if r.matches != k.matches {
-                            println!("-----------------------");
-                            for x in &r.matches {
-                                println!("{x:?}");
-                            }
-                            println!("-----------------------");
-                            for x in &k.matches {
-                                println!("{x:?}");
-                            }
+                        if r.matches == h.matches {
+                            continue;
                         }
-                        assert_eq!(r.matches, k.matches);
+                        println!("{}\n{}", to_string(&a), to_string(&b));
+                        println!("-----------------------");
+                        println!("n={n} e={e} k={k} mmc={max_match_cost}");
+                        println!("-----------------------");
+                        for x in &r.matches {
+                            println!("{x:?}");
+                        }
+                        println!("-----------------------");
+                        for x in &h.matches {
+                            println!("{x:?}");
+                        }
+                        assert_eq!(r.matches, h.matches);
                     }
                 }
             }
