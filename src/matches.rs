@@ -222,7 +222,7 @@ pub struct Mutations {
 // TODO: Do not generate insertions at the end. (Also do not generate similar
 // sequences by inserting elsewhere.)
 // TODO: Move to seeds.rs.
-pub fn mutations(k: I, qgram: usize, dedup: bool, insert_at_end: bool) -> Mutations {
+pub fn mutations(k: I, qgram: usize, dedup: bool, insert_at_start: bool) -> Mutations {
     // This assumes the alphabet size is 4.
     let mut deletions = Vec::with_capacity(k as usize);
     let mut substitutions = Vec::with_capacity(4 * k as usize);
@@ -239,19 +239,32 @@ pub fn mutations(k: I, qgram: usize, dedup: bool, insert_at_end: bool) -> Mutati
     }
     // Insertions
     // TODO: Test that excluding insertions at the start and end doesn't matter.
-    // NOTE: Apparently skipping insertions at the start is fine, but with gapcost, skipping at the end is not.
-    // 1: skip insert at start (vs 0)
-    // ..k: skip insert at end (vs ..=k)
-    let start = if SKIP_INEXACT_INSERT_START_END { 1 } else { 0 };
-    let end = if insert_at_end || !SKIP_INEXACT_INSERT_START_END {
+    // NOTE: Apparently skipping insertions at the end is fine, but with gapcost, skipping at the start is not.
+    // 1: skip insert at end (vs 0)
+    // ..k: skip insert at start (vs ..=k)
+    // NOTE: start (low order bits) correspond to the end of the kmer.
+    let mut forbidden_duplicate_head = usize::MAX;
+    let mut forbidden_duplicate_tail = usize::MAX;
+    let start = if SKIP_INEXACT_INSERT_START_END {
+        forbidden_duplicate_tail = (qgram << 2) | (qgram & 3);
+        1
+    } else {
+        0
+    };
+    // NOTE: end (high order bits) correspond to the start of the kmer.
+    let end = if insert_at_start || !SKIP_INEXACT_INSERT_START_END {
         k + 1
     } else {
+        forbidden_duplicate_head = qgram | ((qgram >> (2 * k - 2)) << 2 * k);
         k
     };
     for i in start..end {
         let mask = (1 << (2 * i)) - 1;
         for s in 0..4 {
-            insertions.push((qgram & mask) | (s << (2 * i)) | ((qgram & !mask) << 2));
+            let candidate = (qgram & mask) | (s << (2 * i)) | ((qgram & !mask) << 2);
+            if candidate != forbidden_duplicate_head && candidate != forbidden_duplicate_tail {
+                insertions.push(candidate);
+            }
         }
     }
     // Deletions
@@ -293,10 +306,7 @@ mod test {
             matches::Mutations {
                 deletions: [6, 7, 11, 27].to_vec(),
                 substitutions: [11, 19, 23, 24, 25, 26, 31, 43, 59, 91, 155, 219].to_vec(),
-                insertions: [
-                    27, 75, 91, 99, 103, 107, 108, 109, 110, 111, 123, 155, 219, 283, 539, 795
-                ]
-                .to_vec(),
+                insertions: [27, 75, 91, 99, 103, 107, 123, 155, 219, 283, 539, 795].to_vec(),
             }
         );
     }
