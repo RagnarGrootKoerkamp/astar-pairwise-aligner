@@ -117,24 +117,18 @@ where
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
         // Transform to Arrows.
-        let arrows_iterator = h.seeds.matches.iter().map(
-            |&Match {
-                 start,
-                 end,
-                 match_cost,
-                 seed_potential,
-                 ..
-             }| {
-                Arrow {
-                    start,
-                    end,
-                    len: seed_potential - match_cost,
-                }
-            },
-        );
+        // For arrows with length > 1, also make arrows for length down to 1.
+        let match_to_arrow = |m: &Match| Arrow {
+            start: m.start,
+            end: m.end,
+            len: m.seed_potential - m.match_cost,
+        };
 
-        h.arrows = arrows_iterator
-            .clone()
+        h.arrows = h
+            .seeds
+            .matches
+            .iter()
+            .map(match_to_arrow)
             .group_by(|a| a.start)
             .into_iter()
             .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
@@ -152,12 +146,20 @@ where
             start,
             end,
             match_cost,
+            seed_potential,
             ..
         } in self.seeds.matches.iter().rev()
         {
-            if !self.arrows.contains_key(start) {
+            let Some(arrows) = self.arrows.get(start) else {continue;};
+
+            if !arrows.contains(&Arrow {
+                start: *start,
+                end: *end,
+                len: seed_potential - match_cost,
+            }) {
                 continue;
             }
+
             // Use the match.
             let update_val = *match_cost as Cost + self.h(*end);
             // Skip the match.
@@ -210,10 +212,59 @@ where
         let start = time::Instant::now();
 
         // Maximum length arrow at given pos.
-        let a = if let Some(arrows) = self.arrows.get(&pos) {
+        let tpos = pos;
+        let max_match_cost = self.params.match_config.max_match_cost;
+
+        // Prune any matches ending here.
+        if PRUNE_MATCHES_BY_END {
+            'prune_by_end: {
+                // Check all possible start positions of a match ending here.
+                if let Some(s) = self.seeds.seed_ending_at(pos) {
+                    assert_eq!(pos.0, s.end);
+                    if s.start + pos.1 < pos.0 {
+                        break 'prune_by_end;
+                    }
+                    let match_start = Pos(s.start, s.start + pos.1 - pos.0);
+                    let mut try_prune_pos = |startpos: Pos| {
+                        let tp = startpos;
+                        let Some(arrows) = self.arrows.get_mut(&tp) else { return; };
+                        // Filter arrows starting in the current position.
+                        if arrows
+                            .drain_filter(|a| {
+                                if a.end == tpos {
+                                    //println!("B: Remove {a:?}");
+                                    true
+                                } else {
+                                    false
+                                }
+                            })
+                            .count()
+                            == 0
+                        {
+                            return;
+                        }
+                        if arrows.is_empty() {
+                            self.arrows.remove(&tp).unwrap();
+                            //println!("B: empty {tp}");
+                        }
+                        self.num_pruned += 1;
+                    };
+                    // First try pruning neighbouring start states, and prune the diagonal start state last.
+                    for d in 1..=max_match_cost {
+                        if d as Cost <= match_start.1 {
+                            try_prune_pos(Pos(match_start.0, match_start.1 - d as I));
+                        }
+                        try_prune_pos(Pos(match_start.0, match_start.1 + d as I));
+                    }
+                    try_prune_pos(match_start);
+                }
+            }
+        }
+        let a = if let Some(arrows) = self.arrows.get(&tpos) {
             arrows.iter().max_by_key(|a| a.len).unwrap().clone()
         } else {
             self.pruning_duration += start.elapsed();
+            self.build();
             return 0;
         };
 
@@ -236,6 +287,7 @@ where
         }
 
         if a.len <= min_len {
+            self.build();
             return 0;
         }
 
@@ -251,41 +303,44 @@ where
             // See if there are neighbouring points that can now be fully pruned.
             for d in 1..=self.params.match_config.max_match_cost {
                 let mut check = |pos: Pos| {
-                    if !self.arrows.contains_key(&pos) {
-                        println!("Did not find nb arrow at {pos} while pruning {a} at {pos}");
-                    }
-                    let arrows = self.arrows.get(&pos).expect("Arrows are not consistent!");
-                    if arrows.iter().all(|a2| a2.end == a.end) {
-                        self.num_pruned += 1;
-                        self.arrows.remove(&pos);
+                    let tp = pos;
+                    if let Some(arrows) = self.arrows.get(&tp) {
+                        if arrows.iter().all(|a2| a2.end == a.end) {
+                            self.num_pruned += 1;
+                            self.arrows.remove(&tp);
+                        }
+                    } else {
+                        if CHECK_MATCH_CONSISTENCY {
+                            println!("Did not find nb arrow at {tp} while pruning {a} at {pos}");
+                            panic!("Arrows are not consistent!");
+                        }
                     }
                 };
-                if pos.0 >= d as Cost {
+                if pos.1 >= d as Cost {
                     check(Pos(pos.0, pos.1 - d as I));
                 }
                 check(Pos(pos.0, pos.1 + d as I));
             }
         }
 
-        if min_len == 0 {
-            self.arrows.remove(&pos).unwrap();
-        } else {
-            // If we only remove a subset of arrows, do no actual pruning.
-            // TODO: Also update contours on partial pruning.
-            let arrows = self.arrows.get_mut(&pos).unwrap();
-            if D {
-                println!("Remove arrows of length > {min_len} at pos {pos}.");
-            }
-            arrows.drain_filter(|a| a.len > min_len).count();
-            assert!(arrows.len() > 0);
-        };
-
-        // Rebuild the datastructure.
-        self.build();
+        if PRUNE_MATCHES_BY_START {
+            if min_len == 0 {
+                self.arrows.remove(&tpos).unwrap();
+            } else {
+                // If we only remove a subset of arrows, do no actual pruning.
+                let arrows = self.arrows.get_mut(&tpos).unwrap();
+                if D {
+                    println!("Remove arrows of length > {min_len} at pos {pos}.");
+                }
+                arrows.drain_filter(|a| a.len > min_len).count();
+                assert!(arrows.len() > 0);
+            };
+        }
 
         self.pruning_duration += start.elapsed();
 
         self.num_pruned += 1;
+        self.build();
         return 0;
     }
 
