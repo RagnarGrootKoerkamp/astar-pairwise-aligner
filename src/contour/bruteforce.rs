@@ -102,13 +102,26 @@ impl Contours for BruteForceContours {
         &mut self,
         pos: Pos,
         _hint: Self::Hint,
-        _arrows: &HashMap<Pos, Vec<Arrow>>,
+        arrows: &HashMap<Pos, Vec<Arrow>>,
     ) -> (bool, Cost) {
         let len_before = self.valued_arrows.len();
+        let v = vec![];
+        let pos_arrows = arrows.get(&pos).unwrap_or(&v);
         self.valued_arrows = Self::new(
             mem::take(&mut self.valued_arrows)
                 .into_iter()
-                .filter_map(|(a, _)| if a.start != pos { Some(a) } else { None }),
+                .filter_map(|(a, _)| {
+                    if a.start != pos {
+                        Some(a)
+                    } else {
+                        // Check if a is contained in `arrows`.
+                        if pos_arrows.contains(&a) {
+                            Some(a)
+                        } else {
+                            None
+                        }
+                    }
+                }),
             0,
         )
         .valued_arrows;
