@@ -200,7 +200,7 @@ where
         self.seeds.is_seed_start_or_end(pos)
     }
 
-    // TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
+    /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
     fn prune(&mut self, pos: Pos, _hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
         const D: bool = false;
         if !self.params.pruning {
@@ -320,5 +320,9 @@ where
 
     fn seeds(&self) -> Option<&Vec<Seed>> {
         Some(&self.seeds.seeds)
+    }
+
+    fn params_string(&self) -> String {
+        format!("{:?}", self.params)
     }
 }

@@ -52,7 +52,15 @@ where
         let h1 = self.h1.h(pos);
         let h2 = self.h2.h(pos);
         // h1 is the slow accurate one, h2 the fast inaccurate one.
-        assert!(h1 == h2, "Values differ at {:?}: {} {}", pos, h1, h2);
+        assert!(
+            h1 == h2,
+            "\nValues differ at {:?}:\n{:?}\n ===> {}\n{:?}\n ===> {}\n",
+            pos,
+            self.h1.params_string(),
+            h1,
+            self.h2.params_string(),
+            h2
+        );
         h2
     }
 
@@ -77,7 +85,15 @@ where
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let (c1, hint1) = self.h1.h_with_hint(pos, hint.0);
         let (c2, hint2) = self.h2.h_with_hint(pos, hint.1);
-        assert!(c1 == c2, "Values differ at {:?}: {} {}", pos, c1, c2);
+        assert!(
+            c1 == c2,
+            "\nValues differ at {:?}:\n{:?}\n ===> {}\n{:?}\n ===> {}\n",
+            pos,
+            self.h1.params_string(),
+            c1,
+            self.h2.params_string(),
+            c2
+        );
         (c2, (hint1, hint2))
     }
 
