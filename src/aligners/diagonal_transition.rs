@@ -104,6 +104,13 @@ pub enum GapVariant {
 }
 use GapVariant::*;
 
+/// The direction to run in.
+pub enum Direction {
+    Forward,
+    Backward,
+}
+use Direction::*;
+
 /// Diagonal transition algorithm, with support for affine costs.
 ///
 /// Terminology and notation:
@@ -131,6 +138,12 @@ pub struct DiagonalTransition<CM: CostModel> {
     /// Whether to use gap-open or gap-close costs.
     /// https://research.curiouscoding.nl/notes/affine-gap-close-cost/
     gap_variant: GapVariant,
+
+    /// Whether to run the wavefronts forward or backward.
+    /// Will be used for BiWFA.
+    /// TODO: Move this setting elsewhere.
+    /// TODO: Should this be a compile time setting instead?
+    direction: Direction,
 
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
@@ -166,7 +179,7 @@ pub struct DiagonalTransition<CM: CostModel> {
 }
 
 impl<CM: CostModel> DiagonalTransition<CM> {
-    pub fn new_variant(cm: CM, gap_variant: GapVariant) -> Self {
+    pub fn new_variant(cm: CM, gap_variant: GapVariant, direction: Direction) -> Self {
         // The maximum cost we look back:
         // max(substitution, indel, affine indel of size 1)
         let top_buffer = max(
@@ -220,11 +233,12 @@ impl<CM: CostModel> DiagonalTransition<CM> {
             top_buffer,
             left_buffer,
             right_buffer,
+            direction,
         }
     }
 
     pub fn new(cm: CM) -> Self {
-        Self::new_variant(cm, GapOpen)
+        Self::new_variant(cm, GapOpen, Forward)
     }
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
@@ -233,44 +247,84 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         let j = *fr - d;
 
         // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
-        *fr += zip(&a[*fr as usize..], &b[j as usize..])
-            .take_while(|(ca, cb)| ca == cb)
-            .count() as FR;
-        return *fr;
+        match self.direction {
+            Forward => {
+                *fr += zip(a[*fr as usize..].iter(), b[j as usize..].iter())
+                    .take_while(|(ca, cb)| ca == cb)
+                    .count() as FR
+            }
+            Backward => {
+                *fr += zip(
+                    a[..a.len() - *fr as usize].iter().rev(),
+                    b[..b.len() - j as usize].iter().rev(),
+                )
+                .take_while(|(ca, cb)| ca == cb)
+                .count() as FR
+            }
+        }
+        *fr
     }
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
     ///
     /// This version compares one usize at a time.
-    /// FIXME: This needs sentinels at the ends of the sequences to finish correctly.
+    /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
     #[allow(unused)]
     #[inline]
-    fn extend_diagonal_packed(a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
+    fn extend_diagonal_packed(&self, a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
         let j = *fr - d;
 
         // cast [u8] to *const usize
-        let mut a_ptr = a[*fr as usize..].as_ptr() as *const usize;
-        let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
-        let a_ptr_original = a_ptr;
-        let cmp = loop {
-            let cmp = unsafe { *a_ptr ^ *b_ptr };
-            // TODO: Make the break the `likely` case?
-            if cmp != 0 {
-                break cmp;
+        match self.direction {
+            Forward => {
+                let mut a_ptr = a[*fr as usize..].as_ptr() as *const usize;
+                let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
+                let a_ptr_original = a_ptr;
+                let cmp = loop {
+                    let cmp = unsafe { *a_ptr ^ *b_ptr };
+                    // TODO: Make the break the `likely` case?
+                    if cmp != 0 {
+                        break cmp;
+                    }
+                    unsafe {
+                        a_ptr = a_ptr.offset(1);
+                        b_ptr = b_ptr.offset(1);
+                    }
+                };
+                *fr += unsafe { a_ptr.offset_from(a_ptr_original) } as FR
+                    + (if cfg!(target_endian = "little") {
+                        cmp.trailing_zeros()
+                    } else {
+                        cmp.leading_zeros()
+                    } / u8::BITS) as FR;
             }
-            unsafe {
-                a_ptr = a_ptr.offset(1);
-                b_ptr = b_ptr.offset(1);
+            Backward => {
+                // Get a pointer ending at the given location.
+                let mut a_ptr = a[*fr as usize..].as_ptr() as *const usize;
+                let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
+                let a_ptr_original = a_ptr;
+                let cmp = loop {
+                    unsafe {
+                        a_ptr = a_ptr.offset(-1);
+                        b_ptr = b_ptr.offset(-1);
+                    }
+                    let cmp = unsafe { *a_ptr ^ *b_ptr };
+                    // TODO: Make the break the `likely` case?
+                    if cmp != 0 {
+                        break cmp;
+                    }
+                };
+                *fr += unsafe { a_ptr.offset_from(a_ptr_original) } as FR - 1
+                    + (if cfg!(target_endian = "little") {
+                        // NOTE: this is reversed from the forward case.
+                        cmp.leading_zeros()
+                    } else {
+                        cmp.trailing_zeros()
+                    } / u8::BITS) as FR;
             }
-        };
-        *fr += unsafe { a_ptr.offset_from(a_ptr_original) } as FR
-            + (if cfg!(target_endian = "little") {
-                cmp.trailing_zeros()
-            } else {
-                cmp.leading_zeros()
-            } / u8::BITS) as FR;
+        }
 
-        return *fr;
+        *fr
     }
 
     /// The first active diagonal for the given layer.
@@ -315,7 +369,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         v: &mut impl Visualizer,
     ) -> Option<Vec<Front<N>>> {
         // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
-        let f = Self::extend_diagonal(a, b, 0, &mut 0);
+        let f = self.extend_diagonal(a, b, 0, &mut 0);
         if f >= a.len() as FR && f >= b.len() as FR {
             return None;
         }
@@ -339,6 +393,29 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         ];
         fronts[self.top_buffer].m_mut()[0] = f;
         Some(fronts)
+    }
+
+    fn extend(
+        &self,
+        front: &mut Front<N>,
+        a: &Sequence,
+        b: &Sequence,
+        v: &mut impl Visualizer,
+    ) -> bool {
+        for d in front.dmin..=front.dmax {
+            let f = &mut front.m_mut()[d];
+            let f_old = *f;
+            let f_new = self.extend_diagonal(a, b, d as FR, f);
+            let mut p = Pos::from(f_old, f_old as isize + d);
+            for _ in f_old..f_new {
+                p = p.add_diagonal(1);
+                v.expand(p);
+            }
+        }
+        if front.m_mut()[a.len() as isize - b.len() as isize] >= a.len() as FR {
+            return true;
+        }
+        false
     }
 
     /// Computes the next layer from the current one.
@@ -473,29 +550,6 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 false
             }
         }
-    }
-
-    fn extend(
-        &self,
-        front: &mut Front<N>,
-        a: &Vec<u8>,
-        b: &Vec<u8>,
-        v: &mut impl Visualizer,
-    ) -> bool {
-        for d in front.dmin..=front.dmax {
-            let f = &mut front.m_mut()[d];
-            let f_old = *f;
-            let f_new = Self::extend_diagonal(a, b, d as FR, f);
-            let mut p = Pos::from(f_old, f_old as isize + d);
-            for _ in f_old..f_new {
-                p = p.add_diagonal(1);
-                v.expand(p);
-            }
-        }
-        if front.m_mut()[a.len() as isize - b.len() as isize] >= a.len() as FR {
-            return true;
-        }
-        false
     }
 }
 
