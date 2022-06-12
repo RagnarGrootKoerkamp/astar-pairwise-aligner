@@ -92,7 +92,7 @@ impl Trie {
         //cost_model: CostModel,
         mut f: F,
     ) {
-        let cost_model = crate::cost_model::LinearCost::unit();
+        let cost_model = crate::cost_model::LinearCost::new_unit();
         struct QueueElement {
             /// Current state in tree
             state: State,

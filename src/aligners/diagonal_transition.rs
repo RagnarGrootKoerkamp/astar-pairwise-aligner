@@ -148,10 +148,9 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         let mut x = -(self.cm.ins_or(0, |ins| s / ins) as isize);
         for cm in self.cm.affine() {
             match cm.affine_type {
-                AffineLayerType::Insert => {
-                    x = min(x, -((s.saturating_sub(cm.open) / cm.extend) as isize))
-                }
-                AffineLayerType::Delete => {}
+                InsertLayer => x = min(x, -((s.saturating_sub(cm.open) / cm.extend) as isize)),
+                DeleteLayer => {}
+                _ => todo!(),
             };
         }
         x
@@ -162,10 +161,9 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         let mut x = -(self.cm.del_or(0, |del| s / del) as isize);
         for cm in self.cm.affine() {
             match cm.affine_type {
-                AffineLayerType::Delete => {
-                    x = min(x, -((s.saturating_sub(cm.open) / cm.extend) as isize))
-                }
-                AffineLayerType::Insert => {}
+                DeleteLayer => x = min(x, -((s.saturating_sub(cm.open) / cm.extend) as isize)),
+                InsertLayer => {}
+                _ => todo!(),
             };
         }
         x
@@ -305,12 +303,12 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 let mut affine_f = FR::MIN;
                 // Handle insertion and deletion similar to before.
                 match cm.affine_type {
-                    AffineLayerType::Insert => {
+                    InsertLayer => {
                         for l in *open_extend {
                             affine_f = max(affine_f, self.index_layer(l, d + 1));
                         }
                     }
-                    AffineLayerType::Delete => {
+                    DeleteLayer => {
                         for l in *open_extend {
                             affine_f = max(affine_f, self.index_layer(l, d - 1) + 1);
                         }
