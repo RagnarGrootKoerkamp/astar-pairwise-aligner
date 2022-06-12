@@ -34,7 +34,6 @@ struct MutLayer<'a> {
     dmin: isize,
 }
 
-
 /// Diagonal transition algorithm, with support for affine costs.
 ///
 /// Terminology:
@@ -82,7 +81,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         // max(substitution, indel, affine indel of size 1)
         let top_buffer = max(
             cm.sub().unwrap_or(0),
-            max(cm.max_ins_cost(), cm.max_del_cost()),
+            max(cm.max_ins_extend_cost(), cm.max_del_extend_cost()),
         ) as usize;
 
         let left_buffer = max(
@@ -91,7 +90,9 @@ impl<CM: CostModel> DiagonalTransition<CM> {
                 .unwrap_or(0)
                 .div_ceil(cm.ins().unwrap_or(Cost::MAX)),
             // number of insertions (left moves) done in range of looking one deletion (right move) backwards
-            1 + cm.max_del_cost().div_ceil(cm.min_ins_extend_cost()),
+            1 + cm
+                .max_del_open_extend_cost()
+                .div_ceil(cm.min_ins_extend_cost()),
         ) as usize;
         // Idem.
         let right_buffer = max(
@@ -100,7 +101,9 @@ impl<CM: CostModel> DiagonalTransition<CM> {
                 .unwrap_or(0)
                 .div_ceil(cm.del().unwrap_or(Cost::MAX)),
             // number of deletions (right moves) done in range of looking one insertion (left move) backwards
-            1 + cm.max_ins_cost().div_ceil(cm.min_del_extend_cost()),
+            1 + cm
+                .max_ins_open_extend_cost()
+                .div_ceil(cm.min_del_extend_cost()),
         ) as usize;
         Self {
             cm,
@@ -285,7 +288,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     },
                     // Gap open dependency.
                     // Depends on the `m` layer, at cost `cm.open + cm.extend` back.
-                    DTLayerRef {
+                    Layer {
                         l: &get_layer(cm.open + cm.extend).m,
                         dmin: self.dmin_for_layer(s - cm.open - cm.extend),
                     },
