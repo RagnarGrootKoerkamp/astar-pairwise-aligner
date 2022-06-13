@@ -1,3 +1,26 @@
+//! Diagonal transition algorithm, with support for affine costs.
+//!
+//! This uses a more symmetric version of the recursion, where furthest reaching
+//! (f.r.) points are stored by the sum of coordinates $i+j$ instead of the
+//! usual $i$.
+//! See here: https://research.curiouscoding.nl/posts/affine-gap-close-cost/#even-more-symmetry
+//!
+//! Terminology and notation:
+//! - Front: the furthest reaching points for a fixed distance s.
+//! - Layer: the extra I/D matrices needed for each affine indel.
+//! - Run: a sequence of states on the same diagonal with matching characters in
+//!   between, along which we greedy extend.
+//! - Feather: a suboptimal branch of visited states growing off the main path.
+//! - `s`: iterator over fronts; `s=0` is the first front at the top left.
+//! - `idx`: iterator over the `N` affine layers.
+//! - `d`: iterator over diagonals; `d=0` is the diagonal through the top left.
+//!      `d=1` is above `d=0`. From `d=0` to `d=1` is a deletion.
+//! - `dmin`/`dmax`: the inclusive range of diagonals processed for a given front.
+//! - `{top,left,right}_buffer`: additional allocated fronts/diagonals that remove
+//!   the need for boundary checks.
+//! - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
+//!
+//!
 use super::nw::Layers;
 use super::{Aligner, NoVisualizer, Visualizer};
 use crate::cost_model::*;
@@ -112,22 +135,7 @@ pub enum Direction {
 }
 use Direction::*;
 
-/// Diagonal transition algorithm, with support for affine costs.
-///
-/// Terminology and notation:
-/// - Front: the furthest reaching points for a fixed distance s.
-/// - Layer: the extra I/D matrices needed for each affine indel.
-/// - Run: a sequence of states on the same diagonal with matching characters in
-///   between, along which we greedy extend.
-/// - Feather: a suboptimal branch of visited states growing off the main path.
-/// - `s`: iterator over fronts; `s=0` is the first front at the top left.
-/// - `idx`: iterator over the `N` affine layers.
-/// - `d`: iterator over diagonals; `d=0` is the diagonal through the top left.
-///      `d=1` is above `d=0`. From `d=0` to `d=1` is a deletion.
-/// - `dmin`/`dmax`: the inclusive range of diagonals processed for a given front.
-/// - `{top,left,right}_buffer`: additional allocated fronts/diagonals that remove
-///   the need for boundary checks.
-/// - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
+/// Settings for the algorithm, and derived constants.
 ///
 /// TODO: Split into two classes: A static user supplied config, and an instance
 /// to use for a specific alignment. Similar to Heuristic vs HeuristicInstance.
