@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+pub type PATH = Vec<(usize, usize)>;
+
 const INF: usize = usize::MAX / 2;
 
 fn print_vec(A: &Vec<Vec<usize>>) {
@@ -34,7 +36,40 @@ fn print_vec2(A: &Vec<Vec<usize>>) {
     print!("\n");
 }
 
-pub fn nw_affine(s1: &Sequence, s2: &Sequence) -> (usize) //Needleman-Wunsch algorithm with affine gap penalty
+fn nw_track_path(t: Vec<Vec<usize>>, u: Vec<Vec<usize>>, s: Vec<Vec<usize>>, B: usize) -> PATH {
+    let len1 = t.len();
+    let len2 = t[0].len();
+    let mut path: PATH = vec![(len1, len2)];
+    let mut x = len1;
+    let mut y = len2;
+    let mut f = 0; //0 - main(s); 1 - insertion(t); 2 - deletion(u)
+    let mut save = |x: &usize, y: &usize| path.push((*x, *y));
+    while x + y > 0 {
+        if f == 0 {
+            if s[x][y] == t[x][y] {
+                f = 1;
+            } else if s[x][y] == u[x][y] {
+                f = 2;
+            } else {
+                x -= 1;
+                y -= 1;
+                save(&x, &y);
+            }
+        } else if f == 1 {
+            x -= 1;
+            save(&x, &y);
+            f = if t[x][y] == t[x - 1][y] + B { 1 } else { 0 };
+        } else if f == 2 {
+            y -= 1;
+            save(&x, &y);
+            f = if u[x][y] == u[x][y - 1] + B { 2 } else { 0 };
+        }
+    }
+    path.reverse();
+    path
+}
+
+pub fn nw_affine(s1: &Sequence, s2: &Sequence) -> (usize, PATH) //Needleman-Wunsch algorithm with affine gap penalty
 {
     const A: usize = 1; //openning gap cost
     const B: usize = 1; //extapanding gap cost
@@ -68,7 +103,120 @@ pub fn nw_affine(s1: &Sequence, s2: &Sequence) -> (usize) //Needleman-Wunsch alg
     // print_vec(&u);
     // print_vec(&s);
 
-    return s[s1.len()][s2.len()];
+    let d = s[s1.len()][s2.len()];
+    return (d, nw_track_path(t, u, s, B));
+}
+
+fn DT_track_path(
+    M: Vec<Vec<isize>>,
+    I: Vec<Vec<isize>>,
+    D: Vec<Vec<isize>>,
+    mut s: usize,
+    mut j: usize,
+    o: usize,
+    e: usize,
+    x: usize,
+) -> PATH {
+    const NEG: isize = isize::MIN;
+    let mut k = j as isize - s as isize;
+    let mut path: PATH = vec![(M[s][j] as usize, (M[s][j] - k) as usize)];
+    let mut f = 0; // 0 - main(M); 1 - insertion(I); 2 - Deletion(D)
+    let mut save = |x: &isize, k: &isize| path.push((*x as usize, (*x - *k) as usize));
+
+    let get_j = |s: usize, d: usize, k: isize| -> Option<(usize, usize)> {
+        if s < d {
+            return None;
+        }
+        let p = (s - d) as isize + k;
+        if p < 0 || p as usize > (s - d) * 2 {
+            return None;
+        }
+        Some((s - d, p as usize))
+    };
+
+    while s > 0 {
+        if f == 0 {
+            let m;
+            if I[s][j] > D[s][j] {
+                f = 1;
+                m = I[s][j];
+            } else {
+                f = 2;
+                m = D[s][j];
+            }
+            if let Some((i1, j1)) = get_j(s, x, k) {
+                if M[i1][j1] + 1 > m {
+                    f = 0;
+                    s = i1;
+                    j = j1;
+                    save(&M[s][j], &k);
+                } else {
+                    save(&m, &k);
+                }
+            }
+        } else if f == 1 {
+            let mut m = NEG;
+            let mut s2 = s;
+            let mut j2 = j;
+            if let Some((i1, j1)) = get_j(s, o + e, k - 1) {
+                s2 = i1;
+                j2 = j1;
+                f = 0;
+                m = M[i1][j1] + 1;
+            }
+            if let Some((i1, j1)) = get_j(s, e, k - 1) {
+                if I[i1][j1] + 1 > m {
+                    f = 1;
+                    s = i1;
+                    j = j1;
+                    k -= 1;
+                    save(&(I[i1][j1]), &k);
+                } else {
+                    s = s2;
+                    j = j2;
+                    k -= 1;
+                    save(&(m - 1), &k);
+                }
+            } else {
+                s = s2;
+                j = j2;
+                k -= 1;
+                save(&(m - 1), &k);
+            }
+        } else if f == 2 {
+            let mut m = NEG;
+            let mut s2 = s;
+            let mut j2 = j;
+            if let Some((i1, j1)) = get_j(s, o + e, k + 1) {
+                f = 0;
+                s2 = i1;
+                j2 = j1;
+                m = M[i1][j1];
+            }
+            if let Some((i1, j1)) = get_j(s, e, k + 1) {
+                if D[i1][j1] > m {
+                    f = 2;
+                    s = i1;
+                    j = j1;
+                    k += 1;
+                    save(&D[i1][j1], &k);
+                } else {
+                    s = s2;
+                    j = j2;
+                    k += 1;
+                    save(&m, &k);
+                }
+            } else {
+                s = s2;
+                j = j2;
+                k += 1;
+                save(&m, &k);
+            }
+        }
+    }
+
+    path.reverse();
+    path
 }
 
 fn explore_diagonal(
@@ -96,7 +244,7 @@ fn explore_diagonal(
     }
 }
 
-pub fn diagonal_transition_affine<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> usize {
+pub fn diagonal_transition_affine<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence) -> (usize, PATH) {
     //Diagonal transition method. Saves all the staes, so we can track the path
     if s1.len() > s2.len() {
         (s1, s2) = (s2, s1);
@@ -127,7 +275,7 @@ pub fn diagonal_transition_affine<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence
     D[0] = vec![NEG; w];
     explore_diagonal(s1, s2, &mut M[0][0], 0, 0);
     if s2.len() == s1.len() && M[0][0] as usize >= s1.len() {
-        return 0;
+        return (0, vec![]); // Attention! Path here is empty for strings are equal
     }
     for s in 1..=s2.len() {
         w += 2;
@@ -171,7 +319,7 @@ pub fn diagonal_transition_affine<'a>(mut s1: &'a Sequence, mut s2: &'a Sequence
                     // print_vec2(&I);
                     // print_vec2(&D);
                     // println!("A {s}\t{j}\n");
-                    return s;
+                    return (s, DT_track_path(M, I, D, s, j, o, e, x));
                 }
             }
             k += 1;

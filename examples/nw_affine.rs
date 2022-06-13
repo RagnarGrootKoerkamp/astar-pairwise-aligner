@@ -17,13 +17,13 @@ fn main() {
     for i in 1..20 {
         // Test section
         let (ref a, ref b, ref _alphabet, _stats) = setup(i, 0.3);
-        assert_eq!(nw_affine(a, b), diagonal_transition_affine(a, b));
+        assert_eq!(nw_affine(a, b).0, diagonal_transition_affine(a, b).0);
         println!("{i}");
         print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
         let tmp = biwfa_affine2(a, b);
         println!("{i}");
         print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
-        assert_eq!(nw_affine(a, b), tmp);
+        assert_eq!(nw_affine(a, b).0, tmp);
     }
 
     let start = std::time::Instant::now();
@@ -34,7 +34,7 @@ fn main() {
 
     println!(
         "Needleman-Wunsch with affine gap penalty says that edit distance is {}",
-        r
+        r.0
     );
 
     println!("Needleman-Wunsch with affine gap penalty has needed for this {duration} seconds");
@@ -47,7 +47,7 @@ fn main() {
 
     println!(
         "DTM with affine gap penalty says that edit distance is {}",
-        r
+        r.0
     );
 
     println!("DTM with affine gap penalty has needed for this {duration} seconds");
