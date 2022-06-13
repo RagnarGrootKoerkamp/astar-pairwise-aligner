@@ -2,7 +2,7 @@ use std::cmp::max;
 
 use num_traits::abs;
 use pairwise_aligner::{
-    nw_affine::{biwfa_affine, diagonal_transition_affine, nw_affine},
+    nw_affine::{biwfa_affine2, diagonal_transition_affine, nw_affine},
     prelude::{setup, to_string, Sequence},
     ukkonen::ukkonen,
 };
@@ -14,11 +14,13 @@ fn main() {
     let (ref a, ref b, ref _alphabet, _stats) = setup(200, 0.6);
     print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
 
-    for i in 1..5000 {
+    for i in 1..20 {
         // Test section
-        let (ref a, ref b, ref _alphabet, _stats) = setup(i, 0.6);
+        let (ref a, ref b, ref _alphabet, _stats) = setup(i, 0.3);
         assert_eq!(nw_affine(a, b), diagonal_transition_affine(a, b));
-        let tmp = biwfa_affine(a, b, &mut vec![]);
+        println!("{i}");
+        print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
+        let tmp = biwfa_affine2(a, b);
         println!("{i}");
         print!("s1 == {}\ns2 == {}\n", to_string(&a), to_string(&b));
         assert_eq!(nw_affine(a, b), tmp);
@@ -52,7 +54,7 @@ fn main() {
 
     let start = std::time::Instant::now();
 
-    let r = biwfa_affine(a, b, &mut vec![]);
+    let r = biwfa_affine2(a, b);
 
     let duration = start.elapsed().as_secs_f32();
 
