@@ -92,7 +92,7 @@ impl Trie {
         //cost_model: CostModel,
         mut f: F,
     ) {
-        let cost_model = crate::cost_model::LinearCost::new_unit();
+        let cm = crate::cost_model::LinearCost::new_unit();
         struct QueueElement {
             /// Current state in tree
             state: State,
@@ -142,7 +142,7 @@ impl Trie {
                     let mismatch_cost = if ci == matching_index {
                         0
                     } else {
-                        let Some(x) = cost_model.sub() else {continue;};
+                        let Some(x) = cm.sub else {continue;};
                         x
                     };
                     if cost + mismatch_cost as MatchCost > max_cost {
@@ -158,7 +158,10 @@ impl Trie {
                 }
 
                 // Delete a char: the character in the seed is ignored, and we remain at the same depth.
-                if let Some(del) = cost_model.del() {
+                if let Some(del) = {
+                    let ref this = cm;
+                    this.del
+                } {
                     if cost + del as MatchCost <= max_cost {
                         queue.push(QueueElement {
                             state,
@@ -176,7 +179,10 @@ impl Trie {
             if SKIP_INEXACT_INSERT_START_END && state == 0 {
                 continue;
             }
-            if let Some(ins) = cost_model.ins() {
+            if let Some(ins) = {
+                let ref this = cm;
+                this.ins
+            } {
                 let matching_index = seed
                     .get(i as usize)
                     .map(|c| self.transform.get(*c) as usize);

@@ -132,9 +132,9 @@ use Direction::*;
 /// TODO: Split into two classes: A static user supplied config, and an instance
 /// to use for a specific alignment. Similar to Heuristic vs HeuristicInstance.
 /// The latter can contain the sequences, direction, and other specifics.
-pub struct DiagonalTransition<CM: CostModel> {
+pub struct DiagonalTransition<CostModel> {
     /// The CostModel to use, possibly affine.
-    cm: CM,
+    cm: CostModel,
 
     /// Whether to use gap-open or gap-close costs.
     /// https://research.curiouscoding.nl/notes/affine-gap-close-cost/
@@ -179,13 +179,13 @@ pub struct DiagonalTransition<CM: CostModel> {
     right_buffer: usize,
 }
 
-impl<CM: CostModel> DiagonalTransition<CM> {
-    pub fn new_variant(cm: CM, gap_variant: GapVariant, direction: Direction) -> Self {
+impl<const N: usize> DiagonalTransition<AffineCost<N>> {
+    pub fn new_variant(cm: AffineCost<N>, gap_variant: GapVariant, direction: Direction) -> Self {
         // The maximum cost we look back:
         // max(substitution, indel, affine indel of size 1)
         let top_buffer = max(
             max(
-                cm.sub().unwrap_or(0),
+                cm.sub.unwrap_or(0),
                 match gap_variant {
                     GapOpen => 0,
                     GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
@@ -199,12 +199,12 @@ impl<CM: CostModel> DiagonalTransition<CM> {
 
         let left_buffer = max(
             // substitution, if allowed
-            cm.sub()
+            cm.sub
                 .unwrap_or(match gap_variant {
                     GapOpen => 0,
                     GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
                 })
-                .div_ceil(cm.ins().unwrap_or(Cost::MAX)),
+                .div_ceil(cm.ins.unwrap_or(Cost::MAX)),
             // number of insertions (left moves) done in range of looking one deletion (right move) backwards
             1 + match gap_variant {
                 GapOpen => cm.max_del_open_extend_cost(),
@@ -215,12 +215,12 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         // Idem.
         let right_buffer = max(
             // substitution, if allowed
-            cm.sub()
+            cm.sub
                 .unwrap_or(match gap_variant {
                     GapOpen => 0,
                     GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
                 })
-                .div_ceil(cm.del().unwrap_or(Cost::MAX)),
+                .div_ceil(cm.del.unwrap_or(Cost::MAX)),
             // number of deletions (right moves) done in range of looking one insertion (left move) backwards
             1 + match gap_variant {
                 GapOpen => cm.max_ins_open_extend_cost(),
@@ -238,7 +238,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
         }
     }
 
-    pub fn new(cm: CM) -> Self {
+    pub fn new(cm: AffineCost<N>) -> Self {
         Self::new_variant(cm, GapOpen, Forward)
     }
 
@@ -332,7 +332,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
     #[inline]
     fn dmin(&self, s: Cost) -> isize {
         let mut x = -(self.cm.ins_or(0, |ins| s / ins) as isize);
-        for cm in self.cm.affine() {
+        for cm in &self.cm.affine {
             match cm.affine_type {
                 InsertLayer => {
                     x = min(
@@ -350,7 +350,7 @@ impl<CM: CostModel> DiagonalTransition<CM> {
     #[inline]
     fn dmax(&self, s: Cost) -> isize {
         let mut x = -(self.cm.del_or(0, |del| s / del) as isize);
-        for cm in self.cm.affine() {
+        for cm in &self.cm.affine {
             match cm.affine_type {
                 DeleteLayer => x = min(x, s.saturating_sub(cm.open).div_floor(cm.extend) as isize),
                 InsertLayer => {}
@@ -523,15 +523,15 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                         f = max(f, affine_f);
                     }
                     // Substitution
-                    if let Some(cost) = self.cm.sub() {
+                    if let Some(cost) = self.cm.sub {
                         f = max(f, get_front(cost).m()[d] + 1);
                     }
                     // Insertion
-                    if let Some(cost) = self.cm.ins() {
+                    if let Some(cost) = self.cm.ins {
                         f = max(f, get_front(cost).m()[d + 1]);
                     }
                     // Deletion
-                    if let Some(cost) = self.cm.del() {
+                    if let Some(cost) = self.cm.del {
                         f = max(f, get_front(cost).m()[d - 1] + 1);
                     }
                     next.m_mut()[d] = f;
@@ -547,15 +547,15 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     // The new value of next.m[d].
                     let mut f = FR::MIN;
                     // Substitution
-                    if let Some(cost) = self.cm.sub() {
+                    if let Some(cost) = self.cm.sub {
                         f = max(f, get_front(cost).m()[d] + 1);
                     }
                     // Insertion
-                    if let Some(cost) = self.cm.ins() {
+                    if let Some(cost) = self.cm.ins {
                         f = max(f, get_front(cost).m()[d + 1]);
                     }
                     // Deletion
-                    if let Some(cost) = self.cm.del() {
+                    if let Some(cost) = self.cm.del {
                         f = max(f, get_front(cost).m()[d - 1] + 1);
                     }
                     // Affine layers

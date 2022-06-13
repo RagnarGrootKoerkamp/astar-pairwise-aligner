@@ -5,9 +5,10 @@ use super::{Aligner, Visualizer};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence, I};
 use std::cmp::min;
+use std::iter::zip;
 
-pub struct NW<CM: CostModel> {
-    pub cm: CM,
+pub struct NW<CostModel> {
+    pub cm: CostModel,
 }
 
 // TODO: Instead use saturating add everywhere?
