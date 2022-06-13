@@ -12,6 +12,7 @@ impl Aligner for NWLib {
         b: &bio_types::sequence::Sequence,
     ) -> crate::prelude::Cost {
         if self.simd {
+            // TODO: Note that this actually uses exponential search as well.
             bio::alignment::distance::simd::levenshtein(a, b)
         } else {
             bio::alignment::distance::levenshtein(a, b)
