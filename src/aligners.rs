@@ -3,6 +3,7 @@
 use crate::prelude::{Cost, Pos, Sequence};
 
 pub mod diagonal_transition;
+pub mod layer;
 pub mod nw;
 pub mod nw_lib;
 
