@@ -22,6 +22,7 @@
 //!
 //!
 use super::layer::Layers;
+use super::nw::PATH;
 use super::{Aligner, NoVisualizer, Visualizer};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence};
@@ -634,9 +635,9 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
     }
 
     /// NOTE: DT does not explore states; it only expands them.
-    fn visualize(&self, a: &Sequence, b: &Sequence, v: &mut impl Visualizer) -> Cost {
+    fn visualize(&self, a: &Sequence, b: &Sequence, v: &mut impl Visualizer) -> (Cost, PATH) {
         let Some(ref mut fronts) = self.init_fronts(a, b, v) else {
-            return 0;
+            return (0,vec![]);
         };
 
         v.expand(Pos(0, 0));
@@ -655,7 +656,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
 
             if self.next_front(a, b, fronts, &mut next, v) {
                 // FIXME: Reconstruct path.
-                return s;
+                return (s, vec![]);
             }
 
             fronts.push(next);
