@@ -29,23 +29,23 @@ use std::cmp::{max, min};
 use std::iter::zip;
 use std::ops::{Index, IndexMut};
 
-/// The type for storing FR points.
-/// Sizes, so that we can default them to -INF.
-type FR = i32;
+/// The type for storing furthest reaching points.
+/// Sized, so that we can default them to -INF.
+type Fr = i32;
 /// One front consists of N+1 layers of vectors of FR points.
 /// TODO: Should we instead make dmin..=dmax ranges per affine layer?
 #[derive(Clone)]
 struct Front<const N: usize> {
-    layers: Layers<N, Vec<FR>>,
+    layers: Layers<N, Vec<Fr>>,
     /// The minimal `d` computed for this layer.
     /// Will be negative.
-    dmin: isize,
+    dmin: Fr,
     /// The maximal `d` computed for this layer.
-    dmax: isize,
+    dmax: Fr,
     /// The offset we need to index each layer.
     /// Equals `left_buffer - dmin`, but stored separately to suppport indexing
     /// without needing extra context.
-    offset: isize,
+    offset: Fr,
 }
 
 /// Indexing methods for `Front`.
@@ -81,17 +81,17 @@ impl<const N: usize> Front<N> {
 #[derive(Clone, Copy)]
 struct Layer<'a> {
     /// The (affine) layer to use.
-    l: &'a Vec<FR>,
+    l: &'a Vec<Fr>,
     /// The offset we need to index this layer.
     /// Equals `left_buffer - front.dmin`. Stored separately to suppport indexing
     /// without needing extra context.
-    offset: isize,
+    offset: Fr,
 }
 /// Indexing for a Layer.
-impl<'a> Index<isize> for Layer<'a> {
-    type Output = FR;
+impl<'a> Index<Fr> for Layer<'a> {
+    type Output = Fr;
 
-    fn index(&self, d: isize) -> &Self::Output {
+    fn index(&self, d: Fr) -> &Self::Output {
         &self.l[(self.offset + d) as usize]
     }
 }
@@ -100,23 +100,23 @@ impl<'a> Index<isize> for Layer<'a> {
 /// Contains the offset needed to index it.
 struct MutLayer<'a> {
     /// The (affine) layer to use.
-    l: &'a mut Vec<FR>,
+    l: &'a mut Vec<Fr>,
     /// The offset we need to index this layer.
     /// Equals `left_buffer - dmin`. Stored separately to suppport indexing
     /// without needing extra context.
-    offset: isize,
+    offset: Fr,
 }
 /// Indexing for a mutable Layer.
-impl<'a> Index<isize> for MutLayer<'a> {
-    type Output = FR;
+impl<'a> Index<Fr> for MutLayer<'a> {
+    type Output = Fr;
 
-    fn index(&self, d: isize) -> &Self::Output {
+    fn index(&self, d: Fr) -> &Self::Output {
         &self.l[(self.offset + d) as usize]
     }
 }
 /// Indexing for a mutable Layer.
-impl<'a> IndexMut<isize> for MutLayer<'a> {
-    fn index_mut(&mut self, d: isize) -> &mut Self::Output {
+impl<'a> IndexMut<Fr> for MutLayer<'a> {
+    fn index_mut(&mut self, d: Fr) -> &mut Self::Output {
         &mut self.l[(self.offset + d) as usize]
     }
 }
@@ -252,15 +252,15 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
     #[inline]
-    fn extend_diagonal(&self, a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
         let j = *fr - d;
+    fn extend_diagonal(&self, a: &Sequence, b: &Sequence, d: Fr, fr: &mut Fr) -> Fr {
 
         // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
         match self.direction {
             Forward => {
                 *fr += zip(a[*fr as usize..].iter(), b[j as usize..].iter())
                     .take_while(|(ca, cb)| ca == cb)
-                    .count() as FR
+                    .count() as Fr
             }
             Backward => {
                 *fr += zip(
@@ -268,7 +268,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     b[..b.len() - j as usize].iter().rev(),
                 )
                 .take_while(|(ca, cb)| ca == cb)
-                .count() as FR
+                .count() as Fr
             }
         }
         *fr
@@ -280,8 +280,8 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
     #[allow(unused)]
     #[inline]
-    fn extend_diagonal_packed(&self, a: &Sequence, b: &Sequence, d: FR, fr: &mut FR) -> FR {
         let j = *fr - d;
+    fn extend_diagonal_packed(&self, a: &Sequence, b: &Sequence, d: Fr, fr: &mut Fr) -> Fr {
 
         // cast [u8] to *const usize
         match self.direction {
@@ -338,16 +338,11 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
 
     /// The first active diagonal for the given layer.
     #[inline]
-    fn dmin(&self, s: Cost) -> isize {
-        let mut x = -(self.cm.ins_or(0, |ins| s / ins) as isize);
+    fn dmin(&self, s: Cost) -> Fr {
+        let mut x = -(self.cm.ins_or(0, |ins| s / ins) as Fr);
         for cm in &self.cm.affine {
             match cm.affine_type {
-                InsertLayer => {
-                    x = min(
-                        x,
-                        -(s.saturating_sub(cm.open).div_floor(cm.extend) as isize),
-                    )
-                }
+                InsertLayer => x = min(x, -(s.saturating_sub(cm.open).div_floor(cm.extend) as Fr)),
                 DeleteLayer => {}
                 _ => todo!(),
             };
@@ -356,11 +351,11 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     }
     /// The last active diagonal for the given layer.
     #[inline]
-    fn dmax(&self, s: Cost) -> isize {
-        let mut x = -(self.cm.del_or(0, |del| s / del) as isize);
+    fn dmax(&self, s: Cost) -> Fr {
+        let mut x = -(self.cm.del_or(0, |del| s / del) as Fr);
         for cm in &self.cm.affine {
             match cm.affine_type {
-                DeleteLayer => x = min(x, s.saturating_sub(cm.open).div_floor(cm.extend) as isize),
+                DeleteLayer => x = min(x, s.saturating_sub(cm.open).div_floor(cm.extend) as Fr),
                 InsertLayer => {}
                 _ => todo!(),
             };
@@ -379,7 +374,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     ) -> Option<Vec<Front<N>>> {
         // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
         let f = self.extend_diagonal(a, b, 0, &mut 0);
-        if f >= a.len() as FR && f >= b.len() as FR {
+        if f >= a.len() as Fr && f >= b.len() as Fr {
             return None;
         }
 
@@ -393,10 +388,10 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         // Initialize the fronts.
         let mut fronts = vec![
             Front {
-                layers: Layers::new(vec![FR::MIN; self.left_buffer + 1 + self.right_buffer]),
+                layers: Layers::new(vec![Fr::MIN; self.left_buffer + 1 + self.right_buffer]),
                 dmin: 0,
                 dmax: 0,
-                offset: self.left_buffer as isize,
+                offset: self.left_buffer as Fr,
             };
             self.top_buffer + 1
         ];
@@ -414,15 +409,15 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         for d in front.dmin..=front.dmax {
             let f = &mut front.m_mut()[d];
             let f_old = *f;
-            let f_new = self.extend_diagonal(a, b, d as FR, f);
-            let mut p = Pos::from(f_old, f_old as isize + d);
+            let f_new = self.extend_diagonal(a, b, d as Fr, f);
+            let mut p = Pos::from(f_old, f_old as Fr + d);
             for _ in f_old..f_new {
                 p = p.add_diagonal(1);
                 v.expand(p);
             }
         }
 
-        if front.m_mut()[a.len() as isize - b.len() as isize] >= a.len() as FR {
+        if front.m_mut()[a.len() as Fr - b.len() as Fr] >= a.len() as Fr {
             return true;
         }
         false
@@ -442,10 +437,10 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         b: &Sequence,
         forward: &mut Front<N>,
         backward: &mut Front<N>,
-    ) -> Option<(Option<usize>, (isize, FR), (isize, FR))> {
+    ) -> Option<(Option<usize>, (Fr, Fr), (Fr, Fr))> {
         // NOTE: This is the same for the forward and reverse direction.
-        let d_target = a.len() as isize - b.len() as isize;
-        let n = a.len() as FR;
+        let d_target = a.len() as Fr - b.len() as Fr;
+        let n = a.len() as Fr;
         let mirror = |d| d_target - d;
         let d_range =
             max(forward.dmin, mirror(backward.dmax))..=min(forward.dmax, mirror(backward.dmin));
@@ -489,10 +484,10 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     ) -> bool {
         // Resize all affine layers.
         (&mut next.layers).into_iter().for_each(|l| {
-            l.fill(FR::MIN);
+            l.fill(Fr::MIN);
             l.resize(
                 self.left_buffer + (next.dmax - next.dmin) as usize + 1 + self.right_buffer,
-                FR::MIN,
+                Fr::MIN,
             );
         });
 
@@ -507,7 +502,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 // TODO: Loop over a positive range that does not need additional shifting?
                 for d in next.dmin..=next.dmax {
                     // The new value of next.m[d].
-                    let mut f = FR::MIN;
+                    let mut f = Fr::MIN;
                     // Affine layers
                     for idx in 0..N {
                         let cm = &self.cm.affine[idx];
@@ -544,7 +539,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     }
                     next.m_mut()[d] = f;
 
-                    v.expand(Pos::from(f, f as isize + d));
+                    v.expand(Pos::from(f, f as Fr + d));
                 }
                 // Extend all points in the m layer and check if we're done.
                 self.extend(next, a, b, v)
@@ -553,7 +548,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 // See https://research.curiouscoding.nl/notes/affine-gap-close-cost/.
                 for d in next.dmin..=next.dmax {
                     // The new value of next.m[d].
-                    let mut f = FR::MIN;
+                    let mut f = Fr::MIN;
                     // Substitution
                     if let Some(cost) = self.cm.sub {
                         f = max(f, get_front(cost).m()[d] + 1);
@@ -579,7 +574,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     }
                     next.m_mut()[d] = f;
 
-                    v.expand(Pos::from(f, f as isize + d));
+                    v.expand(Pos::from(f, f as Fr + d));
                 }
                 // Extend all points in the m layer and check if we're done.
                 if self.extend(next, a, b, v) {
@@ -601,7 +596,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                         };
                     }
                     // FIXME
-                    //v.expand(Pos::from(f, f as isize + d));
+                    //v.expand(Pos::from(f, f as Fr + d));
                 }
                 false
             }
@@ -626,7 +621,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
             // Update front parameters.
             next.dmin = self.dmin(s);
             next.dmax = self.dmax(s);
-            next.offset = self.left_buffer as isize - next.dmin;
+            next.offset = self.left_buffer as Fr - next.dmin;
             if self.next_front(a, b, fronts, next, &mut NoVisualizer) {
                 return s;
             }
@@ -647,10 +642,10 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
 
             // A temporary front without any content.
             let mut next = Front::<N> {
-                layers: Layers::<N, Vec<FR>>::new(vec![]),
+                layers: Layers::<N, Vec<Fr>>::new(vec![]),
                 dmin: self.dmin(s),
                 dmax: self.dmax(s),
-                offset: self.left_buffer as isize - self.dmin(s),
+                offset: self.left_buffer as Fr - self.dmin(s),
             };
 
             if self.next_front(a, b, fronts, &mut next, v) {
