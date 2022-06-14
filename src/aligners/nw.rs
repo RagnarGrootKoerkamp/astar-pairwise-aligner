@@ -75,7 +75,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                 //affine layers check
                 if !found {
                     let mut i = 0;
-                    for affine_layer in &mut layers[x].affine {
+                    for affine_layer in &layers[x].affine {
                         if layers[x].m[y] == affine_layer[y] {
                             t = i;
                             break;
@@ -86,11 +86,9 @@ impl<const N: usize> NW<AffineCost<N>> {
             } else {
                 //Attention! Loop below covers only cases when x > 0
                 if x > 0 {
-                    for (cm, prev_layer, next_layer) in izip!(
-                        &self.cm.affine,
-                        &layers[x - 1].affine,
-                        &mut layers[x].affine
-                    ) {
+                    for (cm, prev_layer, next_layer) in
+                        izip!(&self.cm.affine, &layers[x - 1].affine, &layers[x].affine)
+                    {
                         match cm.affine_type {
                             InsertLayer => {
                                 if next_layer[y] == prev_layer[y] + cm.extend {
@@ -281,6 +279,6 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         // FIXME: Backtrack the optimal path.
 
         let d = layers[a.len()].m[b.len()];
-        return (d, track_path(layers, a, b));
+        return (d, self.track_path(layers, a, b));
     }
 }
