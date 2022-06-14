@@ -187,6 +187,12 @@ pub struct DiagonalTransition<CostModel> {
     right_buffer: usize,
 }
 
+/// Converts a pair of (diagonal index, furthest reaching) to a position.
+/// TODO: Return Pos or usize instead?
+fn fr_to_pos(d: Fr, f: Fr) -> (Fr, Fr) {
+    ((f + d) / 2, (f - d) / 2)
+}
+
 impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     pub fn new_variant(cm: AffineCost<N>, gap_variant: GapVariant, direction: Direction) -> Self {
         // The maximum cost we look back:
@@ -252,25 +258,21 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
     #[inline]
-        let j = *fr - d;
     fn extend_diagonal(&self, a: &Sequence, b: &Sequence, d: Fr, fr: &mut Fr) -> Fr {
+        let (i, j) = fr_to_pos(d, *fr);
 
         // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
-        match self.direction {
-            Forward => {
-                *fr += zip(a[*fr as usize..].iter(), b[j as usize..].iter())
-                    .take_while(|(ca, cb)| ca == cb)
-                    .count() as Fr
-            }
-            Backward => {
-                *fr += zip(
-                    a[..a.len() - *fr as usize].iter().rev(),
-                    b[..b.len() - j as usize].iter().rev(),
-                )
+        *fr += 2 * match self.direction {
+            Forward => zip(a[i as usize..].iter(), b[j as usize..].iter())
                 .take_while(|(ca, cb)| ca == cb)
-                .count() as Fr
-            }
-        }
+                .count(),
+            Backward => zip(
+                a[..a.len() - i as usize].iter().rev(),
+                b[..b.len() - j as usize].iter().rev(),
+            )
+            .take_while(|(ca, cb)| ca == cb)
+            .count(),
+        } as Fr;
         *fr
     }
 
@@ -280,15 +282,16 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
     #[allow(unused)]
     #[inline]
-        let j = *fr - d;
     fn extend_diagonal_packed(&self, a: &Sequence, b: &Sequence, d: Fr, fr: &mut Fr) -> Fr {
+        let i = (*fr + d) / 2;
+        let j = (*fr - d) / 2;
 
-        // cast [u8] to *const usize
+        // cast [u8] to *const usize, to compare 8 bytes at a time.
+        let mut a_ptr = a[i as usize..].as_ptr() as *const usize;
+        let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
+        let a_ptr_original = a_ptr;
         match self.direction {
             Forward => {
-                let mut a_ptr = a[*fr as usize..].as_ptr() as *const usize;
-                let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
-                let a_ptr_original = a_ptr;
                 let cmp = loop {
                     let cmp = unsafe { *a_ptr ^ *b_ptr };
                     // TODO: Make the break the `likely` case?
@@ -300,18 +303,15 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                         b_ptr = b_ptr.offset(1);
                     }
                 };
-                *fr += unsafe { a_ptr.offset_from(a_ptr_original) } as FR
-                    + (if cfg!(target_endian = "little") {
-                        cmp.trailing_zeros()
-                    } else {
-                        cmp.leading_zeros()
-                    } / u8::BITS) as FR;
+                *fr += 2
+                    * (unsafe { a_ptr.offset_from(a_ptr_original) } as Fr
+                        + (if cfg!(target_endian = "little") {
+                            cmp.trailing_zeros()
+                        } else {
+                            cmp.leading_zeros()
+                        } / u8::BITS) as Fr);
             }
             Backward => {
-                // Get a pointer ending at the given location.
-                let mut a_ptr = a[*fr as usize..].as_ptr() as *const usize;
-                let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
-                let a_ptr_original = a_ptr;
                 let cmp = loop {
                     unsafe {
                         a_ptr = a_ptr.offset(-1);
@@ -323,13 +323,14 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                         break cmp;
                     }
                 };
-                *fr += unsafe { a_ptr.offset_from(a_ptr_original) } as FR - 1
-                    + (if cfg!(target_endian = "little") {
-                        // NOTE: this is reversed from the forward case.
-                        cmp.leading_zeros()
-                    } else {
-                        cmp.trailing_zeros()
-                    } / u8::BITS) as FR;
+                *fr += 2
+                    * (unsafe { a_ptr_original.offset_from(a_ptr) } as Fr - 1
+                        + (if cfg!(target_endian = "little") {
+                            // NOTE: this is reversed from the forward case.
+                            cmp.leading_zeros()
+                        } else {
+                            cmp.trailing_zeros()
+                        } / u8::BITS) as Fr);
             }
         }
 
@@ -374,7 +375,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     ) -> Option<Vec<Front<N>>> {
         // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
         let f = self.extend_diagonal(a, b, 0, &mut 0);
-        if f >= a.len() as Fr && f >= b.len() as Fr {
+        if f >= (a.len() + b.len()) as Fr {
             return None;
         }
 
@@ -417,7 +418,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             }
         }
 
-        if front.m_mut()[a.len() as Fr - b.len() as Fr] >= a.len() as Fr {
+        if front.m_mut()[a.len() as Fr - b.len() as Fr] >= (a.len() + b.len()) as Fr {
             return true;
         }
         false
@@ -440,14 +441,14 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     ) -> Option<(Option<usize>, (Fr, Fr), (Fr, Fr))> {
         // NOTE: This is the same for the forward and reverse direction.
         let d_target = a.len() as Fr - b.len() as Fr;
-        let n = a.len() as Fr;
+        let f_target = (a.len() + b.len()) as Fr;
         let mirror = |d| d_target - d;
         let d_range =
             max(forward.dmin, mirror(backward.dmax))..=min(forward.dmax, mirror(backward.dmin));
         // TODO: Provide an (internal) iterator over Layers from Front that merges these two cases.
         // M
         for d in d_range.clone() {
-            if forward.m()[d] + backward.m()[mirror(d)] >= n {
+            if forward.m()[d] + backward.m()[mirror(d)] >= f_target {
                 return Some((
                     None,
                     (d, forward.m()[d]),
@@ -458,7 +459,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         // Affine layers
         for i in 0..N {
             for d in d_range.clone() {
-                if forward.affine(i)[d] + backward.affine(i)[mirror(d)] >= n {
+                if forward.affine(i)[d] + backward.affine(i)[mirror(d)] >= f_target {
                     return Some((
                         Some(i),
                         (d, forward.affine(i)[d]),
@@ -509,9 +510,9 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                         let affine_f = match cm.affine_type {
                             InsertLayer => max(
                                 // Gap open
-                                get_front(cm.open + cm.extend).m()[d + 1],
+                                get_front(cm.open + cm.extend).m()[d + 1] + 1,
                                 // Gap extend
-                                get_front(cm.extend).affine(idx)[d + 1],
+                                get_front(cm.extend).affine(idx)[d + 1] + 1,
                             ),
                             DeleteLayer => max(
                                 // Gap open
@@ -527,11 +528,11 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     }
                     // Substitution
                     if let Some(cost) = self.cm.sub {
-                        f = max(f, get_front(cost).m()[d] + 1);
+                        f = max(f, get_front(cost).m()[d] + 2);
                     }
                     // Insertion
                     if let Some(cost) = self.cm.ins {
-                        f = max(f, get_front(cost).m()[d + 1]);
+                        f = max(f, get_front(cost).m()[d + 1] + 1);
                     }
                     // Deletion
                     if let Some(cost) = self.cm.del {
@@ -551,17 +552,17 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     let mut f = Fr::MIN;
                     // Substitution
                     if let Some(cost) = self.cm.sub {
-                        f = max(f, get_front(cost).m()[d] + 1);
+                        f = max(f, get_front(cost).m()[d] + 2);
                     }
                     // Insertion
                     if let Some(cost) = self.cm.ins {
-                        f = max(f, get_front(cost).m()[d + 1]);
+                        f = max(f, get_front(cost).m()[d + 1] + 1);
                     }
                     // Deletion
                     if let Some(cost) = self.cm.del {
                         f = max(f, get_front(cost).m()[d - 1] + 1);
                     }
-                    // Affine layers
+                    // Affine layers: Gap close
                     for idx in 0..N {
                         let cm = &self.cm.affine[idx];
                         match cm.affine_type {
@@ -582,16 +583,20 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 }
 
                 for d in next.dmin..=next.dmax {
-                    // Affine layers
+                    // Affine layers: Gap open/extend
                     for idx in 0..N {
                         let cm = &self.cm.affine[idx];
-                        *&mut next.affine_mut(idx)[d] = match cm.affine_type {
+                        next.affine_mut(idx)[d] = match cm.affine_type {
                             // max(Gap open, Gap extend)
-                            InsertLayer => max(next.m()[d + 1], get_front(cm.extend).m()[d + 1]),
+                            InsertLayer => max(
+                                next.m()[d + 1] + 1,
+                                get_front(cm.extend).affine(idx)[d + 1] + 1,
+                            ),
                             // max(Gap open, Gap extend)
-                            DeleteLayer => {
-                                max(next.m()[d - 1] + 1, get_front(cm.extend).m()[d] + 1)
-                            }
+                            DeleteLayer => max(
+                                next.m()[d - 1] + 1,
+                                get_front(cm.extend).affine(idx)[d - 1] + 1,
+                            ),
                             _ => todo!(),
                         };
                     }
