@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1655072845951,
+  "lastUpdate": 1655167523904,
   "repoUrl": "https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner",
   "entries": {
     "Rust Benchmark": [
@@ -14687,6 +14687,78 @@ window.BENCHMARK_DATA = {
             "name": "fast_50000_similar",
             "value": 88423363,
             "range": "± 5835794",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ragnar.grootkoerkamp@gmail.com",
+            "name": "Ragnar Groot Koerkamp",
+            "username": "RagnarGrootKoerkamp"
+          },
+          "committer": {
+            "email": "ragnar.grootkoerkamp@gmail.com",
+            "name": "Ragnar Groot Koerkamp",
+            "username": "RagnarGrootKoerkamp"
+          },
+          "distinct": true,
+          "id": "dc79c272c76928659fdcbbde31d9fccf37698b55",
+          "message": "DT: Use I/D symmetric version of DP that stores f.r. points as i+j instead of i",
+          "timestamp": "2022-06-13T17:40:07-07:00",
+          "tree_id": "6cd9953d76b97306f786390356da58dcaa25906a",
+          "url": "https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/commit/dc79c272c76928659fdcbbde31d9fccf37698b55"
+        },
+        "date": 1655167523314,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "base_100",
+            "value": 41633,
+            "range": "± 259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "base_1000",
+            "value": 1003123,
+            "range": "± 4682",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "base_10000",
+            "value": 43080548,
+            "range": "± 1075302",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "base_50000_similar",
+            "value": 87228654,
+            "range": "± 2086621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fast_100",
+            "value": 35622,
+            "range": "± 147",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fast_1000",
+            "value": 885401,
+            "range": "± 2524",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fast_10000",
+            "value": 40070510,
+            "range": "± 264471",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fast_50000_similar",
+            "value": 78547972,
+            "range": "± 2210188",
             "unit": "ns/iter"
           }
         ]
