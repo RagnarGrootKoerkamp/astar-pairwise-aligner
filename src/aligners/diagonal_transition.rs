@@ -196,12 +196,12 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 cm.sub.unwrap_or(0),
                 match gap_variant {
                     GapOpen => 0,
-                    GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
+                    GapClose => max(cm.max_del_open, cm.max_ins_open),
                 },
             ),
             match gap_variant {
-                GapOpen => max(cm.max_ins_open_extend_cost(), cm.max_del_open_extend_cost()),
-                GapClose => max(cm.max_ins_extend_cost(), cm.max_del_extend_cost()),
+                GapOpen => max(cm.max_ins_open_extend, cm.max_del_open_extend),
+                GapClose => max(cm.max_ins_extend, cm.max_del_extend),
             },
         ) as usize;
 
@@ -210,15 +210,15 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             cm.sub
                 .unwrap_or(match gap_variant {
                     GapOpen => 0,
-                    GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
+                    GapClose => max(cm.max_del_open, cm.max_ins_open),
                 })
                 .div_ceil(cm.ins.unwrap_or(Cost::MAX)),
             // number of insertions (left moves) done in range of looking one deletion (right move) backwards
             1 + match gap_variant {
-                GapOpen => cm.max_del_open_extend_cost(),
-                GapClose => cm.max_del_extend_cost(),
+                GapOpen => cm.max_del_open_extend,
+                GapClose => cm.max_del_extend,
             }
-            .div_ceil(cm.min_ins_extend_cost()),
+            .div_ceil(cm.min_ins_extend),
         ) as usize;
         // Idem.
         let right_buffer = max(
@@ -226,15 +226,15 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             cm.sub
                 .unwrap_or(match gap_variant {
                     GapOpen => 0,
-                    GapClose => max(cm.max_del_open_cost(), cm.max_ins_open_cost()),
+                    GapClose => max(cm.max_del_open, cm.max_ins_open),
                 })
                 .div_ceil(cm.del.unwrap_or(Cost::MAX)),
             // number of deletions (right moves) done in range of looking one insertion (left move) backwards
             1 + match gap_variant {
-                GapOpen => cm.max_ins_open_extend_cost(),
-                GapClose => cm.max_ins_extend_cost(),
+                GapOpen => cm.max_ins_open_extend,
+                GapClose => cm.max_ins_extend,
             }
-            .div_ceil(cm.min_del_extend_cost()),
+            .div_ceil(cm.min_del_extend),
         ) as usize;
         Self {
             cm,
