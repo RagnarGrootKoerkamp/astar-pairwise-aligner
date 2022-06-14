@@ -8,6 +8,7 @@ use crate::prelude::{Pos, Sequence, I};
 use std::cmp::min;
 use std::iter::zip;
 
+pub type PATH = Vec<(usize, usize)>;
 pub struct NW<CostModel> {
     pub cm: CostModel,
 }
@@ -20,6 +21,121 @@ const INF: Cost = Cost::MAX / 2;
 type NWLayers<const N: usize> = Layers<N, Vec<Cost>>;
 
 impl<const N: usize> NW<AffineCost<N>> {
+    fn track_path(&self, layers: &mut Vec<NWLayers<N>>, a: &Sequence, b: &Sequence) -> PATH {
+        let mut path: PATH = vec![(layers.len(), layers[0].m.len())];
+        let mut x = layers.len();
+        let mut y = layers[0].m.len();
+        let mut t: isize = -1;
+        let mut save = |x: &usize, y: &usize| path.push((*x, *y));
+
+        while x + y > 0 {
+            let mut found = false;
+            if t == -1 {
+                if x * y > 0 {
+                    //x*y >0 == (x > 0 && y > 0)
+                    if a[x - 1] == b[y - 1] && layers[x].m[y] == layers[x - 1].m[y - 1] {
+                        //match
+                        x -= 1;
+                        y -= 1;
+                        save(&x, &y);
+                        found = true;
+                    }
+                    if !found {
+                        if let Some(sub) = self.cm.sub {
+                            if layers[x].m[y] == layers[x - 1].m[y - 1] + sub {
+                                //mismatch
+                                x -= 1;
+                                y -= 1;
+                                save(&x, &y);
+                                found = true;
+                            }
+                        }
+                    }
+                }
+                if x > 0 && !found {
+                    if let Some(ins) = self.cm.ins {
+                        if layers[x].m[y] == layers[x - 1].m[y] + ins {
+                            //insertion
+                            x -= 1;
+                            save(&x, &y);
+                            found = true;
+                        }
+                    }
+                }
+                if y > 0 && !found {
+                    if let Some(del) = self.cm.del {
+                        if layers[x].m[y] == layers[x].m[y - 1] + del {
+                            //deletion
+                            y -= 1;
+                            save(&x, &y);
+                            found = true;
+                        }
+                    }
+                }
+                //affine layers check
+                if !found {
+                    let mut i = 0;
+                    for affine_layer in &mut layers[x].affine {
+                        if layers[x].m[y] == affine_layer[y] {
+                            t = i;
+                            break;
+                        }
+                        i += 1;
+                    }
+                }
+            } else {
+                //Attention! Loop below covers only cases when x > 0
+                if x > 0 {
+                    for (cm, prev_layer, next_layer) in izip!(
+                        &self.cm.affine,
+                        &layers[x - 1].affine,
+                        &mut layers[x].affine
+                    ) {
+                        match cm.affine_type {
+                            InsertLayer => {
+                                if next_layer[y] == prev_layer[y] + cm.extend {
+                                    //insertion gap instention from current affine layer
+                                    x -= 1;
+                                    save(&x, &y);
+                                    break;
+                                } else {
+                                    // next_layer[j] == prev.m[j] + cm.open + cm.extend
+                                    x -= 1;
+                                    save(&x, &y);
+                                    t = -1;
+                                    break;
+                                    //oppening new insertion gap from main layer
+                                }
+                            }
+                            DeleteLayer => {
+                                if next_layer[y] == next_layer[y - 1] + cm.extend {
+                                    //deletion gap instention from current affine layer
+                                    y -= 1;
+                                    save(&x, &y);
+                                    break;
+                                } else {
+                                    //next_layer[j] == next.m[j - 1] + cm.open + cm.extend
+                                    y -= 1;
+                                    save(&x, &y);
+                                    t = -1;
+                                    break;
+                                }
+                            }
+                            _ => todo!(),
+                        };
+                    }
+                } else {
+                    x = 0;
+                    y = 0;
+                    save(&x, &y);
+                }
+            }
+        }
+
+        path.reverse();
+        path
+    }
+
     /// Computes the next layer (layer `i`) from the current one.
     /// `ca` is the `i-1`th character of sequence `a`.
     fn next_layer(
@@ -131,7 +247,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         return next.m[b.len()];
     }
 
-    fn visualize(&self, a: &Sequence, b: &Sequence, v: &mut impl Visualizer) -> Cost {
+    fn visualize(&self, a: &Sequence, b: &Sequence, v: &mut impl Visualizer) -> (Cost, PATH) {
         let ref mut layers = vec![NWLayers::<N>::new(vec![INF; b.len() + 1]); a.len() + 1];
 
         v.expand(Pos(0, 0));
@@ -164,6 +280,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
 
         // FIXME: Backtrack the optimal path.
 
-        return layers[a.len()].m[b.len()];
+        let d = layers[a.len()].m[b.len()];
+        return (d, track_path(layers, a, b));
     }
 }
