@@ -1,7 +1,5 @@
 //! This module contains the `AffineCost` and `LinearCost` cost models.
 
-use std::cmp::{max, min};
-
 /// Type for storing costs. Not u64 to save on memory.
 ///
 /// TODO: Make this a strong type, so that conversion between costs and indices
@@ -53,45 +51,47 @@ pub struct AffineCost<const N: usize> {
     /// layers, so that matching on the type becomes a compile-time instead of
     /// run-time operation?
     pub affine: [AffineLayerCosts; N],
+
+    /// Extra fields derived from the affine layers.
+    /// We store them so we do not have to recompute them all the time.
+    pub min_ins_open: Cost,
+    pub max_ins_open: Cost,
+    pub min_del_open: Cost,
+    pub max_del_open: Cost,
+    pub min_ins_extend: Cost,
+    pub max_ins_extend: Cost,
+    pub min_del_extend: Cost,
+    pub max_del_extend: Cost,
+    pub min_ins_open_extend: Cost,
+    pub max_ins_open_extend: Cost,
+    pub min_del_open_extend: Cost,
+    pub max_del_open_extend: Cost,
 }
 
 /// A linear cost model is simply an affine cost model without any affine layers.
 pub type LinearCost = AffineCost<0>;
 
-impl<const N: usize> AffineCost<N> {
-    pub fn new_lcs() -> AffineCost<0> {
-        AffineCost {
-            sub: None,
-            ins: Some(1),
-            del: Some(1),
-            affine: [],
-        }
+impl LinearCost {
+    pub fn new_lcs() -> LinearCost {
+        Self::new(None, Some(1), Some(1), [])
     }
 
-    pub fn new_unit() -> AffineCost<0> {
-        AffineCost {
-            sub: Some(1),
-            ins: Some(1),
-            del: Some(1),
-            affine: [],
-        }
+    pub fn new_unit() -> LinearCost {
+        Self::new(Some(1), Some(1), Some(1), [])
     }
 
-    pub fn new_linear(sub: Cost, ins: Cost, del: Cost) -> AffineCost<0> {
-        AffineCost {
-            sub: Some(sub),
-            ins: Some(ins),
-            del: Some(del),
-            affine: [],
-        }
+    pub fn new_linear(sub: Cost, ins: Cost, del: Cost) -> LinearCost {
+        Self::new(Some(sub), Some(ins), Some(del), [])
     }
+}
 
+impl AffineCost<2> {
     pub fn new_affine(sub: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
-        AffineCost {
-            sub: Some(sub),
-            ins: None,
-            del: None,
-            affine: [
+        Self::new(
+            Some(sub),
+            None,
+            None,
+            [
                 AffineLayerCosts {
                     affine_type: InsertLayer,
                     open,
@@ -103,9 +103,8 @@ impl<const N: usize> AffineCost<N> {
                     extend,
                 },
             ],
-        }
+        )
     }
-
     pub fn new_affine2(
         sub: Cost,
         ins_open: Cost,
@@ -113,11 +112,11 @@ impl<const N: usize> AffineCost<N> {
         del_open: Cost,
         del_extend: Cost,
     ) -> AffineCost<2> {
-        AffineCost {
-            sub: Some(sub),
-            ins: None,
-            del: None,
-            affine: [
+        Self::new(
+            Some(sub),
+            None,
+            None,
+            [
                 AffineLayerCosts {
                     affine_type: InsertLayer,
                     open: ins_open,
@@ -129,6 +128,53 @@ impl<const N: usize> AffineCost<N> {
                     extend: del_extend,
                 },
             ],
+        )
+    }
+}
+
+impl<const N: usize> AffineCost<N> {
+    pub fn new(
+        sub: Option<Cost>,
+        ins: Option<Cost>,
+        del: Option<Cost>,
+        affine: [AffineLayerCosts; N],
+    ) -> AffineCost<N> {
+        let layers = |layer_type| affine.iter().filter(move |cm| cm.affine_type == layer_type);
+        let min_by = |layer_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
+            layers(layer_type).map(f).min().unwrap_or(Cost::MAX)
+        };
+        let max_by = |layer_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
+            layers(layer_type).map(f).max().unwrap_or(Cost::MIN)
+        };
+        let min_ins_open = min_by(InsertLayer, &|cm| cm.open);
+        let max_ins_open = max_by(InsertLayer, &|cm| cm.open);
+        let min_del_open = min_by(DeleteLayer, &|cm| cm.open);
+        let max_del_open = max_by(DeleteLayer, &|cm| cm.open);
+        let min_ins_extend = min_by(InsertLayer, &|cm| cm.extend);
+        let max_ins_extend = max_by(InsertLayer, &|cm| cm.extend);
+        let min_del_extend = min_by(DeleteLayer, &|cm| cm.extend);
+        let max_del_extend = max_by(DeleteLayer, &|cm| cm.extend);
+        let min_ins_open_extend = min_by(InsertLayer, &|cm| cm.open + cm.extend);
+        let max_ins_open_extend = max_by(InsertLayer, &|cm| cm.open + cm.extend);
+        let min_del_open_extend = min_by(DeleteLayer, &|cm| cm.open + cm.extend);
+        let max_del_open_extend = max_by(DeleteLayer, &|cm| cm.open + cm.extend);
+        AffineCost {
+            sub,
+            ins,
+            del,
+            affine,
+            min_ins_open,
+            max_ins_open,
+            min_del_open,
+            max_del_open,
+            min_ins_extend,
+            max_ins_extend,
+            min_del_extend,
+            max_del_extend,
+            min_ins_open_extend,
+            max_ins_open_extend,
+            min_del_open_extend,
+            max_del_open_extend,
         }
     }
 
@@ -173,95 +219,5 @@ impl<const N: usize> AffineCost<N> {
         F: FnOnce(Cost) -> U,
     {
         self.del.map_or(default, f)
-    }
-
-    // Below here are a lot of small helper functions to find the least/most expensive open/extend/open+extend costs.
-
-    pub fn max_ins_open_cost(&self) -> Cost {
-        let mut c = Cost::MIN;
-        for cm in &self.affine {
-            match cm.affine_type {
-                InsertLayer | HomoPolymerInsert { .. } => c = max(c, cm.open),
-                DeleteLayer | HomoPolymerDelete { .. } => {}
-            }
-        }
-        c
-    }
-
-    pub fn max_del_open_cost(&self) -> Cost {
-        let mut c = Cost::MIN;
-        for cm in &self.affine {
-            match cm.affine_type {
-                DeleteLayer | HomoPolymerDelete { .. } => c = max(c, cm.open),
-                InsertLayer | HomoPolymerInsert { .. } => {}
-            }
-        }
-        c
-    }
-
-    pub fn min_ins_extend_cost(&self) -> Cost {
-        let mut c = self.ins.unwrap_or(Cost::MAX);
-        for cm in &self.affine {
-            match cm.affine_type {
-                InsertLayer | HomoPolymerInsert { .. } => c = min(c, cm.extend),
-                DeleteLayer | HomoPolymerDelete { .. } => {}
-            }
-        }
-        c
-    }
-
-    pub fn min_del_extend_cost(&self) -> Cost {
-        let mut c = self.del.unwrap_or(Cost::MAX);
-        for cm in &self.affine {
-            match cm.affine_type {
-                DeleteLayer | HomoPolymerDelete { .. } => c = min(c, cm.extend),
-                InsertLayer | HomoPolymerInsert { .. } => {}
-            }
-        }
-        c
-    }
-
-    pub fn max_ins_extend_cost(&self) -> Cost {
-        let mut c = self.ins.unwrap_or(Cost::MIN);
-        for cm in &self.affine {
-            match cm.affine_type {
-                InsertLayer | HomoPolymerInsert { .. } => c = max(c, cm.extend),
-                DeleteLayer | HomoPolymerDelete { .. } => {}
-            }
-        }
-        c
-    }
-
-    pub fn max_del_extend_cost(&self) -> Cost {
-        let mut c = self.del.unwrap_or(Cost::MIN);
-        for cm in &self.affine {
-            match cm.affine_type {
-                DeleteLayer | HomoPolymerDelete { .. } => c = max(c, cm.extend),
-                InsertLayer | HomoPolymerInsert { .. } => {}
-            }
-        }
-        c
-    }
-
-    pub fn max_ins_open_extend_cost(&self) -> Cost {
-        let mut c = self.ins.unwrap_or(0);
-        for cm in &self.affine {
-            match cm.affine_type {
-                InsertLayer | HomoPolymerInsert { .. } => c = max(c, cm.open + cm.extend),
-                DeleteLayer | HomoPolymerDelete { .. } => {}
-            }
-        }
-        c
-    }
-
-    pub fn max_del_open_extend_cost(&self) -> Cost {
-        let mut c = self.del.unwrap_or(0);
-        for cm in &self.affine {
-            match cm.affine_type {
-                DeleteLayer | HomoPolymerDelete { .. } => c = max(c, cm.open + cm.extend),
-                InsertLayer | HomoPolymerInsert { .. } => {}
-            }
-        }
-        c
     }
 }
