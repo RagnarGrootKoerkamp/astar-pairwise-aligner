@@ -2,7 +2,7 @@
 
 use crate::prelude::{Cost, Pos, Sequence};
 
-use self::nw::PATH;
+use self::nw::{CIGAR, PATH};
 
 pub mod diagonal_transition;
 pub mod layer;
@@ -39,7 +39,7 @@ pub trait Aligner {
     }
 
     /// TODO: Make this return a path as well.
-    fn align(&self, a: &Sequence, b: &Sequence) -> (Cost, PATH) {
+    fn align(&self, a: &Sequence, b: &Sequence) -> (Cost, PATH, CIGAR) {
         self.visualize(a, b, &mut NoVisualizer)
     }
 
@@ -48,7 +48,7 @@ pub trait Aligner {
         _a: &Sequence,
         _b: &Sequence,
         _visualizer: &mut impl Visualizer,
-    ) -> (Cost, PATH) {
+    ) -> (Cost, PATH, CIGAR) {
         unimplemented!("This aligner does not support visualizations!");
     }
 }
