@@ -22,111 +22,105 @@ type NWLayers<const N: usize> = Layers<N, Vec<Cost>>;
 
 impl<const N: usize> NW<AffineCost<N>> {
     fn track_path(&self, layers: &mut Vec<NWLayers<N>>, a: &Sequence, b: &Sequence) -> PATH {
-        let mut path: PATH = vec![(layers.len(), layers[0].m.len())];
-        let mut x = layers.len();
-        let mut y = layers[0].m.len();
-        let mut t: isize = -1;
+        let mut path: PATH = vec![];
         let mut save = |x: &usize, y: &usize| path.push((*x, *y));
+        let mut i = a.len();
+        let mut j = b.len();
+        save(&i, &j);
+        let mut layer: isize = -1; //shows in what layer we currently are. -1 - main layer; any other positive or zero index - index of affine layer
 
-        while x + y > 0 {
-            let mut found = false;
-            if t == -1 {
-                if x * y > 0 {
-                    //x*y >0 == (x > 0 && y > 0)
-                    if a[x - 1] == b[y - 1] && layers[x].m[y] == layers[x - 1].m[y - 1] {
+        while i > 0 || j > 0 {
+            //i + j > 0 == i > 0 || j > 0
+            if layer == -1 {
+                if i > 0 && j > 0 {
+                    //x*y > 0 == (x > 0 && y > 0)
+                    if a[i - 1] == b[j - 1] && layers[i].m[j] == layers[i - 1].m[j - 1] {
                         //match
-                        x -= 1;
-                        y -= 1;
-                        save(&x, &y);
-                        found = true;
+                        i -= 1;
+                        j -= 1;
+                        save(&i, &j);
+                        continue;
                     }
-                    if !found {
-                        if let Some(sub) = self.cm.sub {
-                            if layers[x].m[y] == layers[x - 1].m[y - 1] + sub {
-                                //mismatch
-                                x -= 1;
-                                y -= 1;
-                                save(&x, &y);
-                                found = true;
-                            }
+                    if let Some(sub) = self.cm.sub {
+                        if layers[i].m[j] == layers[i - 1].m[j - 1] + sub {
+                            //mismatch
+                            i -= 1;
+                            j -= 1;
+                            save(&i, &j);
+                            continue;
                         }
                     }
                 }
-                if x > 0 && !found {
+                if i > 0 {
                     if let Some(ins) = self.cm.ins {
-                        if layers[x].m[y] == layers[x - 1].m[y] + ins {
+                        if layers[i].m[j] == layers[i - 1].m[j] + ins {
                             //insertion
-                            x -= 1;
-                            save(&x, &y);
-                            found = true;
+                            i -= 1;
+                            save(&i, &j);
+                            continue;
                         }
                     }
                 }
-                if y > 0 && !found {
+                if j > 0 {
                     if let Some(del) = self.cm.del {
-                        if layers[x].m[y] == layers[x].m[y - 1] + del {
+                        if layers[i].m[j] == layers[i].m[j - 1] + del {
                             //deletion
-                            y -= 1;
-                            save(&x, &y);
-                            found = true;
+                            j -= 1;
+                            save(&i, &j);
+                            continue;
                         }
                     }
                 }
                 //affine layers check
-                if !found {
-                    let mut i = 0;
-                    for affine_layer in &layers[x].affine {
-                        if layers[x].m[y] == affine_layer[y] {
-                            t = i;
-                            break;
-                        }
-                        i += 1;
+                let mut tmp = 0;
+                for affine_layer in &layers[i].affine {
+                    if layers[i].m[j] == affine_layer[j] {
+                        layer = tmp;
+                        break;
                     }
+                    tmp += 1;
                 }
             } else {
-                //Attention! Loop below covers only cases when x > 0
-                if x > 0 {
-                    for (cm, prev_layer, next_layer) in
-                        izip!(&self.cm.affine, &layers[x - 1].affine, &layers[x].affine)
-                    {
-                        match cm.affine_type {
-                            InsertLayer => {
-                                if next_layer[y] == prev_layer[y] + cm.extend {
-                                    //insertion gap instention from current affine layer
-                                    x -= 1;
-                                    save(&x, &y);
-                                    break;
-                                } else {
-                                    // next_layer[j] == prev.m[j] + cm.open + cm.extend
-                                    x -= 1;
-                                    save(&x, &y);
-                                    t = -1;
-                                    break;
-                                    //oppening new insertion gap from main layer
-                                }
-                            }
-                            DeleteLayer => {
-                                if next_layer[y] == next_layer[y - 1] + cm.extend {
-                                    //deletion gap instention from current affine layer
-                                    y -= 1;
-                                    save(&x, &y);
-                                    break;
-                                } else {
-                                    //next_layer[j] == next.m[j - 1] + cm.open + cm.extend
-                                    y -= 1;
-                                    save(&x, &y);
-                                    t = -1;
-                                    break;
-                                }
-                            }
-                            _ => todo!(),
-                        };
+                match self.cm.affine[layer as usize].affine_type {
+                    InsertLayer => {
+                        if layers[i].affine[layer as usize][j]
+                            == layers[i - 1].affine[layer as usize][j]
+                                + self.cm.affine[layer as usize].extend
+                        {
+                            //insertion gap extention from current affine layer
+                            i -= 1;
+                            save(&i, &j);
+                            break;
+                        } else {
+                            // layers[i].affine[layer as usize][j]
+                            // == layers[i - 1].m[j]
+                            // + self.cm.affine[layer as usize].open + self.cm.affine[layer as usize].extend
+                            //oppening new insertion gap from main layer
+                            i -= 1;
+                            save(&i, &j);
+                            layer = -1;
+                            break;
+                        }
                     }
-                } else {
-                    x = 0;
-                    y = 0;
-                    save(&x, &y);
-                }
+                    DeleteLayer => {
+                        if layers[i].affine[layer as usize][j]
+                            == layers[i].affine[layer as usize][j - 1]
+                                + self.cm.affine[layer as usize].extend
+                        {
+                            //deletion gap extention from current affine layer
+                            j -= 1;
+                            save(&i, &j);
+                            break;
+                        } else {
+                            //oppening new deletion gap from main layer
+                            j -= 1;
+                            save(&i, &j);
+                            layer = -1;
+                            break;
+                        }
+                    }
+                    _ => todo!(),
+                };
             }
         }
 
