@@ -35,12 +35,12 @@ impl Visualizer for NoVisualizer {}
 /// Note that insertions are when `b` has more characters than `a`, and deletions are when `b` has less characters than `a`.
 pub trait Aligner {
     fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
-        self.align(a, b)
+        self.align(a, b).0
     }
 
     /// TODO: Make this return a path as well.
-    fn align(&self, a: &Sequence, b: &Sequence) -> Cost {
-        self.visualize(a, b, &mut NoVisualizer).0
+    fn align(&self, a: &Sequence, b: &Sequence) -> (Cost, PATH) {
+        self.visualize(a, b, &mut NoVisualizer)
     }
 
     fn visualize(
