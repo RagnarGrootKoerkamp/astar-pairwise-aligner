@@ -31,6 +31,7 @@ pub enum AffineLayerType {
 pub use AffineLayerType::*;
 
 /// An affine layer depends on its type, the open cost, and the extend cost.
+#[derive(Clone)]
 pub struct AffineLayerCosts {
     pub affine_type: AffineLayerType,
     pub open: Cost,
@@ -39,6 +40,7 @@ pub struct AffineLayerCosts {
 
 /// A full cost model consists of linear substitution/insertion/delete costs,
 /// and zero or more (N) affine layers.
+#[derive(Clone)]
 pub struct AffineCost<const N: usize> {
     /// The substitution cost. Or None when substitutions are not allowed.
     pub sub: Option<Cost>,

@@ -1,5 +1,6 @@
 use itertools::izip;
 
+use super::cigar::{Cigar, CigarOp, CigarTrait};
 use super::layer::Layers;
 use super::NoVisualizer;
 use super::{Aligner, Visualizer};
@@ -11,61 +12,6 @@ use std::iter::zip;
 pub type PATH = Vec<(usize, usize)>;
 pub struct NW<CostModel> {
     pub cm: CostModel,
-}
-
-#[derive(PartialEq)]
-enum CIGAR_option {
-    Match,
-    Mismatch,
-    Insertion,
-    Deletion,
-}
-
-pub struct CIGAR_obj {
-    command: CIGAR_option,
-    n: usize,
-}
-
-fn new_CIGAR(command: CIGAR_option) -> CIGAR_obj {
-    CIGAR_obj {
-        command: command,
-        n: 1,
-    }
-}
-
-pub type CIGAR = Vec<CIGAR_obj>;
-
-fn cigar_add(cigar: &mut CIGAR, command: CIGAR_option) {
-    if let Some(s) = cigar.last_mut() {
-        if s.command == command {
-            s.n += 1;
-            return;
-        }
-    }
-    cigar.push(new_CIGAR(command));
-}
-
-fn get_CIGAR_char(command: &CIGAR_option) -> char {
-    match command {
-        Match => 'M',
-        Mismatch => 'X',
-        Insertion => 'I',
-        Deletion => 'D',
-    }
-}
-
-fn print_CIGAR(cigar: &CIGAR) {
-    for i in cigar {
-        print!("{}{}", i.n, get_CIGAR_char(&i.command));
-    }
-}
-
-fn str_CIGAR(cigar: &CIGAR) -> String {
-    let mut str = String::new();
-    for i in cigar {
-        str.push_str(&format!("{}{}", i.n, get_CIGAR_char(&i.command)));
-    }
-    str
 }
 
 // TODO: Instead use saturating add everywhere?
@@ -81,7 +27,7 @@ impl<const N: usize> NW<AffineCost<N>> {
         layers: &mut Vec<NWLayers<N>>,
         a: &Sequence,
         b: &Sequence,
-    ) -> (PATH, CIGAR) {
+    ) -> (PATH, Cigar) {
         let mut path: PATH = vec![];
         let mut save = |x: usize, y: usize| path.push((x, y));
         let mut i = a.len();
@@ -194,21 +140,18 @@ impl<const N: usize> NW<AffineCost<N>> {
         path.dedup();
 
         //Converting to the CIGAR format
-        let mut cigar: CIGAR = vec![];
+        let mut cigar: Cigar = vec![];
         for i in 1..path.len() {
             if path[i].0 == path[i - 1].0 {
-                cigar_add(&mut cigar, CIGAR_option::Insertion);
+                cigar.cigar_push(CigarOp::Insertion);
             } else if path[i].1 == path[i - 1].1 {
-                cigar_add(&mut cigar, CIGAR_option::Deletion);
+                cigar.cigar_push(CigarOp::Deletion);
             } else {
-                cigar_add(
-                    &mut cigar,
-                    if a[path[i].0] == b[path[i].1] {
-                        CIGAR_option::Match
-                    } else {
-                        CIGAR_option::Mismatch
-                    },
-                );
+                cigar.cigar_push(if a[path[i].0] == b[path[i].1] {
+                    CigarOp::Match
+                } else {
+                    CigarOp::Mismatch
+                });
             }
         }
         (path, cigar)
@@ -330,7 +273,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         a: &Sequence,
         b: &Sequence,
         v: &mut impl Visualizer,
-    ) -> (Cost, PATH, CIGAR) {
+    ) -> (Cost, PATH, Cigar) {
         let ref mut layers = vec![NWLayers::<N>::new(vec![INF; b.len() + 1]); a.len() + 1];
 
         v.expand(Pos(0, 0));
