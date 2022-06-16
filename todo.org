@@ -299,6 +299,8 @@ Given a seed, find the best match in b. Then find a lower bound on the cost of
 aligning all other matches of the seed. For something like k=20, e=0.1, we may have
 an on-diagonal match of cost 2, and find that all other matches have cost at
 least in the range 5-10. This allows much more aggressive pruning.
+** Investigate kmer-counting distance
+Similar, but does all kmers instead of disjoint kmers.
 
 * Edit Distance
 ** TODO Run SeedHeuristic with k=1 as edit distance computation algorithm.
