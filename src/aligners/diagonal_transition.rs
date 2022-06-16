@@ -21,8 +21,9 @@
 //! - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
 //!
 //!
+use super::cigar::Cigar;
 use super::layer::Layers;
-use super::nw::{CIGAR, PATH};
+use super::nw::PATH;
 use super::{Aligner, NoVisualizer, Visualizer};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence};
@@ -640,7 +641,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
         a: &Sequence,
         b: &Sequence,
         v: &mut impl Visualizer,
-    ) -> (Cost, PATH, CIGAR) {
+    ) -> (Cost, PATH, Cigar) {
         let Some(ref mut fronts) = self.init_fronts(a, b, v) else {
             return (0,vec![],vec![]);
         };

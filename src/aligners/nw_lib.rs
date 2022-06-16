@@ -1,7 +1,4 @@
-use super::{
-    nw::{CIGAR, PATH},
-    Aligner,
-};
+use super::{cigar::Cigar, nw::PATH, Aligner};
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
 struct NWLib {
@@ -27,7 +24,7 @@ impl Aligner for NWLib {
         _a: &bio_types::sequence::Sequence,
         _b: &bio_types::sequence::Sequence,
         _visualizer: &mut impl super::Visualizer,
-    ) -> (crate::prelude::Cost, PATH, CIGAR) {
+    ) -> (crate::prelude::Cost, PATH, Cigar) {
         unimplemented!("This aligner does not support path tracing!");
     }
 }
