@@ -50,9 +50,7 @@ impl CigarTrait for Cigar {
     }
 
     fn print(&self) {
-        for i in self {
-            print!("{}{}", i.length, i.command.get_char());
-        }
+        print!("{}", self.str());
     }
 
     fn str(&self) -> String {
