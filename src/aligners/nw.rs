@@ -1,4 +1,5 @@
 use super::cigar::Cigar;
+use super::cigar::CigarOp;
 use super::edit_graph::{EditGraph, State};
 use super::{Aligner, NoVisualizer, VisualizerT};
 use super::{Seq, Sequence};
