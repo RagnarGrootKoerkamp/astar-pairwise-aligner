@@ -1,4 +1,4 @@
-use std::{cell::Cell, time::Duration};
+use std::{cell::Cell, ops::Range, time::Duration};
 
 use sdl2::{
     pixels::Color,
@@ -22,12 +22,10 @@ impl VisualizerT for NoVisualizer {}
 
 #[derive(Clone)]
 pub enum Gradient {
-    //(expanded_color,explored color)
-    NoGradient(Color, Color),
-    //(start color, end color)
-    Gradient(Color, Color),
-    //(start value, end value); start < end; start > 0 && end > 0; start < 1 && end <= 1
-    TurboGradient(f32, f32),
+    NoGradient { expand: Color, explore: Color },
+    Gradient(Range<Color>),
+    // 0 <= start < end <= 1
+    TurboGradient(Range<f32>),
 }
 
 #[derive(Clone)]
@@ -57,7 +55,10 @@ impl Default for Config {
             drawing: false,
             delay: Cell::new(0.2),
             colors: ColorScheme {
-                gradient: Gradient::NoGradient(Color::BLUE, Color::RGB(128, 0, 128)),
+                gradient: Gradient::NoGradient {
+                    expand: Color::BLUE,
+                    explore: Color::RGB(128, 0, 128),
+                },
                 bg_color: Color::BLACK,
             },
         }
@@ -160,16 +161,16 @@ impl Visualizer {
             canvas
                 .fill_rect(Rect::new(0, 0, self.width, self.height))
                 .unwrap();
-            match self.config.colors.gradient {
-                Gradient::NoGradient(expanded_color, explored_color) => {
+            match &self.config.colors.gradient {
+                Gradient::NoGradient { expand, explore } => {
                     for pos in &self.explored {
-                        draw_pixel(canvas, *pos, explored_color);
+                        draw_pixel(canvas, *pos, *explore);
                     }
                     for pos in &self.expanded {
-                        draw_pixel(canvas, *pos, expanded_color);
+                        draw_pixel(canvas, *pos, *expand);
                     }
                 }
-                Gradient::Gradient(c1, c2) => {
+                Gradient::Gradient(range) => {
                     //Draws only expnded states!
                     fn gradient(f: f32, c1: Color, c2: Color) -> Color {
                         let frac =
@@ -180,19 +181,19 @@ impl Visualizer {
                     let mut i: f32 = 0.;
                     let d = self.expanded.len() as f32;
                     for pos in &self.expanded {
-                        draw_pixel(canvas, *pos, gradient(i / d, c1, c2));
+                        draw_pixel(canvas, *pos, gradient(i / d, range.start, range.end));
                         i += 1.;
                     }
                 }
-                Gradient::TurboGradient(start, end) => {
+                Gradient::TurboGradient(range) => {
                     //Draws only expnded states!
                     let grad = colorgrad::turbo();
                     let mut i: f64 = 0.;
                     let d = self.expanded.len() as f64;
-                    let coef = (end - start) as f64;
+                    let coef = (range.end - range.start) as f64;
                     for pos in &self.expanded {
                         let val = i / d;
-                        let clr = grad.at(start as f64 + (val * coef)).rgba_u8();
+                        let clr = grad.at(range.start as f64 + (val * coef)).rgba_u8();
                         draw_pixel(canvas, *pos, Color::RGBA(clr.0, clr.1, clr.2, clr.3));
                         i += 1.;
                     }
