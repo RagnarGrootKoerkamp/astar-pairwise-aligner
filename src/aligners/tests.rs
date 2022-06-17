@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::{
     generate::setup,
     prelude::{to_string, AffineCost},
@@ -13,7 +11,7 @@ fn test1() {
     let cm = AffineCost::new_affine(1, 2, 1);
     let tmp: NW<AffineCost<2>> = NW { cm: cm.clone() };
     let tmp2: DiagonalTransition<AffineCost<2>> = DiagonalTransition::new(cm);
-    for len in (0..500).step(5) {
+    for len in (0..500).step_by(5) {
         // Test section
         for k in [0., 0.01, 0.05, 0.10, 0.20, 0.30, 0.50, 1.0] {
             let (ref a, ref b, ref _alphabet, _stats) = setup(len, 0.2 * k as f32);
