@@ -8,6 +8,62 @@ use sdl2::{
     Sdl,
 };
 
+use crate::prelude::Pos;
+
+/// A visualizer can be used to visualize progress of an implementation.
+pub trait VisualizerT {
+    fn explore(&mut self, _pos: Pos) {}
+    fn expand(&mut self, _pos: Pos) {}
+}
+
+/// A trivial visualizer that does not do anything.
+pub struct NoVisualizer;
+impl VisualizerT for NoVisualizer {}
+
+#[derive(Clone)]
+pub enum Gradient {
+    //(expanded_color,explored color)
+    NoGradient(Color, Color),
+    //(start color, end color)
+    Gradient(Color, Color),
+    //(start value, end value); start < end; start > 0 && end > 0; start < 1 && end <= 1
+    TurboGradient(f32, f32),
+}
+
+#[derive(Clone)]
+pub struct ColorScheme {
+    gradient: Gradient,
+    bg_color: Color,
+}
+
+#[derive(Clone)]
+pub struct Config {
+    cell_size: usize,
+    prescaler: usize, //for scaling image
+    filepath: String, //maybe &str instead
+    drawing: bool,
+    delay: Cell<f32>,
+    saving: bool,
+    colors: ColorScheme,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            cell_size: 8,
+            prescaler: 1,
+            saving: false,
+            filepath: String::from(""),
+            drawing: false,
+            delay: Cell::new(0.2),
+            colors: ColorScheme {
+                gradient: Gradient::NoGradient(Color::BLUE, Color::RGB(128, 0, 128)),
+                bg_color: Color::BLACK,
+            },
+        }
+    }
+}
+
 //Saves canvas to bmp file
 pub fn save_canvas(
     canvas: &sdl2::render::Canvas<sdl2::video::Window>,
@@ -32,7 +88,7 @@ pub fn save_canvas(
         });
 }
 
-struct Visualizer_obj {
+struct Visualizer {
     canvas: Option<sdl2::render::Canvas<sdl2::video::Window>>,
     sdl_context: Sdl,
     config: Config,
@@ -43,7 +99,7 @@ struct Visualizer_obj {
     file_number: usize,
 }
 
-impl Visualizer for Visualizer_obj {
+impl Visualizer {
     fn init(&mut self, config: &Config, len1: u32, len2: u32) {
         self.file_number = 0;
         self.width = len1;
@@ -74,37 +130,27 @@ impl Visualizer for Visualizer_obj {
         };
         self.canvas = window.map(|w| w.into_canvas().build().unwrap());
     }
-
-    fn expand(&mut self, _pos: Pos) {
-        self.expanded.push(_pos);
-        self.draw();
-    }
-
-    fn explore(&mut self, _pos: Pos) {
-        self.explored.push(_pos);
-        self.draw();
-    }
     fn draw(&mut self) {
         if !self.config.saving && !self.config.drawing {
             return;
         }
-        let SCALE = self.config.prescaler as u32;
-        let CELL_SIZE = self.config.cell_size as u32;
+        let scale = self.config.prescaler as u32;
+        let cell_size = self.config.cell_size as u32;
 
         let cell_begin = |Pos(i, j): Pos| -> Point {
-            Point::new((i * CELL_SIZE) as i32, (j * CELL_SIZE) as i32)
+            Point::new((i * cell_size) as i32, (j * cell_size) as i32)
         };
 
         let draw_pixel = |canvas: &mut Canvas<Window>, p: Pos, c: Color| {
             canvas.set_draw_color(c);
             let mut begin = cell_begin(p);
-            begin *= SCALE as i32;
+            begin *= scale as i32;
             canvas
                 .fill_rect(Rect::new(
                     begin.x,
                     begin.y,
-                    CELL_SIZE * SCALE,
-                    CELL_SIZE * SCALE,
+                    cell_size * scale,
+                    cell_size * scale,
                 ))
                 .unwrap();
         };
@@ -160,5 +206,17 @@ impl Visualizer for Visualizer_obj {
                 ::std::thread::sleep(Duration::from_secs_f32(self.config.delay.get()));
             }
         }
+    }
+}
+
+impl VisualizerT for Visualizer {
+    fn expand(&mut self, _pos: Pos) {
+        self.expanded.push(_pos);
+        self.draw();
+    }
+
+    fn explore(&mut self, _pos: Pos) {
+        self.explored.push(_pos);
+        self.draw();
     }
 }
