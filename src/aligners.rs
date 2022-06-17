@@ -1,10 +1,11 @@
 //! This module contains implementations of other alignment algorithms.
 
-use std::cmp::max;
-
-use crate::prelude::{Cost, CostModel, Pos};
-
 use self::{cigar::Cigar, nw::Path};
+use crate::prelude::{Cost, CostModel, Pos};
+use crate::prelude::{Cost, Pos, Sequence};
+use sdl2::pixels::Color;
+use std::cell::Cell;
+use std::cmp::max;
 
 pub mod cigar;
 pub mod diagonal_transition;
@@ -21,12 +22,59 @@ pub type Sequence = Vec<u8>;
 /// A sequence slice.
 pub type Seq<'a> = &'a [u8];
 
+#[derive(Clone)]
+enum Gradient {
+    NoGradient(Color, Color), //(expanded_color,explored color)
+    Gradient(Color, Color),   //(start color, end color)
+    TurboGradient(f32, f32), //(start value, end value); start < end; start > 0 && end > 0; start < 1 && end <= 1
+}
+
+#[derive(Clone)]
+struct ColorScheme {
+    gradient: Gradient,
+    bg_color: Color,
+}
+
+// let default_colors: ColorScheme = ColorScheme{};
+
+#[derive(Clone)]
+pub struct Config {
+    cell_size: usize,
+    prescaler: usize, //for scaling image
+    filepath: String, //maybe &str instead
+    drawing: bool,
+    delay: Cell<f32>,
+    saving: bool,
+    colors: ColorScheme,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            cell_size: 8,
+            prescaler: 1,
+            saving: false,
+            filepath: String::from(""),
+            drawing: false,
+            delay: Cell::new(0.2),
+            colors: ColorScheme {
+                gradient: Gradient::NoGradient(Color::BLUE, Color::RGB(128, 0, 128)),
+                bg_color: Color::BLACK,
+            },
+        }
+    }
+}
+
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
+    #[inline]
+    fn init(&mut self, config: &Config, len1: u32, len2: u32) {}
     #[inline]
     fn explore(&mut self, _pos: Pos) {}
     #[inline]
     fn expand(&mut self, _pos: Pos) {}
+    #[inline]
+    fn draw(&mut self) {}
 }
 
 /// A trivial visualizer that does not do anything.
