@@ -63,6 +63,16 @@ pub struct Layer<'a, T, I> {
     /// without needing extra context.
     offset: I,
 }
+
+impl<'a, T, I> Layer<'a, T, I>
+where
+    I: IndexType,
+{
+    pub fn get(&self, d: I) -> Option<&T> {
+        self.l.get((self.offset + d).as_() as usize)
+    }
+}
+
 /// Indexing for a Layer.
 impl<'a, T, I> Index<I> for Layer<'a, T, I>
 where

@@ -19,10 +19,10 @@ const INF: Cost = Cost::MAX / 2;
 
 /// The base vector M, and one vector per affine layer.
 /// TODO: Possibly switch to a Vec<Layer> instead.
-type Front<const N: usize> = Layers<N, Vec<Cost>>;
+type Front<const N: usize> = super::front::Front<N, Cost, usize>;
 
 impl<const N: usize> NW<AffineCost<N>> {
-    fn track_path(&self, layers: &mut Vec<Front<N>>, a: &Sequence, b: &Sequence) -> (PATH, Cigar) {
+    fn track_path(&self, fronts: &mut Vec<Front<N>>, a: &Sequence, b: &Sequence) -> (PATH, Cigar) {
         let mut path: PATH = vec![];
         let mut cigar = Cigar::default();
 
@@ -47,8 +47,8 @@ impl<const N: usize> NW<AffineCost<N>> {
             if let Some(layer_idx) = layer {
                 match self.cm.affine[layer_idx].affine_type {
                     InsertLayer => {
-                        if layers[i].affine[layer_idx][j]
-                            == layers[i - 1].affine[layer_idx][j] + self.cm.affine[layer_idx].extend
+                        if fronts[i].affine(layer_idx)[j]
+                            == fronts[i - 1].affine(layer_idx)[j] + self.cm.affine[layer_idx].extend
                         {
                             // insertion gap extention from current affine layer
                             i -= 1;
@@ -56,7 +56,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                             continue 'path_loop;
                         } else {
                             assert_eq!(
-                                layers[i].affine[layer_idx][j], layers[i - 1].m[j]
+                                fronts[i].affine(layer_idx)[j], fronts[i - 1].m()[j]
                                         + self.cm.affine[layer_idx].open
                                         + self.cm.affine[layer_idx].extend,"Path tracking error! No trace from insertion layer number {layer_idx}, coordinates {i}, {j}"
                             );
@@ -69,8 +69,8 @@ impl<const N: usize> NW<AffineCost<N>> {
                         }
                     }
                     DeleteLayer => {
-                        if layers[i].affine[layer_idx][j]
-                            == layers[i].affine[layer_idx][j - 1] + self.cm.affine[layer_idx].extend
+                        if fronts[i].affine(layer_idx)[j]
+                            == fronts[i].affine(layer_idx)[j - 1] + self.cm.affine[layer_idx].extend
                         {
                             // deletion gap extention from current affine layer
                             j -= 1;
@@ -78,7 +78,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                             continue 'path_loop;
                         } else {
                             assert_eq!(
-                                layers[i].affine[layer_idx][j], layers[i].m[j-1]
+                                fronts[i].affine(layer_idx)[j], fronts[i].m()[j-1]
                                         + self.cm.affine[layer_idx].open
                                         + self.cm.affine[layer_idx].extend,"Path tracking error! No trace from deletion layer number {layer_idx}, coordinates {i}, {j}"
                             );
@@ -94,7 +94,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                 };
             } else {
                 if i > 0 && j > 0 {
-                    if a[i - 1] == b[j - 1] && layers[i].m[j] == layers[i - 1].m[j - 1] {
+                    if a[i - 1] == b[j - 1] && fronts[i].m()[j] == fronts[i - 1].m()[j - 1] {
                         //match
                         i -= 1;
                         j -= 1;
@@ -102,7 +102,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                         continue 'path_loop;
                     }
                     if let Some(sub) = self.cm.sub {
-                        if layers[i].m[j] == layers[i - 1].m[j - 1] + sub {
+                        if fronts[i].m()[j] == fronts[i - 1].m()[j - 1] + sub {
                             //mismatch
                             i -= 1;
                             j -= 1;
@@ -113,7 +113,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                 }
                 if i > 0 {
                     if let Some(ins) = self.cm.ins {
-                        if layers[i].m[j] == layers[i - 1].m[j] + ins {
+                        if fronts[i].m()[j] == fronts[i - 1].m()[j] + ins {
                             //insertion
                             i -= 1;
                             save(i, j, CigarOp::Insertion);
@@ -123,7 +123,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                 }
                 if j > 0 {
                     if let Some(del) = self.cm.del {
-                        if layers[i].m[j] == layers[i].m[j - 1] + del {
+                        if fronts[i].m()[j] == fronts[i].m()[j - 1] + del {
                             //deletion
                             j -= 1;
                             save(i, j, CigarOp::Deletion);
@@ -133,8 +133,9 @@ impl<const N: usize> NW<AffineCost<N>> {
                 }
                 // Affine layers check
                 // NOTE: This loop does not change the position, only the layer.
-                for (parent_layer, affine_layer) in layers[i].affine.iter().enumerate() {
-                    if layers[i].m[j] == affine_layer[j] {
+                // TODO: Add `IntoIter` to Front.
+                for (parent_layer, affine_layer) in fronts[i].layers.affine.iter().enumerate() {
+                    if fronts[i].m()[j] == affine_layer[j] {
                         layer = Some(parent_layer);
                         save(i, j, CigarOp::AffineClose(parent_layer));
                         continue 'path_loop;
@@ -150,7 +151,7 @@ impl<const N: usize> NW<AffineCost<N>> {
 
     /// Computes the next layer (layer `i`) from the current one.
     /// `ca` is the `i-1`th character of sequence `a`.
-    fn next_front(
+    pub(super) fn next_front(
         &self,
         i: usize,
         ca: u8,
@@ -160,19 +161,20 @@ impl<const N: usize> NW<AffineCost<N>> {
         v: &mut impl Visualizer,
     ) {
         v.expand(Pos(i as I, 0));
-        // TODO: Instead of manually doing the first state, it is also possible
+        // FIXME: Instead of manually doing the first state, it is also possible
         // to simply add a buffer layer around the DP. The issue with that
         // however, is that we would need to prefix both sequences with the same
         // unique character to have a place to look at.
+        // NOTE: This MUST be fixed for this to work with partial fronts from exponential search.
 
         // Initialize the first state by linear insertion.
-        next.m[0] = self.cm.ins_or(INF, |ins| i as Cost * ins);
+        next.m()[0] = self.cm.ins_or(INF, |ins| i as Cost * ins);
         // Initialize the first state by affine insertion.
-        for (cm, layer) in zip(&self.cm.affine, &mut next.affine) {
+        for (cm, layer) in zip(&self.cm.affine, &mut next.layers.affine) {
             match cm.affine_type {
                 InsertLayer => {
                     layer[0] = cm.open + i as Cost * cm.extend;
-                    next.m[0] = min(next.m[0], layer[0]);
+                    next.m()[0] = min(next.m()[0], layer[0]);
                 }
                 DeleteLayer => {
                     layer[0] = INF;
@@ -191,33 +193,35 @@ impl<const N: usize> NW<AffineCost<N>> {
             let mut f = INF;
             // NOTE: When sub/ins/del is not allowed, we have to skip them.
             if ca == cb {
-                f = prev.m[j - 1];
+                f = prev.m()[j - 1];
             } else {
                 if let Some(sub) = self.cm.sub {
-                    f = min(f, prev.m[j - 1] + sub);
+                    f = min(f, prev.m()[j - 1] + sub);
                 }
             }
             if let Some(ins) = self.cm.ins {
-                f = min(f, prev.m[j] + ins);
+                f = min(f, prev.m()[j] + ins);
             }
             if let Some(del) = self.cm.del {
-                f = min(f, next.m[j - 1] + del);
+                f = min(f, next.m()[j - 1] + del);
             }
 
             // Affine layers
             // TODO: Swap the order of this for loop and the loop over j?
-            for (cm, prev_layer, next_layer) in
-                izip!(&self.cm.affine, &prev.affine, &mut next.affine)
-            {
+            for (cm, prev_layer, next_layer) in izip!(
+                &self.cm.affine,
+                &prev.layers.affine,
+                &mut next.layers.affine
+            ) {
                 match cm.affine_type {
                     InsertLayer => {
                         next_layer[j] =
-                            min(prev_layer[j] + cm.extend, prev.m[j] + cm.open + cm.extend)
+                            min(prev_layer[j] + cm.extend, prev.m()[j] + cm.open + cm.extend)
                     }
                     DeleteLayer => {
                         next_layer[j] = min(
                             next_layer[j - 1] + cm.extend,
-                            next.m[j - 1] + cm.open + cm.extend,
+                            next.m()[j - 1] + cm.open + cm.extend,
                         )
                     }
                     _ => todo!(),
@@ -225,7 +229,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                 f = min(f, next_layer[j]);
             }
 
-            next.m[j] = f;
+            next.m()[j] = f;
         }
     }
 }
@@ -233,16 +237,21 @@ impl<const N: usize> NW<AffineCost<N>> {
 impl<const N: usize> Aligner for NW<AffineCost<N>> {
     /// The cost-only version uses linear memory.
     fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
-        let ref mut prev = Front::new(vec![INF; b.len() + 1]);
+        let ref mut prev = Front {
+            layers: Layers::new(vec![INF; b.len() + 1]),
+            // unused
+            range: 1..=b.len(),
+            offset: 0,
+        };
         let ref mut next = prev.clone();
 
-        next.m[0] = 0;
+        next.m()[0] = 0;
         for j in 1..=b.len() {
             // Initialize the main layer with linear deletions.
-            next.m[j] = self.cm.del_or(INF, |del| j as Cost * del);
+            next.m()[j] = self.cm.del_or(INF, |del| j as Cost * del);
 
             // Initialize the affine deletion layers.
-            for (cm, next_layer) in zip(&self.cm.affine, &mut next.affine) {
+            for (cm, next_layer) in zip(&self.cm.affine, &mut next.layers.affine) {
                 match cm.affine_type {
                     DeleteLayer => {
                         next_layer[j] = cm.open + j as Cost * cm.extend;
@@ -250,7 +259,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
                     InsertLayer => {}
                     _ => todo!(),
                 };
-                next.m[j] = min(next.m[j], next_layer[j]);
+                next.m()[j] = min(next.m()[j], next_layer[j]);
             }
         }
 
@@ -261,7 +270,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
             self.next_front(i, ca, b, prev, next, &mut NoVisualizer);
         }
 
-        return next.m[b.len()];
+        return next.m()[b.len()];
     }
 
     fn visualize(
@@ -270,18 +279,25 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         b: &Sequence,
         v: &mut impl Visualizer,
     ) -> (Cost, PATH, Cigar) {
-        let ref mut fronts = vec![Front::<N>::new(vec![INF; b.len() + 1]); a.len() + 1];
+        let ref mut fronts = vec![
+            Front {
+                layers: Layers::new(vec![INF; b.len() + 1]),
+                // unused
+                range: 1..=b.len(),
+                offset: 0,
+            };
+            a.len() + 1
+        ];
 
         v.expand(Pos(0, 0));
-        fronts[0].m[0] = 0;
+        fronts[0].m()[0] = 0;
         for j in 1..=b.len() {
             v.expand(Pos(0, j as I));
             // Initialize the main layer with linear deletions.
-            fronts[0].m[j] = self.cm.del_or(INF, |del| j as Cost * del);
+            fronts[0].m()[j] = self.cm.del_or(INF, |del| j as Cost * del);
 
             // Initialize the affine deletion layers.
-            let Layers { m, affine } = &mut fronts[0];
-            for (costs, next_layer) in izip!(&self.cm.affine, affine) {
+            for (costs, next_layer) in izip!(&self.cm.affine, fronts[0].layers.affine) {
                 match costs.affine_type {
                     DeleteLayer => {
                         next_layer[j] = costs.open + j as Cost * costs.extend;
@@ -289,7 +305,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
                     InsertLayer => {}
                     _ => todo!(),
                 };
-                m[j] = min(m[j], next_layer[j]);
+                fronts[0].m()[j] = min(fronts[0].m()[j], next_layer[j]);
             }
         }
 
@@ -300,7 +316,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
             self.next_front(i, ca, b, &*prev, next, v);
         }
 
-        let d = fronts[a.len()].m[b.len()];
+        let d = fronts[a.len()].m()[b.len()];
         let tmp = self.track_path(fronts, a, b);
         return (d, tmp.0, tmp.1);
     }

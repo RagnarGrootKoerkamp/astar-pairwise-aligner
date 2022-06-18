@@ -30,6 +30,8 @@ pub enum AffineLayerType {
 }
 pub use AffineLayerType::*;
 
+use crate::prelude::Pos;
+
 /// An affine layer depends on its type, the open cost, and the extend cost.
 #[derive(Clone)]
 pub struct AffineLayerCosts {
@@ -177,6 +179,17 @@ impl<const N: usize> AffineCost<N> {
             max_ins_open_extend,
             min_del_open_extend,
             max_del_open_extend,
+        }
+    }
+
+    /// The minimal cost according tho this cost model to go from one position to another.
+    /// NOTE: For simplicity, this currently does not take into account gap open costs.
+    pub fn gap_cost(&self, s: Pos, t: Pos) -> Cost {
+        let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
+        match delta {
+            0 => 0,
+            d if d > 0 => d as Cost / self.min_ins_extend,
+            d if d < 0 => -d as Cost / self.min_del_extend,
         }
     }
 

@@ -6,6 +6,7 @@ use self::{cigar::Cigar, nw::PATH};
 
 pub mod cigar;
 pub mod diagonal_transition;
+pub mod exp_band;
 pub mod front;
 pub mod layer;
 pub mod nw;
