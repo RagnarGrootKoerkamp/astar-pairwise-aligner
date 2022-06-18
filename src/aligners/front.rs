@@ -4,8 +4,8 @@ use num_traits::AsPrimitive;
 
 use super::layer::Layers;
 
-trait IndexType<I>: Add<Output = I> + Sized + AsPrimitive<usize> {}
-impl<I> IndexType<I> for I where I: num_traits::AsPrimitive<usize> + std::ops::Add<Output = I> {}
+pub trait IndexType: Add<Output = Self> + Sized + AsPrimitive<usize> + Copy {}
+impl<I> IndexType for I where I: num_traits::AsPrimitive<usize> + std::ops::Add<Output = I> + Copy {}
 
 /// A front contains the data for each affine layer, and a range to indicate which subset of diagonals/columns is computed for this front.
 /// The offset indicates the position of the 0 column/diagonal.
@@ -22,7 +22,10 @@ pub struct Front<const N: usize, T, I> {
 }
 
 /// Indexing methods for `Front`.
-impl<const N: usize, T, I> Front<N, T, I> {
+impl<const N: usize, T, I> Front<N, T, I>
+where
+    I: IndexType,
+{
     pub fn m(&self) -> Layer<'_, T, I> {
         Layer {
             l: &self.layers.m,
@@ -63,7 +66,7 @@ pub struct Layer<'a, T, I> {
 /// Indexing for a Layer.
 impl<'a, T, I> Index<I> for Layer<'a, T, I>
 where
-    I: IndexType<I>,
+    I: IndexType,
 {
     type Output = T;
 
@@ -85,7 +88,7 @@ pub struct MutLayer<'a, T, I> {
 /// Indexing for a mutable Layer.
 impl<'a, T, I> Index<I> for MutLayer<'a, T, I>
 where
-    I: IndexType<I>,
+    I: IndexType,
 {
     type Output = T;
 
@@ -96,7 +99,7 @@ where
 /// Indexing for a mutable Layer.
 impl<'a, T, I> IndexMut<I> for MutLayer<'a, T, I>
 where
-    I: IndexType<I>,
+    I: IndexType,
 {
     fn index_mut(&mut self, d: I) -> &mut Self::Output {
         &mut self.l[(self.offset + d).as_() as usize]
