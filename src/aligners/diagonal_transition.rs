@@ -643,7 +643,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
         v: &mut impl Visualizer,
     ) -> (Cost, PATH, Cigar) {
         let Some(ref mut fronts) = self.init_fronts(a, b, v) else {
-            return (0,vec![],vec![]);
+            return (0,vec![],Cigar::default());
         };
 
         v.expand(Pos(0, 0));
@@ -662,7 +662,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
 
             if self.next_front(a, b, fronts, &mut next, v) {
                 // FIXME: Reconstruct path.
-                return (s, vec![], vec![]);
+                return (s, vec![], Cigar::default());
             }
 
             fronts.push(next);

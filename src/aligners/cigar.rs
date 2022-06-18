@@ -4,24 +4,43 @@ use std::fmt::Write;
 pub enum CigarOp {
     Match,
     Mismatch,
+    /// Linear cost insertion.
     Insertion,
+    /// Linear cost deletion.
     Deletion,
+    /// Affine cost insertion in given layer.
+    AffineInsertion(usize),
+    /// Affine cost deletion in given layer.
+    AffineDeletion(usize),
+    // Extra markers that do not translate to commands.
+    /// Set when entering an affine layer.
+    AffineOpen(usize),
+    /// Set when leaving an affine layer.
+    AffineClose(usize),
 }
 
 impl CigarOp {
-    fn get_char(&self) -> char {
+    /// Not all operations have an actual cigar character.
+    fn get_char(&self) -> Option<char> {
         match self {
-            CigarOp::Match => 'M',
-            CigarOp::Mismatch => 'X',
-            CigarOp::Insertion => 'I',
-            CigarOp::Deletion => 'D',
+            CigarOp::Match => Some('M'),
+            CigarOp::Mismatch => Some('X'),
+            CigarOp::Insertion => Some('I'),
+            CigarOp::Deletion => Some('D'),
+            CigarOp::AffineInsertion(_) => Some('I'),
+            CigarOp::AffineDeletion(_) => Some('D'),
+            _ => None,
         }
     }
 
     fn new(self) -> CigarElement {
+        let length = match &self {
+            CigarOp::AffineOpen(_) | CigarOp::AffineClose(_) => 0,
+            _ => 1,
+        };
         CigarElement {
             command: self,
-            length: 1,
+            length,
         }
     }
 }
@@ -31,34 +50,40 @@ pub struct CigarElement {
     length: usize,
 }
 
-pub type Cigar = Vec<CigarElement>;
-
-pub trait CigarTrait {
-    fn cigar_push(&mut self, command: CigarOp);
-    fn print(&self);
-    fn str(&self) -> String;
+#[derive(Default)]
+pub struct Cigar {
+    ops: Vec<CigarElement>,
 }
-impl CigarTrait for Cigar {
-    fn cigar_push(&mut self, command: CigarOp) {
-        if let Some(s) = self.last_mut() {
+
+impl ToString for Cigar {
+    fn to_string(&self) -> String {
+        let mut s = String::new();
+        for op in &self.ops {
+            if let Some(c) = op.command.get_char() {
+                write!(&mut s, "{}{}", op.length, c).unwrap();
+            }
+        }
+        s
+    }
+}
+
+impl Cigar {
+    pub fn push(&mut self, command: CigarOp) {
+        // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
+        if let Some(s) = self.ops.last_mut() {
             if s.command == command {
                 s.length += 1;
                 return;
             }
         }
-        self.push(command.new());
+        self.ops.push(command.new());
     }
 
-    fn print(&self) {
-        print!("{}", self.str());
+    pub fn print(&self) {
+        print!("{}", self.to_string());
     }
 
-    fn str(&self) -> String {
-        let mut str = String::new();
-        for i in self {
-            write!(&mut str, "{}{}", i.length, i.command.get_char())
-                .expect("Error! Unable to write to the string in CIGAR str function!");
-        }
-        str
+    pub fn reverse(&mut self) {
+        self.ops.reverse()
     }
 }

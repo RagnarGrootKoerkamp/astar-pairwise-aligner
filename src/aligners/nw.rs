@@ -1,6 +1,6 @@
 use itertools::izip;
 
-use super::cigar::{Cigar, CigarOp, CigarTrait};
+use super::cigar::{Cigar, CigarOp};
 use super::layer::Layers;
 use super::NoVisualizer;
 use super::{Aligner, Visualizer};
@@ -29,30 +29,90 @@ impl<const N: usize> NW<AffineCost<N>> {
         b: &Sequence,
     ) -> (PATH, Cigar) {
         let mut path: PATH = vec![];
-        let mut save = |x: usize, y: usize| path.push((x, y));
+        let mut cigar = Cigar::default();
+
+        // The current position and affine layer.
         let mut i = a.len();
         let mut j = b.len();
-        //"layer" shows in what layer we currently are. -1 - main layer; any other positive or zero index - index of affine layer
-        let mut layer: isize = -1;
-        save(i, j);
-        'loop1: while i > 0 || j > 0 {
-            save(i, j);
-            if layer == -1 {
+        // None for main layer.
+        let mut layer: Option<usize> = None;
+
+        path.push((i, j));
+
+        let mut save = |x: usize, y: usize, op: CigarOp| {
+            cigar.push(op);
+            if let Some(last) = path.last() {
+                if *last == (x, y) {
+                    return;
+                }
+            }
+            path.push((x, y));
+        };
+        'path_loop: while i > 0 || j > 0 {
+            if let Some(layer_idx) = layer {
+                match self.cm.affine[layer_idx].affine_type {
+                    InsertLayer => {
+                        if layers[i].affine[layer_idx][j]
+                            == layers[i - 1].affine[layer_idx][j] + self.cm.affine[layer_idx].extend
+                        {
+                            // insertion gap extention from current affine layer
+                            i -= 1;
+                            save(i, j, CigarOp::AffineInsertion(layer_idx));
+                            continue 'path_loop;
+                        } else {
+                            assert_eq!(
+                                layers[i].affine[layer_idx][j], layers[i - 1].m[j]
+                                        + self.cm.affine[layer_idx].open
+                                        + self.cm.affine[layer_idx].extend,"Path tracking error! No trace from insertion layer number {layer_idx}, coordinates {i}, {j}"
+                            );
+                            // opening new insertion gap from main layer
+                            i -= 1;
+                            save(i, j, CigarOp::AffineInsertion(layer_idx));
+                            save(i, j, CigarOp::AffineOpen(layer_idx));
+                            layer = None;
+                            continue 'path_loop;
+                        }
+                    }
+                    DeleteLayer => {
+                        if layers[i].affine[layer_idx][j]
+                            == layers[i].affine[layer_idx][j - 1] + self.cm.affine[layer_idx].extend
+                        {
+                            // deletion gap extention from current affine layer
+                            j -= 1;
+                            save(i, j, CigarOp::AffineDeletion(layer_idx));
+                            continue 'path_loop;
+                        } else {
+                            assert_eq!(
+                                layers[i].affine[layer_idx][j], layers[i].m[j-1]
+                                        + self.cm.affine[layer_idx].open
+                                        + self.cm.affine[layer_idx].extend,"Path tracking error! No trace from deletion layer number {layer_idx}, coordinates {i}, {j}"
+                            );
+                            // Open new deletion gap from main layer
+                            j -= 1;
+                            save(i, j, CigarOp::AffineDeletion(layer_idx));
+                            save(i, j, CigarOp::AffineOpen(layer_idx));
+                            layer = None;
+                            continue 'path_loop;
+                        }
+                    }
+                    _ => todo!(),
+                };
+            } else {
                 if i > 0 && j > 0 {
                     if a[i - 1] == b[j - 1] && layers[i].m[j] == layers[i - 1].m[j - 1] {
                         //match
                         i -= 1;
                         j -= 1;
-                        save(i, j);
-                        continue 'loop1;
+                        save(i, j, CigarOp::Match);
+                        continue 'path_loop;
                     }
                     if let Some(sub) = self.cm.sub {
                         if layers[i].m[j] == layers[i - 1].m[j - 1] + sub {
                             //mismatch
                             i -= 1;
                             j -= 1;
-                            save(i, j);
-                            continue 'loop1;
+                            save(i, j, CigarOp::Mismatch);
+                            continue 'path_loop;
                         }
                     }
                 }
@@ -61,8 +121,8 @@ impl<const N: usize> NW<AffineCost<N>> {
                         if layers[i].m[j] == layers[i - 1].m[j] + ins {
                             //insertion
                             i -= 1;
-                            save(i, j);
-                            continue 'loop1;
+                            save(i, j, CigarOp::Insertion);
+                            continue 'path_loop;
                         }
                     }
                 }
@@ -71,89 +131,25 @@ impl<const N: usize> NW<AffineCost<N>> {
                         if layers[i].m[j] == layers[i].m[j - 1] + del {
                             //deletion
                             j -= 1;
-                            save(i, j);
-                            continue 'loop1;
+                            save(i, j, CigarOp::Deletion);
+                            continue 'path_loop;
                         }
                     }
                 }
-                //affine layers check
-                //The loop below does not alter position, so it does not save it to the path to aviod duplication!
-                let mut tmp = 0; //for storing layer index
-                for affine_layer in &layers[i].affine {
+                // Affine layers check
+                // NOTE: This loop does not change the position, only the layer.
+                for (parent_layer, affine_layer) in layers[i].affine.iter().enumerate() {
                     if layers[i].m[j] == affine_layer[j] {
-                        layer = tmp;
-                        break;
+                        layer = Some(parent_layer);
+                        save(i, j, CigarOp::AffineClose(parent_layer));
+                        continue 'path_loop;
                     }
-                    tmp += 1;
                 }
-            } else {
-                match self.cm.affine[layer as usize].affine_type {
-                    InsertLayer => {
-                        if layers[i].affine[layer as usize][j]
-                            == layers[i - 1].affine[layer as usize][j]
-                                + self.cm.affine[layer as usize].extend
-                        {
-                            //insertion gap extention from current affine layer
-                            i -= 1;
-                            save(i, j);
-                            continue 'loop1;
-                        } else {
-                            assert_eq!(
-                                layers[i].affine[layer as usize][j], layers[i - 1].m[j]
-                                        + self.cm.affine[layer as usize].open
-                                        + self.cm.affine[layer as usize].extend,"Path tracking error! No trace from insertion layer number {layer}, coordinates {i}, {j}"
-                            );
-                            //oppening new insertion gap from main layer
-                            i -= 1;
-                            save(i, j);
-                            layer = -1;
-                            continue 'loop1;
-                        }
-                    }
-                    DeleteLayer => {
-                        if layers[i].affine[layer as usize][j]
-                            == layers[i].affine[layer as usize][j - 1]
-                                + self.cm.affine[layer as usize].extend
-                        {
-                            //deletion gap extention from current affine layer
-                            j -= 1;
-                            save(i, j);
-                            continue 'loop1;
-                        } else {
-                            assert_eq!(
-                                layers[i].affine[layer as usize][j], layers[i].m[j-1]
-                                        + self.cm.affine[layer as usize].open
-                                        + self.cm.affine[layer as usize].extend,"Path tracking error! No trace from deletion layer number {layer}, coordinates {i}, {j}"
-                            );
-                            //oppening new deletion gap from main layer
-                            j -= 1;
-                            save(i, j);
-                            layer = -1;
-                            continue 'loop1;
-                        }
-                    }
-                    _ => todo!(),
-                };
             }
+            panic!("Did not find parent on path!");
         }
         path.reverse();
-        path.dedup();
-
-        //Converting to the CIGAR format
-        let mut cigar: Cigar = vec![];
-        for i in 1..path.len() {
-            if path[i].0 == path[i - 1].0 {
-                cigar.cigar_push(CigarOp::Insertion);
-            } else if path[i].1 == path[i - 1].1 {
-                cigar.cigar_push(CigarOp::Deletion);
-            } else {
-                cigar.cigar_push(if a[path[i].0] == b[path[i].1] {
-                    CigarOp::Match
-                } else {
-                    CigarOp::Mismatch
-                });
-            }
-        }
+        cigar.reverse();
         (path, cigar)
     }
 
