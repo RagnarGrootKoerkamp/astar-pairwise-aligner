@@ -6,9 +6,13 @@ use self::{cigar::Cigar, nw::PATH};
 
 pub mod cigar;
 pub mod diagonal_transition;
+pub mod front;
 pub mod layer;
 pub mod nw;
 pub mod nw_lib;
+
+#[cfg(test)]
+mod tests;
 
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait Visualizer {
@@ -53,6 +57,3 @@ pub trait Aligner {
         unimplemented!("This aligner does not support visualizations!");
     }
 }
-
-#[cfg(test)]
-mod tests;
