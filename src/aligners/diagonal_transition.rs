@@ -29,8 +29,6 @@ use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence};
 use std::cmp::{max, min};
 use std::iter::zip;
-use std::ops::Index;
-use std::ops::IndexMut;
 
 /// The type for storing furthest reaching points.
 /// Sized, so that we can default them to -INF.
@@ -254,7 +252,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         *fr
     }
 
-    /// The first active diagonal for the given layer.
+    /// The first active diagonal for the given front.
     #[inline]
     fn dmin(&self, s: Cost) -> Fr {
         let mut x = -(self.cm.ins_or(0, |ins| s / ins) as Fr);
@@ -267,7 +265,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         }
         x
     }
-    /// The last active diagonal for the given layer.
+    /// The last active diagonal for the given front.
     #[inline]
     fn dmax(&self, s: Cost) -> Fr {
         let mut x = -(self.cm.del_or(0, |del| s / del) as Fr);
@@ -323,7 +321,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         b: &Sequence,
         v: &mut impl Visualizer,
     ) -> bool {
-        for d in front.range {
+        for d in front.range.clone() {
             let f = &mut front.m_mut()[d];
             let f_old = *f;
             let f_new = self.extend_diagonal(a, b, d as Fr, f);
@@ -420,7 +418,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 // The boundaries are buffered so no boundary checks are needed.
                 // TODO: Vectorize this loop.
                 // TODO: Loop over a positive range that does not need additional shifting?
-                for d in next.range {
+                for d in next.range.clone() {
                     // The new value of next.m[d].
                     let mut f = Fr::MIN;
                     // Affine layers
@@ -466,7 +464,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             }
             GapClose => {
                 // See https://research.curiouscoding.nl/notes/affine-gap-close-cost/.
-                for d in next.range {
+                for d in next.range.clone() {
                     // The new value of next.m[d].
                     let mut f = Fr::MIN;
                     // Substitution
@@ -501,7 +499,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     return true;
                 }
 
-                for d in next.range {
+                for d in next.range.clone() {
                     // Affine layers: Gap open/extend
                     for idx in 0..N {
                         let cm = &self.cm.affine[idx];
