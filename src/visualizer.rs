@@ -1,6 +1,8 @@
 use std::{cell::Cell, ops::Range, time::Duration};
 
 use sdl2::{
+    event::Event,
+    keyboard::Keycode,
     pixels::Color,
     rect::{Point, Rect},
     render::Canvas,
@@ -14,6 +16,9 @@ use crate::prelude::Pos;
 pub trait VisualizerT {
     fn explore(&mut self, _pos: Pos) {}
     fn expand(&mut self, _pos: Pos) {}
+
+    //This function may be called after the main loop to display final image with big delay
+    fn last_frame(&mut self) {}
 }
 
 /// A trivial visualizer that does not do anything.
@@ -98,10 +103,12 @@ struct Visualizer {
     width: u32,
     height: u32,
     file_number: usize,
+    skip: usize,
 }
 
 impl Visualizer {
     fn init(&mut self, config: &Config, len1: u32, len2: u32) {
+        self.skip = 0;
         self.file_number = 0;
         self.width = len1;
         self.height = len2;
@@ -131,6 +138,12 @@ impl Visualizer {
         };
         self.canvas = window.map(|w| w.into_canvas().build().unwrap());
     }
+
+    fn last_frame(&mut self) {
+        self.skip = 2;
+        self.draw();
+    }
+
     fn draw(&mut self) {
         if !self.config.saving && !self.config.drawing {
             return;
@@ -206,78 +219,77 @@ impl Visualizer {
             if self.config.drawing {
                 ::std::thread::sleep(Duration::from_secs_f32(self.config.delay.get()));
             }
-        } else {
+
+            //Keyboard events
+
+            let sleep_duration = 0.01;
+            let mut duration: f32 = 0.;
+            let mut delay_tmp = self.config.delay.get();
+            let mut is_playing: bool = true;
+            if self.config.drawing {
+                if self.skip == 1 {
+                    return;
+                } else if self.skip == 2 {
+                    delay_tmp = 1000.;
+                }
+                canvas.present();
+                'outer: loop {
+                    for event in self.sdl_context.event_pump().unwrap().poll_iter() {
+                        match event {
+                            Event::Quit { .. }
+                            | Event::KeyDown {
+                                keycode: Some(Keycode::Q),
+                                ..
+                            } => {
+                                panic!();
+                            }
+                            Event::KeyDown {
+                                keycode: Some(key), ..
+                            } => match key {
+                                Keycode::P => {
+                                    //pause
+                                    is_playing = !is_playing;
+                                }
+                                Keycode::Escape => {
+                                    //next frame
+                                    break 'outer;
+                                }
+                                Keycode::F => {
+                                    //faster
+                                    delay_tmp *= 0.8;
+                                }
+                                Keycode::S => {
+                                    //slower
+                                    delay_tmp /= 0.8;
+                                }
+                                Keycode::A => {
+                                    //skip to the last frame
+                                    if self.skip == 0 {
+                                        self.skip = 1;
+                                    }
+                                    break 'outer;
+                                }
+                                _ => {}
+                            },
+                            _ => {}
+                        }
+                    }
+                    ::std::thread::sleep(Duration::from_secs_f32(sleep_duration));
+                    if is_playing {
+                        duration += sleep_duration;
+                        if duration >= delay_tmp {
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+            if self.skip == 2 {
+                self.skip = 0;
+            } else {
+                self.config.delay.set(delay_tmp);
+            }
             return;
         }
-
-        //Keyboard events
-
-        let sleep_duration = 0.01;
-        let mut duration: f32 = 0.;
-        let mut delay_tmp = &self.config.delay.get();
-        let mut is_playing: bool = true;
-        if self.config.drawing {
-            if self.skip == 1 {
-                return;
-            } else if self.skip == 2 {
-                config.delay.set(1000.);
-            }
-            canvas.present();
-            'outer: loop {
-                for event in sdl_context.event_pump().unwrap().poll_iter() {
-                    match event {
-                        Event::Quit { .. }
-                        | Event::KeyDown {
-                            keycode: Some(Keycode::Q),
-                            ..
-                        } => {
-                            panic!();
-                        }
-                        Event::KeyDown {
-                            keycode: Some(key), ..
-                        } => match key {
-                            Keycode::P => {
-                                //pause
-                                is_playing = !is_playing;
-                            }
-                            Keycode::Escape => {
-                                //next frame
-                                break 'outer;
-                            }
-                            Keycode::F => {
-                                //faster
-                                delay_tmp *= 0.8;
-                            }
-                            Keycode::S => {
-                                //slower
-                                delay_tmp /= 0.8;
-                            }
-                            Keycode::A => {
-                                //skip to the last frame
-                                if self.skip == 0 {
-                                    self.skip = 1;
-                                }
-                                break 'outer;
-                            }
-                            _ => {}
-                        },
-                        _ => {}
-                    }
-                }
-                ::std::thread::sleep(Duration::from_secs_f32(sleep_duration));
-                if is_playing {
-                    duration += sleep_duration;
-                    if duration >= delay_tmp {
-                        break 'outer;
-                    }
-                }
-            }
-        }
-        if self.skip == 2 {
-            self.skip == 0;
-        }
-        config.delay.set(delay_tmp);
-        return;
     }
 }
 
