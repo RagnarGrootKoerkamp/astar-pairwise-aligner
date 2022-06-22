@@ -111,8 +111,24 @@ pub fn setup_with_seed(
     e: f32,
     seed: u64,
 ) -> (Sequence, Sequence, Alphabet, SequenceStats) {
-    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+    let (a, b) = setup_sequences_with_seed(seed, n, e);
+
     let alphabet = Alphabet::new(b"ACTG");
+    let sequence_stats = SequenceStats {
+        len_a: a.len(),
+        len_b: b.len(),
+        error_rate: e,
+        source: Source::Uniform,
+    };
+    (a, b, alphabet, sequence_stats)
+}
+
+pub fn setup_sequences(n: usize, e: f32) -> (Sequence, Sequence) {
+    setup_sequences_with_seed(31415, n, e)
+}
+
+pub fn setup_sequences_with_seed(seed: u64, n: usize, e: f32) -> (Sequence, Sequence) {
+    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
     let (a, b) = generate_pair(
         &GenerateOptions {
             length: n,
@@ -121,14 +137,7 @@ pub fn setup_with_seed(
         },
         &mut rng,
     );
-
-    let sequence_stats = SequenceStats {
-        len_a: a.len(),
-        len_b: b.len(),
-        error_rate: e,
-        source: Source::Uniform,
-    };
-    (a, b, alphabet, sequence_stats)
+    (a, b)
 }
 
 pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, SequenceStats) {
