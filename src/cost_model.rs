@@ -7,7 +7,7 @@
 pub type Cost = u32;
 
 /// An affine layer can either correspond to an insertion or deletion.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AffineLayerType {
     InsertLayer,
     DeleteLayer,
@@ -28,6 +28,8 @@ pub enum AffineLayerType {
     HomoPolymerInsert { open_needs_equal: bool },
     HomoPolymerDelete { open_needs_equal: bool },
 }
+use std::cmp::{max, min};
+
 pub use AffineLayerType::*;
 
 use crate::prelude::Pos;
@@ -84,7 +86,11 @@ impl LinearCost {
         Self::new(Some(1), Some(1), Some(1), [])
     }
 
-    pub fn new_linear(sub: Cost, ins: Cost, del: Cost) -> LinearCost {
+    pub fn new_linear(sub: Cost, indel: Cost) -> LinearCost {
+        Self::new(Some(sub), Some(indel), Some(indel), [])
+    }
+
+    pub fn new_linear_asymmetric(sub: Cost, ins: Cost, del: Cost) -> LinearCost {
         Self::new(Some(sub), Some(ins), Some(del), [])
     }
 }
@@ -109,7 +115,26 @@ impl AffineCost<2> {
             ],
         )
     }
-    pub fn new_affine2(
+    pub fn new_linear_affine(sub: Cost, indel: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
+        Self::new(
+            Some(sub),
+            Some(indel),
+            Some(indel),
+            [
+                AffineLayerCosts {
+                    affine_type: InsertLayer,
+                    open,
+                    extend,
+                },
+                AffineLayerCosts {
+                    affine_type: DeleteLayer,
+                    open,
+                    extend,
+                },
+            ],
+        )
+    }
+    pub fn new_affine_asymmetric(
         sub: Cost,
         ins_open: Cost,
         ins_extend: Cost,
@@ -135,6 +160,43 @@ impl AffineCost<2> {
         )
     }
 }
+impl AffineCost<4> {
+    pub fn new_double_affine(
+        sub: Cost,
+        open: Cost,
+        extend: Cost,
+        open2: Cost,
+        extend2: Cost,
+    ) -> AffineCost<4> {
+        Self::new(
+            Some(sub),
+            None,
+            None,
+            [
+                AffineLayerCosts {
+                    affine_type: InsertLayer,
+                    open,
+                    extend,
+                },
+                AffineLayerCosts {
+                    affine_type: DeleteLayer,
+                    open,
+                    extend,
+                },
+                AffineLayerCosts {
+                    affine_type: InsertLayer,
+                    open: open2,
+                    extend: extend2,
+                },
+                AffineLayerCosts {
+                    affine_type: DeleteLayer,
+                    open: open2,
+                    extend: extend2,
+                },
+            ],
+        )
+    }
+}
 
 impl<const N: usize> AffineCost<N> {
     pub fn new(
@@ -143,12 +205,48 @@ impl<const N: usize> AffineCost<N> {
         del: Option<Cost>,
         affine: [AffineLayerCosts; N],
     ) -> AffineCost<N> {
-        let layers = |layer_type| affine.iter().filter(move |cm| cm.affine_type == layer_type);
-        let min_by = |layer_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
-            layers(layer_type).map(f).min().unwrap_or(Cost::MAX)
+        let layers = |affine_type| {
+            affine
+                .iter()
+                .filter(move |cm| cm.affine_type == affine_type)
         };
-        let max_by = |layer_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
-            layers(layer_type).map(f).max().unwrap_or(Cost::MIN)
+        let min_by = |affine_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
+            let mut c = layers(affine_type).map(f).min().unwrap_or(Cost::MAX);
+            // Also include the linear layer in the affine maximums.
+            if let Some(extend) = if affine_type == AffineLayerType::InsertLayer {
+                ins
+            } else {
+                del
+            } {
+                c = min(
+                    c,
+                    f(&AffineLayerCosts {
+                        affine_type,
+                        open: 0,
+                        extend,
+                    }),
+                );
+            }
+            c
+        };
+        let max_by = |affine_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
+            let mut c = layers(affine_type).map(f).max().unwrap_or(Cost::MIN);
+            // Also include the linear layer in the affine maximums.
+            if let Some(extend) = if affine_type == AffineLayerType::InsertLayer {
+                ins
+            } else {
+                del
+            } {
+                c = max(
+                    c,
+                    f(&AffineLayerCosts {
+                        affine_type,
+                        open: 0,
+                        extend,
+                    }),
+                );
+            }
+            c
         };
         let min_ins_open = min_by(InsertLayer, &|cm| cm.open);
         let max_ins_open = max_by(InsertLayer, &|cm| cm.open);
@@ -190,6 +288,7 @@ impl<const N: usize> AffineCost<N> {
             0 => 0,
             d if d > 0 => d as Cost / self.min_ins_extend,
             d if d < 0 => -d as Cost / self.min_del_extend,
+            _ => unreachable!(),
         }
     }
 
