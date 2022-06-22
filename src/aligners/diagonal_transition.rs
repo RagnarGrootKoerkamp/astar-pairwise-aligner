@@ -24,7 +24,7 @@
 use super::cigar::Cigar;
 use super::front::Layers;
 use super::nw::PATH;
-use super::{Aligner, NoVisualizer, Visualizer};
+use super::{Aligner, NoVisualizer, VisualizerT};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence};
 use std::cmp::{max, min};
@@ -266,7 +266,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         front: &mut Front<N>,
         a: &Sequence,
         b: &Sequence,
-        v: &mut impl Visualizer,
+        v: &mut impl VisualizerT,
     ) -> bool {
         for d in front.range.clone() {
             let fr = &mut front.m_mut()[d];
@@ -322,7 +322,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         &self,
         a: &Sequence,
         b: &Sequence,
-        v: &mut impl Visualizer,
+        v: &mut impl VisualizerT,
     ) -> Option<Vec<Front<N>>> {
         // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
         let f = self.extend_diagonal(a, b, 0, &mut 0);
@@ -408,7 +408,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         b: &Sequence,
         prev: &[Front<N>],
         next: &mut Front<N>,
-        v: &mut impl Visualizer,
+        v: &mut impl VisualizerT,
     ) -> bool {
         // Resize all affine layers.
         let new_len = self.left_buffer

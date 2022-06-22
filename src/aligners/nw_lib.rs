@@ -23,7 +23,7 @@ impl Aligner for NWLib {
         &self,
         _a: &bio_types::sequence::Sequence,
         _b: &bio_types::sequence::Sequence,
-        _visualizer: &mut impl super::Visualizer,
+        _visualizer: &mut impl super::VisualizerT,
     ) -> (crate::prelude::Cost, PATH, Cigar) {
         unimplemented!("NWLib does not support path tracing.");
     }

@@ -15,14 +15,14 @@ pub mod nw_lib;
 mod tests;
 
 /// A visualizer can be used to visualize progress of an implementation.
-pub trait Visualizer {
+pub trait VisualizerT {
     fn explore(&mut self, _pos: Pos) {}
     fn expand(&mut self, _pos: Pos) {}
 }
 
 /// A trivial visualizer that does not do anything.
 struct NoVisualizer;
-impl Visualizer for NoVisualizer {}
+impl VisualizerT for NoVisualizer {}
 
 /// An aligner is a type that supports aligning sequences using some algorithm.
 /// It should implement the most general of the methods below.
@@ -52,7 +52,7 @@ pub trait Aligner {
         &self,
         _a: &Sequence,
         _b: &Sequence,
-        _visualizer: &mut impl Visualizer,
+        _visualizer: &mut impl VisualizerT,
     ) -> (Cost, PATH, Cigar) {
         unimplemented!("This aligner does not support visualizations!");
     }

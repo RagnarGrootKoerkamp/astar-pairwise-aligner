@@ -1,7 +1,7 @@
 use super::cigar::{Cigar, CigarOp};
 use super::front::Layers;
 use super::NoVisualizer;
-use super::{Aligner, Visualizer};
+use super::{Aligner, VisualizerT};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence, I};
 use std::cmp::{max, min};
@@ -170,7 +170,7 @@ impl<const N: usize> NW<AffineCost<N>> {
         b: &Sequence,
         prev: &Front<N>,
         next: &mut Front<N>,
-        v: &mut impl Visualizer,
+        v: &mut impl VisualizerT,
     ) {
         v.expand(Pos(i as I, 0));
         // TODO: Instead of manually doing the first state, it is also possible
@@ -297,7 +297,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         &self,
         a: &Sequence,
         b: &Sequence,
-        v: &mut impl Visualizer,
+        v: &mut impl VisualizerT,
     ) -> (Cost, PATH, Cigar) {
         let ref mut fronts = vec![
             Front {
