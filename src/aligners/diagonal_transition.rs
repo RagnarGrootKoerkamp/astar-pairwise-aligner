@@ -22,13 +22,14 @@
 //!
 //!
 use super::cigar::Cigar;
-use super::layer::Layers;
+use super::front::Layers;
 use super::nw::PATH;
 use super::{Aligner, NoVisualizer, Visualizer};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence};
 use std::cmp::{max, min};
 use std::iter::zip;
+use std::ops::RangeInclusive;
 
 /// The type for storing furthest reaching points.
 /// Sized, so that we can default them to -INF.
@@ -104,8 +105,14 @@ pub struct DiagonalTransition<CostModel> {
 
 /// Converts a pair of (diagonal index, furthest reaching) to a position.
 /// TODO: Return Pos or usize instead?
-fn fr_to_pos(d: Fr, f: Fr) -> (Fr, Fr) {
+fn fr_to_coords(d: Fr, f: Fr) -> (Fr, Fr) {
     ((f + d) / 2, (f - d) / 2)
+}
+fn fr_to_pos(d: Fr, f: Fr) -> Pos {
+    Pos(
+        ((f + d) / 2) as crate::prelude::I,
+        ((f - d) / 2) as crate::prelude::I,
+    )
 }
 
 impl<const N: usize> DiagonalTransition<AffineCost<N>> {
@@ -135,11 +142,11 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                 })
                 .div_ceil(cm.ins.unwrap_or(Cost::MAX)),
             // number of insertions (left moves) done in range of looking one deletion (right move) backwards
-            1 + match gap_variant {
+            1 + dbg!(match gap_variant {
                 GapOpen => cm.max_del_open_extend,
                 GapClose => cm.max_del_extend,
-            }
-            .div_ceil(cm.min_ins_extend),
+            })
+            .div_ceil(dbg!(cm.min_ins_extend)),
         ) as usize;
         // Idem.
         let right_buffer = max(
@@ -172,9 +179,12 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     }
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
-    #[inline]
     fn extend_diagonal(&self, a: &Sequence, b: &Sequence, d: Fr, fr: &mut Fr) -> Fr {
-        let (i, j) = fr_to_pos(d, *fr);
+        let (i, j) = fr_to_coords(d, *fr);
+        //println!("FR to pos d {d} fr {fr} => pos({i}, {j})");
+        if i as usize >= a.len() || j as usize >= b.len() {
+            return *fr;
+        }
 
         // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
         *fr += 2 * match self.direction {
@@ -196,7 +206,6 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// This version compares one usize at a time.
     /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
     #[allow(unused)]
-    #[inline]
     fn extend_diagonal_packed(&self, a: &Sequence, b: &Sequence, d: Fr, fr: &mut Fr) -> Fr {
         let i = (*fr + d) / 2;
         let j = (*fr - d) / 2;
@@ -252,35 +261,62 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         *fr
     }
 
-    /// The first active diagonal for the given front.
-    #[inline]
-    fn dmin(&self, s: Cost) -> Fr {
-        let mut x = -(self.cm.ins_or(0, |ins| s / ins) as Fr);
+    fn extend(
+        &self,
+        front: &mut Front<N>,
+        a: &Sequence,
+        b: &Sequence,
+        v: &mut impl Visualizer,
+    ) -> bool {
+        for d in front.range.clone() {
+            let fr = &mut front.m_mut()[d];
+            let fr_old = *fr;
+            //println!("Diagonal {d} fr old {fr_old}");
+            let fr_new = self.extend_diagonal(a, b, d as Fr, fr);
+            let mut p = fr_to_pos(d, fr_old);
+            for _ in fr_old..fr_new {
+                p = p.add_diagonal(1);
+                v.expand(p);
+            }
+        }
+
+        if front.range.contains(&(a.len() as Fr - b.len() as Fr))
+            && front.m_mut()[a.len() as Fr - b.len() as Fr] >= (a.len() + b.len()) as Fr
+        {
+            return true;
+        }
+        false
+    }
+
+    /// The range of diagonals to consider for the given cost `s`.
+    /// Computes the minimum and maximum possible diagonal reachable for this `s`.
+    /// TODO: For simplicity, this does not take into account gap-open costs currently.
+    fn d_range(&self, s: Cost) -> RangeInclusive<Fr> {
+        let mut start = -(self.cm.ins_or(0, |ins| s / ins) as Fr);
         for cm in &self.cm.affine {
             match cm.affine_type {
-                InsertLayer => x = min(x, -(s.saturating_sub(cm.open).div_floor(cm.extend) as Fr)),
+                InsertLayer => {
+                    start = min(
+                        start,
+                        -(s.saturating_sub(cm.open).div_floor(cm.extend) as Fr),
+                    )
+                }
                 DeleteLayer => {}
                 _ => todo!(),
             };
         }
-        x
-    }
-    /// The last active diagonal for the given front.
-    #[inline]
-    fn dmax(&self, s: Cost) -> Fr {
-        let mut x = -(self.cm.del_or(0, |del| s / del) as Fr);
+        let mut end = self.cm.del_or(0, |del| s / del) as Fr;
         for cm in &self.cm.affine {
             match cm.affine_type {
-                DeleteLayer => x = min(x, s.saturating_sub(cm.open).div_floor(cm.extend) as Fr),
                 InsertLayer => {}
+                DeleteLayer => end = max(end, s.saturating_sub(cm.open).div_floor(cm.extend) as Fr),
                 _ => todo!(),
             };
         }
-        x
-    }
-}
 
-impl<const N: usize> DiagonalTransition<AffineCost<N>> {
+        start..=end
+    }
+
     /// Returns None when the distance is 0.
     fn init_fronts(
         &self,
@@ -314,30 +350,6 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         Some(fronts)
     }
 
-    fn extend(
-        &self,
-        front: &mut Front<N>,
-        a: &Sequence,
-        b: &Sequence,
-        v: &mut impl Visualizer,
-    ) -> bool {
-        for d in front.range.clone() {
-            let f = &mut front.m_mut()[d];
-            let f_old = *f;
-            let f_new = self.extend_diagonal(a, b, d as Fr, f);
-            let mut p = Pos::from(f_old, f_old as Fr + d);
-            for _ in f_old..f_new {
-                p = p.add_diagonal(1);
-                v.expand(p);
-            }
-        }
-
-        if front.m_mut()[a.len() as Fr - b.len() as Fr] >= (a.len() + b.len()) as Fr {
-            return true;
-        }
-        false
-    }
-
     /// Detects if there is a diagonal such that the two fronts meet/overlap.
     /// The overlap can be in any of the affine layers.
     /// Returns: None is no overlap was found.
@@ -346,6 +358,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// - the diagonal and FR for the forward direction,
     /// - the diagonal and FR for the backward direction.
     /// NOTE: the two FR indices may not correspond to the same character, in the case of overlapping greedy matches.
+    #[allow(dead_code)]
     fn fronts_overlap(
         &self,
         a: &Sequence,
@@ -398,16 +411,16 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         v: &mut impl Visualizer,
     ) -> bool {
         // Resize all affine layers.
-        (&mut next.layers).into_iter().for_each(|l| {
-            l.fill(Fr::MIN);
-            l.resize(
-                self.left_buffer
-                    + (next.range.end() - next.range.start()) as usize
-                    + 1
-                    + self.right_buffer,
-                Fr::MIN,
-            );
-        });
+        let new_len = self.left_buffer
+            + (next.range.end() - next.range.start()) as usize
+            + 1
+            + self.right_buffer;
+        println!(
+            "New length: {new_len} left: {}, range: {:?}, right: {}, offset: {}",
+            self.left_buffer, next.range, self.right_buffer, next.offset
+        );
+        // FIXME: Make sure to overwrite old values to FR::MIN.
+        next.resize(new_len, Fr::MIN);
 
         // Get the front `cost` before the last one.
         let get_front = |cost| &prev[prev.len() - cost as usize];
@@ -416,30 +429,31 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             GapOpen => {
                 // Loop over the entire dmin..=dmax range.
                 // The boundaries are buffered so no boundary checks are needed.
-                // TODO: Vectorize this loop.
+                // TODO: Vectorize this loop, or at least verify the compiler does this.
                 // TODO: Loop over a positive range that does not need additional shifting?
+                println!("d range: {:?}", next.range);
                 for d in next.range.clone() {
                     // The new value of next.m[d].
                     let mut f = Fr::MIN;
                     // Affine layers
-                    for idx in 0..N {
-                        let cm = &self.cm.affine[idx];
+                    for layer_idx in 0..N {
+                        let cm = &self.cm.affine[layer_idx];
                         let affine_f = match cm.affine_type {
                             InsertLayer => max(
                                 // Gap open
                                 get_front(cm.open + cm.extend).m()[d + 1] + 1,
                                 // Gap extend
-                                get_front(cm.extend).affine(idx)[d + 1] + 1,
+                                get_front(cm.extend).affine(layer_idx)[d + 1] + 1,
                             ),
                             DeleteLayer => max(
                                 // Gap open
                                 get_front(cm.open + cm.extend).m()[d - 1] + 1,
                                 // Gap extend
-                                get_front(cm.extend).affine(idx)[d - 1] + 1,
+                                get_front(cm.extend).affine(layer_idx)[d - 1] + 1,
                             ),
                             _ => todo!(),
                         };
-                        next.affine_mut(idx)[d] = affine_f;
+                        next.affine_mut(layer_idx)[d] = affine_f;
                         // Gap close
                         f = max(f, affine_f);
                     }
@@ -457,7 +471,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     }
                     next.m_mut()[d] = f;
 
-                    v.expand(Pos::from(f, f as Fr + d));
+                    v.expand(fr_to_pos(d, f));
                 }
                 // Extend all points in the m layer and check if we're done.
                 self.extend(next, a, b, v)
@@ -492,7 +506,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     }
                     next.m_mut()[d] = f;
 
-                    v.expand(Pos::from(f, f as Fr + d));
+                    v.expand(fr_to_pos(d, f));
                 }
                 // Extend all points in the m layer and check if we're done.
                 if self.extend(next, a, b, v) {
@@ -518,7 +532,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                         };
                     }
                     // FIXME
-                    //v.expand(Pos::from(f, f as Fr + d));
+                    //v.expand(fr_to_pos(d, f));
                 }
                 false
             }
@@ -537,11 +551,13 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
         let mut s = 0;
         loop {
             s += 1;
+            println!("S: {s}");
             // Rotate all fronts back by one, so that we can fill the new last layer.
             fronts.rotate_left(1);
             let (next, fronts) = fronts.split_last_mut().unwrap();
             // Update front parameters.
-            next.range = self.dmin(s)..=self.dmax(s);
+            // TODO: Updating of range, offset, and vector resize should be wrapped in a function on Front.
+            next.range = self.d_range(s);
             next.offset = self.left_buffer as Fr - next.range.start();
             if self.next_front(a, b, fronts, next, &mut NoVisualizer) {
                 return s;
@@ -567,10 +583,11 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
             s += 1;
 
             // A temporary front without any content.
+            let range = self.d_range(s);
             let mut next = Front::<N> {
                 layers: Layers::<N, Vec<Fr>>::new(vec![]),
-                range: self.dmin(s)..=self.dmax(s),
-                offset: self.left_buffer as Fr - self.dmin(s),
+                offset: self.left_buffer as Fr - self.d_range(s).start(),
+                range,
             };
 
             if self.next_front(a, b, fronts, &mut next, v) {
