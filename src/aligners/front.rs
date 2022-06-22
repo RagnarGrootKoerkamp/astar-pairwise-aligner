@@ -155,7 +155,7 @@ where
 pub struct Layer<'a, T, I> {
     /// The (affine) layer to use.
     /// TODO: Make this a slice instead of Vec.
-    l: &'a Vec<T>,
+    l: &'a [T],
     /// The offset we need to index this layer.
     /// Equals `left_buffer - front.dmin`. Stored separately to suppport indexing
     /// without needing extra context.
@@ -166,7 +166,7 @@ pub struct Layer<'a, T, I> {
 /// Contains the offset needed to index it.
 pub struct MutLayer<'a, T, I> {
     /// The (affine) layer to use.
-    l: &'a mut Vec<T>,
+    l: &'a mut [T],
     /// The offset we need to index this layer.
     /// Equals `left_buffer - dmin`. Stored separately to suppport indexing
     /// without needing extra context.
