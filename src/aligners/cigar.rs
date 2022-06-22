@@ -1,6 +1,6 @@
-use std::fmt::Write;
+use std::{fmt::Write, slice};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum CigarOp {
     Match,
     Mismatch,
@@ -46,8 +46,8 @@ impl CigarOp {
 }
 
 pub struct CigarElement {
-    command: CigarOp,
-    length: usize,
+    pub command: CigarOp,
+    pub length: usize,
 }
 
 #[derive(Default)]
@@ -85,5 +85,88 @@ impl Cigar {
 
     pub fn reverse(&mut self) {
         self.ops.reverse()
+    }
+}
+
+impl<'a> IntoIterator for &'a Cigar {
+    type Item = &'a CigarElement;
+
+    type IntoIter = slice::Iter<'a, CigarElement>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.ops.iter()
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use crate::prelude::{AffineCost, AffineLayerType, Cost};
+    use bio_types::sequence::Sequence;
+
+    pub fn verify_cigar<const N: usize>(
+        cm: &AffineCost<N>,
+        a: &Sequence,
+        b: &Sequence,
+        cigar: &Cigar,
+    ) -> Cost {
+        let mut pos = (0, 0);
+        let mut layer = None;
+        let mut cost = 0;
+
+        for &CigarElement { command, length } in cigar {
+            match command {
+                CigarOp::Match => {
+                    assert!(layer == None);
+                    for _ in 0..length {
+                        assert_eq!(a.get(pos.0), b.get(pos.1));
+                        pos.0 += 1;
+                        pos.1 += 1;
+                    }
+                }
+                CigarOp::Mismatch => {
+                    assert!(layer == None);
+                    for _ in 0..length {
+                        assert_ne!(a.get(pos.0), b.get(pos.1));
+                        pos.0 += 1;
+                        pos.1 += 1;
+                        cost += cm.sub.unwrap();
+                    }
+                }
+                CigarOp::Insertion => {
+                    assert!(layer == None);
+                    pos.1 += length;
+                    cost += cm.ins.unwrap() * length as Cost;
+                }
+                CigarOp::Deletion => {
+                    assert!(layer == None);
+                    pos.0 += length;
+                    cost += cm.del.unwrap() * length as Cost;
+                }
+                CigarOp::AffineInsertion(l) => {
+                    assert_eq!(layer, Some(l));
+                    assert_eq!(cm.affine[l].affine_type, AffineLayerType::InsertLayer);
+                    pos.1 += length;
+                    cost += cm.affine[l].extend * length as Cost;
+                }
+                CigarOp::AffineDeletion(l) => {
+                    assert_eq!(layer, Some(l));
+                    assert_eq!(cm.affine[l].affine_type, AffineLayerType::DeleteLayer);
+                    pos.0 += length;
+                    cost += cm.affine[l].extend * length as Cost;
+                }
+                CigarOp::AffineOpen(l) => {
+                    assert_eq!(layer, None);
+                    cost += cm.affine[l].open;
+                    layer = Some(l)
+                }
+                CigarOp::AffineClose(l) => {
+                    assert_eq!(layer, Some(l));
+                    layer = None;
+                }
+            }
+        }
+
+        cost
     }
 }
