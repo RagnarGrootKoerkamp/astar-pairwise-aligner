@@ -1,5 +1,4 @@
 use super::cigar::Cigar;
-use super::front::Layers;
 use super::nw::{NW, PATH};
 use super::NoVisualizer;
 use super::{Aligner, VisualizerT};
@@ -22,6 +21,9 @@ type Idx = usize;
 const INF: Cost = Cost::MAX / 2;
 
 type Front<const N: usize> = super::front::Front<N, Cost, Idx>;
+
+const LEFT_BUFFER: Idx = 0;
+const RIGHT_BUFFER: Idx = 2;
 
 /// Settings for the algorithm, and derived constants.
 ///
@@ -65,18 +67,13 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
     /// Returns None if cost > s, or the actual cost otherwise.
     fn cost_for_band(&self, a: &Sequence, b: &Sequence, s: Cost) -> Option<Cost> {
         let range = self.j_range(a, b, 0, s);
-        let right_buffer = 2;
-        let ref mut prev = Front {
-            layers: Layers::new(vec![INF; range.end() - range.start() + 1 + right_buffer]),
-            offset: *range.start(),
-            range,
-        };
+        let ref mut prev = Front::new_with_buffer(INF, range, LEFT_BUFFER, RIGHT_BUFFER);
         let ref mut next = prev.clone();
 
         // TODO: Find a way to not have to manually process the first layer.
         // TODO: Reuse from NW.
         next.m_mut()[0] = 0;
-        for j in next.range.clone() {
+        for j in next.range().clone() {
             // Initialize the main layer with linear insertions.
             next.m_mut()[j] = self.cm.ins_or(INF, |ins| j as Cost * ins);
 
@@ -98,11 +95,8 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
             // Convert to 1 based index.
             let i = i0 + 1;
             std::mem::swap(prev, next);
-            // Update front parameters.
-            next.range = self.j_range(a, b, i, s);
-            // FIXME: Should be negative?
-            next.offset = *next.range.start();
-            // FIXME: Take a ref instead of clone.
+            // Update front size.
+            next.reset_with_buffer(INF, self.j_range(a, b, i, s), LEFT_BUFFER, RIGHT_BUFFER);
             NW {
                 cm: self.cm.clone(),
             }
@@ -126,15 +120,11 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
         s: Cost,
         v: &mut impl VisualizerT,
     ) -> Option<(Cost, PATH, Cigar)> {
-        let range = self.j_range(a, b, 0, s);
-        let ref mut fronts = vec![
-            Front {
-                layers: Layers::new(vec![INF; range.end() - range.start() + 1]),
-                offset: *range.start(),
-                range,
-            };
-            a.len() + 1
-        ];
+        let ref mut fronts: Vec<Front<N>> = (0..=a.len())
+            .map(|i| {
+                Front::new_with_buffer(INF, self.j_range(a, b, i, s), LEFT_BUFFER, RIGHT_BUFFER)
+            })
+            .collect();
 
         // TODO: Find a way to not have to manually process the first layer.
         v.expand(Pos(0, 0));
@@ -162,9 +152,6 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
             // Convert to 1 based index.
             let i = i0 + 1;
             let [prev, next] = &mut fronts[i-1..=i] else {unreachable!();};
-            // Update front parameters.
-            next.range = self.j_range(a, b, i, s);
-            next.offset = *next.range.start();
             // FIXME: Take a ref instead of clone.
             NW {
                 cm: self.cm.clone(),
