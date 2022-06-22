@@ -8,7 +8,6 @@ pub mod cigar;
 pub mod diagonal_transition;
 pub mod exp_band;
 pub mod front;
-pub mod layer;
 pub mod nw;
 pub mod nw_lib;
 
