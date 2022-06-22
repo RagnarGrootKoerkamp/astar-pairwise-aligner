@@ -342,7 +342,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             Front {
                 layers: Layers::new(vec![Fr::MIN; self.left_buffer + 1 + self.right_buffer]),
                 range: 0..=0,
-                offset: self.left_buffer as Fr,
+                offset: -(self.left_buffer as Fr),
             };
             self.top_buffer + 1
         ];
@@ -558,7 +558,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
             // Update front parameters.
             // TODO: Updating of range, offset, and vector resize should be wrapped in a function on Front.
             next.range = self.d_range(s);
-            next.offset = self.left_buffer as Fr - next.range.start();
+            next.offset = next.range.start() - self.left_buffer as Fr;
             if self.next_front(a, b, fronts, next, &mut NoVisualizer) {
                 return s;
             }

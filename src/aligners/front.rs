@@ -1,4 +1,4 @@
-use std::ops::{Add, Index, IndexMut, RangeInclusive};
+use std::ops::{Index, IndexMut, RangeInclusive, Sub};
 
 use num_traits::AsPrimitive;
 
@@ -20,8 +20,8 @@ impl<const N: usize, T> Layers<N, T> {
     }
 }
 
-pub trait IndexType: Add<Output = Self> + Sized + AsPrimitive<usize> + Copy {}
-impl<I> IndexType for I where I: num_traits::AsPrimitive<usize> + std::ops::Add<Output = I> + Copy {}
+pub trait IndexType: Sub<Output = Self> + Sized + AsPrimitive<usize> + Copy {}
+impl<I> IndexType for I where I: num_traits::AsPrimitive<usize> + std::ops::Sub<Output = I> + Copy {}
 
 /// A front contains the data for each affine layer, and a range to indicate which subset of diagonals/columns is computed for this front.
 /// The offset indicates the position of the 0 column/diagonal.
@@ -36,8 +36,7 @@ pub struct Front<const N: usize, T, I> {
     /// The inclusive range of values (diagonals/rows) this front corresponds to.
     pub range: RangeInclusive<I>,
     /// The offset we need to index each layer.
-    /// FIXME: Negate the meaning of offset:
-    /// `offset` is the index of m[0].
+    /// `offset` is the index corresponding to m[0].
     /// To get index `i`, find it at position `i - offset`.
     pub offset: I,
 }
@@ -136,7 +135,7 @@ where
     I: IndexType,
 {
     pub fn get(&self, d: I) -> Option<&T> {
-        self.l.get((self.offset + d).as_())
+        self.l.get((d - self.offset).as_())
     }
 }
 
@@ -148,7 +147,7 @@ where
     type Output = T;
 
     fn index(&self, d: I) -> &Self::Output {
-        &self.l[(self.offset + d).as_()]
+        &self.l[(d - self.offset).as_()]
     }
 }
 /// Indexing for a mutable Layer.
@@ -159,7 +158,7 @@ where
     type Output = T;
 
     fn index(&self, d: I) -> &Self::Output {
-        &self.l[(self.offset + d).as_()]
+        &self.l[(d - self.offset).as_()]
     }
 }
 /// Indexing for a mutable Layer.
@@ -168,6 +167,6 @@ where
     I: IndexType,
 {
     fn index_mut(&mut self, d: I) -> &mut Self::Output {
-        &mut self.l[(self.offset + d).as_()]
+        &mut self.l[(d - self.offset).as_()]
     }
 }

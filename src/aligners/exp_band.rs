@@ -2,7 +2,7 @@ use super::cigar::Cigar;
 use super::front::Layers;
 use super::nw::{NW, PATH};
 use super::NoVisualizer;
-use super::{Aligner, Visualizer};
+use super::{Aligner, VisualizerT};
 use crate::cost_model::*;
 use crate::prelude::{Pos, Sequence};
 use std::cmp::{max, min};
@@ -101,7 +101,7 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
             // Update front parameters.
             next.range = self.j_range(a, b, i, s);
             // FIXME: Should be negative?
-            next.offset = -*next.range.start();
+            next.offset = *next.range.start();
             // FIXME: Take a ref instead of clone.
             NW {
                 cm: self.cm.clone(),
@@ -124,7 +124,7 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
         a: &Sequence,
         b: &Sequence,
         s: Cost,
-        v: &mut impl Visualizer,
+        v: &mut impl VisualizerT,
     ) -> Option<(Cost, PATH, Cigar)> {
         let range = self.j_range(a, b, 0, s);
         let ref mut fronts = vec![
@@ -215,7 +215,7 @@ impl<const N: usize> Aligner for ExpBand<AffineCost<N>> {
         &self,
         a: &Sequence,
         b: &Sequence,
-        v: &mut impl Visualizer,
+        v: &mut impl VisualizerT,
     ) -> (Cost, PATH, Cigar) {
         self.exponential_search_s(a, b, |s| self.path_for_band(a, b, s, v))
     }
