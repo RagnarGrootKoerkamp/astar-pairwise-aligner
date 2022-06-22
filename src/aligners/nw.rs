@@ -1,5 +1,4 @@
 use super::cigar::{Cigar, CigarOp};
-use super::front::Layers;
 use super::NoVisualizer;
 use super::{Aligner, VisualizerT};
 use crate::cost_model::*;
@@ -179,7 +178,7 @@ impl<const N: usize> NW<AffineCost<N>> {
         // unique character to have a place to look at.
         // NOTE: This MUST be fixed for this to work with partial fronts from exponential search.
 
-        if next.range.contains(&0) {
+        if next.range().contains(&0) {
             // Initialize the first state by linear deletion.
             next.m_mut()[0] = self.cm.del_or(INF, |del| i as Cost * del);
             // Initialize the first state by affine deletion.
@@ -195,7 +194,7 @@ impl<const N: usize> NW<AffineCost<N>> {
                 };
             }
         }
-        for j in max(*next.range.start(), 1)..=*next.range.end() {
+        for j in max(*next.range().start(), 1)..=*next.range().end() {
             println!("j {j} len b {}", b.len());
             let cb = b[j - 1];
 
@@ -247,12 +246,7 @@ impl<const N: usize> NW<AffineCost<N>> {
     }
 
     fn init_front(&self, b: &Sequence) -> Front<N> {
-        let mut next = Front {
-            layers: Layers::new(vec![INF; b.len() + 1]),
-            // unused
-            range: 0..=b.len(),
-            offset: 0,
-        };
+        let mut next = Front::new(INF, 0..=b.len());
 
         // TODO: Find a way to not have to manually process the first layer.
         next.m_mut()[0] = 0;
@@ -299,15 +293,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         b: &Sequence,
         v: &mut impl VisualizerT,
     ) -> (Cost, PATH, Cigar) {
-        let ref mut fronts = vec![
-            Front {
-                layers: Layers::new(vec![INF; b.len() + 1]),
-                // unused
-                range: 0..=b.len(),
-                offset: 0,
-            };
-            a.len() + 1
-        ];
+        let ref mut fronts = vec![Front::new(INF, 0..=b.len()); a.len() + 1];
         // TODO: Reuse memory instead of overwriting it.
         fronts[0] = self.init_front(b);
 

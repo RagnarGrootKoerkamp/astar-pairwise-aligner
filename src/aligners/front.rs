@@ -1,27 +1,9 @@
-use std::ops::{Index, IndexMut, RangeInclusive, Sub};
+use std::ops::{Index, IndexMut, RangeInclusive};
 
-use num_traits::AsPrimitive;
+use num_traits::{AsPrimitive, NumOps, NumRef, RefNum};
 
-/// For a given AffineCost<N>, NW and DT use a main M layer, and N affine layers.
-/// This struct wraps this and provides an iterator over all layers.
-#[derive(Clone)]
-pub struct Layers<const N: usize, T> {
-    m: T,
-    affine: [T; N],
-}
-
-impl<const N: usize, T> Layers<N, T> {
-    pub fn new(m: T) -> Self
-    where
-        T: Clone,
-    {
-        let affine = [(); N].map(|_| m.clone());
-        Self { m, affine }
-    }
-}
-
-pub trait IndexType: Sub<Output = Self> + Sized + AsPrimitive<usize> + Copy {}
-impl<I> IndexType for I where I: num_traits::AsPrimitive<usize> + std::ops::Sub<Output = I> + Copy {}
+pub trait IndexType: NumOps + NumRef + Default + AsPrimitive<usize> + Copy {}
+impl<I> IndexType for I where I: NumOps + NumRef + Default + AsPrimitive<usize> + Copy {}
 
 /// A front contains the data for each affine layer, and a range to indicate which subset of diagonals/columns is computed for this front.
 /// The offset indicates the position of the 0 column/diagonal.
@@ -30,64 +12,114 @@ impl<I> IndexType for I where I: num_traits::AsPrimitive<usize> + std::ops::Sub<
 /// I: the index type.
 #[derive(Clone)]
 pub struct Front<const N: usize, T, I> {
-    /// TODO: Inline Layers struct here.
-    /// TODO: Do not make this public.
-    pub layers: Layers<N, Vec<T>>,
+    /// TODO: Merge the main and affine layers into a single allocation?
+    /// TODO: Store layer-by-layer or position-by-position (ie index as
+    /// [layer][position] or [position][layer])?
+    /// The main layer.
+    m: Vec<T>,
+    /// The affine layer.
+    affine: [Vec<T>; N],
     /// The inclusive range of values (diagonals/rows) this front corresponds to.
-    pub range: RangeInclusive<I>,
+    range: RangeInclusive<I>,
     /// The offset we need to index each layer.
     /// `offset` is the index corresponding to m[0].
     /// To get index `i`, find it at position `i - offset`.
-    pub offset: I,
+    offset: I,
 }
 
 /// Indexing methods for `Front`.
 impl<const N: usize, T, I> Front<N, T, I>
 where
     I: IndexType,
+    T: Copy,
 {
-    pub fn resize(&mut self, new_len: usize, value: T)
+    /// Create a new front for the given range.
+    pub fn new(value: T, range: RangeInclusive<I>) -> Self
     where
-        T: Clone,
+        for<'l> &'l I: RefNum<I>,
     {
-        self.layers.m.resize(new_len, value.clone());
-        for affine_layer in &mut self.layers.affine {
-            affine_layer.resize(new_len, value.clone());
+        Self::new_with_buffer(value, range, I::default(), I::default())
+    }
+    /// Resize the current front for the given range.
+    /// Overwrites existing elements to the given value.
+    pub fn reset(&mut self, value: T, range: RangeInclusive<I>)
+    where
+        for<'l> &'l I: RefNum<I>,
+    {
+        self.reset_with_buffer(value, range, I::default(), I::default())
+    }
+
+    /// Create a new front for the given range, using the given left/right buffer sizes.
+    pub fn new_with_buffer(
+        value: T,
+        range: RangeInclusive<I>,
+        left_buffer: I,
+        right_buffer: I,
+    ) -> Self
+    where
+        T: Copy,
+        for<'l> &'l I: RefNum<I>,
+    {
+        let new_len: I = left_buffer + (range.end() - range.start() + I::one()) + right_buffer;
+        Self {
+            m: vec![value; new_len.as_()],
+            // Vec is not Copy, so we use array::map instead.
+            affine: [(); N].map(|_| vec![value; new_len.as_()]),
+            offset: range.start().clone() - left_buffer,
+            range,
+        }
+    }
+    /// Resize the current front for the given range, using the given left/right buffer sizes.
+    /// Overwrites existing elements to the given value.
+    pub fn reset_with_buffer(
+        &mut self,
+        value: T,
+        range: RangeInclusive<I>,
+        left_buffer: I,
+        right_buffer: I,
+    ) where
+        T: Clone,
+        for<'l> &'l I: RefNum<I>,
+    {
+        let new_len: I = left_buffer + (range.end() - range.start() + I::one()) + right_buffer;
+        self.m.clear();
+        self.m.resize(new_len.as_(), value);
+        for a in &mut self.affine {
+            a.clear();
+            a.resize(new_len.as_(), value);
+        }
+        self.range = range;
+        self.offset = self.range.start() - left_buffer;
+    }
+
+    pub fn affine(&self, layer_idx: usize) -> Layer<'_, T, I> {
+        Layer {
+            l: &self.affine[layer_idx],
+            offset: self.offset,
+        }
+    }
+
+    pub fn affine_mut(&mut self, layer_idx: usize) -> MutLayer<'_, T, I> {
+        MutLayer {
+            l: &mut self.affine[layer_idx],
+            offset: self.offset,
         }
     }
 
     pub fn m(&self) -> Layer<'_, T, I> {
         Layer {
-            l: &self.layers.m,
-            offset: self.offset,
-        }
-    }
-    pub fn affine(&self, layer_idx: usize) -> Layer<'_, T, I> {
-        Layer {
-            l: &self.layers.affine[layer_idx],
-            offset: self.offset,
-        }
-    }
-    pub fn m_mut(&mut self) -> MutLayer<'_, T, I> {
-        MutLayer {
-            l: &mut self.layers.m,
-            offset: self.offset,
-        }
-    }
-    pub fn affine_mut(&mut self, layer_idx: usize) -> MutLayer<'_, T, I> {
-        MutLayer {
-            l: &mut self.layers.affine[layer_idx],
+            l: &self.m,
             offset: self.offset,
         }
     }
     pub fn m_affine(&self, layer_idx: usize) -> (Layer<'_, T, I>, Layer<'_, T, I>) {
         (
             Layer {
-                l: &self.layers.m,
+                l: &self.m,
                 offset: self.offset,
             },
             Layer {
-                l: &self.layers.affine[layer_idx],
+                l: &self.affine[layer_idx],
                 offset: self.offset,
             },
         )
@@ -95,14 +127,25 @@ where
     pub fn m_affine_mut(&mut self, layer_idx: usize) -> (MutLayer<'_, T, I>, MutLayer<'_, T, I>) {
         (
             MutLayer {
-                l: &mut self.layers.m,
+                l: &mut self.m,
                 offset: self.offset,
             },
             MutLayer {
-                l: &mut self.layers.affine[layer_idx],
+                l: &mut self.affine[layer_idx],
                 offset: self.offset,
             },
         )
+    }
+    pub fn m_mut(&mut self) -> MutLayer<'_, T, I> {
+        MutLayer {
+            l: &mut self.m,
+            offset: self.offset,
+        }
+    }
+
+    /// Get a reference to the front's range.
+    pub fn range(&self) -> &RangeInclusive<I> {
+        &self.range
     }
 }
 
