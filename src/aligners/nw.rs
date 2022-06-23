@@ -36,7 +36,7 @@ impl<const N: usize> NW<AffineCost<N>> {
         path.push((i, j));
 
         let mut save = |x: usize, y: usize, op: CigarOp| {
-            println!("save {x} {y} {op:?}");
+            //println!("save {x} {y} {op:?}");
             cigar.push(op);
             if let Some(last) = path.last() {
                 if *last == (x, y) {
@@ -45,7 +45,7 @@ impl<const N: usize> NW<AffineCost<N>> {
             }
             path.push((x, y));
         };
-        'path_loop: while i > 0 || j > 0 {
+        'path_loop: while i > 0 || j > 0 || layer.is_some() {
             if let Some(layer_idx) = layer {
                 match self.cm.affine[layer_idx].affine_type {
                     InsertLayer => {
@@ -116,11 +116,6 @@ impl<const N: usize> NW<AffineCost<N>> {
                 // insertion?
                 if j > 0 {
                     if let Some(ins) = self.cm.ins {
-                        println!(
-                            "ins={ins}  now={}  prev={}",
-                            fronts[i].m()[j],
-                            fronts[i].m()[j - 1]
-                        );
                         if fronts[i].m()[j] == fronts[i].m()[j - 1] + ins {
                             j -= 1;
                             save(i, j, CigarOp::Insertion);
@@ -131,11 +126,6 @@ impl<const N: usize> NW<AffineCost<N>> {
                 // deletion?
                 if i > 0 {
                     if let Some(del) = self.cm.del {
-                        println!(
-                            "del={del}  now={}  prev={}",
-                            fronts[i].m()[j],
-                            fronts[i - 1].m()[j]
-                        );
                         if fronts[i].m()[j] == fronts[i - 1].m()[j] + del {
                             i -= 1;
                             save(i, j, CigarOp::Deletion);
@@ -195,7 +185,6 @@ impl<const N: usize> NW<AffineCost<N>> {
             }
         }
         for j in max(*next.range().start(), 1)..=*next.range().end() {
-            println!("j {j} len b {}", b.len());
             let cb = b[j - 1];
 
             // Compute all layers at (i, j).
