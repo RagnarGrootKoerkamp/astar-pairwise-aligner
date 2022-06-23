@@ -1,5 +1,5 @@
 use super::cigar::Cigar;
-use super::edit_graph::{EditGraph, Layer, State};
+use super::edit_graph::{EditGraph, State};
 use super::{exponential_search, Aligner, Path};
 use super::{Seq, Sequence};
 use crate::cost_model::*;
@@ -262,7 +262,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             &self.cm,
             /*greedy_matching=*/ false,
             st,
-            |di, dj, new_layer, cost, ops| {
+            |di, dj, new_layer, cost, _ops| {
                 if parent.is_none()
                         // We use `get` to handle possible out-of-bound lookups.
                         && let Some(parent_cost) =
