@@ -21,11 +21,11 @@
 //! - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
 //!
 //!
-use super::cigar::Cigar;
+use super::cigar::{Cigar, CigarOp};
 use super::nw::Path;
 use super::{Aligner, Seq, VisualizerT};
 use crate::cost_model::*;
-use crate::prelude::Pos;
+use crate::prelude::{Pos, I};
 use std::cmp::{max, min};
 use std::iter::zip;
 use std::ops::RangeInclusive;
@@ -223,6 +223,118 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
 }
 
 impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
+    pub(super) fn track_path(
+        &self,
+        fronts: &mut Vec<Front<N>>,
+        a: Seq,
+        b: Seq,
+        mut s: usize,
+    ) -> (Path, Cigar) {
+        let s0 = s;
+        let mut d = a.len() as i32 - b.len() as i32; //diagonal
+        let mut path: Path = vec![];
+        let mut cigar = Cigar::default();
+
+        // The current position and affine layer.
+        let mut i = a.len();
+        let mut j = b.len();
+        // None for main layer.
+        let mut layer: Option<usize> = None;
+
+        path.push(Pos(i as I, j as I));
+
+        let mut save = |x: usize, y: usize, op: CigarOp| {
+            println!("save {x} {y} {op:?}");
+            cigar.push(op);
+            if let Some(last) = path.last() {
+                if *last == Pos(x as I, y as I) {
+                    return;
+                }
+            }
+            path.push(Pos(x as I, y as I));
+        };
+
+        let get_front = |cost| &fronts[fronts.len() - cost as usize - (s0 - s)];
+
+        'path_loop: while s > 0 {
+            let mut new_d = d; //new diagonal
+            let mut f = Fr::MIN;
+            let mut new_cost = s;
+            match self.gap_variant {
+                GapOpen => {
+                    // If None - we are on the main layer; if layer == Some (idx), then idx - index of the affine layer we are currently are
+                    if let Some(layer_idx) = layer {
+                        match &self.cm.affine[layer_idx].affine_type {
+                            // I might have mixed up deletion and insertion again :(
+                            InsertLayer => {
+                                new_d = d + 1;
+                            }
+                            DeleteLayer => {
+                                new_d = d - 1;
+                            }
+                            _ => todo!(),
+                        }
+                        if fronts[s - self.cm.affine[layer_idx].extend as usize]
+                            .affine_mut(layer_idx)[new_d]
+                            > fronts[s - self.cm.affine[layer_idx].open as usize].m()[new_d]
+                        {
+                            new_cost = s - self.cm.affine[layer_idx].extend as usize;
+                            // layer remains the same
+                        } else {
+                            new_cost = s - self.cm.affine[layer_idx].open as usize;
+                            layer = None;
+                        }
+                    } else {
+                        // Affine layers
+                        for layer_idx in 0..N {
+                            // Gap close
+                            if fronts[s].affine_mut(layer_idx)[d] > f {
+                                layer = Some(layer_idx);
+                            }
+                            f = max(f, fronts[s].affine_mut(layer_idx)[d]);
+                        }
+                        // Substitution
+                        if let Some(cost) = self.cm.sub {
+                            if get_front(cost).m()[d] + 2 > f {
+                                new_cost = s - cost as usize;
+                                layer = None;
+                            }
+                            f = max(f, get_front(cost).m()[d] + 2);
+                        }
+                        // Insertion
+                        if let Some(cost) = self.cm.ins {
+                            if get_front(cost).m()[d + 1] + 1 > f {
+                                new_cost = s - cost as usize;
+                                layer = None;
+                                new_d = d + 1;
+                            }
+                            f = max(f, get_front(cost).m()[d + 1] + 1);
+                        }
+                        // Deletion
+                        if let Some(cost) = self.cm.del {
+                            if get_front(cost).m()[d - 1] + 1 > f {
+                                new_cost = s - cost as usize;
+                                layer = None;
+                                new_d = d + 1;
+                            }
+                            f = max(f, get_front(cost).m()[d - 1] + 1);
+                        }
+
+                        d = new_d;
+                        s = new_cost;
+                    }
+                }
+                GapClose => {
+                    todo!();
+                }
+            }
+        }
+
+        path.reverse();
+        cigar.reverse();
+        (path, cigar)
+    }
+
     pub fn new_variant(
         cm: AffineCost<N>,
         use_gap_cost_heuristic: GapCostHeuristic,
@@ -621,7 +733,8 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
             );
             if self.next_front(a, b, &fronts.fronts, &mut next) {
                 // FIXME: Reconstruct path.
-                return Some((s, vec![], Cigar::default()));
+                let (path, cigar) = self.track_path(fronts, a, b, s as usize);
+                return (s, path, cigar);
             }
 
             fronts.fronts.push(next);
