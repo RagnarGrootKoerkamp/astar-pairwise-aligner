@@ -70,13 +70,24 @@ impl ToString for Cigar {
 impl Cigar {
     pub fn push(&mut self, command: CigarOp) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
-        if let Some(s) = self.ops.last_mut() {
-            if s.command == command {
+        if let Some(s) = self.ops.last_mut() && s.command == command {
                 s.length += 1;
+                return;
+        }
+        self.ops.push(command.new());
+    }
+
+    pub fn match_push(&mut self, num: usize) {
+        if let Some(s) = self.ops.last_mut() {
+            if s.command == CigarOp::Match {
+                s.length += num;
                 return;
             }
         }
-        self.ops.push(command.new());
+        self.ops.push(CigarElement {
+            command: CigarOp::Match,
+            length: num,
+        });
     }
 
     pub fn print(&self) {
