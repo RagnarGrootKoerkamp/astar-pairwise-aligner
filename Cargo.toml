@@ -30,6 +30,8 @@ ropey = "*"
 num-traits = "*"
 sdl2 = {version="*", optional=true}
 parse_duration = "*"
+seq-macro = "*"
+paste = "*"
 
 [dev-dependencies]
 # For benchmarking only.
