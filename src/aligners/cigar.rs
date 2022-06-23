@@ -79,6 +79,19 @@ impl Cigar {
         self.ops.push(command.new());
     }
 
+    pub fn match_push(&mut self, num: usize) {
+        if let Some(s) = self.ops.last_mut() {
+            if s.command == CigarOp::Match {
+                s.length += num;
+                return;
+            }
+        }
+        self.ops.push(CigarElement {
+            command: CigarOp::Match,
+            length: num,
+        });
+    }
+
     pub fn print(&self) {
         print!("{}", self.to_string());
     }
