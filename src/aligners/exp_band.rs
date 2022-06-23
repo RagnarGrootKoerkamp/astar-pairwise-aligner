@@ -22,8 +22,9 @@ const INF: Cost = Cost::MAX / 2;
 
 type Front<const N: usize> = super::front::Front<N, Cost, Idx>;
 
-const LEFT_BUFFER: Idx = 0;
-const RIGHT_BUFFER: Idx = 2;
+/// NW DP only needs the cell just left and above of the current cell.
+const LEFT_BUFFER: Idx = 1;
+const RIGHT_BUFFER: Idx = 1;
 
 /// Settings for the algorithm, and derived constants.
 ///
@@ -42,23 +43,23 @@ pub struct ExpBand<CostModel> {
 impl<const N: usize> ExpBand<AffineCost<N>> {
     /// The first active row in column `i`, when searching up to distance `s`.
     fn j_range(&self, a: &Sequence, b: &Sequence, i: Idx, s: Cost) -> RangeInclusive<Idx> {
-        let start_j = if self.use_gap_cost_heuristic {
-            let d = a.len() as Idx - b.len() as Idx;
-            // FIXME: Get the rounding right here.
-            i - ((s as Idx - d as Idx * self.cm.min_ins_extend as Idx)
-                / (self.cm.min_del_extend + self.cm.min_ins_extend) as Idx)
+        let i = i as isize;
+        let s = s as isize;
+        let range = if self.use_gap_cost_heuristic {
+            let d = b.len() as isize - a.len() as isize;
+            let per_band_cost = (self.cm.min_ins_extend + self.cm.min_del_extend) as isize;
+            if d > 0 {
+                let reduced_s = s - d * self.cm.min_ins_extend as isize;
+                -(reduced_s / per_band_cost)..=d + reduced_s / per_band_cost
+            } else {
+                let reduced_s = s - d * self.cm.min_del_extend as isize;
+                d - (reduced_s / per_band_cost)..=reduced_s / per_band_cost
+            }
         } else {
-            i.saturating_sub((s / self.cm.min_ins_extend) as Idx)
+            -(s / self.cm.min_del_extend as isize)..=(s / self.cm.min_ins_extend as isize)
         };
-        let end_j = if self.use_gap_cost_heuristic {
-            let d = a.len() as Idx - b.len() as Idx;
-            // FIXME: Get the rounding right here.
-            i + (s as Idx + d * self.cm.min_del_extend as Idx)
-                / (self.cm.min_del_extend + self.cm.min_ins_extend) as Idx
-        } else {
-            i + (s / self.cm.min_del_extend) as Idx
-        };
-        max(start_j, 0)..=min(end_j, b.len())
+        // crop
+        max(i + *range.start(), 0) as Idx..=min(i + *range.end(), b.len() as isize) as Idx
     }
 }
 
@@ -75,6 +76,9 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
         next.m_mut()[0] = 0;
         for j in next.range().clone() {
             // Initialize the main layer with linear insertions.
+            if j == 0 {
+                continue;
+            }
             next.m_mut()[j] = self.cm.ins_or(INF, |ins| j as Cost * ins);
 
             // Initialize the affine insertion layers.
@@ -129,19 +133,22 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
         // TODO: Find a way to not have to manually process the first layer.
         v.expand(Pos(0, 0));
         fronts[0].m_mut()[0] = 0;
-        for j in 1..=b.len() {
+        for j in fronts[0].range().clone() {
+            if j == 0 {
+                continue;
+            }
             v.expand(Pos(0, j as crate::prelude::I));
             // Initialize the main layer with linear deletions.
-            fronts[0].m_mut()[j] = self.cm.del_or(INF, |del| j as Cost * del);
+            fronts[0].m_mut()[j] = self.cm.ins_or(INF, |ins| j as Cost * ins);
 
             // Initialize the affine deletion layers.
             for (layer_idx, cm) in self.cm.affine.iter().enumerate() {
                 let (mut next_m, mut next_layer) = fronts[0].m_affine_mut(layer_idx);
                 match cm.affine_type {
-                    DeleteLayer => {
+                    DeleteLayer => {}
+                    InsertLayer => {
                         next_layer[j] = cm.open + j as Cost * cm.extend;
                     }
-                    InsertLayer => {}
                     _ => todo!(),
                 };
                 next_m[j] = min(next_m[j], next_layer[j]);
@@ -177,12 +184,7 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
         b: &Sequence,
         mut f: impl FnMut(Cost) -> Option<T>,
     ) -> T {
-        // Really, when self.gap_heuristic is false we should start at 0 instead of the difference.
-        let mut s = if a.len() >= b.len() {
-            (a.len() - b.len()) as Cost * self.cm.min_del_extend
-        } else {
-            (b.len() - a.len()) as Cost * self.cm.min_ins_extend
-        };
+        let mut s = self.cm.gap_cost(Pos(0, 0), Pos::from_length(a, b));
         // TODO: Fix the potential infinite loop here.
         loop {
             if let Some(d) = f(s) {
