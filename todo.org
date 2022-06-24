@@ -141,7 +141,8 @@ This is not going to be helpful now that contours are typically very small.
 ** TODO Check code coverage to see which edge cases are never hit.
 ** DONE Extract tests to /tests.
 CLOSED: [2022-01-19 Wed 18:03]
-** TODO Replace ~Sequence: Vec<u8>~ by ~&[u8]~.
+** DONE Replace ~Sequence: Vec<u8>~ by ~&[u8]~.
+CLOSED: [2022-06-24 Fri 05:58]
 ** TODO Test if ~dyn Contour~ is as fast as ~C: Contour~, and if so simplify the code this way.
 Same for Heuristic. Compilation is very slow after enumerating over all possible
 implementations in ~algorithms.rs~.

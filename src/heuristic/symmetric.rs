@@ -16,12 +16,7 @@ where
         "symm(".to_owned() + &self.0.name() + ")"
     }
 
-    fn build<'a>(
-        &self,
-        a: &'a bio_types::sequence::Sequence,
-        b: &'a bio_types::sequence::Sequence,
-        alphabet: &bio::alphabets::Alphabet,
-    ) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a> {
         let max_config = MaxHeuristic::<H, MirrorHeuristic<H>> {
             h1: self.0,
             h2: MirrorHeuristic(self.0),

@@ -76,7 +76,7 @@ fn main() {
 
     // Read the input
     let mut avg_result = AlignResult::default();
-    let mut run_pair = |mut a: Sequence, mut b: Sequence| {
+    let mut run_pair = |mut a: Seq, mut b: Seq| {
         // Shrink if needed.
         let n = args.input.generate_options.length;
         if n != 0 {
@@ -122,7 +122,7 @@ fn main() {
                             assert_eq!(a.remove(0), '>' as u8);
                             assert_eq!(b.remove(0), '<' as u8);
                         }
-                        run_pair(a, b);
+                        run_pair(&a, &b);
                         if let Some(d) = args.timeout {
                             if start.elapsed() > d {
                                 break 'outer;
@@ -135,7 +135,7 @@ fn main() {
                         .records()
                         .tuples()
                     {
-                        run_pair(a.unwrap().seq().to_vec(), b.unwrap().seq().to_vec());
+                        run_pair(a.unwrap().seq(), b.unwrap().seq());
                         if let Some(d) = args.timeout {
                             if start.elapsed() > d {
                                 break 'outer;
@@ -155,7 +155,7 @@ fn main() {
         };
         for _ in 0..args.input.cnt {
             let (a, b) = generate_pair(&args.input.generate_options, rng);
-            run_pair(a, b);
+            run_pair(&a, &b);
         }
     }
 

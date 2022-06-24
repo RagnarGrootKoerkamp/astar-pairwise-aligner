@@ -3,7 +3,7 @@ use rand::{Rng, SeedableRng};
 use structopt::StructOpt;
 use strum_macros::EnumString;
 
-use crate::prelude::*;
+use crate::{aligners::Sequence, prelude::*};
 
 #[derive(EnumString, Default, Debug, Clone, Copy)]
 #[strum(ascii_case_insensitive)]
@@ -60,7 +60,7 @@ fn random_mutation(len_b: usize, rng: &mut impl Rng) -> Mutation {
     }
 }
 
-pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Vec<u8>, Vec<u8>) {
+pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Sequence) {
     let a = (0..opt.length).map(|_| rand_char(rng)).collect_vec();
     let num_mutations = (opt.error * opt.length as f32).ceil() as usize;
     let mut b = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
@@ -151,7 +151,7 @@ mod test {
     use super::*;
 
     // Baseline implementation using quadratic implementation.
-    fn generate_pair_quadratic(n: usize, e: f32, rng: &mut impl Rng) -> (Vec<u8>, Vec<u8>) {
+    fn generate_pair_quadratic(n: usize, e: f32, rng: &mut impl Rng) -> (Sequence, Sequence) {
         let a = (0..n).map(|_| rand_char(rng)).collect_vec();
         let num_mutations = (e * n as f32).ceil() as usize;
         let mut b = a.clone();

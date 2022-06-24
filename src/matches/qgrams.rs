@@ -29,7 +29,7 @@ pub fn qgrams_overlap(mut k: I, mut q: usize, mut k2: I, mut q2: usize) -> bool 
 
 pub fn iterate_fixed_qgrams<'a>(
     rank_transform: &'a RankTransform,
-    a: &'a Vec<u8>,
+    a: Seq<'a>,
     k: u32,
 ) -> impl Iterator<Item = (I, usize)> + 'a {
     let width = rank_transform.get_width();
@@ -41,7 +41,7 @@ pub fn iterate_fixed_qgrams<'a>(
 pub fn fixed_seeds(
     rank_transform: &RankTransform,
     max_match_cost: MatchCost,
-    a: &Vec<u8>,
+    a: Seq,
     k: u32,
 ) -> Vec<Seed> {
     iterate_fixed_qgrams(rank_transform, a, k)

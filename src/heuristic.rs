@@ -61,12 +61,7 @@ impl Default for HeuristicStats {
 pub trait Heuristic: std::fmt::Debug + Copy {
     type Instance<'a>: HeuristicInstance<'a>;
 
-    fn build<'a>(
-        &self,
-        a: &'a Sequence,
-        b: &'a Sequence,
-        alphabet: &Alphabet,
-    ) -> Self::Instance<'a>;
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a>;
 
     // Heuristic properties.
     fn name(&self) -> String;

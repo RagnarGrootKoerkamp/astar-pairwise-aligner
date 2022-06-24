@@ -101,15 +101,12 @@ impl<'a> IntoIterator for &'a Cigar {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::prelude::{AffineCost, AffineLayerType, Cost};
-    use bio_types::sequence::Sequence;
+    use crate::{
+        aligners::Seq,
+        prelude::{AffineCost, AffineLayerType, Cost},
+    };
 
-    pub fn verify_cigar<const N: usize>(
-        cm: &AffineCost<N>,
-        a: &Sequence,
-        b: &Sequence,
-        cigar: &Cigar,
-    ) -> Cost {
+    pub fn verify_cigar<const N: usize>(cm: &AffineCost<N>, a: Seq, b: Seq, cigar: &Cigar) -> Cost {
         let mut pos = (0, 0);
         let mut layer = None;
         let mut cost = 0;

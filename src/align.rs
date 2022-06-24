@@ -350,8 +350,8 @@ fn num_matches_on_path(path: &[Pos], matches: &[Match]) -> usize {
 }
 
 pub fn align<'a, H: Heuristic>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alphabet: &Alphabet,
     sequence_stats: SequenceStats,
     heuristic: H,
@@ -363,8 +363,8 @@ where
 }
 
 pub fn align_advanced<'a, H: Heuristic>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alphabet: &Alphabet,
     sequence_stats: SequenceStats,
     heuristic: H,

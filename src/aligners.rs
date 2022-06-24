@@ -14,6 +14,11 @@ pub mod nw_lib;
 #[cfg(test)]
 mod tests;
 
+/// An owned sequence.
+pub type Sequence = Vec<u8>;
+/// A sequence slice.
+pub type Seq<'a> = &'a [u8];
+
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
     fn explore(&mut self, _pos: Pos) {}

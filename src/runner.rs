@@ -117,7 +117,7 @@ pub struct Params {
 
 impl Params {
     // Returns a pair (m,k).
-    fn determine_mk(&self, _a: &Sequence, b: &Sequence) -> (MatchCost, I) {
+    fn determine_mk(&self, _a: Seq, b: Seq) -> (MatchCost, I) {
         if let Some(k) = self.k {
             return (self.max_seed_cost, k);
         }
@@ -190,11 +190,11 @@ impl Params {
     }
 }
 
-pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
+pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
     fn match_config(
         params: &Params,
-        a: &Sequence,
-        b: &Sequence,
+        a: Seq,
+        b: Seq,
         window_filter: bool,
     ) -> matches::MatchConfig {
         let (m, k) = params.determine_mk(a, b);
@@ -264,7 +264,7 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
             )
         }
         Algorithm::BruteForceCSH => {
-            fn run_cost<C: Distance>(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult
+            fn run_cost<C: Distance>(a: Seq, b: Seq, params: &Params) -> AlignResult
             where
                 for<'a> C::DistanceInstance<'a>: HeuristicInstance<'a>,
             {
@@ -307,8 +307,8 @@ pub fn run(a: &Sequence, b: &Sequence, params: &Params) -> AlignResult {
                 "Use --algorithm CSH_gapcost instead."
             );
             fn run_contours<C: 'static + crate::contour::Contours>(
-                a: &Sequence,
-                b: &Sequence,
+                a: Seq,
+                b: Seq,
                 params: &Params,
             ) -> AlignResult {
                 assert!(params.cost == CostFunction::Zero || params.cost == CostFunction::Gap);

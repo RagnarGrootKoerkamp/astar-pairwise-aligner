@@ -55,7 +55,7 @@ pub struct SeedMatches {
 impl SeedMatches {
     /// Seeds must be sorted by start.
     /// Matches will be sorted and deduplicated in this function.
-    pub fn new(a: &Sequence, seeds: Vec<Seed>, mut matches: Vec<Match>) -> Self {
+    pub fn new(a: Seq, seeds: Vec<Seed>, mut matches: Vec<Match>) -> Self {
         // Check that seeds are sorted and non-overlapping.
         assert!(seeds.is_sorted_by_key(|seed| seed.start));
         assert!(seeds

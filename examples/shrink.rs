@@ -33,8 +33,8 @@ fn main() {
         println!("Test: {} {}", start, end);
         let v = std::panic::catch_unwind(AssertUnwindSafe(|| {
             align(
-                &a[start as usize..min(n, end) as usize].to_vec(),
-                &b[start as usize..min(m, end) as usize].to_vec(),
+                &a[start as usize..min(n, end) as usize],
+                &b[start as usize..min(m, end) as usize],
                 &alphabet,
                 stats,
                 h,
