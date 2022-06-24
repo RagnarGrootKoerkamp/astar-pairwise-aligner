@@ -52,28 +52,36 @@ pub trait Aligner {
 
     /// Finds the cost of aligning `a` and `b`.
     /// Uses the visualizer to record progress.
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost;
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+        self.cost_for_bounded_dist(a, b, None).unwrap()
+    }
 
     /// Finds an alignments (path/Cigar) of sequences `a` and `b`.
     /// Uses the visualizer to record progress.
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar);
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+        self.align_for_bounded_dist(a, b, None).unwrap()
+    }
 
-    /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most s.
+    /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most `s_bound`.
     /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.
     /// The returned cost may be larger than `s` when a path was found, even
     /// though this may not be the optimal cost.
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Cost) -> Option<Cost>;
+    ///
+    /// When `_s_bound` is `None`, there is no upper bound, and this is the same as simply `cost`.
+    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Option<Cost>) -> Option<Cost>;
 
     /// Finds an alignments (path/Cigar) of sequences `a` and `b`, assuming the
     /// cost of the alignment is at most s.
     /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.
     /// The returned cost may be larger than `s` when a path was found, even
     /// though this may not be the optimal cost.
+    ///
+    /// When `_s_bound` is `None`, there is no upper bound, and this is the same as simply `align`.
     fn align_for_bounded_dist(
         &mut self,
         _a: Seq,
         _b: Seq,
-        _s_bound: Cost,
+        _s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)>;
 
     /// Find the cost using exponential search based on `cost_assuming_bounded_dist`.
@@ -84,7 +92,7 @@ pub trait Aligner {
             .gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
         // TODO: Fix the potential infinite loop here.
         loop {
-            if let Some(cost) = self.cost_for_bounded_dist(a, b, s) && cost <= s{
+            if let Some(cost) = self.cost_for_bounded_dist(a, b, Some(s)) && cost <= s{
                 return cost;
             }
             s = max(2 * s, 1);
@@ -99,7 +107,7 @@ pub trait Aligner {
             .gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
         // TODO: Fix the potential infinite loop here.
         loop {
-            if let Some(tuple@(cost, _, _)) = self.align_for_bounded_dist(a, b, s) && cost <= s{
+            if let Some(tuple@(cost, _, _)) = self.align_for_bounded_dist(a, b, Some(s)) && cost <= s{
                 return tuple;
             }
             s = max(2 * s, 1);

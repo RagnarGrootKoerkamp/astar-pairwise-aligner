@@ -34,7 +34,7 @@ const LEFT_BUFFER: Idx = 1;
 const RIGHT_BUFFER: Idx = 1;
 
 impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
-    pub(super) fn track_path(&self, fronts: &mut Vec<Front<N>>, a: Seq, b: Seq) -> (Path, Cigar) {
+    fn track_path(&self, fronts: &mut Vec<Front<N>>, a: Seq, b: Seq) -> (Path, Cigar) {
         let mut path: Path = vec![];
         let mut cigar = Cigar::default();
 
@@ -55,6 +55,7 @@ impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
             }
             path.push((x, y));
         };
+        // TODO: Extract a parent() function and call that in a loop.
         'path_loop: while i > 0 || j > 0 || layer.is_some() {
             if let Some(layer_idx) = layer {
                 match self.cm.affine[layer_idx].affine_type {
@@ -162,39 +163,12 @@ impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
 
     /// Computes the next front (front `i`) from the current one.
     /// `ca` is the `i-1`th character of sequence `a`.
-    pub(super) fn next_front(
-        &mut self,
-        i: usize,
-        ca: u8,
-        b: Seq,
-        prev: &Front<N>,
-        next: &mut Front<N>,
-    ) {
+    fn next_front(&mut self, i: usize, ca: u8, b: Seq, prev: &Front<N>, next: &mut Front<N>) {
         self.v.expand(Pos(i as I, 0));
-        // TODO: Instead of manually doing the first state, it is also possible
-        // to simply add a buffer layer around the DP. The issue with that
-        // however, is that we would need to prefix both sequences with the same
-        // unique character to have a place to look at.
-        // NOTE: This MUST be fixed for this to work with partial fronts from exponential search.
-
-        if next.range().contains(&0) {
-            // Initialize the first state by linear deletion.
-            next.m_mut()[0] = self.cm.del_or(INF, |del| i as Cost * del);
-            // Initialize the first state by affine deletion.
-            for (layer_idx, cm) in self.cm.affine.iter().enumerate() {
-                let (mut m, mut a) = next.m_affine_mut(layer_idx);
-                match cm.affine_type {
-                    InsertLayer => {}
-                    DeleteLayer => {
-                        a[0] = cm.open + i as Cost * cm.extend;
-                        m[0] = min(m[0], a[0]);
-                    }
-                    _ => todo!(),
-                };
-            }
-        }
         for j in max(*next.range().start(), 1)..=*next.range().end() {
-            let cb = b[j - 1];
+            // When j=0, we must use a placeholder. The actual character does not matter.
+            // TODO: We could just try `b[-1]`?
+            let cb = if j == 0 { b'^' } else { b[j - 1] };
 
             // Compute all layers at (i, j).
             self.v.expand(Pos(i as I, j as I));
@@ -242,12 +216,12 @@ impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
         }
     }
 
-    fn init_front(&mut self, b: Seq) -> Front<N> {
-        let mut next = Front::new(INF, 0..=b.len());
-
-        // TODO: Find a way to not have to manually process the first layer.
+    // TODO: Find a way to not have to manually process the first layer.
+    fn init_front(&mut self, range: RangeInclusive<Idx>) -> Front<N> {
+        assert!(*range.start() == 0);
+        let mut next = Front::new_with_buffer(INF, range.clone(), LEFT_BUFFER, RIGHT_BUFFER);
         next.m_mut()[0] = 0;
-        for j in 1..=b.len() {
+        for j in 1..=*range.end() {
             // Initialize the main layer with linear insertions.
             next.m_mut()[j] = self.cm.ins_or(INF, |ins| j as Cost * ins);
 
@@ -268,7 +242,10 @@ impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
     }
 
     /// The first active row in column `i`, when searching up to distance `s`.
-    fn j_range(&self, a: Seq, b: Seq, i: Idx, s: Cost) -> RangeInclusive<Idx> {
+    fn j_range(&self, a: Seq, b: Seq, i: Idx, s: Option<Cost>) -> RangeInclusive<Idx> {
+        let Some(s) = s else {
+            return 0..=b.len();
+        };
         let i = i as isize;
         let s = s as isize;
         let range = if self.use_gap_cost_heuristic {
@@ -295,84 +272,25 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {
         &self.cm
     }
 
-    /// The cost-only version uses linear memory.
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        let ref mut next = self.init_front(b);
-        let ref mut prev = next.clone();
-
-        for (i0, &ca) in a.iter().enumerate() {
-            // Convert to 1 based index.
-            let i = i0 + 1;
-            std::mem::swap(prev, next);
-            self.next_front(i, ca, b, prev, next);
-        }
-
-        return next.m()[b.len()];
-    }
-
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
-        let ref mut fronts = vec![Front::new(INF, 0..=b.len()); a.len() + 1];
-        // TODO: Reuse memory instead of overwriting it.
-        fronts[0] = self.init_front(b);
-
-        for j in 0..=b.len() {
-            self.v.expand(Pos(0, j as I));
-        }
-
-        for (i0, &ca) in a.iter().enumerate() {
-            // Change from 0-based to 1-based indexing.
-            let i = i0 + 1;
-            let [prev, next] = &mut fronts[i-1..=i] else {unreachable!();};
-            self.next_front(i, ca, b, prev, next);
-        }
-
-        let d = fronts[a.len()].m()[b.len()];
-        let (path, cigar) = self.track_path(fronts, a, b);
-        return (d, path, cigar);
-    }
-
     /// Test whether the cost is at most s.
     /// Returns None if cost > s, or the actual cost otherwise.
-    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Cost) -> Option<Cost> {
-        let range = self.j_range(a, b, 0, s_bound);
-        let ref mut prev = Front::new_with_buffer(INF, range, LEFT_BUFFER, RIGHT_BUFFER);
-        let ref mut next = prev.clone();
-
-        // TODO: Find a way to not have to manually process the first layer.
-        // TODO: Reuse from NW.
-        next.m_mut()[0] = 0;
-        for j in next.range().clone() {
-            // Initialize the main layer with linear insertions.
-            if j == 0 {
-                continue;
-            }
-            next.m_mut()[j] = self.cm.ins_or(INF, |ins| j as Cost * ins);
-
-            // Initialize the affine insertion layers.
-            for (layer_idx, cm) in self.cm.affine.iter().enumerate() {
-                let (mut next_m, mut next_layer) = next.m_affine_mut(layer_idx);
-                match cm.affine_type {
-                    DeleteLayer => {}
-                    InsertLayer => {
-                        next_layer[j] = cm.open + j as Cost * cm.extend;
-                    }
-                    _ => todo!(),
-                };
-                next_m[j] = min(next_m[j], next_layer[j]);
-            }
-        }
+    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
+        let ref mut prev = Front::default();
+        let ref mut next = self.init_front(self.j_range(a, b, 0, s_bound));
 
         for (i0, &ca) in a.iter().enumerate() {
             // Convert to 1 based index.
             let i = i0 + 1;
             std::mem::swap(prev, next);
             // Update front size.
-            next.reset_with_buffer(
-                INF,
-                self.j_range(a, b, i, s_bound),
-                LEFT_BUFFER,
-                RIGHT_BUFFER,
-            );
+            if s_bound.is_some() {
+                next.reset_with_buffer(
+                    INF,
+                    self.j_range(a, b, i, s_bound),
+                    LEFT_BUFFER,
+                    RIGHT_BUFFER,
+                );
+            }
             self.next_front(i, ca, b, prev, next);
         }
 
@@ -389,7 +307,7 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {
         &mut self,
         a: Seq,
         b: Seq,
-        s_bound: Cost,
+        s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)> {
         let ref mut fronts: Vec<Front<N>> = (0..=a.len())
             .map(|i| {
@@ -401,31 +319,8 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {
                 )
             })
             .collect();
-
-        // TODO: Find a way to not have to manually process the first layer.
-        self.v.expand(Pos(0, 0));
-        fronts[0].m_mut()[0] = 0;
-        for j in fronts[0].range().clone() {
-            if j == 0 {
-                continue;
-            }
-            self.v.expand(Pos(0, j as crate::prelude::I));
-            // Initialize the main layer with linear deletions.
-            fronts[0].m_mut()[j] = self.cm.ins_or(INF, |ins| j as Cost * ins);
-
-            // Initialize the affine deletion layers.
-            for (layer_idx, cm) in self.cm.affine.iter().enumerate() {
-                let (mut next_m, mut next_layer) = fronts[0].m_affine_mut(layer_idx);
-                match cm.affine_type {
-                    DeleteLayer => {}
-                    InsertLayer => {
-                        next_layer[j] = cm.open + j as Cost * cm.extend;
-                    }
-                    _ => todo!(),
-                };
-                next_m[j] = min(next_m[j], next_layer[j]);
-            }
-        }
+        // TODO: Reuse memory instead of overwriting index 0 directly.
+        fronts[0] = self.init_front(self.j_range(a, b, 0, s_bound));
 
         for (i0, &ca) in a.iter().enumerate() {
             // Convert to 1 based index.
@@ -436,7 +331,7 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {
 
         if let Some(&dist) = fronts[a.len()].m().get(b.len()) {
             // We only track the actual path if `s` is small enough.
-            if dist <= s_bound {
+            if dist <= s_bound.unwrap_or(INF) {
                 let (path, cigar) = self.track_path(fronts, a, b);
                 return Some((dist, path, cigar));
             }
