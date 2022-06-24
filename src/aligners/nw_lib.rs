@@ -1,30 +1,42 @@
-use super::{cigar::Cigar, nw::PATH, Aligner};
+use crate::prelude::{Cost, LinearCost};
+
+use super::{cigar::Cigar, nw::Path, Aligner, Seq};
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
-pub struct NWLib {
-    pub simd: bool,
-}
+pub struct NWLib;
 
+lazy_static! {
+    static ref COST_MODEL: LinearCost = LinearCost::new_unit();
+}
 impl Aligner for NWLib {
-    fn cost(
-        &self,
-        a: &bio_types::sequence::Sequence,
-        b: &bio_types::sequence::Sequence,
-    ) -> crate::prelude::Cost {
-        if self.simd {
-            // TODO: Note that this actually uses exponential search as well.
-            bio::alignment::distance::simd::levenshtein(a, b)
-        } else {
-            bio::alignment::distance::levenshtein(a, b)
-        }
+    type CostModel = LinearCost;
+
+    fn cost_model(&self) -> &Self::CostModel {
+        &COST_MODEL
     }
 
-    fn visualize(
-        &self,
-        _a: &bio_types::sequence::Sequence,
-        _b: &bio_types::sequence::Sequence,
-        _visualizer: &mut impl super::VisualizerT,
-    ) -> (crate::prelude::Cost, PATH, Cigar) {
-        unimplemented!("NWLib does not support path tracing.");
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+        bio::alignment::distance::levenshtein(a, b)
+    }
+
+    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Path, Cigar) {
+        unimplemented!()
+    }
+
+    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Cost) -> Option<Cost> {
+        unimplemented!();
+    }
+
+    fn align_for_bounded_dist(
+        &mut self,
+        _a: Seq,
+        _b: Seq,
+        _s_bound: Cost,
+    ) -> Option<(Cost, Path, Cigar)> {
+        unimplemented!();
+    }
+
+    fn cost_exponential_search(&mut self, a: Seq, b: Seq) -> Cost {
+        bio::alignment::distance::simd::levenshtein(a, b)
     }
 }
