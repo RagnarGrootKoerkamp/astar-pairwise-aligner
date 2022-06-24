@@ -1,11 +1,10 @@
 //! This module contains the `AffineCost` and `LinearCost` cost models.
 //!
-use std::cmp::{max, min};
-
 use crate::{
     aligners::cigar::CigarOp,
     prelude::{Pos, I},
 };
+use std::cmp::{max, min};
 
 /// Type for storing costs. Not u64 to save on memory.
 ///
@@ -54,6 +53,12 @@ impl AffineLayerType {
         match self {
             InsertLayer | DeleteLayer => false,
             HomoPolymerInsert | HomoPolymerDelete => true,
+        }
+    }
+    fn base(&self) -> AffineLayerType {
+        match self {
+            InsertLayer | HomoPolymerInsert => InsertLayer,
+            DeleteLayer | HomoPolymerDelete => DeleteLayer,
         }
     }
 }
@@ -234,7 +239,7 @@ impl<const N: usize> AffineCost<N> {
         let layers = |affine_type| {
             affine
                 .iter()
-                .filter(move |cm| cm.affine_type == affine_type)
+                .filter(move |cm| cm.affine_type.base() == affine_type)
         };
         let min_by = |affine_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
             let mut c = layers(affine_type).map(f).min().unwrap_or(Cost::MAX);
