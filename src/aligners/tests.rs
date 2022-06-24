@@ -446,11 +446,92 @@ mod diagonal_transition_sh {
         // sub=indel=1
         test(AffineCost::new_unit());
     }
+    //HomoPolymer tests
+
+    #[test]
+    fn ins_homopolymer_cost() {
+        test(AffineCost::new(
+            Some(1),
+            Some(1),
+            None,
+            [AffineLayerCosts {
+                affine_type: AffineLayerType::HomoPolymerInsert,
+                open: 2,
+                extend: 2,
+            }],
+        ));
+    }
+
+    #[test]
+    fn del_homopolymer_cost() {
+        test(AffineCost::new(
+            Some(1),
+            None,
+            Some(1),
+            [AffineLayerCosts {
+                affine_type: AffineLayerType::HomoPolymerDelete,
+                open: 2,
+                extend: 2,
+            }],
+        ));
+    }
+
+    #[test]
+    fn indel_homopolymer_plus_affine_cost() {
+        test(AffineCost::new(
+            Some(1),
+            Some(1),
+            Some(1),
+            [AffineLayerCosts {
+                affine_type: AffineLayerType::InsertLayer,
+                open: 2,
+                extend: 2,
+            },
+            AffineLayerCosts {
+                affine_type: AffineLayerType::DeleteLayer,
+                open: 2,
+                extend: 2,
+            },
+            AffineLayerCosts {
+                affine_type: AffineLayerType::HomoPolymerInsert,
+                open: 3,
+                extend: 1,
+            },
+            AffineLayerCosts {
+                affine_type: AffineLayerType::HomoPolymerDelete,
+                open: 3,
+                extend: 1,
+            },
+            ],
+        ));
+    }
+
+    #[test]
+    fn indel_homopolymer_cost() {
+        test(AffineCost::new(
+            Some(1),
+            Some(1),
+            Some(1),
+            [
+            AffineLayerCosts {
+                affine_type: AffineLayerType::HomoPolymerInsert,
+                open: 3,
+                extend: 1,
+            },
+            AffineLayerCosts {
+                affine_type: AffineLayerType::HomoPolymerDelete,
+                open: 3,
+                extend: 1,
+            },
+            ],
+        ));
+    }
+
 }
 
 mod homopolymer {
     use crate::{
-        aligners::{nw::NW, Aligner, NoVisualizer},
+        aligners::{nw::NW, Aligner, NoVisualizer, cigar::test::verify_cigar},
         prelude::{
             AffineCost, AffineLayerCosts,
             AffineLayerType::{HomoPolymerDelete, HomoPolymerInsert},
@@ -458,7 +539,7 @@ mod homopolymer {
     };
 
     #[test]
-    fn test_1() {
+    fn homo_polymer() {
         let cm = AffineCost::new(
             Some(1),
             Some(10),
@@ -490,7 +571,7 @@ mod homopolymer {
     }
 
     #[test]
-    fn test_2(){
+    fn homo_polymer_plus_affine_and_cigar(){
         let cm = AffineCost::new(
             Some(1),
             Some(10),
@@ -524,10 +605,24 @@ mod homopolymer {
         assert_eq!(nw.cost(b"ABBBC", b"AC"), 6);
         assert_eq!(nw.cost(b"ABCABCABC", b"BBBBBBBBB"), 6);
         assert_eq!(nw.cost(b"BBBBBBBBB", b"ABCABCABC"), 6);
-        assert_eq!(nw.cost(b"", b"CCCC"), 7);
+        assert_eq!(nw.align(b"", b"CCCC").0, 7);
         assert_eq!(nw.cost(b"", b"ABC"), 8);
         assert_eq!(nw.cost(b"ABBB", b"CBBA"), 2);
         assert_eq!(nw.cost(b"BBBBBBBBB", b"CCCCCCC"), 12);
         assert_eq!(nw.cost(b"AAAAAAAAA", b""), 12);
+        let a = b"ABC";
+        let b = b"AC";
+        let cigar = nw.align(a, b).2;
+        verify_cigar(&cm, a, b, &cigar);
+
+        // assert_eq!(nw.cost(b"ABC", b""), 8);
+        // assert_eq!(nw.cost(b"ABBBC", b"AC"), 6);
+        // assert_eq!(nw.cost(b"ABCABCABC", b"BBBBBBBBB"), 6);
+        // assert_eq!(nw.cost(b"BBBBBBBBB", b"ABCABCABC"), 6);
+        // assert_eq!(nw.align(b"", b"CCCC").0, 7);
+        // assert_eq!(nw.cost(b"", b"ABC"), 8);
+        // assert_eq!(nw.cost(b"ABBB", b"CBBA"), 2);
+        // assert_eq!(nw.cost(b"BBBBBBBBB", b"CCCCCCC"), 12);
+        // assert_eq!(nw.cost(b"AAAAAAAAA", b""), 12);
     }
 }
