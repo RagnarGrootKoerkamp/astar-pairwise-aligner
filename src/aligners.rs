@@ -27,7 +27,7 @@ pub trait VisualizerT {
 }
 
 /// A trivial visualizer that does not do anything.
-struct NoVisualizer;
+pub struct NoVisualizer;
 impl VisualizerT for NoVisualizer {}
 
 /// An aligner is a type that supports aligning sequences using some algorithm.
@@ -92,7 +92,9 @@ pub trait Aligner {
             .gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
         // TODO: Fix the potential infinite loop here.
         loop {
-            if let Some(cost) = self.cost_for_bounded_dist(a, b, Some(s)) && cost <= s{
+            let cost = self.cost_for_bounded_dist(a, b, Some(s));
+            if let Some(cost) = cost && cost <= s{
+                println!("Final cost: {cost}");
                 return cost;
             }
             s = max(2 * s, 1);

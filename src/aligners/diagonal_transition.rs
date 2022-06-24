@@ -57,7 +57,7 @@ use Direction::*;
 /// TODO: Split into two classes: A static user supplied config, and an instance
 /// to use for a specific alignment. Similar to Heuristic vs HeuristicInstance.
 /// The latter can contain the sequences, direction, and other specifics.
-pub struct DiagonalTransition<'a, CostModel, V: VisualizerT> {
+pub struct DiagonalTransition<CostModel, V: VisualizerT> {
     /// The CostModel to use, possibly affine.
     cm: CostModel,
 
@@ -68,7 +68,7 @@ pub struct DiagonalTransition<'a, CostModel, V: VisualizerT> {
     /// https://research.curiouscoding.nl/notes/affine-gap-close-cost/
     gap_variant: GapVariant,
 
-    v: &'a mut V,
+    v: V,
 
     /// Whether to run the wavefronts forward or backward.
     /// Will be used for BiWFA.
@@ -121,13 +121,13 @@ fn fr_to_pos(d: Fr, f: Fr) -> Pos {
     )
 }
 
-impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V> {
+impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
     pub fn new_variant(
         cm: AffineCost<N>,
         use_gap_cost_heuristic: bool,
         gap_variant: GapVariant,
         direction: Direction,
-        v: &'a mut V,
+        v: V,
     ) -> Self {
         // The maximum cost we look back:
         // max(substitution, indel, affine indel of size 1)
@@ -188,7 +188,7 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
         }
     }
 
-    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, v: &'a mut V) -> Self {
+    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, v: V) -> Self {
         Self::new_variant(cm, use_gap_cost_heuristic, GapOpen, Forward, v)
     }
 
@@ -515,7 +515,7 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
     }
 }
 
-impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCost<N>, V> {
+impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N>, V> {
     type CostModel = AffineCost<N>;
 
     fn cost_model(&self) -> &Self::CostModel {
