@@ -9,7 +9,7 @@ use pairwise_aligner::{
 };
 use test::Bencher;
 
-const N: usize = 8000;
+const N: usize = 1000;
 const E: f32 = 0.05;
 
 fn run_aligner(
