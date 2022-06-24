@@ -1,9 +1,9 @@
 use super::cigar::Cigar;
-use super::nw::{NW, PATH};
-use super::NoVisualizer;
+use super::nw::{Path, NW};
 use super::{Aligner, VisualizerT};
+use super::{NoVisualizer, Seq};
 use crate::cost_model::*;
-use crate::prelude::{Pos, Sequence};
+use crate::prelude::Pos;
 use std::cmp::{max, min};
 use std::ops::RangeInclusive;
 
@@ -42,7 +42,7 @@ pub struct ExpBand<CostModel> {
 
 impl<const N: usize> ExpBand<AffineCost<N>> {
     /// The first active row in column `i`, when searching up to distance `s`.
-    fn j_range(&self, a: &Sequence, b: &Sequence, i: Idx, s: Cost) -> RangeInclusive<Idx> {
+    fn j_range(&self, a: Seq, b: Seq, i: Idx, s: Cost) -> RangeInclusive<Idx> {
         let i = i as isize;
         let s = s as isize;
         let range = if self.use_gap_cost_heuristic {
@@ -66,7 +66,7 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
 impl<const N: usize> ExpBand<AffineCost<N>> {
     /// Test whether the cost is at most s.
     /// Returns None if cost > s, or the actual cost otherwise.
-    fn cost_for_band(&self, a: &Sequence, b: &Sequence, s: Cost) -> Option<Cost> {
+    fn cost_for_band(&self, a: Seq, b: Seq, s: Cost) -> Option<Cost> {
         let range = self.j_range(a, b, 0, s);
         let ref mut prev = Front::new_with_buffer(INF, range, LEFT_BUFFER, RIGHT_BUFFER);
         let ref mut next = prev.clone();
@@ -119,11 +119,11 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
     /// Returns None if cost > s, or the actual cost otherwise.
     fn path_for_band(
         &self,
-        a: &Sequence,
-        b: &Sequence,
+        a: Seq,
+        b: Seq,
         s: Cost,
         v: &mut impl VisualizerT,
-    ) -> Option<(Cost, PATH, Cigar)> {
+    ) -> Option<(Cost, Path, Cigar)> {
         let ref mut fronts: Vec<Front<N>> = (0..=a.len())
             .map(|i| {
                 Front::new_with_buffer(INF, self.j_range(a, b, i, s), LEFT_BUFFER, RIGHT_BUFFER)
@@ -178,13 +178,8 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
         None
     }
 
-    fn exponential_search_s<T>(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        mut f: impl FnMut(Cost) -> Option<T>,
-    ) -> T {
-        let mut s = self.cm.gap_cost(Pos(0, 0), Pos::from_length(a, b));
+    fn exponential_search_s<T>(&self, a: Seq, b: Seq, mut f: impl FnMut(Cost) -> Option<T>) -> T {
+        let mut s = self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
         // TODO: Fix the potential infinite loop here.
         loop {
             if let Some(d) = f(s) {
@@ -196,16 +191,11 @@ impl<const N: usize> ExpBand<AffineCost<N>> {
 }
 
 impl<const N: usize> Aligner for ExpBand<AffineCost<N>> {
-    fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
+    fn cost(&self, a: Seq, b: Seq) -> Cost {
         self.exponential_search_s(a, b, |s| self.cost_for_band(a, b, s))
     }
 
-    fn visualize(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        v: &mut impl VisualizerT,
-    ) -> (Cost, PATH, Cigar) {
+    fn visualize(&self, a: Seq, b: Seq, v: &mut impl VisualizerT) -> (Cost, Path, Cigar) {
         self.exponential_search_s(a, b, |s| self.path_for_band(a, b, s, v))
     }
 }

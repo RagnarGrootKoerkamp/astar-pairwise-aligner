@@ -1,11 +1,11 @@
 use super::cigar::{Cigar, CigarOp};
-use super::NoVisualizer;
 use super::{Aligner, VisualizerT};
+use super::{NoVisualizer, Seq};
 use crate::cost_model::*;
-use crate::prelude::{Pos, Sequence, I};
+use crate::prelude::{Pos, I};
 use std::cmp::{max, min};
 
-pub type PATH = Vec<(usize, usize)>;
+pub type Path = Vec<(usize, usize)>;
 pub struct NW<CostModel> {
     pub cm: CostModel,
 }
@@ -18,13 +18,8 @@ const INF: Cost = Cost::MAX / 2;
 type Front<const N: usize> = super::front::Front<N, Cost, usize>;
 
 impl<const N: usize> NW<AffineCost<N>> {
-    pub(super) fn track_path(
-        &self,
-        fronts: &mut Vec<Front<N>>,
-        a: &Sequence,
-        b: &Sequence,
-    ) -> (PATH, Cigar) {
-        let mut path: PATH = vec![];
+    pub(super) fn track_path(&self, fronts: &mut Vec<Front<N>>, a: Seq, b: Seq) -> (Path, Cigar) {
+        let mut path: Path = vec![];
         let mut cigar = Cigar::default();
 
         // The current position and affine layer.
@@ -156,7 +151,7 @@ impl<const N: usize> NW<AffineCost<N>> {
         &self,
         i: usize,
         ca: u8,
-        b: &Sequence,
+        b: Seq,
         prev: &Front<N>,
         next: &mut Front<N>,
         v: &mut impl VisualizerT,
@@ -209,7 +204,6 @@ impl<const N: usize> NW<AffineCost<N>> {
             }
 
             // Affine layers
-            // TODO: Swap the order of this for loop and the loop over j?
             for (layer_idx, cm) in self.cm.affine.iter().enumerate() {
                 let (next_m, mut next_affine_layer) = next.m_affine_mut(layer_idx);
                 match cm.affine_type {
@@ -234,7 +228,7 @@ impl<const N: usize> NW<AffineCost<N>> {
         }
     }
 
-    fn init_front(&self, b: &Sequence) -> Front<N> {
+    fn init_front(&self, b: Seq) -> Front<N> {
         let mut next = Front::new(INF, 0..=b.len());
 
         // TODO: Find a way to not have to manually process the first layer.
@@ -262,7 +256,7 @@ impl<const N: usize> NW<AffineCost<N>> {
 
 impl<const N: usize> Aligner for NW<AffineCost<N>> {
     /// The cost-only version uses linear memory.
-    fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
+    fn cost(&self, a: Seq, b: Seq) -> Cost {
         let ref mut next = self.init_front(b);
         let ref mut prev = next.clone();
 
@@ -276,12 +270,7 @@ impl<const N: usize> Aligner for NW<AffineCost<N>> {
         return next.m()[b.len()];
     }
 
-    fn visualize(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        v: &mut impl VisualizerT,
-    ) -> (Cost, PATH, Cigar) {
+    fn visualize(&self, a: Seq, b: Seq, v: &mut impl VisualizerT) -> (Cost, Path, Cigar) {
         let ref mut fronts = vec![Front::new(INF, 0..=b.len()); a.len() + 1];
         // TODO: Reuse memory instead of overwriting it.
         fronts[0] = self.init_front(b);
