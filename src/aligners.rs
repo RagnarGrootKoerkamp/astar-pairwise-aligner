@@ -1,8 +1,10 @@
 //! This module contains implementations of other alignment algorithms.
 
-use crate::prelude::{Cost, Pos, Sequence};
+use std::cmp::max;
 
-use self::{cigar::Cigar, nw::PATH};
+use crate::prelude::{Cost, CostModel, Pos};
+
+use self::{cigar::Cigar, nw::Path};
 
 pub mod cigar;
 pub mod diagonal_transition;

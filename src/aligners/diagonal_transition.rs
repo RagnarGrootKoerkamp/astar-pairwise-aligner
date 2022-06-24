@@ -22,8 +22,7 @@
 //!
 //!
 use super::cigar::Cigar;
-use super::nw::PATH;
-use super::{Aligner, NoVisualizer, VisualizerT};
+use super::nw::Path;
 use super::{Aligner, NoVisualizer, Seq, VisualizerT};
 use crate::cost_model::*;
 use crate::prelude::Pos;
