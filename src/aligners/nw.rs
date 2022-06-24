@@ -185,8 +185,9 @@ impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
 
             // Main layer: substitutions and linear indels.
             let mut f = INF;
-            // NOTE: When sub/ins/del is not allowed, we have to skip them.
-            // TODO: When a match is possible, we could skip all other options.
+            // NOTE: When sub/ins/del is not allowed (they are `None`), we have to skip them.
+            // TODO: When a match is possible, we could skip all other options
+            // since greedy matching is allowed.
             if ca == cb {
                 f = min(f, prev.m()[j - 1]);
             } else {
@@ -228,28 +229,28 @@ impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
         }
     }
 
-    /// The first active row in column `i`, when searching up to distance `s`.
-    fn j_range(&self, a: Seq, b: Seq, i: Idx, s: Option<Cost>) -> RangeInclusive<Idx> {
-        let Some(s) = s else {
+    /// The range of rows `j` to consider in column `i`, when the cost is bounded by `s_bound`.
+    fn j_range(&self, a: Seq, b: Seq, i: Idx, s_bound: Option<Cost>) -> RangeInclusive<Idx> {
+        let Some(mut s) = s_bound else {
             return 0..=b.len() as Idx;
         };
-        let i = i as isize;
-        let s = s as isize;
         let range = if self.use_gap_cost_heuristic {
-            let d = b.len() as isize - a.len() as isize;
-            let per_band_cost = (self.cm.min_ins_extend + self.cm.min_del_extend) as isize;
-            if d > 0 {
-                let reduced_s = s - d * self.cm.min_ins_extend as isize;
-                -(reduced_s / per_band_cost)..=d + reduced_s / per_band_cost
-            } else {
-                let reduced_s = s - d * self.cm.min_del_extend as isize;
-                d - (reduced_s / per_band_cost)..=reduced_s / per_band_cost
-            }
+            let d = b.len() as Idx - a.len() as Idx;
+            // We subtract the cost needed to bridge the gap from the start to the end.
+            s -= self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
+            // Each extra diagonal costs one insertion and one deletion.
+            let extra_diagonals = s / (self.cm.min_ins_extend + self.cm.min_del_extend);
+            // NOTE: The range could be reduced slightly further by considering gap open costs.
+            min(d, 0) - extra_diagonals as Idx..=max(d, 0) + extra_diagonals as Idx
         } else {
-            -(s / self.cm.min_del_extend as isize)..=(s / self.cm.min_ins_extend as isize)
+            -(self.cm.max_del_for_cost(s) as Idx)..=self.cm.max_ins_for_cost(s) as Idx
         };
+        println!(
+            "j_range {i} {s_bound:?} {range:?} use h? {}",
+            self.use_gap_cost_heuristic
+        );
         // crop
-        max(i + *range.start(), 0) as Idx..=min(i + *range.end(), b.len() as isize) as Idx
+        max(i + *range.start(), 0)..=min(i + *range.end(), b.len() as Idx)
     }
 }
 impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {

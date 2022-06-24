@@ -41,7 +41,7 @@ use std::cmp::{max, min};
 
 pub use AffineLayerType::*;
 
-use crate::prelude::Pos;
+use crate::prelude::{Pos, I};
 
 /// An affine layer depends on its type, the open cost, and the extend cost.
 #[derive(Clone)]
@@ -330,6 +330,44 @@ impl<const N: usize> AffineCost<N> {
         F: FnOnce(Cost) -> U,
     {
         self.del.map_or(default, f)
+    }
+
+    /// NOTE: This also includes the linear insert cost.
+    pub fn for_ins(&self, mut f: impl FnMut(Cost, Cost)) {
+        if let Some(ins) = self.ins {
+            f(0, ins);
+        }
+        for cm in &self.affine {
+            if cm.affine_type == AffineLayerType::InsertLayer {
+                f(cm.open, cm.extend);
+            }
+        }
+    }
+
+    /// NOTE: This also includes the linear delete cost.
+    pub fn for_del(&self, mut f: impl FnMut(Cost, Cost)) {
+        if let Some(del) = self.del {
+            f(0, del);
+        }
+        for cm in &self.affine {
+            if cm.affine_type == AffineLayerType::DeleteLayer {
+                f(cm.open, cm.extend);
+            }
+        }
+    }
+
+    /// Returns 0 when insertions are not possible.
+    pub fn max_ins_for_cost(&self, s: Cost) -> I {
+        let mut d = 0;
+        self.for_ins(|o, e| d = max(d, s.saturating_sub(o) / e));
+        d
+    }
+
+    /// Returns 0 when deletions are not possible.
+    pub fn max_del_for_cost(&self, s: Cost) -> I {
+        let mut d = 0;
+        self.for_del(|o, e| d = max(d, s.saturating_sub(o) / e));
+        d
     }
 }
 
