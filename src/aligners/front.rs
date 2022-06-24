@@ -28,6 +28,17 @@ pub struct Front<const N: usize, T, I> {
     buffers: (I, I),
 }
 
+impl<const N: usize, T, I: Default> Default for Front<N, T, I> {
+    fn default() -> Self {
+        Self {
+            m: Vec::default(),
+            affine: [(); N].map(|_| Vec::default()),
+            range: I::default()..=I::default(),
+            buffers: (I::default(), I::default()),
+        }
+    }
+}
+
 /// Indexing methods for `Front`.
 impl<const N: usize, T, I> Front<N, T, I>
 where
