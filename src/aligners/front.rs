@@ -37,7 +37,7 @@ pub struct Front<const N: usize, T, I> {
 /// `Fronts` is a vector of fronts, possibly with a buffer layer at the top.
 #[derive(Debug)]
 pub struct Fronts<const N: usize, T, I> {
-    fronts: Vec<Front<N, T, I>>,
+    pub fronts: Vec<Front<N, T, I>>,
     /// The inclusive range of values this front corresponds to.
     range: RangeInclusive<I>,
     /// The top and bottom buffer we add before/after the range of fronts.
@@ -52,8 +52,8 @@ where
     /// Create a new front for the given range, using the given left/right buffer sizes.
     pub fn new(
         value: T,
-        range_fn: impl Fn(I) -> RangeInclusive<I>,
         range: RangeInclusive<I>,
+        range_fn: impl Fn(I) -> RangeInclusive<I>,
         top_buffer: I,
         bottom_buffer: I,
         left_buffer: I,

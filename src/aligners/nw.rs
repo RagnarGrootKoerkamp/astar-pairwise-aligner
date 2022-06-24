@@ -1,7 +1,6 @@
 use itertools::chain;
 
 use super::cigar::{Cigar, CigarOp};
-use super::front::Fronts;
 use super::Seq;
 use super::{Aligner, VisualizerT};
 use crate::cost_model::*;
@@ -31,6 +30,7 @@ const INF: Cost = Cost::MAX / 2;
 /// The base vector M, and one vector per affine layer.
 /// TODO: Possibly switch to a Vec<Layer> instead.
 type Front<const N: usize> = super::front::Front<N, Cost, Idx>;
+type Fronts<const N: usize> = super::front::Fronts<N, Cost, Idx>;
 
 /// NW DP only needs the cell just left and above of the current cell.
 const LEFT_BUFFER: Idx = 1;
@@ -39,7 +39,7 @@ const RIGHT_BUFFER: Idx = 1;
 const TOP_BUFFER: Idx = 1;
 
 impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
-    fn track_path(&self, fronts: &Fronts<N, Cost, Idx>, a: Seq, b: Seq) -> (Path, Cigar) {
+    fn track_path(&self, fronts: &Fronts<N>, a: Seq, b: Seq) -> (Path, Cigar) {
         let mut path: Path = vec![];
         let mut cigar = Cigar::default();
 
@@ -305,10 +305,12 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {
         b: Seq,
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)> {
-        let mut fronts = Fronts::<N, Cost, Idx>::new(
+        let mut fronts = Fronts::new(
             INF,
-            |i| self.j_range(a, b, i, s_bound),
+            // The fronts to create.
             0..=a.len() as Idx,
+            // The range for each front.
+            |i| self.j_range(a, b, i, s_bound),
             TOP_BUFFER,
             0,
             LEFT_BUFFER,
