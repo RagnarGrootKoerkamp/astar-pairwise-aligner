@@ -447,3 +447,36 @@ mod diagonal_transition_sh {
         test(AffineCost::new_unit());
     }
 }
+
+mod homopolymer {
+    use crate::{
+        aligners::{nw::NW, Aligner},
+        prelude::{
+            AffineCost, AffineLayerCosts,
+            AffineLayerType::{HomoPolymerDelete, HomoPolymerInsert},
+        },
+    };
+
+    #[test]
+    fn test_1() {
+        let cm = AffineCost::new(
+            Some(1),
+            Some(10),
+            Some(10),
+            [
+                AffineLayerCosts {
+                    affine_type: HomoPolymerInsert,
+                    open: 1,
+                    extend: 1,
+                },
+                AffineLayerCosts {
+                    affine_type: HomoPolymerDelete,
+                    open: 1,
+                    extend: 1,
+                },
+            ],
+        );
+        let nw = NW { cm: cm.clone() };
+        assert_eq!(nw.cost(b"ABC", b"AC"), 4);
+    }
+}
