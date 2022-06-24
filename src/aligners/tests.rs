@@ -450,11 +450,11 @@ mod diagonal_transition_sh {
 
 mod homopolymer {
     use crate::{
-        aligners::{nw::NW, Aligner},
+        aligners::{nw::NW, Aligner, NoVisualizer},
         prelude::{
             AffineCost, AffineLayerCosts,
             AffineLayerType::{HomoPolymerDelete, HomoPolymerInsert},
-        },
+        }, cost_model::AffineLayerType::{InsertLayer, DeleteLayer},
     };
 
     #[test]
@@ -476,7 +476,58 @@ mod homopolymer {
                 },
             ],
         );
-        let nw = NW { cm: cm.clone() };
+        let mut nw = NW { cm: cm.clone(), use_gap_cost_heuristic: false, v: &mut NoVisualizer };
+        assert_eq!(nw.cost(b"ABC", b"AC"), 2);
+        assert_eq!(nw.cost(b"ABC", b""), 6);
+        assert_eq!(nw.cost(b"ABBBC", b"AC"), 4);
+        assert_eq!(nw.cost(b"ABCABCABC", b"BBBBBBBBB"), 6);
+        assert_eq!(nw.cost(b"BBBBBBBBB", b"ABCABCABC"), 6);
+        assert_eq!(nw.cost(b"", b"CCCC"), 5);
+        assert_eq!(nw.cost(b"", b"ABC"), 6);
+        assert_eq!(nw.cost(b"ABBB", b"CBBA"), 2);
+        assert_eq!(nw.cost(b"BBBBBBBBB", b"CCCCCCC"), 10);
+        assert_eq!(nw.cost(b"AAAAAAAAA", b""), 10);
+    }
+
+    #[test]
+    fn test_2(){
+        let cm = AffineCost::new(
+            Some(1),
+            Some(10),
+            Some(10),
+            [
+                AffineLayerCosts{
+                    affine_type: InsertLayer,
+                    open: 2,
+                    extend: 2, 
+                },
+                AffineLayerCosts{
+                    affine_type: DeleteLayer,
+                    open: 2,
+                    extend: 2, 
+                },
+                AffineLayerCosts {
+                    affine_type: HomoPolymerInsert,
+                    open: 3,
+                    extend: 1,
+                },
+                AffineLayerCosts {
+                    affine_type: HomoPolymerDelete,
+                    open: 3,
+                    extend: 1,
+                },
+            ],
+        );
+        let mut nw = NW { cm: cm.clone(), use_gap_cost_heuristic: false, v: &mut NoVisualizer };
         assert_eq!(nw.cost(b"ABC", b"AC"), 4);
+        assert_eq!(nw.cost(b"ABC", b""), 8);
+        assert_eq!(nw.cost(b"ABBBC", b"AC"), 6);
+        assert_eq!(nw.cost(b"ABCABCABC", b"BBBBBBBBB"), 6);
+        assert_eq!(nw.cost(b"BBBBBBBBB", b"ABCABCABC"), 6);
+        assert_eq!(nw.cost(b"", b"CCCC"), 7);
+        assert_eq!(nw.cost(b"", b"ABC"), 8);
+        assert_eq!(nw.cost(b"ABBB", b"CBBA"), 2);
+        assert_eq!(nw.cost(b"BBBBBBBBB", b"CCCCCCC"), 12);
+        assert_eq!(nw.cost(b"AAAAAAAAA", b""), 12);
     }
 }
