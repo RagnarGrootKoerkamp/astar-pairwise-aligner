@@ -96,7 +96,11 @@ where
         T: Copy,
         for<'l> &'l I: RefNum<I>,
     {
-        let new_len: I = left_buffer + (range.end() - range.start() + I::one()) + right_buffer;
+        let new_len: I = if range.is_empty() {
+            left_buffer + right_buffer
+        } else {
+            left_buffer + (range.end() - range.start() + I::one()) + right_buffer
+        };
         Self {
             m: vec![value; new_len.as_()],
             // Vec is not Copy, so we use array::map instead.
@@ -116,8 +120,11 @@ where
         self.range = range;
         self.buffers.0 = left_buffer;
         self.buffers.1 = right_buffer;
-        let new_len: I =
-            left_buffer + (self.range.end() - self.range.start() + I::one()) + right_buffer;
+        let new_len: I = if self.range.is_empty() {
+            left_buffer + right_buffer
+        } else {
+            left_buffer + (self.range.end() - self.range.start() + I::one()) + right_buffer
+        };
         self.m.clear();
         self.m.resize(new_len.as_(), value);
         for a in &mut self.affine {
