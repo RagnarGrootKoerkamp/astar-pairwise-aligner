@@ -35,6 +35,7 @@ use std::ops::RangeInclusive;
 type Fr = i32;
 
 type Front<const N: usize> = super::front::Front<N, Fr, Fr>;
+type Fronts<const N: usize> = super::front::Fronts<N, Fr, Fr>;
 
 /// GapOpen costs can be processed either when entering of leaving the gap.
 pub enum GapVariant {
@@ -76,7 +77,7 @@ pub struct DiagonalTransition<'a, CostModel, V: VisualizerT> {
     /// making a substitution.
     ///
     /// The value is the max of the substitution cost and all (affine) costs of a gap of size 1.
-    top_buffer: usize,
+    top_buffer: Fr,
     /// We also add a buffer to the left and right of each wavefront to reduce the need for if-statements.
     /// The size of the left buffer is the number of insertions that can be done for the cost of one deletion.
     /// We also account for high substitution costs.
@@ -137,7 +138,7 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
                 GapOpen => max(cm.max_ins_open_extend, cm.max_del_open_extend),
                 GapClose => max(cm.max_ins_extend, cm.max_del_extend),
             },
-        ) as usize;
+        ) as Fr;
 
         let left_buffer = max(
             // substitution, if allowed
@@ -319,7 +320,7 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
     }
 
     /// Returns None when the distance is 0.
-    fn init_fronts(&mut self, a: Seq, b: Seq) -> Option<Vec<Front<N>>> {
+    fn init_fronts(&mut self, a: Seq, b: Seq) -> Option<Fronts<N>> {
         // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
         let f = self.extend_diagonal(a, b, 0, &mut 0);
         if f >= (a.len() + b.len()) as Fr {
@@ -333,12 +334,19 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
             p = p.add_diagonal(1);
         }
 
-        // Initialize the fronts.
-        let mut fronts = vec![
-            Front::new(Fr::MIN, 0..=0, self.left_buffer, self.right_buffer);
-            self.top_buffer + 1
-        ];
-        fronts[self.top_buffer].m_mut()[0] = f;
+        let mut fronts = Fronts::new(
+            Fr::MIN,
+            // We only create a front for the s=0 layer.
+            0..=0,
+            // The range of the s=0 front is 0..=0.
+            |_| 0..=0,
+            self.top_buffer,
+            0,
+            self.left_buffer,
+            self.right_buffer,
+        );
+        fronts[0].m_mut()[0] = f;
+
         Some(fronts)
     }
 
@@ -534,8 +542,8 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCo
             s += 1;
             println!("S: {s}");
             // Rotate all fronts back by one, so that we can fill the new last layer.
-            fronts.rotate_left(1);
-            let (next, fronts) = fronts.split_last_mut().unwrap();
+            fronts.fronts.rotate_left(1);
+            let (next, fronts) = fronts.fronts.split_last_mut().unwrap();
 
             next.reset(
                 Fr::MIN,
@@ -567,12 +575,12 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCo
                 self.left_buffer,
                 self.right_buffer,
             );
-            if self.next_front(a, b, fronts, &mut next) {
+            if self.next_front(a, b, &fronts.fronts, &mut next) {
                 // FIXME: Reconstruct path.
                 return (s, vec![], Cigar::default());
             }
 
-            fronts.push(next);
+            fronts.fronts.push(next);
         }
     }
 
