@@ -154,11 +154,11 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
                 })
                 .div_ceil(cm.ins.unwrap_or(Cost::MAX)),
             // number of insertions (left moves) done in range of looking one deletion (right move) backwards
-            1 + dbg!(match gap_variant {
+            1 + match gap_variant {
                 GapOpen => cm.max_del_open_extend,
                 GapClose => cm.max_del_extend,
-            })
-            .div_ceil(dbg!(cm.min_ins_extend)),
+            }
+            .div_ceil(cm.min_ins_extend),
         ) as Fr;
         // Idem.
         let right_buffer = max(
@@ -301,29 +301,19 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
     /// Computes the minimum and maximum possible diagonal reachable for this `s`.
     /// TODO: For simplicity, this does not take into account gap-open costs currently.
     fn d_range(&self, a: Seq, b: Seq, s: Cost, s_bound: Option<Cost>) -> RangeInclusive<Fr> {
-        let mut start = -(self.cm.ins_or(0, |ins| s / ins) as Fr);
-        for cm in &self.cm.affine {
-            match cm.affine_type {
-                InsertLayer => {
-                    start = min(
-                        start,
-                        -(s.saturating_sub(cm.open).div_floor(cm.extend) as Fr),
-                    )
-                }
-                DeleteLayer => {}
-                _ => todo!(),
-            };
-        }
-        let mut end = self.cm.del_or(0, |del| s / del) as Fr;
-        for cm in &self.cm.affine {
-            match cm.affine_type {
-                InsertLayer => {}
-                DeleteLayer => end = max(end, s.saturating_sub(cm.open).div_floor(cm.extend) as Fr),
-                _ => todo!(),
-            };
+        // The range that is reachable within cost s.
+        let mut r = -(self.cm.max_ins_for_cost(s) as Fr)..=self.cm.max_del_for_cost(s) as Fr;
+
+        // If needed and possible, reduce with gap_cost heuristic.
+        if let Some(s_bound) = s_bound && self.use_gap_cost_heuristic {
+            let d = a.len() as Fr - b.len() as Fr;
+            let s_remaining = s_bound - s  ;
+            // NOTE: Gap open cost was already paid, so we only restrict by extend cost.
+            let gap_cost_r = d - (s_remaining / self.cm.min_del_extend) as Fr..=d + (s_remaining / self.cm.min_ins_extend) as  Fr;
+            r = max(*r.start(), *gap_cost_r.start())..=min(*r.end(), *gap_cost_r.end());
         }
 
-        start..=end
+        r
     }
 
     /// Detects if there is a diagonal such that the two fronts meet/overlap.
