@@ -375,7 +375,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
         const CHECK_EACH_J_LAYERS: Cost = 6;
 
         // Target position.
-        let p = Pos::from_length(a, b);
+        let p = Pos::from_lengths(a, b);
         // Target in transformed domain.
         let t = Pos(
             ((p.0 - 1) / k + p.0).saturating_sub(p.1),

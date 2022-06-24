@@ -171,7 +171,7 @@ impl<C: Contours> CSHI<C> {
         let mut h = CSHI {
             params,
             gap_distance: Distance::build(&GapCost, a, b, alph),
-            target: Pos::from_length(a, b),
+            target: Pos::from_lengths(a, b),
             seeds: matches,
             num_matches: 0,
             num_filtered_matches: 0,

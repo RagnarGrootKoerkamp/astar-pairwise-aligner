@@ -98,7 +98,7 @@ where
         let mut h = BruteForceCSHI::<'a> {
             params,
             distance_function: Distance::build(&params.distance_function, a, b, alphabet),
-            target: Pos::from_length(a, b),
+            target: Pos::from_lengths(a, b),
             seeds: find_matches(
                 a,
                 b,

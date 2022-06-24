@@ -78,7 +78,7 @@ impl Heuristic for MaxCost {
         _alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
         MaxCostI {
-            target: Pos::from_length(a, b),
+            target: Pos::from_lengths(a, b),
         }
     }
 }
@@ -125,7 +125,7 @@ impl Heuristic for GapCost {
         _alphabet: &Alphabet,
     ) -> Self::Instance<'a> {
         GapCostI {
-            target: Pos::from_length(a, b),
+            target: Pos::from_lengths(a, b),
         }
     }
 }
@@ -190,7 +190,7 @@ impl Heuristic for CountCost {
         CountCostI {
             a_cnts: char_counts(a, alphabet),
             b_cnts: char_counts(b, alphabet),
-            target: Pos::from_length(a, b),
+            target: Pos::from_lengths(a, b),
         }
     }
 }
@@ -274,7 +274,7 @@ impl Heuristic for BiCountCost {
             cnt: Distance::build(&CountCost, a, b, alphabet),
             a_cnts: char_bicounts(a, alphabet),
             b_cnts: char_bicounts(b, alphabet),
-            target: Pos::from_length(a, b),
+            target: Pos::from_lengths(a, b),
         }
     }
 }

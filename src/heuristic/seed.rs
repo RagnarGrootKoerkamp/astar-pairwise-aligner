@@ -77,7 +77,7 @@ impl SHI {
 
         let h = SHI {
             params,
-            _target: Pos::from_length(a, b),
+            _target: Pos::from_lengths(a, b),
             seeds,
             remaining_matches,
             num_pruned: 0,
