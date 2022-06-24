@@ -32,7 +32,6 @@ fn test_aligner_on_cost_model<const N: usize>(
     };
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
-        println!("{}\n{}\n", to_string(a), to_string(b));
         let nw_cost = nw.cost(a, b);
 
         let cost = if exponential_search {

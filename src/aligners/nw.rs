@@ -179,7 +179,6 @@ impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
             // When j=0, we must use a placeholder. The actual character does not matter.
             // TODO: We could just try `b[-1]`?
             let cb = if j == 0 { b'^' } else { b[j as usize - 1] };
-            println!("i {i} j {j} {ca} {cb}");
 
             // Compute all layers at (i, j).
             self.v.expand(Pos(i as I, j as I));
@@ -263,7 +262,6 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {
     /// Test whether the cost is at most s.
     /// Returns None if cost > s, or the actual cost otherwise.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
-        println!("cost for bounded dist {s_bound:?}\n{a:?}\n{b:?}\n");
         let ref mut prev = Front::default();
         let ref mut next = Front::new(
             INF,
@@ -286,11 +284,9 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {
                 RIGHT_BUFFER,
             );
             self.next_front(i, ca, b, prev, next);
-            println!("{i} {ca}\n{next:?}");
         }
 
         if let Some(&dist) = next.m().get(b.len() as Idx) {
-            println!("DIST: {dist:?}");
             Some(dist)
         } else {
             None
