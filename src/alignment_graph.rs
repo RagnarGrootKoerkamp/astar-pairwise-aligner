@@ -20,7 +20,7 @@ pub type MatchCost = u8;
 pub struct Pos(pub I, pub I);
 
 impl Pos {
-    pub fn from_length(a: &Sequence, b: &Sequence) -> Self {
+    pub fn from_lengths(a: &Sequence, b: &Sequence) -> Self {
         Pos(a.len() as I, b.len() as I)
     }
 
@@ -203,7 +203,7 @@ impl<'a> EditGraph<'a> {
         EditGraph {
             a,
             b,
-            target: Pos::from_length(a, b),
+            target: Pos::from_lengths(a, b),
             greedy_matching,
         }
     }

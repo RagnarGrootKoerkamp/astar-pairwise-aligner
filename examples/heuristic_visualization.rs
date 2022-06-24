@@ -9,7 +9,7 @@ fn main() {
 
     let (ref a, ref b, ref alphabet, stats) = setup_with_seed(n, e, 1);
 
-    let target = Pos::from_length(&a, &b);
+    let target = Pos::from_lengths(&a, &b);
     let hmax = Some(align(a, b, alphabet, stats, ZeroCost).edit_distance);
 
     // {

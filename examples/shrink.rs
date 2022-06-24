@@ -29,7 +29,7 @@ fn main() {
 
     // True on success.
     let test = |start: I, end: I| {
-        let Pos(n, m) = Pos::from_length(&a, &b);
+        let Pos(n, m) = Pos::from_lengths(&a, &b);
         println!("Test: {} {}", start, end);
         let v = std::panic::catch_unwind(AssertUnwindSafe(|| {
             align(
@@ -82,7 +82,7 @@ fn main() {
         "Could not shrink: Testcase doesn't fail!"
     );
 
-    let Pos(n, m) = Pos::from_length(&a, &b);
+    let Pos(n, m) = Pos::from_lengths(&a, &b);
     let a = &a[start as usize..min(n, end) as usize].to_vec();
     let b = &b[start as usize..min(m, end) as usize].to_vec();
 
