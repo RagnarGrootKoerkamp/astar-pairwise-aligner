@@ -532,10 +532,11 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
 
         let mut s = 0;
         loop {
-            s += 1;
-            if let Some(s_bound) = s_bound && s > s_bound {
+            if let Some(s_bound) = s_bound && s >= s_bound {
                 return None;
             }
+
+            s += 1;
 
             // Rotate all fronts back by one, so that we can fill the new last layer.
             fronts.fronts.rotate_left(1);

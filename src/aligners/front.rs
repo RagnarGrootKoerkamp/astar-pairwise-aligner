@@ -133,6 +133,7 @@ where
         }
     }
 
+    #[inline]
     pub fn affine(&self, layer_idx: usize) -> Layer<'_, T, I> {
         Layer {
             l: &self.affine[layer_idx],
@@ -141,6 +142,7 @@ where
         }
     }
 
+    #[inline]
     pub fn affine_mut(&mut self, layer_idx: usize) -> MutLayer<'_, T, I> {
         MutLayer {
             l: &mut self.affine[layer_idx],
@@ -149,6 +151,7 @@ where
         }
     }
 
+    #[inline]
     pub fn m(&self) -> Layer<'_, T, I> {
         Layer {
             l: &self.m,
@@ -156,6 +159,7 @@ where
             buffers: self.buffers,
         }
     }
+    #[inline]
     pub fn m_affine(&self, layer_idx: usize) -> (Layer<'_, T, I>, Layer<'_, T, I>) {
         (
             Layer {
@@ -170,6 +174,7 @@ where
             },
         )
     }
+    #[inline]
     pub fn m_affine_mut(&mut self, layer_idx: usize) -> (MutLayer<'_, T, I>, MutLayer<'_, T, I>) {
         (
             MutLayer {
@@ -184,6 +189,7 @@ where
             },
         )
     }
+    #[inline]
     pub fn m_mut(&mut self) -> MutLayer<'_, T, I> {
         MutLayer {
             l: &mut self.m,
@@ -193,14 +199,16 @@ where
     }
 
     /// Get a reference to the front's range.
+    #[inline]
     pub fn range(&self) -> &RangeInclusive<I> {
         &self.range
     }
 }
 
+// ========== LAYER STRUCTS ==========
+
 /// A reference to a single layer of a single front.
 /// Contains the offset needed to index it.
-#[derive(Clone)]
 pub struct Layer<'a, T, I> {
     /// The (affine) layer to use.
     /// TODO: Make this a slice instead of Vec.
@@ -222,10 +230,13 @@ pub struct MutLayer<'a, T, I> {
     buffers: (I, I),
 }
 
+// ========== LAYER INDEXING ==========
+
 impl<'a, T, I> Layer<'a, T, I>
 where
     I: IndexType,
 {
+    #[inline]
     pub fn get(&self, index: I) -> Option<&T> {
         self.l
             .get((index + self.buffers.0 - self.range.start()).as_())
@@ -235,6 +246,7 @@ impl<'a, T, I> MutLayer<'a, T, I>
 where
     I: IndexType,
 {
+    #[inline]
     pub fn negative_index(&mut self, index: I) -> &mut T {
         self.l
             .get_mut((self.buffers.0 - self.range.start() - index).as_())
@@ -242,45 +254,47 @@ where
     }
 }
 
-/// Indexing for a Layer.
 impl<'a, T, I> Index<I> for Layer<'a, T, I>
 where
     I: IndexType,
 {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: I) -> &Self::Output {
         &self.l[(index + self.buffers.0 - self.range.start()).as_()]
     }
 }
-/// Indexing for a mutable Layer.
 impl<'a, T, I> Index<I> for MutLayer<'a, T, I>
 where
     I: IndexType,
 {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: I) -> &Self::Output {
         &self.l[(index + self.buffers.0 - self.range.start()).as_()]
     }
 }
-/// Indexing for a mutable Layer.
 impl<'a, T, I> IndexMut<I> for MutLayer<'a, T, I>
 where
     I: IndexType,
 {
+    #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.l[(index + self.buffers.0 - self.range.start()).as_()]
     }
 }
 
-/// Indexing Fronts.
+// ========== FRONTS INDEXING ==========
+
 impl<const N: usize, T, I> Index<I> for Fronts<N, T, I>
 where
     I: IndexType,
 {
     type Output = Front<N, T, I>;
 
+    #[inline]
     fn index(&self, index: I) -> &Self::Output {
         &self.fronts[(index + self.buffers.0 - self.range.start()).as_()]
     }
@@ -289,15 +303,20 @@ impl<const N: usize, T, I> IndexMut<I> for Fronts<N, T, I>
 where
     I: IndexType,
 {
+    #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.fronts[(index + self.buffers.0 - self.range.start()).as_()]
     }
 }
+
+// ========== FRONTS SLICE INDEXING ==========
+
 impl<const N: usize, T, I> Index<RangeInclusive<I>> for Fronts<N, T, I>
 where
     I: IndexType,
 {
     type Output = [Front<N, T, I>];
+    #[inline]
     fn index(&self, index: RangeInclusive<I>) -> &Self::Output {
         &self.fronts[(*index.start() + self.buffers.0 - self.range.start()).as_()
             ..=(*index.end() + self.buffers.0 - self.range.start()).as_()]
@@ -307,6 +326,7 @@ impl<const N: usize, T, I> IndexMut<RangeInclusive<I>> for Fronts<N, T, I>
 where
     I: IndexType,
 {
+    #[inline]
     fn index_mut(&mut self, index: RangeInclusive<I>) -> &mut Self::Output {
         &mut self.fronts[(*index.start() + self.buffers.0 - self.range.start()).as_()
             ..=(*index.end() + self.buffers.0 - self.range.start()).as_()]
