@@ -277,6 +277,9 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
     fn extend(&mut self, front: &mut Front<N>, a: Seq, b: Seq) -> bool {
         for d in front.range().clone() {
             let fr = &mut front.m_mut()[d];
+            if *fr < 0 {
+                continue;
+            }
             let fr_old = *fr;
             let fr_new = self.extend_diagonal(a, b, d as Fr, fr);
             let mut p = fr_to_pos(d, fr_old);
@@ -297,7 +300,7 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
     /// The range of diagonals to consider for the given cost `s`.
     /// Computes the minimum and maximum possible diagonal reachable for this `s`.
     /// TODO: For simplicity, this does not take into account gap-open costs currently.
-    fn d_range(&self, s: Cost) -> RangeInclusive<Fr> {
+    fn d_range(&self, a: Seq, b: Seq, s: Cost, s_bound: Option<Cost>) -> RangeInclusive<Fr> {
         let mut start = -(self.cm.ins_or(0, |ins| s / ins) as Fr);
         for cm in &self.cm.affine {
             match cm.affine_type {
@@ -512,7 +515,9 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
             self.right_buffer,
         );
 
-        let f = self.extend_diagonal(a, b, 0, &mut fronts[0].m_mut()[0]);
+        let fr = &mut fronts[0].m_mut()[0];
+        *fr = 0;
+        let f = self.extend_diagonal(a, b, 0, fr);
         if f >= (a.len() + b.len()) as Fr {
             return None;
         }
