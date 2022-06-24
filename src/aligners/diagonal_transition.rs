@@ -189,7 +189,6 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
     fn extend_diagonal(&mut self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
         let (i, j) = fr_to_coords(d, *fr);
-        //println!("FR to pos d {d} fr {fr} => pos({i}, {j})");
         if i as usize >= a.len() || j as usize >= b.len() {
             return *fr;
         }
@@ -273,7 +272,6 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
         for d in front.range().clone() {
             let fr = &mut front.m_mut()[d];
             let fr_old = *fr;
-            //println!("Diagonal {d} fr old {fr_old}");
             let fr_new = self.extend_diagonal(a, b, d as Fr, fr);
             let mut p = fr_to_pos(d, fr_old);
             for _ in fr_old..fr_new {
@@ -414,7 +412,6 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
                 // The boundaries are buffered so no boundary checks are needed.
                 // TODO: Vectorize this loop, or at least verify the compiler does this.
                 // TODO: Loop over a positive range that does not need additional shifting?
-                println!("d range: {:?}", next.range());
                 for d in next.range().clone() {
                     // The new value of next.m[d].
                     let mut f = Fr::MIN;
@@ -540,7 +537,6 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCo
         let mut s = 0;
         loop {
             s += 1;
-            println!("S: {s}");
             // Rotate all fronts back by one, so that we can fill the new last layer.
             fronts.fronts.rotate_left(1);
             let (next, fronts) = fronts.fronts.split_last_mut().unwrap();
