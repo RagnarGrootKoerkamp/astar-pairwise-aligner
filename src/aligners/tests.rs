@@ -31,7 +31,7 @@ fn test_aligner_on_cost_model<const N: usize>(
     let mut nw = NW {
         cm: cm.clone(),
         use_gap_cost_heuristic: false,
-        v: &mut NoVisualizer,
+        v: NoVisualizer,
     };
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
@@ -95,7 +95,7 @@ mod nw {
             NW {
                 cm,
                 use_gap_cost_heuristic: false,
-                v: &mut NoVisualizer,
+                v: NoVisualizer,
             },
             true,
             false,
@@ -196,7 +196,7 @@ macro_rules! test_exp_band {
                         NW {
                             cm: cm.clone(),
                             use_gap_cost_heuristic: $use_gap_cost_heuristic,
-                            v: &mut NoVisualizer ,
+                            v: NoVisualizer ,
                         },
                         true,
                         /*exponential_search=*/true
@@ -300,7 +300,7 @@ macro_rules! test_diagonal_transition {
                 fn test<const N: usize>(cm: AffineCost<N>) {
                     test_aligner_on_cost_model(
                         cm.clone(),
-                        DiagonalTransition::new(cm, $use_gap_cost_heuristic, &mut NoVisualizer),
+                        DiagonalTransition::new(cm, $use_gap_cost_heuristic, NoVisualizer),
                         true,
                         $exponential_search
                     );

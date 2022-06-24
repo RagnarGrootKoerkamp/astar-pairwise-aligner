@@ -9,7 +9,7 @@ use std::cmp::{max, min};
 use std::ops::RangeInclusive;
 
 pub type Path = Vec<Pos>;
-pub struct NW<'a, CostModel, V: VisualizerT> {
+pub struct NW<CostModel, V: VisualizerT> {
     /// The cost model to use.
     pub cm: CostModel,
 
@@ -18,7 +18,7 @@ pub struct NW<'a, CostModel, V: VisualizerT> {
     pub use_gap_cost_heuristic: bool,
 
     /// The visualizer to use.
-    pub v: &'a mut V,
+    pub v: V,
 }
 
 /// Type used for indexing sequences.
@@ -38,7 +38,7 @@ const RIGHT_BUFFER: Idx = 1;
 /// Add one layer before the first, for easy initialization.
 const TOP_BUFFER: Idx = 1;
 
-impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
+impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
     fn track_path(&self, fronts: &Fronts<N>, a: Seq, b: Seq) -> (Path, Cigar) {
         let mut path: Path = vec![];
         let mut cigar = Cigar::default();
@@ -245,15 +245,12 @@ impl<const N: usize, V: VisualizerT> NW<'_, AffineCost<N>, V> {
         } else {
             -(self.cm.max_del_for_cost(s) as Idx)..=self.cm.max_ins_for_cost(s) as Idx
         };
-        println!(
-            "j_range {i} {s_bound:?} {range:?} use h? {}",
-            self.use_gap_cost_heuristic
-        );
+
         // crop
         max(i + *range.start(), 0)..=min(i + *range.end(), b.len() as Idx)
     }
 }
-impl<const N: usize, V: VisualizerT> Aligner for NW<'_, AffineCost<N>, V> {
+impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
     type CostModel = AffineCost<N>;
 
     fn cost_model(&self) -> &Self::CostModel {

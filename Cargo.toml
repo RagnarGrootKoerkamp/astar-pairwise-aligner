@@ -9,6 +9,7 @@ edition = "2021"
 lto = "thin"
 incremental = true
 debug = true
+opt-level = 3
 
 [dependencies]
 colorgrad = "*"
