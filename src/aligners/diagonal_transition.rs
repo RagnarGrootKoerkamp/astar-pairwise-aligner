@@ -317,37 +317,6 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
         start..=end
     }
 
-    /// Returns None when the distance is 0.
-    fn init_fronts(&mut self, a: Seq, b: Seq) -> Option<Fronts<N>> {
-        // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
-        let f = self.extend_diagonal(a, b, 0, &mut 0);
-        if f >= (a.len() + b.len()) as Fr {
-            return None;
-        }
-
-        // Expand points on the first run.
-        let mut p = Pos::from(0, 0);
-        for _ in 0..=f {
-            self.v.expand(p);
-            p = p.add_diagonal(1);
-        }
-
-        let mut fronts = Fronts::new(
-            Fr::MIN,
-            // We only create a front for the s=0 layer.
-            0..=0,
-            // The range of the s=0 front is 0..=0.
-            |_| 0..=0,
-            self.top_buffer,
-            0,
-            self.left_buffer,
-            self.right_buffer,
-        );
-        fronts[0].m_mut()[0] = f;
-
-        Some(fronts)
-    }
-
     /// Detects if there is a diagonal such that the two fronts meet/overlap.
     /// The overlap can be in any of the affine layers.
     /// Returns: None is no overlap was found.
@@ -518,6 +487,28 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
             }
         }
     }
+
+    // Returns None when the sequences are equal.
+    fn init_fronts(&mut self, a: Seq, b: Seq) -> Option<Fronts<N>> {
+        let mut fronts = Fronts::new(
+            Fr::MIN,
+            // We only create a front for the s=0 layer.
+            0..=0,
+            // The range of the s=0 front is 0..=0.
+            |_| 0..=0,
+            // Additionally, we have `top_buffer` fronts before the current front.
+            self.top_buffer,
+            0,
+            self.left_buffer,
+            self.right_buffer,
+        );
+
+        let f = self.extend_diagonal(a, b, 0, &mut fronts[0].m_mut()[0]);
+        if f >= (a.len() + b.len()) as Fr {
+            return None;
+        }
+        Some(fronts)
+    }
 }
 
 impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCost<N>, V> {
@@ -530,66 +521,64 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCo
     /// The cost-only version uses linear memory.
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        let Some(ref mut fronts) =
-            self.init_fronts(a, b) else {return 0;};
+    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
+        let Some(mut fronts) = self.init_fronts(a, b) else {
+            return Some(0);
+        };
 
         let mut s = 0;
         loop {
             s += 1;
+            if let Some(s_bound) = s_bound && s > s_bound {
+                return None;
+            }
+
             // Rotate all fronts back by one, so that we can fill the new last layer.
             fronts.fronts.rotate_left(1);
             let (next, fronts) = fronts.fronts.split_last_mut().unwrap();
 
             next.reset(
                 Fr::MIN,
-                self.d_range(s),
+                self.d_range(a, b, s, s_bound),
                 self.left_buffer,
                 self.right_buffer,
             );
             if self.next_front(a, b, fronts, next) {
-                return s;
+                return Some(s);
             }
         }
     }
 
-    /// NOTE: DT does not explore states; it only expands them.
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
-        let Some(ref mut fronts) = self.init_fronts(a, b) else {
-            return (0,vec![],Cigar::default());
+    fn align_for_bounded_dist(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        s_bound: Option<Cost>,
+    ) -> Option<(Cost, Path, Cigar)> {
+        let Some(mut fronts) = self.init_fronts(a, b) else {
+            return Some((0, vec![], Cigar::default()));
         };
-
-        self.v.expand(Pos(0, 0));
 
         let mut s = 0;
         loop {
             s += 1;
+            if let Some(s_bound) = s_bound && s > s_bound {
+                return None;
+            }
 
+            // We can not initialize all layers directly at the start, since we do not know the final distance s.
             let mut next = Front::new(
                 Fr::MIN,
-                self.d_range(s),
+                self.d_range(a, b, s, s_bound),
                 self.left_buffer,
                 self.right_buffer,
             );
             if self.next_front(a, b, &fronts.fronts, &mut next) {
                 // FIXME: Reconstruct path.
-                return (s, vec![], Cigar::default());
+                return Some((s, vec![], Cigar::default()));
             }
 
             fronts.fronts.push(next);
         }
-    }
-
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Option<Cost>) -> Option<Cost> {
-        todo!()
-    }
-
-    fn align_for_bounded_dist(
-        &mut self,
-        _a: Seq,
-        _b: Seq,
-        _s_bound: Option<Cost>,
-    ) -> Option<(Cost, Path, Cigar)> {
-        todo!()
     }
 }
