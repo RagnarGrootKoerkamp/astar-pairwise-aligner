@@ -38,6 +38,7 @@ type Front<const N: usize> = super::front::Front<N, Fr, Fr>;
 type Fronts<const N: usize> = super::front::Fronts<N, Fr, Fr>;
 
 /// GapOpen costs can be processed either when entering of leaving the gap.
+/// See https://research.curiouscoding.nl/notes/affine-gap-close-cost/.
 pub enum GapVariant {
     GapOpen,
     GapClose,
@@ -59,6 +60,9 @@ use Direction::*;
 pub struct DiagonalTransition<'a, CostModel, V: VisualizerT> {
     /// The CostModel to use, possibly affine.
     cm: CostModel,
+
+    /// Whether to use the gap heuristic to the end to reduce the number of diagonals considered.
+    use_gap_cost_heuristic: bool,
 
     /// Whether to use gap-open or gap-close costs.
     /// https://research.curiouscoding.nl/notes/affine-gap-close-cost/
@@ -120,6 +124,7 @@ fn fr_to_pos(d: Fr, f: Fr) -> Pos {
 impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V> {
     pub fn new_variant(
         cm: AffineCost<N>,
+        use_gap_cost_heuristic: bool,
         gap_variant: GapVariant,
         direction: Direction,
         v: &'a mut V,
@@ -173,6 +178,7 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
         ) as Fr;
         Self {
             cm,
+            use_gap_cost_heuristic,
             gap_variant,
             v,
             top_buffer,
@@ -182,8 +188,8 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
         }
     }
 
-    pub fn new(cm: AffineCost<N>, v: &'a mut V) -> Self {
-        Self::new_variant(cm, GapOpen, Forward, v)
+    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, v: &'a mut V) -> Self {
+        Self::new_variant(cm, use_gap_cost_heuristic, GapOpen, Forward, v)
     }
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
@@ -420,11 +426,14 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
                     }
                     next.m_mut()[d] = f;
 
-                    self.v.expand(fr_to_pos(d, f));
+                    if f >= 0 {
+                        self.v.expand(fr_to_pos(d, f));
+                    }
                 }
                 // Extend all points in the m layer and check if we're done.
                 self.extend(next, a, b)
             }
+            // TODO: the 'graph' related code should be elsewhere, and this should just follow the graph.
             GapClose => {
                 // See https://research.curiouscoding.nl/notes/affine-gap-close-cost/.
                 for d in next.range().clone() {
