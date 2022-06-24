@@ -5,8 +5,14 @@ use std::{
 
 use num_traits::{AsPrimitive, NumOps, NumRef, RefNum};
 
-pub trait IndexType: NumOps + NumRef + Default + AsPrimitive<usize> + Copy + Debug {}
-impl<I> IndexType for I where I: NumOps + NumRef + Default + AsPrimitive<usize> + Copy + Debug {}
+pub trait IndexType:
+    NumOps + NumRef + Default + AsPrimitive<usize> + Copy + Debug + std::iter::Step
+{
+}
+impl<I> IndexType for I where
+    I: NumOps + NumRef + Default + AsPrimitive<usize> + Copy + Debug + std::iter::Step
+{
+}
 
 /// A front contains the data for each affine layer, and a range to indicate which subset of diagonals/columns is computed for this front.
 /// The offset indicates the position of the 0 column/diagonal.
@@ -26,6 +32,45 @@ pub struct Front<const N: usize, T, I> {
     range: RangeInclusive<I>,
     /// The left and right buffer we add before/after the range starts/ends.
     buffers: (I, I),
+}
+
+/// `Fronts` is a vector of fronts, possibly with a buffer layer at the top.
+#[derive(Debug)]
+pub struct Fronts<const N: usize, T, I> {
+    fronts: Vec<Front<N, T, I>>,
+    /// The inclusive range of values this front corresponds to.
+    range: RangeInclusive<I>,
+    /// The top and bottom buffer we add before/after the range of fronts.
+    buffers: (I, I),
+}
+
+impl<const N: usize, T, I> Fronts<N, T, I>
+where
+    I: IndexType,
+    T: Copy,
+{
+    /// Create a new front for the given range, using the given left/right buffer sizes.
+    pub fn new(
+        value: T,
+        range_fn: impl Fn(I) -> RangeInclusive<I>,
+        range: RangeInclusive<I>,
+        top_buffer: I,
+        bottom_buffer: I,
+        left_buffer: I,
+        right_buffer: I,
+    ) -> Self
+    where
+        T: Copy,
+        for<'l> &'l I: RefNum<I>,
+    {
+        Self {
+            fronts: (range.start() - top_buffer..=range.end() + bottom_buffer)
+                .map(|i| Front::new(value, range_fn(i), left_buffer, right_buffer))
+                .collect(),
+            range,
+            buffers: (top_buffer, bottom_buffer),
+        }
+    }
 }
 
 impl<const N: usize, T, I: Default> Default for Front<N, T, I> {
@@ -203,6 +248,16 @@ where
             .get((index + self.buffers.0 - self.range.start()).as_())
     }
 }
+impl<'a, T, I> MutLayer<'a, T, I>
+where
+    I: IndexType,
+{
+    pub fn negative_index(&mut self, index: I) -> &mut T {
+        self.l
+            .get_mut((self.buffers.0 - self.range.start() - index).as_())
+            .unwrap()
+    }
+}
 
 /// Indexing for a Layer.
 impl<'a, T, I> Index<I> for Layer<'a, T, I>
@@ -233,5 +288,44 @@ where
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.l[(index + self.buffers.0 - self.range.start()).as_()]
+    }
+}
+
+/// Indexing Fronts.
+impl<const N: usize, T, I> Index<I> for Fronts<N, T, I>
+where
+    I: IndexType,
+{
+    type Output = Front<N, T, I>;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.fronts[(index + self.buffers.0 - self.range.start()).as_()]
+    }
+}
+impl<const N: usize, T, I> IndexMut<I> for Fronts<N, T, I>
+where
+    I: IndexType,
+{
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.fronts[(index + self.buffers.0 - self.range.start()).as_()]
+    }
+}
+impl<const N: usize, T, I> Index<RangeInclusive<I>> for Fronts<N, T, I>
+where
+    I: IndexType,
+{
+    type Output = [Front<N, T, I>];
+    fn index(&self, index: RangeInclusive<I>) -> &Self::Output {
+        &self.fronts[(*index.start() + self.buffers.0 - self.range.start()).as_()
+            ..=(*index.end() + self.buffers.0 - self.range.start()).as_()]
+    }
+}
+impl<const N: usize, T, I> IndexMut<RangeInclusive<I>> for Fronts<N, T, I>
+where
+    I: IndexType,
+{
+    fn index_mut(&mut self, index: RangeInclusive<I>) -> &mut Self::Output {
+        &mut self.fronts[(*index.start() + self.buffers.0 - self.range.start()).as_()
+            ..=(*index.end() + self.buffers.0 - self.range.start()).as_()]
     }
 }

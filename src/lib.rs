@@ -1,6 +1,7 @@
 #![feature(
     test,
     array_methods,
+    step_trait,
     int_roundings,
     iter_intersperse,
     slice_as_chunks,
