@@ -2,9 +2,9 @@ use smallvec::SmallVec;
 
 use crate::prelude::*;
 
-pub fn find_matches_trie<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+pub fn find_matches_trie(
+    a: Seq,
+    b: Seq,
     alph: &Alphabet,
     MatchConfig {
         length,
@@ -61,8 +61,8 @@ pub fn find_matches_trie<'a>(
 }
 
 pub fn find_matches_qgramindex<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     MatchConfig {
         length,
@@ -79,7 +79,7 @@ pub fn find_matches_qgramindex<'a>(
     // TODO: This should return &[I] instead.
     fn get_matches<'a, 'c>(
         qgrams: &'c mut HashMap<I, QGramIndex>,
-        b: &'a Sequence,
+        b: Seq<'a>,
         alph: &Alphabet,
         k: I,
         qgram: usize,
@@ -242,8 +242,8 @@ pub fn find_matches_qgramindex<'a>(
 
 /// Build a hashset of the kmers in b, and query all mutations of seeds in a.
 pub fn find_matches_qgram_hash_inexact<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     MatchConfig {
         length,
@@ -341,8 +341,8 @@ pub fn find_matches_qgram_hash_inexact<'a>(
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
 pub fn find_matches_qgram_hash_exact<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     MatchConfig {
         length,
@@ -487,8 +487,8 @@ pub fn find_matches_qgram_hash_exact<'a>(
 }
 
 pub fn find_matches<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     match_config: MatchConfig,
     gapcost: bool,

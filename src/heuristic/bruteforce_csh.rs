@@ -24,12 +24,7 @@ where
 {
     type Instance<'a> = BruteForceCSHI<'a, DH>;
 
-    fn build<'a>(
-        &self,
-        a: &'a Sequence,
-        b: &'a Sequence,
-        alphabet: &Alphabet,
-    ) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
@@ -89,12 +84,7 @@ impl<'a, DH: Distance> BruteForceCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
-    fn new(
-        a: &'a Sequence,
-        b: &'a Sequence,
-        alphabet: &Alphabet,
-        params: BruteForceCSH<DH>,
-    ) -> Self {
+    fn new(a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet, params: BruteForceCSH<DH>) -> Self {
         let mut h = BruteForceCSHI::<'a> {
             params,
             distance_function: Distance::build(&params.distance_function, a, b, alphabet),

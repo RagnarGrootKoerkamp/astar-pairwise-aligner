@@ -91,7 +91,7 @@ impl<C: Contours> Copy for CSH<C> {}
 impl<C: Contours> Heuristic for CSH<C> {
     type Instance<'a> = CSHI<C>;
 
-    fn build<'a>(&self, a: &'a Sequence, b: &'a Sequence, alph: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alph: &Alphabet) -> Self::Instance<'a> {
         // TODO: Warning
         assert!(
             self.match_config.max_match_cost
@@ -165,7 +165,7 @@ impl<C: Contours> Drop for CSHI<C> {
 }
 
 impl<C: Contours> CSHI<C> {
-    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: CSH<C>) -> Self {
+    fn new(a: Seq, b: Seq, alph: &Alphabet, params: CSH<C>) -> Self {
         let matches = find_matches(a, b, alph, params.match_config, params.use_gap_cost);
         //println!("\nfind matches.. done: {}", matches.matches.len());
         let mut h = CSHI {

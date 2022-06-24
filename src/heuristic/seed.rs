@@ -11,12 +11,7 @@ pub struct SH {
 impl Heuristic for SH {
     type Instance<'a> = SHI;
 
-    fn build<'a>(
-        &self,
-        a: &'a Sequence,
-        b: &'a Sequence,
-        alphabet: &Alphabet,
-    ) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a> {
         SHI::new(a, b, alphabet, *self)
     }
 
@@ -52,7 +47,7 @@ pub struct SHI {
 type Hint = Cost;
 
 impl SHI {
-    fn new(a: &Sequence, b: &Sequence, alph: &Alphabet, params: SH) -> Self {
+    fn new(a: Seq, b: Seq, alph: &Alphabet, params: SH) -> Self {
         let seeds = unordered_matches(a, b, alph, params.match_config);
         // Contains start of all matches.
         // TODO: Make this contain positions instead of only i coordinate.

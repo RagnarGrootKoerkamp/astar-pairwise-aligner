@@ -5,7 +5,7 @@ use crate::prelude::*;
 type Key = usize;
 
 fn determine_seeds<'a, F>(
-    a: &'a Sequence,
+    a: Seq<'a>,
     alph: &Alphabet,
     length: LengthConfig,
     mut f: F,
@@ -146,8 +146,8 @@ fn count_inexact_matches(
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
 pub fn find_matches_qgram_hash_exact_unordered<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     MatchConfig {
         length,
@@ -209,8 +209,8 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
 /// TODO MAKE THIS UNORDERED:
 /// Store at most 6 matches.
 pub fn find_matches_qgram_hash_inexact_unordered<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     MatchConfig {
         length,
@@ -309,8 +309,8 @@ pub fn find_matches_qgram_hash_inexact_unordered<'a>(
 }
 
 fn unordered_matches_hash<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     match_config @ MatchConfig {
         length,
@@ -380,8 +380,8 @@ fn unordered_matches_hash<'a>(
 /// Then count these kmers in b.
 /// Keep only seeds for which the counter is at most 1.
 pub fn unordered_matches<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     match_config @ MatchConfig { algorithm, .. }: MatchConfig,
 ) -> SeedMatches {

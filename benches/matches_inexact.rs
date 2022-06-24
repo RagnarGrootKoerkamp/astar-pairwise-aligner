@@ -84,7 +84,7 @@ fn mutations(k: I, kmer: usize, dels: bool, subs: bool, ins: bool, dedup: bool) 
     }
 }
 
-fn lookup_b_in_am_hashmap(a: &Sequence, b: &Sequence, k: I) {
+fn lookup_b_in_am_hashmap(a: Seq, b: Seq, k: I) {
     assert!(k <= 14);
     let key = |l: u32, w: usize| ((w as u32) << 2) + (l + 1 - k);
     // TODO: Split in 3 hashmaps?
@@ -122,7 +122,7 @@ fn lookup_b_in_am_hashmap(a: &Sequence, b: &Sequence, k: I) {
     println!("{} {cnt}", m.len());
 }
 
-fn lookup_am_in_b_hashmap(a: &Sequence, b: &Sequence, k: I) {
+fn lookup_am_in_b_hashmap(a: Seq, b: Seq, k: I) {
     assert!(k <= 14);
     let key = |l: u32, w: usize| ((w as u32) << 2) + (l + 1 - k);
     let mut m = HashMap::<u32, (u32, u32)>::default();
@@ -161,7 +161,7 @@ fn lookup_am_in_b_hashmap(a: &Sequence, b: &Sequence, k: I) {
     println!("{} {cnt}", m.len());
 }
 
-fn lookup_am_in_b_hashmap_dedup(a: &Sequence, b: &Sequence, k: I) {
+fn lookup_am_in_b_hashmap_dedup(a: Seq, b: Seq, k: I) {
     assert!(k <= 14);
     let key = |l: u32, w: usize| ((w as u32) << 2) + (l + 1 - k);
     let mut m = HashMap::<u32, (u32, u32)>::default();
@@ -200,7 +200,7 @@ fn lookup_am_in_b_hashmap_dedup(a: &Sequence, b: &Sequence, k: I) {
     println!("{} {cnt}", m.len());
 }
 
-fn lookup_a_in_bm_hashmap(a: &Sequence, b: &Sequence, k: I) -> usize {
+fn lookup_a_in_bm_hashmap(a: Seq, b: Seq, k: I) -> usize {
     let key = |_k: u32, w: usize| w as u32;
     let mut m = HashMap::<u32, (u32, u32)>::default();
     m.reserve(b.len() * 10 as usize);
@@ -232,7 +232,7 @@ fn lookup_a_in_bm_hashmap(a: &Sequence, b: &Sequence, k: I) -> usize {
     cnt
 }
 
-fn lookup_bm_in_a_hashmap(a: &Sequence, b: &Sequence, k: I) -> usize {
+fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
     let key = |k: u32, w: usize| ((w as u32) << 8) + k;
     let mut m = HashMap::<u32, (u32, u32)>::default();
     m.reserve(a.len());

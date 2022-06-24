@@ -4,8 +4,8 @@ use crate::prelude::*;
 pub struct PerfectHeuristic;
 
 pub struct PerfectHeuristicI<'a> {
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
 }
 
 impl Heuristic for PerfectHeuristic {
@@ -17,8 +17,8 @@ impl Heuristic for PerfectHeuristic {
 
     fn build<'a>(
         &self,
-        a: &'a bio_types::sequence::Sequence,
-        b: &'a bio_types::sequence::Sequence,
+        a: Seq<'a>,
+        b: Seq<'a>,
         _alphabet: &bio::alphabets::Alphabet,
     ) -> Self::Instance<'a> {
         PerfectHeuristicI { a, b }

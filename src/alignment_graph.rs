@@ -4,11 +4,13 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use bio_types::sequence::Sequence;
 use serde::Serialize;
 use std::cmp::Ordering;
 
-use crate::prelude::{Cost, DtPos};
+use crate::{
+    aligners::Seq,
+    prelude::{Cost, DtPos},
+};
 
 /// Type for positions in a sequence, and derived quantities.
 pub type I = u32;
@@ -20,7 +22,7 @@ pub type MatchCost = u8;
 pub struct Pos(pub I, pub I);
 
 impl Pos {
-    pub fn from_lengths(a: &Sequence, b: &Sequence) -> Self {
+    pub fn from_lengths(a: Seq, b: Seq) -> Self {
         Pos(a.len() as I, b.len() as I)
     }
 
@@ -192,14 +194,14 @@ impl Pos {
 /// AlignmentGraph, modelling the position and transitions in a pairwise matching graph.
 #[derive(Clone)]
 pub struct EditGraph<'a> {
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     target: Pos,
     pub greedy_matching: bool,
 }
 
 impl<'a> EditGraph<'a> {
-    pub fn new(a: &'a Sequence, b: &'a Sequence, greedy_matching: bool) -> EditGraph<'a> {
+    pub fn new(a: Seq<'a>, b: Seq<'a>, greedy_matching: bool) -> EditGraph<'a> {
         EditGraph {
             a,
             b,

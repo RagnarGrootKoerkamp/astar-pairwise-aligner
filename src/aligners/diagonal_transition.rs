@@ -24,8 +24,9 @@
 use super::cigar::Cigar;
 use super::nw::PATH;
 use super::{Aligner, NoVisualizer, VisualizerT};
+use super::{Aligner, NoVisualizer, Seq, VisualizerT};
 use crate::cost_model::*;
-use crate::prelude::{Pos, Sequence};
+use crate::prelude::Pos;
 use std::cmp::{max, min};
 use std::iter::zip;
 use std::ops::RangeInclusive;
@@ -178,7 +179,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     }
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
-    fn extend_diagonal(&self, a: &Sequence, b: &Sequence, d: Fr, fr: &mut Fr) -> Fr {
+    fn extend_diagonal(&self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
         let (i, j) = fr_to_coords(d, *fr);
         //println!("FR to pos d {d} fr {fr} => pos({i}, {j})");
         if i as usize >= a.len() || j as usize >= b.len() {
@@ -205,7 +206,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// This version compares one usize at a time.
     /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
     #[allow(unused)]
-    fn extend_diagonal_packed(&self, a: &Sequence, b: &Sequence, d: Fr, fr: &mut Fr) -> Fr {
+    fn extend_diagonal_packed(&self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
         let i = (*fr + d) / 2;
         let j = (*fr - d) / 2;
 
@@ -260,13 +261,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         *fr
     }
 
-    fn extend(
-        &self,
-        front: &mut Front<N>,
-        a: &Sequence,
-        b: &Sequence,
-        v: &mut impl VisualizerT,
-    ) -> bool {
+    fn extend(&self, front: &mut Front<N>, a: Seq, b: Seq, v: &mut impl VisualizerT) -> bool {
         for d in front.range().clone() {
             let fr = &mut front.m_mut()[d];
             let fr_old = *fr;
@@ -317,12 +312,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     }
 
     /// Returns None when the distance is 0.
-    fn init_fronts(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        v: &mut impl VisualizerT,
-    ) -> Option<Vec<Front<N>>> {
+    fn init_fronts(&self, a: Seq, b: Seq, v: &mut impl VisualizerT) -> Option<Vec<Front<N>>> {
         // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
         let f = self.extend_diagonal(a, b, 0, &mut 0);
         if f >= (a.len() + b.len()) as Fr {
@@ -357,8 +347,8 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     #[allow(dead_code)]
     fn fronts_overlap(
         &self,
-        a: &Sequence,
-        b: &Sequence,
+        a: Seq,
+        b: Seq,
         forward: &mut Front<N>,
         backward: &mut Front<N>,
     ) -> Option<(Option<usize>, (Fr, Fr), (Fr, Fr))> {
@@ -402,8 +392,8 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// Returns `true` when the search completes.
     fn next_front(
         &self,
-        a: &Sequence,
-        b: &Sequence,
+        a: Seq,
+        b: Seq,
         prev: &[Front<N>],
         next: &mut Front<N>,
         v: &mut impl VisualizerT,
@@ -530,7 +520,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
     /// The cost-only version uses linear memory.
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
-    fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
+    fn cost(&self, a: Seq, b: Seq) -> Cost {
         let Some(ref mut fronts) =
             self.init_fronts(a, b, &mut NoVisualizer) else {return 0;};
 
@@ -555,12 +545,7 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
     }
 
     /// NOTE: DT does not explore states; it only expands them.
-    fn visualize(
-        &self,
-        a: &Sequence,
-        b: &Sequence,
-        v: &mut impl VisualizerT,
-    ) -> (Cost, PATH, Cigar) {
+    fn visualize(&self, a: Seq, b: Seq, v: &mut impl VisualizerT) -> (Cost, Path, Cigar) {
         let Some(ref mut fronts) = self.init_fronts(a, b, v) else {
             return (0,vec![],Cigar::default());
         };

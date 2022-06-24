@@ -39,25 +39,25 @@ mod matches {
     /// - suffix automaton on full a, do incremental queries from b using back edges
     /// - trie on b/a, query a/b.
     /// - suffixarray on b, then build trie from sorted input and query all of a.
-    pub fn exact_matches(a: &Sequence, b: &Sequence, k: I) {}
-    pub fn sort_seeds(a: &Sequence, b: &Sequence, k: I) {
+    pub fn exact_matches(a: Seq, b: Seq, k: I) {}
+    pub fn sort_seeds(a: Seq, b: Seq, k: I) {
         let mut seeds = a.chunks_exact(k as usize).collect_vec();
         seeds.sort_unstable();
     }
-    pub fn suffix_array_sort(a: &Sequence, b: &Sequence, k: I) {
+    pub fn suffix_array_sort(a: Seq, b: Seq, k: I) {
         let mut suffixes = b.windows(k as usize).collect_vec();
         suffixes.sort_unstable();
     }
-    pub fn suffix_array_bio(a: &Sequence, b: &Sequence, k: I) {
+    pub fn suffix_array_bio(a: Seq, b: Seq, k: I) {
         let mut b = b.to_vec();
         b.push('$' as u8);
         suffix_array(&b);
     }
-    pub fn suffix_array_suffixtable(a: &Sequence, b: &Sequence, k: I) {
+    pub fn suffix_array_suffixtable(a: Seq, b: Seq, k: I) {
         let st = SuffixTable::new(to_string(b));
     }
 
-    pub fn aho_corasick(a: &Sequence, b: &Sequence, k: I) {
+    pub fn aho_corasick(a: Seq, b: Seq, k: I) {
         let ac = AhoCorasickBuilder::new()
             .build_with_size::<u16, _, _>(a.chunks_exact(k as usize))
             .unwrap();
@@ -65,7 +65,7 @@ mod matches {
         println!("{cnt}");
     }
 
-    pub fn regex(a: &Sequence, b: &Sequence, k: I) {
+    pub fn regex(a: Seq, b: Seq, k: I) {
         let ac = AhoCorasickBuilder::new()
             .build_with_size::<u16, _, _>(a.chunks_exact(k as usize))
             .unwrap();
@@ -73,7 +73,7 @@ mod matches {
         println!("{cnt}");
     }
 
-    pub fn build_trie(a: &Sequence, b: &Sequence, k: I) {
+    pub fn build_trie(a: Seq, b: Seq, k: I) {
         Trie::new(
             b.windows(k as usize)
                 .enumerate()
@@ -82,7 +82,7 @@ mod matches {
         );
     }
 
-    pub fn build_trie_on_seeds(a: &Sequence, b: &Sequence, k: I) {
+    pub fn build_trie_on_seeds(a: Seq, b: Seq, k: I) {
         Trie::new(
             a.chunks_exact(k as usize)
                 .enumerate()
@@ -91,7 +91,7 @@ mod matches {
         );
     }
 
-    pub fn build_trie_sorted(a: &Sequence, b: &Sequence, k: I) {
+    pub fn build_trie_sorted(a: Seq, b: Seq, k: I) {
         Trie::new(
             b.windows(k as usize)
                 .enumerate()
@@ -100,7 +100,7 @@ mod matches {
         );
     }
 
-    pub fn build_trie_on_seeds_sorted(a: &Sequence, b: &Sequence, k: I) {
+    pub fn build_trie_on_seeds_sorted(a: Seq, b: Seq, k: I) {
         Trie::new(
             a.chunks_exact(k as usize)
                 .enumerate()
@@ -109,21 +109,21 @@ mod matches {
         );
     }
 
-    pub fn seed_qgrams(a: &Sequence, b: &Sequence, k: I) {
+    pub fn seed_qgrams(a: Seq, b: Seq, k: I) {
         todo!("Manual implementation needed");
     }
-    pub fn suffix_qgrams(a: &Sequence, b: &Sequence, k: I) {
+    pub fn suffix_qgrams(a: Seq, b: Seq, k: I) {
         QGramIndex::new(k as u32, b, &ALPH);
     }
 
-    pub fn seed_hashmap(a: &Sequence, b: &Sequence, k: I) {
+    pub fn seed_hashmap(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<&[u8], u32>::default();
         m.reserve(a.len());
         for (i, w) in a.chunks_exact(k as usize).enumerate() {
             *m.entry(w).or_default() = i as u32
         }
     }
-    pub fn suffix_hashmap(a: &Sequence, b: &Sequence, k: I) {
+    pub fn suffix_hashmap(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<&[u8], u32>::default();
         m.reserve(b.len());
         for (i, w) in b.windows(k as usize).enumerate() {
@@ -131,14 +131,14 @@ mod matches {
         }
     }
 
-    pub fn seed_hashmap_qgrams(a: &Sequence, b: &Sequence, k: I) {
+    pub fn seed_hashmap_qgrams(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<u32, u32>::default();
         m.reserve(a.len());
         for (i, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {
             *m.entry(w as u32).or_default() = i as u32;
         }
     }
-    pub fn suffix_hashmap_qgrams(a: &Sequence, b: &Sequence, k: I) {
+    pub fn suffix_hashmap_qgrams(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<u32, u32>::default();
         m.reserve(b.len());
         for (i, w) in TRANSFORM.qgrams(k, b).enumerate() {
@@ -146,7 +146,7 @@ mod matches {
         }
     }
 
-    pub fn lookup_seeds_in_qgram_hashmap(a: &Sequence, b: &Sequence, k: I) {
+    pub fn lookup_seeds_in_qgram_hashmap(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<u32, u32>::default();
         m.reserve(b.len());
         for (i, w) in TRANSFORM.qgrams(k, b).enumerate() {
@@ -160,7 +160,7 @@ mod matches {
         }
     }
 
-    pub fn lookup_suffixes_in_qgram_hashmap(a: &Sequence, b: &Sequence, k: I) {
+    pub fn lookup_suffixes_in_qgram_hashmap(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<u32, u32>::default();
         m.reserve(a.len());
         for (i, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {

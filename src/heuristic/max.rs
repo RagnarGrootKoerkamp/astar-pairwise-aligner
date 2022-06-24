@@ -25,8 +25,8 @@ where
 
     fn build<'a>(
         &self,
-        a: &'a bio_types::sequence::Sequence,
-        b: &'a bio_types::sequence::Sequence,
+        a: Seq<'a>,
+        b: Seq<'a>,
         alphabet: &bio::alphabets::Alphabet,
     ) -> Self::Instance<'a> {
         MaxHeuristicI {

@@ -3,8 +3,8 @@ use rustc_hash::FxHasher;
 use crate::prelude::*;
 
 fn unordered_matches_exact_fixed_hashset<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     k: I,
 ) -> Seeds {
@@ -67,8 +67,8 @@ fn unordered_matches_exact_fixed_hashset<'a>(
 }
 
 pub fn unordered_matches_exact_fixed_cuckoofilter<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     k: I,
 ) -> Seeds {
@@ -133,8 +133,8 @@ pub fn unordered_matches_exact_fixed_cuckoofilter<'a>(
 }
 
 pub fn unordered_matches_exact_fixed_bloomfilter<'a>(
-    a: &'a Sequence,
-    b: &'a Sequence,
+    a: Seq<'a>,
+    b: Seq<'a>,
     alph: &Alphabet,
     k: I,
 ) -> Seeds {
