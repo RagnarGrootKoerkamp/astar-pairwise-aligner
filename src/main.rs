@@ -81,10 +81,10 @@ fn main() {
         let n = args.input.generate_options.length;
         if n != 0 {
             if a.len() > n {
-                a.resize(n, Default::default());
+                a = &a[..n];
             }
             if b.len() > n {
-                b.resize(n, Default::default());
+                b = &b[..n];
             }
         }
         // Run the pair.

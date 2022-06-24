@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use super::{cigar::test::verify_cigar, nw::NW, Aligner};
+use super::{cigar::test::verify_cigar, nw::NW, Aligner, NoVisualizer};
 use crate::{
     generate::setup_sequences,
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
@@ -21,15 +21,25 @@ fn test_sequences(
 /// - the `Cigar` is valid and of the correct cost.
 fn test_aligner_on_cost_model<const N: usize>(
     cm: AffineCost<N>,
-    aligner: &impl Aligner,
+    mut aligner: impl Aligner,
     test_path: bool,
+    exponential_search: bool,
 ) {
-    let nw = NW { cm: cm.clone() };
+    let mut nw = NW {
+        cm: cm.clone(),
+        use_gap_cost_heuristic: false,
+        v: &mut NoVisualizer,
+    };
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
         println!("{}\n{}\n", to_string(a), to_string(b));
         let nw_cost = nw.cost(a, b);
-        let cost = aligner.cost(a, b);
+
+        let cost = if exponential_search {
+            aligner.cost_exponential_search(a, b)
+        } else {
+            aligner.cost(a, b)
+        };
 
         // Test the cost reported by all aligners.
         assert_eq!(
@@ -41,7 +51,11 @@ fn test_aligner_on_cost_model<const N: usize>(
         );
 
         if test_path {
-            let (cost, _path, cigar) = aligner.align(a, b);
+            let (cost, _path, cigar) = if exponential_search {
+                aligner.align_exponential_search(a, b)
+            } else {
+                aligner.align(a, b)
+            };
             assert_eq!(cost, nw_cost);
             verify_cigar(&cm, a, b, &cigar);
         }
@@ -54,17 +68,17 @@ mod nw_lib {
     use super::*;
 
     #[test]
-    fn unit_cost() {
+    fn unit_cost_simple() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), &NWLib { simd: false }, false);
+        test_aligner_on_cost_model(cm.clone(), NWLib, false, false);
     }
 
     #[test]
-    fn unit_cost_simd() {
+    fn unit_cost_simd_exponential_search() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), &NWLib { simd: true }, false);
+        test_aligner_on_cost_model(cm.clone(), NWLib, false, true);
     }
 }
 
@@ -74,7 +88,16 @@ mod nw {
     use super::*;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(cm.clone(), &NW { cm }, true);
+        test_aligner_on_cost_model(
+            cm.clone(),
+            NW {
+                cm,
+                use_gap_cost_heuristic: false,
+                v: &mut NoVisualizer,
+            },
+            true,
+            false,
+        );
     }
 
     #[test]
@@ -163,18 +186,18 @@ macro_rules! test_exp_band {
     ($use_gap_cost_heuristic:expr, $name:ident) => {
         paste::paste! {
         mod [<exp_band_ $name>] {
-            use crate::aligners::exp_band::ExpBand;
-
             use super::*;
 
             fn test<const N: usize>(cm: AffineCost<N>) {
                 test_aligner_on_cost_model(
                     cm.clone(),
-                    &ExpBand {
+                    NW {
                         cm: cm.clone(),
                         use_gap_cost_heuristic: $use_gap_cost_heuristic,
+                        v: &mut NoVisualizer ,
                     },
                     true,
+                    /*exponential_search=*/true
                 );
             }
 
@@ -272,7 +295,12 @@ mod dt {
     use super::*;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(cm.clone(), &DiagonalTransition::new(cm), true);
+        test_aligner_on_cost_model(
+            cm.clone(),
+            DiagonalTransition::new(cm, &mut NoVisualizer),
+            true,
+            false,
+        );
     }
 
     #[test]

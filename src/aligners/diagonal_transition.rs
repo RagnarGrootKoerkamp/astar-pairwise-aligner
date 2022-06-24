@@ -23,7 +23,7 @@
 //!
 use super::cigar::Cigar;
 use super::nw::Path;
-use super::{Aligner, NoVisualizer, Seq, VisualizerT};
+use super::{Aligner, Seq, VisualizerT};
 use crate::cost_model::*;
 use crate::prelude::Pos;
 use std::cmp::{max, min};
@@ -55,13 +55,15 @@ use Direction::*;
 /// TODO: Split into two classes: A static user supplied config, and an instance
 /// to use for a specific alignment. Similar to Heuristic vs HeuristicInstance.
 /// The latter can contain the sequences, direction, and other specifics.
-pub struct DiagonalTransition<CostModel> {
+pub struct DiagonalTransition<'a, CostModel, V: VisualizerT> {
     /// The CostModel to use, possibly affine.
     cm: CostModel,
 
     /// Whether to use gap-open or gap-close costs.
     /// https://research.curiouscoding.nl/notes/affine-gap-close-cost/
     gap_variant: GapVariant,
+
+    v: &'a mut V,
 
     /// Whether to run the wavefronts forward or backward.
     /// Will be used for BiWFA.
@@ -114,8 +116,13 @@ fn fr_to_pos(d: Fr, f: Fr) -> Pos {
     )
 }
 
-impl<const N: usize> DiagonalTransition<AffineCost<N>> {
-    pub fn new_variant(cm: AffineCost<N>, gap_variant: GapVariant, direction: Direction) -> Self {
+impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V> {
+    pub fn new_variant(
+        cm: AffineCost<N>,
+        gap_variant: GapVariant,
+        direction: Direction,
+        v: &'a mut V,
+    ) -> Self {
         // The maximum cost we look back:
         // max(substitution, indel, affine indel of size 1)
         let top_buffer = max(
@@ -166,6 +173,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         Self {
             cm,
             gap_variant,
+            v,
             top_buffer,
             left_buffer,
             right_buffer,
@@ -173,12 +181,12 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         }
     }
 
-    pub fn new(cm: AffineCost<N>) -> Self {
-        Self::new_variant(cm, GapOpen, Forward)
+    pub fn new(cm: AffineCost<N>, v: &'a mut V) -> Self {
+        Self::new_variant(cm, GapOpen, Forward, v)
     }
 
     /// Given two sequences, a diagonal and point on it, expand it to a FR point.
-    fn extend_diagonal(&self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
+    fn extend_diagonal(&mut self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
         let (i, j) = fr_to_coords(d, *fr);
         //println!("FR to pos d {d} fr {fr} => pos({i}, {j})");
         if i as usize >= a.len() || j as usize >= b.len() {
@@ -205,7 +213,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// This version compares one usize at a time.
     /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
     #[allow(unused)]
-    fn extend_diagonal_packed(&self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
+    fn extend_diagonal_packed(&mut self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
         let i = (*fr + d) / 2;
         let j = (*fr - d) / 2;
 
@@ -260,7 +268,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         *fr
     }
 
-    fn extend(&self, front: &mut Front<N>, a: Seq, b: Seq, v: &mut impl VisualizerT) -> bool {
+    fn extend(&mut self, front: &mut Front<N>, a: Seq, b: Seq) -> bool {
         for d in front.range().clone() {
             let fr = &mut front.m_mut()[d];
             let fr_old = *fr;
@@ -269,7 +277,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
             let mut p = fr_to_pos(d, fr_old);
             for _ in fr_old..fr_new {
                 p = p.add_diagonal(1);
-                v.expand(p);
+                self.v.expand(p);
             }
         }
 
@@ -311,7 +319,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     }
 
     /// Returns None when the distance is 0.
-    fn init_fronts(&self, a: Seq, b: Seq, v: &mut impl VisualizerT) -> Option<Vec<Front<N>>> {
+    fn init_fronts(&mut self, a: Seq, b: Seq) -> Option<Vec<Front<N>>> {
         // Find the first FR point, and return 0 if it already covers both sequences (ie when they are equal).
         let f = self.extend_diagonal(a, b, 0, &mut 0);
         if f >= (a.len() + b.len()) as Fr {
@@ -321,7 +329,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
         // Expand points on the first run.
         let mut p = Pos::from(0, 0);
         for _ in 0..=f {
-            v.expand(p);
+            self.v.expand(p);
             p = p.add_diagonal(1);
         }
 
@@ -389,14 +397,7 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     /// NOTE: `next` must already have the right range set.
     ///
     /// Returns `true` when the search completes.
-    fn next_front(
-        &self,
-        a: Seq,
-        b: Seq,
-        prev: &[Front<N>],
-        next: &mut Front<N>,
-        v: &mut impl VisualizerT,
-    ) -> bool {
+    fn next_front(&mut self, a: Seq, b: Seq, prev: &[Front<N>], next: &mut Front<N>) -> bool {
         // Get the front `cost` before the last one.
         let get_front = |cost| &prev[prev.len() - cost as usize];
 
@@ -446,10 +447,10 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     }
                     next.m_mut()[d] = f;
 
-                    v.expand(fr_to_pos(d, f));
+                    self.v.expand(fr_to_pos(d, f));
                 }
                 // Extend all points in the m layer and check if we're done.
-                self.extend(next, a, b, v)
+                self.extend(next, a, b)
             }
             GapClose => {
                 // See https://research.curiouscoding.nl/notes/affine-gap-close-cost/.
@@ -481,10 +482,10 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
                     }
                     next.m_mut()[d] = f;
 
-                    v.expand(fr_to_pos(d, f));
+                    self.v.expand(fr_to_pos(d, f));
                 }
                 // Extend all points in the m layer and check if we're done.
-                if self.extend(next, a, b, v) {
+                if self.extend(next, a, b) {
                     return true;
                 }
 
@@ -515,13 +516,19 @@ impl<const N: usize> DiagonalTransition<AffineCost<N>> {
     }
 }
 
-impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
+impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCost<N>, V> {
+    type CostModel = AffineCost<N>;
+
+    fn cost_model(&self) -> &Self::CostModel {
+        &self.cm
+    }
+
     /// The cost-only version uses linear memory.
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
-    fn cost(&self, a: Seq, b: Seq) -> Cost {
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let Some(ref mut fronts) =
-            self.init_fronts(a, b, &mut NoVisualizer) else {return 0;};
+            self.init_fronts(a, b) else {return 0;};
 
         let mut s = 0;
         loop {
@@ -537,19 +544,19 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
                 self.left_buffer,
                 self.right_buffer,
             );
-            if self.next_front(a, b, fronts, next, &mut NoVisualizer) {
+            if self.next_front(a, b, fronts, next) {
                 return s;
             }
         }
     }
 
     /// NOTE: DT does not explore states; it only expands them.
-    fn visualize(&self, a: Seq, b: Seq, v: &mut impl VisualizerT) -> (Cost, Path, Cigar) {
-        let Some(ref mut fronts) = self.init_fronts(a, b, v) else {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+        let Some(ref mut fronts) = self.init_fronts(a, b) else {
             return (0,vec![],Cigar::default());
         };
 
-        v.expand(Pos(0, 0));
+        self.v.expand(Pos(0, 0));
 
         let mut s = 0;
         loop {
@@ -561,12 +568,25 @@ impl<const N: usize> Aligner for DiagonalTransition<AffineCost<N>> {
                 self.left_buffer,
                 self.right_buffer,
             );
-            if self.next_front(a, b, fronts, &mut next, v) {
+            if self.next_front(a, b, fronts, &mut next) {
                 // FIXME: Reconstruct path.
                 return (s, vec![], Cigar::default());
             }
 
             fronts.push(next);
         }
+    }
+
+    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Cost) -> Option<Cost> {
+        todo!()
+    }
+
+    fn align_for_bounded_dist(
+        &mut self,
+        _a: Seq,
+        _b: Seq,
+        _s_bound: Cost,
+    ) -> Option<(Cost, Path, Cigar)> {
+        todo!()
     }
 }

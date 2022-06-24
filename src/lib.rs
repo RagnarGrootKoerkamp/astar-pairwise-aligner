@@ -5,6 +5,7 @@
     iter_intersperse,
     slice_as_chunks,
     let_else,
+    let_chains,
     label_break_value,
     min_specialization,
     is_sorted,
@@ -14,6 +15,9 @@
     hash_drain_filter,
     drain_filter
 )]
+
+#[macro_use]
+extern crate lazy_static;
 
 pub mod align;
 pub mod aligners;

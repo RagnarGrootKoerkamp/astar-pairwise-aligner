@@ -8,7 +8,6 @@ use self::{cigar::Cigar, nw::Path};
 
 pub mod cigar;
 pub mod diagonal_transition;
-pub mod exp_band;
 pub mod front;
 pub mod nw;
 pub mod nw_lib;
@@ -46,21 +45,64 @@ impl VisualizerT for NoVisualizer {}
 ///
 /// Note that insertions are when `b` has more characters than `a`, and deletions are when `b` has less characters than `a`.
 pub trait Aligner {
-    fn cost(&self, a: &Sequence, b: &Sequence) -> Cost {
-        self.align(a, b).0
+    type CostModel: CostModel;
+
+    /// Returns the cost model used by the aligner.
+    fn cost_model(&self) -> &Self::CostModel;
+
+    /// Finds the cost of aligning `a` and `b`.
+    /// Uses the visualizer to record progress.
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost;
+
+    /// Finds an alignments (path/Cigar) of sequences `a` and `b`.
+    /// Uses the visualizer to record progress.
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar);
+
+    /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most s.
+    /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.
+    /// The returned cost may be larger than `s` when a path was found, even
+    /// though this may not be the optimal cost.
+    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Cost) -> Option<Cost>;
+
+    /// Finds an alignments (path/Cigar) of sequences `a` and `b`, assuming the
+    /// cost of the alignment is at most s.
+    /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.
+    /// The returned cost may be larger than `s` when a path was found, even
+    /// though this may not be the optimal cost.
+    fn align_for_bounded_dist(
+        &mut self,
+        _a: Seq,
+        _b: Seq,
+        _s_bound: Cost,
+    ) -> Option<(Cost, Path, Cigar)>;
+
+    /// Find the cost using exponential search based on `cost_assuming_bounded_dist`.
+    /// TODO: Allow customizing the growth factor.
+    fn cost_exponential_search(&mut self, a: Seq, b: Seq) -> Cost {
+        let mut s: Cost = self
+            .cost_model()
+            .gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
+        // TODO: Fix the potential infinite loop here.
+        loop {
+            if let Some(cost) = self.cost_for_bounded_dist(a, b, s) && cost <= s{
+                return cost;
+            }
+            s = max(2 * s, 1);
+        }
     }
 
-    /// TODO: Make this return a path as well.
-    fn align(&self, a: &Sequence, b: &Sequence) -> (Cost, PATH, Cigar) {
-        self.visualize(a, b, &mut NoVisualizer)
-    }
-
-    fn visualize(
-        &self,
-        _a: &Sequence,
-        _b: &Sequence,
-        _visualizer: &mut impl VisualizerT,
-    ) -> (Cost, PATH, Cigar) {
-        unimplemented!("This aligner does not support visualizations!");
+    /// Find the alignment using exponential search based on `align_assuming_bounded_dist`.
+    /// TODO: Allow customizing the growth factor.
+    fn align_exponential_search(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+        let mut s: Cost = self
+            .cost_model()
+            .gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
+        // TODO: Fix the potential infinite loop here.
+        loop {
+            if let Some(tuple@(cost, _, _)) = self.align_for_bounded_dist(a, b, s) && cost <= s{
+                return tuple;
+            }
+            s = max(2 * s, 1);
+        }
     }
 }
