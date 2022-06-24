@@ -287,8 +287,7 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
             //if there is no match
             else {
                 // Linear Substitution
-                if let Some(cost) = self.cm.sub {
-                    if f == fronts[s - cost as usize].m()[diagonal] + 2 {
+                if let Some(cost) = self.cm.sub && f == fronts[s - cost as usize].m()[diagonal] + 2 {
                         return (
                             Pos(p.0 - 1, p.1 - 1),
                             None,
@@ -296,10 +295,8 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
                             (s - cost as usize) as Cost,
                         );
                     }
-                }
                 // Linear Insertion
-                if let Some(cost) = self.cm.ins {
-                    if f == fronts[s - cost as usize].m()[diagonal + 1] + 1 {
+                if let Some(cost) = self.cm.ins && f == fronts[s - cost as usize].m()[diagonal + 1] + 1 {
                         return (
                             Pos(p.0, p.1 - 1),
                             None,
@@ -307,17 +304,14 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
                             (s - cost as usize) as Cost,
                         );
                     }
-                }
                 // Linear Deletion
-                if let Some(cost) = self.cm.del {
-                    if f == fronts[s - cost as usize].m()[diagonal - 1] + 1 {
+                if let Some(cost) = self.cm.del && f == fronts[s - cost as usize].m()[diagonal - 1] + 1 {
                         return (
                             Pos(p.0 - 1, p.1),
                             None,
                             CigarOp::Deletion,
                             (s - cost as usize) as Cost,
                         );
-                    }
                 }
                 // Checking affine layers
                 for layer_idx in 0..N {
@@ -347,8 +341,8 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         d: Fr,
         cost: Cost,
         layer: Option<usize>,
-    ) -> (Fr, Fr, Option<usize>, Vec<CigarOp>) {
-        let mut opts: Vec<CigarOp> = vec![];
+        cigar: &mut Cigar,
+    ) -> (Cost, Fr, Option<usize>) {
         let s = cost as usize;
         let mut x;
         let mut y;
@@ -362,7 +356,7 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
             y = ((f - d) / 2 - 1) as usize;
             //backtracing matches
             while a[x] == b[y] {
-                opts.push(CigarOp::Match);
+                cigar.push(CigarOp::Match);
                 if x == 0 || y == 0 {
                     break;
                 }
@@ -374,156 +368,47 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
             y += 1;
         }
         let parent_pos = self.parent_position(fronts, a, b, Pos(x as u32, y as u32), layer, cost);
-        let diag = (parent_pos.0 .0 - parent_pos.0 .1) as Fr;
-        opts.push(parent_pos.2);
-        return (
-            fronts[parent_pos.3 as usize].affine(parent_pos.1.unwrap())[diag],
-            diag,
-            parent_pos.1,
-            opts,
-        );
+        let diag = (parent_pos.0 .0 - parent_pos.0 .1) as Fr; // diagonal of the previous state
+        cigar.push(parent_pos.2); // push Cigar option we needed to get to the previous state
+        return (parent_pos.3, diag, parent_pos.1);
     }
 
-    pub(super) fn track_path(
+    pub fn get_cigar(
         &self,
         fronts: &Vec<Front<N>>,
         a: &Sequence,
         b: &Sequence,
-        s: Cost,
-    ) -> (PATH, Cigar) {
-        let mut s = s as usize;
-        let mut d = a.len() as i32 - b.len() as i32; //diagonal
+        mut cost: Cost,
+    ) -> Cigar {
+        let mut cigar: Cigar = Cigar::default();
+        let mut layer = None;
+        let mut d = a.len() as i32 - b.len() as i32;
+        while cost > 0 || d != 0 || layer.is_some() {
+            (cost, d, layer) = self.parent_state(fronts, a, b, d, cost, layer, &mut cigar);
+        }
+        cigar.reverse();
+        cigar
+    }
+
+    pub fn get_path(&self, fronts: &Vec<Front<N>>, a: Seq, b: Seq, mut cost: Cost) -> Path {
         let mut path: Path = vec![];
-        let mut cigar = Cigar::default();
-        // None for main layer.
-        let mut layer: Option<usize> = None;
-
-        path.push(Pos(a.len() as I, b.len() as I));
-
-        let mut save = |x: usize, y: usize| {
+        let mut save = |p: Pos| {
             if let Some(last) = path.last() {
-                if *last == Pos(x as I, y as I) {
+                if *last == (p.0 as usize, p.1 as usize) {
                     return;
                 }
             }
-            path.push(Pos(x as I, y as I));
+            path.push((p.0 as usize, p.1 as usize));
         };
-
-        // let get_front = |cost, s1| &fronts[fronts.len() - cost as usize - (s0 - s1)];
-
-        'path_loop: while s > 0 || d != 0 || layer.is_some() {
-            let mut new_d = d; //new diagonal
-            let mut f = Fr::MIN;
-            let mut new_cost = s;
-            let mut flag = 0; //This flags shows do we need to save previous vertex
-            match self.gap_variant {
-                GapOpen => {
-                    // If None - we are on the main layer; if layer == Some (idx), then idx - index of the affine layer we are currently are
-                    if let Some(layer_idx) = layer {
-                        let cm = &self.cm.affine[layer_idx];
-                        let command;
-                        match cm.affine_type {
-                            // I might have mixed up deletion and insertion again :(
-                            InsertLayer => {
-                                new_d = d + 1;
-                                command = CigarOp::AffineInsertion(layer_idx);
-                            }
-                            DeleteLayer => {
-                                new_d = d - 1;
-                                command = CigarOp::AffineDeletion(layer_idx);
-                            }
-                            _ => todo!(),
-                        }
-                        if fronts[s - cm.extend as usize].affine(layer_idx)[new_d]
-                            == fronts[s].affine(layer_idx)[new_d]
-                        {
-                            new_cost = s - cm.extend as usize;
-                            cigar.push(command);
-                            // layer remains the same
-                        } else if fronts[s - cm.open as usize].m()[new_d]
-                            == fronts[s].affine(layer_idx)[new_d]
-                        {
-                            new_cost = s - cm.open as usize;
-                            cigar.push(CigarOp::AffineOpen(layer_idx));
-                            layer = None;
-                        } else {
-                            unreachable!(
-                                "Error in DT path tracking! Error in Affine layer preocessing!"
-                            )
-                        }
-                    } else {
-                        let mut command = CigarOp::Match;
-                        // Affine layers
-                        for layer_idx in 0..N {
-                            // Gap close
-                            if fronts[s].affine(layer_idx)[d] > f {
-                                layer = Some(layer_idx);
-                                command = CigarOp::AffineClose(layer_idx);
-                            }
-                            f = max(f, fronts[s].affine(layer_idx)[d]);
-                        }
-                        // Substitution
-                        if let Some(cost) = self.cm.sub {
-                            if fronts[s - cost as usize].m()[d] + 2 > f {
-                                new_cost = s - cost as usize;
-                                layer = None;
-                                command = CigarOp::Mismatch;
-                            }
-                            f = max(f, fronts[s - cost as usize].m()[d] + 2);
-                        }
-                        // Insertion
-                        if let Some(cost) = self.cm.ins {
-                            if fronts[s - cost as usize].m()[d + 1] + 1 > f {
-                                new_cost = s - cost as usize;
-                                layer = None;
-                                new_d = d + 1;
-                                flag = 1;
-                                command = CigarOp::Insertion;
-                            }
-                            f = max(f, fronts[s - cost as usize].m()[d + 1] + 1);
-                        }
-                        // Deletion
-                        if let Some(cost) = self.cm.del {
-                            if fronts[s - cost as usize].m()[d - 1] + 1 > f {
-                                new_cost = s - cost as usize;
-                                layer = None;
-                                new_d = d - 1;
-                                flag = 2;
-                                command = CigarOp::Deletion;
-                            }
-                            f = max(f, fronts[s - cost as usize].m()[d - 1] + 1);
-                        }
-                        cigar.match_push((fronts[s].m()[d] - f) as usize / 2);
-                        cigar.push(command);
-                    }
-                }
-                GapClose => {
-                    todo!();
-                }
-            }
-
-            if flag == 1 {
-                save((f + new_d) as usize / 2 + 1, (f - new_d) as usize / 2);
-            } else if flag == 2 {
-                save((f + new_d) as usize / 2, (f - new_d) as usize / 2 + 1);
-            }
-
-            d = new_d;
-            s = new_cost;
-
-            save((f + d) as usize / 2, (f - d) as usize / 2);
-            s -= 1;
+        let mut layer = None;
+        let mut p = Pos(a.len() as u32, b.len() as u32);
+        save(p);
+        while p.0 != 0 || p.1 != 0 {
+            (p, layer, _, cost) = self.parent_position(fronts, a, b, p, layer, cost);
+            save(p);
         }
-
-        save(
-            (fronts[0].m()[0] / 2) as usize,
-            (fronts[0].m()[0] / 2) as usize,
-        );
-        save(0, 0);
-
         path.reverse();
-        cigar.reverse();
-        (path, cigar)
+        path
     }
 
     pub fn new_variant(
@@ -924,7 +809,8 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
             );
             if self.next_front(a, b, &fronts.fronts, &mut next) {
                 // FIXME: Reconstruct path.
-                let (path, cigar) = self.track_path(fronts, a, b, s as Cost);
+                let path = self.get_path(fronts, a, b, s);
+                let cigar = self.get_cigar(fronts, a, b, s);
                 return (s, path, cigar);
             }
 
