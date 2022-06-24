@@ -7,12 +7,13 @@ use crate::prelude::{Cost, CostModel, Pos};
 use self::{cigar::Cigar, nw::Path};
 
 pub mod cigar;
+pub mod compressed_history;
 pub mod diagonal_transition;
+pub mod diamond;
 pub mod front;
 pub mod nw;
 pub mod nw_lib;
 
-mod compressed_history;
 #[cfg(test)]
 mod tests;
 
