@@ -334,11 +334,10 @@ impl<'a, const N: usize, V: VisualizerT> DiagonalTransition<'a, AffineCost<N>, V
         }
 
         // Initialize the fronts.
-        let mut fronts =
-            vec![
-                Front::new_with_buffer(Fr::MIN, 0..=0, self.left_buffer, self.right_buffer);
-                self.top_buffer + 1
-            ];
+        let mut fronts = vec![
+            Front::new(Fr::MIN, 0..=0, self.left_buffer, self.right_buffer);
+            self.top_buffer + 1
+        ];
         fronts[self.top_buffer].m_mut()[0] = f;
         Some(fronts)
     }
@@ -538,7 +537,7 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCo
             fronts.rotate_left(1);
             let (next, fronts) = fronts.split_last_mut().unwrap();
 
-            next.reset_with_buffer(
+            next.reset(
                 Fr::MIN,
                 self.d_range(s),
                 self.left_buffer,
@@ -562,7 +561,7 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<'_, AffineCo
         loop {
             s += 1;
 
-            let mut next = Front::new_with_buffer(
+            let mut next = Front::new(
                 Fr::MIN,
                 self.d_range(s),
                 self.left_buffer,

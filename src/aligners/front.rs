@@ -90,29 +90,8 @@ where
     I: IndexType,
     T: Copy,
 {
-    /// Create a new front for the given range.
-    pub fn new(value: T, range: RangeInclusive<I>) -> Self
-    where
-        for<'l> &'l I: RefNum<I>,
-    {
-        Self::new_with_buffer(value, range, I::default(), I::default())
-    }
-    /// Resize the current front for the given range.
-    /// Overwrites existing elements to the given value.
-    pub fn reset(&mut self, value: T, range: RangeInclusive<I>)
-    where
-        for<'l> &'l I: RefNum<I>,
-    {
-        self.reset_with_buffer(value, range, I::default(), I::default())
-    }
-
     /// Create a new front for the given range, using the given left/right buffer sizes.
-    pub fn new_with_buffer(
-        value: T,
-        range: RangeInclusive<I>,
-        left_buffer: I,
-        right_buffer: I,
-    ) -> Self
+    pub fn new(value: T, range: RangeInclusive<I>, left_buffer: I, right_buffer: I) -> Self
     where
         T: Copy,
         for<'l> &'l I: RefNum<I>,
@@ -126,28 +105,25 @@ where
             buffers: (left_buffer, right_buffer),
         }
     }
+
     /// Resize the current front for the given range, using the given left/right buffer sizes.
     /// Overwrites existing elements to the given value.
-    pub fn reset_with_buffer(
-        &mut self,
-        value: T,
-        range: RangeInclusive<I>,
-        left_buffer: I,
-        right_buffer: I,
-    ) where
+    pub fn reset(&mut self, value: T, range: RangeInclusive<I>, left_buffer: I, right_buffer: I)
+    where
         T: Clone,
         for<'l> &'l I: RefNum<I>,
     {
-        let new_len: I = left_buffer + (range.end() - range.start() + I::one()) + right_buffer;
+        self.range = range;
+        self.buffers.0 = left_buffer;
+        self.buffers.1 = right_buffer;
+        let new_len: I =
+            left_buffer + (self.range.end() - self.range.start() + I::one()) + right_buffer;
         self.m.clear();
         self.m.resize(new_len.as_(), value);
         for a in &mut self.affine {
             a.clear();
             a.resize(new_len.as_(), value);
         }
-        self.range = range;
-        self.buffers.0 = left_buffer;
-        self.buffers.1 = right_buffer;
     }
 
     pub fn affine(&self, layer_idx: usize) -> Layer<'_, T, I> {
