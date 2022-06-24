@@ -1,6 +1,9 @@
 use itertools::Itertools;
 
-use super::{cigar::test::verify_cigar, nw::NW, Aligner, NoVisualizer};
+use super::{
+    cigar::test::verify_cigar, diagonal_transition::DiagonalTransition, nw::NW, Aligner,
+    NoVisualizer,
+};
 use crate::{
     generate::setup_sequences,
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
@@ -184,103 +187,103 @@ mod nw {
 macro_rules! test_exp_band {
     ($use_gap_cost_heuristic:expr, $name:ident) => {
         paste::paste! {
-        mod [<exp_band_ $name>] {
-            use super::*;
+            mod [<exp_band_ $name>] {
+                use super::*;
 
-            fn test<const N: usize>(cm: AffineCost<N>) {
-                test_aligner_on_cost_model(
-                    cm.clone(),
-                    NW {
-                        cm: cm.clone(),
-                        use_gap_cost_heuristic: $use_gap_cost_heuristic,
-                        v: &mut NoVisualizer ,
-                    },
-                    true,
-                    /*exponential_search=*/true
-                );
-            }
+                fn test<const N: usize>(cm: AffineCost<N>) {
+                    test_aligner_on_cost_model(
+                        cm.clone(),
+                        NW {
+                            cm: cm.clone(),
+                            use_gap_cost_heuristic: $use_gap_cost_heuristic,
+                            v: &mut NoVisualizer ,
+                        },
+                        true,
+                        /*exponential_search=*/true
+                    );
+                }
 
-            #[test]
-            fn lcs_cost() {
-                // sub=infinity, indel=1
-                test(AffineCost::new_lcs());
-            }
+                #[test]
+                fn lcs_cost() {
+                    // sub=infinity, indel=1
+                    test(AffineCost::new_lcs());
+                }
 
-            #[test]
-            fn unit_cost() {
-                // sub=indel=1
-                test(AffineCost::new_unit());
-            }
+                #[test]
+                fn unit_cost() {
+                    // sub=indel=1
+                    test(AffineCost::new_unit());
+                }
 
-            #[test]
-            fn linear_cost() {
-                // sub=1, indel=2
-                test(AffineCost::new_linear(1, 2));
-            }
+                #[test]
+                fn linear_cost() {
+                    // sub=1, indel=2
+                    test(AffineCost::new_linear(1, 2));
+                }
 
-            #[test]
-            fn linear_asymmetric_cost() {
-                // sub=1, insert=2, deletion=3
-                test(AffineCost::new_linear_asymmetric(1, 2, 3));
-            }
+                #[test]
+                fn linear_asymmetric_cost() {
+                    // sub=1, insert=2, deletion=3
+                    test(AffineCost::new_linear_asymmetric(1, 2, 3));
+                }
 
-            #[test]
-            fn affine_cost() {
-                // sub=1
-                // open=2, extend=1
-                test(AffineCost::new_affine(1, 2, 1));
-            }
+                #[test]
+                fn affine_cost() {
+                    // sub=1
+                    // open=2, extend=1
+                    test(AffineCost::new_affine(1, 2, 1));
+                }
 
-            #[test]
-            fn linear_affine_cost() {
-                // sub=1, indel=3
-                // open=2, extend=1
-                test(AffineCost::new_linear_affine(1, 3, 2, 1));
-            }
+                #[test]
+                fn linear_affine_cost() {
+                    // sub=1, indel=3
+                    // open=2, extend=1
+                    test(AffineCost::new_linear_affine(1, 3, 2, 1));
+                }
 
-            #[test]
-            fn double_affine_cost() {
-                // sub=1
-                // Gap cost is min(4+2*l, 10+1*l).
-                test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
-            }
+                #[test]
+                fn double_affine_cost() {
+                    // sub=1
+                    // Gap cost is min(4+2*l, 10+1*l).
+                    test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
+                }
 
-            #[test]
-            fn asymmetric_affine_cost() {
-                // sub=1
-                // insert: open=2, extend=2
-                // deletion: open=3, extend=1
-                test(AffineCost::new_affine_asymmetric(1, 2, 2, 3, 1));
-            }
+                #[test]
+                fn asymmetric_affine_cost() {
+                    // sub=1
+                    // insert: open=2, extend=2
+                    // deletion: open=3, extend=1
+                    test(AffineCost::new_affine_asymmetric(1, 2, 2, 3, 1));
+                }
 
-            #[test]
-            fn ins_asymmetric_affine_cost() {
-                test(AffineCost::new(
-                    Some(1),
-                    Some(1),
-                    None,
-                    [AffineLayerCosts {
-                        affine_type: AffineLayerType::DeleteLayer,
-                        open: 2,
-                        extend: 2,
-                    }],
-                ));
-            }
+                #[test]
+                fn ins_asymmetric_affine_cost() {
+                    test(AffineCost::new(
+                        Some(1),
+                        Some(1),
+                        None,
+                        [AffineLayerCosts {
+                            affine_type: AffineLayerType::DeleteLayer,
+                            open: 2,
+                            extend: 2,
+                        }],
+                    ));
+                }
 
-            #[test]
-            fn del_asymmetric_affine_cost() {
-                test(AffineCost::new(
-                    Some(1),
-                    None,
-                    Some(1),
-                    [AffineLayerCosts {
-                        affine_type: AffineLayerType::InsertLayer,
-                        open: 2,
-                        extend: 2,
-                    }],
-                ));
+                #[test]
+                fn del_asymmetric_affine_cost() {
+                    test(AffineCost::new(
+                        Some(1),
+                        None,
+                        Some(1),
+                        [AffineLayerCosts {
+                            affine_type: AffineLayerType::InsertLayer,
+                            open: 2,
+                            extend: 2,
+                        }],
+                    ));
+                }
             }
-        }
         }
     };
 }
@@ -288,98 +291,108 @@ macro_rules! test_exp_band {
 test_exp_band!(false, simple);
 test_exp_band!(true, gap_heuristic);
 
-mod dt {
-    use crate::aligners::diagonal_transition::DiagonalTransition;
+macro_rules! test_diagonal_transition {
+    ($use_gap_cost_heuristic:expr, $exponential_search:expr, $name:ident) => {
+        paste::paste! {
+            mod [<diagonal_transition_ $name>] {
+                use super::*;
 
-    use super::*;
+                fn test<const N: usize>(cm: AffineCost<N>) {
+                    test_aligner_on_cost_model(
+                        cm.clone(),
+                        DiagonalTransition::new(cm, $use_gap_cost_heuristic, &mut NoVisualizer),
+                        true,
+                        $exponential_search
+                    );
+                }
 
-    fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(
-            cm.clone(),
-            DiagonalTransition::new(cm, &mut NoVisualizer),
-            true,
-            false,
-        );
-    }
+                #[test]
+                fn lcs_cost() {
+                    // sub=infinity, indel=1
+                    test(AffineCost::new_lcs());
+                }
 
-    #[test]
-    fn lcs_cost() {
-        // sub=infinity, indel=1
-        test(AffineCost::new_lcs());
-    }
+                #[test]
+                fn unit_cost() {
+                    // sub=indel=1
+                    test(AffineCost::new_unit());
+                }
 
-    #[test]
-    fn unit_cost() {
-        // sub=indel=1
-        test(AffineCost::new_unit());
-    }
+                #[test]
+                fn linear_cost() {
+                    // sub=1, indel=2
+                    test(AffineCost::new_linear(1, 2));
+                }
 
-    #[test]
-    fn linear_cost() {
-        // sub=1, indel=2
-        test(AffineCost::new_linear(1, 2));
-    }
+                #[test]
+                fn linear_asymmetric_cost() {
+                    // sub=1, insert=2, deletion=3
+                    test(AffineCost::new_linear_asymmetric(1, 2, 3));
+                }
 
-    #[test]
-    fn linear_asymmetric_cost() {
-        // sub=1, insert=2, deletion=3
-        test(AffineCost::new_linear_asymmetric(1, 2, 3));
-    }
+                #[test]
+                fn affine_cost() {
+                    // sub=1
+                    // open=2, extend=1
+                    test(AffineCost::new_affine(1, 2, 1));
+                }
 
-    #[test]
-    fn affine_cost() {
-        // sub=1
-        // open=2, extend=1
-        test(AffineCost::new_affine(1, 2, 1));
-    }
+                #[test]
+                fn linear_affine_cost() {
+                    // sub=1, indel=3
+                    // open=2, extend=1
+                    test(AffineCost::new_linear_affine(1, 3, 2, 1));
+                }
 
-    #[test]
-    fn linear_affine_cost() {
-        // sub=1, indel=3
-        // open=2, extend=1
-        test(AffineCost::new_linear_affine(1, 3, 2, 1));
-    }
+                #[test]
+                fn double_affine_cost() {
+                    // sub=1
+                    // Gap cost is min(4+2*l, 10+1*l).
+                    test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
+                }
 
-    #[test]
-    fn double_affine_cost() {
-        // sub=1
-        // Gap cost is min(4+2*l, 10+1*l).
-        test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
-    }
+                #[test]
+                fn asymmetric_affine_cost() {
+                    // sub=1
+                    // insert: open=2, extend=2
+                    // deletion: open=3, extend=1
+                    test(AffineCost::new_affine_asymmetric(1, 2, 2, 3, 1));
+                }
 
-    #[test]
-    fn asymmetric_affine_cost() {
-        // sub=1
-        // insert: open=2, extend=2
-        // deletion: open=3, extend=1
-        test(AffineCost::new_affine_asymmetric(1, 2, 2, 3, 1));
-    }
+                #[test]
+                fn ins_asymmetric_affine_cost() {
+                    test(AffineCost::new(
+                        Some(1),
+                        Some(1),
+                        None,
+                        [AffineLayerCosts {
+                            affine_type: AffineLayerType::DeleteLayer,
+                            open: 2,
+                            extend: 2,
+                        }],
+                    ));
+                }
 
-    #[test]
-    fn ins_asymmetric_affine_cost() {
-        test(AffineCost::new(
-            Some(1),
-            Some(1),
-            None,
-            [AffineLayerCosts {
-                affine_type: AffineLayerType::DeleteLayer,
-                open: 2,
-                extend: 2,
-            }],
-        ));
-    }
+                #[test]
+                fn del_asymmetric_affine_cost() {
+                    test(AffineCost::new(
+                        Some(1),
+                        None,
+                        Some(1),
+                        [AffineLayerCosts {
+                            affine_type: AffineLayerType::InsertLayer,
+                            open: 2,
+                            extend: 2,
+                        }],
+                    ));
+                }
 
-    #[test]
-    fn del_asymmetric_affine_cost() {
-        test(AffineCost::new(
-            Some(1),
-            None,
-            Some(1),
-            [AffineLayerCosts {
-                affine_type: AffineLayerType::InsertLayer,
-                open: 2,
-                extend: 2,
-            }],
-        ));
-    }
+            }
+        }
+    };
 }
+
+test_diagonal_transition!(false, false, simple);
+test_diagonal_transition!(true, false, gap_heuristic);
+test_diagonal_transition!(false, true, exp_search_simple);
+test_diagonal_transition!(true, true, exp_search_gap_heuristic);
