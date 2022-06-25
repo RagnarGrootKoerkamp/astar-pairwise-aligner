@@ -369,6 +369,18 @@ impl<const N: usize> AffineCost<N> {
         self.for_del(|o, e| d = max(d, s.saturating_sub(o) / e));
         d
     }
+
+    /// d<0: insertion cost
+    /// d=0: substitution cost
+    /// d>0: deletion cost
+    pub fn linear_cost_in_direction(&self, d: i32) -> Option<Cost> {
+        match d {
+            d if d < 0 => self.ins,
+            d if d == 0 => self.sub,
+            d if d > 0 => self.del,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl<const N: usize> CostModel for AffineCost<N> {
