@@ -1,8 +1,10 @@
 use itertools::Itertools;
 
 use super::{
-    cigar::test::verify_cigar, diagonal_transition::DiagonalTransition, nw::NW, Aligner,
-    NoVisualizer,
+    cigar::test::verify_cigar,
+    diagonal_transition::{DiagonalTransition, GapCostHeuristic, HistoryCompression},
+    nw::NW,
+    Aligner, NoVisualizer,
 };
 use crate::{
     generate::setup_sequences,
@@ -292,7 +294,7 @@ test_exp_band!(false, simple);
 test_exp_band!(true, gap_heuristic);
 
 macro_rules! test_diagonal_transition {
-    ($use_gap_cost_heuristic:expr, $exponential_search:expr, $name:ident) => {
+    ($use_gap_cost_heuristic:expr, $exponential_search:expr, $history_compression:expr, $name:ident) => {
         paste::paste! {
             mod [<diagonal_transition_ $name>] {
                 use super::*;
@@ -300,7 +302,7 @@ macro_rules! test_diagonal_transition {
                 fn test<const N: usize>(cm: AffineCost<N>) {
                     test_aligner_on_cost_model(
                         cm.clone(),
-                        DiagonalTransition::new(cm, $use_gap_cost_heuristic, NoVisualizer),
+                        DiagonalTransition::new(cm, $use_gap_cost_heuristic, $history_compression, NoVisualizer),
                         true,
                         $exponential_search
                     );
@@ -392,7 +394,27 @@ macro_rules! test_diagonal_transition {
     };
 }
 
-test_diagonal_transition!(false, false, simple);
-test_diagonal_transition!(true, false, gap_heuristic);
-test_diagonal_transition!(false, true, exp_search_simple);
-test_diagonal_transition!(true, true, exp_search_gap_heuristic);
+test_diagonal_transition!(
+    GapCostHeuristic::Disable,
+    false,
+    HistoryCompression::Disable,
+    simple
+);
+test_diagonal_transition!(
+    GapCostHeuristic::Enable,
+    false,
+    HistoryCompression::Disable,
+    gap_heuristic
+);
+test_diagonal_transition!(
+    GapCostHeuristic::Disable,
+    true,
+    HistoryCompression::Disable,
+    exp_search_simple
+);
+test_diagonal_transition!(
+    GapCostHeuristic::Enable,
+    true,
+    HistoryCompression::Disable,
+    exp_search_gap_heuristic
+);
