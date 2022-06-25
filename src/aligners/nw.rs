@@ -44,13 +44,6 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
         let mut path: Path = vec![];
         let mut cigar = Cigar::default();
 
-        let g = EditGraph {
-            a,
-            b,
-            cm: &self.cm,
-            greedy_matching: false,
-        };
-
         let mut st = State::target(a, b);
         // Remove the last appended character.
         st.i -= 1;
@@ -70,18 +63,25 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
         while st.i > 1 || st.j > 1 || st.layer.is_some() {
             let cur_cost = fronts[st.i].layer(st.layer)[st.j];
             let mut parent = None;
-            g.iterate_parents(st, |new_layer, di, dj, cost, ops| {
-                if parent.is_none()
-                    && cur_cost == fronts[st.i + di].layer(new_layer)[st.j + dj] + cost
-                {
-                    parent = Some(State::new(st.i + di, st.j + dj, new_layer));
-                    for op in ops {
-                        if let Some(op) = op {
-                            cigar.push(op);
+            EditGraph::iterate_parents(
+                a,
+                b,
+                &self.cm,
+                /*greedy_matching=*/ false,
+                st,
+                |new_layer, di, dj, cost, ops| {
+                    if parent.is_none()
+                        && cur_cost == fronts[st.i + di].layer(new_layer)[st.j + dj] + cost
+                    {
+                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
+                        for op in ops {
+                            if let Some(op) = op {
+                                cigar.push(op);
+                            }
                         }
                     }
-                }
-            });
+                },
+            );
 
             if let Some(parent) = parent {
                 st = parent
@@ -103,20 +103,15 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
     // FIXME: Remove the `inline(never)` after benchmarking is done.
     #[inline(never)]
     fn next_front(&mut self, i: Idx, a: Seq, b: Seq, prev: &Front<N>, next: &mut Front<N>) {
-        let g = EditGraph {
-            a,
-            b,
-            cm: &self.cm,
-            greedy_matching: false,
-        };
-
         for j in next.range().clone() {
             self.v.expand(Pos::from(i - 1, j - 1));
-            // NOTE: g.iterate_parents_of_position can also be used, but is more
-            // complicated and currently not faster.
-            g.iterate_layers(|layer| {
+            EditGraph::iterate_layers(&self.cm, |layer| {
                 let mut best = INF;
-                g.iterate_parents(
+                EditGraph::iterate_parents(
+                    a,
+                    b,
+                    &self.cm,
+                    /*greedy_matching=*/ false,
                     State::new(i, j, layer),
                     |layer, di, dj, edge_cost, _cigar_ops| {
                         best = min(
