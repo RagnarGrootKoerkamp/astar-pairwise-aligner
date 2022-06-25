@@ -43,9 +43,11 @@ fn test_aligner_on_cost_model<const N: usize>(
         assert_eq!(
             nw_cost,
             cost,
-            "{n} {e}\na == {}\nb == {}\n",
+            "{n} {e}\na == {}\nb == {}\nNW Cigar:\n{}\nAligner Cigar:\n{}\n",
             to_string(&a),
-            to_string(&b)
+            to_string(&b),
+            nw.align(a, b).2.to_string(),
+            aligner.align(a, b).2.to_string()
         );
 
         if test_path {
