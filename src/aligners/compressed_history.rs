@@ -46,16 +46,11 @@
 //!     row/column of the affine indel state, and then (after possibly a bit
 //!     more greedy matching) enter it.
 
-use crate::{
-    aligners::cigar::CigarOp,
-    cost_model::{AffineCost, Cost},
-    prelude::Pos,
-};
-
 use super::{cigar::Cigar, diagonal_transition::Fr, Seq};
+use crate::{aligners::cigar::CigarOp, prelude::Pos};
 
 /// Contains the diagonal `d` and furthest reaching value `fr` and `layer`.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Copy)]
 pub struct TracebackState {
     pub d: Fr,
     pub fr: Fr,
