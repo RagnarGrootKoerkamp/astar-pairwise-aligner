@@ -22,7 +22,9 @@ pub type Seq<'a> = &'a [u8];
 
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
+    #[inline]
     fn explore(&mut self, _pos: Pos) {}
+    #[inline]
     fn expand(&mut self, _pos: Pos) {}
 }
 

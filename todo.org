@@ -553,3 +553,35 @@ Parameter choice v2:
 | m | e       |  k | remark                                        |
 | 0 | <= 0.07 | 14 | works reasonably well everywhere              |
 | 1 | > 0.07  | 14 | 12 works better for larger e, 14 for larger n |
+
+
+* SIMD notes
+** Settings:
+*** Enable optimizer logs:
+~.cargo/config~:
+#+begin_src
+[target.'cfg(any(windows, unix))']
+rustflags = ["-C", "target-cpu=native", "-C", "llvm-args=-ffast-math", "-C", "opt-level=3", "-C", "remark=loop-vectorize", "-C", "debuginfo=2"]
+#+end_src
+*** Logs only show when ~lto=true~, but are applied also without
+*** ~opt-level=2~ is sufficient
+** Code
+*** Make sure there are no linear dependencies!
+*** Pre-slice ranges!!!!!
+*** Use half open ranges ~start..end~
+*** Use uncheck range indexing
+*** Make sure function to be tested is actually built
+*** loop over usize?
+*** loop from 0?
+
+** Assembly
+*** Use ~cargo asm --list~ to show functions
+*** Use ~cargo asm <function>~ to show assembly for function
+Target function may be inlined elsewhere!
+~cargo asm --lib --rust --comments pairwise_aligner::aligners::nw::test~
+
+** Links:
+- inclusive scan (prefix min) may be useful to do col-wise NW faster:
+  - https://www.intel.com/content/www/us/en/developer/articles/technical/optimize-scan-operations-explicit-vectorization.html#gs.3ym2aq
+  - https://stackoverflow.com/questions/36085271/horizontal-running-diff-and-conditional-update-using-simd-sse
+  - Blog post on exactly this recursion: https://matklad.github.io/2017/03/18/min-of-three-part-2.html
