@@ -1,8 +1,9 @@
 use itertools::chain;
 
 use super::cigar::{Cigar, CigarOp};
-use super::Seq;
+use super::edit_graph::{EditGraph, State};
 use super::{Aligner, VisualizerT};
+use super::{Seq, Sequence};
 use crate::cost_model::*;
 use crate::prelude::{Pos, I};
 use std::cmp::{max, min};
@@ -169,63 +170,37 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
     }
 
     /// Computes the next front (front `i`) from the current one.
-    /// `ca` is the `i-1`th character of sequence `a`.
     ///
-    /// Call this with `i=0`, `ca='^'` and a `prev` front of appropriate size to fill the first layer,
-    /// where `prev[-1] = 0`, so that the match between `^` and `^` makes `next[0] == 0` as well.
-    fn next_front(&mut self, i: Idx, ca: u8, b: Seq, prev: &Front<N>, next: &mut Front<N>) {
-        self.v.expand(Pos(i as I, 0));
+    /// `a` and `b` must be padded at the start by the same character.
+    /// `i` and `j` will always be > 0.
+    // FIXME: Remove the `inline(never)` after benchmarking is done.
+    #[inline(never)]
+    fn next_front(&mut self, i: Idx, a: Seq, b: Seq, prev: &Front<N>, next: &mut Front<N>) {
+        let g = EditGraph {
+            a,
+            b,
+            cm: &self.cm,
+            greedy_matching: false,
+        };
+
         for j in next.range().clone() {
-            // When j=0, we must use a placeholder. The actual character does not matter.
-            // TODO: We could just try `b[-1]`?
-            let cb = if j == 0 { b'^' } else { b[j as usize - 1] };
-
-            // Compute all layers at (i, j).
-            self.v.expand(Pos(i as I, j as I));
-
-            // Main layer: substitutions and linear indels.
-            let mut f = INF;
-            // NOTE: When sub/ins/del is not allowed (they are `None`), we have to skip them.
-            // TODO: When a match is possible, we could skip all other options
-            // since greedy matching is allowed.
-            if ca == cb {
-                f = min(f, prev.m()[j - 1]);
-            } else {
-                // TODO: This may be faster:
-                // f = min(f, prev.m()[j-1] + sub.unwrap_or(INF))
-                if let Some(sub) = self.cm.sub {
-                    f = min(f, prev.m()[j - 1] + sub);
-                }
-            }
-            if let Some(ins) = self.cm.ins {
-                f = min(f, next.m()[j - 1] + ins);
-            }
-            if let Some(del) = self.cm.del {
-                f = min(f, prev.m()[j] + del);
-            }
-
-            // Affine layers
-            for (layer_idx, cm) in self.cm.affine.iter().enumerate() {
-                let (next_m, mut next_affine_layer) = next.m_affine_mut(layer_idx);
-                match cm.affine_type {
-                    InsertLayer => {
-                        next_affine_layer[j] = min(
-                            next_affine_layer[j - 1] + cm.extend,
-                            next_m[j - 1] + cm.open + cm.extend,
-                        )
-                    }
-                    DeleteLayer => {
-                        next_affine_layer[j] = min(
-                            prev.affine(layer_idx)[j] + cm.extend,
-                            prev.m()[j] + cm.open + cm.extend,
-                        )
-                    }
-                    _ => todo!(),
-                };
-                f = min(f, next_affine_layer[j]);
-            }
-
-            next.m_mut()[j] = f;
+            self.v.expand(Pos::from(i - 1, j - 1));
+            // NOTE: g.iterate_parents_of_position can also be used, but is more
+            // complicated and currently not faster.
+            g.iterate_layers(|layer| {
+                let mut best = INF;
+                g.iterate_parents(State::new(i, j, layer), |layer, di, dj, edge_cost| {
+                    best = min(
+                        best,
+                        if di == 0 {
+                            next.layer(layer)[j - dj] + edge_cost
+                        } else {
+                            prev.layer(layer)[j - dj] + edge_cost
+                        },
+                    );
+                });
+                next.layer_mut(layer)[j] = best;
+            });
         }
     }
 
