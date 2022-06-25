@@ -111,9 +111,11 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT> {
 
 /// Converts a pair of (diagonal index, furthest reaching) to a position.
 /// TODO: Return Pos or usize instead?
+#[inline]
 fn fr_to_coords(d: Fr, f: Fr) -> (Fr, Fr) {
     ((f + d) / 2, (f - d) / 2)
 }
+#[inline]
 fn fr_to_pos(d: Fr, f: Fr) -> Pos {
     Pos(
         ((f + d) / 2) as crate::prelude::I,
