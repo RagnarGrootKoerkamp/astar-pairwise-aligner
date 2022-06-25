@@ -2,8 +2,11 @@
 //! There may be multiple graphs corresponding to the same cost model:
 //! https://research.curiouscoding.nl/posts/diagonal-transition-variations/
 
-use super::Seq;
-use crate::cost_model::{AffineCost, AffineLayerType, Cost};
+use super::{cigar::CigarOp, Seq};
+use crate::{
+    cost_model::{AffineCost, AffineLayerType, Cost},
+    prelude::Pos,
+};
 use std::cmp::min;
 
 /// TODO: Generalize to CostModel trait, instead of only AffineCost.
@@ -24,6 +27,7 @@ pub struct EditGraph<'seq, 'cm, const N: usize> {
 
 pub type Layer = Option<usize>;
 
+#[derive(Clone, Copy, Debug)]
 pub struct State {
     pub i: I,
     pub j: I,
@@ -35,9 +39,23 @@ impl State {
     pub fn new(i: I, j: I, layer: Layer) -> Self {
         Self { i, j, layer }
     }
+
+    pub fn target(a: Seq, b: Seq) -> Self {
+        Self {
+            i: a.len() as I,
+            j: b.len() as I,
+            layer: None,
+        }
+    }
+
+    pub fn pos(&self) -> Pos {
+        Pos::from(self.i, self.j)
+    }
 }
 
 type I = isize;
+
+pub type CigarOps = [Option<CigarOp>; 2];
 
 impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
     /// Iterate over the parents of the given state by calling `f` for each of them.
@@ -49,7 +67,7 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
     ///
     /// TODO: Add CigarOp to `f` argument?
     #[inline]
-    pub fn iterate_parents(&self, state: State, f: impl FnMut(Layer, I, I, Cost)) {
+    pub fn iterate_parents(&self, state: State, f: impl FnMut(Layer, I, I, Cost, CigarOps)) {
         self.iterate_parents_internal(state, f, true)
     }
 
@@ -59,7 +77,7 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
     pub fn iterate_parents_internal(
         &self,
         State { i, j, layer }: State,
-        mut f: impl FnMut(Layer, I, I, Cost),
+        mut f: impl FnMut(Layer, I, I, Cost, CigarOps),
         include_in_layer_edges: bool,
     ) {
         match layer {
@@ -74,22 +92,28 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
                 // match / mismatch
                 let is_match = self.a[i as usize - 1] == self.b[j as usize - 1];
                 if is_match {
-                    f(None, -1, -1, 0);
+                    f(None, -1, -1, 0, [Some(CigarOp::Match), None]);
                     if self.greedy_matching {
                         return;
                     }
                 } else {
-                    f(None, -1, -1, self.cm.sub.unwrap_or(Cost::MAX / 2));
+                    f(
+                        None,
+                        -1,
+                        -1,
+                        self.cm.sub.unwrap_or(Cost::MAX / 2),
+                        [Some(CigarOp::Mismatch), None],
+                    );
                 }
 
                 // insertion
                 if j > 0 && let Some(cost) = self.cm.ins {
-                    f(None, 0, -1, cost);
+                    f(None, 0, -1, cost, [Some(CigarOp::Insertion), None]);
                 }
 
                 // deletion
                 if i > 0 && let Some(cost) = self.cm.del {
-                    f(None, -1, 0, cost);
+                    f(None, -1, 0, cost, [Some(CigarOp::Deletion), None]);
                 }
 
                 // affine close
@@ -97,7 +121,13 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
                     // NOTE: gap-close edges have a cost of 0 and stay in the current position.
                     // This requires that the iteration order over layers at the current position visits the main layer last.
                     for (layer, _cml) in self.cm.affine.iter().enumerate() {
-                        f(Some(layer), 0, 0, 0);
+                        f(
+                            Some(layer),
+                            0,
+                            0,
+                            0,
+                            [Some(CigarOp::AffineClose(layer)), None],
+                        );
                     }
                 }
             }
@@ -110,15 +140,21 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
 
                 // gap open
                 let cml = &self.cm.affine[layer];
-                let (i, j, di, dj) = match cml.affine_type {
+                let (i, j, di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (i, j - 1, 0, -1)
+                        (i, j - 1, 0, -1, CigarOp::AffineInsertion(layer))
                     }
                     AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (i - 1, j, -1, 0)
+                        (i - 1, j, -1, 0, CigarOp::AffineDeletion(layer))
                     }
                 };
-                f(None, di, dj, cml.open + cml.extend);
+                f(
+                    None,
+                    di,
+                    dj,
+                    cml.open + cml.extend,
+                    [Some(op), Some(CigarOp::AffineOpen(layer))],
+                );
 
                 // gap extend
                 if cml.affine_type.is_homopolymer() {
@@ -132,10 +168,10 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
                         }
                         _ => unreachable!(),
                     } {
-                        f(Some(layer), di, dj, cml.extend);
+                        f(Some(layer), di, dj, cml.extend, [Some(op), None]);
                     }
                 } else {
-                    f(Some(layer), di, dj, cml.extend);
+                    f(Some(layer), di, dj, cml.extend, [Some(op), None]);
                 }
             }
         }
@@ -146,15 +182,15 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
     pub fn minimum_over_parents<T>(
         &self,
         state: State,
-        cost_of_edge: &mut impl FnMut(Layer, I, I, Cost) -> T,
+        cost_of_edge: &mut impl FnMut(Layer, I, I, Cost, CigarOps) -> T,
         init: T,
     ) -> T
     where
         T: Ord,
     {
         let mut t = init;
-        self.iterate_parents(state, |parent_state, di, dj, cost| {
-            let parent_t = cost_of_edge(parent_state, di, dj, cost);
+        self.iterate_parents(state, |parent_state, di, dj, cost, cigar_ops| {
+            let parent_t = cost_of_edge(parent_state, di, dj, cost, cigar_ops);
             if parent_t < t {
                 t = parent_t;
             }
@@ -202,7 +238,7 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
         i: I,
         j: I,
         // The cost of taking an edge.
-        mut cost_of_edge: impl FnMut(Layer, I, I, Cost) -> T,
+        mut cost_of_edge: impl FnMut(Layer, I, I, Cost, CigarOps) -> T,
         init: T,
     ) -> (T, [T; N])
     where

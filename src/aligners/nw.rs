@@ -1,11 +1,11 @@
 use itertools::chain;
 
-use super::cigar::{Cigar, CigarOp};
+use super::cigar::Cigar;
 use super::edit_graph::{EditGraph, State};
 use super::{Aligner, VisualizerT};
 use super::{Seq, Sequence};
 use crate::cost_model::*;
-use crate::prelude::{Pos, I};
+use crate::prelude::Pos;
 use std::cmp::{max, min};
 use std::ops::RangeInclusive;
 
@@ -36,133 +36,60 @@ type Fronts<const N: usize> = super::front::Fronts<N, Cost, Idx>;
 /// NW DP only needs the cell just left and above of the current cell.
 const LEFT_BUFFER: Idx = 1;
 const RIGHT_BUFFER: Idx = 1;
-/// Add one layer before the first, for easy initialization.
-const TOP_BUFFER: Idx = 1;
+/// After padding `a` and `b` at the front, an extra buffer isn't needed anymore.
+const TOP_BUFFER: Idx = 0;
 
 impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
     fn track_path(&self, fronts: &Fronts<N>, a: Seq, b: Seq) -> (Path, Cigar) {
         let mut path: Path = vec![];
         let mut cigar = Cigar::default();
 
-        // The current position and affine layer.
-        let mut i = a.len() as Idx;
-        let mut j = b.len() as Idx;
-        // None for main layer.
-        let mut layer: Option<usize> = None;
+        let g = EditGraph {
+            a,
+            b,
+            cm: &self.cm,
+            greedy_matching: false,
+        };
 
-        path.push(Pos(i as I, j as I));
+        let mut st = State::target(a, b);
+        // Remove the last appended character.
+        st.i -= 1;
+        st.j -= 1;
 
-        let mut save = |x: Idx, y: Idx, op: CigarOp| {
-            cigar.push(op);
+        path.push(st.pos());
+
+        let mut save = |st: State| {
             if let Some(last) = path.last() {
-                if *last == Pos(x as I, y as I) {
+                if *last == st.pos() {
                     return;
                 }
             }
-            path.push(Pos(x as I, y as I));
+            path.push(st.pos());
         };
-        // TODO: Extract a parent() function and call that in a loop.
-        'path_loop: while i > 1 || j > 1 || layer.is_some() {
-            if let Some(layer_idx) = layer {
-                match self.cm.affine[layer_idx].affine_type {
-                    InsertLayer => {
-                        if fronts[i].affine(layer_idx)[j]
-                            == fronts[i].affine(layer_idx)[j - 1] + self.cm.affine[layer_idx].extend
-                        {
-                            // deletion gap extention from current affine layer
-                            j -= 1;
-                            save(i, j, CigarOp::AffineInsertion(layer_idx));
-                            continue 'path_loop;
-                        } else {
-                            assert_eq!(
-                                fronts[i].affine(layer_idx)[j], fronts[i].m()[j-1]
-                                        + self.cm.affine[layer_idx].open
-                                        + self.cm.affine[layer_idx].extend,"Path tracking error! No trace from deletion layer number {layer_idx}, coordinates {i}, {j}"
-                            );
-                            // Open new deletion gap from main layer
-                            j -= 1;
-                            save(i, j, CigarOp::AffineInsertion(layer_idx));
-                            save(i, j, CigarOp::AffineOpen(layer_idx));
-                            layer = None;
-                            continue 'path_loop;
+
+        while st.i > 1 || st.j > 1 || st.layer.is_some() {
+            let cur_cost = fronts[st.i].layer(st.layer)[st.j];
+            let mut parent = None;
+            g.iterate_parents(st, |new_layer, di, dj, cost, ops| {
+                if parent.is_none()
+                    && cur_cost == fronts[st.i + di].layer(new_layer)[st.j + dj] + cost
+                {
+                    parent = Some(State::new(st.i + di, st.j + dj, new_layer));
+                    for op in ops {
+                        if let Some(op) = op {
+                            cigar.push(op);
                         }
                     }
-                    DeleteLayer => {
-                        if fronts[i].affine(layer_idx)[j]
-                            == fronts[i - 1].affine(layer_idx)[j] + self.cm.affine[layer_idx].extend
-                        {
-                            // insertion gap extention from current affine layer
-                            i -= 1;
-                            save(i, j, CigarOp::AffineDeletion(layer_idx));
-                            continue 'path_loop;
-                        } else {
-                            assert_eq!(
-                                fronts[i].affine(layer_idx)[j], fronts[i - 1].m()[j]
-                                        + self.cm.affine[layer_idx].open
-                                        + self.cm.affine[layer_idx].extend,"Path tracking error! No trace from insertion layer number {layer_idx}, coordinates {i}, {j}"
-                            );
-                            // opening new insertion gap from main layer
-                            i -= 1;
-                            save(i, j, CigarOp::AffineDeletion(layer_idx));
-                            save(i, j, CigarOp::AffineOpen(layer_idx));
-                            layer = None;
-                            continue 'path_loop;
-                        }
-                    }
-                    _ => todo!(),
-                };
+                }
+            });
+
+            if let Some(parent) = parent {
+                st = parent
             } else {
-                if i > 0 && j > 0 {
-                    // match?
-                    if a[i as usize - 1] == b[j as usize - 1]
-                        && fronts[i].m()[j] == fronts[i - 1].m()[j - 1]
-                    {
-                        i -= 1;
-                        j -= 1;
-                        save(i, j, CigarOp::Match);
-                        continue 'path_loop;
-                    }
-                    // mismatch?
-                    if let Some(sub) = self.cm.sub {
-                        if fronts[i].m()[j] == fronts[i - 1].m()[j - 1] + sub {
-                            i -= 1;
-                            j -= 1;
-                            save(i, j, CigarOp::Mismatch);
-                            continue 'path_loop;
-                        }
-                    }
-                }
-                // insertion?
-                if j > 0 {
-                    if let Some(ins) = self.cm.ins {
-                        if fronts[i].m()[j] == fronts[i].m()[j - 1] + ins {
-                            j -= 1;
-                            save(i, j, CigarOp::Insertion);
-                            continue 'path_loop;
-                        }
-                    }
-                }
-                // deletion?
-                if i > 0 {
-                    if let Some(del) = self.cm.del {
-                        if fronts[i].m()[j] == fronts[i - 1].m()[j] + del {
-                            i -= 1;
-                            save(i, j, CigarOp::Deletion);
-                            continue 'path_loop;
-                        }
-                    }
-                }
-                // Affine layers check
-                // NOTE: This loop does not change the position, only the layer.
-                for parent_layer_idx in 0..N {
-                    if fronts[i].m()[j] == fronts[i].affine(parent_layer_idx)[j] {
-                        layer = Some(parent_layer_idx);
-                        save(i, j, CigarOp::AffineClose(parent_layer_idx));
-                        continue 'path_loop;
-                    }
-                }
+                let State { i, j, layer } = st;
+                panic!("Did not find parent on path!\nIn ({i}, {j}) at layer {layer:?} with cost ",);
             }
-            panic!("Did not find parent on path!\nIn ({i}, {j}) at layer {layer:?} with cost ");
+            save(st);
         }
         path.reverse();
         cigar.reverse();
@@ -189,16 +116,19 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
             // complicated and currently not faster.
             g.iterate_layers(|layer| {
                 let mut best = INF;
-                g.iterate_parents(State::new(i, j, layer), |layer, di, dj, edge_cost| {
-                    best = min(
-                        best,
-                        if di == 0 {
-                            next.layer(layer)[j - dj] + edge_cost
-                        } else {
-                            prev.layer(layer)[j - dj] + edge_cost
-                        },
-                    );
-                });
+                g.iterate_parents(
+                    State::new(i, j, layer),
+                    |layer, di, dj, edge_cost, _cigar_ops| {
+                        best = min(
+                            best,
+                            if di == 0 {
+                                next.layer(layer)[j + dj] + edge_cost
+                            } else {
+                                prev.layer(layer)[j + dj] + edge_cost
+                            },
+                        );
+                    },
+                );
                 next.layer_mut(layer)[j] = best;
             });
         }
@@ -252,8 +182,7 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
             RIGHT_BUFFER,
         );
         next.m_mut()[0] = 0;
-        for i in 1..=a.len() {
-            let i = i as Idx;
+        for i in 1..=a.len() as Idx {
             std::mem::swap(prev, next);
             // Update front size.
             next.reset(
