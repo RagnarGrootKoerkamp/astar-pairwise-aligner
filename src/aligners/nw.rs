@@ -69,11 +69,12 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
                 &self.cm,
                 /*greedy_matching=*/ false,
                 st,
-                |new_layer, di, dj, cost, ops| {
+                |di, dj, new_layer, cost, ops| {
                     if parent.is_none()
                         && cur_cost == fronts[st.i + di].layer(new_layer)[st.j + dj] + cost
                     {
                         parent = Some(State::new(st.i + di, st.j + dj, new_layer));
+                        save(st);
                         for op in ops {
                             if let Some(op) = op {
                                 cigar.push(op);
@@ -89,7 +90,6 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
                 let State { i, j, layer } = st;
                 panic!("Did not find parent on path!\nIn ({i}, {j}) at layer {layer:?} with cost ",);
             }
-            save(st);
         }
         path.reverse();
         cigar.reverse();
@@ -100,8 +100,6 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
     ///
     /// `a` and `b` must be padded at the start by the same character.
     /// `i` and `j` will always be > 0.
-    // FIXME: Remove the `inline(never)` after benchmarking is done.
-    #[inline(never)]
     fn next_front(&mut self, i: Idx, a: Seq, b: Seq, prev: &Front<N>, next: &mut Front<N>) {
         for j in next.range().clone() {
             self.v.expand(Pos::from(i - 1, j - 1));
@@ -113,7 +111,7 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
                     &self.cm,
                     /*greedy_matching=*/ false,
                     State::new(i, j, layer),
-                    |layer, di, dj, edge_cost, _cigar_ops| {
+                    |di, dj, layer, edge_cost, _cigar_ops| {
                         best = min(
                             best,
                             if di == 0 {
@@ -152,7 +150,7 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
 }
 
 fn pad(a: Seq) -> Sequence {
-    chain!(&[b'^'], a, &[b'$']).copied().collect()
+    chain!(b"^", a, b"$").copied().collect()
 }
 
 impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
