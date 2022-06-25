@@ -32,7 +32,7 @@ use std::ops::RangeInclusive;
 
 /// The type for storing furthest reaching points.
 /// Sized, so that we can default them to -INF.
-type Fr = i32;
+pub type Fr = i32;
 
 type Front<const N: usize> = super::front::Front<N, Fr, Fr>;
 type Fronts<const N: usize> = super::front::Fronts<N, Fr, Fr>;
@@ -46,18 +46,19 @@ pub enum GapVariant {
 use GapVariant::*;
 
 /// The direction to run in.
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Forward,
     Backward,
 }
 use Direction::*;
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum GapCostHeuristic {
     Enable,
     Disable,
 }
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum HistoryCompression {
     Enable,
     Disable,
@@ -80,31 +81,7 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT> {
     gap_variant: GapVariant,
 
     /// When true, calls to `align` store a compressed version of the full 'history' of visited states.
-    /// Instead of storing each visited state `(d, fr)`, it is sufficient for
-    /// path reconstruction to only store those states `(d, fr)` that:
-    /// - have 2 or ore 'child' states, i.e. states that have this state as parent;
-    /// - have a child reached via substitution.
-    ///
-    /// For all states on the last front, we store their last stored parent.
-    ///
-    /// - Remark the following:
-    ///   - a substitution can never be followed by preceded by another error, since the parent of each substitution edge is stored,
-    ///   - we assume that an insertion followed by a deletion is never optimal, i.e.:
-    ///     NOTE: ASSUMPTION: sub_cost <= min_insert_extend + min_delete_extend.
-    /// - From this we conclude:
-    ///   - The errors on a path between any two states look like this regex:
-    ///     S?([ID]+S+), i.e.: substitutions interleaved with runs on insertions
-    ///     or deletions.
-    ///   - Since we store the parent of each substitution, the path to the stored parent can never have two substitutions.
-    ///   - CONCLUSION: The path to the stored parent contains only insertions or only deletions, followed by at most one substitution.
-    ///
-    /// For any visited state, the path to its parent can now be inferred like this:
-    /// - First, do greedy backwards matching, and do greedy matching again after each error.
-    /// - If the stored parent is on the same diagonal, it must be a direct parent.
-    /// - If the stored parent is on a higher diagonal, there must be insertions on the path there.
-    ///   Substitutions can not follow insertions, so the direct parent is via insertion.
-    /// - If the stored parent is on a lower diagonal, there must be deletions on the path there.
-    ///   Substitutions can not follow insertions, so the direct parent is via insertion.
+    #[allow(unused)]
     history_compression: HistoryCompression,
 
     v: V,
