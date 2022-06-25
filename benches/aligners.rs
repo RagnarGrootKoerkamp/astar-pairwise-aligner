@@ -3,7 +3,12 @@
 
 extern crate test;
 use pairwise_aligner::{
-    aligners::{diagonal_transition::DiagonalTransition, nw::NW, nw_lib::NWLib, NoVisualizer},
+    aligners::{
+        diagonal_transition::{DiagonalTransition, GapCostHeuristic, HistoryCompression},
+        nw::NW,
+        nw_lib::NWLib,
+        NoVisualizer,
+    },
     cost_model::LinearCost,
     generate::setup_sequences,
 };
@@ -52,15 +57,37 @@ fn nw_exp_h(bench: &mut Bencher) {
     bench.iter(|| run_aligner(make_nw(true), N, E, true));
 }
 
-fn make_dt(use_gap_cost_heuristic: bool) -> DiagonalTransition<LinearCost, NoVisualizer> {
-    DiagonalTransition::new(LinearCost::new_unit(), use_gap_cost_heuristic, NoVisualizer)
+fn make_dt(
+    use_gap_cost_heuristic: GapCostHeuristic,
+    history_compression: HistoryCompression,
+) -> DiagonalTransition<LinearCost, NoVisualizer> {
+    DiagonalTransition::new(
+        LinearCost::new_unit(),
+        use_gap_cost_heuristic,
+        history_compression,
+        NoVisualizer,
+    )
 }
 
 #[bench]
 fn dt_simple(bench: &mut Bencher) {
-    bench.iter(|| run_aligner(make_dt(false), N, E, false));
+    bench.iter(|| {
+        run_aligner(
+            make_dt(GapCostHeuristic::Disable, HistoryCompression::Disable),
+            N,
+            E,
+            false,
+        )
+    });
 }
 #[bench]
 fn dt_exp_h(bench: &mut Bencher) {
-    bench.iter(|| run_aligner(make_dt(true), N, E, true));
+    bench.iter(|| {
+        run_aligner(
+            make_dt(GapCostHeuristic::Enable, HistoryCompression::Disable),
+            N,
+            E,
+            true,
+        )
+    });
 }
