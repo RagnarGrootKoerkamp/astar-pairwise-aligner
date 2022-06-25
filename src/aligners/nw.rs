@@ -61,7 +61,7 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
             path.push(Pos(x as I, y as I));
         };
         // TODO: Extract a parent() function and call that in a loop.
-        'path_loop: while i > 0 || j > 0 || layer.is_some() {
+        'path_loop: while i > 1 || j > 1 || layer.is_some() {
             if let Some(layer_idx) = layer {
                 match self.cm.affine[layer_idx].affine_type {
                     InsertLayer => {
@@ -232,7 +232,7 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
     /// The range of rows `j` to consider in column `i`, when the cost is bounded by `s_bound`.
     fn j_range(&self, a: Seq, b: Seq, i: Idx, s_bound: Option<Cost>) -> RangeInclusive<Idx> {
         let Some(mut s) = s_bound else {
-            return 0..=b.len() as Idx;
+            return 1..=b.len() as Idx;
         };
         let range = if self.use_gap_cost_heuristic {
             let d = b.len() as Idx - a.len() as Idx;
@@ -247,9 +247,14 @@ impl<const N: usize, V: VisualizerT> NW<AffineCost<N>, V> {
         };
 
         // crop
-        max(i + *range.start(), 0)..=min(i + *range.end(), b.len() as Idx)
+        max(i + *range.start(), 1)..=min(i + *range.end(), b.len() as Idx)
     }
 }
+
+fn pad(a: Seq) -> Sequence {
+    chain!(&[b'^'], a, &[b'$']).copied().collect()
+}
+
 impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
     type CostModel = AffineCost<N>;
 
@@ -260,6 +265,10 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
     /// Test whether the cost is at most s.
     /// Returns None if cost > s, or the actual cost otherwise.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
+        // Pad both sequences.
+        let ref a = pad(a);
+        let ref b = pad(b);
+
         let ref mut prev = Front::default();
         let ref mut next = Front::new(
             INF,
@@ -267,11 +276,8 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
             LEFT_BUFFER,
             RIGHT_BUFFER,
         );
-        // Initialize next[-1] = 0, so that the first layer will get next[0] = 0.
-        *next.m_mut().negative_index(1) = 0;
-
-        // NOTE: We compute the first front by passing `i=0` with character `'^'`.
-        for (i, &ca) in chain(&[b'^'], a).enumerate() {
+        next.m_mut()[0] = 0;
+        for i in 1..=a.len() {
             let i = i as Idx;
             std::mem::swap(prev, next);
             // Update front size.
@@ -281,7 +287,7 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
                 LEFT_BUFFER,
                 RIGHT_BUFFER,
             );
-            self.next_front(i, ca, b, prev, next);
+            self.next_front(i, a, b, prev, next);
         }
 
         if let Some(&dist) = next.m().get(b.len() as Idx) {
@@ -299,6 +305,10 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
         b: Seq,
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)> {
+        // Pad both sequences.
+        let ref a = pad(a);
+        let ref b = pad(b);
+
         let mut fronts = Fronts::new(
             INF,
             // The fronts to create.
@@ -310,15 +320,12 @@ impl<const N: usize, V: VisualizerT> Aligner for NW<AffineCost<N>, V> {
             LEFT_BUFFER,
             RIGHT_BUFFER,
         );
-        // Initialize position (-1,-1) to 0, so that position (0,0) will be 0
-        // after matching the first '^' character that we use when `i=0` and
-        // `j=0`.
-        *fronts[-1].m_mut().negative_index(1) = 0;
+        fronts[0].m_mut()[0] = 0;
 
-        for (i, &ca) in chain(&[b'^'], a).enumerate() {
+        for i in 1..=a.len() {
             let i = i as Idx;
             let [prev, next] = &mut fronts[i-1..=i] else {unreachable!();};
-            self.next_front(i, ca, b, prev, next);
+            self.next_front(i, a, b, prev, next);
         }
 
         if let Some(&dist) = fronts[a.len() as Idx].m().get(b.len() as Idx) {
