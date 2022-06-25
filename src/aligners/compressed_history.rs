@@ -57,10 +57,10 @@ use super::{cigar::Cigar, diagonal_transition::Fr, Seq};
 /// Contains the diagonal `d` and furthest reaching value `fr` and `layer`.
 #[derive(Clone, PartialEq, Eq)]
 pub struct TracebackState {
-    d: Fr,
-    fr: Fr,
+    pub d: Fr,
+    pub fr: Fr,
     /// TODO: Use `NonMax<u8>`?
-    layer: Option<usize>,
+    pub layer: Option<usize>,
 }
 
 impl TracebackState {
@@ -79,12 +79,24 @@ impl TracebackState {
         Pos::from(i, j)
     }
 
+    pub fn from_pos(Pos(i, j): Pos) -> Self {
+        Self {
+            d: i as Fr - j as Fr,
+            fr: i as Fr + j as Fr,
+            layer: None,
+        }
+    }
+
     pub fn root() -> Self {
         Self {
             d: 0,
             fr: 0,
             layer: None,
         }
+    }
+
+    pub fn target(a: Seq, b: Seq) -> Self {
+        Self::from_pos(Pos::from_lengths(a, b))
     }
 }
 

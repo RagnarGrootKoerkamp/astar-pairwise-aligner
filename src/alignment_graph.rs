@@ -34,14 +34,12 @@ impl Pos {
         Pos(self.1, self.0)
     }
 
-    pub fn from<A, B>(a: A, b: B) -> Self
+    pub fn from<T>(i: T, j: T) -> Self
     where
-        A: TryInto<I>,
-        B: TryInto<I>,
-        <A as TryInto<u32>>::Error: Debug,
-        <B as TryInto<u32>>::Error: Debug,
+        T: TryInto<I>,
+        <T as TryInto<u32>>::Error: Debug,
     {
-        Pos(a.try_into().unwrap(), b.try_into().unwrap())
+        Pos(i.try_into().unwrap(), j.try_into().unwrap())
     }
 }
 
