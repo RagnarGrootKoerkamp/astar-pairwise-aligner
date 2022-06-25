@@ -3,6 +3,7 @@ use std::{
     ops::{Index, IndexMut, Range, RangeInclusive},
 };
 
+use super::edit_graph::Layer as LayerIdx;
 use num_traits::{AsPrimitive, NumOps, NumRef, RefNum};
 
 pub trait IndexType:
@@ -21,7 +22,7 @@ impl<I> IndexType for I where
 /// I: the index type.
 #[derive(Clone, Debug)]
 pub struct Front<const N: usize, T, I> {
-    /// TODO: Merge the main and affine layers into a single allocation?
+    /// TODO: Merge the main and affine layers into a single array?
     /// TODO: Store layer-by-layer or position-by-position (ie index as
     /// [layer][position] or [position][layer])?
     /// The main layer.
@@ -133,23 +134,13 @@ where
         }
     }
 
+    /// Get a reference to the front's range.
     #[inline]
-    pub fn affine(&self, layer_idx: usize) -> Layer<'_, T, I> {
-        Layer {
-            l: &self.affine[layer_idx],
-            range: self.range.clone(),
-            buffers: self.buffers,
-        }
+    pub fn range(&self) -> &RangeInclusive<I> {
+        &self.range
     }
 
-    #[inline]
-    pub fn affine_mut(&mut self, layer_idx: usize) -> MutLayer<'_, T, I> {
-        MutLayer {
-            l: &mut self.affine[layer_idx],
-            range: self.range.clone(),
-            buffers: self.buffers,
-        }
-    }
+    // ========== FRONT INDEXING ==========
 
     #[inline]
     pub fn m(&self) -> Layer<'_, T, I> {
@@ -159,21 +150,34 @@ where
             buffers: self.buffers,
         }
     }
+
     #[inline]
-    pub fn m_affine(&self, layer_idx: usize) -> (Layer<'_, T, I>, Layer<'_, T, I>) {
-        (
-            Layer {
-                l: &self.m,
-                range: self.range.clone(),
-                buffers: self.buffers,
-            },
-            Layer {
-                l: &self.affine[layer_idx],
-                range: self.range.clone(),
-                buffers: self.buffers,
-            },
-        )
+    pub fn m_mut(&mut self) -> MutLayer<'_, T, I> {
+        MutLayer {
+            l: &mut self.m,
+            range: self.range.clone(),
+            buffers: self.buffers,
+        }
     }
+
+    #[inline]
+    pub fn affine(&self, layer_idx: usize) -> Layer<'_, T, I> {
+        Layer {
+            l: unsafe { self.affine.get_unchecked(layer_idx) },
+            range: self.range.clone(),
+            buffers: self.buffers,
+        }
+    }
+
+    #[inline]
+    pub fn affine_mut(&mut self, layer_idx: usize) -> MutLayer<'_, T, I> {
+        MutLayer {
+            l: unsafe { self.affine.get_unchecked_mut(layer_idx) },
+            range: self.range.clone(),
+            buffers: self.buffers,
+        }
+    }
+
     #[inline]
     pub fn m_affine_mut(&mut self, layer_idx: usize) -> (MutLayer<'_, T, I>, MutLayer<'_, T, I>) {
         (
@@ -189,19 +193,23 @@ where
             },
         )
     }
+
+    // ========== FRONT INDEXING BY LAYER ==========
+
     #[inline]
-    pub fn m_mut(&mut self) -> MutLayer<'_, T, I> {
-        MutLayer {
-            l: &mut self.m,
-            range: self.range.clone(),
-            buffers: self.buffers,
+    pub fn layer(&self, layer: LayerIdx) -> Layer<'_, T, I> {
+        match layer {
+            None => self.m(),
+            Some(layer) => self.affine(layer),
         }
     }
 
-    /// Get a reference to the front's range.
     #[inline]
-    pub fn range(&self) -> &RangeInclusive<I> {
-        &self.range
+    pub fn layer_mut(&mut self, layer: LayerIdx) -> MutLayer<'_, T, I> {
+        match layer {
+            None => self.m_mut(),
+            Some(layer) => self.affine_mut(layer),
+        }
     }
 }
 
