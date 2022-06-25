@@ -37,14 +37,6 @@ pub type Fr = i32;
 type Front<const N: usize> = super::front::Front<N, Fr, Fr>;
 type Fronts<const N: usize> = super::front::Fronts<N, Fr, Fr>;
 
-/// GapOpen costs can be processed either when entering of leaving the gap.
-/// See https://research.curiouscoding.nl/notes/affine-gap-close-cost/.
-pub enum GapVariant {
-    GapOpen,
-    GapClose,
-}
-use GapVariant::*;
-
 /// The direction to run in.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
@@ -75,10 +67,6 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT> {
 
     /// Whether to use the gap heuristic to the end to reduce the number of diagonals considered.
     use_gap_cost_heuristic: GapCostHeuristic,
-
-    /// Whether to use gap-open or gap-close costs.
-    /// https://research.curiouscoding.nl/notes/affine-gap-close-cost/
-    gap_variant: GapVariant,
 
     /// When true, calls to `align` store a compressed version of the full 'history' of visited states.
     #[allow(unused)]
@@ -227,61 +215,59 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         cm: AffineCost<N>,
         use_gap_cost_heuristic: GapCostHeuristic,
         history_compression: HistoryCompression,
-        gap_variant: GapVariant,
         direction: Direction,
         v: V,
     ) -> Self {
         // The maximum cost we look back:
         // max(substitution, indel, affine indel of size 1)
         let top_buffer = max(
-            max(
-                cm.sub.unwrap_or(0),
-                match gap_variant {
-                    GapOpen => 0,
-                    GapClose => max(cm.max_del_open, cm.max_ins_open),
-                },
-            ),
-            match gap_variant {
-                GapOpen => max(cm.max_ins_open_extend, cm.max_del_open_extend),
-                GapClose => max(cm.max_ins_extend, cm.max_del_extend),
-            },
+            max(cm.sub.unwrap_or(0), 0),
+            max(cm.max_ins_open_extend, cm.max_del_open_extend),
         ) as Fr;
 
         let left_buffer = max(
             // substitution, if allowed
-            cm.sub
-                .unwrap_or(match gap_variant {
-                    GapOpen => 0,
-                    GapClose => max(cm.max_del_open, cm.max_ins_open),
-                })
-                .div_ceil(cm.ins.unwrap_or(Cost::MAX)),
+            cm.sub.unwrap_or(0).div_ceil(cm.ins.unwrap_or(Cost::MAX)),
             // number of insertions (left moves) done in range of looking one deletion (right move) backwards
-            1 + match gap_variant {
-                GapOpen => cm.max_del_open_extend,
-                GapClose => cm.max_del_extend,
-            }
-            .div_ceil(cm.min_ins_extend),
+            1 + cm.max_del_open_extend.div_ceil(cm.min_ins_extend),
         ) as Fr;
         // Idem.
         let right_buffer = max(
             // substitution, if allowed
-            cm.sub
-                .unwrap_or(match gap_variant {
-                    GapOpen => 0,
-                    GapClose => max(cm.max_del_open, cm.max_ins_open),
-                })
-                .div_ceil(cm.del.unwrap_or(Cost::MAX)),
+            cm.sub.unwrap_or(0).div_ceil(cm.del.unwrap_or(Cost::MAX)),
             // number of deletions (right moves) done in range of looking one insertion (left move) backwards
-            1 + match gap_variant {
-                GapOpen => cm.max_ins_open_extend,
-                GapClose => cm.max_ins_extend,
-            }
-            .div_ceil(cm.min_del_extend),
+            1 + cm.max_ins_open_extend.div_ceil(cm.min_del_extend),
         ) as Fr;
+
+        // Formulas need to move to EditGraph somehow. For Gap Close, here they are:
+        if false {
+            let _top_buffer = max(
+                max(cm.sub.unwrap_or(0), max(cm.max_del_open, cm.max_ins_open)),
+                max(cm.max_ins_extend, cm.max_del_extend),
+            ) as Fr;
+
+            let _left_buffer = max(
+                // substitution, if allowed
+                cm.sub
+                    .unwrap_or(max(cm.max_del_open, cm.max_ins_open))
+                    .div_ceil(cm.ins.unwrap_or(Cost::MAX)),
+                // number of insertions (left moves) done in range of looking one deletion (right move) backwards
+                1 + cm.max_del_extend.div_ceil(cm.min_ins_extend),
+            ) as Fr;
+            // Idem.
+            let _right_buffer = max(
+                // substitution, if allowed
+                cm.sub
+                    .unwrap_or(max(cm.max_del_open, cm.max_ins_open))
+                    .div_ceil(cm.del.unwrap_or(Cost::MAX)),
+                // number of deletions (right moves) done in range of looking one insertion (left move) backwards
+                1 + cm.max_ins_extend.div_ceil(cm.min_del_extend),
+            ) as Fr;
+        }
+
         Self {
             cm,
             use_gap_cost_heuristic,
-            gap_variant,
             v,
             top_buffer,
             left_buffer,
@@ -297,14 +283,7 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         history_compression: HistoryCompression,
         v: V,
     ) -> Self {
-        Self::new_variant(
-            cm,
-            use_gap_cost_heuristic,
-            history_compression,
-            GapOpen,
-            Forward,
-            v,
-        )
+        Self::new_variant(cm, use_gap_cost_heuristic, history_compression, Forward, v)
     }
 
     fn extend(&mut self, front: &mut Front<N>, a: Seq, b: Seq) -> bool {
@@ -416,120 +395,55 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         // Get the front `cost` before the last one.
         let get_front = |cost| &prev[prev.len() - cost as usize];
 
-        match self.gap_variant {
-            GapOpen => {
-                // Loop over the entire dmin..=dmax range.
-                // The boundaries are buffered so no boundary checks are needed.
-                // TODO: Vectorize this loop, or at least verify the compiler does this.
-                // TODO: Loop over a positive range that does not need additional shifting?
-                for d in next.range().clone() {
-                    // The new value of next.m[d].
-                    let mut f = Fr::MIN;
-                    // Affine layers
-                    for layer_idx in 0..N {
-                        let cm = &self.cm.affine[layer_idx];
-                        let affine_f = match cm.affine_type {
-                            InsertLayer => max(
-                                // Gap open
-                                get_front(cm.open + cm.extend).m()[d + 1] + 1,
-                                // Gap extend
-                                get_front(cm.extend).affine(layer_idx)[d + 1] + 1,
-                            ),
-                            DeleteLayer => max(
-                                // Gap open
-                                get_front(cm.open + cm.extend).m()[d - 1] + 1,
-                                // Gap extend
-                                get_front(cm.extend).affine(layer_idx)[d - 1] + 1,
-                            ),
-                            _ => todo!(),
-                        };
-                        next.affine_mut(layer_idx)[d] = affine_f;
-                        // Gap close
-                        f = max(f, affine_f);
-                    }
-                    // Substitution
-                    if let Some(cost) = self.cm.sub {
-                        f = max(f, get_front(cost).m()[d] + 2);
-                    }
-                    // Insertion
-                    if let Some(cost) = self.cm.ins {
-                        f = max(f, get_front(cost).m()[d + 1] + 1);
-                    }
-                    // Deletion
-                    if let Some(cost) = self.cm.del {
-                        f = max(f, get_front(cost).m()[d - 1] + 1);
-                    }
-                    next.m_mut()[d] = f;
-
-                    if f >= 0 {
-                        self.v.expand(fr_to_pos(d, f));
-                    }
-                }
-                // Extend all points in the m layer and check if we're done.
-                self.extend(next, a, b)
+        // Loop over the entire dmin..=dmax range.
+        // The boundaries are buffered so no boundary checks are needed.
+        // TODO: Vectorize this loop, or at least verify the compiler does this.
+        // TODO: Loop over a positive range that does not need additional shifting?
+        for d in next.range().clone() {
+            // The new value of next.m[d].
+            let mut f = Fr::MIN;
+            // Affine layers
+            for layer_idx in 0..N {
+                let cm = &self.cm.affine[layer_idx];
+                let affine_f = match cm.affine_type {
+                    InsertLayer => max(
+                        // Gap open
+                        get_front(cm.open + cm.extend).m()[d + 1] + 1,
+                        // Gap extend
+                        get_front(cm.extend).affine(layer_idx)[d + 1] + 1,
+                    ),
+                    DeleteLayer => max(
+                        // Gap open
+                        get_front(cm.open + cm.extend).m()[d - 1] + 1,
+                        // Gap extend
+                        get_front(cm.extend).affine(layer_idx)[d - 1] + 1,
+                    ),
+                    _ => todo!(),
+                };
+                next.affine_mut(layer_idx)[d] = affine_f;
+                // Gap close
+                f = max(f, affine_f);
             }
-            // TODO: the 'graph' related code should be elsewhere, and this should just follow the graph.
-            GapClose => {
-                // See https://research.curiouscoding.nl/notes/affine-gap-close-cost/.
-                for d in next.range().clone() {
-                    // The new value of next.m[d].
-                    let mut f = Fr::MIN;
-                    // Substitution
-                    if let Some(cost) = self.cm.sub {
-                        f = max(f, get_front(cost).m()[d] + 2);
-                    }
-                    // Insertion
-                    if let Some(cost) = self.cm.ins {
-                        f = max(f, get_front(cost).m()[d + 1] + 1);
-                    }
-                    // Deletion
-                    if let Some(cost) = self.cm.del {
-                        f = max(f, get_front(cost).m()[d - 1] + 1);
-                    }
-                    // Affine layers: Gap close
-                    for idx in 0..N {
-                        let cm = &self.cm.affine[idx];
-                        match cm.affine_type {
-                            InsertLayer | DeleteLayer => {
-                                // Gap close
-                                f = max(f, get_front(cm.open + cm.extend).m()[d])
-                            }
-                            _ => todo!(),
-                        };
-                    }
-                    next.m_mut()[d] = f;
+            // Substitution
+            if let Some(cost) = self.cm.sub {
+                f = max(f, get_front(cost).m()[d] + 2);
+            }
+            // Insertion
+            if let Some(cost) = self.cm.ins {
+                f = max(f, get_front(cost).m()[d + 1] + 1);
+            }
+            // Deletion
+            if let Some(cost) = self.cm.del {
+                f = max(f, get_front(cost).m()[d - 1] + 1);
+            }
+            next.m_mut()[d] = f;
 
-                    self.v.expand(fr_to_pos(d, f));
-                }
-                // Extend all points in the m layer and check if we're done.
-                if self.extend(next, a, b) {
-                    return true;
-                }
-
-                for d in next.range().clone() {
-                    // Affine layers: Gap open/extend
-                    for idx in 0..N {
-                        let cm = &self.cm.affine[idx];
-                        next.affine_mut(idx)[d] = match cm.affine_type {
-                            // max(Gap open, Gap extend)
-                            InsertLayer => max(
-                                next.m()[d + 1] + 1,
-                                get_front(cm.extend).affine(idx)[d + 1] + 1,
-                            ),
-                            // max(Gap open, Gap extend)
-                            DeleteLayer => max(
-                                next.m()[d - 1] + 1,
-                                get_front(cm.extend).affine(idx)[d - 1] + 1,
-                            ),
-                            _ => todo!(),
-                        };
-                    }
-                    // FIXME
-                    //v.expand(fr_to_pos(d, f));
-                }
-                false
+            if f >= 0 {
+                self.v.expand(fr_to_pos(d, f));
             }
         }
+        // Extend all points in the m layer and check if we're done.
+        self.extend(next, a, b)
     }
 
     // Returns None when the sequences are equal.
