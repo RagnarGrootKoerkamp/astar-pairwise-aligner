@@ -1,4 +1,11 @@
 //! This module contains the `AffineCost` and `LinearCost` cost models.
+//!
+use std::cmp::{max, min};
+
+use crate::{
+    aligners::cigar::CigarOp,
+    prelude::{Pos, I},
+};
 
 /// Type for storing costs. Not u64 to save on memory.
 ///
@@ -37,11 +44,8 @@ pub enum AffineLayerType {
     HomoPolymerInsert,
     HomoPolymerDelete,
 }
-use std::cmp::{max, min};
 
 pub use AffineLayerType::*;
-
-use crate::prelude::{Pos, I};
 
 /// An affine layer depends on its type, the open cost, and the extend cost.
 #[derive(Clone)]
@@ -379,6 +383,13 @@ impl<const N: usize> AffineCost<N> {
             d if d == 0 => self.sub,
             d if d > 0 => self.del,
             _ => unreachable!(),
+        }
+    }
+
+    pub fn to_cigar(&self, layer: usize) -> CigarOp {
+        match self.affine[layer].affine_type {
+            InsertLayer | HomoPolymerInsert => CigarOp::AffineInsertion(layer),
+            DeleteLayer | HomoPolymerDelete => CigarOp::AffineDeletion(layer),
         }
     }
 }
