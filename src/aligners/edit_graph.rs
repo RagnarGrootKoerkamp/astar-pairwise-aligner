@@ -4,28 +4,13 @@
 
 use super::{cigar::CigarOp, Seq};
 use crate::{
-    cost_model::{AffineCost, AffineLayerType, Cost},
+    cost_model::{AffineCost, AffineLayerType, Cost, CostModel},
     prelude::Pos,
 };
-use std::cmp::min;
-
-/// TODO: Generalize to CostModel trait, instead of only AffineCost.
-/// TODO: Make EditGraph a trait instead of type? Then we can implement
-/// different graph shapes in different types, and each can be optimized individually.
-/// TODO: Decide whether this is a type only class that takes all arguments on
-/// each invocation, or whether it owns the sequences and cost model, and all
-/// inspection of them has to go through it.
-pub struct EditGraph<'seq, 'cm, const N: usize> {
-    pub a: Seq<'seq>,
-    pub b: Seq<'seq>,
-    pub cm: &'cm AffineCost<N>,
-
-    /// When true, if there is a match (in the main/linear layer), all other edges are skipped.
-    /// TODO: Make template argument.
-    pub greedy_matching: bool,
-}
 
 pub type Layer = Option<usize>;
+pub type I = isize;
+pub type CigarOps = [Option<CigarOp>; 2];
 
 #[derive(Clone, Copy, Debug)]
 pub struct State {
@@ -33,6 +18,17 @@ pub struct State {
     pub j: I,
     pub layer: Layer,
 }
+
+/// For now, `EditGraph` is simply a type containing functions to iterate over
+/// the parents of a given position.
+///
+/// TODO: Generalize to CostModel trait, instead of only AffineCost.
+/// TODO: Make EditGraph a trait instead of type? Then we can implement
+/// different graph shapes in different types, and each can be optimized individually.
+/// TODO: Decide whether this is a type only class that takes all arguments on
+/// each invocation, or whether it owns the sequences and cost model, and all
+/// inspection of them has to go through it.
+pub struct EditGraph;
 
 impl State {
     #[inline]
@@ -53,32 +49,21 @@ impl State {
     }
 }
 
-type I = isize;
-
-pub type CigarOps = [Option<CigarOp>; 2];
-
-impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
+impl EditGraph {
     /// Iterate over the parents of the given state by calling `f` for each of them.
     /// Parents of a state are closer to (0,0) that the state itself.
     ///
     /// `iterate_children` may be needed as well at some point, but currently we
     /// use a 'pull-based' DP, meaning that in each state we look back, and
     /// never 'push' to the children.
-    ///
-    /// TODO: Add CigarOp to `f` argument?
     #[inline]
-    pub fn iterate_parents(&self, state: State, f: impl FnMut(Layer, I, I, Cost, CigarOps)) {
-        self.iterate_parents_internal(state, f, true)
-    }
-
-    /// This function is slightly more generic, in that we can disable
-    /// iterations over edges that stay at the given position.
-    #[inline]
-    pub fn iterate_parents_internal(
-        &self,
+    pub fn iterate_parents<const N: usize>(
+        a: Seq,
+        b: Seq,
+        cm: &AffineCost<N>,
+        greedy_matching: bool,
         State { i, j, layer }: State,
-        mut f: impl FnMut(Layer, I, I, Cost, CigarOps),
-        include_in_layer_edges: bool,
+        f: impl FnMut(Layer, I, I, Cost, CigarOps),
     ) {
         match layer {
             None => {
@@ -90,10 +75,10 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
                 // - affine close (insertion or deletion)
 
                 // match / mismatch
-                let is_match = self.a[i as usize - 1] == self.b[j as usize - 1];
+                let is_match = a[i as usize - 1] == b[j as usize - 1];
                 if is_match {
                     f(None, -1, -1, 0, [Some(CigarOp::Match), None]);
-                    if self.greedy_matching {
+                    if greedy_matching {
                         return;
                     }
                 } else {
@@ -101,34 +86,32 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
                         None,
                         -1,
                         -1,
-                        self.cm.sub.unwrap_or(Cost::MAX / 2),
+                        cm.sub.unwrap_or(Cost::MAX / 2),
                         [Some(CigarOp::Mismatch), None],
                     );
                 }
 
                 // insertion
-                if j > 0 && let Some(cost) = self.cm.ins {
+                if j > 0 && let Some(cost) = cm.ins {
                     f(None, 0, -1, cost, [Some(CigarOp::Insertion), None]);
                 }
 
                 // deletion
-                if i > 0 && let Some(cost) = self.cm.del {
+                if i > 0 && let Some(cost) = cm.del {
                     f(None, -1, 0, cost, [Some(CigarOp::Deletion), None]);
                 }
 
                 // affine close
-                if include_in_layer_edges {
-                    // NOTE: gap-close edges have a cost of 0 and stay in the current position.
-                    // This requires that the iteration order over layers at the current position visits the main layer last.
-                    for (layer, _cml) in self.cm.affine.iter().enumerate() {
-                        f(
-                            Some(layer),
-                            0,
-                            0,
-                            0,
-                            [Some(CigarOp::AffineClose(layer)), None],
-                        );
-                    }
+                // NOTE: gap-close edges have a cost of 0 and stay in the current position.
+                // This requires that the iteration order over layers at the current position visits the main layer last.
+                for (layer, _cml) in cm.affine.iter().enumerate() {
+                    f(
+                        Some(layer),
+                        0,
+                        0,
+                        0,
+                        [Some(CigarOp::AffineClose(layer)), None],
+                    );
                 }
             }
             Some(layer) => {
@@ -139,7 +122,7 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
                 //   equals the previous character.
 
                 // gap open
-                let cml = &self.cm.affine[layer];
+                let cml = &cm.affine[layer];
                 let (i, j, di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
                         (i, j - 1, 0, -1, CigarOp::AffineInsertion(layer))
@@ -161,10 +144,10 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
                     // For homopolymer layers, we can only extend if the two characters are equal.
                     if match cml.affine_type {
                         AffineLayerType::HomoPolymerInsert => {
-                            j >= 2 && self.b[j as usize - 1] == self.b[j as usize - 2]
+                            j >= 2 && b[j as usize - 1] == b[j as usize - 2]
                         }
                         AffineLayerType::HomoPolymerDelete => {
-                            i >= 2 && self.a[i as usize - 1] == self.a[i as usize - 2]
+                            i >= 2 && a[i as usize - 1] == a[i as usize - 2]
                         }
                         _ => unreachable!(),
                     } {
@@ -177,27 +160,6 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
         }
     }
 
-    /// A wrapper over `iterate_parents` that keeps a running minimum.
-    #[inline]
-    pub fn minimum_over_parents<T>(
-        &self,
-        state: State,
-        cost_of_edge: &mut impl FnMut(Layer, I, I, Cost, CigarOps) -> T,
-        init: T,
-    ) -> T
-    where
-        T: Ord,
-    {
-        let mut t = init;
-        self.iterate_parents(state, |parent_state, di, dj, cost, cigar_ops| {
-            let parent_t = cost_of_edge(parent_state, di, dj, cost, cigar_ops);
-            if parent_t < t {
-                t = parent_t;
-            }
-        });
-        t
-    }
-
     /// Iterate over the states/layers at the given position in 'the right'
     /// order, making sure dependencies within the states at the given position
     /// come first.
@@ -206,58 +168,10 @@ impl<'seq, 'cm, const N: usize> EditGraph<'seq, 'cm, N> {
     /// layer, to ensure that the ends of the gap-close edges within this
     /// position are visited first.
     #[inline]
-    pub fn iterate_layers(&self, mut f: impl FnMut(Layer)) {
+    pub fn iterate_layers<const N: usize>(cm: &AffineCost<N>, mut f: impl FnMut(Layer)) {
         for layer in 0..N {
             f(Some(layer));
         }
         f(None);
-    }
-
-    /// This function is similar to the one above, but iterates through all
-    /// states/layers at the given position, and expands any edges that
-    /// depend on this position itself. In the default case, the main layer depends on
-    /// the gap-close edges in the affine layers. We want to emulate the following:
-    /// ```
-    /// let mut f = INF;
-    /// for layer in affine_layer {
-    ///     cost_for_layer = edit_graph.iterate_parents(..);
-    ///     f = min(f, cost_for_layer);
-    /// }
-    /// cost_for_main_layer = f;
-    /// ```
-    ///
-    /// There are two way to handle such edges:
-    /// 1. Make sure that the dependent layers are visited/computed first, and
-    ///    then simply iterate over the edges in the layers that depend on them.
-    /// 2. 'Expand' the in-pos edges, remembering the 'best' value for each of them, and re-using these for the main layer.
-    ///
-    /// The second option is chosen here. For the first option, use `iterate_layers`.
-    #[inline]
-    pub fn iterate_parents_of_position<T>(
-        &self,
-        i: I,
-        j: I,
-        // The cost of taking an edge.
-        mut cost_of_edge: impl FnMut(Layer, I, I, Cost, CigarOps) -> T,
-        init: T,
-    ) -> (T, [T; N])
-    where
-        T: Ord + Copy,
-    {
-        let mut main_cost = init;
-        let mut affine_cost = [init; N];
-
-        // In our case, we first iterate over all affine layers, keeping a running minimum of `t`.
-        // For the final layer, we use both this `t` and the remaining non-affine edges.
-        for layer in 0..N {
-            affine_cost[layer] =
-                self.minimum_over_parents(State::new(i, j, Some(layer)), &mut cost_of_edge, init);
-            main_cost = min(main_cost, affine_cost[layer]);
-        }
-        main_cost = min(
-            main_cost,
-            self.minimum_over_parents(State::new(i, j, None), &mut cost_of_edge, init),
-        );
-        (main_cost, affine_cost)
     }
 }
