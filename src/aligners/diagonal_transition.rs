@@ -162,6 +162,89 @@ fn fr_to_pos(d: Fr, f: Fr) -> Pos {
     )
 }
 
+/// Given two sequences, a diagonal and point on it, expand it to a FR point.
+fn extend_diagonal(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: Fr) -> Fr {
+    let (i, j) = fr_to_coords(d, fr);
+    if i as usize >= a.len() || j as usize >= b.len() {
+        return fr;
+    }
+
+    // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
+    match direction {
+        Forward => {
+            fr += 2 * zip(a[i as usize..].iter(), b[j as usize..].iter())
+                .take_while(|(ca, cb)| ca == cb)
+                .count() as Fr
+        }
+        Backward => {
+            fr -= 2 * zip(a[..i as usize].iter().rev(), b[..j as usize].iter().rev())
+                .take_while(|(ca, cb)| ca == cb)
+                .count() as Fr
+        }
+    };
+    fr
+}
+
+/// Given two sequences, a diagonal and point on it, expand it to a FR point.
+///
+/// This version compares one usize at a time.
+/// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
+#[allow(unused)]
+fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: Fr) -> Fr {
+    let i = (fr + d) / 2;
+    let j = (fr - d) / 2;
+
+    // cast [u8] to *const usize, to compare 8 bytes at a time.
+    let mut a_ptr = a[i as usize..].as_ptr() as *const usize;
+    let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
+    let a_ptr_original = a_ptr;
+    match direction {
+        Forward => {
+            let cmp = loop {
+                let cmp = unsafe { *a_ptr ^ *b_ptr };
+                // TODO: Make the break the `likely` case?
+                if cmp != 0 {
+                    break cmp;
+                }
+                unsafe {
+                    a_ptr = a_ptr.offset(1);
+                    b_ptr = b_ptr.offset(1);
+                }
+            };
+            fr += 2
+                * (unsafe { a_ptr.offset_from(a_ptr_original) } as Fr
+                    + (if cfg!(target_endian = "little") {
+                        cmp.trailing_zeros()
+                    } else {
+                        cmp.leading_zeros()
+                    } / u8::BITS) as Fr);
+        }
+        Backward => {
+            let cmp = loop {
+                unsafe {
+                    a_ptr = a_ptr.offset(-1);
+                    b_ptr = b_ptr.offset(-1);
+                }
+                let cmp = unsafe { *a_ptr ^ *b_ptr };
+                // TODO: Make the break the `likely` case?
+                if cmp != 0 {
+                    break cmp;
+                }
+            };
+            fr += 2
+                * (unsafe { a_ptr_original.offset_from(a_ptr) } as Fr - 1
+                    + (if cfg!(target_endian = "little") {
+                        // NOTE: this is reversed from the forward case.
+                        cmp.leading_zeros()
+                    } else {
+                        cmp.trailing_zeros()
+                    } / u8::BITS) as Fr);
+        }
+    }
+
+    fr
+}
+
 impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
     pub fn new_variant(
         cm: AffineCost<N>,
@@ -247,88 +330,6 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         )
     }
 
-    /// Given two sequences, a diagonal and point on it, expand it to a FR point.
-    fn extend_diagonal(&mut self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
-        let (i, j) = fr_to_coords(d, *fr);
-        if i as usize >= a.len() || j as usize >= b.len() {
-            return *fr;
-        }
-
-        // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
-        *fr += 2 * match self.direction {
-            Forward => zip(a[i as usize..].iter(), b[j as usize..].iter())
-                .take_while(|(ca, cb)| ca == cb)
-                .count(),
-            Backward => zip(
-                a[..a.len() - i as usize].iter().rev(),
-                b[..b.len() - j as usize].iter().rev(),
-            )
-            .take_while(|(ca, cb)| ca == cb)
-            .count(),
-        } as Fr;
-        *fr
-    }
-
-    /// Given two sequences, a diagonal and point on it, expand it to a FR point.
-    ///
-    /// This version compares one usize at a time.
-    /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
-    #[allow(unused)]
-    fn extend_diagonal_packed(&mut self, a: Seq, b: Seq, d: Fr, fr: &mut Fr) -> Fr {
-        let i = (*fr + d) / 2;
-        let j = (*fr - d) / 2;
-
-        // cast [u8] to *const usize, to compare 8 bytes at a time.
-        let mut a_ptr = a[i as usize..].as_ptr() as *const usize;
-        let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
-        let a_ptr_original = a_ptr;
-        match self.direction {
-            Forward => {
-                let cmp = loop {
-                    let cmp = unsafe { *a_ptr ^ *b_ptr };
-                    // TODO: Make the break the `likely` case?
-                    if cmp != 0 {
-                        break cmp;
-                    }
-                    unsafe {
-                        a_ptr = a_ptr.offset(1);
-                        b_ptr = b_ptr.offset(1);
-                    }
-                };
-                *fr += 2
-                    * (unsafe { a_ptr.offset_from(a_ptr_original) } as Fr
-                        + (if cfg!(target_endian = "little") {
-                            cmp.trailing_zeros()
-                        } else {
-                            cmp.leading_zeros()
-                        } / u8::BITS) as Fr);
-            }
-            Backward => {
-                let cmp = loop {
-                    unsafe {
-                        a_ptr = a_ptr.offset(-1);
-                        b_ptr = b_ptr.offset(-1);
-                    }
-                    let cmp = unsafe { *a_ptr ^ *b_ptr };
-                    // TODO: Make the break the `likely` case?
-                    if cmp != 0 {
-                        break cmp;
-                    }
-                };
-                *fr += 2
-                    * (unsafe { a_ptr_original.offset_from(a_ptr) } as Fr - 1
-                        + (if cfg!(target_endian = "little") {
-                            // NOTE: this is reversed from the forward case.
-                            cmp.leading_zeros()
-                        } else {
-                            cmp.trailing_zeros()
-                        } / u8::BITS) as Fr);
-            }
-        }
-
-        *fr
-    }
-
     fn extend(&mut self, front: &mut Front<N>, a: Seq, b: Seq) -> bool {
         for d in front.range().clone() {
             let fr = &mut front.m_mut()[d];
@@ -336,9 +337,18 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
                 continue;
             }
             let fr_old = *fr;
-            let fr_new = self.extend_diagonal(a, b, d as Fr, fr);
+            *fr = match self.direction {
+                Forward => extend_diagonal(self.direction, a, b, d, *fr),
+                Backward => extend_diagonal(
+                    self.direction,
+                    a,
+                    b,
+                    a.len() as Fr - b.len() as Fr - d,
+                    a.len() as Fr + b.len() as Fr - *fr,
+                ),
+            };
             let mut p = fr_to_pos(d, fr_old);
-            for _ in fr_old..fr_new {
+            for _ in fr_old..*fr {
                 p = p.add_diagonal(1);
                 self.v.expand(p);
             }
@@ -560,9 +570,8 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
             self.right_buffer,
         );
 
-        let fr = &mut fronts[0].m_mut()[0];
-        *fr = 0;
-        let f = self.extend_diagonal(a, b, 0, fr);
+        let f = extend_diagonal(self.direction, a, b, 0, 0);
+        fronts[0].m_mut()[0] = f;
         if f >= (a.len() + b.len()) as Fr {
             return None;
         }
