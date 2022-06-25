@@ -47,46 +47,29 @@
 //!     more greedy matching) enter it.
 
 use crate::{
+    aligners::cigar::CigarOp,
     cost_model::{AffineCost, Cost},
     prelude::Pos,
 };
 
-use super::{diagonal_transition::Fr, Seq};
+use super::{cigar::Cigar, diagonal_transition::Fr, Seq};
 
-/// A state in DiagonalTransition.
-/// TODO: Move this do `diagonal_transition.rs`?
+/// Contains the diagonal `d` and furthest reaching value `fr` and `layer`.
 #[derive(Clone, PartialEq, Eq)]
-pub struct DtState {
+pub struct TracebackState {
     d: Fr,
-    s: Cost,
+    fr: Fr,
     /// TODO: Use `NonMax<u8>`?
     layer: Option<usize>,
 }
 
-impl DtState {
-    pub fn root() -> Self {
-        DtState {
-            d: 0,
-            s: 0,
-            layer: None,
-        }
-    }
-}
-
-/// A `TracebackState` additionally contains the furthest reaching value `fr`, so the actual position in `a` and `b` can be found.
-#[derive(Clone, PartialEq, Eq)]
-pub struct TracebackState {
-    state: DtState,
-    fr: Fr,
-}
-
 impl TracebackState {
     pub fn to_coords(&self) -> (Fr, Fr) {
-        ((self.fr + self.state.d) / 2, (self.fr - self.state.d) / 2)
+        ((self.fr + self.d) / 2, (self.fr - self.d) / 2)
     }
 
     pub fn to_coords_u(&self) -> (usize, usize) {
-        assert!(self.state.d <= self.fr && -self.state.d <= self.fr);
+        assert!(self.d <= self.fr && -self.d <= self.fr);
         let (i, j) = self.to_coords();
         (i as usize, j as usize)
     }
@@ -98,8 +81,9 @@ impl TracebackState {
 
     pub fn root() -> Self {
         Self {
-            state: DtState::root(),
+            d: 0,
             fr: 0,
+            layer: None,
         }
     }
 }
@@ -110,34 +94,31 @@ impl TracebackState {
 #[derive(Clone, Copy)]
 pub struct StateId(usize);
 
-pub struct CompressedHistory<'s, 'cm, const N: usize> {
+pub struct CompressedHistory<'s> {
     a: Seq<'s>,
     b: Seq<'s>,
-    cm: &'cm AffineCost<N>,
     /// For each state, we store the state itself and the id of its parent.
     states: Vec<(Option<StateId>, TracebackState)>,
 }
 
-impl<'s, 'cm, const N: usize> CompressedHistory<'s, 'cm, N> {
-    pub fn new(a: Seq<'s>, b: Seq<'s>, cm: &'cm AffineCost<N>) -> Self {
+impl<'s> CompressedHistory<'s> {
+    pub fn new(a: Seq<'s>, b: Seq<'s>) -> Self {
         Self {
             a,
             b,
-            cm,
             states: vec![(None, TracebackState::root())],
         }
     }
 }
 
-impl<'s, 'cm, const N: usize> CompressedHistory<'s, 'cm, N> {
-    pub fn root_id() -> StateId {
+impl<'s> CompressedHistory<'s> {
+    pub fn root_id(&self) -> StateId {
         StateId(0)
     }
 
     /// Adds the given state with the given parent, and returns the id of the pushed state.
-    pub fn push(&mut self, state: DtState, fr: Fr, parent_id: StateId) -> StateId {
-        self.states
-            .push((Some(parent_id), TracebackState { state, fr }));
+    pub fn push(&mut self, state: TracebackState, parent_id: StateId) -> StateId {
+        self.states.push((Some(parent_id), state));
         StateId(self.states.len() - 1)
     }
 
@@ -153,46 +134,55 @@ impl<'s, 'cm, const N: usize> CompressedHistory<'s, 'cm, N> {
 
     /// Trace to the direct parent of the current position.
     /// The actual sequences `a` and `b` are needed to do greedy matching in main layer states.
-    pub fn parent_pos(
+    pub fn parent_state(
         &self,
         mut cur: TracebackState,
         parent_id: StateId,
+        cigar: Option<&mut Cigar>,
     ) -> (TracebackState, Option<StateId>) {
         let parent = self.get(parent_id);
 
         // The number of diagonals we need to change to get to parent.
-        let dd = parent.state.d - cur.state.d;
+        let dd = parent.d - cur.d;
 
         // 1, in the direction of the parent.
         let d_unit = if dd > 0 { 1 } else { -1 };
 
-        if let Some(layer) = cur.state.layer {
+        if let Some(layer) = cur.layer {
             // In affine layer, the parent must be the state from where the gap was opened.
-            assert!(parent.state.layer.is_none());
-
-            let cml = &self.cm.affine[layer];
+            assert!(parent.layer.is_none());
 
             // TODO: Generalize this to a EditGraph template parameter.
             // For now, we assume gap-open costs.
 
+            let cigarop = if dd > 0 {
+                CigarOp::AffineInsertion(layer)
+            } else {
+                CigarOp::AffineDeletion(layer)
+            };
+
             match dd {
                 dd if dd > 1 || dd < -1 => {
                     // extend insert/delete
-                    cur.state.d += d_unit;
-                    cur.state.s -= cml.extend;
+                    cur.d += d_unit;
                     cur.fr -= 1;
+                    if let Some(cigar) = cigar {
+                        cigar.push(cigarop);
+                    }
                     (cur, Some(parent_id))
                 }
                 dd if dd == 1 || dd == -1 => {
-                    // open insert
-                    cur.state.s -= cml.extend - cml.open;
-                    cur.state.d += d_unit;
-                    cur.state.layer = None;
+                    // open insert/delete
+                    cur.d += d_unit;
+                    cur.layer = None;
                     cur.fr -= 1;
-                    assert!(cur.state.d == parent.state.d);
-                    assert!(cur.state.s == parent.state.s);
-                    assert!(cur.state.layer == parent.state.layer);
+                    assert!(cur.d == parent.d);
+                    assert!(cur.layer == parent.layer);
                     assert!(cur.fr <= parent.fr);
+                    if let Some(cigar) = cigar {
+                        cigar.push(cigarop);
+                        cigar.push(CigarOp::AffineOpen(layer));
+                    }
                     (cur, self.parent(parent_id))
                 }
                 0 => panic!(),
@@ -216,34 +206,57 @@ impl<'s, 'cm, const N: usize> CompressedHistory<'s, 'cm, N> {
                 // greedy match
                 cur.fr -= 2;
                 //assert!(cur.fr >= parent.fr);
+                if let Some(cigar) = cigar {
+                    cigar.push(CigarOp::Match);
+                }
                 return (cur, Some(parent_id));
             }
 
             // 2. If not in diagonal of parent, make a linear indel in that direction.
             if dd != 0 {
                 // linear insert / delete
-                cur.state.s -= self.cm.linear_cost_in_direction(-dd).unwrap();
-                cur.state.d += d_unit;
+                cur.d += d_unit;
                 cur.fr -= 1;
                 assert!(cur.fr >= parent.fr);
+                if let Some(cigar) = cigar {
+                    cigar.push(if dd > 0 {
+                        CigarOp::Insertion
+                    } else {
+                        CigarOp::Deletion
+                    });
+                }
                 return (cur, Some(parent_id));
             }
 
             // 3. We are in the right diagonal
-            if let Some(parent_layer) = parent.state.layer {
+            if let Some(parent_layer) = parent.layer {
                 // affine close
                 // s, d, and fr do not change.
-                cur.state.layer = Some(parent_layer);
+                cur.layer = Some(parent_layer);
+                if let Some(cigar) = cigar {
+                    cigar.push(CigarOp::AffineClose(parent_layer));
+                }
                 return (cur, self.parent(parent_id));
             } else {
                 // substitution
                 // d does not change
-                cur.state.s -= self.cm.sub.unwrap();
                 cur.fr -= 2;
                 assert!(cur == *parent);
+                if let Some(cigar) = cigar {
+                    cigar.push(CigarOp::Mismatch);
+                }
                 return (cur, self.parent(parent_id));
             }
             // Unreachable.
         }
+    }
+
+    pub fn traceback(&self, mut state: TracebackState, parent: StateId) -> Cigar {
+        let mut cigar = Cigar::default();
+        let mut parent = Some(parent);
+        while let Some(p) = parent {
+            (state, parent) = self.parent_state(state, p, Some(&mut cigar));
+        }
+        cigar
     }
 }
