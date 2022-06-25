@@ -226,54 +226,54 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
     fn parent_position(
         //Supports only gap open cost
         &self,
-        fronts: &Vec<Front<N>>,
-        a: &Sequence,
-        b: &Sequence,
+        fronts: &Fronts<N>,
+        a: Seq,
+        b: Seq,
         p: Pos,
         layer: Option<usize>,
         cost: Cost,
     ) -> (Pos, Option<usize>, CigarOp, Cost) {
         let diagonal = p.0 as i32 - p.1 as i32;
         let f = (p.0 + p.1) as i32;
-        let s = cost as usize;
+        let s = cost;
 
         //if it is an affine layer
         if let Some(layer_idx) = layer {
             let cm = &self.cm.affine[layer_idx];
             match cm.affine_type {
                 InsertLayer => {
-                    if f == fronts[s - cm.extend as usize].affine(layer_idx)[diagonal + 1] {
+                    if f == fronts[(s - cm.extend) as Fr].affine(layer_idx)[diagonal + 1] {
                         return (
                             Pos(p.0, p.1 - 1),
                             layer,
                             CigarOp::AffineInsertion(layer_idx),
-                            (s - cm.extend as usize) as Cost,
+                            s - cm.extend,
                         );
                     }
-                    if f == fronts[s - cm.open as usize].m()[diagonal + 1] {
+                    if f == fronts[(s - cm.open) as Fr].m()[diagonal + 1] {
                         return (
                             Pos(p.0, p.1 - 1),
                             layer,
                             CigarOp::AffineOpen(layer_idx),
-                            (s - cm.open as usize) as Cost,
+                            s - cm.open,
                         );
                     }
                 }
                 DeleteLayer => {
-                    if f == fronts[s - cm.extend as usize].affine(layer_idx)[diagonal - 1] {
+                    if f == fronts[(s - cm.extend) as Fr].affine(layer_idx)[diagonal - 1] {
                         return (
                             Pos(p.0, p.1 - 1),
                             layer,
                             CigarOp::AffineDeletion(layer_idx),
-                            (s - cm.extend as usize) as Cost,
+                            s - cm.extend,
                         );
                     }
-                    if f == fronts[s - cm.open as usize].m()[diagonal - 1] {
+                    if f == fronts[(s - cm.open) as Fr].m()[diagonal - 1] {
                         return (
                             Pos(p.0, p.1 - 1),
                             layer,
                             CigarOp::AffineOpen(layer_idx),
-                            (s - cm.open as usize) as Cost,
+                            s - cm.open,
                         );
                     }
                 }
@@ -287,35 +287,35 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
             //if there is no match
             else {
                 // Linear Substitution
-                if let Some(cost) = self.cm.sub && f == fronts[s - cost as usize].m()[diagonal] + 2 {
+                if let Some(cost) = self.cm.sub && f == fronts[(s - cost) as Fr].m()[diagonal] + 2 {
                         return (
                             Pos(p.0 - 1, p.1 - 1),
                             None,
                             CigarOp::Mismatch,
-                            (s - cost as usize) as Cost,
+                            s - cost,
                         );
                     }
                 // Linear Insertion
-                if let Some(cost) = self.cm.ins && f == fronts[s - cost as usize].m()[diagonal + 1] + 1 {
+                if let Some(cost) = self.cm.ins && f == fronts[(s - cost) as Fr].m()[diagonal + 1] + 1 {
                         return (
                             Pos(p.0, p.1 - 1),
                             None,
                             CigarOp::Insertion,
-                            (s - cost as usize) as Cost,
+                            s - cost ,
                         );
                     }
                 // Linear Deletion
-                if let Some(cost) = self.cm.del && f == fronts[s - cost as usize].m()[diagonal - 1] + 1 {
+                if let Some(cost) = self.cm.del && f == fronts[(s - cost) as Fr].m()[diagonal - 1] + 1 {
                         return (
                             Pos(p.0 - 1, p.1),
                             None,
                             CigarOp::Deletion,
-                            (s - cost as usize) as Cost,
+                            s - cost ,
                         );
                 }
                 // Checking affine layers
                 for layer_idx in 0..N {
-                    if f == fronts[s].affine(layer_idx)[diagonal] {
+                    if f == fronts[s as Fr].affine(layer_idx)[diagonal] {
                         // We cannot return the same position twice, can we?
                         // Here we will lose CigarOp::AffineClose command for we can't return more than one command per one position. Or we may return explicitly CigarOp::AffineClose instead of what the recursive function gives us.
                         // The code that implements this suggestion is given commented below the return in this if-statement
@@ -335,9 +335,9 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
 
     fn parent_state(
         &self,
-        fronts: &Vec<Front<N>>,
-        a: &Sequence,
-        b: &Sequence,
+        fronts: &Fronts<N>,
+        a: Seq,
+        b: Seq,
         d: Fr,
         cost: Cost,
         layer: Option<usize>,
@@ -347,11 +347,11 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         let mut x;
         let mut y;
         if let Some(layer_idx) = layer {
-            let f = fronts[s].affine(layer_idx)[d];
+            let f = fronts[s as Fr].affine(layer_idx)[d];
             x = ((f + d) / 2) as usize;
             y = ((f - d) / 2) as usize;
         } else {
-            let mut f = fronts[s].m()[d];
+            let mut f = fronts[s as Fr].m()[d];
             x = ((f + d) / 2 - 1) as usize;
             y = ((f - d) / 2 - 1) as usize;
             //backtracing matches
@@ -373,13 +373,7 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         return (parent_pos.3, diag, parent_pos.1);
     }
 
-    pub fn get_cigar(
-        &self,
-        fronts: &Vec<Front<N>>,
-        a: &Sequence,
-        b: &Sequence,
-        mut cost: Cost,
-    ) -> Cigar {
+    pub fn get_cigar(&self, fronts: &Fronts<N>, a: Seq, b: Seq, mut cost: Cost) -> Cigar {
         let mut cigar: Cigar = Cigar::default();
         let mut layer = None;
         let mut d = a.len() as i32 - b.len() as i32;
@@ -390,15 +384,15 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         cigar
     }
 
-    pub fn get_path(&self, fronts: &Vec<Front<N>>, a: Seq, b: Seq, mut cost: Cost) -> Path {
+    pub fn get_path(&self, fronts: &Fronts<N>, a: Seq, b: Seq, mut cost: Cost) -> Path {
         let mut path: Path = vec![];
         let mut save = |p: Pos| {
             if let Some(last) = path.last() {
-                if *last == (p.0 as usize, p.1 as usize) {
+                if *last == Pos(p.0 as I, p.1 as I) {
                     return;
                 }
             }
-            path.push((p.0 as usize, p.1 as usize));
+            path.push(Pos(p.0 as I, p.1 as I));
         };
         let mut layer = None;
         let mut p = Pos(a.len() as u32, b.len() as u32);
@@ -809,9 +803,9 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
             );
             if self.next_front(a, b, &fronts.fronts, &mut next) {
                 // FIXME: Reconstruct path.
-                let path = self.get_path(fronts, a, b, s);
-                let cigar = self.get_cigar(fronts, a, b, s);
-                return (s, path, cigar);
+                let path2 = self.get_path(&fronts, a, b, s);
+                let cigar2 = self.get_cigar(&fronts, a, b, s);
+                return Some((s, path2, cigar2));
             }
 
             fronts.fronts.push(next);
