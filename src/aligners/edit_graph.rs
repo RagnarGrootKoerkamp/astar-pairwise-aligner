@@ -2,9 +2,9 @@
 //! There may be multiple graphs corresponding to the same cost model:
 //! https://research.curiouscoding.nl/posts/diagonal-transition-variations/
 
-use super::{cigar::CigarOp, Seq};
+use super::{cigar::CigarOp, diagonal_transition::Fr, Seq};
 use crate::{
-    cost_model::{AffineCost, AffineLayerType, Cost, CostModel},
+    cost_model::{AffineCost, AffineLayerType, Cost},
     prelude::Pos,
 };
 
@@ -36,6 +36,7 @@ impl State {
         Self { i, j, layer }
     }
 
+    #[inline]
     pub fn target(a: Seq, b: Seq) -> Self {
         Self {
             i: a.len() as I,
@@ -44,26 +45,40 @@ impl State {
         }
     }
 
+    #[inline]
     pub fn pos(&self) -> Pos {
         Pos::from(self.i, self.j)
     }
 }
 
 impl EditGraph {
+    /// Iterate over the states/layers at the given position in 'the right'
+    /// order, making sure dependencies within the states at the given position
+    /// come first.
+    ///
+    /// I.e., in this normal case affine layers are iterated before the main
+    /// layer, to ensure that the ends of the gap-close edges within this
+    /// position are visited first.
+    pub fn iterate_layers<const N: usize>(_cm: &AffineCost<N>, mut f: impl FnMut(Layer)) {
+        for layer in 0..N {
+            f(Some(layer));
+        }
+        f(None);
+    }
+
     /// Iterate over the parents of the given state by calling `f` for each of them.
     /// Parents of a state are closer to (0,0) that the state itself.
     ///
     /// `iterate_children` may be needed as well at some point, but currently we
     /// use a 'pull-based' DP, meaning that in each state we look back, and
     /// never 'push' to the children.
-    #[inline]
     pub fn iterate_parents<const N: usize>(
         a: Seq,
         b: Seq,
         cm: &AffineCost<N>,
         greedy_matching: bool,
         State { i, j, layer }: State,
-        f: impl FnMut(Layer, I, I, Cost, CigarOps),
+        mut f: impl FnMut(I, I, Layer, Cost, CigarOps),
     ) {
         match layer {
             None => {
@@ -77,28 +92,22 @@ impl EditGraph {
                 // match / mismatch
                 let is_match = a[i as usize - 1] == b[j as usize - 1];
                 if is_match {
-                    f(None, -1, -1, 0, [Some(CigarOp::Match), None]);
+                    f(-1, -1, None, 0, [Some(CigarOp::Match), None]);
                     if greedy_matching {
                         return;
                     }
-                } else {
-                    f(
-                        None,
-                        -1,
-                        -1,
-                        cm.sub.unwrap_or(Cost::MAX / 2),
-                        [Some(CigarOp::Mismatch), None],
-                    );
+                } else if let Some(cost) = cm.sub {
+                    f(-1, -1, None, cost, [Some(CigarOp::Mismatch), None]);
                 }
 
                 // insertion
-                if j > 0 && let Some(cost) = cm.ins {
-                    f(None, 0, -1, cost, [Some(CigarOp::Insertion), None]);
+                if let Some(cost) = cm.ins {
+                    f(0, -1, None, cost, [Some(CigarOp::Insertion), None]);
                 }
 
                 // deletion
-                if i > 0 && let Some(cost) = cm.del {
-                    f(None, -1, 0, cost, [Some(CigarOp::Deletion), None]);
+                if let Some(cost) = cm.del {
+                    f(-1, 0, None, cost, [Some(CigarOp::Deletion), None]);
                 }
 
                 // affine close
@@ -106,9 +115,9 @@ impl EditGraph {
                 // This requires that the iteration order over layers at the current position visits the main layer last.
                 for (layer, _cml) in cm.affine.iter().enumerate() {
                     f(
+                        0,
+                        0,
                         Some(layer),
-                        0,
-                        0,
                         0,
                         [Some(CigarOp::AffineClose(layer)), None],
                     );
@@ -132,9 +141,9 @@ impl EditGraph {
                     }
                 };
                 f(
-                    None,
                     di,
                     dj,
+                    None,
                     cml.open + cml.extend,
                     [Some(op), Some(CigarOp::AffineOpen(layer))],
                 );
@@ -151,27 +160,106 @@ impl EditGraph {
                         }
                         _ => unreachable!(),
                     } {
-                        f(Some(layer), di, dj, cml.extend, [Some(op), None]);
+                        f(di, dj, Some(layer), cml.extend, [Some(op), None]);
                     }
                 } else {
-                    f(Some(layer), di, dj, cml.extend, [Some(op), None]);
+                    f(di, dj, Some(layer), cml.extend, [Some(op), None]);
                 }
             }
         }
     }
 
-    /// Iterate over the states/layers at the given position in 'the right'
-    /// order, making sure dependencies within the states at the given position
-    /// come first.
+    /// Iterates parents for DT algorithms.
+    /// Here, the exact position of the edge is not known until after the potential edge has been looked up.
+    /// Thus, we split the callback into two parts:
+    /// - f: gets the fr. point for the start of the given edge.
+    /// - g: handles the edge, if it is indeed allowed.
     ///
-    /// I.e., in this normal case affine layers are iterated before the main
-    /// layer, to ensure that the ends of the gap-close edges within this
-    /// position are visited first.
-    #[inline]
-    pub fn iterate_layers<const N: usize>(cm: &AffineCost<N>, mut f: impl FnMut(Layer)) {
-        for layer in 0..N {
-            f(Some(layer));
+    /// NOTE: Matches are completely ignored here.
+    pub fn iterate_parents_dt<const N: usize>(
+        a: Seq,
+        b: Seq,
+        cm: &AffineCost<N>,
+        layer: Layer,
+        // Given (di, dj) return the (i, j) of the end of the actual edge.
+        mut f: impl FnMut(Fr, Fr, Layer, Cost) -> (Fr, Fr),
+        // Given `fr`, update fr point.
+        mut g: impl FnMut(Fr, Fr, Layer, CigarOps),
+    ) {
+        match layer {
+            None => {
+                // In the main layer, there are many possible edges:
+                // - ~match~
+                // - mismatch / substitution
+                // - insertion
+                // - deletion
+                // - affine close (insertion or deletion)
+
+                if let Some(cost) = cm.sub {
+                    let (i, j) = f(-1, -1, None, cost);
+                    g(i, j, None, [Some(CigarOp::Mismatch), None]);
+                }
+
+                // insertion
+                if let Some(cost) = cm.ins {
+                    let (i, j) = f(0, -1, None, cost);
+                    g(i, j, None, [Some(CigarOp::Insertion), None]);
+                }
+
+                // deletion
+                if let Some(cost) = cm.del {
+                    let (i, j) = f(-1, 0, None, cost);
+                    g(i, j, None, [Some(CigarOp::Deletion), None]);
+                }
+
+                // affine close
+                // NOTE: gap-close edges have a cost of 0 and stay in the current position.
+                // This requires that the iteration order over layers at the current position visits the main layer last.
+                for (layer, _cml) in cm.affine.iter().enumerate() {
+                    let (i, j) = f(0, 0, Some(layer), 0);
+                    g(i, j, Some(layer), [Some(CigarOp::AffineClose(layer)), None]);
+                }
+            }
+            Some(layer) => {
+                // If we are currently in an affine layer, there are two options:
+                // - gap open of cost `open + extend`, which is always allowed.
+                // - gap close of cost `extend`, which in case of homopolymer
+                //   layers is only allowed when the character to be extended
+                //   equals the previous character.
+
+                // gap open
+                let cml = &cm.affine[layer];
+                let (di, dj, op) = match cml.affine_type {
+                    AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
+                        (0, -1, CigarOp::AffineInsertion(layer))
+                    }
+                    AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
+                        (-1, 0, CigarOp::AffineDeletion(layer))
+                    }
+                };
+                let (i, j) = f(di, dj, None, cml.open + cml.extend);
+                g(i, j, None, [Some(op), Some(CigarOp::AffineOpen(layer))]);
+
+                // gap extend
+                let (i, j) = f(di, dj, Some(layer), cml.extend);
+                if cml.affine_type.is_homopolymer() {
+                    // For homopolymer layers, we can only extend if the last
+                    // two characters ending in the current position are equal.
+                    if match cml.affine_type {
+                        AffineLayerType::HomoPolymerInsert => {
+                            j >= 2 && b[j as usize - 1] == b[j as usize - 2]
+                        }
+                        AffineLayerType::HomoPolymerDelete => {
+                            i >= 2 && a[i as usize - 1] == a[i as usize - 2]
+                        }
+                        _ => unreachable!(),
+                    } {
+                        g(i, j, Some(layer), [Some(op), None]);
+                    }
+                } else {
+                    g(i, j, Some(layer), [Some(op), None]);
+                }
+            }
         }
-        f(None);
     }
 }

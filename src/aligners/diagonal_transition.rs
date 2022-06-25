@@ -22,6 +22,7 @@
 //!
 //!
 use super::cigar::Cigar;
+use super::edit_graph::EditGraph;
 use super::nw::Path;
 use super::{Aligner, Seq, VisualizerT};
 use crate::cost_model::*;
@@ -391,59 +392,48 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
     /// NOTE: `next` must already have the right range set.
     ///
     /// Returns `true` when the search completes.
-    fn next_front(&mut self, a: Seq, b: Seq, prev: &[Front<N>], next: &mut Front<N>) -> bool {
+    fn next_front(&mut self, a: Seq, b: Seq, fronts: &mut [Front<N>]) -> bool {
         // Get the front `cost` before the last one.
-        let get_front = |cost| &prev[prev.len() - cost as usize];
+        fn get_front<const N: usize>(fronts: &mut [Front<N>], cost: Cost) -> &mut Front<N> {
+            &mut fronts[fronts.len() - 1 - cost as usize]
+        }
 
         // Loop over the entire dmin..=dmax range.
         // The boundaries are buffered so no boundary checks are needed.
         // TODO: Vectorize this loop, or at least verify the compiler does this.
         // TODO: Loop over a positive range that does not need additional shifting?
-        for d in next.range().clone() {
-            // The new value of next.m[d].
-            let mut f = Fr::MIN;
-            // Affine layers
-            for layer_idx in 0..N {
-                let cm = &self.cm.affine[layer_idx];
-                let affine_f = match cm.affine_type {
-                    InsertLayer => max(
-                        // Gap open
-                        get_front(cm.open + cm.extend).m()[d + 1] + 1,
-                        // Gap extend
-                        get_front(cm.extend).affine(layer_idx)[d + 1] + 1,
-                    ),
-                    DeleteLayer => max(
-                        // Gap open
-                        get_front(cm.open + cm.extend).m()[d - 1] + 1,
-                        // Gap extend
-                        get_front(cm.extend).affine(layer_idx)[d - 1] + 1,
-                    ),
-                    _ => todo!(),
-                };
-                next.affine_mut(layer_idx)[d] = affine_f;
-                // Gap close
-                f = max(f, affine_f);
-            }
-            // Substitution
-            if let Some(cost) = self.cm.sub {
-                f = max(f, get_front(cost).m()[d] + 2);
-            }
-            // Insertion
-            if let Some(cost) = self.cm.ins {
-                f = max(f, get_front(cost).m()[d + 1] + 1);
-            }
-            // Deletion
-            if let Some(cost) = self.cm.del {
-                f = max(f, get_front(cost).m()[d - 1] + 1);
-            }
-            next.m_mut()[d] = f;
-
-            if f >= 0 {
-                self.v.expand(fr_to_pos(d, f));
-            }
+        // println!(
+        //     "a {:?}\nb {:?}\n{:?}\n",
+        //     std::str::from_utf8(a),
+        //     std::str::from_utf8(b),
+        //     get_front(fronts, 0).range()
+        // );
+        for d in get_front(fronts, 0).range().clone() {
+            EditGraph::iterate_layers(&self.cm, |layer| {
+                let mut fr = Fr::MIN;
+                EditGraph::iterate_parents_dt(
+                    a,
+                    b,
+                    &self.cm,
+                    layer,
+                    |di, dj, layer, edge_cost| -> (Fr, Fr) {
+                        //println!("{d} {di} {dj} {layer:?} {edge_cost}");
+                        let fr = get_front(fronts, edge_cost).layer(layer)[d + (di - dj) as Fr]
+                            - (di + dj) as Fr;
+                        fr_to_coords(d, fr)
+                    },
+                    |i, j, _layer, _cigar_ops| {
+                        fr = max(fr, (i + j) as Fr);
+                    },
+                );
+                get_front(fronts, 0).layer_mut(layer)[d] = fr;
+                if fr >= 0 {
+                    self.v.expand(fr_to_pos(d, fr));
+                }
+            });
         }
         // Extend all points in the m layer and check if we're done.
-        self.extend(next, a, b)
+        self.extend(get_front(fronts, 0), a, b)
     }
 
     // Returns None when the sequences are equal.
@@ -495,15 +485,13 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
 
             // Rotate all fronts back by one, so that we can fill the new last layer.
             fronts.fronts.rotate_left(1);
-            let (next, fronts) = fronts.fronts.split_last_mut().unwrap();
-
-            next.reset(
+            fronts.fronts.last_mut().unwrap().reset(
                 Fr::MIN,
                 self.d_range(a, b, s, s_bound),
                 self.left_buffer,
                 self.right_buffer,
             );
-            if self.next_front(a, b, fronts, next) {
+            if self.next_front(a, b, &mut fronts.fronts) {
                 return Some(s);
             }
         }
@@ -527,18 +515,16 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
             }
 
             // We can not initialize all layers directly at the start, since we do not know the final distance s.
-            let mut next = Front::new(
+            fronts.fronts.push(Front::new(
                 Fr::MIN,
                 self.d_range(a, b, s, s_bound),
                 self.left_buffer,
                 self.right_buffer,
-            );
-            if self.next_front(a, b, &fronts.fronts, &mut next) {
+            ));
+            if self.next_front(a, b, &mut fronts.fronts) {
                 // FIXME: Reconstruct path.
                 return Some((s, vec![], Cigar::default()));
             }
-
-            fronts.fronts.push(next);
         }
     }
 }
