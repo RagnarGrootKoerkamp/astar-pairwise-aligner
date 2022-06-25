@@ -12,6 +12,7 @@ pub mod front;
 pub mod nw;
 pub mod nw_lib;
 
+mod compressed_history;
 #[cfg(test)]
 mod tests;
 
