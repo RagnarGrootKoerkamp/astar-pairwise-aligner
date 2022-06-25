@@ -13,6 +13,7 @@ pub mod nw;
 pub mod nw_lib;
 
 mod compressed_history;
+pub mod edit_graph;
 #[cfg(test)]
 mod tests;
 

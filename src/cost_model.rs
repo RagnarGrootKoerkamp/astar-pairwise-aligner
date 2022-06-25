@@ -45,6 +45,15 @@ pub enum AffineLayerType {
     HomoPolymerDelete,
 }
 
+impl AffineLayerType {
+    pub fn is_homopolymer(&self) -> bool {
+        match self {
+            InsertLayer | DeleteLayer => false,
+            HomoPolymerInsert | HomoPolymerDelete => true,
+        }
+    }
+}
+
 pub use AffineLayerType::*;
 
 /// An affine layer depends on its type, the open cost, and the extend cost.
