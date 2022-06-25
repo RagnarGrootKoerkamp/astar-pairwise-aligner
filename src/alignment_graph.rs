@@ -22,6 +22,10 @@ pub type MatchCost = u8;
 pub struct Pos(pub I, pub I);
 
 impl Pos {
+    pub fn root() -> Self {
+        Pos(0, 0)
+    }
+
     pub fn from_lengths(a: Seq, b: Seq) -> Self {
         Pos(a.len() as I, b.len() as I)
     }
