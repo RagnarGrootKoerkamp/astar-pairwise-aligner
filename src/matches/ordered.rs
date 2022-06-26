@@ -516,11 +516,7 @@ mod test {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b, alph, _) = setup(n, e);
-                    let matchconfig = MatchConfig {
-                        length: crate::prelude::LengthConfig::Fixed(k),
-                        max_match_cost,
-                        ..Default::default()
-                    };
+                    let matchconfig = MatchConfig::new(k, max_match_cost);
                     let t = find_matches_trie(&a, &b, &alph, matchconfig);
                     let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
                     if t.matches == r.matches {
@@ -550,11 +546,7 @@ mod test {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b, alph, _) = setup(n, e);
-                    let matchconfig = MatchConfig {
-                        length: crate::prelude::LengthConfig::Fixed(k),
-                        max_match_cost,
-                        ..Default::default()
-                    };
+                    let matchconfig = MatchConfig::new(k, max_match_cost);
                     let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
                     let h = find_matches_qgram_hash_exact(&a, &b, &alph, matchconfig);
                     if !SLIDING_WINDOW_MATCHES {
@@ -587,11 +579,7 @@ mod test {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b, alph, _) = setup(n, e);
                     println!("{}\n{}", to_string(&a), to_string(&b));
-                    let matchconfig = MatchConfig {
-                        length: crate::prelude::LengthConfig::Fixed(k),
-                        max_match_cost,
-                        ..Default::default()
-                    };
+                    let matchconfig = MatchConfig::new(k, max_match_cost);
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
                     let mut r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);

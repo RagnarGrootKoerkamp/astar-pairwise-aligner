@@ -13,12 +13,7 @@ fn main() {
     let pruning = false;
 
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost,
-            window_filter: false,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, max_match_cost),
         pruning,
         use_gap_cost: false,
         c: PhantomData::<HintContours<BruteForceContour>>::default(),

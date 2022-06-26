@@ -22,11 +22,7 @@ fn contour_graph() {
         let max_match_cost = 1;
         let pruning = false;
         let h = CSH {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost,
-                ..MatchConfig::default()
-            },
+            match_config: MatchConfig::new(k, max_match_cost),
             pruning,
             use_gap_cost: true,
             c: PhantomData::<BruteForceContours>,
@@ -58,11 +54,7 @@ fn small_test() {
     };
 
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost: 1,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::inexact(k),
         pruning: false,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -78,11 +70,7 @@ fn small_test() {
 fn seed_heuristic_rebuild() {
     let (k, m, n, e, pruning) = (4, 0, 100, 0.3, true);
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost: m,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, m),
         pruning,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -109,11 +97,7 @@ fn seed_heuristic_rebuild() {
 fn no_double_expand() {
     let (k, m, n, e, pruning) = (5, 1, 78, 0.3, true);
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost: m,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, m),
         pruning,
         use_gap_cost: true,
         c: PhantomData::<BruteForceContours>,
@@ -138,11 +122,7 @@ fn no_double_expand() {
 fn no_double_expand_2() {
     let (k, m, n, e, pruning) = (7, 1, 61, 0.3, true);
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost: m,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, m),
         pruning,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -168,11 +148,7 @@ fn no_double_expand_2() {
 fn missing_shadow_points() {
     let (k, m, n, e, pruning) = (10, 1, 61, 0.3, true);
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost: m,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, m),
         pruning,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,

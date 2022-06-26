@@ -8,21 +8,13 @@ fn main() {
     let pruning = true;
 
     let h_fast = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, max_match_cost),
         pruning,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
     let h_base = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, max_match_cost),
         pruning,
         use_gap_cost: true,
         c: PhantomData::<BruteForceContours>,

@@ -5,11 +5,7 @@ use pairwise_aligner::prelude::*;
 fn seed_heuristic_rebuild() {
     let (k, m, n, e, pruning) = (4, 0, 100, 0.3, true);
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost: m,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, m),
         pruning,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -39,11 +35,7 @@ fn seed_heuristic_rebuild() {
 fn never_use_gap_distance() {
     let (k, m, n, e, pruning) = (5, 1, 14, 0.3, true);
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(k),
-            max_match_cost: m,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, m),
         pruning,
         use_gap_cost: true,
         c: PhantomData::<BruteForceContours>,
@@ -68,11 +60,7 @@ fn seed_heuristic_zero_dist_consistent() {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
                 let h = BruteForceCSH {
-                    match_config: MatchConfig {
-                        length: Fixed(k),
-                        max_match_cost: m,
-                        ..MatchConfig::default()
-                    },
+                    match_config: MatchConfig::new(k, m),
                     pruning: true,
                     distance_function: ZeroCost,
                 };

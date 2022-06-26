@@ -310,92 +310,35 @@ fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
 fn n100_inexact_trie(bench: &mut Bencher) {
     let n = 100;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_trie(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 1,
-                ..Default::default()
-            },
-        )
-    });
+    bench.iter(|| find_matches_trie(&a, &b, &alph, MatchConfig::inexact(K)));
 }
 
 #[bench]
 fn n10000_inexact_trie(bench: &mut Bencher) {
     let n = 10000;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_trie(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 1,
-                ..Default::default()
-            },
-        )
-    });
+    bench.iter(|| find_matches_trie(&a, &b, &alph, MatchConfig::inexact(K)));
 }
 
 #[bench]
 fn n100_inexact_hash(bench: &mut Bencher) {
     let n = 100;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_trie(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 1,
-                ..Default::default()
-            },
-        )
-    });
+    bench.iter(|| find_matches_trie(&a, &b, &alph, MatchConfig::inexact(K)));
 }
 
 #[bench]
 fn n10000_inexact_hash(bench: &mut Bencher) {
     let n = 10000;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_qgram_hash_inexact(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 1,
-                ..Default::default()
-            },
-            false,
-        )
-    });
+    bench.iter(|| find_matches_qgram_hash_inexact(&a, &b, &alph, MatchConfig::inexact(K), false));
 }
 
 #[bench]
 fn n100000_inexact_hash(bench: &mut Bencher) {
     let n = 100000;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_qgram_hash_inexact(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 1,
-                ..Default::default()
-            },
-            false,
-        )
-    });
+    bench.iter(|| find_matches_qgram_hash_inexact(&a, &b, &alph, MatchConfig::inexact(K), false));
 }
 
 #[bench]

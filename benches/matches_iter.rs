@@ -22,11 +22,7 @@ fn n100(bench: &mut Bencher) {
                 &a,
                 &b,
                 &alph,
-                MatchConfig {
-                    length: Fixed(K),
-                    max_match_cost: 0,
-                    ..Default::default()
-                },
+                MatchConfig::exact(K),
             ));
         }
     });
@@ -42,11 +38,7 @@ fn n10k(bench: &mut Bencher) {
                 &a,
                 &b,
                 &alph,
-                MatchConfig {
-                    length: Fixed(K),
-                    max_match_cost: 0,
-                    ..Default::default()
-                },
+                MatchConfig::exact(K),
             ));
         }
     });
@@ -63,11 +55,7 @@ fn n1M(bench: &mut Bencher) {
                 &a,
                 &b,
                 &alph,
-                MatchConfig {
-                    length: Fixed(K),
-                    max_match_cost: 0,
-                    ..Default::default()
-                },
+                MatchConfig::exact(K),
             ));
         }
     });

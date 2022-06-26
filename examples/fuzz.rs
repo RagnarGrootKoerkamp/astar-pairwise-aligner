@@ -5,11 +5,7 @@ fn main() {
         for r in 0..10000 {
             let (k, m, n, e, pruning) = (4, 0, n, 0.9, true);
             let h = CSH {
-                match_config: MatchConfig {
-                    length: Fixed(k),
-                    max_match_cost: m,
-                    ..MatchConfig::default()
-                },
+                match_config: MatchConfig::new(k, m),
                 pruning,
                 use_gap_cost: false,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),

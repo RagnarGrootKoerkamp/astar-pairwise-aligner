@@ -16,11 +16,7 @@ fn main() {
     }
     {
         let h = CSH {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost: m,
-                ..MatchConfig::default()
-            },
+            match_config: MatchConfig::new(k, m),
             pruning: false,
             use_gap_cost: false,
             c: PhantomData::<BruteForceContours>::default(),
@@ -32,11 +28,7 @@ fn main() {
     }
     {
         let h = CSH {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost: m,
-                ..MatchConfig::default()
-            },
+            match_config: MatchConfig::new(k, m),
             pruning: true,
             use_gap_cost: false,
             c: PhantomData::<BruteForceContours>::default(),

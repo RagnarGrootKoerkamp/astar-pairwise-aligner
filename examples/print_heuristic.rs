@@ -9,13 +9,7 @@ fn main() {
     let max_match_cost = 0;
 
     let h = CSH {
-        match_config: MatchConfig {
-            length:
-            //Fixed(6),
-            LengthConfig::Fixed(k),
-            max_match_cost,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::new(k, max_match_cost),
         pruning,
         use_gap_cost: false,
         c: PhantomData::<BruteForceContours>::default(),
