@@ -287,7 +287,7 @@ macro_rules! test_diagonal_transition {
                 fn test<const N: usize>(cm: AffineCost<N>) {
                     test_aligner_on_cost_model(
                         cm.clone(),
-                        DiagonalTransition::new(cm, $use_gap_cost_heuristic, $history_compression, NoVisualizer),
+                        DiagonalTransition::new_variant(cm, $use_gap_cost_heuristic, ZeroCost, $history_compression, Direction::Forward, NoVisualizer),
                         true,
                         $exponential_search
                     );
@@ -425,6 +425,36 @@ mod nw_sh {
             // test `align` as well?
             true,
             // exponential search (needed to use h at all)
+            true,
+        );
+    }
+
+    #[test]
+    fn unit_cost() {
+        // sub=indel=1
+        test(AffineCost::new_unit());
+    }
+}
+mod diagonal_transition_sh {
+    use crate::{heuristic::SH, matches::MatchConfig};
+
+    use super::*;
+
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(
+            cm.clone(),
+            DiagonalTransition::new_variant(
+                cm,
+                GapCostHeuristic::Disable,
+                SH {
+                    match_config: MatchConfig::exact(5),
+                    pruning: false,
+                },
+                HistoryCompression::Disable,
+                Direction::Forward,
+                NoVisualizer,
+            ),
+            false,
             true,
         );
     }

@@ -24,8 +24,9 @@
 use super::cigar::Cigar;
 use super::edit_graph::EditGraph;
 use super::nw::Path;
-use super::{Aligner, Seq, VisualizerT};
+use super::{Aligner, NoVisualizer, Seq, VisualizerT};
 use crate::cost_model::*;
+use crate::heuristic::{Heuristic, HeuristicInstance, ZeroCost};
 use crate::prelude::Pos;
 use std::cmp::{max, min};
 use std::iter::zip;
@@ -62,12 +63,14 @@ pub enum HistoryCompression {
 /// TODO: Split into two classes: A static user supplied config, and an instance
 /// to use for a specific alignment. Similar to Heuristic vs HeuristicInstance.
 /// The latter can contain the sequences, direction, and other specifics.
-pub struct DiagonalTransition<CostModel, V: VisualizerT> {
+pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
     /// The CostModel to use, possibly affine.
     cm: CostModel,
 
     /// Whether to use the gap heuristic to the end to reduce the number of diagonals considered.
     use_gap_cost_heuristic: GapCostHeuristic,
+
+    h: H,
 
     /// When true, calls to `align` store a compressed version of the full 'history' of visited states.
     #[allow(unused)]
@@ -117,14 +120,14 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT> {
 /// Converts a pair of (diagonal index, furthest reaching) to a position.
 /// TODO: Return Pos or usize instead?
 #[inline]
-fn fr_to_coords(d: Fr, f: Fr) -> (Fr, Fr) {
-    ((f + d) / 2, (f - d) / 2)
+fn fr_to_coords(d: Fr, fr: Fr) -> (Fr, Fr) {
+    ((fr + d) / 2, (fr - d) / 2)
 }
 #[inline]
-fn fr_to_pos(d: Fr, f: Fr) -> Pos {
+fn fr_to_pos(d: Fr, fr: Fr) -> Pos {
     Pos(
-        ((f + d) / 2) as crate::prelude::I,
-        ((f - d) / 2) as crate::prelude::I,
+        ((fr + d) / 2) as crate::prelude::I,
+        ((fr - d) / 2) as crate::prelude::I,
     )
 }
 
@@ -211,10 +214,28 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
     fr
 }
 
-impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
+impl<const N: usize> DiagonalTransition<AffineCost<N>, NoVisualizer, ZeroCost> {
+    pub fn new(
+        cm: AffineCost<N>,
+        use_gap_cost_heuristic: GapCostHeuristic,
+        history_compression: HistoryCompression,
+    ) -> Self {
+        Self::new_variant(
+            cm,
+            use_gap_cost_heuristic,
+            ZeroCost,
+            history_compression,
+            Forward,
+            NoVisualizer,
+        )
+    }
+}
+
+impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost<N>, V, H> {
     pub fn new_variant(
         cm: AffineCost<N>,
         use_gap_cost_heuristic: GapCostHeuristic,
+        h: H,
         history_compression: HistoryCompression,
         direction: Direction,
         v: V,
@@ -269,6 +290,7 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         Self {
             cm,
             use_gap_cost_heuristic,
+            h,
             v,
             top_buffer,
             left_buffer,
@@ -276,15 +298,6 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
             direction,
             history_compression,
         }
-    }
-
-    pub fn new(
-        cm: AffineCost<N>,
-        use_gap_cost_heuristic: GapCostHeuristic,
-        history_compression: HistoryCompression,
-        v: V,
-    ) -> Self {
-        Self::new_variant(cm, use_gap_cost_heuristic, history_compression, Forward, v)
     }
 
     fn extend(&mut self, front: &mut Front<N>, a: Seq, b: Seq) -> bool {
@@ -322,20 +335,97 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
     /// The range of diagonals to consider for the given cost `s`.
     /// Computes the minimum and maximum possible diagonal reachable for this `s`.
     /// TODO: For simplicity, this does not take into account gap-open costs currently.
-    fn d_range(&self, a: Seq, b: Seq, s: Cost, s_bound: Option<Cost>) -> RangeInclusive<Fr> {
+    fn d_range(
+        &self,
+        a: Seq,
+        b: Seq,
+        h: &H::Instance<'_>,
+        s: Cost,
+        s_bound: Option<Cost>,
+        prev: &[Front<N>],
+    ) -> RangeInclusive<Fr> {
         // The range that is reachable within cost s.
         let mut r = -(self.cm.max_ins_for_cost(s) as Fr)..=self.cm.max_del_for_cost(s) as Fr;
 
-        // If needed and possible, reduce with gap_cost heuristic.
-        if let Some(s_bound) = s_bound && self.use_gap_cost_heuristic == GapCostHeuristic::Enable {
-            let d = a.len() as Fr - b.len() as Fr;
-            let s_remaining = s_bound - s  ;
-            // NOTE: Gap open cost was already paid, so we only restrict by extend cost.
-            let gap_cost_r = d - (s_remaining / self.cm.min_del_extend) as Fr..=d + (s_remaining / self.cm.min_ins_extend) as  Fr;
-            r = max(*r.start(), *gap_cost_r.start())..=min(*r.end(), *gap_cost_r.end());
-        }
+        let Some(s_bound) = s_bound else {
+            return r;
+        };
 
-        r
+        // If needed and possible, reduce with gap_cost heuristic.
+        if H::IS_DEFAULT {
+            if self.use_gap_cost_heuristic == GapCostHeuristic::Enable {
+                let d = a.len() as Fr - b.len() as Fr;
+                let s_remaining = s_bound - s;
+                // NOTE: Gap open cost was already paid, so we only restrict by extend cost.
+                let gap_cost_r = d - (s_remaining / self.cm.min_del_extend) as Fr
+                    ..=d + (s_remaining / self.cm.min_ins_extend) as Fr;
+                r = max(*r.start(), *gap_cost_r.start())..=min(*r.end(), *gap_cost_r.end());
+            }
+            return r;
+        } else {
+            fn get_front<const N: usize>(fronts: &[Front<N>], cost: Cost) -> &Front<N> {
+                &fronts[fronts.len() - cost as usize]
+            }
+
+            let mut d_min = Fr::MAX;
+            let mut d_max = Fr::MIN;
+
+            // Find an initial range.
+            EditGraph::iterate_parents_dt(
+                a,
+                b,
+                &self.cm,
+                // TODO: Fix for affine layers.
+                None,
+                |di, dj, _layer, edge_cost| -> (Fr, Fr) {
+                    let parent_front = get_front(prev, edge_cost);
+                    d_min = min(d_min, *parent_front.range().start() + (di - dj));
+                    d_max = max(d_max, *parent_front.range().end() + (di - dj));
+                    (0, 0)
+                },
+                |_i, _j, _layer, _cigar_ops| {},
+            );
+
+            if d_max < d_min {
+                return d_min..=d_max;
+            }
+
+            // Shrink the range as needed.
+
+            let test = |d| {
+                // Eval for given diagonal. Copied from `next_front`.
+                // TODO: dedup.
+                let mut fr = Fr::MIN;
+                EditGraph::iterate_parents_dt(
+                    a,
+                    b,
+                    &self.cm,
+                    // TODO: Fix for affine layers.
+                    None,
+                    |di, dj, layer, edge_cost| -> (Fr, Fr) {
+                        let fr = get_front(prev, edge_cost).layer(layer)[d + (di - dj) as Fr]
+                            - (di + dj) as Fr;
+                        fr_to_coords(d, fr)
+                    },
+                    |i, j, _layer, _cigar_ops| {
+                        fr = max(fr, (i + j) as Fr);
+                    },
+                );
+                let pos = fr_to_pos(d, fr);
+                (pos.0 as usize) <= a.len()
+                    && (pos.1 as usize) <= b.len()
+                    && s + h.h(pos) <= s_bound
+            };
+
+            while d_min <= d_max && !test(d_min) {
+                d_min += 1;
+            }
+            while d_min <= d_max && !test(d_max) {
+                d_max -= 1;
+            }
+
+            d_min..=d_max
+        }
     }
 
     /// Detects if there is a diagonal such that the two fronts meet/overlap.
@@ -402,12 +492,6 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         // The boundaries are buffered so no boundary checks are needed.
         // TODO: Vectorize this loop, or at least verify the compiler does this.
         // TODO: Loop over a positive range that does not need additional shifting?
-        // println!(
-        //     "a {:?}\nb {:?}\n{:?}\n",
-        //     std::str::from_utf8(a),
-        //     std::str::from_utf8(b),
-        //     get_front(fronts, 0).range()
-        // );
         for d in get_front(fronts, 0).range().clone() {
             EditGraph::iterate_layers(&self.cm, |layer| {
                 let mut fr = Fr::MIN;
@@ -417,7 +501,6 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
                     &self.cm,
                     layer,
                     |di, dj, layer, edge_cost| -> (Fr, Fr) {
-                        //println!("{d} {di} {dj} {layer:?} {edge_cost}");
                         let fr = get_front(fronts, edge_cost).layer(layer)[d + (di - dj) as Fr]
                             - (di + dj) as Fr;
                         fr_to_coords(d, fr)
@@ -460,7 +543,9 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
     }
 }
 
-impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N>, V> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
+    for DiagonalTransition<AffineCost<N>, V, H>
+{
     type CostModel = AffineCost<N>;
 
     fn cost_model(&self) -> &Self::CostModel {
@@ -475,26 +560,27 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
             return Some(0);
         };
 
-        let mut s = 0;
-        loop {
+        let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
+
+        for s in 1.. {
             if let Some(s_bound) = s_bound && s >= s_bound {
                 return None;
             }
 
-            s += 1;
-
             // Rotate all fronts back by one, so that we can fill the new last layer.
             fronts.fronts.rotate_left(1);
-            fronts.fronts.last_mut().unwrap().reset(
-                Fr::MIN,
-                self.d_range(a, b, s, s_bound),
-                self.left_buffer,
-                self.right_buffer,
-            );
+            let (next, rest) = fronts.fronts.split_last_mut().unwrap();
+            // FIXME: Make sure the next range is not empty! Also in NW.
+            let range = self.d_range(a, b, h, s, s_bound, rest);
+            if range.is_empty() {
+                return None;
+            }
+            next.reset(Fr::MIN, range, self.left_buffer, self.right_buffer);
             if self.next_front(a, b, &mut fronts.fronts) {
                 return Some(s);
             }
         }
+        unreachable!()
     }
 
     fn align_for_bounded_dist(
@@ -507,17 +593,21 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
             return Some((0, vec![], Cigar::default()));
         };
 
-        let mut s = 0;
-        loop {
-            s += 1;
+        let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
+
+        for s in 1.. {
             if let Some(s_bound) = s_bound && s > s_bound {
                 return None;
             }
 
             // We can not initialize all layers directly at the start, since we do not know the final distance s.
+            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
+            if range.is_empty() {
+                return None;
+            }
             fronts.fronts.push(Front::new(
                 Fr::MIN,
-                self.d_range(a, b, s, s_bound),
+                range,
                 self.left_buffer,
                 self.right_buffer,
             ));
@@ -526,5 +616,6 @@ impl<const N: usize, V: VisualizerT> Aligner for DiagonalTransition<AffineCost<N
                 return Some((s, vec![], Cigar::default()));
             }
         }
+        unreachable!()
     }
 }
