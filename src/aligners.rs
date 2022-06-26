@@ -12,7 +12,6 @@ pub mod front;
 pub mod nw;
 pub mod nw_lib;
 
-mod compressed_history;
 pub mod edit_graph;
 #[cfg(test)]
 mod tests;
@@ -98,7 +97,6 @@ pub trait Aligner {
         loop {
             let cost = self.cost_for_bounded_dist(a, b, Some(s));
             if let Some(cost) = cost && cost <= s{
-                println!("Final cost: {cost}");
                 return cost;
             }
             s = max(2 * s, 1);
