@@ -4,17 +4,21 @@
 extern crate test;
 use pairwise_aligner::{
     aligners::{
-        diagonal_transition::{DiagonalTransition, GapCostHeuristic, HistoryCompression},
+        diagonal_transition::{
+            DiagonalTransition, Direction, GapCostHeuristic, HistoryCompression,
+        },
         nw::NW,
         nw_lib::NWLib,
         NoVisualizer,
     },
     cost_model::LinearCost,
-    generate::setup_sequences,
+    generate::setup_sequences_with_seed,
+    heuristic::{ZeroCost, SH},
+    matches::MatchConfig,
 };
 use test::Bencher;
 
-const N: usize = 1000;
+const N: usize = 3000;
 const E: f32 = 0.05;
 
 fn run_aligner(
@@ -22,8 +26,10 @@ fn run_aligner(
     n: usize,
     e: f32,
     exponential_search: bool,
+    seed: &mut u64,
 ) {
-    let (ref a, ref b) = setup_sequences(n, e);
+    let (ref a, ref b) = setup_sequences_with_seed(*seed, n, e);
+    *seed += 1;
     if exponential_search {
         aligner.cost_exponential_search(a, b);
     } else {
@@ -33,55 +39,75 @@ fn run_aligner(
 
 #[bench]
 fn nw_lib(bench: &mut Bencher) {
-    bench.iter(|| run_aligner(NWLib, N, E, false));
+    let ref mut seed = 0;
+    bench.iter(|| run_aligner(NWLib, N, E, false, seed));
 }
 #[bench]
 fn nw_lib_exp(bench: &mut Bencher) {
-    bench.iter(|| run_aligner(NWLib, N, E, true));
+    let ref mut seed = 0;
+    bench.iter(|| run_aligner(NWLib, N, E, true, seed));
 }
 
-fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer> {
+fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, ZeroCost> {
+    NW::new(LinearCost::new_unit(), use_gap_cost_heuristic)
+}
+
+#[bench]
+fn nw_simple(bench: &mut Bencher) {
+    let ref mut seed = 0;
+    bench.iter(|| run_aligner(make_nw(false), N, E, false, seed));
+}
+#[bench]
+fn nw_gapcost(bench: &mut Bencher) {
+    let ref mut seed = 0;
+    bench.iter(|| run_aligner(make_nw(true), N, E, true, seed));
+}
+
+fn make_nw_sh() -> NW<LinearCost, NoVisualizer, SH> {
     NW {
         cm: LinearCost::new_unit(),
-        use_gap_cost_heuristic,
+        use_gap_cost_heuristic: false,
+        h: SH {
+            match_config: MatchConfig::exact(10),
+            pruning: false,
+        },
         v: NoVisualizer,
     }
 }
 
 #[bench]
-fn nw_simple(bench: &mut Bencher) {
-    bench.iter(|| run_aligner(make_nw(false), N, E, false));
-}
-#[bench]
-fn nw_exp_h(bench: &mut Bencher) {
-    bench.iter(|| run_aligner(make_nw(true), N, E, true));
+fn nw_sh(bench: &mut Bencher) {
+    let ref mut seed = 0;
+    bench.iter(|| run_aligner(make_nw_sh(), N, E, true, seed));
 }
 
 fn make_dt(
     use_gap_cost_heuristic: GapCostHeuristic,
     history_compression: HistoryCompression,
-) -> DiagonalTransition<LinearCost, NoVisualizer> {
+) -> DiagonalTransition<LinearCost, NoVisualizer, ZeroCost> {
     DiagonalTransition::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,
         history_compression,
-        NoVisualizer,
     )
 }
 
 #[bench]
 fn dt_simple(bench: &mut Bencher) {
+    let ref mut seed = 0;
     bench.iter(|| {
         run_aligner(
             make_dt(GapCostHeuristic::Disable, HistoryCompression::Disable),
             N,
             E,
             false,
+            seed,
         )
     });
 }
 #[bench]
-fn dt_exp_h(bench: &mut Bencher) {
+fn dt_gapcost(bench: &mut Bencher) {
+    let ref mut seed = 0;
     bench.iter(|| {
         run_aligner(
             make_dt(GapCostHeuristic::Enable, HistoryCompression::Disable),

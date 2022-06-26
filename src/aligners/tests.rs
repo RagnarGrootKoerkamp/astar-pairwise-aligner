@@ -2,12 +2,13 @@ use itertools::Itertools;
 
 use super::{
     cigar::test::verify_cigar,
-    diagonal_transition::{DiagonalTransition, GapCostHeuristic, HistoryCompression},
+    diagonal_transition::{DiagonalTransition, Direction, GapCostHeuristic, HistoryCompression},
     nw::NW,
     Aligner, NoVisualizer,
 };
 use crate::{
     generate::setup_sequences,
+    heuristic::ZeroCost,
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
 };
 
@@ -30,13 +31,10 @@ fn test_aligner_on_cost_model<const N: usize>(
     test_path: bool,
     exponential_search: bool,
 ) {
-    let mut nw = NW {
-        cm: cm.clone(),
-        use_gap_cost_heuristic: false,
-        v: NoVisualizer,
-    };
+    let mut nw = NW::new(cm.clone(), false);
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
+        //println!("a {} b {}", to_string(a), to_string(b));
         let nw_cost = nw.cost(a, b);
 
         let cost = if exponential_search {
@@ -92,16 +90,7 @@ mod nw {
     use super::*;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(
-            cm.clone(),
-            NW {
-                cm,
-                use_gap_cost_heuristic: false,
-                v: NoVisualizer,
-            },
-            true,
-            false,
-        );
+        test_aligner_on_cost_model(cm.clone(), NW::new(cm, false), true, false);
     }
 
     #[test]
@@ -195,11 +184,7 @@ macro_rules! test_exp_band {
                 fn test<const N: usize>(cm: AffineCost<N>) {
                     test_aligner_on_cost_model(
                         cm.clone(),
-                        NW {
-                            cm: cm.clone(),
-                            use_gap_cost_heuristic: $use_gap_cost_heuristic,
-                            v: NoVisualizer ,
-                        },
+                        NW::new(cm.clone(), $use_gap_cost_heuristic),
                         true,
                         /*exponential_search=*/true
                     );
@@ -418,3 +403,35 @@ test_diagonal_transition!(
     HistoryCompression::Disable,
     exp_search_gap_heuristic
 );
+
+mod nw_sh {
+
+    use crate::{heuristic::SH, matches::MatchConfig};
+
+    use super::*;
+
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(
+            cm.clone(),
+            NW {
+                cm,
+                use_gap_cost_heuristic: false,
+                h: SH {
+                    match_config: MatchConfig::exact(5),
+                    pruning: false,
+                },
+                v: NoVisualizer,
+            },
+            // test `align` as well?
+            true,
+            // exponential search (needed to use h at all)
+            true,
+        );
+    }
+
+    #[test]
+    fn unit_cost() {
+        // sub=indel=1
+        test(AffineCost::new_unit());
+    }
+}
