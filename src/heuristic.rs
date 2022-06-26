@@ -60,6 +60,7 @@ impl Default for HeuristicStats {
 /// An object containing the settings for a heuristic.
 pub trait Heuristic: std::fmt::Debug + Copy {
     type Instance<'a>: HeuristicInstance<'a>;
+    const IS_DEFAULT: bool = false;
 
     fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a>;
 

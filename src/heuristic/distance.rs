@@ -18,6 +18,7 @@ pub trait DistanceInstance<'a>: HeuristicInstance<'a> {
 pub struct ZeroCost;
 impl Heuristic for ZeroCost {
     type Instance<'a> = ZeroCostI;
+    const IS_DEFAULT: bool = true;
 
     fn name(&self) -> String {
         "Zero".into()
@@ -42,7 +43,8 @@ impl Distance for ZeroCost {
 
 pub struct ZeroCostI;
 impl HeuristicInstance<'_> for ZeroCostI {
-    fn h(&self, _: Pos) -> Cost {
+    fn h(&self, pos: Pos) -> Cost {
+        println!("ZeroCost in {pos}");
         0
     }
 }
