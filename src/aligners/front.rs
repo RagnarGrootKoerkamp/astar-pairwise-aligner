@@ -15,7 +15,8 @@ impl<I> IndexType for I where
 {
 }
 
-/// A front contains the data for each affine layer, and a range to indicate which subset of diagonals/columns is computed for this front.
+/// A front contains the data for each affine layer, and a range to indicate
+/// which subset of diagonals/columns is computed for this front.
 /// The offset indicates the position of the 0 column/diagonal.
 ///
 /// T: the type of stored elements.
@@ -163,7 +164,7 @@ where
     #[inline]
     pub fn affine(&self, layer_idx: usize) -> Layer<'_, T, I> {
         Layer {
-            l: unsafe { self.affine.get_unchecked(layer_idx) },
+            l: self.affine.index(layer_idx),
             range: self.range.clone(),
             buffers: self.buffers,
         }
@@ -172,7 +173,7 @@ where
     #[inline]
     pub fn affine_mut(&mut self, layer_idx: usize) -> MutLayer<'_, T, I> {
         MutLayer {
-            l: unsafe { self.affine.get_unchecked_mut(layer_idx) },
+            l: self.affine.index_mut(layer_idx),
             range: self.range.clone(),
             buffers: self.buffers,
         }
@@ -245,23 +246,11 @@ where
     I: IndexType,
 {
     #[inline]
-    pub fn get(&self, index: I) -> Option<&T> {
+    pub fn get(&self, index: I) -> Option<&'a T> {
         self.l
             .get((index + self.buffers.0 - self.range.start()).as_())
     }
 }
-impl<'a, T, I> MutLayer<'a, T, I>
-where
-    I: IndexType,
-{
-    #[inline]
-    pub fn negative_index(&mut self, index: I) -> &mut T {
-        self.l
-            .get_mut((self.buffers.0 - self.range.start() - index).as_())
-            .unwrap()
-    }
-}
-
 impl<'a, T, I> Index<I> for Layer<'a, T, I>
 where
     I: IndexType,
@@ -270,11 +259,9 @@ where
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        unsafe {
-            &self
-                .l
-                .get_unchecked((index + self.buffers.0 - self.range.start()).as_())
-        }
+        &self
+            .l
+            .index((index + self.buffers.0 - self.range.start()).as_())
     }
 }
 impl<'a, T, I> Index<I> for MutLayer<'a, T, I>
@@ -285,11 +272,9 @@ where
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        unsafe {
-            &self
-                .l
-                .get_unchecked((index + self.buffers.0 - self.range.start()).as_())
-        }
+        &self
+            .l
+            .index((index + self.buffers.0 - self.range.start()).as_())
     }
 }
 impl<'a, T, I> IndexMut<I> for MutLayer<'a, T, I>
@@ -298,10 +283,8 @@ where
 {
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        unsafe {
-            self.l
-                .get_unchecked_mut((index + self.buffers.0 - self.range.start()).as_())
-        }
+        self.l
+            .index_mut((index + self.buffers.0 - self.range.start()).as_())
     }
 }
 
