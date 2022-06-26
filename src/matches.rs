@@ -201,6 +201,33 @@ pub struct MatchConfig {
     pub window_filter: bool,
 }
 
+impl MatchConfig {
+    pub fn new(k: I, max_match_cost: MatchCost) -> Self {
+        Self {
+            length: Fixed(k),
+            max_match_cost,
+            algorithm: MatchAlgorithm::default(),
+            window_filter: false,
+        }
+    }
+    pub fn exact(k: I) -> Self {
+        Self {
+            length: Fixed(k),
+            max_match_cost: 0,
+            algorithm: MatchAlgorithm::default(),
+            window_filter: false,
+        }
+    }
+    pub fn inexact(k: I) -> Self {
+        Self {
+            length: Fixed(k),
+            max_match_cost: 1,
+            algorithm: MatchAlgorithm::default(),
+            window_filter: false,
+        }
+    }
+}
+
 impl Default for MatchConfig {
     fn default() -> Self {
         Self {

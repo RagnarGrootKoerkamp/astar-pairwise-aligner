@@ -25,11 +25,7 @@ fn bicount_admissible() {
         &alphabet,
         stats,
         BruteForceCSH {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost: 1,
-                ..MatchConfig::default()
-            },
+            match_config: MatchConfig::inexact(k),
             distance_function: BiCountCost,
             pruning: false,
         },
@@ -41,11 +37,7 @@ fn bicount_admissible() {
 #[test]
 fn consistency_1() {
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(4),
-            max_match_cost: 1,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::inexact(4),
         pruning: false,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -64,11 +56,7 @@ fn consistency_1() {
 #[test]
 fn consistency_2() {
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(5),
-            max_match_cost: 1,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::inexact(5),
         pruning: false,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -88,11 +76,7 @@ fn consistency_2() {
 #[ignore]
 fn consistency_3() {
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(4),
-            max_match_cost: 0,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::exact(4),
         pruning: true,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -111,11 +95,7 @@ fn consistency_3() {
 #[test]
 fn consistency_4() {
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(6),
-            max_match_cost: 1,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::inexact(6),
         pruning: true,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -136,11 +116,7 @@ fn consistency_4() {
 #[test]
 fn consistency_5() {
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(4),
-            max_match_cost: 0,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::exact(4),
         pruning: true,
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -159,11 +135,7 @@ fn consistency_5() {
 #[test]
 fn consistency_6() {
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(4),
-            max_match_cost: 0,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::exact(4),
         pruning: false,
         use_gap_cost: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -182,11 +154,7 @@ fn consistency_6() {
 #[test]
 fn consistency_7() {
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(4),
-            max_match_cost: 0,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::exact(4),
         pruning: false,
         use_gap_cost: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -204,11 +172,7 @@ fn consistency_7() {
 #[test]
 fn consistency_8() {
     let h = CSH {
-        match_config: MatchConfig {
-            length: Fixed(4),
-            max_match_cost: 0,
-            ..MatchConfig::default()
-        },
+        match_config: MatchConfig::exact(4),
         pruning: false,
         use_gap_cost: false,
         c: PhantomData::<HintContours<BruteForceContour>>,

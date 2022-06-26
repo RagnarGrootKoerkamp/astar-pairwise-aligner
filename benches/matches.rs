@@ -179,19 +179,7 @@ mod matches {
 fn n100_exact_qgramindex(bench: &mut Bencher) {
     let n = 100;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_qgramindex(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 0,
-                ..Default::default()
-            },
-            false,
-        )
-    });
+    bench.iter(|| find_matches_qgramindex(&a, &b, &alph, MatchConfig::exact(K), false));
 }
 
 // #[bench]
@@ -216,19 +204,7 @@ fn n100_exact_qgramindex(bench: &mut Bencher) {
 fn n10000_exact_qgramindex(bench: &mut Bencher) {
     let n = 10000;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_qgramindex(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 0,
-                ..Default::default()
-            },
-            false,
-        )
-    });
+    bench.iter(|| find_matches_qgramindex(&a, &b, &alph, MatchConfig::exact(K), false));
 }
 
 // #[bench]
@@ -254,18 +230,7 @@ fn n10000_exact_qgramindex(bench: &mut Bencher) {
 fn n100_exact_trie(bench: &mut Bencher) {
     let n = 100;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_trie(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 0,
-                ..Default::default()
-            },
-        )
-    });
+    bench.iter(|| find_matches_trie(&a, &b, &alph, MatchConfig::exact(K)));
 }
 
 // #[bench]
@@ -291,18 +256,7 @@ fn n100_exact_trie(bench: &mut Bencher) {
 fn n10000_exact_trie(bench: &mut Bencher) {
     let n = 10000;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_trie(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 0,
-                ..Default::default()
-            },
-        )
-    });
+    bench.iter(|| find_matches_trie(&a, &b, &alph, MatchConfig::exact(K)));
 }
 
 // #[bench]
@@ -328,36 +282,14 @@ fn n10000_exact_trie(bench: &mut Bencher) {
 fn n100_exact_hash(bench: &mut Bencher) {
     let n = 100;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_qgram_hash_exact(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 0,
-                ..Default::default()
-            },
-        )
-    });
+    bench.iter(|| find_matches_qgram_hash_exact(&a, &b, &alph, MatchConfig::exact(K)));
 }
 
 #[bench]
 fn n10000_exact_hash(bench: &mut Bencher) {
     let n = 10000;
     let (a, b, alph, _) = setup(n, E);
-    bench.iter(|| {
-        find_matches_qgram_hash_exact(
-            &a,
-            &b,
-            &alph,
-            MatchConfig {
-                length: Fixed(K),
-                max_match_cost: 0,
-                ..Default::default()
-            },
-        )
-    });
+    bench.iter(|| find_matches_qgram_hash_exact(&a, &b, &alph, MatchConfig::exact(K)));
 }
 
 #[bench]
