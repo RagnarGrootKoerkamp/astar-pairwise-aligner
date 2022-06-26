@@ -20,6 +20,10 @@ pub type Cost = u32;
 pub trait CostModel {
     /// The minimal cost according tho this cost model to go from one position to another.
     fn gap_cost(&self, s: Pos, t: Pos) -> Cost;
+
+    /// Like `gap_cost`, but gap-open cost is not included. I.e: the path may
+    /// start and end in any layer.
+    fn extend_cost(&self, s: Pos, t: Pos) -> Cost;
 }
 
 /// An affine layer can either correspond to an insertion or deletion.
@@ -431,6 +435,42 @@ impl<const N: usize> CostModel for AffineCost<N> {
                 for cm in &self.affine {
                     if cm.affine_type == AffineLayerType::DeleteLayer {
                         c = min(c, cm.open + d * cm.extend);
+                    }
+                }
+                assert!(c != Cost::MAX);
+                c
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn extend_cost(&self, s: Pos, t: Pos) -> Cost {
+        let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
+        match delta {
+            0 => 0,
+            d if d < 0 => {
+                let d = (-d) as Cost;
+                let mut c = Cost::MAX;
+                if let Some(ins) = self.ins {
+                    c = min(c, d * ins);
+                }
+                for cm in &self.affine {
+                    if cm.affine_type == AffineLayerType::InsertLayer {
+                        c = min(c, d * cm.extend);
+                    }
+                }
+                assert!(c != Cost::MAX);
+                c
+            }
+            d if d > 0 => {
+                let d = d as Cost;
+                let mut c = Cost::MAX;
+                if let Some(del) = self.del {
+                    c = min(c, d * del);
+                }
+                for cm in &self.affine {
+                    if cm.affine_type == AffineLayerType::DeleteLayer {
+                        c = min(c, d * cm.extend);
                     }
                 }
                 assert!(c != Cost::MAX);
