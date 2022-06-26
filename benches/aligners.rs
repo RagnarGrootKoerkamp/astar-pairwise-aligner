@@ -114,6 +114,52 @@ fn dt_gapcost(bench: &mut Bencher) {
             N,
             E,
             true,
+            seed,
         )
     });
+}
+
+fn make_dt_sh(
+    use_gap_cost_heuristic: GapCostHeuristic,
+    history_compression: HistoryCompression,
+) -> DiagonalTransition<LinearCost, NoVisualizer, SH> {
+    DiagonalTransition::new_variant(
+        LinearCost::new_unit(),
+        use_gap_cost_heuristic,
+        SH {
+            match_config: MatchConfig::exact(10),
+            pruning: false,
+        },
+        history_compression,
+        Direction::Forward,
+        NoVisualizer,
+    )
+}
+
+#[bench]
+fn dt_sh(bench: &mut Bencher) {
+    let ref mut seed = 0;
+    bench.iter(|| {
+        run_aligner(
+            make_dt_sh(GapCostHeuristic::Enable, HistoryCompression::Disable),
+            N,
+            E,
+            true,
+            seed,
+        )
+    });
+}
+
+#[test]
+fn dt_sh_test() {
+    let ref mut seed = 0;
+    for _ in 0..1000 {
+        run_aligner(
+            make_dt_sh(GapCostHeuristic::Enable, HistoryCompression::Disable),
+            N,
+            E,
+            true,
+            seed,
+        );
+    }
 }
