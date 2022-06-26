@@ -128,7 +128,8 @@ pub fn setup_sequences(n: usize, e: f32) -> (Sequence, Sequence) {
 }
 
 pub fn setup_sequences_with_seed(seed: u64, n: usize, e: f32) -> (Sequence, Sequence) {
-    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+    // NOTE: We mix `n` into the `seed`, so that changing `n` also gives a new sequence.
+    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed + n as u64);
     let (a, b) = generate_pair(
         &GenerateOptions {
             length: n,
