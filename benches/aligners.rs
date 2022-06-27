@@ -18,7 +18,7 @@ use pairwise_aligner::{
 };
 use test::Bencher;
 
-const N: usize = 3000;
+const N: usize = 30000;
 const E: f32 = 0.05;
 
 fn run_aligner(
@@ -148,18 +148,4 @@ fn dt_sh(bench: &mut Bencher) {
             seed,
         )
     });
-}
-
-#[test]
-fn dt_sh_test() {
-    let ref mut seed = 0;
-    for _ in 0..1000 {
-        run_aligner(
-            make_dt_sh(GapCostHeuristic::Enable, HistoryCompression::Disable),
-            N,
-            E,
-            true,
-            seed,
-        );
-    }
 }
