@@ -24,10 +24,11 @@
 use super::cigar::Cigar;
 use super::edit_graph::EditGraph;
 use super::nw::Path;
-use super::{Aligner, NoVisualizer, Seq, VisualizerT};
+use super::{Aligner, Seq};
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance, ZeroCost};
 use crate::prelude::Pos;
+use crate::visualizer::{NoVisualizer, VisualizerT};
 use std::cmp::{max, min};
 use std::iter::zip;
 use std::ops::RangeInclusive;

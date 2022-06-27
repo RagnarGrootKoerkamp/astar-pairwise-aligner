@@ -4,12 +4,13 @@ use super::{
     cigar::test::verify_cigar,
     diagonal_transition::{DiagonalTransition, Direction, GapCostHeuristic, HistoryCompression},
     nw::NW,
-    Aligner, NoVisualizer,
+    Aligner,
 };
 use crate::{
     generate::setup_sequences,
     heuristic::ZeroCost,
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
+    visualizer::NoVisualizer,
 };
 
 fn test_sequences(
