@@ -9,12 +9,12 @@ use pairwise_aligner::{
         },
         nw::NW,
         nw_lib::NWLib,
-        NoVisualizer,
     },
     cost_model::LinearCost,
     generate::setup_sequences_with_seed,
     heuristic::{ZeroCost, SH},
     matches::MatchConfig,
+    visualizer::NoVisualizer,
 };
 use test::Bencher;
 

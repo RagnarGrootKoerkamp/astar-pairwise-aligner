@@ -2,9 +2,6 @@
 
 use self::{cigar::Cigar, nw::Path};
 use crate::prelude::{Cost, CostModel, Pos};
-use crate::prelude::{Cost, Pos, Sequence};
-use sdl2::pixels::Color;
-use std::cell::Cell;
 use std::cmp::max;
 
 pub mod cigar;

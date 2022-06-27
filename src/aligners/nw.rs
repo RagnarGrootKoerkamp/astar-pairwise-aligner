@@ -1,11 +1,11 @@
 use super::cigar::Cigar;
-use super::cigar::CigarOp;
 use super::edit_graph::{EditGraph, State};
-use super::{Aligner, NoVisualizer, VisualizerT};
+use super::Aligner;
 use super::{Seq, Sequence};
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance, ZeroCost};
 use crate::prelude::Pos;
+use crate::visualizer::{NoVisualizer, VisualizerT};
 use itertools::chain;
 use std::cmp::{max, min};
 use std::ops::RangeInclusive;
