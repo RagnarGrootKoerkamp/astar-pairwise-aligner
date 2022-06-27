@@ -561,9 +561,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         };
 
         let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
+        let mut num_states = 0;
 
         for s in 1.. {
-            if let Some(s_bound) = s_bound && s >= s_bound {
+            if let Some(s_bound) = s_bound && s > s_bound {
                 return None;
             }
 
@@ -575,6 +576,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             if range.is_empty() {
                 return None;
             }
+            num_states += range.end() - range.start();
             next.reset(Fr::MIN, range, self.left_buffer, self.right_buffer);
             if self.next_front(a, b, &mut fronts.fronts) {
                 return Some(s);
@@ -617,5 +619,91 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             }
         }
         unreachable!()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::time::Instant;
+
+    use super::*;
+    use crate::{
+        generate::setup_sequences,
+        heuristic::{ZeroCost, SH},
+        matches::MatchConfig,
+    };
+
+    const N: usize = 1000;
+    const E: f32 = 0.05;
+
+    #[test]
+    fn dt() {
+        let (ref a, ref b) = setup_sequences(N, E);
+        let mut aligner = DiagonalTransition::new_variant(
+            LinearCost::new_unit(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            HistoryCompression::Disable,
+            Direction::Forward,
+            NoVisualizer,
+        );
+        let s = Instant::now();
+        aligner.cost(a, b);
+        println!("DT: {}", s.elapsed().as_secs_f32() * 1000.);
+    }
+
+    #[test]
+    fn dt_gapcost() {
+        let (ref a, ref b) = setup_sequences(N, E);
+        let mut aligner = DiagonalTransition::new_variant(
+            LinearCost::new_unit(),
+            GapCostHeuristic::Enable,
+            ZeroCost,
+            HistoryCompression::Disable,
+            Direction::Forward,
+            NoVisualizer,
+        );
+        let s = Instant::now();
+        aligner.cost_exponential_search(a, b);
+        println!("DT: {}", s.elapsed().as_secs_f32() * 1000.);
+    }
+
+    #[test]
+    fn dt_sh() {
+        let (ref a, ref b) = setup_sequences(N, E);
+        let mut aligner = DiagonalTransition::new_variant(
+            LinearCost::new_unit(),
+            GapCostHeuristic::Disable,
+            SH {
+                match_config: MatchConfig::exact(10),
+                pruning: false,
+            },
+            HistoryCompression::Disable,
+            Direction::Forward,
+            NoVisualizer,
+        );
+        let s = Instant::now();
+        aligner.cost_exponential_search(a, b);
+        println!("DT: {}", s.elapsed().as_secs_f32() * 1000.);
+    }
+
+    #[test]
+    fn dt_sh_oracle() {
+        let (ref a, ref b) = setup_sequences(N, E);
+        let mut aligner = DiagonalTransition::new_variant(
+            LinearCost::new_unit(),
+            GapCostHeuristic::Disable,
+            SH {
+                match_config: MatchConfig::exact(10),
+                pruning: false,
+            },
+            HistoryCompression::Disable,
+            Direction::Forward,
+            NoVisualizer,
+        );
+        let cost = aligner.cost_exponential_search(a, b);
+        let s = Instant::now();
+        aligner.cost_for_bounded_dist(a, b, Some(cost));
+        println!("DT: {}", s.elapsed().as_secs_f32() * 1000.);
     }
 }
