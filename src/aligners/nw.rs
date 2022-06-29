@@ -1,5 +1,5 @@
 use super::cigar::Cigar;
-use super::edit_graph::{EditGraph, State};
+use super::edit_graph::{CigarOps, EditGraph, State};
 use super::{exponential_search, Aligner, Path};
 use super::{Seq, Sequence};
 use crate::cost_model::*;
@@ -55,65 +55,6 @@ impl<const N: usize> NW<AffineCost<N>, NoVisualizer, ZeroCost> {
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
-    fn track_path(&self, fronts: &Fronts<N>, a: Seq, b: Seq) -> (Path, Cigar) {
-        let mut path: Path = vec![];
-        let mut cigar = Cigar::default();
-
-        let mut st = State::target(a, b);
-        // Remove the last appended character.
-        st.i -= 1;
-        st.j -= 1;
-
-        path.push(st.pos());
-
-        let mut save = |st: State| {
-            if let Some(last) = path.last() {
-                if *last == st.pos() {
-                    return;
-                }
-            }
-            path.push(st.pos());
-        };
-
-        while st.i > 1 || st.j > 1 || st.layer.is_some() {
-            let cur_cost = fronts[st.i].layer(st.layer)[st.j];
-            let mut parent = None;
-            EditGraph::iterate_parents(
-                a,
-                b,
-                &self.cm,
-                /*greedy_matching=*/ false,
-                st,
-                |di, dj, new_layer, cost, ops| {
-                    if parent.is_none()
-                        // We use `get` to handle possible out-of-bound lookups.
-                        && let Some(parent_cost) =
-                            fronts[st.i + di].layer(new_layer).get(st.j + dj)
-                        && cur_cost == parent_cost + cost
-                    {
-                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
-                        save(st);
-                        for op in ops {
-                            if let Some(op) = op {
-                                cigar.push(op);
-                            }
-                        }
-                    }
-                },
-            );
-
-            if let Some(parent) = parent {
-                st = parent
-            } else {
-                let State { i, j, layer } = st;
-                panic!("Did not find parent on path!\nIn ({i}, {j}) at layer {layer:?} with cost ",);
-            }
-        }
-        path.reverse();
-        cigar.reverse();
-        (path, cigar)
-    }
-
     /// Computes the next front (front `i`) from the current one.
     ///
     /// `a` and `b` must be padded at the start by the same character.
@@ -249,20 +190,29 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
 
     type Fronts = Fronts<N>;
 
+    type State = State;
+
     fn cost_model(&self) -> &Self::CostModel {
         &self.cm
     }
 
-    fn parent(&self, a: Seq, b: Seq, fronts: Self::Fronts, st: State) -> Option<State> {
+    fn parent(
+        &self,
+        a: Seq,
+        b: Seq,
+        fronts: &Self::Fronts,
+        st: State,
+    ) -> Option<(State, CigarOps)> {
         let cur_cost = fronts[st.i].layer(st.layer)[st.j];
         let mut parent = None;
+        let mut cigar_ops: CigarOps = [None, None];
         EditGraph::iterate_parents(
             a,
             b,
             &self.cm,
             /*greedy_matching=*/ false,
             st,
-            |di, dj, new_layer, cost, _ops| {
+            |di, dj, new_layer, cost, ops| {
                 if parent.is_none()
                         // We use `get` to handle possible out-of-bound lookups.
                         && let Some(parent_cost) =
@@ -270,10 +220,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
                         && cur_cost == parent_cost + cost
                     {
                         parent = Some(State::new(st.i + di, st.j + dj, new_layer));
+                        cigar_ops = ops;
                     }
             },
         );
-        parent
+        Some((parent?, cigar_ops))
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
@@ -392,7 +343,12 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         if let Some(&dist) = fronts[a.len() as Idx].m().get(b.len() as Idx) {
             // We only track the actual path if `s` is small enough.
             if dist <= s_bound.unwrap_or(INF) {
-                let (path, cigar) = self.track_path(&fronts, a, b);
+                let target = State {
+                    i: a.len() as Idx,
+                    j: b.len() as Idx,
+                    layer: None,
+                };
+                let (path, cigar) = self.trace(a, b, &fronts, target);
                 return Some((dist, path, cigar));
             }
         }
