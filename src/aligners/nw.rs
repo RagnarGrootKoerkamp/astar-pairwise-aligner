@@ -169,17 +169,17 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
         prev: &Front<N>,
     ) -> RangeInclusive<Idx> {
         // Without a bound on the distance, we can notuse any heuristic.
-        let Some(mut s) = s_bound else {
+        let Some(s) = s_bound else {
             return 1..=b.len() as Idx;
         };
-        if H::IS_DEFAULT {
+        let r = if H::IS_DEFAULT {
             // For the default heuristic, either use the full range of diagonals
             // covered by distance `s`, or do only the gap-cost to the end when
             // needed.
             let range = if self.use_gap_cost_heuristic {
                 let d = b.len() as Idx - a.len() as Idx;
                 // We subtract the cost needed to bridge the gap from the start to the end.
-                s -= self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
+                let s = s - self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
                 // Each extra diagonal costs one insertion and one deletion.
                 let extra_diagonals = s / (self.cm.min_ins_extend + self.cm.min_del_extend);
                 // NOTE: The range could be reduced slightly further by considering gap open costs.
