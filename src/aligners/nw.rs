@@ -172,7 +172,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
         let Some(s) = s_bound else {
             return 1..=b.len() as Idx;
         };
-        let r = if H::IS_DEFAULT {
+        if H::IS_DEFAULT {
             // For the default heuristic, either use the full range of diagonals
             // covered by distance `s`, or do only the gap-cost to the end when
             // needed.

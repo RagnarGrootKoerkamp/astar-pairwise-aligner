@@ -122,10 +122,12 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
 /// TODO: Return Pos or usize instead?
 #[inline]
 fn fr_to_coords(d: Fr, fr: Fr) -> (Fr, Fr) {
+    assert!(fr < 0 || (d + fr) % 2 == 0);
     ((fr + d) / 2, (fr - d) / 2)
 }
 #[inline]
 fn fr_to_pos(d: Fr, fr: Fr) -> Pos {
+    assert!((d + fr) % 2 == 0);
     Pos(
         ((fr + d) / 2) as crate::prelude::I,
         ((fr - d) / 2) as crate::prelude::I,
@@ -312,9 +314,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     a.len() as Fr + b.len() as Fr - *fr,
                 ),
             };
-            let mut p = fr_to_pos(d, fr_old);
-            for _ in fr_old..*fr {
-                p = p.add_diagonal(1);
+            for fr in (fr_old + 2..=*fr).step_by(2) {
+                let mut p = fr_to_pos(d, fr);
+                println!("extend to {p}");
                 self.v.expand(p);
             }
         }
@@ -556,7 +558,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         };
 
         let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
-        let mut num_states = 0;
+        let mut _num_states = 0;
 
         for s in 1.. {
             if let Some(s_bound) = s_bound && s > s_bound {
@@ -571,7 +573,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             if range.is_empty() {
                 return None;
             }
-            num_states += range.end() - range.start();
+            _num_states += range.end() - range.start();
             next.reset(Fr::MIN, range, self.left_buffer, self.right_buffer);
             if self.next_front(a, b, &mut fronts.fronts) {
                 return Some(s);
