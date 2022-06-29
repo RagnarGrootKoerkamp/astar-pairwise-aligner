@@ -13,3 +13,4 @@
 __pycache__
 /.cargo/config
 /evals/runs.backup/
+/imgs/
