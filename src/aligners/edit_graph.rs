@@ -2,7 +2,7 @@
 //! There may be multiple graphs corresponding to the same cost model:
 //! https://research.curiouscoding.nl/posts/diagonal-transition-variations/
 
-use super::{cigar::CigarOp, diagonal_transition::Fr, Seq};
+use super::{cigar::CigarOp, diagonal_transition::Fr, Seq, StateT};
 use crate::{
     cost_model::{AffineCost, AffineLayerType, Cost},
     prelude::Pos,
@@ -19,6 +19,26 @@ pub struct State {
     pub layer: Layer,
 }
 
+impl State {
+    #[inline]
+    pub fn new(i: I, j: I, layer: Layer) -> Self {
+        Self { i, j, layer }
+    }
+}
+
+/// NOTE: These functions assume padding from NW.
+impl StateT for State {
+    #[inline]
+    fn is_root(&self) -> bool {
+        self.i == 1 && self.j == 1 && self.layer.is_none()
+    }
+
+    #[inline]
+    fn pos(&self) -> Pos {
+        Pos::from(self.i, self.j)
+    }
+}
+
 /// For now, `EditGraph` is simply a type containing functions to iterate over
 /// the parents of a given position.
 ///
@@ -29,27 +49,6 @@ pub struct State {
 /// each invocation, or whether it owns the sequences and cost model, and all
 /// inspection of them has to go through it.
 pub struct EditGraph;
-
-impl State {
-    #[inline]
-    pub fn new(i: I, j: I, layer: Layer) -> Self {
-        Self { i, j, layer }
-    }
-
-    #[inline]
-    pub fn target(a: Seq, b: Seq) -> Self {
-        Self {
-            i: a.len() as I,
-            j: b.len() as I,
-            layer: None,
-        }
-    }
-
-    #[inline]
-    pub fn pos(&self) -> Pos {
-        Pos::from(self.i, self.j)
-    }
-}
 
 impl EditGraph {
     /// Iterate over the states/layers at the given position in 'the right'
@@ -184,7 +183,7 @@ impl EditGraph {
         // Given (di, dj) return the (i, j) of the end of the actual edge.
         mut f: impl FnMut(Fr, Fr, Layer, Cost) -> (Fr, Fr),
         // Given `fr`, update fr point.
-        mut g: impl FnMut(Fr, Fr, Layer, CigarOps),
+        mut g: impl FnMut(Fr, Fr, Layer, Cost, CigarOps),
     ) {
         match layer {
             None => {
@@ -197,19 +196,19 @@ impl EditGraph {
 
                 if let Some(cost) = cm.sub {
                     let (i, j) = f(-1, -1, None, cost);
-                    g(i, j, None, [Some(CigarOp::Mismatch), None]);
+                    g(i, j, None, cost, [Some(CigarOp::Mismatch), None]);
                 }
 
                 // insertion
                 if let Some(cost) = cm.ins {
                     let (i, j) = f(0, -1, None, cost);
-                    g(i, j, None, [Some(CigarOp::Insertion), None]);
+                    g(i, j, None, cost, [Some(CigarOp::Insertion), None]);
                 }
 
                 // deletion
                 if let Some(cost) = cm.del {
                     let (i, j) = f(-1, 0, None, cost);
-                    g(i, j, None, [Some(CigarOp::Deletion), None]);
+                    g(i, j, None, cost, [Some(CigarOp::Deletion), None]);
                 }
 
                 // affine close
@@ -217,7 +216,13 @@ impl EditGraph {
                 // This requires that the iteration order over layers at the current position visits the main layer last.
                 for (layer, _cml) in cm.affine.iter().enumerate() {
                     let (i, j) = f(0, 0, Some(layer), 0);
-                    g(i, j, Some(layer), [Some(CigarOp::AffineClose(layer)), None]);
+                    g(
+                        i,
+                        j,
+                        Some(layer),
+                        0,
+                        [Some(CigarOp::AffineClose(layer)), None],
+                    );
                 }
             }
             Some(layer) => {
@@ -238,7 +243,13 @@ impl EditGraph {
                     }
                 };
                 let (i, j) = f(di, dj, None, cml.open + cml.extend);
-                g(i, j, None, [Some(op), Some(CigarOp::AffineOpen(layer))]);
+                g(
+                    i,
+                    j,
+                    None,
+                    cml.open + cml.extend,
+                    [Some(op), Some(CigarOp::AffineOpen(layer))],
+                );
 
                 // gap extend
                 let (i, j) = f(di, dj, Some(layer), cml.extend);
@@ -254,10 +265,10 @@ impl EditGraph {
                         }
                         _ => unreachable!(),
                     } {
-                        g(i, j, Some(layer), [Some(op), None]);
+                        g(i, j, Some(layer), cml.extend, [Some(op), None]);
                     }
                 } else {
-                    g(i, j, Some(layer), [Some(op), None]);
+                    g(i, j, Some(layer), cml.extend, [Some(op), None]);
                 }
             }
         }
