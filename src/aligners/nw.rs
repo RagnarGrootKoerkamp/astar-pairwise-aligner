@@ -1,6 +1,6 @@
 use super::cigar::Cigar;
-use super::edit_graph::{EditGraph, State};
-use super::{exponential_search, Aligner};
+use super::edit_graph::{EditGraph, Layer, State};
+use super::{exponential_search, Aligner, Path};
 use super::{Seq, Sequence};
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance, ZeroCost};
@@ -9,8 +9,6 @@ use crate::visualizer::{NoVisualizer, VisualizerT};
 use itertools::chain;
 use std::cmp::{max, min};
 use std::ops::RangeInclusive;
-
-pub type Path = Vec<Pos>;
 
 /// Needleman-Wunsch aligner.
 ///
@@ -249,8 +247,62 @@ fn pad(a: Seq) -> Sequence {
 impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>, V, H> {
     type CostModel = AffineCost<N>;
 
+    type Fronts = Fronts<N>;
+
     fn cost_model(&self) -> &Self::CostModel {
         &self.cm
+    }
+
+    fn parent(&self, a: Seq, b: Seq, fronts: Self::Fronts, st: State) -> Option<State> {
+        let cur_cost = fronts[st.i].layer(st.layer)[st.j];
+        let mut parent = None;
+        EditGraph::iterate_parents(
+            a,
+            b,
+            &self.cm,
+            /*greedy_matching=*/ false,
+            st,
+            |di, dj, new_layer, cost, ops| {
+                if parent.is_none()
+                        // We use `get` to handle possible out-of-bound lookups.
+                        && let Some(parent_cost) =
+                            fronts[st.i + di].layer(new_layer).get(st.j + dj)
+                        && cur_cost == parent_cost + cost
+                    {
+                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
+                    }
+            },
+        );
+        parent
+    }
+
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+        if self.use_gap_cost_heuristic || !H::IS_DEFAULT {
+            exponential_search(
+                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                2.,
+                |s| self.cost_for_bounded_dist(a, b, Some(s)).map(|c| (c, c)),
+            )
+            .1
+        } else {
+            self.cost_for_bounded_dist(a, b, None).unwrap()
+        }
+    }
+
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+        if self.use_gap_cost_heuristic || !H::IS_DEFAULT {
+            exponential_search(
+                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                2.,
+                |s| {
+                    self.align_for_bounded_dist(a, b, Some(s))
+                        .map(|x @ (c, _, _)| (c, x))
+                },
+            )
+            .1
+        } else {
+            self.align_for_bounded_dist(a, b, None).unwrap()
+        }
     }
 
     /// Test whether the cost is at most s.
@@ -345,34 +397,5 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             }
         }
         None
-    }
-
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        if self.use_gap_cost_heuristic || !H::IS_DEFAULT {
-            exponential_search(
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                2.,
-                |s| self.cost_for_bounded_dist(a, b, Some(s)).map(|c| (c, c)),
-            )
-            .1
-        } else {
-            self.cost_for_bounded_dist(a, b, None).unwrap()
-        }
-    }
-
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
-        if self.use_gap_cost_heuristic || !H::IS_DEFAULT {
-            exponential_search(
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                2.,
-                |s| {
-                    self.align_for_bounded_dist(a, b, Some(s))
-                        .map(|x @ (c, _, _)| (c, x))
-                },
-            )
-            .1
-        } else {
-            self.align_for_bounded_dist(a, b, None).unwrap()
-        }
     }
 }

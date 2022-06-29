@@ -1,7 +1,7 @@
 //! This module contains implementations of other alignment algorithms.
 
-use self::{cigar::Cigar, nw::Path};
-use crate::prelude::{Cost, CostModel};
+use self::{cigar::Cigar, edit_graph::State};
+use crate::prelude::{Cost, CostModel, Pos};
 use std::cmp::max;
 
 pub mod cigar;
@@ -18,6 +18,8 @@ mod tests;
 pub type Sequence = Vec<u8>;
 /// A sequence slice.
 pub type Seq<'a> = &'a [u8];
+/// A path trough the edit graph.
+pub type Path = Vec<Pos>;
 
 /// Find the cost using exponential search based on `cost_assuming_bounded_dist`.
 fn exponential_search<T>(
@@ -52,8 +54,13 @@ fn exponential_search<T>(
 pub trait Aligner {
     type CostModel: CostModel;
 
+    type Fronts;
+
     /// Returns the cost model used by the aligner.
     fn cost_model(&self) -> &Self::CostModel;
+
+    /// Returns the parent state of the given state, or none from the root.
+    fn parent(&self, a: Seq, b: Seq, fronts: Self::Fronts, st: State) -> Option<State>;
 
     /// Finds the cost of aligning `a` and `b`.
     /// Uses the visualizer to record progress.
