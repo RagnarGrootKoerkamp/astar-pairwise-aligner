@@ -24,7 +24,7 @@
 use super::cigar::Cigar;
 use super::edit_graph::EditGraph;
 use super::nw::Path;
-use super::{Aligner, Seq};
+use super::{exponential_search, Aligner, Seq};
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance};
 use crate::prelude::Pos;
@@ -617,5 +617,34 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             }
         }
         unreachable!()
+    }
+
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+        if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
+            exponential_search(
+                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                2.,
+                |s| self.cost_for_bounded_dist(a, b, Some(s)).map(|c| (c, c)),
+            )
+            .1
+        } else {
+            self.cost_for_bounded_dist(a, b, None).unwrap()
+        }
+    }
+
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+        if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
+            exponential_search(
+                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                2.,
+                |s| {
+                    self.align_for_bounded_dist(a, b, Some(s))
+                        .map(|x @ (c, _, _)| (c, x))
+                },
+            )
+            .1
+        } else {
+            self.align_for_bounded_dist(a, b, None).unwrap()
+        }
     }
 }
