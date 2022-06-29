@@ -55,10 +55,22 @@ impl AffineLayerType {
             HomoPolymerInsert | HomoPolymerDelete => true,
         }
     }
-    fn base(&self) -> AffineLayerType {
+    pub fn base(&self) -> AffineLayerType {
         match self {
             InsertLayer | HomoPolymerInsert => InsertLayer,
             DeleteLayer | HomoPolymerDelete => DeleteLayer,
+        }
+    }
+    pub fn is_insert(&self) -> bool {
+        match self {
+            InsertLayer | HomoPolymerInsert => true,
+            DeleteLayer | HomoPolymerDelete => false,
+        }
+    }
+    pub fn is_delete(&self) -> bool {
+        match self {
+            InsertLayer | HomoPolymerInsert => false,
+            DeleteLayer | HomoPolymerDelete => true,
         }
     }
 }
@@ -244,11 +256,7 @@ impl<const N: usize> AffineCost<N> {
         let min_by = |affine_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
             let mut c = layers(affine_type).map(f).min().unwrap_or(Cost::MAX);
             // Also include the linear layer in the affine maximums.
-            if let Some(extend) = if affine_type == AffineLayerType::InsertLayer {
-                ins
-            } else {
-                del
-            } {
+            if let Some(extend) = if affine_type.is_insert() { ins } else { del } {
                 c = min(
                     c,
                     f(&AffineLayerCosts {
@@ -263,11 +271,7 @@ impl<const N: usize> AffineCost<N> {
         let max_by = |affine_type, f: &dyn Fn(&AffineLayerCosts) -> Cost| {
             let mut c = layers(affine_type).map(f).max().unwrap_or(Cost::MIN);
             // Also include the linear layer in the affine maximums.
-            if let Some(extend) = if affine_type == AffineLayerType::InsertLayer {
-                ins
-            } else {
-                del
-            } {
+            if let Some(extend) = if affine_type.is_insert() { ins } else { del } {
                 c = max(
                     c,
                     f(&AffineLayerCosts {
@@ -360,7 +364,7 @@ impl<const N: usize> AffineCost<N> {
             f(0, ins);
         }
         for cm in &self.affine {
-            if cm.affine_type == AffineLayerType::InsertLayer {
+            if cm.affine_type.is_insert() {
                 f(cm.open, cm.extend);
             }
         }
@@ -372,7 +376,7 @@ impl<const N: usize> AffineCost<N> {
             f(0, del);
         }
         for cm in &self.affine {
-            if cm.affine_type == AffineLayerType::DeleteLayer {
+            if cm.affine_type.is_delete() {
                 f(cm.open, cm.extend);
             }
         }
@@ -424,7 +428,7 @@ impl<const N: usize> CostModel for AffineCost<N> {
                     c = min(c, d * ins);
                 }
                 for cm in &self.affine {
-                    if cm.affine_type == AffineLayerType::InsertLayer {
+                    if cm.affine_type.is_insert() {
                         c = min(c, cm.open + d * cm.extend);
                     }
                 }
@@ -438,7 +442,7 @@ impl<const N: usize> CostModel for AffineCost<N> {
                     c = min(c, d * del);
                 }
                 for cm in &self.affine {
-                    if cm.affine_type == AffineLayerType::DeleteLayer {
+                    if cm.affine_type.is_delete() {
                         c = min(c, cm.open + d * cm.extend);
                     }
                 }
@@ -460,7 +464,7 @@ impl<const N: usize> CostModel for AffineCost<N> {
                     c = min(c, d * ins);
                 }
                 for cm in &self.affine {
-                    if cm.affine_type == AffineLayerType::InsertLayer {
+                    if cm.affine_type.is_insert() {
                         c = min(c, d * cm.extend);
                     }
                 }
@@ -474,7 +478,7 @@ impl<const N: usize> CostModel for AffineCost<N> {
                     c = min(c, d * del);
                 }
                 for cm in &self.affine {
-                    if cm.affine_type == AffineLayerType::DeleteLayer {
+                    if cm.affine_type.is_delete() {
                         c = min(c, d * cm.extend);
                     }
                 }
