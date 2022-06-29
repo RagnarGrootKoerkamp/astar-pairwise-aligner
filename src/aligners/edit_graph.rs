@@ -183,7 +183,7 @@ impl EditGraph {
         // Given (di, dj) return the (i, j) of the end of the actual edge.
         mut f: impl FnMut(Fr, Fr, Layer, Cost) -> (Fr, Fr),
         // Given `fr`, update fr point.
-        mut g: impl FnMut(Fr, Fr, Layer, Cost, CigarOps),
+        mut g: impl FnMut(Fr, Fr, Fr, Fr, Layer, Cost, CigarOps),
     ) {
         match layer {
             None => {
@@ -196,19 +196,19 @@ impl EditGraph {
 
                 if let Some(cost) = cm.sub {
                     let (i, j) = f(-1, -1, None, cost);
-                    g(i, j, None, cost, [Some(CigarOp::Mismatch), None]);
+                    g(-1, -1, i, j, None, cost, [Some(CigarOp::Mismatch), None]);
                 }
 
                 // insertion
                 if let Some(cost) = cm.ins {
                     let (i, j) = f(0, -1, None, cost);
-                    g(i, j, None, cost, [Some(CigarOp::Insertion), None]);
+                    g(0, -1, i, j, None, cost, [Some(CigarOp::Insertion), None]);
                 }
 
                 // deletion
                 if let Some(cost) = cm.del {
                     let (i, j) = f(-1, 0, None, cost);
-                    g(i, j, None, cost, [Some(CigarOp::Deletion), None]);
+                    g(-1, 0, i, j, None, cost, [Some(CigarOp::Deletion), None]);
                 }
 
                 // affine close
@@ -217,6 +217,8 @@ impl EditGraph {
                 for (layer, _cml) in cm.affine.iter().enumerate() {
                     let (i, j) = f(0, 0, Some(layer), 0);
                     g(
+                        0,
+                        0,
                         i,
                         j,
                         Some(layer),
@@ -244,6 +246,8 @@ impl EditGraph {
                 };
                 let (i, j) = f(di, dj, None, cml.open + cml.extend);
                 g(
+                    di,
+                    dj,
                     i,
                     j,
                     None,
@@ -265,10 +269,10 @@ impl EditGraph {
                         }
                         _ => unreachable!(),
                     } {
-                        g(i, j, Some(layer), cml.extend, [Some(op), None]);
+                        g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
                     }
                 } else {
-                    g(i, j, Some(layer), cml.extend, [Some(op), None]);
+                    g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
                 }
             }
         }

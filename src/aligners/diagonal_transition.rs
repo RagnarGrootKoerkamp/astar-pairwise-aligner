@@ -24,6 +24,7 @@
 use super::cigar::Cigar;
 use super::edit_graph::{CigarOps, EditGraph, Layer};
 use super::{exponential_search, Aligner, Path, Seq, StateT};
+use crate::aligners::cigar::CigarOp;
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance};
 use crate::prelude::Pos;
@@ -117,6 +118,7 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
     right_buffer: Fr,
 }
 
+#[derive(Debug)]
 pub struct DtState {
     d: Fr,
     fr: Fr,
@@ -414,7 +416,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     d_max = max(d_max, *parent_front.range().end() + (di - dj));
                     (0, 0)
                 },
-                |_i, _j, _layer, _edge_cost, _cigar_ops| {},
+                |_di, _dj, _i, _j, _layer, _edge_cost, _cigar_ops| {},
             );
 
             if d_max < d_min {
@@ -438,7 +440,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             - (di + dj) as Fr;
                         fr_to_coords(d, fr)
                     },
-                    |i, j, _layer, _edge_cost, _cigar_ops| {
+                    |_di, _dj, i, j, _layer, _edge_cost, _cigar_ops| {
                         fr = max(fr, (i + j) as Fr);
                     },
                 );
@@ -534,10 +536,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     |di, dj, layer, edge_cost| -> (Fr, Fr) {
                         let fr = get_front(fronts, edge_cost).layer(layer)[d + (di - dj) as Fr]
                             - (di + dj) as Fr;
-                        fr_to_coords(d, fr)
+                        if fr < 0 {
+                            (Fr::MIN, Fr::MIN)
+                        } else {
+                            fr_to_coords(d, fr)
+                        }
                     },
-                    |i, j, _layer, _edge_cost, _cigar_ops| {
-                        fr = max(fr, (i + j) as Fr);
+                    |_di, _dj, i, j, _layer, _edge_cost, _cigar_ops| {
+                        if i >= 0 && j >= 0 {
+                            fr = max(fr, (i + j) as Fr);
+                        }
                     },
                 );
                 get_front(fronts, 0).layer_mut(layer)[d] = fr;
@@ -597,6 +605,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         fronts: &Self::Fronts,
         st: Self::State,
     ) -> Option<(Self::State, CigarOps)> {
+        let mut max_fr = Fr::MIN;
         let mut parent = None;
         let mut cigar_ops = [None, None];
 
@@ -610,11 +619,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                     - (di + dj) as Fr;
                 fr_to_coords(st.d, fr)
             },
-            |i, j, layer, edge_cost, ops| {
-                if st.fr == (i + j) as Fr {
+            |di, dj, i, j, layer, edge_cost, ops| {
+                let fr = (i + j) as Fr;
+                if fr > max_fr {
+                    max_fr = fr;
                     parent = Some(DtState {
-                        d: i as Fr - j as Fr,
-                        fr: i as Fr + j as Fr,
+                        d: st.d + (di - dj),
+                        fr: st.fr + (di + dj),
                         layer,
                         s: st.s - edge_cost as Cost,
                     });
@@ -622,6 +633,15 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 }
             },
         );
+        // Match
+        // TODO: Add a setting to do greedy backtracking before checking other parents.
+        if max_fr < st.fr {
+            let (i, j) = fr_to_coords(st.d, st.fr);
+            assert_eq!(a[i as usize - 1], b[j as usize - 1]);
+            parent = Some(st);
+            parent.as_mut().unwrap().fr -= 2;
+            cigar_ops = [Some(CigarOp::Match), None];
+        }
         Some((parent?, cigar_ops))
     }
 
