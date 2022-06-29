@@ -58,7 +58,7 @@ fn main() {
             h: ZeroCost,
             v: vis("nw_gapcost"),
         };
-        nw.cost_exponential_search(a, b);
+        nw.cost(a, b);
         nw.v.last_frame();
     }
 
@@ -69,7 +69,8 @@ fn main() {
             h: GapCost,
             v: vis("nw_gapcost_h"),
         };
-        nw.cost_exponential_search(a, b);
+
+        nw.cost(a, b);
         nw.v.last_frame();
     }
 
@@ -80,7 +81,8 @@ fn main() {
             h: sh,
             v: vis("nw_sh"),
         };
-        nw.cost_exponential_search(a, b);
+
+        nw.cost(a, b);
         nw.v.last_frame();
     }
 
@@ -91,7 +93,8 @@ fn main() {
             h: csh,
             v: vis("nw_csh"),
         };
-        nw.cost_exponential_search(a, b);
+
+        nw.cost(a, b);
         nw.v.last_frame();
     }
 
@@ -109,7 +112,7 @@ fn main() {
             ZeroCost,
             vis("dt_gapcost"),
         );
-        dt.cost_exponential_search(a, b);
+        dt.cost(a, b);
         dt.v.last_frame();
     }
 
@@ -120,21 +123,21 @@ fn main() {
             GapCost,
             vis("dt_gapcost_h"),
         );
-        dt.cost_exponential_search(a, b);
+        dt.cost(a, b);
         dt.v.last_frame();
     }
 
     {
         let mut dt =
             DiagonalTransition::new(cm.clone(), GapCostHeuristic::Disable, sh, vis("dt_sh"));
-        dt.cost_exponential_search(a, b);
+        dt.cost(a, b);
         dt.v.last_frame();
     }
 
     {
         let mut dt =
             DiagonalTransition::new(cm.clone(), GapCostHeuristic::Disable, csh, vis("dt_csh"));
-        dt.cost_exponential_search(a, b);
+        dt.cost(a, b);
         dt.v.last_frame();
     }
 }
