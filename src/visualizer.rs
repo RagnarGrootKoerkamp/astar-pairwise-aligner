@@ -9,8 +9,6 @@ use sdl2::{
     keyboard::Keycode,
     pixels::Color,
     rect::{Point, Rect},
-    render::Canvas,
-    video::Window,
     Sdl,
 };
 
@@ -109,12 +107,14 @@ impl Draw {
 #[derive(Clone)]
 pub struct Config {
     pub cell_size: usize,
-    pub prescaler: usize, //for scaling image
-    pub filepath: String, //maybe &str instead
+    pub prescaler: usize,
+    pub filepath: String,
     pub draw: Draw,
     pub delay: f32,
+    pub paused: bool,
     pub save: Save,
     pub colors: ColorScheme,
+    pub draw_old_on_top: bool,
 }
 
 impl Default for Config {
@@ -126,6 +126,7 @@ impl Default for Config {
             filepath: String::from(""),
             draw: Draw::None,
             delay: 0.2,
+            paused: false,
             colors: ColorScheme {
                 gradient: Gradient::NoGradient {
                     expand: Color::BLUE,
@@ -133,6 +134,7 @@ impl Default for Config {
                 },
                 bg_color: Color::BLACK,
             },
+            draw_old_on_top: true,
         }
     }
 }
@@ -240,20 +242,6 @@ impl Visualizer {
             Point::new((i * cell_size) as i32, (j * cell_size) as i32)
         };
 
-        let draw_pixel = |canvas: &mut Canvas<Window>, p: Pos, c: Color| {
-            canvas.set_draw_color(c);
-            let mut begin = cell_begin(p);
-            begin *= scale as i32;
-            canvas
-                .fill_rect(Rect::new(
-                    begin.x,
-                    begin.y,
-                    cell_size * scale,
-                    cell_size * scale,
-                ))
-                .unwrap();
-        };
-
         let Some(canvas) = &mut self.canvas else {return;};
 
         // Draw background.
@@ -267,25 +255,58 @@ impl Visualizer {
             ))
             .unwrap();
 
-        for (i, pos) in self.explored.iter().enumerate() {
-            draw_pixel(
-                canvas,
-                *pos,
-                self.config
-                    .colors
-                    .gradient
-                    .explore(i as f32 / self.explored.len() as f32),
-            );
-        }
-        for (i, pos) in self.expanded.iter().enumerate() {
-            draw_pixel(
-                canvas,
-                *pos,
-                self.config
-                    .colors
-                    .gradient
-                    .expand(i as f32 / self.expanded.len() as f32),
-            );
+        let mut draw_pixel = |p: Pos, c: Color| {
+            canvas.set_draw_color(c);
+            let mut begin = cell_begin(p);
+            begin *= scale as i32;
+            canvas
+                .fill_rect(Rect::new(
+                    begin.x,
+                    begin.y,
+                    cell_size * scale,
+                    cell_size * scale,
+                ))
+                .unwrap();
+        };
+
+        if self.config.draw_old_on_top {
+            for (i, pos) in self.explored.iter().enumerate().rev() {
+                draw_pixel(
+                    *pos,
+                    self.config
+                        .colors
+                        .gradient
+                        .explore(i as f32 / self.explored.len() as f32),
+                );
+            }
+            for (i, pos) in self.expanded.iter().enumerate().rev() {
+                draw_pixel(
+                    *pos,
+                    self.config
+                        .colors
+                        .gradient
+                        .expand(i as f32 / self.expanded.len() as f32),
+                );
+            }
+        } else {
+            for (i, pos) in self.explored.iter().enumerate() {
+                draw_pixel(
+                    *pos,
+                    self.config
+                        .colors
+                        .gradient
+                        .explore(i as f32 / self.explored.len() as f32),
+                );
+            }
+            for (i, pos) in self.expanded.iter().enumerate() {
+                draw_pixel(
+                    *pos,
+                    self.config
+                        .colors
+                        .gradient
+                        .expand(i as f32 / self.expanded.len() as f32),
+                );
+            }
         }
 
         // SAVE
@@ -308,7 +329,6 @@ impl Visualizer {
         //Keyboard events
 
         let sleep_duration = 0.00001;
-        let mut paused = false;
         self.canvas.as_mut().unwrap().present();
         let mut start_time = Instant::now();
         'outer: loop {
@@ -326,11 +346,11 @@ impl Visualizer {
                     } => match key {
                         Keycode::P => {
                             //pause
-                            if paused {
-                                paused = false;
+                            if self.config.paused {
+                                self.config.paused = false;
                                 start_time = Instant::now();
                             } else {
-                                paused = true;
+                                self.config.paused = true;
                             }
                         }
                         Keycode::Escape | Keycode::Space => {
@@ -356,7 +376,10 @@ impl Visualizer {
             }
             ::std::thread::sleep(Duration::from_secs_f32(sleep_duration));
 
-            if !paused && !is_last && start_time.elapsed().as_secs_f32() >= self.config.delay {
+            if !self.config.paused
+                && !is_last
+                && start_time.elapsed().as_secs_f32() >= self.config.delay
+            {
                 break 'outer;
             }
         }
