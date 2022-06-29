@@ -37,7 +37,7 @@ fn exponential_search<T>(
     }
 }
 
-pub trait StateT {
+pub trait StateT: std::fmt::Debug {
     fn is_root(&self) -> bool;
     fn pos(&self) -> Pos;
 }
