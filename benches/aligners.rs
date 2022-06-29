@@ -25,27 +25,22 @@ fn run_aligner(
     mut aligner: impl pairwise_aligner::aligners::Aligner,
     n: usize,
     e: f32,
-    exponential_search: bool,
     seed: &mut u64,
 ) {
     let (ref a, ref b) = setup_sequences_with_seed(*seed, n, e);
     *seed += 1;
-    if exponential_search {
-        aligner.cost_exponential_search(a, b);
-    } else {
-        aligner.cost(a, b);
-    }
+    aligner.cost(a, b);
 }
 
 #[bench]
 fn nw_lib(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(NWLib, N, E, false, seed));
+    bench.iter(|| run_aligner(NWLib { simd: false }, N, E, seed));
 }
 #[bench]
 fn nw_lib_exp(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(NWLib, N, E, true, seed));
+    bench.iter(|| run_aligner(NWLib { simd: true }, N, E, seed));
 }
 
 fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, ZeroCost> {
@@ -55,12 +50,12 @@ fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, ZeroCos
 #[bench]
 fn nw_simple(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(make_nw(false), N, E, false, seed));
+    bench.iter(|| run_aligner(make_nw(false), N, E, seed));
 }
 #[bench]
 fn nw_gapcost(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(make_nw(true), N, E, true, seed));
+    bench.iter(|| run_aligner(make_nw(true), N, E, seed));
 }
 
 fn make_nw_sh() -> NW<LinearCost, NoVisualizer, SH> {
@@ -78,7 +73,7 @@ fn make_nw_sh() -> NW<LinearCost, NoVisualizer, SH> {
 #[bench]
 fn nw_sh(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(make_nw_sh(), N, E, true, seed));
+    bench.iter(|| run_aligner(make_nw_sh(), N, E, seed));
 }
 
 fn make_dt(
@@ -95,12 +90,12 @@ fn make_dt(
 #[bench]
 fn dt_simple(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Disable), N, E, false, seed));
+    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Disable), N, E, seed));
 }
 #[bench]
 fn dt_gapcost(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Enable), N, E, true, seed));
+    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Enable), N, E, seed));
 }
 
 fn make_dt_sh(
@@ -128,7 +123,6 @@ fn dt_sh(bench: &mut Bencher) {
             make_dt_sh(GapCostHeuristic::Enable, HistoryCompression::Disable),
             N,
             E,
-            true,
             seed,
         )
     });

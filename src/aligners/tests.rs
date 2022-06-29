@@ -30,7 +30,6 @@ fn test_aligner_on_cost_model<const N: usize>(
     cm: AffineCost<N>,
     mut aligner: impl Aligner,
     test_path: bool,
-    exponential_search: bool,
 ) {
     let mut nw = NW::new(cm.clone(), false);
     for (&n, &e) in test_sequences() {
@@ -38,11 +37,7 @@ fn test_aligner_on_cost_model<const N: usize>(
         //println!("a {} b {}", to_string(a), to_string(b));
         let nw_cost = nw.cost(a, b);
 
-        let cost = if exponential_search {
-            aligner.cost_exponential_search(a, b)
-        } else {
-            aligner.cost(a, b)
-        };
+        let cost = aligner.cost(a, b);
 
         // Test the cost reported by all aligners.
         assert_eq!(
@@ -54,11 +49,7 @@ fn test_aligner_on_cost_model<const N: usize>(
         );
 
         if test_path {
-            let (cost, _path, cigar) = if exponential_search {
-                aligner.align_exponential_search(a, b)
-            } else {
-                aligner.align(a, b)
-            };
+            let (cost, _path, cigar) = aligner.align(a, b);
             assert_eq!(cost, nw_cost);
             verify_cigar(&cm, a, b, &cigar);
         }
@@ -74,14 +65,14 @@ mod nw_lib {
     fn unit_cost_simple() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), NWLib, false, false);
+        test_aligner_on_cost_model(cm.clone(), NWLib { simd: false }, false);
     }
 
     #[test]
     fn unit_cost_simd_exponential_search() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), NWLib, false, true);
+        test_aligner_on_cost_model(cm.clone(), NWLib { simd: true }, false);
     }
 }
 
@@ -91,7 +82,7 @@ mod nw {
     use super::*;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(cm.clone(), NW::new(cm, false), true, false);
+        test_aligner_on_cost_model(cm.clone(), NW::new(cm, false), true);
     }
 
     #[test]
@@ -187,7 +178,6 @@ macro_rules! test_exp_band {
                         cm.clone(),
                         NW::new(cm.clone(), $use_gap_cost_heuristic),
                         true,
-                        /*exponential_search=*/true
                     );
                 }
 
@@ -280,7 +270,7 @@ test_exp_band!(false, simple);
 test_exp_band!(true, gap_heuristic);
 
 macro_rules! test_diagonal_transition {
-    ($use_gap_cost_heuristic:expr, $exponential_search:expr, $history_compression:expr, $name:ident) => {
+    ($use_gap_cost_heuristic:expr, $history_compression:expr, $name:ident) => {
         paste::paste! {
             mod [<diagonal_transition_ $name>] {
                 use super::*;
@@ -289,9 +279,7 @@ macro_rules! test_diagonal_transition {
                     test_aligner_on_cost_model(
                         cm.clone(),
                         DiagonalTransition::new_variant(cm, $use_gap_cost_heuristic, ZeroCost, $history_compression, Direction::Forward, NoVisualizer),
-                        true,
-                        $exponential_search
-                    );
+                        true);
                 }
 
                 #[test]
@@ -382,25 +370,21 @@ macro_rules! test_diagonal_transition {
 
 test_diagonal_transition!(
     GapCostHeuristic::Disable,
-    false,
     HistoryCompression::Disable,
     simple
 );
 test_diagonal_transition!(
     GapCostHeuristic::Enable,
-    false,
     HistoryCompression::Disable,
     gap_heuristic
 );
 test_diagonal_transition!(
     GapCostHeuristic::Disable,
-    true,
     HistoryCompression::Disable,
     exp_search_simple
 );
 test_diagonal_transition!(
     GapCostHeuristic::Enable,
-    true,
     HistoryCompression::Disable,
     exp_search_gap_heuristic
 );
@@ -424,8 +408,6 @@ mod nw_sh {
                 v: NoVisualizer,
             },
             // test `align` as well?
-            true,
-            // exponential search (needed to use h at all)
             true,
         );
     }
@@ -456,7 +438,6 @@ mod diagonal_transition_sh {
                 NoVisualizer,
             ),
             false,
-            true,
         );
     }
 

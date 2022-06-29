@@ -3,7 +3,9 @@ use crate::prelude::{Cost, LinearCost};
 use super::{cigar::Cigar, nw::Path, Aligner, Seq};
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
-pub struct NWLib;
+pub struct NWLib {
+    pub simd: bool,
+}
 
 lazy_static! {
     static ref COST_MODEL: LinearCost = LinearCost::new_unit();
@@ -16,7 +18,11 @@ impl Aligner for NWLib {
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        bio::alignment::distance::levenshtein(a, b)
+        if self.simd {
+            bio::alignment::distance::simd::levenshtein(a, b)
+        } else {
+            bio::alignment::distance::levenshtein(a, b)
+        }
     }
 
     fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Path, Cigar) {
@@ -34,9 +40,5 @@ impl Aligner for NWLib {
         _s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)> {
         unimplemented!();
-    }
-
-    fn cost_exponential_search(&mut self, a: Seq, b: Seq) -> Cost {
-        bio::alignment::distance::simd::levenshtein(a, b)
     }
 }

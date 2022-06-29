@@ -1,7 +1,7 @@
 //! This module contains implementations of other alignment algorithms.
 
 use self::{cigar::Cigar, nw::Path};
-use crate::prelude::{Cost, CostModel, Pos};
+use crate::prelude::{Cost, CostModel};
 use std::cmp::max;
 
 pub mod cigar;
@@ -18,6 +18,22 @@ mod tests;
 pub type Sequence = Vec<u8>;
 /// A sequence slice.
 pub type Seq<'a> = &'a [u8];
+
+/// Find the cost using exponential search based on `cost_assuming_bounded_dist`.
+fn exponential_search<T>(
+    s0: Cost,
+    factor: f32,
+    mut f: impl FnMut(Cost) -> Option<(Cost, T)>,
+) -> (Cost, T) {
+    let mut s = s0;
+    // TODO: Fix the potential infinite loop here.
+    loop {
+        if let Some((cost,t)) = f(s) && cost <= s{
+            return (cost, t);
+        }
+        s = max((factor * s as f32).ceil() as Cost, 1);
+    }
+}
 
 /// An aligner is a type that supports aligning sequences using some algorithm.
 /// It should implement the most general of the methods below.
@@ -41,15 +57,11 @@ pub trait Aligner {
 
     /// Finds the cost of aligning `a` and `b`.
     /// Uses the visualizer to record progress.
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        self.cost_for_bounded_dist(a, b, None).unwrap()
-    }
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost;
 
     /// Finds an alignments (path/Cigar) of sequences `a` and `b`.
     /// Uses the visualizer to record progress.
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
-        self.align_for_bounded_dist(a, b, None).unwrap()
-    }
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar);
 
     /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most `s_bound`.
     /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.
@@ -72,35 +84,4 @@ pub trait Aligner {
         _b: Seq,
         _s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)>;
-
-    /// Find the cost using exponential search based on `cost_assuming_bounded_dist`.
-    /// TODO: Allow customizing the growth factor.
-    fn cost_exponential_search(&mut self, a: Seq, b: Seq) -> Cost {
-        let mut s: Cost = self
-            .cost_model()
-            .gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
-        // TODO: Fix the potential infinite loop here.
-        loop {
-            let cost = self.cost_for_bounded_dist(a, b, Some(s));
-            if let Some(cost) = cost && cost <= s{
-                return cost;
-            }
-            s = max(2 * s, 1);
-        }
-    }
-
-    /// Find the alignment using exponential search based on `align_assuming_bounded_dist`.
-    /// TODO: Allow customizing the growth factor.
-    fn align_exponential_search(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
-        let mut s: Cost = self
-            .cost_model()
-            .gap_cost(Pos(0, 0), Pos::from_lengths(a, b));
-        // TODO: Fix the potential infinite loop here.
-        loop {
-            if let Some(tuple@(cost, _, _)) = self.align_for_bounded_dist(a, b, Some(s)) && cost <= s{
-                return tuple;
-            }
-            s = max(2 * s, 1);
-        }
-    }
 }
