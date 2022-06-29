@@ -1,6 +1,6 @@
 //! This module contains implementations of other alignment algorithms.
 
-use self::{cigar::Cigar, edit_graph::State};
+use self::{cigar::Cigar, edit_graph::CigarOps};
 use crate::prelude::{Cost, CostModel, Pos};
 use std::cmp::max;
 
@@ -37,6 +37,20 @@ fn exponential_search<T>(
     }
 }
 
+pub trait StateT {
+    fn is_root(&self) -> bool;
+    fn pos(&self) -> Pos;
+}
+
+impl StateT for () {
+    fn is_root(&self) -> bool {
+        true
+    }
+    fn pos(&self) -> Pos {
+        Pos(0, 0)
+    }
+}
+
 /// An aligner is a type that supports aligning sequences using some algorithm.
 /// It should implement the most general of the methods below.
 /// The cost-only variant can sometimes be implemented using less memory.
@@ -56,11 +70,49 @@ pub trait Aligner {
 
     type Fronts;
 
+    type State: StateT;
+
     /// Returns the cost model used by the aligner.
     fn cost_model(&self) -> &Self::CostModel;
 
     /// Returns the parent state of the given state, or none from the root.
-    fn parent(&self, a: Seq, b: Seq, fronts: Self::Fronts, st: State) -> Option<State>;
+    fn parent(
+        &self,
+        a: Seq,
+        b: Seq,
+        fronts: &Self::Fronts,
+        st: Self::State,
+    ) -> Option<(Self::State, CigarOps)>;
+
+    fn trace(&self, a: Seq, b: Seq, fronts: &Self::Fronts, mut st: Self::State) -> (Path, Cigar) {
+        let mut path: Path = vec![];
+        let mut cigar = Cigar::default();
+
+        path.push(st.pos());
+
+        let mut save = |st: &Self::State| {
+            if let Some(last) = path.last() {
+                if *last == st.pos() {
+                    return;
+                }
+            }
+            path.push(st.pos());
+        };
+
+        while !st.is_root() {
+            let (parent, cigar_ops) = self.parent(a, b, fronts, st).unwrap();
+            st = parent;
+            save(&st);
+            for op in cigar_ops {
+                if let Some(op) = op {
+                    cigar.push(op);
+                }
+            }
+        }
+        path.reverse();
+        cigar.reverse();
+        (path, cigar)
+    }
 
     /// Finds the cost of aligning `a` and `b`.
     /// Uses the visualizer to record progress.
