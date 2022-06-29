@@ -315,9 +315,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 ),
             };
             for fr in (fr_old + 2..=*fr).step_by(2) {
-                let mut p = fr_to_pos(d, fr);
-                println!("extend to {p}");
-                self.v.expand(p);
+                self.v.expand(fr_to_pos(d, fr));
             }
         }
 
@@ -531,9 +529,12 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             self.right_buffer,
         );
 
-        let f = extend_diagonal(self.direction, a, b, 0, 0);
-        fronts[0].m_mut()[0] = f;
-        if f >= (a.len() + b.len()) as Fr {
+        let fr = extend_diagonal(self.direction, a, b, 0, 0);
+        for fr in (0..=fr).step_by(2) {
+            self.v.expand(fr_to_pos(0, fr));
+        }
+        fronts[0].m_mut()[0] = fr;
+        if fr >= (a.len() + b.len()) as Fr {
             return None;
         }
         Some(fronts)
