@@ -22,12 +22,11 @@
 //!
 //!
 use super::cigar::Cigar;
-use super::edit_graph::{EditGraph, State};
-use super::{exponential_search, Aligner, Path, Seq};
-use crate::aligners::cigar::CigarOp;
+use super::edit_graph::{CigarOps, EditGraph, Layer};
+use super::{exponential_search, Aligner, Path, Seq, StateT};
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance};
-use crate::prelude::{Pos, I};
+use crate::prelude::Pos;
 use crate::visualizer::VisualizerT;
 use std::cmp::{max, min};
 use std::iter::zip;
@@ -116,6 +115,43 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
     /// FIXME: For affine GapClose costs, we add the max open cost to the substitution cost.
     left_buffer: Fr,
     right_buffer: Fr,
+}
+
+pub struct DtState {
+    d: Fr,
+    fr: Fr,
+    layer: Layer,
+    s: Cost,
+}
+
+impl DtState {
+    fn target(a: Seq, b: Seq, s: Cost) -> Self {
+        DtState {
+            d: a.len() as Fr - b.len() as Fr,
+            fr: a.len() as Fr + b.len() as Fr,
+            layer: None,
+            s,
+        }
+    }
+}
+
+impl StateT for DtState {
+    fn is_root(&self) -> bool {
+        if self.d == 0 && self.fr == 0 && self.layer == None {
+            assert!(self.s == 0);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn pos(&self) -> Pos {
+        assert!((self.d + self.fr) % 2 == 0);
+        Pos(
+            ((self.fr + self.d) / 2) as crate::prelude::I,
+            ((self.fr - self.d) / 2) as crate::prelude::I,
+        )
+    }
 }
 
 /// Converts a pair of (diagonal index, furthest reaching) to a position.
@@ -218,188 +254,6 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost<N>, V, H> {
-    fn parent_position(
-        //Supports only gap open cost
-        &self,
-        fronts: &Fronts<N>,
-        a: Seq,
-        b: Seq,
-        p: Pos,
-        layer: Option<usize>,
-        cost: Cost,
-    ) -> (Pos, Option<usize>, CigarOp, Cost) {
-        let diagonal = p.0 as i32 - p.1 as i32;
-        let f = (p.0 + p.1) as i32;
-        let s = cost;
-
-        //if it is an affine layer
-        if let Some(layer_idx) = layer {
-            let cm = &self.cm.affine[layer_idx];
-            match cm.affine_type {
-                InsertLayer => {
-                    if f == fronts[(s - cm.extend) as Fr].affine(layer_idx)[diagonal + 1] {
-                        return (
-                            Pos(p.0, p.1 - 1),
-                            layer,
-                            CigarOp::AffineInsertion(layer_idx),
-                            s - cm.extend,
-                        );
-                    }
-                    if f == fronts[(s - cm.open) as Fr].m()[diagonal + 1] {
-                        return (
-                            Pos(p.0, p.1 - 1),
-                            layer,
-                            CigarOp::AffineOpen(layer_idx),
-                            s - cm.open,
-                        );
-                    }
-                }
-                DeleteLayer => {
-                    if f == fronts[(s - cm.extend) as Fr].affine(layer_idx)[diagonal - 1] {
-                        return (
-                            Pos(p.0, p.1 - 1),
-                            layer,
-                            CigarOp::AffineDeletion(layer_idx),
-                            s - cm.extend,
-                        );
-                    }
-                    if f == fronts[(s - cm.open) as Fr].m()[diagonal - 1] {
-                        return (
-                            Pos(p.0, p.1 - 1),
-                            layer,
-                            CigarOp::AffineOpen(layer_idx),
-                            s - cm.open,
-                        );
-                    }
-                }
-                _ => todo!(),
-            }
-        } else {
-            //if there is a match
-            if a[(p.0 - 1) as usize] == b[(p.1 - 1) as usize] {
-                return (Pos(p.0 - 1, p.1 - 1), layer, CigarOp::Match, s as Cost);
-            }
-            //if there is no match
-            else {
-                // Linear Substitution
-                if let Some(cost) = self.cm.sub && f == fronts[(s - cost) as Fr].m()[diagonal] + 2 {
-                        return (
-                            Pos(p.0 - 1, p.1 - 1),
-                            None,
-                            CigarOp::Mismatch,
-                            s - cost,
-                        );
-                    }
-                // Linear Insertion
-                if let Some(cost) = self.cm.ins && f == fronts[(s - cost) as Fr].m()[diagonal + 1] + 1 {
-                        return (
-                            Pos(p.0, p.1 - 1),
-                            None,
-                            CigarOp::Insertion,
-                            s - cost ,
-                        );
-                    }
-                // Linear Deletion
-                if let Some(cost) = self.cm.del && f == fronts[(s - cost) as Fr].m()[diagonal - 1] + 1 {
-                        return (
-                            Pos(p.0 - 1, p.1),
-                            None,
-                            CigarOp::Deletion,
-                            s - cost ,
-                        );
-                }
-                // Checking affine layers
-                for layer_idx in 0..N {
-                    if f == fronts[s as Fr].affine(layer_idx)[diagonal] {
-                        // We cannot return the same position twice, can we?
-                        // Here we will lose CigarOp::AffineClose command for we can't return more than one command per one position. Or we may return explicitly CigarOp::AffineClose instead of what the recursive function gives us.
-                        // The code that implements this suggestion is given commented below the return in this if-statement
-
-                        // return self.parent_position(fronts, a, b, p, Some(layer_idx), s as Cost);
-
-                        // let parent_position_instance = self.parent_position(fronts, a, b, p, Some(layer_idx));
-                        // return (parent_position_instance.0,parent_position_instance.1,CigarOp::AffineClose(layer_idx));
-
-                        return (p, Some(layer_idx), CigarOp::AffineClose(layer_idx), cost);
-                    }
-                }
-            }
-        }
-        unreachable!("Error in parent position function for DT aligner!");
-    }
-
-    fn parent_state(
-        &self,
-        fronts: &Fronts<N>,
-        a: Seq,
-        b: Seq,
-        d: Fr,
-        cost: Cost,
-        layer: Option<usize>,
-        cigar: &mut Cigar,
-    ) -> (Cost, Fr, Option<usize>) {
-        let s = cost as usize;
-        let mut x;
-        let mut y;
-        if let Some(layer_idx) = layer {
-            let f = fronts[s as Fr].affine(layer_idx)[d];
-            x = ((f + d) / 2) as usize;
-            y = ((f - d) / 2) as usize;
-        } else {
-            let mut f = fronts[s as Fr].m()[d];
-            x = ((f + d) / 2 - 1) as usize;
-            y = ((f - d) / 2 - 1) as usize;
-            //backtracing matches
-            while a[x] == b[y] {
-                cigar.push(CigarOp::Match);
-                if x == 0 || y == 0 {
-                    break;
-                }
-                x -= 1;
-                y -= 1;
-                f -= 1;
-            }
-            x += 1;
-            y += 1;
-        }
-        let parent_pos = self.parent_position(fronts, a, b, Pos(x as u32, y as u32), layer, cost);
-        let diag = (parent_pos.0 .0 - parent_pos.0 .1) as Fr; // diagonal of the previous state
-        cigar.push(parent_pos.2); // push Cigar option we needed to get to the previous state
-        return (parent_pos.3, diag, parent_pos.1);
-    }
-
-    pub fn get_cigar(&self, fronts: &Fronts<N>, a: Seq, b: Seq, mut cost: Cost) -> Cigar {
-        let mut cigar: Cigar = Cigar::default();
-        let mut layer = None;
-        let mut d = a.len() as i32 - b.len() as i32;
-        while cost > 0 || d != 0 || layer.is_some() {
-            (cost, d, layer) = self.parent_state(fronts, a, b, d, cost, layer, &mut cigar);
-        }
-        cigar.reverse();
-        cigar
-    }
-
-    pub fn get_path(&self, fronts: &Fronts<N>, a: Seq, b: Seq, mut cost: Cost) -> Path {
-        let mut path: Path = vec![];
-        let mut save = |p: Pos| {
-            if let Some(last) = path.last() {
-                if *last == Pos(p.0 as I, p.1 as I) {
-                    return;
-                }
-            }
-            path.push(Pos(p.0 as I, p.1 as I));
-        };
-        let mut layer = None;
-        let mut p = Pos(a.len() as u32, b.len() as u32);
-        save(p);
-        while p.0 != 0 || p.1 != 0 {
-            (p, layer, _, cost) = self.parent_position(fronts, a, b, p, layer, cost);
-            save(p);
-        }
-        path.reverse();
-        path
-    }
-
     pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: GapCostHeuristic, h: H, v: V) -> Self {
         Self::new_variant(
             cm,
@@ -560,7 +414,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     d_max = max(d_max, *parent_front.range().end() + (di - dj));
                     (0, 0)
                 },
-                |_i, _j, _layer, _cigar_ops| {},
+                |_i, _j, _layer, _edge_cost, _cigar_ops| {},
             );
 
             if d_max < d_min {
@@ -584,7 +438,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             - (di + dj) as Fr;
                         fr_to_coords(d, fr)
                     },
-                    |i, j, _layer, _cigar_ops| {
+                    |i, j, _layer, _edge_cost, _cigar_ops| {
                         fr = max(fr, (i + j) as Fr);
                     },
                 );
@@ -682,7 +536,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             - (di + dj) as Fr;
                         fr_to_coords(d, fr)
                     },
-                    |i, j, _layer, _cigar_ops| {
+                    |i, j, _layer, _edge_cost, _cigar_ops| {
                         fr = max(fr, (i + j) as Fr);
                     },
                 );
@@ -730,13 +584,45 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
 
     type Fronts = Fronts<N>;
 
+    type State = DtState;
+
     fn cost_model(&self) -> &Self::CostModel {
         &self.cm
     }
 
-    fn parent(&self, a: Seq, b: Seq, fronts: Self::Fronts, st: State) -> Option<State> {
-        // FIXME
-        todo!()
+    fn parent(
+        &self,
+        a: Seq,
+        b: Seq,
+        fronts: &Self::Fronts,
+        st: Self::State,
+    ) -> Option<(Self::State, CigarOps)> {
+        let mut parent = None;
+        let mut cigar_ops = [None, None];
+
+        EditGraph::iterate_parents_dt(
+            a,
+            b,
+            &self.cm,
+            st.layer,
+            |di, dj, layer, edge_cost| -> (Fr, Fr) {
+                let fr = fronts[st.s as Fr - edge_cost as Fr].layer(layer)[st.d + (di - dj) as Fr]
+                    - (di + dj) as Fr;
+                fr_to_coords(st.d, fr)
+            },
+            |i, j, layer, edge_cost, ops| {
+                if st.fr == (i + j) as Fr {
+                    parent = Some(DtState {
+                        d: i as Fr - j as Fr,
+                        fr: i as Fr + j as Fr,
+                        layer,
+                        s: st.s - edge_cost as Cost,
+                    });
+                    cigar_ops = ops;
+                }
+            },
+        );
+        Some((parent?, cigar_ops))
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
@@ -831,9 +717,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             ));
             if self.next_front(a, b, &mut fronts.fronts) {
                 // FIXME: Reconstruct path.
-                let path2 = self.get_path(&fronts, a, b, s);
-                let cigar2 = self.get_cigar(&fronts, a, b, s);
-                return Some((s, path2, cigar2));
+                let state = DtState::target(a, b, s);
+                let (path, cigar) = self.trace(a, b, &fronts, state);
+                return Some((s, path, cigar));
             }
         }
         unreachable!()
