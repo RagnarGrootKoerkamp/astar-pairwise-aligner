@@ -34,7 +34,7 @@ fn test_aligner_on_cost_model<const N: usize>(
     let mut nw = NW::new(cm.clone(), false);
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
-        //println!("a {} b {}", to_string(a), to_string(b));
+        println!("a {}\nb {}", to_string(a), to_string(b));
         let nw_cost = nw.cost(a, b);
 
         let cost = aligner.cost(a, b);
@@ -168,6 +168,7 @@ mod nw {
         ));
     }
 
+    #[ignore]
     #[test]
     fn ins_homopolymer_cost() {
         test(AffineCost::new(
@@ -182,6 +183,7 @@ mod nw {
         ));
     }
 
+    #[ignore]
     #[test]
     fn del_homopolymer_cost() {
         test(AffineCost::new(
@@ -196,6 +198,7 @@ mod nw {
         ));
     }
 
+    #[ignore]
     #[test]
     fn indel_homopolymer_cost() {
         test(AffineCost::new(
@@ -217,6 +220,7 @@ mod nw {
         ));
     }
 
+    #[ignore]
     #[test]
     fn indel_homopolymer_plus_affine_cost() {
         test(AffineCost::new(
@@ -252,179 +256,183 @@ mod nw {
 macro_rules! test_exp_band {
     ($use_gap_cost_heuristic:expr, $name:ident) => {
         paste::paste! {
-            mod [<exp_band_ $name>] {
-                use super::*;
+                mod [<exp_band_ $name>] {
+                    use super::*;
 
-                fn test<const N: usize>(cm: AffineCost<N>) {
-                    test_aligner_on_cost_model(
-                        cm.clone(),
-                        NW::new(cm.clone(), $use_gap_cost_heuristic),
-                        true,
-                    );
-                }
+                    fn test<const N: usize>(cm: AffineCost<N>) {
+                        test_aligner_on_cost_model(
+                            cm.clone(),
+                            NW::new(cm.clone(), $use_gap_cost_heuristic),
+                            true,
+                        );
+                    }
 
-                #[test]
-                fn lcs_cost() {
-                    // sub=infinity, indel=1
-                    test(AffineCost::new_lcs());
-                }
+                    #[test]
+                    fn lcs_cost() {
+                        // sub=infinity, indel=1
+                        test(AffineCost::new_lcs());
+                    }
 
-                #[test]
-                fn unit_cost() {
-                    // sub=indel=1
-                    test(AffineCost::new_unit());
-                }
+                    #[test]
+                    fn unit_cost() {
+                        // sub=indel=1
+                        test(AffineCost::new_unit());
+                    }
 
-                #[test]
-                fn linear_cost() {
-                    // sub=1, indel=2
-                    test(AffineCost::new_linear(1, 2));
-                }
+                    #[test]
+                    fn linear_cost() {
+                        // sub=1, indel=2
+                        test(AffineCost::new_linear(1, 2));
+                    }
 
-                #[test]
-                fn linear_asymmetric_cost() {
-                    // sub=1, insert=2, deletion=3
-                    test(AffineCost::new_linear_asymmetric(1, 2, 3));
-                }
+                    #[test]
+                    fn linear_asymmetric_cost() {
+                        // sub=1, insert=2, deletion=3
+                        test(AffineCost::new_linear_asymmetric(1, 2, 3));
+                    }
 
-                #[test]
-                fn affine_cost() {
-                    // sub=1
-                    // open=2, extend=1
-                    test(AffineCost::new_affine(1, 2, 1));
-                }
+                    #[test]
+                    fn affine_cost() {
+                        // sub=1
+                        // open=2, extend=1
+                        test(AffineCost::new_affine(1, 2, 1));
+                    }
 
-                #[test]
-                fn linear_affine_cost() {
-                    // sub=1, indel=3
-                    // open=2, extend=1
-                    test(AffineCost::new_linear_affine(1, 3, 2, 1));
-                }
+                    #[test]
+                    fn linear_affine_cost() {
+                        // sub=1, indel=3
+                        // open=2, extend=1
+                        test(AffineCost::new_linear_affine(1, 3, 2, 1));
+                    }
 
-                #[test]
-                fn double_affine_cost() {
-                    // sub=1
-                    // Gap cost is min(4+2*l, 10+1*l).
-                    test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
-                }
+                    #[test]
+                    fn double_affine_cost() {
+                        // sub=1
+                        // Gap cost is min(4+2*l, 10+1*l).
+                        test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
+                    }
 
-                #[test]
-                fn asymmetric_affine_cost() {
-                    // sub=1
-                    // insert: open=2, extend=2
-                    // deletion: open=3, extend=1
-                    test(AffineCost::new_affine_asymmetric(1, 2, 2, 3, 1));
-                }
+                    #[test]
+                    fn asymmetric_affine_cost() {
+                        // sub=1
+                        // insert: open=2, extend=2
+                        // deletion: open=3, extend=1
+                        test(AffineCost::new_affine_asymmetric(1, 2, 2, 3, 1));
+                    }
 
-                #[test]
-                fn ins_asymmetric_affine_cost() {
-                    test(AffineCost::new(
-                        Some(1),
-                        Some(1),
-                        None,
-                        [AffineLayerCosts {
-                            affine_type: AffineLayerType::DeleteLayer,
-                            open: 2,
-                            extend: 2,
-                        }],
-                    ));
-                }
-
-                #[test]
-                fn del_asymmetric_affine_cost() {
-                    test(AffineCost::new(
-                        Some(1),
-                        None,
-                        Some(1),
-                        [AffineLayerCosts {
-                            affine_type: AffineLayerType::InsertLayer,
-                            open: 2,
-                            extend: 2,
-                        }],
-                    ));
-                }
-
-                #[test]
-                fn ins_homopolymer_cost() {
-                    test(AffineCost::new(
-                        Some(2),
-                        None,
-                        Some(3),
-                        [AffineLayerCosts {
-                            affine_type: AffineLayerType::HomoPolymerInsert,
-                            open: 2,
-                            extend: 2,
-                        }],
-                    ));
-                }
-
-                #[test]
-                fn del_homopolymer_cost() {
-                    test(AffineCost::new(
-                        Some(2),
-                        Some(3),
-                        None,
-                        [AffineLayerCosts {
-                            affine_type: AffineLayerType::HomoPolymerDelete,
-                            open: 2,
-                            extend: 2,
-                        }],
-                    ));
-                }
-
-                #[test]
-                fn indel_homopolymer_cost() {
-                    test(AffineCost::new(
-                        Some(2),
-                        None,
-                        None,
-                        [
-                            AffineLayerCosts {
-                                affine_type: AffineLayerType::HomoPolymerInsert,
-                                open: 3,
-                                extend: 1,
-                            },
-                            AffineLayerCosts {
-                                affine_type: AffineLayerType::HomoPolymerDelete,
-                                open: 3,
-                                extend: 1,
-                            },
-                        ],
-                    ));
-                }
-
-                #[test]
-                fn indel_homopolymer_plus_affine_cost() {
-                    test(AffineCost::new(
-                        Some(2),
-                        None,
-                        None,
-                        [
-                            AffineLayerCosts {
-                                affine_type: AffineLayerType::InsertLayer,
-                                open: 2,
-                                extend: 2,
-                            },
-                            AffineLayerCosts {
+        #[ignore]
+                    #[test]
+                    fn ins_asymmetric_affine_cost() {
+                        test(AffineCost::new(
+                            Some(1),
+                            Some(1),
+                            None,
+                            [AffineLayerCosts {
                                 affine_type: AffineLayerType::DeleteLayer,
                                 open: 2,
                                 extend: 2,
-                            },
-                            AffineLayerCosts {
+                            }],
+                        ));
+                    }
+
+                    #[test]
+                    fn del_asymmetric_affine_cost() {
+                        test(AffineCost::new(
+                            Some(1),
+                            None,
+                            Some(1),
+                            [AffineLayerCosts {
+                                affine_type: AffineLayerType::InsertLayer,
+                                open: 2,
+                                extend: 2,
+                            }],
+                        ));
+                    }
+
+        #[ignore]
+                    #[test]
+                    fn ins_homopolymer_cost() {
+                        test(AffineCost::new(
+                            Some(2),
+                            None,
+                            Some(3),
+                            [AffineLayerCosts {
                                 affine_type: AffineLayerType::HomoPolymerInsert,
-                                open: 3,
-                                extend: 1,
-                            },
-                            AffineLayerCosts {
+                                open: 2,
+                                extend: 2,
+                            }],
+                        ));
+                    }
+
+                    #[test]
+                    fn del_homopolymer_cost() {
+                        test(AffineCost::new(
+                            Some(2),
+                            Some(3),
+                            None,
+                            [AffineLayerCosts {
                                 affine_type: AffineLayerType::HomoPolymerDelete,
-                                open: 3,
-                                extend: 1,
-                            },
-                        ],
-                    ));
+                                open: 2,
+                                extend: 2,
+                            }],
+                        ));
+                    }
+
+        #[ignore]
+                    #[test]
+                    fn indel_homopolymer_cost() {
+                        test(AffineCost::new(
+                            Some(2),
+                            None,
+                            None,
+                            [
+                                AffineLayerCosts {
+                                    affine_type: AffineLayerType::HomoPolymerInsert,
+                                    open: 3,
+                                    extend: 1,
+                                },
+                                AffineLayerCosts {
+                                    affine_type: AffineLayerType::HomoPolymerDelete,
+                                    open: 3,
+                                    extend: 1,
+                                },
+                            ],
+                        ));
+                    }
+
+        #[ignore]
+                    #[test]
+                    fn indel_homopolymer_plus_affine_cost() {
+                        test(AffineCost::new(
+                            Some(2),
+                            None,
+                            None,
+                            [
+                                AffineLayerCosts {
+                                    affine_type: AffineLayerType::InsertLayer,
+                                    open: 2,
+                                    extend: 2,
+                                },
+                                AffineLayerCosts {
+                                    affine_type: AffineLayerType::DeleteLayer,
+                                    open: 2,
+                                    extend: 2,
+                                },
+                                AffineLayerCosts {
+                                    affine_type: AffineLayerType::HomoPolymerInsert,
+                                    open: 3,
+                                    extend: 1,
+                                },
+                                AffineLayerCosts {
+                                    affine_type: AffineLayerType::HomoPolymerDelete,
+                                    open: 3,
+                                    extend: 1,
+                                },
+                            ],
+                        ));
+                    }
                 }
             }
-        }
     };
 }
 
@@ -525,6 +533,7 @@ macro_rules! test_diagonal_transition {
                     ));
                 }
 
+    #[ignore]
                 #[test]
                 fn ins_homopolymer_cost() {
                     test(AffineCost::new(
@@ -539,6 +548,7 @@ macro_rules! test_diagonal_transition {
                     ));
                 }
 
+    #[ignore]
                 #[test]
                 fn del_homopolymer_cost() {
                     test(AffineCost::new(
@@ -553,6 +563,7 @@ macro_rules! test_diagonal_transition {
                     ));
                 }
 
+    #[ignore]
                 #[test]
                 fn indel_homopolymer_cost() {
                     test(AffineCost::new(
@@ -574,6 +585,7 @@ macro_rules! test_diagonal_transition {
                     ));
                 }
 
+    #[ignore]
                 #[test]
                 fn indel_homopolymer_plus_affine_cost() {
                     test(AffineCost::new(
@@ -701,6 +713,7 @@ mod homopolymer {
         visualizer::NoVisualizer,
     };
 
+    #[ignore]
     #[test]
     fn homo_polymer() {
         let cm = AffineCost::new(
@@ -738,6 +751,7 @@ mod homopolymer {
         assert_eq!(nw.cost(b"AAAAAAAAA", b""), 10);
     }
 
+    #[ignore]
     #[test]
     fn homo_polymer_plus_affine_and_cigar() {
         let cm = AffineCost::new(

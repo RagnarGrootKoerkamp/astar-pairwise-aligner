@@ -45,12 +45,13 @@ impl CigarOp {
     }
 }
 
+#[derive(Debug)]
 pub struct CigarElement {
     pub command: CigarOp,
     pub length: usize,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Cigar {
     ops: Vec<CigarElement>,
 }
@@ -91,7 +92,7 @@ impl Cigar {
     }
 
     pub fn print(&self) {
-        print!("{}", self.to_string());
+        println!("CIGAR: {}", self.to_string());
     }
 
     pub fn reverse(&mut self) {
@@ -153,13 +154,19 @@ pub mod test {
                 }
                 CigarOp::AffineInsertion(l) => {
                     assert_eq!(layer, Some(l));
-                    assert_eq!(cm.affine[l].affine_type, AffineLayerType::InsertLayer);
+                    assert_eq!(
+                        cm.affine[l].affine_type.base(),
+                        AffineLayerType::InsertLayer
+                    );
                     pos.1 += length;
                     cost += cm.affine[l].extend * length as Cost;
                 }
                 CigarOp::AffineDeletion(l) => {
                     assert_eq!(layer, Some(l));
-                    assert_eq!(cm.affine[l].affine_type, AffineLayerType::DeleteLayer);
+                    assert_eq!(
+                        cm.affine[l].affine_type.base(),
+                        AffineLayerType::DeleteLayer
+                    );
                     pos.0 += length;
                     cost += cm.affine[l].extend * length as Cost;
                 }
