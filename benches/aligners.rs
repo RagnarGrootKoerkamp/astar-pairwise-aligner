@@ -83,40 +83,24 @@ fn nw_sh(bench: &mut Bencher) {
 
 fn make_dt(
     use_gap_cost_heuristic: GapCostHeuristic,
-    history_compression: HistoryCompression,
 ) -> DiagonalTransition<LinearCost, NoVisualizer, ZeroCost> {
     DiagonalTransition::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,
-        history_compression,
+        ZeroCost,
+        NoVisualizer,
     )
 }
 
 #[bench]
 fn dt_simple(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| {
-        run_aligner(
-            make_dt(GapCostHeuristic::Disable, HistoryCompression::Disable),
-            N,
-            E,
-            false,
-            seed,
-        )
-    });
+    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Disable), N, E, false, seed));
 }
 #[bench]
 fn dt_gapcost(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| {
-        run_aligner(
-            make_dt(GapCostHeuristic::Enable, HistoryCompression::Disable),
-            N,
-            E,
-            true,
-            seed,
-        )
-    });
+    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Enable), N, E, true, seed));
 }
 
 fn make_dt_sh(

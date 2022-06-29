@@ -43,8 +43,7 @@ impl Distance for ZeroCost {
 
 pub struct ZeroCostI;
 impl HeuristicInstance<'_> for ZeroCostI {
-    fn h(&self, pos: Pos) -> Cost {
-        println!("ZeroCost in {pos}");
+    fn h(&self, _pos: Pos) -> Cost {
         0
     }
 }

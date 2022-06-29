@@ -26,9 +26,9 @@ use super::edit_graph::EditGraph;
 use super::nw::Path;
 use super::{Aligner, Seq};
 use crate::cost_model::*;
-use crate::heuristic::{Heuristic, HeuristicInstance, ZeroCost};
+use crate::heuristic::{Heuristic, HeuristicInstance};
 use crate::prelude::Pos;
-use crate::visualizer::{NoVisualizer, VisualizerT};
+use crate::visualizer::VisualizerT;
 use std::cmp::{max, min};
 use std::iter::zip;
 use std::ops::RangeInclusive;
@@ -77,7 +77,7 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
     #[allow(unused)]
     history_compression: HistoryCompression,
 
-    v: V,
+    pub v: V,
 
     /// Whether to run the wavefronts forward or backward.
     /// Will be used for BiWFA.
@@ -215,24 +215,18 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
     fr
 }
 
-impl<const N: usize> DiagonalTransition<AffineCost<N>, NoVisualizer, ZeroCost> {
-    pub fn new(
-        cm: AffineCost<N>,
-        use_gap_cost_heuristic: GapCostHeuristic,
-        history_compression: HistoryCompression,
-    ) -> Self {
+impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost<N>, V, H> {
+    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: GapCostHeuristic, h: H, v: V) -> Self {
         Self::new_variant(
             cm,
             use_gap_cost_heuristic,
-            ZeroCost,
-            history_compression,
+            h,
+            HistoryCompression::Disable,
             Forward,
-            NoVisualizer,
+            v,
         )
     }
-}
 
-impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost<N>, V, H> {
     pub fn new_variant(
         cm: AffineCost<N>,
         use_gap_cost_heuristic: GapCostHeuristic,
