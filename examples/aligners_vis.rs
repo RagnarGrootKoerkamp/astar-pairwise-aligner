@@ -10,8 +10,8 @@ use pairwise_aligner::{
 use sdl2::pixels::Color;
 
 fn main() {
-    let n = 100;
-    let e = 0.3;
+    let n = 500;
+    let e = 0.20;
     let (ref a, ref b) = setup_sequences(n, e);
     println!("{}\n{}\n", to_string(a), to_string(b));
 
@@ -20,9 +20,10 @@ fn main() {
     config.draw = Draw::All;
     config.save = Save::Last;
     config.delay = 0.0001;
-    config.cell_size = 4;
+    config.cell_size = 2;
     config.colors.bg_color = Color::RGBA(255, 255, 255, 128);
-    config.colors.gradient = Gradient::TurboGradient(0. ..1.);
+    config.colors.gradient = Gradient::TurboGradient(0.25..0.90);
+    config.draw_old_on_top = true;
     let mut vis = |name: &str| {
         config.filepath = "imgs/".to_string() + name;
         Visualizer::new(config.clone(), a, b)
