@@ -27,7 +27,7 @@ use super::{exponential_search, Aligner, Path, Seq, StateT};
 use crate::aligners::cigar::CigarOp;
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance};
-use crate::prelude::Pos;
+use crate::prelude::{to_string, Pos};
 use crate::visualizer::VisualizerT;
 use std::cmp::{max, min};
 use std::iter::zip;
@@ -41,19 +41,19 @@ type Front<const N: usize> = super::front::Front<N, Fr, Fr>;
 type Fronts<const N: usize> = super::front::Fronts<N, Fr, Fr>;
 
 /// The direction to run in.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Direction {
     Forward,
     Backward,
 }
 use Direction::*;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum GapCostHeuristic {
     Enable,
     Disable,
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum HistoryCompression {
     Enable,
     Disable,
@@ -73,17 +73,14 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
 
     h: H,
 
+    /// When true, `align` uses divide & conquer to compute the alignment in linear memory.
+    dc: bool,
+
     /// When true, calls to `align` store a compressed version of the full 'history' of visited states.
     #[allow(unused)]
     history_compression: HistoryCompression,
 
     pub v: V,
-
-    /// Whether to run the wavefronts forward or backward.
-    /// Will be used for BiWFA.
-    /// TODO: Move this setting elsewhere.
-    /// TODO: Should this be a compile time setting instead?
-    direction: Direction,
 
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
@@ -118,7 +115,7 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
     right_buffer: Fr,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct DtState {
     d: Fr,
     fr: Fr,
@@ -127,6 +124,14 @@ pub struct DtState {
 }
 
 impl DtState {
+    fn start() -> Self {
+        DtState {
+            d: 0,
+            fr: 0,
+            layer: None,
+            s: 0,
+        }
+    }
     fn target(a: Seq, b: Seq, s: Cost) -> Self {
         DtState {
             d: a.len() as Fr - b.len() as Fr,
@@ -160,12 +165,12 @@ impl StateT for DtState {
 /// TODO: Return Pos or usize instead?
 #[inline]
 fn fr_to_coords(d: Fr, fr: Fr) -> (Fr, Fr) {
-    assert!(fr < 0 || (d + fr) % 2 == 0);
+    //assert!(fr < 0 || (d + fr) % 2 == 0);
     ((fr + d) / 2, (fr - d) / 2)
 }
 #[inline]
 fn fr_to_pos(d: Fr, fr: Fr) -> Pos {
-    assert!((d + fr) % 2 == 0);
+    //assert!((d + fr) % 2 == 0);
     Pos(
         ((fr + d) / 2) as crate::prelude::I,
         ((fr - d) / 2) as crate::prelude::I,
@@ -173,31 +178,29 @@ fn fr_to_pos(d: Fr, fr: Fr) -> Pos {
 }
 
 /// Given two sequences, a diagonal and point on it, expand it to a FR point.
-fn extend_diagonal(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: Fr) -> Fr {
+/// Returns the number of characters matched.
+/// NOTE: `d` and `fr` must be in Forward domain here.
+fn extend_diagonal(direction: Direction, a: Seq, b: Seq, d: Fr, fr: Fr) -> Fr {
     let (i, j) = fr_to_coords(d, fr);
-    if i as usize >= a.len() || j as usize >= b.len() {
-        return fr;
+    if i as usize > a.len() || j as usize > b.len() {
+        return 0;
     }
 
     // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
     match direction {
-        Forward => {
-            fr += 2 * zip(a[i as usize..].iter(), b[j as usize..].iter())
-                .take_while(|(ca, cb)| ca == cb)
-                .count() as Fr
-        }
-        Backward => {
-            fr -= 2 * zip(a[..i as usize].iter().rev(), b[..j as usize].iter().rev())
-                .take_while(|(ca, cb)| ca == cb)
-                .count() as Fr
-        }
-    };
-    fr
+        Forward => zip(a[i as usize..].iter(), b[j as usize..].iter())
+            .take_while(|(ca, cb)| ca == cb)
+            .count() as Fr,
+        Backward => zip(a[..i as usize].iter().rev(), b[..j as usize].iter().rev())
+            .take_while(|(ca, cb)| ca == cb)
+            .count() as Fr,
+    }
 }
 
 /// Given two sequences, a diagonal and point on it, expand it to a FR point.
 ///
 /// This version compares one usize at a time.
+/// NOTE: `d` and `fr` must be in Forward domain here.
 /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
 #[allow(unused)]
 fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: Fr) -> Fr {
@@ -256,23 +259,11 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost<N>, V, H> {
-    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: GapCostHeuristic, h: H, v: V) -> Self {
-        Self::new_variant(
-            cm,
-            use_gap_cost_heuristic,
-            h,
-            HistoryCompression::Disable,
-            Forward,
-            v,
-        )
-    }
-
-    pub fn new_variant(
+    pub fn new(
         cm: AffineCost<N>,
         use_gap_cost_heuristic: GapCostHeuristic,
         h: H,
-        history_compression: HistoryCompression,
-        direction: Direction,
+        dc: bool,
         v: V,
     ) -> Self {
         // The maximum cost we look back:
@@ -326,34 +317,44 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             cm,
             use_gap_cost_heuristic,
             h,
+            dc,
             v,
             top_buffer,
             left_buffer,
             right_buffer,
-            direction,
-            history_compression,
+            history_compression: HistoryCompression::Disable,
         }
     }
 
-    fn extend(&mut self, front: &mut Front<N>, a: Seq, b: Seq) -> bool {
+    fn extend(&mut self, front: &mut Front<N>, a: Seq, b: Seq, direction: Direction) -> bool {
         for d in front.range().clone() {
             let fr = &mut front.m_mut()[d];
             if *fr < 0 {
                 continue;
             }
             let fr_old = *fr;
-            *fr = match self.direction {
-                Forward => extend_diagonal(self.direction, a, b, d, *fr),
-                Backward => extend_diagonal(
-                    self.direction,
-                    a,
-                    b,
-                    a.len() as Fr - b.len() as Fr - d,
-                    a.len() as Fr + b.len() as Fr - *fr,
-                ),
-            };
-            for fr in (fr_old + 2..=*fr).step_by(2) {
-                self.v.expand(fr_to_pos(d, fr));
+            match direction {
+                Forward => {
+                    *fr += 2 * extend_diagonal(direction, a, b, d, *fr);
+                    for fr in (fr_old + 2..=*fr).step_by(2) {
+                        self.v.expand(fr_to_pos(d, fr));
+                    }
+                }
+                Backward => {
+                    *fr += 2 * extend_diagonal(
+                        direction,
+                        a,
+                        b,
+                        a.len() as Fr - b.len() as Fr - d,
+                        a.len() as Fr + b.len() as Fr - *fr,
+                    );
+                    for fr in (fr_old + 2..=*fr).step_by(2) {
+                        self.v.expand(fr_to_pos(
+                            a.len() as Fr - b.len() as Fr - d,
+                            a.len() as Fr + b.len() as Fr - fr,
+                        ));
+                    }
+                }
             }
         }
 
@@ -410,11 +411,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 &self.cm,
                 // TODO: Fix for affine layers.
                 None,
-                |di, dj, _layer, edge_cost| -> (Fr, Fr) {
+                |di, dj, _layer, edge_cost| -> Option<(Fr, Fr)> {
                     let parent_front = get_front(prev, edge_cost);
                     d_min = min(d_min, *parent_front.range().start() + (di - dj));
                     d_max = max(d_max, *parent_front.range().end() + (di - dj));
-                    (0, 0)
+                    None
                 },
                 |_di, _dj, _i, _j, _layer, _edge_cost, _cigar_ops| {},
             );
@@ -435,10 +436,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     &self.cm,
                     // TODO: Fix for affine layers.
                     None,
-                    |di, dj, layer, edge_cost| -> (Fr, Fr) {
+                    |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
                         let fr = get_front(prev, edge_cost).layer(layer)[d + (di - dj) as Fr]
                             - (di + dj) as Fr;
-                        fr_to_coords(d, fr)
+                        if fr >= 0 {
+                            Some(fr_to_coords(d, fr))
+                        } else {
+                            None
+                        }
                     },
                     |_di, _dj, i, j, _layer, _edge_cost, _cigar_ops| {
                         fr = max(fr, (i + j) as Fr);
@@ -461,61 +466,19 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         }
     }
 
-    /// Detects if there is a diagonal such that the two fronts meet/overlap.
-    /// The overlap can be in any of the affine layers.
-    /// Returns: None is no overlap was found.
-    /// Otherwise:
-    /// - the layer where overlap was found (None for M, Some(i) for affine layer),
-    /// - the diagonal and FR for the forward direction,
-    /// - the diagonal and FR for the backward direction.
-    /// NOTE: the two FR indices may not correspond to the same character, in the case of overlapping greedy matches.
-    #[allow(dead_code)]
-    fn fronts_overlap(
-        &self,
-        a: Seq,
-        b: Seq,
-        forward: &mut Front<N>,
-        backward: &mut Front<N>,
-    ) -> Option<(Option<usize>, (Fr, Fr), (Fr, Fr))> {
-        // NOTE: This is the same for the forward and reverse direction.
-        let d_target = a.len() as Fr - b.len() as Fr;
-        let f_target = (a.len() + b.len()) as Fr;
-        let mirror = |d| d_target - d;
-        let d_range = max(*forward.range().start(), mirror(*backward.range().end()))
-            ..=min(*forward.range().end(), mirror(*backward.range().start()));
-        // TODO: Provide an (internal) iterator over Layers from Front that merges these two cases.
-        // M
-        for d in d_range.clone() {
-            if forward.m()[d] + backward.m()[mirror(d)] >= f_target {
-                return Some((
-                    None,
-                    (d, forward.m()[d]),
-                    (mirror(d), forward.m()[mirror(d)]),
-                ));
-            }
-        }
-        // Affine layers
-        for i in 0..N {
-            for d in d_range.clone() {
-                if forward.affine(i)[d] + backward.affine(i)[mirror(d)] >= f_target {
-                    return Some((
-                        Some(i),
-                        (d, forward.affine(i)[d]),
-                        (mirror(d), forward.affine(i)[mirror(d)]),
-                    ));
-                }
-            }
-        }
-        None
-    }
-
     /// Computes the next layer from the current one.
     /// `ca` is the `i`th character of sequence `a`.
     ///
     /// NOTE: `next` must already have the right range set.
     ///
     /// Returns `true` when the search completes.
-    fn next_front(&mut self, a: Seq, b: Seq, fronts: &mut [Front<N>]) -> bool {
+    fn next_front(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        fronts: &mut [Front<N>],
+        direction: Direction,
+    ) -> bool {
         // Get the front `cost` before the last one.
         fn get_front<const N: usize>(fronts: &mut [Front<N>], cost: Cost) -> &mut Front<N> {
             &mut fronts[fronts.len() - 1 - cost as usize]
@@ -525,41 +488,100 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         // The boundaries are buffered so no boundary checks are needed.
         // TODO: Vectorize this loop, or at least verify the compiler does this.
         // TODO: Loop over a positive range that does not need additional shifting?
-        for d in get_front(fronts, 0).range().clone() {
-            EditGraph::iterate_layers(&self.cm, |layer| {
-                let mut fr = Fr::MIN;
-                EditGraph::iterate_parents_dt(
-                    a,
-                    b,
-                    &self.cm,
-                    layer,
-                    |di, dj, layer, edge_cost| -> (Fr, Fr) {
-                        let fr = get_front(fronts, edge_cost).layer(layer)[d + (di - dj) as Fr]
-                            - (di + dj) as Fr;
-                        if fr < 0 {
-                            (Fr::MIN, Fr::MIN)
-                        } else {
-                            fr_to_coords(d, fr)
+        match direction {
+            Direction::Forward => {
+                for d in get_front(fronts, 0).range().clone() {
+                    EditGraph::iterate_parent_layers(&self.cm, |layer| {
+                        let mut fr = Fr::MIN;
+                        EditGraph::iterate_parents_dt(
+                            a,
+                            b,
+                            &self.cm,
+                            layer,
+                            |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
+                                let fr = get_front(fronts, edge_cost).layer(layer)
+                                    [d + (di - dj) as Fr]
+                                    - (di + dj) as Fr;
+                                if fr >= 0 {
+                                    Some(fr_to_coords(d, fr))
+                                } else {
+                                    None
+                                }
+                            },
+                            |_di, _dj, i, j, _layer, _edge_cost, _cigar_ops| {
+                                if i >= 0 && j >= 0 {
+                                    fr = max(fr, (i + j) as Fr);
+                                }
+                            },
+                        );
+                        get_front(fronts, 0).layer_mut(layer)[d] = fr;
+                        if fr >= 0 {
+                            self.v.expand(fr_to_pos(d, fr));
                         }
-                    },
-                    |_di, _dj, i, j, _layer, _edge_cost, _cigar_ops| {
-                        if i >= 0 && j >= 0 {
-                            fr = max(fr, (i + j) as Fr);
-                        }
-                    },
-                );
-                get_front(fronts, 0).layer_mut(layer)[d] = fr;
-                if fr >= 0 {
-                    self.v.expand(fr_to_pos(d, fr));
+                    });
                 }
-            });
+            }
+            Direction::Backward => {
+                let mirror = |(i, j)| (a.len() as Fr - i, b.len() as Fr - j);
+                let mirror_pos = |Pos(i, j)| Pos(a.len() as u32 - i, b.len() as u32 - j);
+                let max_fr = a.len() as Fr + b.len() as Fr;
+                let mirror_fr = |fr| max_fr - fr;
+                for d in get_front(fronts, 0).range().clone() {
+                    println!("Next layer {direction:?} for d={d}");
+                    EditGraph::iterate_child_layers(&self.cm, |layer| {
+                        let mut fr = Fr::MIN;
+                        EditGraph::iterate_children_dt(
+                            a,
+                            b,
+                            &self.cm,
+                            layer,
+                            // NOTE: This returns a forward position.
+                            // FIXME: Make sure this returns the correct position for homopolymer checking.
+                            |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
+                                println!("Parent {di} {dj} {layer:?} {edge_cost}");
+                                let fr = get_front(fronts, edge_cost).layer(layer)
+                                    [d - (di - dj) as Fr]
+                                    + (di + dj) as Fr;
+                                println!("fr {fr}");
+                                if fr >= 0 {
+                                    Some(mirror(fr_to_coords(d, fr)))
+                                } else {
+                                    None
+                                }
+                            },
+                            |_di, _dj, i, j, _layer, _edge_cost, _cigar_ops| {
+                                if i >= 0 && j >= 0 {
+                                    println!(
+                                        "Set fr to max of {fr} and {} from coords {i},{j}",
+                                        mirror_fr((i + j) as Fr)
+                                    );
+                                    fr = max(fr, mirror_fr((i + j) as Fr));
+                                }
+                            },
+                        );
+                        get_front(fronts, 0).layer_mut(layer)[d] = fr;
+                        if fr <= max_fr {
+                            self.v.expand(mirror_pos(fr_to_pos(d, fr)));
+                        }
+                    });
+                }
+            }
         }
+
+        // We set the fr. point for the 0 diagonal to at least 0.
+        // This ensures that fr[d][s] <= fr[d][s'] when s <= s'.
+        // That in turn simplifies the overlap condition check, since we only need to check overlap for the two last fronts.
+        let front = get_front(fronts, 0);
+        if front.range().contains(&0) {
+            front.m_mut()[0] = max(front.m()[0], 0);
+        }
+
         // Extend all points in the m layer and check if we're done.
-        self.extend(get_front(fronts, 0), a, b)
+        self.extend(get_front(fronts, 0), a, b, direction)
     }
 
     // Returns None when the sequences are equal.
-    fn init_fronts(&mut self, a: Seq, b: Seq) -> Option<Fronts<N>> {
+    fn init_fronts(&mut self, a: Seq, b: Seq, direction: Direction) -> Option<Fronts<N>> {
         let mut fronts = Fronts::new(
             Fr::MIN,
             // We only create a front for the s=0 layer.
@@ -573,15 +595,248 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             self.right_buffer,
         );
 
-        let fr = extend_diagonal(self.direction, a, b, 0, 0);
-        for fr in (0..=fr).step_by(2) {
-            self.v.expand(fr_to_pos(0, fr));
+        fronts[0].m_mut()[0] = 0;
+        if self.extend(&mut fronts[0], a, b, direction) {
+            None
+        } else {
+            Some(fronts)
         }
-        fronts[0].m_mut()[0] = fr;
-        if fr >= (a.len() + b.len()) as Fr {
-            return None;
+    }
+
+    /// Detects if there is a diagonal such that the two fronts meet/overlap.
+    /// The overlap can be in any of the affine layers.
+    /// Returns: None is no overlap was found.
+    /// Otherwise: The middle state, as forward and as backward version.
+    /// NOTE: the two FR indices may not correspond to the same character, in the case of overlapping greedy matches.
+    #[allow(dead_code)]
+    fn fronts_overlap(
+        &self,
+        a: Seq,
+        b: Seq,
+        forward: &Fronts<N>,
+        backward: &Fronts<N>,
+    ) -> Option<(DtState, DtState)> {
+        // NOTE: This is the same for the forward and reverse direction.
+        let fr_target = (a.len() + b.len()) as Fr;
+        let mirror = |d| (a.len() as Fr - b.len() as Fr) - d;
+        println!("Forward range {:?}", forward.last().range());
+        println!("Backward range {:?}", backward.last().range());
+        println!(
+            "Mirror Backward range {:?}",
+            mirror(*backward.last().range().end())..=mirror(*backward.last().range().start())
+        );
+        let d_range = max(
+            *forward.last().range().start(),
+            mirror(*backward.last().range().end()),
+        )
+            ..=min(
+                *forward.last().range().end(),
+                mirror(*backward.last().range().start()),
+            );
+        // TODO: Provide an (internal) iterator over Layers from Front that merges these two cases.
+        // M
+        let mut meet = None;
+        EditGraph::iterate_parent_layers(&self.cm, |layer| {
+            println!("Overlap layer {layer:?}");
+            for d in d_range.clone() {
+                println!(
+                    "Overlap test {d}: {} + {} >= {fr_target}",
+                    forward.last().layer(layer)[d],
+                    backward.last().layer(layer)[mirror(d)]
+                );
+                // Cap values that are larger than the length of their diagonal.
+                let f_fr = min(forward.last().layer(layer)[d], fr_target - mirror(d).abs());
+                let b_fr = min(backward.last().layer(layer)[mirror(d)], fr_target - d.abs());
+                if f_fr + b_fr >= fr_target {
+                    let forward_fr = forward.last().layer(layer)[d];
+                    meet = Some((
+                        DtState {
+                            d,
+                            fr: forward_fr,
+                            layer,
+                            s: *forward.range().end() as Cost,
+                        },
+                        DtState {
+                            d: mirror(d),
+                            fr: fr_target - forward_fr,
+                            layer,
+                            s: *backward.range().end() as Cost,
+                        },
+                    ));
+                }
+            }
+        });
+        // It may be that we only detected overlap at the current forward_s+backward_s, but actually they already overlap earlier.
+        // For example, this may happen when insertions cost 10: forward_s and backward_s must both be 10 to detect a single insertion.
+        // Here, we decrease s as much as possible.
+        if let Some((fw, bw)) = &mut meet {
+            let mut fs = fw.s as Fr;
+            let mut bs = bw.s as Fr;
+
+            let test = |fs: Fr, bs: Fr| {
+                let f_fr = min(
+                    forward[fs].layer(fw.layer)[fw.d],
+                    fr_target - mirror(fw.d).abs(),
+                );
+                let b_fr = min(
+                    backward[bs].layer(bw.layer)[bw.d],
+                    fr_target - mirror(bw.d).abs(),
+                );
+                println!("mirror d: {}", bw.d);
+                println!("b range {:?}", backward[bs].range());
+                let ok = f_fr >= 0 && b_fr >= 0 && f_fr + b_fr >= fr_target;
+                println!("Shrink distances to {fs} {bs}: {f_fr} {b_fr} {ok}");
+                ok
+            };
+            while fs > *forward.full_range().start() && test(fs - 1, bs) {
+                fs -= 1;
+            }
+            while bs > *backward.full_range().start() && test(fs, bs - 1) {
+                bs -= 1;
+            }
+            fw.s = fs as Cost;
+            bw.s = bs as Cost;
+            fw.fr = forward[fs].layer(fw.layer)[fw.d];
+            bw.fr = fr_target - fw.fr;
         }
-        Some(fronts)
+        meet
+    }
+
+    /// Finds a path between two given states using divide & conquer.
+    /// TODO: Improve this by skipping the overlap check when distances are already known.
+    fn path_between_dc(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        start_layer: Layer,
+        end_layer: Layer,
+    ) -> (Cost, Path, Cigar) {
+        println!(
+            "Path between {} {} {start_layer:?} {end_layer:?}",
+            a.len(),
+            b.len()
+        );
+        println!("Init forward");
+        let Some(mut forward_fronts) = self.init_fronts(a, b, Direction::Forward) else {
+            return (0, vec![], Cigar::default());
+        };
+        println!("Init backward");
+        let Some(mut backward_fronts) = self.init_fronts(a, b, Direction::Backward) else {
+            return (0, vec![], Cigar::default());
+        };
+
+        assert!(H::IS_DEFAULT);
+        let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
+
+        // The top level meet in the middle step is separate, since the distance is not known yet.
+        // We check whether the fronts meet after each iteration.
+        let (fw, bw) = 'meet: {
+            for s in 1.. {
+                // First, take a step in the forward front, then in the backward front.
+                for dir in [Direction::Forward, Direction::Backward] {
+                    let fronts = match dir {
+                        Forward => &mut forward_fronts,
+                        Backward => &mut backward_fronts,
+                    };
+                    let range = self.d_range(a, b, h, s, None, &fronts.fronts);
+                    assert!(!range.is_empty());
+                    fronts.rotate(range);
+                    self.next_front(a, b, &mut fronts.fronts, dir);
+                    println!("s: {s} {dir:?}");
+                    println!("Forward:");
+                    for front in &forward_fronts.fronts {
+                        println!("{front:?}");
+                    }
+                    println!("Backward:");
+                    for front in &backward_fronts.fronts {
+                        println!("{front:?}");
+                    }
+
+                    if let Some(meet) = self.fronts_overlap(a, b, &forward_fronts, &backward_fronts)
+                    {
+                        break 'meet meet;
+                    }
+                }
+            }
+            unreachable!()
+        };
+
+        let Pos(i, j) = fw.pos();
+        println!(
+            "MIDDLE FOUND; RECURSING?\nA {}\nB {}\n",
+            to_string(a),
+            to_string(b)
+        );
+        println!("FORWARD\n");
+        let mut left = if forward_fronts.full_range().contains(&0) {
+            println!("Trace forward part!");
+            // Rotate the front back as far as needed.
+            while (fw.s as Fr) < *forward_fronts.range().end() {
+                forward_fronts.rotate_back();
+            }
+            let (path, cigar) = self.trace(
+                a,
+                b,
+                &forward_fronts,
+                DtState {
+                    d: 0,
+                    fr: 0,
+                    layer: start_layer,
+                    s: 0,
+                },
+                fw,
+                Direction::Forward,
+            );
+            (fw.s, path, cigar)
+        } else {
+            println!("\n LEFT RECURSION\n");
+            let (cost, path, cigar) =
+                self.path_between_dc(&a[..i as usize], &b[..j as usize], start_layer, fw.layer);
+            assert_eq!(cost, fw.s);
+            (cost, path, cigar)
+        };
+        println!("BACKWARD\n");
+        let mut right = if backward_fronts.full_range().contains(&0) {
+            println!("Trace backward part!");
+            while (bw.s as Fr) < *backward_fronts.range().end() {
+                backward_fronts.rotate_back();
+            }
+            let (mut path, mut cigar) = self.trace(
+                a,
+                b,
+                &backward_fronts,
+                DtState {
+                    d: 0,
+                    fr: 0,
+                    layer: start_layer,
+                    s: 0,
+                },
+                bw,
+                Direction::Backward,
+            );
+            path.reverse();
+            cigar.reverse();
+            (bw.s, path, cigar)
+        } else {
+            println!("\n RIGHT RECURSION\n");
+            let (cost, path, cigar) =
+                self.path_between_dc(&a[i as usize..], &b[j as usize..], bw.layer, end_layer);
+            assert_eq!(cost, bw.s);
+            // Offset the path.
+
+            (cost, path, cigar)
+        };
+
+        println!("LEFT:\n{left:?}");
+        println!("RIGHT:\n{right:?}");
+
+        // Join
+        left.0 += right.0;
+        left.1.append(&mut right.1);
+        left.2.append(&mut right.2);
+
+        println!("MERGED:\n{left:?}");
+        left
     }
 }
 
@@ -604,44 +859,119 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         b: Seq,
         fronts: &Self::Fronts,
         st: Self::State,
+        direction: Direction,
     ) -> Option<(Self::State, CigarOps)> {
         let mut max_fr = Fr::MIN;
         let mut parent = None;
         let mut cigar_ops = [None, None];
 
-        EditGraph::iterate_parents_dt(
-            a,
-            b,
-            &self.cm,
-            st.layer,
-            |di, dj, layer, edge_cost| -> (Fr, Fr) {
-                let fr = fronts[st.s as Fr - edge_cost as Fr].layer(layer)[st.d + (di - dj) as Fr]
-                    - (di + dj) as Fr;
-                fr_to_coords(st.d, fr)
-            },
-            |di, dj, i, j, layer, edge_cost, ops| {
-                let fr = (i + j) as Fr;
-                if fr > max_fr {
-                    max_fr = fr;
-                    parent = Some(DtState {
-                        d: st.d + (di - dj),
-                        fr: st.fr + (di + dj),
-                        layer,
-                        s: st.s - edge_cost as Cost,
-                    });
-                    cigar_ops = ops;
+        println!("Parent of {st:?}");
+
+        match direction {
+            Forward => {
+                if st.s > 0 {
+                    EditGraph::iterate_parents_dt(
+                        a,
+                        b,
+                        &self.cm,
+                        st.layer,
+                        |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
+                            let parent_cost = st.s as Fr - edge_cost as Fr;
+                            if !fronts.full_range().contains(&parent_cost) {
+                                println!("Parent {di} {dj} {edge_cost} with absolute cost {parent_cost} is out of range: {:?}", fronts.full_range());
+                                return None;
+                            }
+                            let fr = fronts[parent_cost].layer(layer)[st.d + (di - dj) as Fr]
+                                - (di + dj) as Fr;
+                            if fr >= 0 {
+                                Some(fr_to_coords(st.d, fr))
+                            } else {
+                                None
+                            }
+                        },
+                        |di, dj, i, j, layer, edge_cost, ops| {
+                            let fr = (i + j) as Fr;
+                            if fr > max_fr {
+                                max_fr = fr;
+                                parent = Some(DtState {
+                                    d: st.d + (di - dj),
+                                    fr: st.fr + (di + dj),
+                                    layer,
+                                    s: st.s - edge_cost as Cost,
+                                });
+                                cigar_ops = ops;
+                            }
+                        },
+                    );
                 }
-            },
-        );
-        // Match
-        // TODO: Add a setting to do greedy backtracking before checking other parents.
-        if max_fr < st.fr {
-            let (i, j) = fr_to_coords(st.d, st.fr);
-            assert_eq!(a[i as usize - 1], b[j as usize - 1]);
-            parent = Some(st);
-            parent.as_mut().unwrap().fr -= 2;
-            cigar_ops = [Some(CigarOp::Match), None];
+                // Match
+                // TODO: Add a setting to do greedy backtracking before checking other parents.
+                if max_fr < st.fr {
+                    let (i, j) = fr_to_coords(st.d, st.fr);
+                    assert_eq!(a[i as usize - 1], b[j as usize - 1]);
+                    parent = Some(st);
+                    parent.as_mut().unwrap().fr -= 2;
+                    cigar_ops = [Some(CigarOp::Match), None];
+                }
+            }
+
+            Backward => {
+                let mirror = |(i, j)| (a.len() as Fr - i, b.len() as Fr - j);
+                //let mirror_pos = |Pos(i, j)| Pos(a.len() as u32 - i, b.len() as u32 - j);
+                let mirror_fr = |fr| a.len() as Fr + b.len() as Fr - fr;
+                // FIXME
+                if st.s > 0 {
+                    EditGraph::iterate_children_dt(
+                        a,
+                        b,
+                        &self.cm,
+                        st.layer,
+                        |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
+                            let parent_cost = st.s as Fr - edge_cost as Fr;
+                            if !fronts.full_range().contains(&parent_cost) {
+                                return None;
+                            }
+                            println!("{di} {dj} {layer:?} {edge_cost}");
+                            let fr = fronts[parent_cost].layer(layer)[st.d - (di - dj) as Fr];
+                            //+ (di + dj) as Fr;
+                            println!("fr: {fr}");
+                            if fr >= 0 {
+                                Some(mirror(fr_to_coords(st.d - (di - dj), fr)))
+                            } else {
+                                None
+                            }
+                        },
+                        |di, dj, i, j, layer, edge_cost, ops| {
+                            println!("i j {i} {j}");
+                            let fr = mirror_fr((i + j) as Fr) + (di + dj) as Fr;
+                            if fr > max_fr {
+                                println!("New best fr {fr};  d {} => {}", st.d, st.d - (di - dj));
+                                println!("St.fr: {} => {}", st.fr, st.fr - (di + dj));
+                                max_fr = fr;
+                                parent = Some(DtState {
+                                    d: st.d - (di - dj),
+                                    fr: st.fr - (di + dj),
+                                    layer,
+                                    s: st.s - edge_cost as Cost,
+                                });
+                                cigar_ops = ops;
+                            }
+                        },
+                    );
+                }
+                // Match
+                // TODO: Add a setting to do greedy backtracking before checking other parents.
+                if max_fr < st.fr {
+                    let (i, j) = mirror(fr_to_coords(st.d, st.fr));
+                    println!("A {}\nB {}\ni j {i} {j}", to_string(a), to_string(b));
+                    assert_eq!(a[i as usize], b[j as usize]);
+                    parent = Some(st);
+                    parent.as_mut().unwrap().fr -= 2;
+                    cigar_ops = [Some(CigarOp::Match), None];
+                }
+            }
         }
+        println!("Parent: {parent:?} ops: {cigar_ops:?}");
         Some((parent?, cigar_ops))
     }
 
@@ -661,6 +991,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     }
 
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+        if self.dc {
+            return self.align_dc(a, b);
+        }
         let (cost, path, cigar) =
             if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
                 exponential_search(
@@ -683,32 +1016,25 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
-        let Some(mut fronts) = self.init_fronts(a, b) else {
+        let Some(mut fronts) = self.init_fronts(a, b, Direction::Forward) else {
             return Some(0);
         };
-
         let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
-        let mut _num_states = 0;
 
         for s in 1.. {
             if let Some(s_bound) = s_bound && s > s_bound {
                 return None;
             }
-
-            // Rotate all fronts back by one, so that we can fill the new last layer.
-            fronts.fronts.rotate_left(1);
-            let (next, rest) = fronts.fronts.split_last_mut().unwrap();
-            // FIXME: Make sure the next range is not empty! Also in NW.
-            let range = self.d_range(a, b, h, s, s_bound, rest);
+            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
             if range.is_empty() {
                 return None;
             }
-            _num_states += range.end() - range.start();
-            next.reset(Fr::MIN, range, self.left_buffer, self.right_buffer);
-            if self.next_front(a, b, &mut fronts.fronts) {
+            fronts.rotate(range);
+            if self.next_front(a, b, &mut fronts.fronts, Direction::Forward) {
                 return Some(s);
             }
         }
+
         unreachable!()
     }
 
@@ -718,7 +1044,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         b: Seq,
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)> {
-        let Some(mut fronts) = self.init_fronts(a, b) else {
+        let Some(mut fronts) = self.init_fronts(a, b, Direction::Forward) else {
             return Some((0, vec![], Cigar::default()));
         };
 
@@ -734,19 +1060,30 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             if range.is_empty() {
                 return None;
             }
-            fronts.fronts.push(Front::new(
-                Fr::MIN,
-                range,
-                self.left_buffer,
-                self.right_buffer,
-            ));
-            if self.next_front(a, b, &mut fronts.fronts) {
-                // FIXME: Reconstruct path.
-                let state = DtState::target(a, b, s);
-                let (path, cigar) = self.trace(a, b, &fronts, state);
+            fronts.push(range);
+            if self.next_front(a, b, &mut fronts.fronts, Direction::Forward) {
+                let (path, cigar) = self.trace(
+                    a,
+                    b,
+                    &fronts,
+                    DtState::start(),
+                    DtState::target(a, b, s),
+                    Direction::Forward,
+                );
                 return Some((s, path, cigar));
             }
         }
         unreachable!()
+    }
+
+    /// Finds an alignment in linear memory, by using divide & conquer.
+    /// TODO: Add a bounded distance option here?
+    fn align_dc(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+        // D&C does not work with a heuristic yet, since the target state (where
+        // the fronts meet) is not know.
+        assert!(H::IS_DEFAULT);
+        assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
+
+        self.path_between_dc(a, b, None, None)
     }
 }

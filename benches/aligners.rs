@@ -4,9 +4,7 @@
 extern crate test;
 use pairwise_aligner::{
     aligners::{
-        diagonal_transition::{
-            DiagonalTransition, Direction, GapCostHeuristic, HistoryCompression,
-        },
+        diagonal_transition::{DiagonalTransition, GapCostHeuristic},
         nw::NW,
         nw_lib::NWLib,
     },
@@ -78,11 +76,13 @@ fn nw_sh(bench: &mut Bencher) {
 
 fn make_dt(
     use_gap_cost_heuristic: GapCostHeuristic,
+    dc: bool,
 ) -> DiagonalTransition<LinearCost, NoVisualizer, ZeroCost> {
     DiagonalTransition::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,
         ZeroCost,
+        dc,
         NoVisualizer,
     )
 }
@@ -90,27 +90,30 @@ fn make_dt(
 #[bench]
 fn dt_simple(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Disable), N, E, seed));
+    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Disable, false), N, E, seed));
 }
 #[bench]
 fn dt_gapcost(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Enable), N, E, seed));
+    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Enable, false), N, E, seed));
+}
+#[bench]
+fn dt_dc(bench: &mut Bencher) {
+    let ref mut seed = 0;
+    bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Disable, true), N, E, seed));
 }
 
 fn make_dt_sh(
     use_gap_cost_heuristic: GapCostHeuristic,
-    history_compression: HistoryCompression,
 ) -> DiagonalTransition<LinearCost, NoVisualizer, SH> {
-    DiagonalTransition::new_variant(
+    DiagonalTransition::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,
         SH {
             match_config: MatchConfig::exact(10),
             pruning: false,
         },
-        history_compression,
-        Direction::Forward,
+        false,
         NoVisualizer,
     )
 }
@@ -118,12 +121,5 @@ fn make_dt_sh(
 #[bench]
 fn dt_sh(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| {
-        run_aligner(
-            make_dt_sh(GapCostHeuristic::Enable, HistoryCompression::Disable),
-            N,
-            E,
-            seed,
-        )
-    });
+    bench.iter(|| run_aligner(make_dt_sh(GapCostHeuristic::Enable), N, E, seed));
 }

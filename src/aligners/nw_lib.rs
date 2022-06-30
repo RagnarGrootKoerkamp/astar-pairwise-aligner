@@ -1,6 +1,8 @@
 use crate::prelude::{Cost, LinearCost};
 
-use super::{cigar::Cigar, edit_graph::CigarOps, Aligner, Path, Seq};
+use super::{
+    cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps, Aligner, Path, Seq,
+};
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
 pub struct NWLib {
@@ -29,6 +31,7 @@ impl Aligner for NWLib {
         _b: Seq,
         _fronts: &Self::Fronts,
         _state: Self::State,
+        _direction: Direction,
     ) -> Option<(Self::State, CigarOps)> {
         unimplemented!()
     }

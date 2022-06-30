@@ -1,4 +1,5 @@
 use super::cigar::Cigar;
+use super::diagonal_transition::Direction;
 use super::edit_graph::{CigarOps, EditGraph, State};
 use super::{exponential_search, Aligner, Path};
 use super::{Seq, Sequence};
@@ -62,7 +63,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
     fn next_front(&mut self, i: Idx, a: Seq, b: Seq, prev: &Front<N>, next: &mut Front<N>) {
         for j in next.range().clone() {
             self.v.expand(Pos::from(i - 1, j - 1));
-            EditGraph::iterate_layers(&self.cm, |layer| {
+            EditGraph::iterate_parent_layers(&self.cm, |layer| {
                 let mut best = INF;
                 EditGraph::iterate_parents(
                     a,
@@ -202,7 +203,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         b: Seq,
         fronts: &Self::Fronts,
         st: State,
+        direction: Direction,
     ) -> Option<(State, CigarOps)> {
+        assert!(direction == Direction::Forward);
         let cur_cost = fronts[st.i].layer(st.layer)[st.j];
         let mut parent = None;
         let mut cigar_ops: CigarOps = [None, None];
@@ -347,12 +350,22 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         if let Some(&dist) = fronts[a.len() as Idx].m().get(b.len() as Idx) {
             // We only track the actual path if `s` is small enough.
             if dist <= s_bound.unwrap_or(INF) {
-                let target = State {
-                    i: a.len() as Idx,
-                    j: b.len() as Idx,
-                    layer: None,
-                };
-                let (path, cigar) = self.trace(a, b, &fronts, target);
+                let (path, cigar) = self.trace(
+                    a,
+                    b,
+                    &fronts,
+                    State {
+                        i: 1,
+                        j: 1,
+                        layer: None,
+                    },
+                    State {
+                        i: a.len() as Idx,
+                        j: b.len() as Idx,
+                        layer: None,
+                    },
+                    Direction::Forward,
+                );
                 return Some((dist, path, cigar));
             }
         }
