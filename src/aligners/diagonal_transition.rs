@@ -646,7 +646,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
+        let cost = if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
             exponential_search(
                 self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
                 2.,
@@ -655,23 +655,28 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             .1
         } else {
             self.cost_for_bounded_dist(a, b, None).unwrap()
-        }
+        };
+        self.v.last_frame(None);
+        cost
     }
 
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
-        if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
-            exponential_search(
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                2.,
-                |s| {
-                    self.align_for_bounded_dist(a, b, Some(s))
-                        .map(|x @ (c, _, _)| (c, x))
-                },
-            )
-            .1
-        } else {
-            self.align_for_bounded_dist(a, b, None).unwrap()
-        }
+        let (cost, path, cigar) =
+            if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
+                exponential_search(
+                    self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                    2.,
+                    |s| {
+                        self.align_for_bounded_dist(a, b, Some(s))
+                            .map(|x @ (c, _, _)| (c, x))
+                    },
+                )
+                .1
+            } else {
+                self.align_for_bounded_dist(a, b, None).unwrap()
+            };
+        self.v.last_frame(Some(&path));
+        (cost, path, cigar)
     }
 
     /// The cost-only version uses linear memory.

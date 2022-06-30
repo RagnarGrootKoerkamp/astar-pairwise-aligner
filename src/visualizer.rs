@@ -1,18 +1,23 @@
-use std::{
-    ops::Range,
-    path::{Path, PathBuf},
-    time::{Duration, Instant},
+use crate::{
+    aligners::Path,
+    prelude::{Pos, Seq},
 };
-
+use itertools::Itertools;
 use sdl2::{
     event::Event,
     keyboard::Keycode,
     pixels::Color,
     rect::{Point, Rect},
+    render::Canvas,
+    video::Window,
     Sdl,
 };
-
-use crate::prelude::{Pos, Seq};
+use std::{
+    cell::RefCell,
+    ops::Range,
+    path,
+    time::{Duration, Instant},
+};
 
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
@@ -20,7 +25,7 @@ pub trait VisualizerT {
     fn expand(&mut self, _pos: Pos) {}
 
     //This function may be called after the main loop to display final image.
-    fn last_frame(&mut self) {}
+    fn last_frame(&mut self, _path: Option<&Path>) {}
 }
 
 /// A trivial visualizer that does not do anything.
@@ -65,9 +70,11 @@ impl Gradient {
 }
 
 #[derive(Clone)]
-pub struct ColorScheme {
+pub struct Style {
     pub gradient: Gradient,
     pub bg_color: Color,
+    pub path: Color,
+    pub path_width: usize,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -113,7 +120,7 @@ pub struct Config {
     pub delay: f32,
     pub paused: bool,
     pub save: Save,
-    pub colors: ColorScheme,
+    pub style: Style,
     pub draw_old_on_top: bool,
 }
 
@@ -127,12 +134,14 @@ impl Default for Config {
             draw: Draw::None,
             delay: 0.2,
             paused: false,
-            colors: ColorScheme {
+            style: Style {
                 gradient: Gradient::NoGradient {
                     expand: Color::BLUE,
                     explore: Color::RGB(128, 0, 128),
                 },
-                bg_color: Color::BLACK,
+                bg_color: Color::WHITE,
+                path: Color::BLACK,
+                path_width: 2,
             },
             draw_old_on_top: true,
         }
@@ -140,7 +149,7 @@ impl Default for Config {
 }
 
 pub struct Visualizer {
-    canvas: Option<sdl2::render::Canvas<sdl2::video::Window>>,
+    canvas: Option<RefCell<Canvas<Window>>>,
     sdl_context: Sdl,
     config: Config,
     expanded: Vec<Pos>,
@@ -159,7 +168,7 @@ impl Visualizer {
                 let video_subsystem = sdl_context.video().unwrap();
                 video_subsystem.gl_attr().set_double_buffer(true);
                 if config.draw != Draw::None || config.save != Save::None {
-                    Some(
+                    Some(RefCell::new(
                         video_subsystem
                             .window(
                                 "A*PA",
@@ -176,7 +185,7 @@ impl Visualizer {
                             .into_canvas()
                             .build()
                             .unwrap(),
-                    )
+                    ))
                 } else {
                     None
                 }
@@ -191,24 +200,120 @@ impl Visualizer {
         }
     }
 
+    fn cell_begin(&self, Pos(i, j): Pos) -> Point {
+        Point::new(
+            (i * self.config.cell_size as u32) as i32,
+            (j * self.config.cell_size as u32) as i32,
+        )
+    }
+    fn cell_center(&self, Pos(i, j): Pos) -> Point {
+        Point::new(
+            (i * self.config.cell_size as u32 + self.config.cell_size as u32 / 2) as i32,
+            (j * self.config.cell_size as u32 + self.config.cell_size as u32 / 2) as i32,
+        )
+    }
+
+    fn draw_pixel(&self, canvas: &mut Canvas<Window>, p: Pos, c: Color) {
+        canvas.set_draw_color(c);
+        let mut begin = self.cell_begin(p);
+        begin *= self.config.prescaler as i32;
+        canvas
+            .fill_rect(Rect::new(
+                begin.x,
+                begin.y,
+                (self.config.cell_size * self.config.prescaler) as u32,
+                (self.config.cell_size * self.config.prescaler) as u32,
+            ))
+            .unwrap();
+    }
+
+    fn draw_diag_line(
+        canvas: &mut Canvas<Window>,
+        from: Point,
+        to: Point,
+        color: Color,
+        width: usize,
+    ) {
+        canvas.set_draw_color(color);
+        canvas.draw_line(from, to).unwrap();
+        for mut w in 1..width as i32 {
+            if w % 2 == 1 {
+                w = (w + 1) / 2;
+                canvas
+                    .draw_line(
+                        Point::new(from.x + w, from.y - w + 1),
+                        Point::new(to.x + w - 1, to.y - w),
+                    )
+                    .unwrap();
+                canvas
+                    .draw_line(
+                        Point::new(from.x - w, from.y + w - 1),
+                        Point::new(to.x - w + 1, to.y + w),
+                    )
+                    .unwrap();
+                canvas
+                    .draw_line(
+                        Point::new(from.x + w - 1, from.y - w),
+                        Point::new(to.x + w, to.y - w + 1),
+                    )
+                    .unwrap();
+                canvas
+                    .draw_line(
+                        Point::new(from.x - w + 1, from.y + w),
+                        Point::new(to.x - w, to.y + w - 1),
+                    )
+                    .unwrap();
+            } else {
+                w /= 2;
+                canvas
+                    .draw_line(
+                        Point::new(from.x + w, from.y - w),
+                        Point::new(to.x + w, to.y - w),
+                    )
+                    .unwrap();
+                canvas
+                    .draw_line(
+                        Point::new(from.x - w, from.y + w),
+                        Point::new(to.x - w, to.y + w),
+                    )
+                    .unwrap();
+            }
+        }
+    }
+
+    fn draw_thick_line_horizontal(
+        canvas: &mut Canvas<Window>,
+        from: Point,
+        to: Point,
+        width: i32,
+        margin: i32,
+    ) {
+        for w in -width / 2..width - width / 2 {
+            canvas
+                .draw_line(
+                    Point::new(from.x + margin, from.y + w),
+                    Point::new(to.x - margin, to.y + w),
+                )
+                .unwrap();
+        }
+    }
+
     //Saves canvas to bmp file
-    pub fn save_canvas(&self, last: bool) {
+    fn save_canvas(&self, canvas: &mut Canvas<Window>, last: bool) {
         let path = if last {
-            let file = Path::new(&self.config.filepath);
+            let file = path::Path::new(&self.config.filepath);
             if let Some(parent) = file.parent() {
                 std::fs::create_dir_all(parent).unwrap();
             }
             file.with_extension("bmp").to_owned()
         } else {
             // Make sure the directory exists.
-            let mut dir = PathBuf::from(&self.config.filepath);
+            let mut dir = path::PathBuf::from(&self.config.filepath);
             std::fs::create_dir_all(&dir).unwrap();
             dir.push(self.file_number.to_string());
             dir.set_extension("bmp");
             dir
         };
-
-        let canvas = self.canvas.as_ref().unwrap();
 
         let pixel_format = canvas.default_pixel_format();
         let mut pixels = canvas.read_pixels(canvas.viewport(), pixel_format).unwrap();
@@ -222,7 +327,7 @@ impl Visualizer {
             pixel_format,
         )
         .unwrap();
-        surf.set_color_key(true, self.config.colors.bg_color)
+        surf.set_color_key(true, self.config.style.bg_color)
             .unwrap();
 
         surf.save_bmp(path).unwrap_or_else(|error| {
@@ -230,22 +335,20 @@ impl Visualizer {
         });
     }
 
-    fn draw(&mut self, is_last: bool) {
+    fn draw(&mut self, is_last: bool, path: Option<&Path>) {
         if !self.config.draw.do_draw(is_last) && !self.config.save.do_save(is_last) {
             return;
         }
 
-        let scale = self.config.prescaler as u32;
         let cell_size = self.config.cell_size as u32;
 
-        let cell_begin = |Pos(i, j): Pos| -> Point {
-            Point::new((i * cell_size) as i32, (j * cell_size) as i32)
-        };
+        let Some(canvas) = &self.canvas else {return;};
+        let mut canvas = canvas.borrow_mut();
 
-        let Some(canvas) = &mut self.canvas else {return;};
+        // DRAW
 
         // Draw background.
-        canvas.set_draw_color(self.config.colors.bg_color);
+        canvas.set_draw_color(self.config.style.bg_color);
         canvas
             .fill_rect(Rect::new(
                 0,
@@ -255,56 +358,60 @@ impl Visualizer {
             ))
             .unwrap();
 
-        let mut draw_pixel = |p: Pos, c: Color| {
-            canvas.set_draw_color(c);
-            let mut begin = cell_begin(p);
-            begin *= scale as i32;
-            canvas
-                .fill_rect(Rect::new(
-                    begin.x,
-                    begin.y,
-                    cell_size * scale,
-                    cell_size * scale,
-                ))
-                .unwrap();
-        };
-
+        // Draw explored and expanded.
         if self.config.draw_old_on_top {
             for (i, pos) in self.explored.iter().enumerate().rev() {
-                draw_pixel(
+                self.draw_pixel(
+                    &mut canvas,
                     *pos,
                     self.config
-                        .colors
+                        .style
                         .gradient
                         .explore(i as f32 / self.explored.len() as f32),
                 );
             }
             for (i, pos) in self.expanded.iter().enumerate().rev() {
-                draw_pixel(
+                self.draw_pixel(
+                    &mut canvas,
                     *pos,
                     self.config
-                        .colors
+                        .style
                         .gradient
                         .expand(i as f32 / self.expanded.len() as f32),
                 );
             }
         } else {
             for (i, pos) in self.explored.iter().enumerate() {
-                draw_pixel(
+                self.draw_pixel(
+                    &mut canvas,
                     *pos,
                     self.config
-                        .colors
+                        .style
                         .gradient
                         .explore(i as f32 / self.explored.len() as f32),
                 );
             }
             for (i, pos) in self.expanded.iter().enumerate() {
-                draw_pixel(
+                self.draw_pixel(
+                    &mut canvas,
                     *pos,
                     self.config
-                        .colors
+                        .style
                         .gradient
                         .expand(i as f32 / self.expanded.len() as f32),
+                );
+            }
+        }
+
+        // Draw path.
+        if let Some(path) = path {
+            for (from, to) in path.iter().tuple_windows() {
+                Self::draw_diag_line(
+                    &mut canvas,
+                    self.cell_center(*from),
+                    self.cell_center(*to),
+                    self.config.style.path,
+                    self.config.style.path_width,
                 );
             }
         }
@@ -313,14 +420,14 @@ impl Visualizer {
 
         if self.config.save.do_save(is_last) {
             if is_last {
-                self.save_canvas(is_last);
+                self.save_canvas(&mut canvas, is_last);
             } else {
-                self.save_canvas(is_last);
+                self.save_canvas(&mut canvas, is_last);
                 self.file_number += 1;
             }
         }
 
-        // DRAW
+        // SHOW
 
         if !self.config.draw.do_draw(is_last) {
             return;
@@ -329,7 +436,7 @@ impl Visualizer {
         //Keyboard events
 
         let sleep_duration = 0.00001;
-        self.canvas.as_mut().unwrap().present();
+        canvas.present();
         let mut start_time = Instant::now();
         'outer: loop {
             for event in self.sdl_context.event_pump().unwrap().poll_iter() {
@@ -389,15 +496,15 @@ impl Visualizer {
 impl VisualizerT for Visualizer {
     fn expand(&mut self, pos: Pos) {
         self.expanded.push(pos);
-        self.draw(false);
+        self.draw(false, None);
     }
 
     fn explore(&mut self, pos: Pos) {
         self.explored.push(pos);
-        self.draw(false);
+        self.draw(false, None);
     }
 
-    fn last_frame(&mut self) {
-        self.draw(true);
+    fn last_frame(&mut self, path: Option<&Path>) {
+        self.draw(true, path);
     }
 }
