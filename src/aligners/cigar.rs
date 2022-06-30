@@ -72,8 +72,8 @@ impl Cigar {
     pub fn push(&mut self, command: CigarOp) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
         if let Some(s) = self.ops.last_mut() && s.command == command {
-                s.length += 1;
-                return;
+            s.length += 1;
+            return;
         }
         self.ops.push(command.new());
     }
@@ -100,7 +100,12 @@ impl Cigar {
     }
 
     pub fn append(&mut self, other: &mut Self) {
-        self.ops.append(&mut other.ops)
+        let Some(first) = other.ops.first_mut() else {return;};
+        if let Some(s) = self.ops.last_mut() && s.command == first.command{
+            first.length += s.length;
+            self.ops.pop().unwrap();
+        }
+        self.ops.append(&mut other.ops);
     }
 }
 

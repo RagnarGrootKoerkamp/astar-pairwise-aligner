@@ -550,7 +550,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                 }
                             },
                             |_di, _dj, i, j, _layer, _edge_cost, _cigar_ops| {
-                                if i >= 0 && j >= 0 {
+                                if i <= a.len() as Fr && j <= b.len() as Fr {
                                     println!(
                                         "Set fr to max of {fr} and {} from coords {i},{j}",
                                         mirror_fr((i + j) as Fr)
@@ -636,6 +636,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         // TODO: Provide an (internal) iterator over Layers from Front that merges these two cases.
         // M
         let mut meet = None;
+        let mut s_meet = None;
         EditGraph::iterate_parent_layers(&self.cm, |layer| {
             println!("Overlap layer {layer:?}");
             for d in d_range.clone() {
@@ -649,56 +650,58 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 let b_fr = min(backward.last().layer(layer)[mirror(d)], fr_target - d.abs());
                 if f_fr + b_fr >= fr_target {
                     let forward_fr = forward.last().layer(layer)[d];
-                    meet = Some((
-                        DtState {
-                            d,
-                            fr: forward_fr,
-                            layer,
-                            s: *forward.range().end() as Cost,
-                        },
-                        DtState {
-                            d: mirror(d),
-                            fr: fr_target - forward_fr,
-                            layer,
-                            s: *backward.range().end() as Cost,
-                        },
-                    ));
+                    let mut fw = DtState {
+                        d,
+                        fr: forward_fr,
+                        layer,
+                        s: *forward.range().end() as Cost,
+                    };
+                    let mut bw = DtState {
+                        d: mirror(d),
+                        fr: fr_target - forward_fr,
+                        layer,
+                        s: *backward.range().end() as Cost,
+                    };
+
+                    // It may be that we only detected overlap at the current forward_s+backward_s, but actually they already overlap earlier.
+                    // For example, this may happen when insertions cost 10: forward_s and backward_s must both be 10 to detect a single insertion.
+                    // Here, we decrease s as much as possible.
+                    let mut fs = fw.s as Fr;
+                    let mut bs = bw.s as Fr;
+
+                    let test = |fs: Fr, bs: Fr| {
+                        let f_fr = min(
+                            forward[fs].layer(fw.layer)[fw.d],
+                            fr_target - mirror(fw.d).abs(),
+                        );
+                        let b_fr = min(
+                            backward[bs].layer(bw.layer)[bw.d],
+                            fr_target - mirror(bw.d).abs(),
+                        );
+                        println!("mirror d: {}", bw.d);
+                        println!("b range {:?}", backward[bs].range());
+                        let ok = f_fr >= 0 && b_fr >= 0 && f_fr + b_fr >= fr_target;
+                        println!("Shrink distances to {fs} {bs}: {f_fr} {b_fr} {ok}");
+                        ok
+                    };
+                    while fs > *forward.full_range().start() && test(fs - 1, bs) {
+                        fs -= 1;
+                    }
+                    while bs > *backward.full_range().start() && test(fs, bs - 1) {
+                        bs -= 1;
+                    }
+                    fw.s = fs as Cost;
+                    bw.s = bs as Cost;
+                    fw.fr = forward[fs].layer(fw.layer)[fw.d];
+                    bw.fr = fr_target - fw.fr;
+
+                    if s_meet.is_none() || fw.s + bw.s < s_meet.unwrap() {
+                        s_meet = Some(fw.s + bw.s);
+                        meet = Some((fw, bw));
+                    }
                 }
             }
         });
-        // It may be that we only detected overlap at the current forward_s+backward_s, but actually they already overlap earlier.
-        // For example, this may happen when insertions cost 10: forward_s and backward_s must both be 10 to detect a single insertion.
-        // Here, we decrease s as much as possible.
-        if let Some((fw, bw)) = &mut meet {
-            let mut fs = fw.s as Fr;
-            let mut bs = bw.s as Fr;
-
-            let test = |fs: Fr, bs: Fr| {
-                let f_fr = min(
-                    forward[fs].layer(fw.layer)[fw.d],
-                    fr_target - mirror(fw.d).abs(),
-                );
-                let b_fr = min(
-                    backward[bs].layer(bw.layer)[bw.d],
-                    fr_target - mirror(bw.d).abs(),
-                );
-                println!("mirror d: {}", bw.d);
-                println!("b range {:?}", backward[bs].range());
-                let ok = f_fr >= 0 && b_fr >= 0 && f_fr + b_fr >= fr_target;
-                println!("Shrink distances to {fs} {bs}: {f_fr} {b_fr} {ok}");
-                ok
-            };
-            while fs > *forward.full_range().start() && test(fs - 1, bs) {
-                fs -= 1;
-            }
-            while bs > *backward.full_range().start() && test(fs, bs - 1) {
-                bs -= 1;
-            }
-            fw.s = fs as Cost;
-            bw.s = bs as Cost;
-            fw.fr = forward[fs].layer(fw.layer)[fw.d];
-            bw.fr = fr_target - fw.fr;
-        }
         meet
     }
 
@@ -754,6 +757,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
                     if let Some(meet) = self.fronts_overlap(a, b, &forward_fronts, &backward_fronts)
                     {
+                        println!(
+                            "\n============= MATCH AT s={s} COST {} + {}\n",
+                            meet.0.s, meet.1.s
+                        );
                         break 'meet meet;
                     }
                 }
@@ -767,6 +774,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             to_string(a),
             to_string(b)
         );
+        println!("FW: {fw:?}");
+        println!("BW: {bw:?}");
+
         println!("FORWARD\n");
         let mut left = if forward_fronts.full_range().contains(&0) {
             println!("Trace forward part!");
@@ -789,7 +799,12 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             );
             (fw.s, path, cigar)
         } else {
-            println!("\n LEFT RECURSION\n");
+            println!(
+                "\n LEFT RECURSION\nCOST: {}\n{}\n{}\n",
+                fw.s,
+                to_string(&a[..i as usize]),
+                to_string(&b[..j as usize])
+            );
             let (cost, path, cigar) =
                 self.path_between_dc(&a[..i as usize], &b[..j as usize], start_layer, fw.layer);
             assert_eq!(cost, fw.s);
@@ -818,7 +833,12 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             cigar.reverse();
             (bw.s, path, cigar)
         } else {
-            println!("\n RIGHT RECURSION\n");
+            println!(
+                "\n RIGHT RECURSION\nCOST: {}\n{}\n{}\n",
+                bw.s,
+                to_string(&a[i as usize..]),
+                to_string(&b[j as usize..])
+            );
             let (cost, path, cigar) =
                 self.path_between_dc(&a[i as usize..], &b[j as usize..], bw.layer, end_layer);
             assert_eq!(cost, bw.s);
@@ -877,7 +897,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                         st.layer,
                         |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
                             let parent_cost = st.s as Fr - edge_cost as Fr;
-                            if !fronts.full_range().contains(&parent_cost) {
+                            if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
                                 println!("Parent {di} {dj} {edge_cost} with absolute cost {parent_cost} is out of range: {:?}", fronts.full_range());
                                 return None;
                             }
@@ -890,6 +910,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                             }
                         },
                         |di, dj, i, j, layer, edge_cost, ops| {
+                            println!("Parent {di} {dj} {edge_cost} => ij {i} {j} fr {}", i + j);
                             let fr = (i + j) as Fr;
                             if fr > max_fr {
                                 max_fr = fr;
@@ -928,7 +949,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                         st.layer,
                         |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
                             let parent_cost = st.s as Fr - edge_cost as Fr;
-                            if !fronts.full_range().contains(&parent_cost) {
+                            if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
                                 return None;
                             }
                             println!("{di} {dj} {layer:?} {edge_cost}");
