@@ -9,6 +9,7 @@ pub mod diagonal_transition;
 pub mod front;
 pub mod nw;
 pub mod nw_lib;
+pub mod wfa;
 
 pub mod edit_graph;
 #[cfg(test)]
