@@ -5,7 +5,7 @@ use pairwise_aligner::{
         Aligner,
     },
     prelude::*,
-    visualizer::{Draw, Gradient, Save, Visualizer, VisualizerT},
+    visualizer::{Draw, Gradient, Save, Visualizer},
 };
 use sdl2::pixels::Color;
 
@@ -21,8 +21,8 @@ fn main() {
     config.save = Save::Last;
     config.delay = 0.0001;
     config.cell_size = 2;
-    config.colors.bg_color = Color::RGBA(255, 255, 255, 128);
-    config.colors.gradient = Gradient::TurboGradient(0.25..0.90);
+    config.style.bg_color = Color::RGBA(255, 255, 255, 128);
+    config.style.gradient = Gradient::TurboGradient(0.25..0.90);
     config.draw_old_on_top = true;
     let mut vis = |name: &str| {
         config.filepath = "imgs/".to_string() + name;
@@ -47,8 +47,7 @@ fn main() {
             h: ZeroCost,
             v: vis("nw"),
         };
-        nw.cost(a, b);
-        nw.v.last_frame();
+        nw.align(a, b);
     }
 
     {
@@ -58,8 +57,7 @@ fn main() {
             h: ZeroCost,
             v: vis("nw_gapcost"),
         };
-        nw.cost(a, b);
-        nw.v.last_frame();
+        nw.align(a, b);
     }
 
     {
@@ -70,8 +68,7 @@ fn main() {
             v: vis("nw_gapcost_h"),
         };
 
-        nw.cost(a, b);
-        nw.v.last_frame();
+        nw.align(a, b);
     }
 
     {
@@ -82,8 +79,7 @@ fn main() {
             v: vis("nw_sh"),
         };
 
-        nw.cost(a, b);
-        nw.v.last_frame();
+        nw.align(a, b);
     }
 
     {
@@ -94,15 +90,13 @@ fn main() {
             v: vis("nw_csh"),
         };
 
-        nw.cost(a, b);
-        nw.v.last_frame();
+        nw.align(a, b);
     }
 
     {
         let mut dt =
             DiagonalTransition::new(cm.clone(), GapCostHeuristic::Disable, ZeroCost, vis("dt"));
-        dt.cost(a, b);
-        dt.v.last_frame();
+        dt.align(a, b);
     }
 
     {
@@ -112,8 +106,7 @@ fn main() {
             ZeroCost,
             vis("dt_gapcost"),
         );
-        dt.cost(a, b);
-        dt.v.last_frame();
+        dt.align(a, b);
     }
 
     {
@@ -123,21 +116,18 @@ fn main() {
             GapCost,
             vis("dt_gapcost_h"),
         );
-        dt.cost(a, b);
-        dt.v.last_frame();
+        dt.align(a, b);
     }
 
     {
         let mut dt =
             DiagonalTransition::new(cm.clone(), GapCostHeuristic::Disable, sh, vis("dt_sh"));
-        dt.cost(a, b);
-        dt.v.last_frame();
+        dt.align(a, b);
     }
 
     {
         let mut dt =
             DiagonalTransition::new(cm.clone(), GapCostHeuristic::Disable, csh, vis("dt_csh"));
-        dt.cost(a, b);
-        dt.v.last_frame();
+        dt.align(a, b);
     }
 }
