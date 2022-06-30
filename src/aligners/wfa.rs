@@ -2,12 +2,15 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
+use std::intrinsics::transmute;
 
 use crate::cost_model::{Cost, LinearCost};
 
-use super::{cigar::Cigar, nw::Path, Aligner, Seq};
+use super::{cigar::Cigar, Aligner, Path, Seq};
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+mod wfa {
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
 
 pub struct WFA;
 
@@ -24,23 +27,22 @@ impl Aligner for WFA {
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         unsafe {
             // Configure alignment attributes
-            let mut attributes = wavefront_aligner_attr_default;
-            attributes.distance_metric = distance_metric_t_gap_affine;
-            attributes.affine_penalties.mismatch = 4;
-            attributes.affine_penalties.gap_opening = 6;
-            attributes.affine_penalties.gap_extension = 2;
+            let mut attributes = wfa::wavefront_aligner_attr_default;
+            attributes.distance_metric = wfa::distance_metric_t_edit;
+            attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
             // Initialize Wavefront Aligner
-            let wf_aligner = wavefront_aligner_new(&mut attributes);
-            let au8 = &*(a as *const _ as *const [i8]);
-            let bu8 = &*(b as *const _ as *const [i8]);
-            return wavefront_align(
+            let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
+            let a: &[i8] = transmute(a);
+            let b: &[i8] = transmute(b);
+            let status = wfa::wavefront_align(
                 wf_aligner,
-                au8.as_ptr(),
+                a.as_ptr(),
                 a.len() as i32,
-                bu8.as_ptr(),
+                b.as_ptr(),
                 b.len() as i32,
-            ) as Cost;
-            // Align
+            );
+            assert_eq!(status, 0);
+            -(*wf_aligner).cigar.score as Cost
         }
     }
 
@@ -61,7 +63,17 @@ impl Aligner for WFA {
         unimplemented!();
     }
 
-    fn cost_exponential_search(&mut self, a: Seq, b: Seq) -> Cost {
-        bio::alignment::distance::simd::levenshtein(a, b)
+    type Fronts = ();
+
+    type State = ();
+
+    fn parent(
+        &self,
+        _a: Seq,
+        _b: Seq,
+        _fronts: &Self::Fronts,
+        _st: Self::State,
+    ) -> Option<(Self::State, super::edit_graph::CigarOps)> {
+        unimplemented!()
     }
 }
