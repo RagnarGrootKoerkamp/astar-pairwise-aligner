@@ -84,11 +84,35 @@ mod nw_lib {
         test_aligner_on_cost_model(cm.clone(), NWLib { simd: false }, false);
     }
 
+    
+
     #[test]
     fn unit_cost_simd_exponential_search() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
         test_aligner_on_cost_model(cm.clone(), NWLib { simd: true }, false);
+    }
+}
+
+mod wfa {
+    use crate::aligners::{nw_lib::NWLib, wfa::WFA};
+
+    use super::*;
+
+    #[test]
+    fn unit_cost_simple() {
+        // sub=indel=1
+        let cm = AffineCost::new_unit();
+        test_aligner_on_cost_model(cm.clone(), WFA, false, false);
+    }
+
+    
+
+    #[test]
+    fn unit_cost_simd_exponential_search() {
+        // sub=indel=1
+        let cm = AffineCost::new_unit();
+        test_aligner_on_cost_model(cm.clone(), WFA, false, true);
     }
 }
 

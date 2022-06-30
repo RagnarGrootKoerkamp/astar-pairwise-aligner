@@ -11,6 +11,9 @@ incremental = true
 debug = true
 opt-level = 3
 
+[build-dependencies]
+bindgen = "0.60.1"
+
 [dependencies]
 colorgrad = "*"
 bio-types = "*"
