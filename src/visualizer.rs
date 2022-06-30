@@ -281,6 +281,7 @@ impl Visualizer {
         }
     }
 
+    #[allow(unused)]
     fn draw_thick_line_horizontal(
         canvas: &mut Canvas<Window>,
         from: Point,

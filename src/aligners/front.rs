@@ -37,13 +37,17 @@ pub struct Front<const N: usize, T, I> {
 }
 
 /// `Fronts` is a vector of fronts, possibly with a buffer layer at the top.
+/// TODO: Add `fronts.rotate()` and `fronts.grow()` functions to add a new front.
 #[derive(Debug)]
 pub struct Fronts<const N: usize, T, I> {
     pub fronts: Vec<Front<N, T, I>>,
+    /// The default value.
+    value: T,
     /// The inclusive range of values this front corresponds to.
     range: RangeInclusive<I>,
     /// The top and bottom buffer we add before/after the range of fronts.
     buffers: (I, I),
+    lr_buffers: (I, I),
 }
 
 impl<const N: usize, T, I> Fronts<N, T, I>
@@ -69,9 +73,69 @@ where
             fronts: (range.start() - top_buffer..=range.end() + bottom_buffer)
                 .map(|i| Front::new(value, range_fn(i), left_buffer, right_buffer))
                 .collect(),
+            value,
             range,
             buffers: (top_buffer, bottom_buffer),
+            lr_buffers: (left_buffer, right_buffer),
         }
+    }
+
+    pub fn push(&mut self, range: RangeInclusive<I>)
+    where
+        T: Copy,
+        for<'l> &'l I: RefNum<I>,
+    {
+        // We can not initialize all layers directly at the start, since we do not know the final distance s.
+        self.fronts.push(Front::new(
+            self.value,
+            range,
+            self.lr_buffers.0,
+            self.lr_buffers.1,
+        ));
+        self.range = *self.range.start()..=*self.range.end() + I::one();
+    }
+
+    pub fn rotate(&mut self, range: RangeInclusive<I>)
+    where
+        for<'l> &'l I: RefNum<I>,
+    {
+        self.fronts.rotate_left(1);
+        self.fronts.last_mut().unwrap().reset(
+            self.value,
+            range,
+            self.lr_buffers.0,
+            self.lr_buffers.1,
+        );
+        self.range = *self.range.start() + I::one()..=*self.range.end() + I::one();
+    }
+
+    pub fn rotate_back(&mut self)
+    where
+        for<'l> &'l I: RefNum<I>,
+    {
+        self.fronts.rotate_right(1);
+        self.range = *self.range.start() - I::one()..=*self.range.end() - I::one();
+    }
+
+    /// Get a reference to the fronts's range.
+    #[must_use]
+    pub fn range(&self) -> &RangeInclusive<I> {
+        &self.range
+    }
+
+    /// Get a reference to the fronts's range.
+    #[must_use]
+    pub fn full_range(&self) -> RangeInclusive<I>
+    where
+        for<'l> &'l I: RefNum<I>,
+    {
+        *self.range.start() - self.buffers.0..=*self.range.end() + self.buffers.1
+    }
+
+    /// Get a reference to the fronts's range.
+    #[must_use]
+    pub fn last(&self) -> &Front<N, T, I> {
+        self.fronts.last().unwrap()
     }
 }
 

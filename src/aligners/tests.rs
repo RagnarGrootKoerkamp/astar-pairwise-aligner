@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use super::{
     cigar::test::verify_cigar,
-    diagonal_transition::{DiagonalTransition, Direction, GapCostHeuristic, HistoryCompression},
+    diagonal_transition::{DiagonalTransition, GapCostHeuristic},
     nw::NW,
     Aligner,
 };
@@ -34,7 +34,8 @@ fn test_aligner_on_cost_model<const N: usize>(
     let mut nw = NW::new(cm.clone(), false);
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
-        println!("a {}\nb {}", to_string(a), to_string(b));
+        println!("\n=======================================\n");
+        println!("a {}\nb {}\n", to_string(a), to_string(b));
         let nw_cost = nw.cost(a, b);
 
         let cost = aligner.cost(a, b);
@@ -440,7 +441,7 @@ test_exp_band!(false, simple);
 test_exp_band!(true, gap_heuristic);
 
 macro_rules! test_diagonal_transition {
-    ($use_gap_cost_heuristic:expr, $history_compression:expr, $name:ident) => {
+    ($use_gap_cost_heuristic:expr, $dc:expr, $name:ident) => {
         paste::paste! {
             mod [<diagonal_transition_ $name>] {
                 use super::*;
@@ -448,7 +449,7 @@ macro_rules! test_diagonal_transition {
                 fn test<const N: usize>(cm: AffineCost<N>) {
                     test_aligner_on_cost_model(
                         cm.clone(),
-                        DiagonalTransition::new_variant(cm, $use_gap_cost_heuristic, ZeroCost, $history_compression, Direction::Forward, NoVisualizer),
+                        DiagonalTransition::new(cm, $use_gap_cost_heuristic, ZeroCost, $dc, NoVisualizer),
                         true);
                 }
 
@@ -621,26 +622,9 @@ macro_rules! test_diagonal_transition {
     };
 }
 
-test_diagonal_transition!(
-    GapCostHeuristic::Disable,
-    HistoryCompression::Disable,
-    simple
-);
-test_diagonal_transition!(
-    GapCostHeuristic::Enable,
-    HistoryCompression::Disable,
-    gap_heuristic
-);
-test_diagonal_transition!(
-    GapCostHeuristic::Disable,
-    HistoryCompression::Disable,
-    exp_search_simple
-);
-test_diagonal_transition!(
-    GapCostHeuristic::Enable,
-    HistoryCompression::Disable,
-    exp_search_gap_heuristic
-);
+test_diagonal_transition!(GapCostHeuristic::Disable, false, simple);
+test_diagonal_transition!(GapCostHeuristic::Enable, false, gap_heuristic);
+test_diagonal_transition!(GapCostHeuristic::Disable, true, dc);
 
 mod nw_sh {
 
@@ -679,15 +663,14 @@ mod diagonal_transition_sh {
     fn test<const N: usize>(cm: AffineCost<N>) {
         test_aligner_on_cost_model(
             cm.clone(),
-            DiagonalTransition::new_variant(
+            DiagonalTransition::new(
                 cm,
                 GapCostHeuristic::Disable,
                 SH {
                     match_config: MatchConfig::exact(5),
                     pruning: false,
                 },
-                HistoryCompression::Disable,
-                Direction::Forward,
+                false,
                 NoVisualizer,
             ),
             false,

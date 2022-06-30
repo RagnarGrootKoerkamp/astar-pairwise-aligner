@@ -1,6 +1,6 @@
 //! This module contains implementations of other alignment algorithms.
 
-use self::{cigar::Cigar, edit_graph::CigarOps};
+use self::{cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps};
 use crate::prelude::{Cost, CostModel, Pos};
 use std::cmp::max;
 
@@ -70,7 +70,7 @@ pub trait Aligner {
 
     type Fronts;
 
-    type State: StateT;
+    type State: StateT + Eq;
 
     /// Returns the cost model used by the aligner.
     fn cost_model(&self) -> &Self::CostModel;
@@ -82,13 +82,23 @@ pub trait Aligner {
         b: Seq,
         fronts: &Self::Fronts,
         st: Self::State,
+        direction: Direction,
     ) -> Option<(Self::State, CigarOps)>;
 
-    fn trace(&self, a: Seq, b: Seq, fronts: &Self::Fronts, mut st: Self::State) -> (Path, Cigar) {
+    fn trace(
+        &self,
+        a: Seq,
+        b: Seq,
+        fronts: &Self::Fronts,
+        from: Self::State,
+        mut to: Self::State,
+        direction: Direction,
+    ) -> (Path, Cigar) {
+        println!("Trace {direction:?} from {from:?} to {to:?}");
         let mut path: Path = vec![];
         let mut cigar = Cigar::default();
 
-        path.push(st.pos());
+        path.push(to.pos());
 
         let mut save = |st: &Self::State| {
             if let Some(last) = path.last() {
@@ -99,10 +109,10 @@ pub trait Aligner {
             path.push(st.pos());
         };
 
-        while !st.is_root() {
-            let (parent, cigar_ops) = self.parent(a, b, fronts, st).unwrap();
-            st = parent;
-            save(&st);
+        while to != from {
+            let (parent, cigar_ops) = self.parent(a, b, fronts, to, direction).unwrap();
+            to = parent;
+            save(&to);
             for op in cigar_ops {
                 if let Some(op) = op {
                     cigar.push(op);
@@ -121,6 +131,11 @@ pub trait Aligner {
     /// Finds an alignments (path/Cigar) of sequences `a` and `b`.
     /// Uses the visualizer to record progress.
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar);
+
+    /// Finds an alignment in linear memory, by using divide & conquer.
+    fn align_dc(&mut self, _a: Seq, _b: Seq) -> (Cost, Path, Cigar) {
+        unimplemented!();
+    }
 
     /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most `s_bound`.
     /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.

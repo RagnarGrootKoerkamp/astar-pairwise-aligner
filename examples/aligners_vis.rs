@@ -94,8 +94,24 @@ fn main() {
     }
 
     {
-        let mut dt =
-            DiagonalTransition::new(cm.clone(), GapCostHeuristic::Disable, ZeroCost, vis("dt"));
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            false,
+            vis("dt"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            true,
+            vis("dt_dc"),
+        );
         dt.align(a, b);
     }
 
@@ -104,6 +120,7 @@ fn main() {
             cm.clone(),
             GapCostHeuristic::Enable,
             ZeroCost,
+            false,
             vis("dt_gapcost"),
         );
         dt.align(a, b);
@@ -114,20 +131,31 @@ fn main() {
             cm.clone(),
             GapCostHeuristic::Disable,
             GapCost,
+            false,
             vis("dt_gapcost_h"),
         );
         dt.align(a, b);
     }
 
     {
-        let mut dt =
-            DiagonalTransition::new(cm.clone(), GapCostHeuristic::Disable, sh, vis("dt_sh"));
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            sh,
+            false,
+            vis("dt_sh"),
+        );
         dt.align(a, b);
     }
 
     {
-        let mut dt =
-            DiagonalTransition::new(cm.clone(), GapCostHeuristic::Disable, csh, vis("dt_csh"));
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            csh,
+            false,
+            vis("dt_csh"),
+        );
         dt.align(a, b);
     }
 }

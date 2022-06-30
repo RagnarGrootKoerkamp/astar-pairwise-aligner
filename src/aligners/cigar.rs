@@ -98,6 +98,10 @@ impl Cigar {
     pub fn reverse(&mut self) {
         self.ops.reverse()
     }
+
+    pub fn append(&mut self, other: &mut Self) {
+        self.ops.append(&mut other.ops)
+    }
 }
 
 impl<'a> IntoIterator for &'a Cigar {
