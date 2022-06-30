@@ -49,11 +49,9 @@ fn test_aligner_on_cost_model<const N: usize>(
         assert_eq!(
             nw_cost,
             cost,
-            "{n} {e}\na == {}\nb == {}\nNW Cigar:\n{}\nAligner Cigar:\n{}\n",
+            "{n} {e}\na == {}\nb == {}\n",
             to_string(&a),
             to_string(&b),
-            nw.align(a, b).2.to_string(),
-            aligner.align(a, b).2.to_string()
         );
 
         if test_path {
@@ -84,8 +82,6 @@ mod nw_lib {
         test_aligner_on_cost_model(cm.clone(), NWLib { simd: false }, false);
     }
 
-    
-
     #[test]
     fn unit_cost_simd_exponential_search() {
         // sub=indel=1
@@ -95,24 +91,15 @@ mod nw_lib {
 }
 
 mod wfa {
-    use crate::aligners::{nw_lib::NWLib, wfa::WFA};
+    use crate::aligners::wfa::WFA;
 
     use super::*;
 
     #[test]
-    fn unit_cost_simple() {
+    fn unit_cost() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), WFA, false, false);
-    }
-
-    
-
-    #[test]
-    fn unit_cost_simd_exponential_search() {
-        // sub=indel=1
-        let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), WFA, false, true);
+        test_aligner_on_cost_model(cm.clone(), WFA, false);
     }
 }
 
