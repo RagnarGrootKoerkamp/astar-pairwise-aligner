@@ -34,9 +34,14 @@ fn test_aligner_on_cost_model<const N: usize>(
     let mut nw = NW::new(cm.clone(), false);
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
-        println!("\n=======================================\n");
+        println!("\n=============== NEW TEST ========================\n");
         println!("a {}\nb {}\n", to_string(a), to_string(b));
         let nw_cost = nw.cost(a, b);
+        println!("COST:  {nw_cost}");
+        println!(
+            "CIGAR: {}\n\n==========================================",
+            nw.align(a, b).2.to_string()
+        );
 
         let cost = aligner.cost(a, b);
 
@@ -53,6 +58,14 @@ fn test_aligner_on_cost_model<const N: usize>(
 
         if test_path {
             let (cost, _path, cigar) = aligner.align(a, b);
+            println!("\n================= TEST CIGAR ======================\n");
+            println!(
+                "a {}\nb {}\ncigar: {}\nnwcig: {}",
+                to_string(a),
+                to_string(b),
+                cigar.to_string(),
+                nw.align(a, b).2.to_string()
+            );
             assert_eq!(cost, nw_cost);
             verify_cigar(&cm, a, b, &cigar);
         }
@@ -796,3 +809,10 @@ mod homopolymer {
         assert_eq!(nw.cost(b"AAAAAAAAA", b""), 12);
     }
 }
+
+// Interesting csae:
+// sub: 1
+// indel: 3
+// G CA A TCGGG
+// A CA   TCGGG
+// will be found with cost 5=3+2 before finding the cost 4 path, which requires iterating up to s=4+3.
