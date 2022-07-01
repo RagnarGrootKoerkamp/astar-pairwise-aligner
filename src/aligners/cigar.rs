@@ -1,10 +1,12 @@
 use std::{fmt::Write, slice};
 
+use itertools::Itertools;
+
 use crate::prelude::Pos;
 
-use super::Path;
+use super::{Path, Seq};
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum CigarOp {
     Match,
     Mismatch,
@@ -59,13 +61,13 @@ impl CigarOp {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct CigarElement {
     pub command: CigarOp,
     pub length: usize,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct Cigar {
     ops: Vec<CigarElement>,
 }
@@ -83,11 +85,11 @@ impl ToString for Cigar {
 }
 
 impl Cigar {
-    fn match_pos(offset: Pos, pos: Pos, a: u8, b: u8) -> CigarOp {
+    fn match_pos(offset: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOp {
         match offset {
             Pos(1, 1) => {
                 assert!(pos.0 > 0 && pos.1 > 0);
-                if a[pos.0 - 1] == b[pos.1 - 1] {
+                if a[(pos.0 - 1) as usize] == b[(pos.1 - 1) as usize] {
                     CigarOp::Match
                 } else {
                     CigarOp::Mismatch
@@ -103,11 +105,9 @@ impl Cigar {
         if path[0] != Pos(0, 0) {
             panic!("Cigar from path function: Error! Path should start from (0,0) point!");
         }
-        let mut cigar: Cigar;
-        for (prev, cur) in path.tuple_windows() {
-            if let Some(command) = match_pos(cur - prev, cur, a, b) {
-                cigar.push(command);
-            }
+        let mut cigar = Cigar::default();
+        for (&prev, &cur) in path.iter().tuple_windows() {
+            cigar.push(Self::match_pos(cur - prev, cur, a, b));
         }
         cigar
     }
@@ -153,10 +153,12 @@ impl Cigar {
     pub fn to_path(&self) -> Path {
         let mut position = Pos(0, 0);
         let mut path = vec![position];
-        for el in self.ops {
+        for el in &self.ops {
             for _ in 0..el.length {
-                position += el.command.offset();
-                path.push(position);
+                if let Some(offset) = el.command.offset() {
+                    position = position + offset;
+                    path.push(position);
+                }
             }
         }
         path

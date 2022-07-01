@@ -1,3 +1,4 @@
+#![cfg(feature = "wfa")]
 use crate::{
     aligners::wfa::wfa::distance_metric_t_gap_linear,
     cost_model::{AffineCost, AffineLayerType, Cost},
