@@ -172,7 +172,7 @@ impl Visualizer {
                     Some(RefCell::new(
                         video_subsystem
                             .window(
-                                "A*PA",
+                                &config.filepath,
                                 canvas_size_cells.0 as u32
                                     * config.cell_size as u32
                                     * config.prescaler as u32,

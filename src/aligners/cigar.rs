@@ -41,10 +41,8 @@ impl CigarOp {
         match self {
             CigarOp::Match => Some(Pos(1, 1)),
             CigarOp::Mismatch => Some(Pos(1, 1)),
-            CigarOp::Insertion => Some(Pos(0, 1)),
-            CigarOp::Deletion => Some(Pos(1, 0)),
-            CigarOp::AffineInsertion(_) => None,
-            CigarOp::AffineDeletion(_) => None,
+            CigarOp::Insertion | CigarOp::AffineInsertion(_) => Some(Pos(0, 1)),
+            CigarOp::Deletion | CigarOp::AffineDeletion(_) => Some(Pos(1, 0)),
             _ => None,
         }
     }
@@ -85,12 +83,33 @@ impl ToString for Cigar {
 }
 
 impl Cigar {
-    pub fn from_path(path: &Path) -> Cigar {
+    fn match_pos(offset: Pos, pos: Pos, a: u8, b: u8) -> CigarOp {
+        match offset {
+            Pos(1, 1) => {
+                assert!(pos.0 > 0 && pos.1 > 0);
+                if a[pos.0 - 1] == b[pos.1 - 1] {
+                    CigarOp::Match
+                } else {
+                    CigarOp::Mismatch
+                }
+            }
+            Pos(0, 1) => CigarOp::Insertion,
+            Pos(1, 0) => CigarOp::Deletion,
+            _ => panic!("Offset is not correct"),
+        }
+    }
+
+    pub fn from_path(a: Seq, b: Seq, path: &Path) -> Cigar {
         if path[0] != Pos(0, 0) {
             panic!("Cigar from path function: Error! Path should start from (0,0) point!");
         }
         let mut cigar: Cigar;
-        for i in 1..path {}
+        for (prev, cur) in path.tuple_windows() {
+            if let Some(command) = match_pos(cur - prev, cur, a, b) {
+                cigar.push(command);
+            }
+        }
+        cigar
     }
     pub fn push(&mut self, command: CigarOp) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
@@ -131,7 +150,7 @@ impl Cigar {
         self.ops.append(&mut other.ops);
     }
 
-    pub fn to_path(&mut self) -> Path {
+    pub fn to_path(&self) -> Path {
         let mut position = Pos(0, 0);
         let mut path = vec![position];
         for el in self.ops {
