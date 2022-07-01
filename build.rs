@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 fn main() {
     // Tell cargo to look for shared libraries in the specified directory
-    println!("cargo:rustc-link-search=./../../WFA2-lib/lib");
+    println!("cargo:rustc-link-search=../WFA2-lib/lib");
     println!("cargo:rustc-link-lib=wfa");
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes

@@ -158,11 +158,9 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
                 let l0 = &self.cm.affine[0];
                 let l1 = &self.cm.affine[1];
                 if l0.affine_type == AffineLayerType::InsertLayer && l1.affine_type == AffineLayerType::DeleteLayer {
-                    if (l0.affine_type == l1.affine_type) || (l1.affine_type == l0.affine_type){
                     if let Some(mism) = self.cm.sub {
                             return affine_cost(a, b, mism, self.cm.affine[0].open, self.cm.affine[0].extend);
                     }
-                } 
             }
         }
     } else if N == 4 {
