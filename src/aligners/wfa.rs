@@ -4,7 +4,7 @@ use crate::{
 };
 use std::intrinsics::transmute;
 
-use super::{cigar::Cigar, Aligner, Path, Seq};
+use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Path, Seq};
 
 #[allow(non_upper_case_globals)]
 #[allow(non_snake_case)]
@@ -237,6 +237,7 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
         _b: Seq,
         _fronts: &Self::Fronts,
         _st: Self::State,
+        _direction: Direction,
     ) -> Option<(Self::State, super::edit_graph::CigarOps)> {
         unimplemented!()
     }
