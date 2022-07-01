@@ -7,6 +7,7 @@ use super::{
     Aligner,
 };
 use crate::{
+    aligners::cigar::Cigar,
     generate::setup_sequences,
     heuristic::ZeroCost,
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
@@ -48,7 +49,7 @@ fn test_aligner_on_cost_model<const N: usize>(
         );
 
         if test_path {
-            let (cost, _path, cigar) = aligner.align(a, b);
+            let (cost, path, cigar) = aligner.align(a, b);
             println!("\n================= TEST CIGAR ======================\n");
             println!(
                 "a {}\nb {}\ncigar: {}\nnwcig: {}",
@@ -59,7 +60,7 @@ fn test_aligner_on_cost_model<const N: usize>(
             );
             assert_eq!(cost, nw_cost);
             assert_eq!(path, cigar.to_path());
-            assert_eq!(Cigar::from_path(&path), cigar);
+            assert_eq!(Cigar::from_path(a, b, &path), cigar);
             verify_cigar(&cm, a, b, &cigar);
         }
     }
@@ -248,6 +249,7 @@ mod astar {
     }
 }
 
+#[cfg(feature = "wfa")]
 mod wfa {
     use crate::aligners::wfa::WFA;
 

@@ -6,10 +6,13 @@
 
 extern crate bindgen;
 
-use std::env;
-use std::path::PathBuf;
+#[cfg(not(feature = "wfa"))]
+fn main() {}
 
+#[cfg(feature = "wfa")]
 fn main() {
+    use std::env;
+    use std::path::PathBuf;
     // Tell cargo to look for shared libraries in the specified directory
     println!("cargo:rustc-link-search=../WFA2-lib/lib");
     println!("cargo:rustc-link-lib=wfa");
