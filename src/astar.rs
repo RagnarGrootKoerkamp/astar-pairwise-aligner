@@ -184,8 +184,8 @@ where
         stats.expanded += 1;
         if DEBUG {
             stats.expanded_states.push(pos);
-            v.expand(pos);
         }
+        v.expand(pos);
 
         // Prune is needed
         if h.is_seed_start_or_end(pos) {
@@ -239,11 +239,11 @@ where
                     if DEBUG {
                         stats.explored_states.push(next);
                         stats.expanded_states.push(next);
-                        v.explore(next);
-                        v.expand(next);
                         //stats.tree.push((next, edge));
                         //edge = Edge::GreedyMatch
                     }
+                    v.explore(next);
+                    v.expand(next);
                     if D {
                         println!("Greedy expand {next} {}", state.g);
                     }
@@ -282,9 +282,9 @@ where
             stats.explored += 1;
             if DEBUG {
                 stats.explored_states.push(next);
-                v.explore(next);
                 //stats.tree.push((next, edge));
             }
+            v.explore(next);
         });
     }
 
