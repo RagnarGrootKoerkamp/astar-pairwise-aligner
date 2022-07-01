@@ -477,6 +477,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         a: Seq,
         b: Seq,
         fronts: &mut [Front<N>],
+        start_layer: Layer,
         direction: Direction,
     ) -> bool {
         // Get the front `cost` before the last one.
@@ -514,7 +515,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                 }
                             },
                         );
-                        get_front(fronts, 0).layer_mut(layer)[d] = fr;
+                        let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
+                        *val = max(*val, fr);
                         if fr >= 0 {
                             self.v.expand(fr_to_pos(d, fr));
                         }
@@ -536,7 +538,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             &self.cm,
                             layer,
                             // NOTE: This returns a forward position.
-                            // FIXME: Make sure this returns the correct position for homopolymer checking.
                             |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
                                 println!("Parent {di} {dj} {layer:?} {edge_cost}");
                                 let fr = get_front(fronts, edge_cost).layer(layer)
@@ -559,7 +560,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                 }
                             },
                         );
-                        get_front(fronts, 0).layer_mut(layer)[d] = fr;
+                        let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
+                        *val = max(*val, fr);
                         if fr <= max_fr {
                             self.v.expand(mirror_pos(fr_to_pos(d, fr)));
                         }
@@ -573,7 +575,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         // That in turn simplifies the overlap condition check, since we only need to check overlap for the two last fronts.
         let front = get_front(fronts, 0);
         if front.range().contains(&0) {
-            front.m_mut()[0] = max(front.m()[0], 0);
+            front.layer_mut(start_layer)[0] = max(front.m()[0], 0);
         }
 
         // Extend all points in the m layer and check if we're done.
@@ -581,7 +583,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
     }
 
     // Returns None when the sequences are equal.
-    fn init_fronts(&mut self, a: Seq, b: Seq, direction: Direction) -> Option<Fronts<N>> {
+    fn init_fronts(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        layer: Layer,
+        direction: Direction,
+    ) -> Option<Fronts<N>> {
         let mut fronts = Fronts::new(
             Fr::MIN,
             // We only create a front for the s=0 layer.
@@ -595,8 +603,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             self.right_buffer,
         );
 
-        fronts[0].m_mut()[0] = 0;
-        if self.extend(&mut fronts[0], a, b, direction) {
+        fronts[0].layer_mut(layer)[0] = 0;
+
+        if self.next_front(a, b, &mut fronts.fronts, layer, direction) {
             None
         } else {
             Some(fronts)
@@ -719,12 +728,12 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             a.len(),
             b.len()
         );
-        println!("Init forward");
-        let Some(mut forward_fronts) = self.init_fronts(a, b, Direction::Forward) else {
+        println!("Init forward {start_layer:?}");
+        let Some(mut forward_fronts) = self.init_fronts(a, b, start_layer, Direction::Forward) else {
             return (0, vec![], Cigar::default());
         };
-        println!("Init backward");
-        let Some(mut backward_fronts) = self.init_fronts(a, b, Direction::Backward) else {
+        println!("Init backward {end_layer:?}");
+        let Some(mut backward_fronts) = self.init_fronts(a, b, end_layer, Direction::Backward) else {
             return (0, vec![], Cigar::default());
         };
 
@@ -733,7 +742,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
         // The top level meet in the middle step is separate, since the distance is not known yet.
         // We check whether the fronts meet after each iteration.
-        let (fw, bw) = 'meet: {
+        let mut best_meet: Option<(DtState, DtState)> = None;
+        'outer: {
             for s in 1.. {
                 // First, take a step in the forward front, then in the backward front.
                 for dir in [Direction::Forward, Direction::Backward] {
@@ -744,7 +754,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     let range = self.d_range(a, b, h, s, None, &fronts.fronts);
                     assert!(!range.is_empty());
                     fronts.rotate(range);
-                    self.next_front(a, b, &mut fronts.fronts, dir);
+                    self.next_front(
+                        a,
+                        b,
+                        &mut fronts.fronts,
+                        match dir {
+                            Forward => start_layer,
+                            Backward => end_layer,
+                        },
+                        dir,
+                    );
                     println!("s: {s} {dir:?}");
                     println!("Forward:");
                     for front in &forward_fronts.fronts {
@@ -757,16 +776,32 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
                     if let Some(meet) = self.fronts_overlap(a, b, &forward_fronts, &backward_fronts)
                     {
-                        println!(
-                            "\n============= MATCH AT s={s} COST {} + {}\n",
-                            meet.0.s, meet.1.s
-                        );
-                        break 'meet meet;
+                        println!("MATCH AT s={s} COST {} + {}\n", meet.0.s, meet.1.s);
+                        let better = if let Some(best_meet) = best_meet {
+                            meet.0.s + meet.1.s < best_meet.0.s + best_meet.1.s
+                        } else {
+                            true
+                        };
+                        if better {
+                            best_meet = Some(meet)
+                        }
+                    }
+                    if let Some(best_meet) = best_meet &&
+                        (forward_fronts.range().end() + backward_fronts.range().end()) as Cost >=
+                        best_meet.0.s + best_meet.1.s + max(self.cm.sub.unwrap_or(0), max(self.cm.max_ins_open_extend, self.cm.max_del_open_extend)){
+                        break 'outer;
                     }
                 }
             }
-            unreachable!()
-        };
+        }
+
+        let (fw, bw) = best_meet.unwrap();
+        println!(
+            "\n==========================\nBEST MATCH s={} COST {} + {}\n",
+            fw.s + bw.s,
+            fw.s,
+            bw.s
+        );
 
         let Pos(i, j) = fw.pos();
         println!(
@@ -823,7 +858,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 DtState {
                     d: 0,
                     fr: 0,
-                    layer: start_layer,
+                    layer: end_layer,
                     s: 0,
                 },
                 bw,
@@ -889,7 +924,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
 
         match direction {
             Forward => {
-                if st.s > 0 {
+                if !st.is_root() {
                     EditGraph::iterate_parents_dt(
                         a,
                         b,
@@ -928,6 +963,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 // Match
                 // TODO: Add a setting to do greedy backtracking before checking other parents.
                 if max_fr < st.fr {
+                    println!("Max fr {max_fr} best found {}", st.fr);
                     let (i, j) = fr_to_coords(st.d, st.fr);
                     assert_eq!(a[i as usize - 1], b[j as usize - 1]);
                     parent = Some(st);
@@ -940,8 +976,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 let mirror = |(i, j)| (a.len() as Fr - i, b.len() as Fr - j);
                 //let mirror_pos = |Pos(i, j)| Pos(a.len() as u32 - i, b.len() as u32 - j);
                 let mirror_fr = |fr| a.len() as Fr + b.len() as Fr - fr;
-                // FIXME
-                if st.s > 0 {
+                if !st.is_root() {
                     EditGraph::iterate_children_dt(
                         a,
                         b,
@@ -1037,7 +1072,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
-        let Some(mut fronts) = self.init_fronts(a, b, Direction::Forward) else {
+        let Some(mut fronts) = self.init_fronts(a, b, None, Direction::Forward) else {
             return Some(0);
         };
         let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
@@ -1051,7 +1086,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 return None;
             }
             fronts.rotate(range);
-            if self.next_front(a, b, &mut fronts.fronts, Direction::Forward) {
+            if self.next_front(a, b, &mut fronts.fronts, None, Direction::Forward) {
                 return Some(s);
             }
         }
@@ -1065,7 +1100,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         b: Seq,
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)> {
-        let Some(mut fronts) = self.init_fronts(a, b, Direction::Forward) else {
+        let Some(mut fronts) = self.init_fronts(a, b, None, Direction::Forward) else {
             return Some((0, vec![], Cigar::default()));
         };
 
@@ -1082,7 +1117,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 return None;
             }
             fronts.push(range);
-            if self.next_front(a, b, &mut fronts.fronts, Direction::Forward) {
+            if self.next_front(a, b, &mut fronts.fronts, None, Direction::Forward) {
                 let (path, cigar) = self.trace(
                     a,
                     b,
