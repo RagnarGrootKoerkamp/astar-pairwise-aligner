@@ -168,9 +168,10 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
         let l1 = &self.cm.affine[1];
         let l2 = &self.cm.affine[2];
         let l3 = &self.cm.affine[3];
-        if l0.affine_type == AffineLayerType::InsertLayer && l1.affine_type == AffineLayerType::DeleteLayer && l2.affine_type == AffineLayerType::InsertLayer && l3.affine_type == AffineLayerType::DeleteLayer {
+        if (l0.affine_type == AffineLayerType::InsertLayer && l1.affine_type == AffineLayerType::DeleteLayer && l2.affine_type == AffineLayerType::InsertLayer && l3.affine_type == AffineLayerType::DeleteLayer)
+        && (l0.open == l1.open && l0.extend == l1.extend && l2.open == l3.open && l2.extend == l3.extend) {
             if let Some(mismatch) = self.cm.sub {
-                return double_affine_cost(a, b, mismatch, self.cm.affine[0].open, self.cm.affine[1].extend, self.cm.affine[2].open,  self.cm.affine[3].extend);
+                return double_affine_cost(a, b, mismatch, self.cm.affine[0].open, self.cm.affine[0].extend, self.cm.affine[2].open,  self.cm.affine[2].extend);
             }
         }
     } 
