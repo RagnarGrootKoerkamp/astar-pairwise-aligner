@@ -58,6 +58,8 @@ fn test_aligner_on_cost_model<const N: usize>(
                 nw.align(a, b).2.to_string()
             );
             assert_eq!(cost, nw_cost);
+            assert_eq!(path, cigar.to_path());
+            assert_eq!(Cigar::from_path(&path), cigar);
             verify_cigar(&cm, a, b, &cigar);
         }
     }
