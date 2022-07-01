@@ -100,12 +100,6 @@ mod wfa {
     }
 
     #[test]
-    fn unit_cost_() {
-        // sub=indel=1
-        test(AffineCost::new_unit());
-    }
-
-    #[test]
     fn linear_cost() {
         // sub=1, indel=2
         test(AffineCost::new_linear(1, 2));

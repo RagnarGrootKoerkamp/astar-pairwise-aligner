@@ -1,3 +1,10 @@
+// ! make sure that astar-pairwaise-aligner and WFA2-lib are on the same level of directories
+// ! to compile WFA2-lib do 
+// ! $ cd WFA2-lib
+// ! $ make lib_wfa
+// ! make sure you have make package installed
+
+
 extern crate bindgen;
 
 use std::env;
@@ -5,11 +12,11 @@ use std::path::PathBuf;
 
 fn main() {
     // Tell cargo to look for shared libraries in the specified directory
-    println!("cargo:rustc-link-search=/Users/yuriik/Desktop/work/Rust/WFA2-lib/lib");
+    println!("cargo:rustc-link-search=./../../WFA2-lib/lib");
     println!("cargo:rustc-link-lib=wfa");
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
-    println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=../WFA2-lib/wavefront/wavefront_align.h");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -17,7 +24,7 @@ fn main() {
     let bindings = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
-        .header("wrapper.h")
+        .header("../WFA2-lib/wavefront/wavefront_align.h")
         .clang_arg("-I../WFA2-lib")
         // .allowlist_function("wavefront_.*")
         // Tell cargo to invalidate the built crate whenever any of the
