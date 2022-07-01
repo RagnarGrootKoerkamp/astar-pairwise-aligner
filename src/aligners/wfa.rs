@@ -2,9 +2,12 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use std::intrinsics::transmute;
+use crate::{
+    aligners::wfa::wfa::{affine_penalties_t, distance_metric_t_gap_linear},
+    cost_model::{AffineCost, AffineLayerType, Cost, CostModel, LinearCost},
+};
 use std::ffi::CString;
-use crate::{cost_model::{Cost, LinearCost, AffineCost, CostModel, AffineLayerType}, aligners::wfa::wfa::{distance_metric_t_gap_linear, affine_penalties_t}};
+use std::intrinsics::transmute;
 
 use super::{cigar::Cigar, Aligner, Path, Seq};
 
@@ -16,7 +19,7 @@ pub struct WFA<CostModel> {
     pub cm: CostModel,
 }
 
-fn unit_cost( a: Seq, b: Seq) -> Cost {
+fn unit_cost(a: Seq, b: Seq) -> Cost {
     unsafe {
         // Configure alignment attributes
         let mut attributes = wfa::wavefront_aligner_attr_default;
@@ -38,7 +41,7 @@ fn unit_cost( a: Seq, b: Seq) -> Cost {
     }
 }
 
-fn linear_cost( a: Seq, b: Seq, sub: Cost, indel: Cost) -> Cost {
+fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost) -> Cost {
     unsafe {
         // Configure alignment attributes
         let mut attributes = wfa::wavefront_aligner_attr_default;
@@ -61,7 +64,7 @@ fn linear_cost( a: Seq, b: Seq, sub: Cost, indel: Cost) -> Cost {
     }
 }
 
-fn lcs_cost( a: Seq, b: Seq) -> Cost {
+fn lcs_cost(a: Seq, b: Seq) -> Cost {
     unsafe {
         // Configure alignment attributes
         let mut attributes = wfa::wavefront_aligner_attr_default;
@@ -105,7 +108,15 @@ fn affine_cost(a: Seq, b: Seq, mismatch: Cost, gap_open: Cost, gap_extend: Cost)
     }
 }
 
-fn double_affine_cost(a: Seq, b: Seq, mismatch: Cost, gap_open1: Cost, gap_open2: Cost, gap_extend1: Cost, gap_extend2: Cost) -> Cost {
+fn double_affine_cost(
+    a: Seq,
+    b: Seq,
+    mismatch: Cost,
+    gap_open1: Cost,
+    gap_open2: Cost,
+    gap_extend1: Cost,
+    gap_extend2: Cost,
+) -> Cost {
     // Configure alignment attributes
     unsafe {
         let mut attributes = wfa::wavefront_aligner_attr_default;
@@ -139,7 +150,7 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         if N == 0 {
-                //lcs cost
+            //lcs cost
             if self.cm.sub == None && self.cm.ins == self.cm.del{
                 return lcs_cost(a, b);
                 //unit cost
@@ -148,37 +159,58 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
                 //linear cost
             } else if let Some(sub) = self.cm.sub
             && let Some(ins) = self.cm.ins
-            && let Some(del) = self.cm.del 
-            && ins == del {     
+            && let Some(del) = self.cm.del
+            && ins == del {
                 return linear_cost(a, b, sub, ins);
             }
             //affine cost
         } else if N == 2 {
-            if let Some(mismatch) = self.cm.sub {   
+            if let Some(mismatch) = self.cm.sub {
                 let l0 = &self.cm.affine[0];
                 let l1 = &self.cm.affine[1];
-                if l0.affine_type == AffineLayerType::InsertLayer && l1.affine_type == AffineLayerType::DeleteLayer {
+                if l0.affine_type == AffineLayerType::InsertLayer
+                    && l1.affine_type == AffineLayerType::DeleteLayer
+                {
                     if let Some(mism) = self.cm.sub {
-                            return affine_cost(a, b, mism, self.cm.affine[0].open, self.cm.affine[0].extend);
+                        return affine_cost(
+                            a,
+                            b,
+                            mism,
+                            self.cm.affine[0].open,
+                            self.cm.affine[0].extend,
+                        );
                     }
+                }
+            }
+        } else if N == 4 {
+            let l0 = &self.cm.affine[0];
+            let l1 = &self.cm.affine[1];
+            let l2 = &self.cm.affine[2];
+            let l3 = &self.cm.affine[3];
+            if (l0.affine_type == AffineLayerType::InsertLayer
+                && l1.affine_type == AffineLayerType::DeleteLayer
+                && l2.affine_type == AffineLayerType::InsertLayer
+                && l3.affine_type == AffineLayerType::DeleteLayer)
+                && (l0.open == l1.open
+                    && l0.extend == l1.extend
+                    && l2.open == l3.open
+                    && l2.extend == l3.extend)
+            {
+                if let Some(mismatch) = self.cm.sub {
+                    return double_affine_cost(
+                        a,
+                        b,
+                        mismatch,
+                        self.cm.affine[0].open,
+                        self.cm.affine[0].extend,
+                        self.cm.affine[2].open,
+                        self.cm.affine[2].extend,
+                    );
+                }
             }
         }
-    } else if N == 4 {
-        let l0 = &self.cm.affine[0];
-        let l1 = &self.cm.affine[1];
-        let l2 = &self.cm.affine[2];
-        let l3 = &self.cm.affine[3];
-        if (l0.affine_type == AffineLayerType::InsertLayer && l1.affine_type == AffineLayerType::DeleteLayer && l2.affine_type == AffineLayerType::InsertLayer && l3.affine_type == AffineLayerType::DeleteLayer)
-        && (l0.open == l1.open && l0.extend == l1.extend && l2.open == l3.open && l2.extend == l3.extend) {
-            if let Some(mismatch) = self.cm.sub {
-                return double_affine_cost(a, b, mismatch, self.cm.affine[0].open, self.cm.affine[0].extend, self.cm.affine[2].open,  self.cm.affine[2].extend);
-            }
-        }
-    } 
-    unimplemented!()
-}
-
-
+        unimplemented!()
+    }
 
     fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Path, Cigar) {
         unimplemented!()
