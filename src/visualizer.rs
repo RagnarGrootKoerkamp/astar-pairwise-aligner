@@ -63,8 +63,8 @@ impl Gradient {
     fn explore(&self, _f: f32) -> Color {
         match self {
             Gradient::NoGradient { explore, .. } => *explore,
-            Gradient::Gradient(_) => todo!(),
-            Gradient::TurboGradient(_) => todo!(),
+            Gradient::Gradient(_) => Color::BLACK,
+            Gradient::TurboGradient(_) => Color::BLACK,
         }
     }
 }

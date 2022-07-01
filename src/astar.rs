@@ -1,6 +1,9 @@
 use std::time;
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    visualizer::{Visualizer, VisualizerT},
+};
 use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,7 +71,11 @@ pub struct AStarStats {
 // g: computed cost to reach node from the start
 // f: g+h
 // TODO: Inline on_expand and on_explore functions by direct calls to h.
-pub fn astar<'a, H>(graph: &EditGraph, h: &mut H) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
+pub fn astar<'a, H>(
+    graph: &EditGraph,
+    h: &mut H,
+    v: &mut impl VisualizerT,
+) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
     H: HeuristicInstance<'a>,
 {
@@ -180,6 +187,7 @@ where
         stats.expanded += 1;
         if DEBUG {
             stats.expanded_states.push(pos);
+            v.expand(pos);
         }
 
         // Prune is needed
@@ -234,6 +242,8 @@ where
                     if DEBUG {
                         stats.explored_states.push(next);
                         stats.expanded_states.push(next);
+                        v.explore(next);
+                        v.expand(next);
                         //stats.tree.push((next, edge));
                         //edge = Edge::GreedyMatch
                     }
@@ -275,6 +285,7 @@ where
             stats.explored += 1;
             if DEBUG {
                 stats.explored_states.push(next);
+                v.explore(next);
                 //stats.tree.push((next, edge));
             }
         });
@@ -297,6 +308,11 @@ where
             };
             stats.tree.push((p, parent::<H>(&states, p, g)));
         }
+    }
+    if let Some((number, actual_path)) = path.clone() {
+        v.last_frame(Some(&actual_path));
+    } else {
+        v.last_frame(None);
     }
     (path, stats)
 }

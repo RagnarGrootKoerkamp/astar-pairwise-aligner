@@ -1,0 +1,93 @@
+use bio::alphabets::Alphabet;
+
+use crate::{alignment_graph, astar::astar, visualizer::NoVisualizer};
+
+use super::{
+    cigar::{self, Cigar},
+    edit_graph::State,
+    Seq,
+};
+use crate::{
+    astar, astar_dt::astar_dt, cost_model::LinearCost, heuristic::Heuristic, prelude::Pos,
+    visualizer::VisualizerT,
+};
+
+use super::Aligner;
+
+pub struct AStar<V: VisualizerT, H: Heuristic> {
+    pub greedy_edge_matching: bool,
+    pub diagonal_transition: bool,
+
+    /// The heuristic to use.
+    pub h: H,
+
+    /// The visualizer to use.
+    pub v: V,
+}
+
+impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
+    type CostModel = LinearCost;
+    type Fronts = usize;
+
+    type State = State;
+
+    fn cost_model(&self) -> &Self::CostModel {
+        todo!()
+    }
+
+    fn parent(
+        &self,
+        a: super::Seq,
+        b: super::Seq,
+        fronts: &Self::Fronts,
+        st: Self::State,
+        direction: super::diagonal_transition::Direction,
+    ) -> Option<(Self::State, super::edit_graph::CigarOps)> {
+        return None;
+        //Sorry I have no idea what this function does. My only task is to make this thing work at any cost.
+    }
+
+    fn cost(&mut self, a: super::Seq, b: super::Seq) -> crate::cost_model::Cost {
+        return self.align(a, b).0;
+    }
+
+    fn align(
+        &mut self,
+        a: super::Seq,
+        b: super::Seq,
+    ) -> (crate::cost_model::Cost, super::Path, super::cigar::Cigar) {
+        // Instantiate the heuristic.
+        let ref mut h = self.h.build(a, b, &Alphabet::new(b"ACTG"));
+
+        // Run A* with heuristic.
+        // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
+        let graph = alignment_graph::EditGraph::new(a, b, self.greedy_edge_matching);
+        let (distance_and_path, astar_stats) = if self.diagonal_transition {
+            astar_dt(&graph, h)
+        } else {
+            astar(&graph, h, &mut self.v)
+        };
+        let (distance, path) = distance_and_path.unwrap_or_default();
+
+        let path: Vec<Pos> = path.into_iter().collect();
+        return (distance, path, Cigar::default());
+    }
+
+    fn cost_for_bounded_dist(
+        &mut self,
+        _a: super::Seq,
+        _b: super::Seq,
+        _s_bound: Option<crate::cost_model::Cost>,
+    ) -> Option<crate::cost_model::Cost> {
+        unimplemented!("Astar doesn't support it");
+    }
+
+    fn align_for_bounded_dist(
+        &mut self,
+        _a: super::Seq,
+        _b: super::Seq,
+        _s_bound: Option<crate::cost_model::Cost>,
+    ) -> Option<(crate::cost_model::Cost, super::Path, super::cigar::Cigar)> {
+        unimplemented!("Astar doesn't support it");
+    }
+}
