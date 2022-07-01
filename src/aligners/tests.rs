@@ -99,7 +99,44 @@ mod wfa {
     fn unit_cost() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), WFA, false);
+        test_aligner_on_cost_model(cm.clone(), WFA{ cm }, false);
+    }
+    
+    
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(cm.clone(), NW::new(cm, false), true);
+    }
+
+    #[test]
+    fn lcs_cost() {
+        // sub=infinity, indel=1
+        test(AffineCost::new_lcs());
+    }
+
+    #[test]
+    fn unit_cost_() {
+        // sub=indel=1
+        test(AffineCost::new_unit());
+    }
+
+    #[test]
+    fn linear_cost() {
+        // sub=1, indel=2
+        test(AffineCost::new_linear(1, 2));
+    }
+
+    #[test]
+    fn affine_cost() {
+        // sub=1
+        // open=2, extend=1
+        test(AffineCost::new_affine(1, 2, 1));
+    }
+
+    #[test]
+    fn double_affine_cost() {
+        // sub=1
+        // Gap cost is min(4+2*l, 10+1*l).
+        test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
     }
 }
 
