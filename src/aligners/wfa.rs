@@ -13,7 +13,7 @@ mod wfa {
 }
 
 pub struct WFA<CostModel> {
-    cm: CostModel,
+    pub(crate) cm: CostModel,
 }
 
 lazy_static! {
@@ -49,6 +49,27 @@ fn linear_cost( a: Seq, b: Seq, sub: Cost, indel: Cost) -> Cost {
         attributes.distance_metric = distance_metric_t_gap_linear;
         attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         attributes.linear_penalties.indel = indel as i32;
+        // Initialize Wavefront Aligner
+        let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
+        let a: &[i8] = transmute(a);
+        let b: &[i8] = transmute(b);
+        let status = wfa::wavefront_align(
+            wf_aligner,
+            a.as_ptr(),
+            a.len() as i32,
+            b.as_ptr(),
+            b.len() as i32,
+        );
+        assert_eq!(status, 0);
+        -(*wf_aligner).cigar.score as Cost
+    }
+}
+
+fn lcs_cost( a: Seq, b: Seq) -> Cost {
+    unsafe {
+        // Configure alignment attributes
+        let mut attributes = wfa::wavefront_aligner_attr_default;
+        attributes.distance_metric = wfa::distance_metric_t_indel;
         // Initialize Wavefront Aligner
         let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
         let a: &[i8] = transmute(a);
@@ -106,6 +127,8 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
                       && let Some(del) = self.cm.del 
                       && ins == del {     
                 return linear_cost(a, b, sub, ins);
+            } else if self.cm.sub == None && self.cm.ins == self.cm.del{
+                return lcs_cost(a, b);
             }
             
         } else if N == 2 {

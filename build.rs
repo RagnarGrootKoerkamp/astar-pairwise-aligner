@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 fn main() {
     // Tell cargo to look for shared libraries in the specified directory
-    println!("cargo:rustc-link-search=/home/philae/git/eth/git/WFA2-lib/lib");
+    println!("cargo:rustc-link-search=/Users/yuriik/Desktop/work/Rust/WFA2-lib/lib");
     println!("cargo:rustc-link-lib=wfa");
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
@@ -19,6 +19,7 @@ fn main() {
         // bindings for.
         .header("wrapper.h")
         .clang_arg("-I../WFA2-lib")
+        // .allowlist_function("wavefront_.*")
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
