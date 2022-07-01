@@ -14,14 +14,12 @@ fn main() {
     let n = 500;
     let e = 0.20;
 
-    let m = 1;
-    let k = 9;
     let (ref a, ref b) = setup_sequences(n, e);
     println!("{}\n{}\n", to_string(a), to_string(b));
 
     let cm = LinearCost::new_unit();
     let mut config = visualizer::Config::default();
-    config.draw = Draw::None;
+    config.draw = Draw::Last;
     config.save = Save::Last;
     config.delay = 0.0001;
     config.cell_size = 2;
@@ -173,6 +171,9 @@ fn main() {
         };
         a_star.align(a, b);
     }
+
+    let m = 1;
+    let k = 9;
 
     {
         let h = CSH {

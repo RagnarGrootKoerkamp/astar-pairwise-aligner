@@ -1,6 +1,7 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 use pairwise_aligner::{
     aligners::{
+        astar::AStar,
         diagonal_transition::{DiagonalTransition, GapCostHeuristic},
         nw::NW,
         Aligner,
@@ -18,7 +19,7 @@ fn main() {
 
     let cm = LinearCost::new_unit();
     let mut config = visualizer::Config::default();
-    config.draw = Draw::All;
+    config.draw = Draw::Last;
     config.save = Save::Last;
     config.delay = 0.0001;
     config.cell_size = 2;
@@ -29,6 +30,39 @@ fn main() {
         config.filepath = "imgs/".to_string() + name;
         Visualizer::new(config.clone(), a, b)
     };
+
+    {
+        let m = 1;
+        let k = 9;
+        let h = CSH {
+            match_config: MatchConfig {
+                length: Fixed(k),
+                max_match_cost: m,
+                ..MatchConfig::default()
+            },
+            pruning: true,
+            use_gap_cost: false,
+            c: PhantomData::<BruteForceContours>::default(),
+        };
+        let mut a_star = AStar {
+            diagonal_transition: false,
+            greedy_edge_matching: true,
+            h,
+            v: vis("a_star_CSH"),
+        };
+        a_star.align(a, b);
+    }
+
+    {
+        let h = ZeroCost;
+        let mut a_star = AStar {
+            diagonal_transition: false,
+            greedy_edge_matching: true,
+            h,
+            v: vis("a_star_zero_cost"),
+        };
+        a_star.align(a, b);
+    }
 
     {
         let mut nw = NW {
