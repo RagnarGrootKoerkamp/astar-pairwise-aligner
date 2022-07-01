@@ -85,6 +85,13 @@ impl ToString for Cigar {
 }
 
 impl Cigar {
+    pub fn from_path(path: &Path) -> Cigar {
+        if path[0] != Pos(0, 0) {
+            panic!("Cigar from path function: Error! Path should start from (0,0) point!");
+        }
+        let mut cigar: Cigar;
+        for i in 1..path {}
+    }
     pub fn push(&mut self, command: CigarOp) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
         if let Some(s) = self.ops.last_mut() && s.command == command {
