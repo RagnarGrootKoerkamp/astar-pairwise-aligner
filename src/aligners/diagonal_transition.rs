@@ -233,8 +233,8 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         layer: Option<usize>,
         cost: Cost,
     ) -> (Pos, Option<usize>, CigarOp, Cost) {
-        let diagonal = p.0 as i32 - p.1 as i32;
-        let f = (p.0 + p.1) as i32;
+        let diagonal = p.0 as Fr - p.1 as Fr;
+        let f = (p.0 + p.1) as Fr;
         let s = cost;
 
         //if it is an affine layer
@@ -344,30 +344,30 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
         cigar: &mut Cigar,
     ) -> (Cost, Fr, Option<usize>) {
         let s = cost as usize;
-        let mut x;
-        let mut y;
+        let mut i;
+        let mut j;
         if let Some(layer_idx) = layer {
             let f = fronts[s as Fr].affine(layer_idx)[d];
-            x = ((f + d) / 2) as usize;
-            y = ((f - d) / 2) as usize;
+            i = ((f + d) / 2) as usize;
+            j = ((f - d) / 2) as usize;
         } else {
             let mut f = fronts[s as Fr].m()[d];
-            x = ((f + d) / 2 - 1) as usize;
-            y = ((f - d) / 2 - 1) as usize;
+            i = ((f + d) / 2 - 1) as usize;
+            j = ((f - d) / 2 - 1) as usize;
             //backtracing matches
-            while a[x] == b[y] {
+            while a[i] == b[j] {
                 cigar.push(CigarOp::Match);
-                if x == 0 || y == 0 {
+                if i == 0 || j == 0 {
                     break;
                 }
-                x -= 1;
-                y -= 1;
+                i -= 1;
+                j -= 1;
                 f -= 1;
             }
-            x += 1;
-            y += 1;
+            i += 1;
+            j += 1;
         }
-        let parent_pos = self.parent_position(fronts, a, b, Pos(x as u32, y as u32), layer, cost);
+        let parent_pos = self.parent_position(fronts, a, b, Pos(i as u32, j as u32), layer, cost);
         let diag = (parent_pos.0 .0 - parent_pos.0 .1) as Fr; // diagonal of the previous state
         cigar.push(parent_pos.2); // push Cigar option we needed to get to the previous state
         return (parent_pos.3, diag, parent_pos.1);
@@ -376,7 +376,7 @@ impl<const N: usize, V: VisualizerT> DiagonalTransition<AffineCost<N>, V> {
     pub fn get_cigar(&self, fronts: &Fronts<N>, a: Seq, b: Seq, mut cost: Cost) -> Cigar {
         let mut cigar: Cigar = Cigar::default();
         let mut layer = None;
-        let mut d = a.len() as i32 - b.len() as i32;
+        let mut d = a.len() as Fr - b.len() as Fr;
         while cost > 0 || d != 0 || layer.is_some() {
             (cost, d, layer) = self.parent_state(fronts, a, b, d, cost, layer, &mut cigar);
         }

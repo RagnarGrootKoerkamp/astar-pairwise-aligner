@@ -7,7 +7,7 @@ use super::{
     Aligner, NoVisualizer,
 };
 use crate::{
-    generate::setup_sequences,
+    generate::{setup_sequences, setup_sequences_with_seed},
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
 };
 
@@ -36,7 +36,7 @@ fn test_aligner_on_cost_model<const N: usize>(
         v: NoVisualizer,
     };
     for (&n, &e) in test_sequences() {
-        let (ref a, ref b) = setup_sequences(n, e);
+        let (ref a, ref b) = setup_sequences_with_seed(180701, n, e);
         let nw_cost = nw.cost(a, b);
 
         let cost = if exponential_search {
@@ -100,6 +100,112 @@ mod nw {
                 v: NoVisualizer,
             },
             true,
+            false,
+        );
+    }
+
+    #[test]
+    fn lcs_cost() {
+        // sub=infinity, indel=1
+        test(AffineCost::new_lcs());
+    }
+
+    #[test]
+    fn unit_cost() {
+        // sub=indel=1
+        test(AffineCost::new_unit());
+    }
+
+    #[test]
+    fn linear_cost() {
+        // sub=1, indel=2
+        test(AffineCost::new_linear(1, 2));
+    }
+
+    #[test]
+    fn linear_asymmetric_cost() {
+        // sub=1, insert=2, deletion=3
+        test(AffineCost::new_linear_asymmetric(1, 2, 3));
+    }
+
+    #[test]
+    fn affine_cost() {
+        // sub=1
+        // open=2, extend=1
+        test(AffineCost::new_affine(1, 2, 1));
+    }
+
+    #[test]
+    fn linear_affine_cost() {
+        // sub=1, indel=3
+        // open=2, extend=1
+        test(AffineCost::new_linear_affine(1, 3, 2, 1));
+    }
+
+    #[test]
+    fn double_affine_cost() {
+        // sub=1
+        // Gap cost is min(4+2*l, 10+1*l).
+        test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
+    }
+
+    #[test]
+    fn asymmetric_affine_cost() {
+        // sub=1
+        // insert: open=2, extend=2
+        // deletion: open=3, extend=1
+        test(AffineCost::new_affine_asymmetric(1, 2, 2, 3, 1));
+    }
+
+    #[test]
+    fn ins_asymmetric_affine_cost() {
+        test(AffineCost::new(
+            Some(1),
+            Some(1),
+            None,
+            [AffineLayerCosts {
+                affine_type: AffineLayerType::DeleteLayer,
+                open: 2,
+                extend: 2,
+            }],
+        ));
+    }
+
+    #[test]
+    fn del_asymmetric_affine_cost() {
+        test(AffineCost::new(
+            Some(1),
+            None,
+            Some(1),
+            [AffineLayerCosts {
+                affine_type: AffineLayerType::InsertLayer,
+                open: 2,
+                extend: 2,
+            }],
+        ));
+    }
+}
+
+mod diamond {
+
+    use crate::aligners::diamond_transition::{
+        DiamondTransition, Direction, GapCostHeuristic, GapVariant,
+    };
+
+    use super::*;
+
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(
+            cm.clone(),
+            DiamondTransition::new_variant(
+                cm,
+                GapCostHeuristic::Disable,
+                HistoryCompression::Disable,
+                GapVariant::GapOpen,
+                Direction::Forward,
+                NoVisualizer,
+            ),
+            false,
             false,
         );
     }
