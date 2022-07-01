@@ -4,6 +4,7 @@ use self::{cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps};
 use crate::prelude::{Cost, CostModel, Pos};
 use std::cmp::max;
 
+pub mod astar;
 pub mod cigar;
 pub mod diagonal_transition;
 pub mod front;

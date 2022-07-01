@@ -1,4 +1,4 @@
-use pairwise_aligner::prelude::*;
+use pairwise_aligner::{prelude::*, visualizer::NoVisualizer};
 
 fn main() {
     let pruning = false;
@@ -21,7 +21,7 @@ fn main() {
     let mut h = h.build(&a, &b, &alphabet);
     h.display(Pos::from_lengths(a, b), None, None, None, None, None);
     let graph = EditGraph::new(a, b, true);
-    let (distance_and_path, _astar) = astar::astar(&graph, &mut h);
+    let (distance_and_path, _astar) = astar::astar(&graph, &mut h, &mut NoVisualizer);
     let (distance, _path): (u32, Vec<Pos>) = distance_and_path.unwrap_or_default();
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(distance, dist);
