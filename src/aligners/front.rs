@@ -21,7 +21,7 @@ impl<I> IndexType for I where
 ///
 /// T: the type of stored elements.
 /// I: the index type.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Front<const N: usize, T, I> {
     /// TODO: Merge the main and affine layers into a single array?
     /// TODO: Store layer-by-layer or position-by-position (ie index as
@@ -36,9 +36,29 @@ pub struct Front<const N: usize, T, I> {
     buffers: (I, I),
 }
 
+impl<const N: usize, T, I> Debug for Front<N, T, I>
+where
+    T: Debug + Clone,
+    I: IndexType,
+{
+    fn fmt<'a>(&'a self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let m = &self.m[self.buffers.0.as_()..self.m.len() - self.buffers.1.as_()];
+        let mut slices: [&[T]; N] = [&[]; N];
+        for i in 0..N {
+            slices[i] =
+                &self.affine[i][self.buffers.0.as_()..self.affine[i].len() - self.buffers.1.as_()];
+        }
+        f.debug_struct("Front")
+            .field("m", &m)
+            .field("affine", &slices)
+            .field("range", &self.range)
+            .field("buffers", &self.buffers)
+            .finish()
+    }
+}
+
 /// `Fronts` is a vector of fronts, possibly with a buffer layer at the top.
 /// TODO: Add `fronts.rotate()` and `fronts.grow()` functions to add a new front.
-#[derive(Debug)]
 pub struct Fronts<const N: usize, T, I> {
     pub fronts: Vec<Front<N, T, I>>,
     /// The default value.
@@ -48,6 +68,22 @@ pub struct Fronts<const N: usize, T, I> {
     /// The top and bottom buffer we add before/after the range of fronts.
     buffers: (I, I),
     lr_buffers: (I, I),
+}
+
+impl<const N: usize, T, I> Debug for Fronts<N, T, I>
+where
+    T: Debug + Clone,
+    I: IndexType,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Fronts")
+            .field("fronts", &self.fronts)
+            .field("value", &self.value)
+            .field("range", &self.range)
+            .field("buffers", &self.buffers)
+            .field("lr_buffers", &self.lr_buffers)
+            .finish()
+    }
 }
 
 impl<const N: usize, T, I> Fronts<N, T, I>
