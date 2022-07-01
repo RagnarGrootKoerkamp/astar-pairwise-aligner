@@ -60,11 +60,11 @@ impl Gradient {
         }
     }
 
-    fn explore(&self, _f: f32) -> Color {
+    fn explore(&self, _f: f32) -> Option<Color> {
         match self {
-            Gradient::NoGradient { explore, .. } => *explore,
-            Gradient::Gradient(_) => todo!(),
-            Gradient::TurboGradient(_) => todo!(),
+            Gradient::NoGradient { explore, .. } => Some(*explore),
+            Gradient::Gradient(_) => None,
+            Gradient::TurboGradient(_) => None,
         }
     }
 }
@@ -362,14 +362,14 @@ impl Visualizer {
         // Draw explored and expanded.
         if self.config.draw_old_on_top {
             for (i, pos) in self.explored.iter().enumerate().rev() {
-                self.draw_pixel(
-                    &mut canvas,
-                    *pos,
-                    self.config
-                        .style
-                        .gradient
-                        .explore(i as f32 / self.explored.len() as f32),
-                );
+                if let Some(color) = self
+                    .config
+                    .style
+                    .gradient
+                    .explore(i as f32 / self.explored.len() as f32)
+                {
+                    self.draw_pixel(&mut canvas, *pos, color);
+                }
             }
             for (i, pos) in self.expanded.iter().enumerate().rev() {
                 self.draw_pixel(
@@ -383,14 +383,14 @@ impl Visualizer {
             }
         } else {
             for (i, pos) in self.explored.iter().enumerate() {
-                self.draw_pixel(
-                    &mut canvas,
-                    *pos,
-                    self.config
-                        .style
-                        .gradient
-                        .explore(i as f32 / self.explored.len() as f32),
-                );
+                if let Some(color) = self
+                    .config
+                    .style
+                    .gradient
+                    .explore(i as f32 / self.explored.len() as f32)
+                {
+                    self.draw_pixel(&mut canvas, *pos, color);
+                }
             }
             for (i, pos) in self.expanded.iter().enumerate() {
                 self.draw_pixel(

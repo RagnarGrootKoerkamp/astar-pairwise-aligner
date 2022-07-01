@@ -1,4 +1,4 @@
-use pairwise_aligner::prelude::*;
+use pairwise_aligner::{prelude::*, visualizer::NoVisualizer};
 
 fn main() {
     let n = 250;
@@ -36,7 +36,7 @@ fn main() {
         let h = ZeroCost;
         let mut h = Heuristic::build(&h, &a, &b, &alphabet);
         let graph = EditGraph::new(a, b, true);
-        let (distance_and_path, astar) = astar::astar(&graph, &mut h);
+        let (distance_and_path, astar) = astar::astar(&graph, &mut h, &mut NoVisualizer);
         let (_distance, path) = distance_and_path.unwrap_or_default();
 
         h.display(

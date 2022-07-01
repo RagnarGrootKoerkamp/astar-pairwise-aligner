@@ -1,3 +1,4 @@
+use crate::visualizer::NoVisualizer;
 use crate::{astar::astar, astar_dt::astar_dt, prelude::*};
 
 use csv::Writer;
@@ -387,7 +388,7 @@ where
     let (distance_and_path, astar_stats) = if diagonal_transition {
         astar_dt(&graph, h)
     } else {
-        astar(&graph, h)
+        astar(&graph, h, &mut NoVisualizer)
     };
     let (distance, path) = distance_and_path.unwrap_or_default();
     let astar_duration = astar_time.elapsed();
