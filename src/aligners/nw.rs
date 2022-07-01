@@ -359,7 +359,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         if let Some(&dist) = fronts[a.len() as Idx].m().get(b.len() as Idx) {
             // We only track the actual path if `s` is small enough.
             if dist <= s_bound.unwrap_or(INF) {
-                let (path, cigar) = self.trace(
+                let (mut path, cigar) = self.trace(
                     a,
                     b,
                     &fronts,
@@ -375,6 +375,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
                     },
                     Direction::Forward,
                 );
+                path.iter_mut().for_each(|pos| *pos = *pos - Pos(1, 1));
                 return Some((dist, path, cigar));
             }
         }

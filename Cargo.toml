@@ -42,4 +42,6 @@ paste = "*"
 aho-corasick = "*"
 
 [features]
+wfa = []
 default = ["sdl2"]
+
