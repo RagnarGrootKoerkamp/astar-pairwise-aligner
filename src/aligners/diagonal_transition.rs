@@ -326,7 +326,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         }
     }
 
-    fn extend(&mut self, front: &mut Front<N>, a: Seq, b: Seq, direction: Direction) -> bool {
+    fn extend(
+        &mut self,
+        front: &mut Front<N>,
+        a: Seq,
+        b: Seq,
+        offset: Pos,
+        direction: Direction,
+    ) -> bool {
         for d in front.range().clone() {
             let fr = &mut front.m_mut()[d];
             if *fr < 0 {
@@ -337,7 +344,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 Forward => {
                     *fr += 2 * extend_diagonal(direction, a, b, d, *fr);
                     for fr in (fr_old + 2..=*fr).step_by(2) {
-                        self.v.expand(fr_to_pos(d, fr));
+                        self.v.expand(offset + fr_to_pos(d, fr));
                     }
                 }
                 Backward => {
@@ -349,10 +356,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         a.len() as Fr + b.len() as Fr - *fr,
                     );
                     for fr in (fr_old + 2..=*fr).step_by(2) {
-                        self.v.expand(fr_to_pos(
-                            a.len() as Fr - b.len() as Fr - d,
-                            a.len() as Fr + b.len() as Fr - fr,
-                        ));
+                        self.v.expand(
+                            offset
+                                + fr_to_pos(
+                                    a.len() as Fr - b.len() as Fr - d,
+                                    a.len() as Fr + b.len() as Fr - fr,
+                                ),
+                        );
                     }
                 }
             }
@@ -477,6 +487,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         a: Seq,
         b: Seq,
         fronts: &mut [Front<N>],
+        offset: Pos,
         start_layer: Layer,
         direction: Direction,
     ) -> bool {
@@ -518,7 +529,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
                         if fr >= 0 {
-                            self.v.expand(fr_to_pos(d, fr));
+                            println!("Expand {}!", offset + fr_to_pos(d, fr));
+                            self.v.expand(offset + fr_to_pos(d, fr));
                         }
                     });
                 }
@@ -529,7 +541,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 let max_fr = a.len() as Fr + b.len() as Fr;
                 let mirror_fr = |fr| max_fr - fr;
                 for d in get_front(fronts, 0).range().clone() {
-                    println!("Next layer {direction:?} for d={d}");
+                    //println!("Next layer {direction:?} for d={d}");
                     EditGraph::iterate_child_layers(&self.cm, |layer| {
                         let mut fr = Fr::MIN;
                         EditGraph::iterate_children_dt(
@@ -539,11 +551,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             layer,
                             // NOTE: This returns a forward position.
                             |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
-                                println!("Parent {di} {dj} {layer:?} {edge_cost}");
+                                //println!("Parent {di} {dj} {layer:?} {edge_cost}");
                                 let fr = get_front(fronts, edge_cost).layer(layer)
                                     [d - (di - dj) as Fr]
                                     + (di + dj) as Fr;
-                                println!("fr {fr}");
+                                //println!("fr {fr}");
                                 if fr >= 0 {
                                     Some(mirror(fr_to_coords(d, fr)))
                                 } else {
@@ -552,10 +564,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             },
                             |_di, _dj, i, j, _layer, _edge_cost, _cigar_ops| {
                                 if i <= a.len() as Fr && j <= b.len() as Fr {
-                                    println!(
-                                        "Set fr to max of {fr} and {} from coords {i},{j}",
-                                        mirror_fr((i + j) as Fr)
-                                    );
+                                    //println!(
+                                    //"Set fr to max of {fr} and {} from coords {i},{j}",
+                                    //mirror_fr((i + j) as Fr)
+                                    //);
                                     fr = max(fr, mirror_fr((i + j) as Fr));
                                 }
                             },
@@ -563,7 +575,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
                         if fr <= max_fr {
-                            self.v.expand(mirror_pos(fr_to_pos(d, fr)));
+                            println!("Expand {}!", offset + mirror_pos(fr_to_pos(d, fr)));
+                            self.v.expand(offset + mirror_pos(fr_to_pos(d, fr)));
                         }
                     });
                 }
@@ -579,7 +592,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         }
 
         // Extend all points in the m layer and check if we're done.
-        self.extend(get_front(fronts, 0), a, b, direction)
+        self.extend(get_front(fronts, 0), a, b, offset, direction)
     }
 
     // Returns None when the sequences are equal.
@@ -587,6 +600,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         &mut self,
         a: Seq,
         b: Seq,
+        offset: Pos,
         layer: Layer,
         direction: Direction,
     ) -> Option<Fronts<N>> {
@@ -605,7 +619,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
         fronts[0].layer_mut(layer)[0] = 0;
 
-        if self.next_front(a, b, &mut fronts.fronts, layer, direction) {
+        if self.next_front(a, b, &mut fronts.fronts, offset, layer, direction) {
             None
         } else {
             Some(fronts)
@@ -720,20 +734,21 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         &mut self,
         a: Seq,
         b: Seq,
+        offset: Pos,
         start_layer: Layer,
         end_layer: Layer,
     ) -> (Cost, Path, Cigar) {
         println!(
-            "Path between {} {} {start_layer:?} {end_layer:?}",
+            "Path between {} {} {start_layer:?} {end_layer:?} Offset {offset}",
             a.len(),
             b.len()
         );
         println!("Init forward {start_layer:?}");
-        let Some(mut forward_fronts) = self.init_fronts(a, b, start_layer, Direction::Forward) else {
+        let Some(mut forward_fronts) = self.init_fronts(a, b, offset, start_layer, Direction::Forward) else {
             return (0, vec![], Cigar::default());
         };
         println!("Init backward {end_layer:?}");
-        let Some(mut backward_fronts) = self.init_fronts(a, b, end_layer, Direction::Backward) else {
+        let Some(mut backward_fronts) = self.init_fronts(a, b, offset, end_layer, Direction::Backward) else {
             return (0, vec![], Cigar::default());
         };
 
@@ -758,6 +773,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         a,
                         b,
                         &mut fronts.fronts,
+                        offset,
                         match dir {
                             Forward => start_layer,
                             Backward => end_layer,
@@ -797,7 +813,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
         let (fw, bw) = best_meet.unwrap();
         println!(
-            "\n==========================\nBEST MATCH s={} COST {} + {}\n",
+            "\n==========================\nBEST MEET s={} COST {} + {}\n",
             fw.s + bw.s,
             fw.s,
             bw.s
@@ -819,7 +835,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             while (fw.s as Fr) < *forward_fronts.range().end() {
                 forward_fronts.rotate_back();
             }
-            let (path, cigar) = self.trace(
+            let (mut path, cigar) = self.trace(
                 a,
                 b,
                 &forward_fronts,
@@ -832,6 +848,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 fw,
                 Direction::Forward,
             );
+            for p in &mut path {
+                *p = *p + offset;
+            }
             (fw.s, path, cigar)
         } else {
             println!(
@@ -840,8 +859,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 to_string(&a[..i as usize]),
                 to_string(&b[..j as usize])
             );
-            let (cost, path, cigar) =
-                self.path_between_dc(&a[..i as usize], &b[..j as usize], start_layer, fw.layer);
+            let (cost, path, cigar) = self.path_between_dc(
+                &a[..i as usize],
+                &b[..j as usize],
+                offset,
+                start_layer,
+                fw.layer,
+            );
             assert_eq!(cost, fw.s);
             (cost, path, cigar)
         };
@@ -864,6 +888,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 bw,
                 Direction::Backward,
             );
+            for p in &mut path {
+                *p = offset + Pos::from_lengths(a, b) - *p;
+            }
             path.reverse();
             cigar.reverse();
             (bw.s, path, cigar)
@@ -874,23 +901,31 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 to_string(&a[i as usize..]),
                 to_string(&b[j as usize..])
             );
-            let (cost, path, cigar) =
-                self.path_between_dc(&a[i as usize..], &b[j as usize..], bw.layer, end_layer);
+            let (cost, path, cigar) = self.path_between_dc(
+                &a[i as usize..],
+                &b[j as usize..],
+                offset + fw.pos(),
+                bw.layer,
+                end_layer,
+            );
             assert_eq!(cost, bw.s);
             // Offset the path.
 
             (cost, path, cigar)
         };
 
-        println!("LEFT:\n{left:?}");
-        println!("RIGHT:\n{right:?}");
+        //println!("LEFT:\n{left:?}");
+        //println!("RIGHT:\n{right:?}");
 
         // Join
         left.0 += right.0;
+        if left.1.last() == right.1.first() {
+            left.1.pop().unwrap();
+        }
         left.1.append(&mut right.1);
         left.2.append(&mut right.2);
 
-        println!("MERGED:\n{left:?}");
+        //println!("MERGED:\n{left:?}");
         left
     }
 }
@@ -933,7 +968,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                         |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
                             let parent_cost = st.s as Fr - edge_cost as Fr;
                             if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
-                                println!("Parent {di} {dj} {edge_cost} with absolute cost {parent_cost} is out of range: {:?}", fronts.full_range());
+                                //println!("Parent {di} {dj} {edge_cost} with absolute cost {parent_cost} is out of range: {:?}", fronts.full_range());
                                 return None;
                             }
                             let fr = fronts[parent_cost].layer(layer)[st.d + (di - dj) as Fr]
@@ -945,7 +980,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                             }
                         },
                         |di, dj, i, j, layer, edge_cost, ops| {
-                            println!("Parent {di} {dj} {edge_cost} => ij {i} {j} fr {}", i + j);
+                            //println!("Parent {di} {dj} {edge_cost} => ij {i} {j} fr {}", i + j);
                             let fr = (i + j) as Fr;
                             if fr > max_fr {
                                 max_fr = fr;
@@ -963,7 +998,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 // Match
                 // TODO: Add a setting to do greedy backtracking before checking other parents.
                 if max_fr < st.fr {
-                    println!("Max fr {max_fr} best found {}", st.fr);
+                    //println!("Max fr {max_fr} best found {}", st.fr);
                     let (i, j) = fr_to_coords(st.d, st.fr);
                     assert_eq!(a[i as usize - 1], b[j as usize - 1]);
                     parent = Some(st);
@@ -987,10 +1022,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                             if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
                                 return None;
                             }
-                            println!("{di} {dj} {layer:?} {edge_cost}");
+                            //println!("{di} {dj} {layer:?} {edge_cost}");
                             let fr = fronts[parent_cost].layer(layer)[st.d - (di - dj) as Fr];
                             //+ (di + dj) as Fr;
-                            println!("fr: {fr}");
+                            //println!("fr: {fr}");
                             if fr >= 0 {
                                 Some(mirror(fr_to_coords(st.d - (di - dj), fr)))
                             } else {
@@ -998,11 +1033,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                             }
                         },
                         |di, dj, i, j, layer, edge_cost, ops| {
-                            println!("i j {i} {j}");
+                            //println!("i j {i} {j}");
                             let fr = mirror_fr((i + j) as Fr) + (di + dj) as Fr;
                             if fr > max_fr {
-                                println!("New best fr {fr};  d {} => {}", st.d, st.d - (di - dj));
-                                println!("St.fr: {} => {}", st.fr, st.fr - (di + dj));
+                                //println!("New best fr {fr};  d {} => {}", st.d, st.d - (di - dj));
+                                //println!("St.fr: {} => {}", st.fr, st.fr - (di + dj));
                                 max_fr = fr;
                                 parent = Some(DtState {
                                     d: st.d - (di - dj),
@@ -1019,7 +1054,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 // TODO: Add a setting to do greedy backtracking before checking other parents.
                 if max_fr < st.fr {
                     let (i, j) = mirror(fr_to_coords(st.d, st.fr));
-                    println!("A {}\nB {}\ni j {i} {j}", to_string(a), to_string(b));
+                    //println!("A {}\nB {}\ni j {i} {j}", to_string(a), to_string(b));
                     assert_eq!(a[i as usize], b[j as usize]);
                     parent = Some(st);
                     parent.as_mut().unwrap().fr -= 2;
@@ -1072,7 +1107,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
-        let Some(mut fronts) = self.init_fronts(a, b, None, Direction::Forward) else {
+        self.v.expand(Pos(0, 0));
+        let Some(mut fronts) = self.init_fronts(a, b, Pos(0,0), None, Direction::Forward) else {
             return Some(0);
         };
         let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
@@ -1086,7 +1122,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 return None;
             }
             fronts.rotate(range);
-            if self.next_front(a, b, &mut fronts.fronts, None, Direction::Forward) {
+            if self.next_front(
+                a,
+                b,
+                &mut fronts.fronts,
+                Pos(0, 0),
+                None,
+                Direction::Forward,
+            ) {
                 return Some(s);
             }
         }
@@ -1100,7 +1143,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         b: Seq,
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)> {
-        let Some(mut fronts) = self.init_fronts(a, b, None, Direction::Forward) else {
+        self.v.expand(Pos(0, 0));
+        let Some(mut fronts) = self.init_fronts(a, b, Pos(0,0), None, Direction::Forward) else {
             return Some((0, vec![], Cigar::default()));
         };
 
@@ -1117,7 +1161,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 return None;
             }
             fronts.push(range);
-            if self.next_front(a, b, &mut fronts.fronts, None, Direction::Forward) {
+            if self.next_front(
+                a,
+                b,
+                &mut fronts.fronts,
+                Pos(0, 0),
+                None,
+                Direction::Forward,
+            ) {
                 let (path, cigar) = self.trace(
                     a,
                     b,
@@ -1140,6 +1191,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         assert!(H::IS_DEFAULT);
         assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
 
-        self.path_between_dc(a, b, None, None)
+        self.v.expand(Pos(0, 0));
+        let (cost, path, cigar) = self.path_between_dc(a, b, Pos(0, 0), None, None);
+        self.v.last_frame(Some(&path));
+        (cost, path, cigar)
     }
 }
