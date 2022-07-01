@@ -1,5 +1,9 @@
 use std::{fmt::Write, slice};
 
+use crate::prelude::Pos;
+
+use super::Path;
+
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum CigarOp {
     Match,
@@ -29,6 +33,18 @@ impl CigarOp {
             CigarOp::Deletion => Some('D'),
             CigarOp::AffineInsertion(_) => Some('I'),
             CigarOp::AffineDeletion(_) => Some('D'),
+            _ => None,
+        }
+    }
+
+    fn offset(&self) -> Option<Pos> {
+        match self {
+            CigarOp::Match => Some(Pos(1, 1)),
+            CigarOp::Mismatch => Some(Pos(1, 1)),
+            CigarOp::Insertion => Some(Pos(0, 1)),
+            CigarOp::Deletion => Some(Pos(1, 0)),
+            CigarOp::AffineInsertion(_) => None,
+            CigarOp::AffineDeletion(_) => None,
             _ => None,
         }
     }
@@ -106,6 +122,18 @@ impl Cigar {
             self.ops.pop().unwrap();
         }
         self.ops.append(&mut other.ops);
+    }
+
+    pub fn to_path(&mut self) -> Path {
+        let mut position = Pos(0, 0);
+        let mut path = vec![position];
+        for el in self.ops {
+            for _ in 0..el.length {
+                position += el.command.offset();
+                path.push(position);
+            }
+        }
+        path
     }
 }
 
