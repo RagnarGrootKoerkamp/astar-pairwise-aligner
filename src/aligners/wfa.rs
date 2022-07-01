@@ -1,16 +1,15 @@
-#![allow(non_upper_case_globals)]
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
-
 use crate::{
-    aligners::wfa::wfa::{affine_penalties_t, distance_metric_t_gap_linear},
-    cost_model::{AffineCost, AffineLayerType, Cost, CostModel, LinearCost},
+    aligners::wfa::wfa::distance_metric_t_gap_linear,
+    cost_model::{AffineCost, AffineLayerType, Cost},
 };
-use std::ffi::CString;
 use std::intrinsics::transmute;
 
 use super::{cigar::Cigar, Aligner, Path, Seq};
 
+#[allow(non_upper_case_globals)]
+#[allow(non_snake_case)]
+#[allow(non_camel_case_types)]
+#[allow(unused)]
 mod wfa {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
@@ -47,6 +46,7 @@ fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost) -> Cost {
         let mut attributes = wfa::wavefront_aligner_attr_default;
         attributes.distance_metric = distance_metric_t_gap_linear;
         attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
+        attributes.linear_penalties.mismatch = sub as i32;
         attributes.linear_penalties.indel = indel as i32;
         // Initialize Wavefront Aligner
         let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
@@ -165,21 +165,19 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
             }
             //affine cost
         } else if N == 2 {
-            if let Some(mismatch) = self.cm.sub {
+            if let Some(sub) = self.cm.sub  && self.cm.ins == None && self.cm.del == None {
                 let l0 = &self.cm.affine[0];
                 let l1 = &self.cm.affine[1];
                 if l0.affine_type == AffineLayerType::InsertLayer
-                    && l1.affine_type == AffineLayerType::DeleteLayer
+                   && l1.affine_type == AffineLayerType::DeleteLayer
                 {
-                    if let Some(mism) = self.cm.sub {
-                        return affine_cost(
-                            a,
-                            b,
-                            mism,
-                            self.cm.affine[0].open,
-                            self.cm.affine[0].extend,
-                        );
-                    }
+                    return affine_cost(
+                        a,
+                        b,
+                        sub,
+                        self.cm.affine[0].open,
+                        self.cm.affine[0].extend,
+                    );
                 }
             }
         } else if N == 4 {
@@ -187,20 +185,20 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
             let l1 = &self.cm.affine[1];
             let l2 = &self.cm.affine[2];
             let l3 = &self.cm.affine[3];
-            if (l0.affine_type == AffineLayerType::InsertLayer
-                && l1.affine_type == AffineLayerType::DeleteLayer
-                && l2.affine_type == AffineLayerType::InsertLayer
-                && l3.affine_type == AffineLayerType::DeleteLayer)
-                && (l0.open == l1.open
+            if let Some(sub) = self.cm.sub && self.cm.ins == None && self.cm.del == None {
+                if l0.affine_type == AffineLayerType::InsertLayer
+                    && l1.affine_type == AffineLayerType::DeleteLayer
+                    && l2.affine_type == AffineLayerType::InsertLayer
+                    && l3.affine_type == AffineLayerType::DeleteLayer
+                    && l0.open == l1.open
                     && l0.extend == l1.extend
                     && l2.open == l3.open
-                    && l2.extend == l3.extend)
-            {
-                if let Some(mismatch) = self.cm.sub {
+                    && l2.extend == l3.extend
+                {
                     return double_affine_cost(
                         a,
                         b,
-                        mismatch,
+                        sub,
                         self.cm.affine[0].open,
                         self.cm.affine[0].extend,
                         self.cm.affine[2].open,
