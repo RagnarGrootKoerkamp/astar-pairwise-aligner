@@ -2,6 +2,7 @@
 use std::{
     cmp::max,
     fmt::{Debug, Display},
+    ops::Add,
 };
 
 use serde::Serialize;
@@ -20,6 +21,14 @@ pub type MatchCost = u8;
 /// A position in a pairwise matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
 pub struct Pos(pub I, pub I);
+
+impl Add for Pos {
+    type Output = Pos;
+
+    fn add(self, Pos(x, y): Self) -> Self::Output {
+        Pos(self.0 + x, self.1 + y)
+    }
+}
 
 impl Pos {
     pub fn root() -> Self {
