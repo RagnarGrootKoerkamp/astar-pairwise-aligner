@@ -2,7 +2,7 @@
 use std::{
     cmp::max,
     fmt::{Debug, Display},
-    ops::Add,
+    ops::{Add, Sub},
 };
 
 use serde::Serialize;
@@ -27,6 +27,14 @@ impl Add for Pos {
 
     fn add(self, Pos(x, y): Self) -> Self::Output {
         Pos(self.0 + x, self.1 + y)
+    }
+}
+
+impl Sub for Pos {
+    type Output = Pos;
+
+    fn sub(self, Pos(x, y): Self) -> Self::Output {
+        Pos(self.0 - x, self.1 - y)
     }
 }
 
