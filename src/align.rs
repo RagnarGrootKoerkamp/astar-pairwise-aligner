@@ -1,4 +1,4 @@
-use crate::visualizer::{NoVisualizer, VisualizerT};
+use crate::visualizer::NoVisualizer;
 use crate::{astar::astar, astar_dt::astar_dt, prelude::*};
 
 use csv::Writer;

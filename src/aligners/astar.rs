@@ -1,14 +1,10 @@
 use bio::alphabets::Alphabet;
 
-use crate::{alignment_graph, astar::astar, visualizer::NoVisualizer};
+use crate::{alignment_graph, astar::astar};
 
-use super::{
-    cigar::{self, Cigar},
-    edit_graph::State,
-    Seq,
-};
+use super::{cigar::Cigar, edit_graph::State};
 use crate::{
-    astar, astar_dt::astar_dt, cost_model::LinearCost, heuristic::Heuristic, prelude::Pos,
+    astar_dt::astar_dt, cost_model::LinearCost, heuristic::Heuristic, prelude::Pos,
     visualizer::VisualizerT,
 };
 
@@ -37,14 +33,13 @@ impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
 
     fn parent(
         &self,
-        a: super::Seq,
-        b: super::Seq,
-        fronts: &Self::Fronts,
-        st: Self::State,
-        direction: super::diagonal_transition::Direction,
+        _a: super::Seq,
+        _b: super::Seq,
+        _fronts: &Self::Fronts,
+        _st: Self::State,
+        _direction: super::diagonal_transition::Direction,
     ) -> Option<(Self::State, super::edit_graph::CigarOps)> {
-        return None;
-        //Sorry I have no idea what this function does. My only task is to make this thing work at any cost.
+        unimplemented!("Sorry, I have no idea what this function does. My only task is to make this thing work at any cost.");
     }
 
     fn cost(&mut self, a: super::Seq, b: super::Seq) -> crate::cost_model::Cost {
@@ -62,7 +57,7 @@ impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
         // Run A* with heuristic.
         // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
         let graph = alignment_graph::EditGraph::new(a, b, self.greedy_edge_matching);
-        let (distance_and_path, astar_stats) = if self.diagonal_transition {
+        let (distance_and_path, _) = if self.diagonal_transition {
             astar_dt(&graph, h)
         } else {
             astar(&graph, h, &mut self.v)

@@ -32,14 +32,9 @@ fn main() {
     };
 
     {
-        let m = 1;
-        let k = 9;
+        let k = 5;
         let h = CSH {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost: m,
-                ..MatchConfig::default()
-            },
+            match_config: MatchConfig::exact(k),
             pruning: true,
             use_gap_cost: false,
             c: PhantomData::<BruteForceContours>::default(),
@@ -48,17 +43,16 @@ fn main() {
             diagonal_transition: false,
             greedy_edge_matching: true,
             h,
-            v: vis("a_star_CSH"),
+            v: vis("a_star_csh"),
         };
         a_star.align(a, b);
     }
 
     {
-        let h = ZeroCost;
         let mut a_star = AStar {
             diagonal_transition: false,
             greedy_edge_matching: true,
-            h,
+            h: ZeroCost,
             v: vis("a_star_zero_cost"),
         };
         a_star.align(a, b);

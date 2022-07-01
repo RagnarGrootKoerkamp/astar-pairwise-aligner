@@ -1,6 +1,5 @@
 use pairwise_aligner::{
     aligners::{
-        astar::AStar,
         diagonal_transition::{DiagonalTransition, GapCostHeuristic},
         nw::NW,
         Aligner,
@@ -13,13 +12,12 @@ use sdl2::pixels::Color;
 fn main() {
     let n = 500;
     let e = 0.20;
-
     let (ref a, ref b) = setup_sequences(n, e);
     println!("{}\n{}\n", to_string(a), to_string(b));
 
     let cm = LinearCost::new_unit();
     let mut config = visualizer::Config::default();
-    config.draw = Draw::Last;
+    config.draw = Draw::All;
     config.save = Save::Last;
     config.delay = 0.0001;
     config.cell_size = 2;
@@ -31,223 +29,133 @@ fn main() {
         Visualizer::new(config.clone(), a, b)
     };
 
-    // let sh = SH {
-    //     match_config: MatchConfig::exact(4),
-    //     pruning: false,
-    // };
-    // let csh = CSH {
-    //     match_config: MatchConfig::exact(4),
-    //     pruning: false,
-    //     use_gap_cost: false,
-    //     c: PhantomData::<BruteForceContours>,
-    // };
-
-    // {
-    //     let mut nw = NW {
-    //         cm: cm.clone(),
-    //         use_gap_cost_heuristic: false,
-    //         h: ZeroCost,
-    //         v: vis("nw"),
-    //     };
-    //     nw.align(a, b);
-    // }
-
-    // {
-    //     let mut nw = NW {
-    //         cm: cm.clone(),
-    //         use_gap_cost_heuristic: true,
-    //         h: ZeroCost,
-    //         v: vis("nw_gapcost"),
-    //     };
-    //     nw.align(a, b);
-    // }
-
-    // {
-    //     let mut nw = NW {
-    //         cm: cm.clone(),
-    //         use_gap_cost_heuristic: false,
-    //         h: GapCost,
-    //         v: vis("nw_gapcost_h"),
-    //     };
-
-    //     nw.align(a, b);
-    // }
-
-    // {
-    //     let mut nw = NW {
-    //         cm: cm.clone(),
-    //         use_gap_cost_heuristic: false,
-    //         h: sh,
-    //         v: vis("nw_sh"),
-    //     };
-
-    //     nw.align(a, b);
-    // }
-
-    // {
-    //     let mut nw = NW {
-    //         cm: cm.clone(),
-    //         use_gap_cost_heuristic: false,
-    //         h: csh,
-    //         v: vis("nw_csh"),
-    //     };
-
-    //     nw.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Disable,
-    //         ZeroCost,
-    //         false,
-    //         vis("dt"),
-    //     );
-    //     dt.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Disable,
-    //         ZeroCost,
-    //         true,
-    //         vis("dt_dc"),
-    //     );
-    //     dt.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Enable,
-    //         ZeroCost,
-    //         false,
-    //         vis("dt_gapcost"),
-    //     );
-    //     dt.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Disable,
-    //         GapCost,
-    //         false,
-    //         vis("dt_gapcost_h"),
-    //     );
-    //     dt.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Disable,
-    //         sh,
-    //         false,
-    //         vis("dt_sh"),
-    //     );
-    //     dt.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Disable,
-    //         csh,
-    //         false,
-    //         vis("dt_csh"),
-    //     );
-    //     dt.align(a, b);
-    // }
+    let sh = SH {
+        match_config: MatchConfig::exact(4),
+        pruning: false,
+    };
+    let csh = CSH {
+        match_config: MatchConfig::exact(4),
+        pruning: false,
+        use_gap_cost: false,
+        c: PhantomData::<BruteForceContours>,
+    };
 
     {
-        let h = ZeroCost;
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: vis("a_star_zero_cost"),
+        let mut nw = NW {
+            cm: cm.clone(),
+            use_gap_cost_heuristic: false,
+            h: ZeroCost,
+            v: vis("nw"),
         };
-        a_star.align(a, b);
-    }
-
-    let m = 1;
-    let k = 9;
-
-    {
-        let h = CSH {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost: m,
-                ..MatchConfig::default()
-            },
-            pruning: false,
-            use_gap_cost: false,
-            c: PhantomData::<BruteForceContours>::default(),
-        };
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: vis("a_star_CSH_no_pruning"),
-        };
-        a_star.align(a, b);
+        nw.align(a, b);
     }
 
     {
-        let h = CSH {
-            match_config: MatchConfig {
-                length: Fixed(k),
-                max_match_cost: m,
-                ..MatchConfig::default()
-            },
-            pruning: true,
-            use_gap_cost: false,
-            c: PhantomData::<BruteForceContours>::default(),
+        let mut nw = NW {
+            cm: cm.clone(),
+            use_gap_cost_heuristic: true,
+            h: ZeroCost,
+            v: vis("nw_gapcost"),
         };
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: vis("a_star_CSH"),
-        };
-        a_star.align(a, b);
+        nw.align(a, b);
     }
 
     {
-        let h = SH {
-            match_config: MatchConfig {
-                length: Fixed(15),
-                max_match_cost: 0,
-                ..Default::default()
-            },
-            pruning: false,
+        let mut nw = NW {
+            cm: cm.clone(),
+            use_gap_cost_heuristic: false,
+            h: GapCost,
+            v: vis("nw_gapcost_h"),
         };
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: vis("a_star_SH_no_pruning"),
-        };
-        a_star.align(a, b);
+
+        nw.align(a, b);
     }
 
     {
-        let h = SH {
-            match_config: MatchConfig {
-                length: Fixed(15),
-                max_match_cost: 0,
-                ..Default::default()
-            },
-            pruning: true,
+        let mut nw = NW {
+            cm: cm.clone(),
+            use_gap_cost_heuristic: false,
+            h: sh,
+            v: vis("nw_sh"),
         };
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: vis("a_star_SH"),
+
+        nw.align(a, b);
+    }
+
+    {
+        let mut nw = NW {
+            cm: cm.clone(),
+            use_gap_cost_heuristic: false,
+            h: csh,
+            v: vis("nw_csh"),
         };
-        a_star.align(a, b);
+
+        nw.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            false,
+            vis("dt"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            true,
+            vis("dt_dc"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Enable,
+            ZeroCost,
+            false,
+            vis("dt_gapcost"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            GapCost,
+            false,
+            vis("dt_gapcost_h"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            sh,
+            false,
+            vis("dt_sh"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            csh,
+            false,
+            vis("dt_csh"),
+        );
+        dt.align(a, b);
     }
 }

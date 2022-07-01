@@ -1,9 +1,6 @@
 use std::time;
 
-use crate::{
-    prelude::*,
-    visualizer::{Visualizer, VisualizerT},
-};
+use crate::{prelude::*, visualizer::VisualizerT};
 use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -242,7 +239,7 @@ where
                     if DEBUG {
                         stats.explored_states.push(next);
                         stats.expanded_states.push(next);
-                        // v.explore(next);
+                        v.explore(next);
                         v.expand(next);
                         //stats.tree.push((next, edge));
                         //edge = Edge::GreedyMatch
@@ -285,7 +282,7 @@ where
             stats.explored += 1;
             if DEBUG {
                 stats.explored_states.push(next);
-                // v.explore(next);
+                v.explore(next);
                 //stats.tree.push((next, edge));
             }
         });
@@ -309,8 +306,8 @@ where
             stats.tree.push((p, parent::<H>(&states, p, g)));
         }
     }
-    if let Some((number, actual_path)) = path.clone() {
-        v.last_frame(Some(&actual_path));
+    if let Some((_, actual_path)) = path.as_ref() {
+        v.last_frame(Some(actual_path));
     } else {
         v.last_frame(None);
     }
