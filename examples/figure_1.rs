@@ -15,21 +15,65 @@ fn main() {
     let n = 500;
     let e = 0.20;
     let (ref a, ref b) = setup_sequences(n, e);
-    println!("{}\n{}\n", to_string(a), to_string(b));
 
     let cm = LinearCost::new_unit();
     let mut config = visualizer::Config::default();
-    config.draw = Draw::Last;
+    config.draw = Draw::None;
     config.save = Save::Last;
     config.delay = 0.0001;
     config.cell_size = 2;
     config.style.bg_color = Color::RGBA(255, 255, 255, 128);
     config.style.gradient = Gradient::TurboGradient(0.25..0.90);
-    config.draw_old_on_top = true;
-    let mut vis = |name: &str| {
-        config.filepath = "imgs/".to_string() + name;
-        Visualizer::new(config.clone(), a, b)
+    config.style.path_width = None;
+    config.draw_old_on_top = false;
+    let vis = |mut config: visualizer::Config, name: &str| {
+        config.filepath = "imgs/fig1/".to_string() + name;
+        Visualizer::new(config, a, b)
     };
+
+    {
+        config.draw_old_on_top = true;
+        let mut nw = NW {
+            cm: cm.clone(),
+            use_gap_cost_heuristic: true,
+            h: ZeroCost,
+            v: vis(config.clone(), "1_ukkonen"),
+        };
+        nw.align(a, b);
+    }
+
+    {
+        let mut a_star = AStar {
+            diagonal_transition: false,
+            greedy_edge_matching: true,
+            h: ZeroCost,
+            v: vis(config.clone(), "2_dijkstra"),
+        };
+        a_star.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            false,
+            vis(config.clone(), "3_diagonal-transition"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        config.draw_old_on_top = false;
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            true,
+            vis(config.clone(), "4_dt-divide-and-conquer"),
+        );
+        dt.align(a, b);
+    }
 
     {
         let k = 5;
@@ -43,50 +87,8 @@ fn main() {
             diagonal_transition: false,
             greedy_edge_matching: true,
             h,
-            v: vis("a_star_csh"),
+            v: vis(config.clone(), "5_astar-csh-pruning"),
         };
         a_star.align(a, b);
-    }
-
-    {
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h: ZeroCost,
-            v: vis("a_star_zero_cost"),
-        };
-        a_star.align(a, b);
-    }
-
-    {
-        let mut nw = NW {
-            cm: cm.clone(),
-            use_gap_cost_heuristic: true,
-            h: ZeroCost,
-            v: vis("exp_search"),
-        };
-        nw.align(a, b);
-    }
-
-    {
-        let mut dt = DiagonalTransition::new(
-            cm.clone(),
-            GapCostHeuristic::Disable,
-            ZeroCost,
-            false,
-            vis("diagonal_transition"),
-        );
-        dt.align(a, b);
-    }
-
-    {
-        let mut dt = DiagonalTransition::new(
-            cm.clone(),
-            GapCostHeuristic::Disable,
-            ZeroCost,
-            true,
-            vis("diagonal_transition_dc"),
-        );
-        dt.align(a, b);
     }
 }

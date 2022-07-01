@@ -74,7 +74,8 @@ pub struct Style {
     pub gradient: Gradient,
     pub bg_color: Color,
     pub path: Color,
-    pub path_width: usize,
+    /// None to draw cells.
+    pub path_width: Option<usize>,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -141,7 +142,7 @@ impl Default for Config {
                 },
                 bg_color: Color::WHITE,
                 path: Color::BLACK,
-                path_width: 2,
+                path_width: Some(2),
             },
             draw_old_on_top: true,
         }
@@ -406,14 +407,20 @@ impl Visualizer {
 
         // Draw path.
         if let Some(path) = path {
-            for (from, to) in path.iter().tuple_windows() {
-                Self::draw_diag_line(
-                    &mut canvas,
-                    self.cell_center(*from),
-                    self.cell_center(*to),
-                    self.config.style.path,
-                    self.config.style.path_width,
-                );
+            if let Some(path_width) = self.config.style.path_width {
+                for (from, to) in path.iter().tuple_windows() {
+                    Self::draw_diag_line(
+                        &mut canvas,
+                        self.cell_center(*from),
+                        self.cell_center(*to),
+                        self.config.style.path,
+                        path_width,
+                    );
+                }
+            } else {
+                for p in path {
+                    self.draw_pixel(&mut canvas, *p, self.config.style.path)
+                }
             }
         }
 
