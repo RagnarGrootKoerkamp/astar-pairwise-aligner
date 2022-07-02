@@ -24,10 +24,10 @@ fn main() {
     config.cell_size = 4;
     config.style.bg_color = Color::RGBA(255, 255, 255, 128);
     config.style.gradient = Gradient::TurboGradient(0.25..0.90);
-    config.style.path_width = Some(4);
+    config.style.path_width = None;
     config.draw_old_on_top = false;
     let vis = |mut config: visualizer::Config, name: &str| {
-        config.filepath = "imgs/fig1/".to_string() + name;
+        config.filepath = "imgs/fig1-slides/".to_string() + name;
         Visualizer::new(config, a, b)
     };
 
