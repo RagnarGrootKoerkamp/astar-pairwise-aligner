@@ -89,8 +89,8 @@ where
 
         assert!(queue_fr == state.fr);
 
-        // If the heuristic value is outdated, skip the node and re-push it with the updated value.
-        if RETRY_OUDATED_HEURISTIC_VALUE {
+        // Whenever A* pops a position, if the value of h and f is outdated, the point is pushed and not expanded.
+        {
             let (current_h, new_hint) = h.h_with_hint(pos, state.hint);
             state.hint = new_hint;
             let current_f = queue_g + current_h;
