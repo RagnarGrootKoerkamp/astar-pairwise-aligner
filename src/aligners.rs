@@ -96,7 +96,6 @@ pub trait Aligner {
         mut to: Self::State,
         direction: Direction,
     ) -> (Path, Cigar) {
-        println!("Trace {direction:?} from {from:?} to {to:?}");
         let mut path: Path = vec![];
         let mut cigar = Cigar::default();
 
