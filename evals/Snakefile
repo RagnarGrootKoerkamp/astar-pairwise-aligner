@@ -43,14 +43,17 @@ binaries = {
 tool_command = {
     # Versions with manual parameter choosing.
     'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm SH',
-    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_DT',
-    'cp-csh+dt':        binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
+    'cp-sh+dt':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm SH_DT',
+    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
+    'cp-csh+dt':        binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_DT',
     'cp-csh+gap':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_GapCost',
+    'cp-csh+gap+dt':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_GapCost_DT',
     'cp-sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm SH',
     'cp-csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH',
     'cp-csh+gap-noprune':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH_GapCost',
     # choosed k and m values automatically.
     'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm SH',
+    'sh+dt':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm SH_DT',
     'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH',
     'csh+dt':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH_DT',
     'csh+gap':          binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH_GapCost',
@@ -308,7 +311,7 @@ def scaling_e_runs(N):
     es = [0.01] + [x/100 for x in range(2, 40, 2)]
     ms = [0, 1]
     ks = [11]
-    tools = ['cp-sh', 'cp-csh', 'cp-csh+gap']
+    tools = ['cp-sh', 'cp-csh', 'cp-sh+dt', 'cp-csh+dt']
 
     inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
     # Dijkstra is separate because it does not use parameters.
@@ -332,8 +335,8 @@ def scaling_e_runs_small_k(N):
     ns = [10000]
     es = [0.01] + [x/100 for x in range(2, 40, 2)]
     ms = [0, 1]
-    ks = [7]
-    tools = ['cp-sh', 'cp-csh', 'cp-csh+gap']
+    ks = [9]
+    tools = ['cp-sh', 'cp-csh', 'cp-sh+dt', 'cp-csh+dt']
 
     inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
     # Dijkstra is separate because it does not use parameters.
@@ -350,7 +353,7 @@ def scaling_e_runs_small_k(N):
 rule scaling_e_small_k_table:
     input: lambda w: [run.bench_path() for run in scaling_e_runs_small_k(w.N)]
     output: 'table/scaling_e_small_k_N{N}.tsv'
-    run: make_table(scaling_e_runs(wildcards.N), output)
+    run: make_table(scaling_e_runs_small_k(wildcards.N), output)
 
 # === SCALING WITH N ===
 
