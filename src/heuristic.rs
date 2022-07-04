@@ -6,6 +6,7 @@ pub mod max;
 pub mod mirror;
 pub mod perfect;
 pub mod seed;
+pub mod seed_2;
 pub mod symmetric;
 
 pub use bruteforce_csh::*;
