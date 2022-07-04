@@ -44,13 +44,13 @@ pub const DIAGONAL_MAP_OFFSET: bool = false;
 
 /// Whether to use a sliding window approach for finding exact matches for fixed k.
 /// This reduces the size of the hashmap by a factor k.
-pub const SLIDING_WINDOW_MATCHES: bool = true;
+pub const SLIDING_WINDOW_MATCHES: bool = false;
 
 /// Given an exact match, when this is true any other inexact matches ending in the same position are also pruned.
 pub const PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END: bool = false;
 
 /// Whether to prune matches by end, in addition to pruning by start.
-pub const PRUNE_MATCHES_BY_END: bool = true;
+pub const PRUNE_MATCHES_BY_END: bool = false;
 
 /// Whether to prune matches by start.
 pub const PRUNE_MATCHES_BY_START: bool = true;
@@ -61,4 +61,4 @@ pub const CHECK_MATCH_CONSISTENCY: bool = false;
 
 /// When true, inexact matches with an insertion at the start/end are skipped.
 /// TODO: This is not yet in the paper.
-pub const SKIP_INEXACT_INSERT_START_END: bool = true;
+pub const SKIP_INEXACT_INSERT_START_END: bool = false;
