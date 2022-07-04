@@ -90,6 +90,187 @@ mod nw_lib {
     }
 }
 
+mod astar {
+    use std::marker::PhantomData;
+
+    use crate::{
+        aligners::astar::AStar,
+        cost_model::LinearCost,
+        heuristic::{CSH, SH},
+        matches::MatchConfig,
+        prelude::{BruteForceContour, HintContours},
+    };
+
+    use super::*;
+
+    #[test]
+    fn dijkstra() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: ZeroCost,
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+
+    #[test]
+    fn sh_exact_noprune() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: SH {
+                        match_config: MatchConfig::exact(5),
+                        pruning: false,
+                    },
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+
+    #[test]
+    fn sh_exact_prune() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: SH {
+                        match_config: MatchConfig::exact(5),
+                        pruning: true,
+                    },
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+
+    #[test]
+    fn sh_inexact_noprune() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: SH {
+                        match_config: MatchConfig::inexact(9),
+                        pruning: false,
+                    },
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+
+    #[test]
+    fn sh_inexact_prune() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: SH {
+                        match_config: MatchConfig::inexact(9),
+                        pruning: true,
+                    },
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+
+    #[test]
+    fn csh_exact_noprune() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: CSH {
+                        match_config: MatchConfig::exact(5),
+                        pruning: false,
+                        use_gap_cost: false,
+                        c: PhantomData::<HintContours<BruteForceContour>>,
+                    },
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+
+    #[test]
+    fn csh_exact_prune() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: CSH {
+                        match_config: MatchConfig::exact(5),
+                        pruning: true,
+                        use_gap_cost: false,
+                        c: PhantomData::<HintContours<BruteForceContour>>,
+                    },
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+
+    #[test]
+    fn csh_inexact_noprune() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: CSH {
+                        match_config: MatchConfig::inexact(9),
+                        pruning: false,
+                        use_gap_cost: false,
+                        c: PhantomData::<HintContours<BruteForceContour>>,
+                    },
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+
+    #[test]
+    fn csh_inexact_prune() {
+        for diagonal_transition in [false, true] {
+            for greedy_edge_matching in [false, true] {
+                let astar = AStar {
+                    greedy_edge_matching,
+                    diagonal_transition,
+                    h: CSH {
+                        match_config: MatchConfig::inexact(9),
+                        pruning: true,
+                        use_gap_cost: false,
+                        c: PhantomData::<HintContours<BruteForceContour>>,
+                    },
+                    v: NoVisualizer,
+                };
+                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
+            }
+        }
+    }
+}
+
 mod wfa {
     use crate::aligners::wfa::WFA;
 
