@@ -54,7 +54,6 @@ fn never_use_gap_distance() {
 
 /// Zero distance should be consistent.
 #[test]
-#[ignore = "ZeroCost heuristic is not decreasing on diagonals"]
 fn seed_heuristic_zero_dist_consistent() {
     for (k, m) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
