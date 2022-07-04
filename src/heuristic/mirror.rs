@@ -51,8 +51,8 @@ where
         self.h.is_seed_start_or_end(pos.mirror())
     }
 
-    fn prune(&mut self, pos: Pos, hint: Self::Hint, seed_cost: MatchCost) -> Cost {
-        self.h.prune(pos.mirror(), hint, seed_cost)
+    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
+        self.h.prune(pos.mirror(), hint)
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {

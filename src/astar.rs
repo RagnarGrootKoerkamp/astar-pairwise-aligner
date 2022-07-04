@@ -17,7 +17,7 @@ struct State<Hint> {
     /// The field should be removed at some point or only used in debug mode.
     status: Status,
     g: Cost,
-    seed_cost: MatchCost,
+    /// NOTE: `hint` could also be passed via the priority queue.
     hint: Hint,
 }
 
@@ -26,7 +26,6 @@ impl<Hint: Default> Default for State<Hint> {
         Self {
             status: Unvisited,
             g: Cost::MAX,
-            seed_cost: MatchCost::MAX,
             hint: Hint::default(),
         }
     }
@@ -113,7 +112,6 @@ where
             State {
                 status: Explored,
                 g: 0,
-                seed_cost: 0,
                 hint,
             },
         );
@@ -189,7 +187,7 @@ where
 
         // Prune is needed
         if h.is_seed_start_or_end(pos) {
-            let pq_shift = h.prune(pos, state.hint, state.seed_cost);
+            let pq_shift = h.prune(pos, state.hint);
             if REDUCE_RETRIES && pq_shift > 0 {
                 stats.pq_shifts += pq_shift as usize;
                 queue_offset += pq_shift;
@@ -212,14 +210,6 @@ where
         graph.iterate_outgoing_edges(pos, |mut next, edge| {
             // Explore next
             let next_g = state.g + edge.cost() as Cost;
-            // TODO: Move this logic to some function internal to h. Not all
-            // heuristics necessarily have seeds along A.
-            let next_seed_cost = if h.is_seed_start_or_end(pos) && !h.is_seed_start_or_end(next) {
-                0
-            } else {
-                state.seed_cost
-            }
-            .saturating_add(edge.match_cost());
 
             // Do greedy matching within the current seed.
             if graph.greedy_matching {
@@ -263,7 +253,6 @@ where
             if cur_next.status == Unvisited {
                 cur_next.status = Explored;
             }
-            cur_next.seed_cost = min(cur_next.seed_cost, next_seed_cost);
 
             let (next_h, next_hint) = h.h_with_hint(next, state.hint);
             cur_next.hint = next_hint;
