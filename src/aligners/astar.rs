@@ -21,6 +21,16 @@ pub struct AStar<V: VisualizerT, H: Heuristic> {
     pub v: V,
 }
 
+impl<V: VisualizerT, H: Heuristic> std::fmt::Debug for AStar<V, H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AStar")
+            .field("greedy_edge_matching", &self.greedy_edge_matching)
+            .field("diagonal_transition", &self.diagonal_transition)
+            .field("h", &self.h)
+            .finish()
+    }
+}
+
 impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
     type CostModel = LinearCost;
     type Fronts = usize;

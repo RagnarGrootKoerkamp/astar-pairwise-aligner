@@ -67,7 +67,7 @@ impl StateT for () {
 /// - cost, alignment, and a visualization.
 ///
 /// Note that insertions are when `b` has more characters than `a`, and deletions are when `b` has less characters than `a`.
-pub trait Aligner {
+pub trait Aligner: std::fmt::Debug {
     type CostModel: CostModel;
 
     type Fronts;

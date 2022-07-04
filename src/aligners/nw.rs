@@ -29,6 +29,15 @@ pub struct NW<CostModel, V: VisualizerT, H: Heuristic> {
     pub v: V,
 }
 
+impl<CostModel, V: VisualizerT, H: Heuristic> std::fmt::Debug for NW<CostModel, V, H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NW")
+            .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
+            .field("h", &self.h)
+            .finish()
+    }
+}
+
 /// Type used for indexing sequences.
 type Idx = isize;
 

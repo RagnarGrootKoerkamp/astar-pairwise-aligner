@@ -115,6 +115,22 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
     right_buffer: Fr,
 }
 
+impl<CostModel, V: VisualizerT, H: Heuristic> std::fmt::Debug
+    for DiagonalTransition<CostModel, V, H>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DiagonalTransition")
+            .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
+            .field("h", &self.h)
+            .field("dc", &self.dc)
+            .field("history_compression", &self.history_compression)
+            .field("top_buffer", &self.top_buffer)
+            .field("left_buffer", &self.left_buffer)
+            .field("right_buffer", &self.right_buffer)
+            .finish()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct DtState {
     d: Fr,
