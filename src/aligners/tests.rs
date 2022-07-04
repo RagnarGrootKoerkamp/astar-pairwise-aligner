@@ -34,24 +34,17 @@ fn test_aligner_on_cost_model<const N: usize>(
     let mut nw = NW::new(cm.clone(), false);
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
-        println!("\n=============== NEW TEST ========================\n");
-        println!("a {}\nb {}\n", to_string(a), to_string(b));
         let nw_cost = nw.cost(a, b);
-        println!("COST:  {nw_cost}");
-        println!(
-            "CIGAR: {}\n\n==========================================",
-            nw.align(a, b).2.to_string()
-        );
-
         let cost = aligner.cost(a, b);
 
         // Test the cost reported by all aligners.
         assert_eq!(
             nw_cost,
             cost,
-            "{n} {e}\na == {}\nb == {}\n",
+            "{n} {e}\na == {}\nb == {}\nNW cigar: {}\nAligner\n{aligner:?}",
             to_string(&a),
             to_string(&b),
+            nw.align(a, b).2.to_string()
         );
 
         if test_path {
@@ -105,168 +98,150 @@ mod astar {
 
     #[test]
     fn dijkstra() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: ZeroCost,
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: ZeroCost,
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 
     #[test]
     fn sh_exact_noprune() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: SH {
-                        match_config: MatchConfig::exact(5),
-                        pruning: false,
-                    },
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: SH {
+                    match_config: MatchConfig::exact(5),
+                    pruning: false,
+                },
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 
     #[test]
     fn sh_exact_prune() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: SH {
-                        match_config: MatchConfig::exact(5),
-                        pruning: true,
-                    },
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: SH {
+                    match_config: MatchConfig::exact(5),
+                    pruning: true,
+                },
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 
     #[test]
     fn sh_inexact_noprune() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: SH {
-                        match_config: MatchConfig::inexact(9),
-                        pruning: false,
-                    },
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: SH {
+                    match_config: MatchConfig::inexact(9),
+                    pruning: false,
+                },
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 
     #[test]
     fn sh_inexact_prune() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: SH {
-                        match_config: MatchConfig::inexact(9),
-                        pruning: true,
-                    },
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: SH {
+                    match_config: MatchConfig::inexact(9),
+                    pruning: true,
+                },
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 
     #[test]
     fn csh_exact_noprune() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: CSH {
-                        match_config: MatchConfig::exact(5),
-                        pruning: false,
-                        use_gap_cost: false,
-                        c: PhantomData::<HintContours<BruteForceContour>>,
-                    },
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: CSH {
+                    match_config: MatchConfig::exact(5),
+                    pruning: false,
+                    use_gap_cost: false,
+                    c: PhantomData::<HintContours<BruteForceContour>>,
+                },
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 
     #[test]
     fn csh_exact_prune() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: CSH {
-                        match_config: MatchConfig::exact(5),
-                        pruning: true,
-                        use_gap_cost: false,
-                        c: PhantomData::<HintContours<BruteForceContour>>,
-                    },
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: CSH {
+                    match_config: MatchConfig::exact(5),
+                    pruning: true,
+                    use_gap_cost: false,
+                    c: PhantomData::<HintContours<BruteForceContour>>,
+                },
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 
     #[test]
     fn csh_inexact_noprune() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: CSH {
-                        match_config: MatchConfig::inexact(9),
-                        pruning: false,
-                        use_gap_cost: false,
-                        c: PhantomData::<HintContours<BruteForceContour>>,
-                    },
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: CSH {
+                    match_config: MatchConfig::inexact(9),
+                    pruning: false,
+                    use_gap_cost: false,
+                    c: PhantomData::<HintContours<BruteForceContour>>,
+                },
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 
     #[test]
     fn csh_inexact_prune() {
-        for diagonal_transition in [false, true] {
-            for greedy_edge_matching in [false, true] {
-                let astar = AStar {
-                    greedy_edge_matching,
-                    diagonal_transition,
-                    h: CSH {
-                        match_config: MatchConfig::inexact(9),
-                        pruning: true,
-                        use_gap_cost: false,
-                        c: PhantomData::<HintContours<BruteForceContour>>,
-                    },
-                    v: NoVisualizer,
-                };
-                test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
-            }
+        for greedy_edge_matching in [false, true] {
+            let astar = AStar {
+                greedy_edge_matching,
+                diagonal_transition: false,
+                h: CSH {
+                    match_config: MatchConfig::inexact(9),
+                    pruning: true,
+                    use_gap_cost: false,
+                    c: PhantomData::<HintContours<BruteForceContour>>,
+                },
+                v: NoVisualizer,
+            };
+            test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
         }
     }
 }
