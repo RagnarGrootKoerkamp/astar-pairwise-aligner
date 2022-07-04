@@ -327,6 +327,10 @@ fn unordered_matches_hash<'a>(
             return find_matches_qgram_hash_inexact_unordered(a, b, alph, match_config);
         }
     }
+    assert!(
+        max_match_cost == 0,
+        "The code below is broken somehow for inexact matches!"
+    );
 
     // 1. Put all k-mers (and k+-1 mers) of b in a map.
     let mut m = HashMap::<Key, SmallVec<[I; 2]>>::default();
