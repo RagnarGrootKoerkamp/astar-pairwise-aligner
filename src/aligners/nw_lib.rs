@@ -5,6 +5,7 @@ use super::{
 };
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
+#[derive(Debug)]
 pub struct NWLib {
     pub simd: bool,
 }

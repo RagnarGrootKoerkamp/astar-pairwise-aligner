@@ -18,6 +18,12 @@ pub struct WFA<CostModel> {
     pub cm: CostModel,
 }
 
+impl<CostModel> std::fmt::Debug for WFA<CostModel> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WFA").finish()
+    }
+}
+
 fn unit_cost(a: Seq, b: Seq) -> Cost {
     unsafe {
         // Configure alignment attributes
