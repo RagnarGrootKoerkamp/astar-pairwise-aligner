@@ -91,8 +91,9 @@ impl<C> SplitVec<C> {
             self.suffix.extend(self.prefix.drain(index + 1..).rev());
             self.prefix.pop().unwrap()
         } else {
-            self.suffix
-                .remove(self.suffix.len() - 1 - (index - self.prefix.len()))
+            let index = self.suffix.len() - 1 - (index - self.prefix.len());
+            self.prefix.extend(self.suffix.drain(index + 1..).rev());
+            self.suffix.pop().unwrap()
         }
     }
 
