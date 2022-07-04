@@ -432,20 +432,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     /// Update the max_explored_pos, so we know when the priority queue can be shifted after a prune.
     fn explore(&mut self, pos: Pos) {
         let tpos = self.transform(pos);
-        if tpos.0 >= self.max_transformed_pos.0 {
-            if tpos.0 > self.max_transformed_pos.0 {
-                self.max_transformed_pos.0 = tpos.0;
-                //self.max_i_pos.clear();
-            }
-            //self.max_i_pos.push(pos);
-        }
-        if tpos.1 >= self.max_transformed_pos.1 {
-            if tpos.1 > self.max_transformed_pos.1 {
-                self.max_transformed_pos.1 = tpos.1;
-                //self.max_j_pos.clear();
-            }
-            //self.max_j_pos.push(pos);
-        }
+        self.max_transformed_pos.0 = max(self.max_transformed_pos.0, tpos.0);
+        self.max_transformed_pos.1 = max(self.max_transformed_pos.1, tpos.1);
     }
 
     fn stats(&self) -> HeuristicStats {
