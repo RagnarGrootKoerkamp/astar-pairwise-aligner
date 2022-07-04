@@ -136,7 +136,7 @@ where
                 // greedy run started.
                 if h.is_seed_start_or_end(pos) {
                     // Prune
-                    let pq_shift = h.prune(pos, state.hint, u8::MAX);
+                    let pq_shift = h.prune(pos, state.hint);
                     if REDUCE_RETRIES && pq_shift > 0 {
                         stats.pq_shifts += pq_shift as usize;
                         queue_offset += pq_shift;
@@ -165,7 +165,7 @@ where
 
         // Check if prune is needed for the final pos.
         if h.is_seed_start_or_end(pos) {
-            let pq_shift = h.prune(pos, state.hint, u8::MAX);
+            let pq_shift = h.prune(pos, state.hint);
             if REDUCE_RETRIES && pq_shift > 0 {
                 stats.pq_shifts += pq_shift as usize;
                 queue_offset += pq_shift;

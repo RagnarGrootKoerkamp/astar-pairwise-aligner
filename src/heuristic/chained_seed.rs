@@ -288,7 +288,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     /// `seed_cost` can be used to filter out lookups for states that won't have a match ending there.
     /// TODO: Separate into one step removing as many arrows as needed, and a separate step updating the contours.
-    fn prune(&mut self, pos: Pos, hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
+    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
         const D: bool = false;
         if !self.params.pruning {
             return 0;

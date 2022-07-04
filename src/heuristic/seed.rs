@@ -259,7 +259,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     /// FIXME: This code is copied from CSH. Should be extracted into a pruning module.
-    fn prune(&mut self, pos: Pos, hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
+    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
         const D: bool = false;
         if !self.params.pruning {
             return 0;

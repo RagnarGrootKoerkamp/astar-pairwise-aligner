@@ -112,7 +112,7 @@ pub trait HeuristicInstance<'a> {
     /// Returns the offset by which all expanded states in the priority queue can be shifted.
     ///
     /// `seed_cost`: The cost made in the seed ending at pos.
-    fn prune(&mut self, _pos: Pos, _hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
+    fn prune(&mut self, _pos: Pos, _hint: Self::Hint) -> Cost {
         0
     }
 

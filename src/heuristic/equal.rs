@@ -76,9 +76,9 @@ where
         s2
     }
 
-    fn prune(&mut self, pos: Pos, hint: Self::Hint, seed_cost: MatchCost) -> Cost {
-        let _c1 = self.h1.prune(pos, hint.0, seed_cost);
-        let c2 = self.h2.prune(pos, hint.1, seed_cost);
+    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
+        let _c1 = self.h1.prune(pos, hint.0);
+        let c2 = self.h2.prune(pos, hint.1);
         c2
     }
 
