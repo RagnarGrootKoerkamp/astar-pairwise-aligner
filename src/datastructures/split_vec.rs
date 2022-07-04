@@ -80,6 +80,11 @@ impl<C> SplitVec<C> {
         }
     }
 
+    pub fn push(&mut self, value: C) {
+        self.prefix.extend(self.suffix.drain(..).rev());
+        self.prefix.push(value);
+    }
+
     pub fn resize_with<F: FnMut() -> C>(&mut self, new_len: usize, f: F) {
         assert!(self.suffix.is_empty());
         self.prefix.resize_with(new_len, f);
