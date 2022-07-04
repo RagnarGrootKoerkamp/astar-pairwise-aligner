@@ -203,7 +203,6 @@ impl SHI {
                 return 0;
             }
         }
-        // FIXME: Add a while loop here.
         // No seeds of length a.len remain, so we remove the layer.
         let mut removed = 0;
         let mut layer = self.value_with_hint(a.start, hint).0;
