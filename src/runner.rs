@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use contour::central::CentralContour;
-use heuristic::seed_2::SH2;
 use std::{marker::PhantomData, process::exit};
 use structopt::StructOpt;
 use strum_macros::EnumString;
@@ -50,13 +49,11 @@ pub enum Algorithm {
     // SeedHeuristic
     #[default]
     SH,
-    SH2,
     // Heuristic variants based with Diagonal Transition
     Dijkstra_DT,
     CSH_DT,
     CSH_GapCost_DT,
     SH_DT,
-    SH2_DT,
 }
 
 impl Algorithm {
@@ -66,7 +63,6 @@ impl Algorithm {
             | Algorithm::CSH_DT
             | Algorithm::CSH_GapCost_DT
             | Algorithm::SH_DT => true,
-            Algorithm::SH2_DT => true,
             _ => false,
         }
     }
@@ -141,10 +137,7 @@ impl Params {
         let n = b.len();
 
         // For SH and CSH, use a fixed mapping:
-        if self.algorithm == Algorithm::SH
-            || self.algorithm == Algorithm::CSH
-            || self.algorithm == Algorithm::SH2
-        {
+        if self.algorithm == Algorithm::SH || self.algorithm == Algorithm::CSH {
             // V1
             if false {
                 return match self.error_rate.unwrap() {
@@ -353,30 +346,6 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
         }
         Algorithm::SH | Algorithm::SH_DT => {
             let heuristic = SH {
-                match_config: match_config(params, a, b, false),
-                pruning: !params.no_prune,
-            };
-
-            let alphabet = Alphabet::new(b"ACTG");
-            let sequence_stats = SequenceStats {
-                len_a: a.len(),
-                len_b: b.len(),
-                error_rate: 0.,
-                source: Source::Extern,
-            };
-
-            align_advanced(
-                a,
-                b,
-                &alphabet,
-                sequence_stats,
-                heuristic,
-                !params.no_greedy_matching,
-                params.algorithm.diagonal_transition(),
-            )
-        }
-        Algorithm::SH2 | Algorithm::SH2_DT => {
-            let heuristic = SH2 {
                 match_config: match_config(params, a, b, false),
                 pruning: !params.no_prune,
             };

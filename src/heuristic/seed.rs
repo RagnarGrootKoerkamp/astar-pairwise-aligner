@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 
+use itertools::Itertools;
+
 use crate::prelude::*;
 
 #[derive(Debug, Copy, Clone)]
@@ -35,10 +37,25 @@ impl Heuristic for SH {
 pub struct SHI {
     params: SH,
     _target: Pos,
-    seeds: SeedMatches,
-    /// Starts of the remaining matches, in reverse order.
-    /// Pruning will happen mostly from back to the front.
-    remaining_matches: SplitVec<I>,
+    matches: SeedMatches,
+
+    // TODO: Do not use vectors inside a hashmap.
+    // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
+    arrows: HashMap<Pos, Vec<Arrow>>,
+
+    /// [l][seed_idx] = number of arrows for the seed with given `seed_idx` length `l`.
+    num_arrows_per_length: Vec<Vec<usize>>,
+
+    /// For each score `s`, this is the largest index `i` where total score `s` is still available.
+    /// layer_start[0] = n
+    /// layer_start[1] = start of first seed with a match
+    /// ...
+    /// Values in this vector are decreasing, and the layer of position i is the
+    /// largest index that has a value at least i.
+    layer_starts: SplitVec<I>,
+
+    /// The maximum position explored so far.
+    max_explored_pos: Pos,
 
     // TODO: Put statistics into a separate struct.
     num_pruned: usize,
@@ -48,99 +65,160 @@ type Hint = Cost;
 
 impl SHI {
     fn new(a: Seq, b: Seq, alph: &Alphabet, params: SH) -> Self {
-        let seeds = unordered_matches(a, b, alph, params.match_config);
-        // Contains start of all matches.
-        // TODO: Make this contain positions instead of only i coordinate.
-        let mut remaining_matches = SplitVec::default();
-        {
-            let mut seeds_with_matches = seeds
-                .seeds
-                .iter()
-                .rev()
-                .filter(|seed| seed.seed_cost < seed.seed_potential);
-            let num_seeds_with_matches = seeds_with_matches.clone().count();
-            remaining_matches.resize_with(1, || I::MAX);
-            // TODO: Add sentinel value at the start.
-            remaining_matches.resize_with(num_seeds_with_matches + 1, || {
-                seeds_with_matches.next().unwrap().start
-            });
+        // First find all matches.
+        let matches = find_matches(a, b, alph, params.match_config, false);
+
+        // Initialize layers.
+        let mut layer_starts = SplitVec::default();
+        // Layer 0 starts at the end of A.
+        layer_starts.push(a.len() as I);
+        for seed in matches.seeds.iter().rev() {
+            let weight = seed.seed_potential - seed.seed_cost;
+            for _ in 0..weight {
+                layer_starts.push(seed.start);
+            }
+        }
+
+        // Transform to Arrows.
+        // For arrows with length > 1, also make arrows for length down to 1.
+        let match_to_arrow = |m: &Match| Arrow {
+            start: m.start,
+            end: m.end,
+            len: m.seed_potential - m.match_cost,
+        };
+
+        let arrows: HashMap<Pos, Vec<Arrow>> = matches
+            .matches
+            .iter()
+            .map(match_to_arrow)
+            .group_by(|a| a.start)
+            .into_iter()
+            .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
+            .collect();
+
+        // Count number of matches per seed of each length.
+        // The max length is r=1+max_match_cost.
+        let mut num_arrows_per_length =
+            vec![vec![0; matches.seeds.len()]; params.match_config.max_match_cost as usize + 2];
+
+        for (start, arrows) in &arrows {
+            for a in arrows {
+                assert!(0 < a.len && a.len <= params.match_config.max_match_cost + 1);
+                num_arrows_per_length[a.len as usize]
+                    [matches.seed_at[start.0 as usize].unwrap() as usize] += 1;
+            }
         }
 
         if print() {
-            println!("{:?}\n{remaining_matches:?}", seeds.seeds);
+            println!("Starts: {layer_starts:?}");
         }
 
         let h = SHI {
             params,
             _target: Pos::from_lengths(a, b),
-            seeds,
-            remaining_matches,
+            matches,
+            arrows,
+            num_arrows_per_length,
+            layer_starts,
+            max_explored_pos: Pos(0, 0),
             num_pruned: 0,
         };
         h
     }
 
-    /// The number of matches starting at or after q.
-    fn value(&self, q: Pos) -> Cost {
-        (self
-            .remaining_matches
+    /// The layer of position i is the largest index that has a value at least i.
+    fn value(&self, Pos(i, _): Pos) -> Cost {
+        // FIXME: Make sure this is still up-to-date!
+        self.layer_starts
             .binary_search_by(|start| {
-                if *start >= q.0 {
+                if *start >= i {
                     Ordering::Less
                 } else {
                     Ordering::Greater
                 }
             })
             .unwrap_err() as Cost
-            - 1)
-            * (self.params.match_config.max_match_cost as Cost + 1)
+            - 1
     }
 
-    /// Hint is the index from the end in self.remaining_matches.
-    fn value_with_hint(&self, pos: Pos, hint: Hint) -> (Cost, Hint) {
-        let v = (self.remaining_matches.len() as Cost).saturating_sub(max(hint, 1));
+    /// Hint is the total weight _before_ the position, since this will change
+    /// less than the weight _after_ the position.
+    fn value_with_hint(&self, pos: Pos, layers_before: Hint) -> (Cost, Hint) {
+        let hint_layer = (self.layer_starts.len() as Cost).saturating_sub(max(layers_before, 1));
 
         const SEARCH_RANGE: Cost = 8;
 
         // Do a linear search for some steps, starting at contour v.
-        let w = 'outer: {
-            if self.remaining_matches[v as usize] >= pos.0 {
+        let layer = 'outer: {
+            if self.layer_starts[hint_layer as usize] >= pos.0 {
                 // Go up.
-                for v in v + 1..min(v + 1 + SEARCH_RANGE, self.remaining_matches.len() as Cost) {
-                    if self.remaining_matches[v as usize] < pos.0 {
-                        break 'outer v - 1;
+                for layer in hint_layer + 1
+                    ..min(
+                        hint_layer + 1 + SEARCH_RANGE,
+                        self.layer_starts.len() as Cost,
+                    )
+                {
+                    if self.layer_starts[layer as usize] < pos.0 {
+                        break 'outer layer - 1;
                     }
                 }
             } else {
                 // Go down.
-                for v in (v.saturating_sub(SEARCH_RANGE)..v).rev() {
-                    if self.remaining_matches[v as usize] >= pos.0 {
-                        break 'outer v;
+                for layer in (hint_layer.saturating_sub(SEARCH_RANGE)..hint_layer).rev() {
+                    if self.layer_starts[layer as usize] >= pos.0 {
+                        break 'outer layer;
                     }
                 }
             }
 
             // Fall back to binary search if not found close to the hint.
-            self.remaining_matches
-                .binary_search_by(|start| {
-                    if *start >= pos.0 {
-                        Ordering::Less
-                    } else {
-                        Ordering::Greater
-                    }
-                })
-                .unwrap_err() as Cost
-                - 1
+            self.value(pos)
         };
-        //println!("{pos} : {v}, {w}, {:?}", self.remaining_matches);
-        assert!(pos.0 <= self.remaining_matches[w as usize]);
-        if w as usize + 1 < self.remaining_matches.len() {
-            assert!(pos.0 > self.remaining_matches[w as usize + 1]);
+        assert!(pos.0 <= self.layer_starts[layer as usize]);
+        if layer as usize + 1 < self.layer_starts.len() {
+            assert!(pos.0 > self.layer_starts[layer as usize + 1]);
         }
-        (
-            w * (self.params.match_config.max_match_cost as Cost + 1),
-            self.remaining_matches.len() as Cost - w,
-        )
+        let hint = self.layer_starts.len() as Cost - layer;
+        (layer, hint)
+    }
+
+    /// When pruning a match/arrow:
+    /// 1. Lower the corresponding count.
+    /// 2. If the count for the current length and all larger lengths are 0:
+    /// 3. Remove as many layers as possible.
+    ///
+    /// This takes the arrow by value, to ensure it is removed from the hashmap before passing it here.
+    ///
+    /// Returns the number of layers removed.
+    fn update_layers_on_pruning_arrow(&mut self, a: Arrow, hint: Hint) -> Cost {
+        let seed_idx = self.matches.seed_at[a.start.0 as usize].unwrap() as usize;
+        self.num_arrows_per_length[a.len as usize][seed_idx] -= 1;
+        if self.num_arrows_per_length[a.len as usize][seed_idx] != 0 {
+            // Remaining matches; nothing to prune.
+            return 0;
+        }
+        // Make sure all larger lengths are also 0.
+        for l in a.len as usize + 1..self.num_arrows_per_length.len() {
+            if self.num_arrows_per_length[l][seed_idx] > 0 {
+                return 0;
+            }
+        }
+        // FIXME: Add a while loop here.
+        // No seeds of length a.len remain, so we remove the layer.
+        let mut removed = 0;
+        let mut layer = self.value_with_hint(a.start, hint).0;
+        // NOTE: we don't actually have arrows of length 0.
+        for l in (1..=a.len).rev() {
+            if self.num_arrows_per_length[l as usize][seed_idx] > 0 {
+                break;
+            }
+            assert_eq!(self.layer_starts[layer as usize], a.start.0);
+            self.layer_starts.remove(layer as usize);
+            removed += 1;
+            layer -= 1;
+        }
+
+        removed
     }
 }
 
@@ -149,7 +227,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     type Hint = Hint;
 
     fn h(&self, pos: Pos) -> Cost {
-        let p = self.seeds.potential(pos);
+        let p = self.matches.potential(pos);
         let m = self.value(pos);
         p - m
     }
@@ -163,7 +241,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
-        let p = self.seeds.potential(pos);
+        let p = self.matches.potential(pos);
         let (m, h) = self.value_with_hint(pos, hint);
         (p - m, h)
     }
@@ -173,80 +251,172 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn root_potential(&self) -> Cost {
-        self.seeds.potential[0]
+        self.matches.potential[0]
     }
 
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.seeds.is_seed_start_or_end(pos)
+        self.matches.is_seed_start_or_end(pos)
     }
 
-    /// Prune the match ending in `pos`.
-    /// TODO: Remove `seed_cost`, and prune matches starting in `pos` again.
-    fn prune(&mut self, pos: Pos, hint: Self::Hint, seed_cost: MatchCost) -> Cost {
+    /// FIXME: This code is copied from CSH. Should be extracted into a pruning module.
+    fn prune(&mut self, pos: Pos, hint: Self::Hint, _seed_cost: MatchCost) -> Cost {
+        const D: bool = false;
         if !self.params.pruning {
             return 0;
         }
-        if pos.0 == 0 {
-            return 0;
+
+        // Maximum length arrow at given pos.
+        let max_match_cost = self.params.match_config.max_match_cost;
+
+        // Prune any matches ending here.
+        let mut change = 0;
+        if PRUNE_MATCHES_BY_END {
+            'prune_by_end: {
+                // Check all possible start positions of a match ending here.
+                if let Some(s) = self.matches.seed_ending_at(pos) {
+                    assert_eq!(pos.0, s.end);
+                    if s.start + pos.1 < pos.0 {
+                        break 'prune_by_end;
+                    }
+                    let match_start = Pos(s.start, s.start + pos.1 - pos.0);
+                    let mut try_prune_pos = |startpos: Pos| {
+                        let Some(mut matches) = self.arrows.get_mut(&startpos).map(std::mem::take) else { return; };
+                        // Filter arrows starting in the current position.
+                        let mut delta = false;
+                        for a in matches.drain_filter(|a| a.end == pos) {
+                            self.update_layers_on_pruning_arrow(a, hint);
+                            delta = true;
+                        }
+                        if !delta {
+                            *self.arrows.get_mut(&startpos).unwrap() = matches;
+                            return;
+                        }
+                        self.num_pruned += 1;
+                        if matches.is_empty() {
+                            self.arrows.remove(&startpos).unwrap();
+                        } else {
+                            *self.arrows.get_mut(&startpos).unwrap() = matches;
+                        }
+                    };
+                    // First try pruning neighbouring start states, and prune the diagonal start state last.
+                    for d in 1..=max_match_cost {
+                        if d as Cost <= match_start.1 {
+                            try_prune_pos(Pos(match_start.0, match_start.1 - d as I));
+                        }
+                        try_prune_pos(Pos(match_start.0, match_start.1 + d as I));
+                    }
+                    try_prune_pos(match_start);
+                }
+            }
         }
-        if seed_cost > self.params.match_config.max_match_cost {
-            // The path through this seed is too expensive for there to be a match here.
-            //println!("Skip {pos} / {seed_cost}");
-            return 0;
-        }
-        // If there is no seed ending here, there is nothing to prune.
-        // This can happen if a seed is not present because it matches multiple time.
-        let s = if let Some(s) = self.seeds.seed_ending_at(pos) {
-            s
+        let a = if let Some(matches) = self.arrows.get(&pos) {
+            matches.iter().max_by_key(|a| a.len).unwrap().clone()
         } else {
-            return 0;
+            return if pos >= self.max_explored_pos {
+                change
+            } else {
+                0
+            };
         };
-        assert!(
-            s.seed_cost < s.seed_potential,
-            "{pos} Seed {s:?} has too large cost"
-        );
 
-        //println!("Prune {pos} / {seed_cost}");
-        // +1 because pos is at the end of the match.
-        let idx = self.remaining_matches.len() - self.value_with_hint(pos, hint).1 as usize + 1;
-        // println!(
-        //     "{pos} v {v}   values {:?} {:?} {:?}",
-        //     self.remaining_matches.get(v.saturating_sub(1) as usize),
-        //     self.remaining_matches.get(v as usize),
-        //     self.remaining_matches.get(v as usize + 1)
-        // );
-        // println!("V: {v}");
-        // println!("seed: {:?}", self.seeds.seed_ending_at(pos));
-        // println!("seed: {:?}", self.seeds.seed_at(pos));
-        // Check that we found the correct match, starting k before the current pos.
-        if !self
-            .remaining_matches
-            .get(idx)
-            .map_or(false, |&x| x == s.start)
-        {
-            // Match was already pruned, since it's not in remaining matches anymore.
-            // This happens when greedy matching tries to prune multiple times.
+        // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
+        // TODO: Make this smarter and allow pruning long arrows even when pruning short arrows is not possible.
+        // The minimum length required for consistency here.
+        let mut min_len = 0;
+        if CHECK_MATCH_CONSISTENCY {
+            for d in 1..=self.params.match_config.max_match_cost {
+                let mut check = |pos: Pos| {
+                    if let Some(pos_arrows) = self.arrows.get(&pos) {
+                        min_len = max(min_len, pos_arrows.iter().map(|a| a.len).max().unwrap() - d);
+                    }
+                };
+                if pos.0 >= d as Cost {
+                    check(Pos(pos.0, pos.1 - d as I));
+                }
+                check(Pos(pos.0, pos.1 + d as I));
+            }
+        }
+
+        if a.len <= min_len {
             return 0;
         }
-        // Remove the match.
-        self.remaining_matches.remove(idx);
-        self.num_pruned += 1;
 
-        // TODO: Add Shifting.
-        0
+        if D || print() {
+            println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
+        }
+
+        // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
+        // TODO: Make this more precise for larger inexact matches.
+        if PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END
+            && a.len == self.params.match_config.max_match_cost + 1
+        {
+            // See if there are neighbouring points that can now be fully pruned.
+            for d in 1..=self.params.match_config.max_match_cost {
+                let mut check = |pos: Pos| {
+                    if let Some(arrows) = self.arrows.get(&pos) {
+                        if arrows.iter().all(|a2| a2.end == a.end) {
+                            self.num_pruned += 1;
+                            for a in self.arrows.remove(&pos).unwrap() {
+                                // TODO: Increment change here?
+                                self.update_layers_on_pruning_arrow(a, hint);
+                            }
+                        }
+                    } else {
+                        if CHECK_MATCH_CONSISTENCY {
+                            println!("Did not find nb arrow at {pos} while pruning {a}");
+                            panic!("Arrows are not consistent!");
+                        }
+                    }
+                };
+                if pos.1 >= d as Cost {
+                    check(Pos(pos.0, pos.1 - d as I));
+                }
+                check(Pos(pos.0, pos.1 + d as I));
+            }
+        }
+
+        if PRUNE_MATCHES_BY_START {
+            if min_len == 0 {
+                for a in self.arrows.remove(&pos).unwrap() {
+                    change += self.update_layers_on_pruning_arrow(a, hint);
+                }
+            } else {
+                // If we only remove a subset of arrows, do no actual pruning.
+                // TODO: Also update contours on partial pruning.
+                let mut arrows = std::mem::take(self.arrows.get_mut(&pos).unwrap());
+                assert!(arrows.len() > 0);
+                if D {
+                    println!("Remove arrows of length > {min_len} at pos {pos}.");
+                }
+                for a in arrows.drain_filter(|a| a.len > min_len) {
+                    change += self.update_layers_on_pruning_arrow(a, hint);
+                }
+                *self.arrows.get_mut(&pos).unwrap() = arrows;
+            };
+        }
+
+        self.num_pruned += 1;
+        return if pos >= self.max_explored_pos {
+            change
+        } else {
+            0
+        };
     }
 
-    fn explore(&mut self, _pos: Pos) {}
+    fn explore(&mut self, pos: Pos) {
+        self.max_explored_pos.0 = max(self.max_explored_pos.0, pos.0);
+        self.max_explored_pos.1 = max(self.max_explored_pos.1, pos.1);
+    }
 
     fn stats(&self) -> HeuristicStats {
         let num_matches = self
-            .seeds
+            .matches
             .seeds
             .iter()
             .filter(|seed| seed.seed_cost < seed.seed_potential)
             .count();
         HeuristicStats {
-            num_seeds: self.seeds.seeds.len() as I,
+            num_seeds: self.matches.seeds.len() as I,
             num_matches,
             num_filtered_matches: num_matches,
             matches: Default::default(),
@@ -256,29 +426,11 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn matches(&self) -> Option<Vec<Match>> {
-        Some(
-            self.seeds
-                .matches
-                .iter()
-                .map(|m: &Match| {
-                    let mut m = m.clone();
-                    m.pruned = if self
-                        .remaining_matches
-                        .into_iter()
-                        .any(|r_m| m.start.0 == *r_m)
-                    {
-                        MatchStatus::Active
-                    } else {
-                        MatchStatus::Pruned
-                    };
-                    m
-                })
-                .collect(),
-        )
+        Some(self.matches.matches.clone())
     }
 
     fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.seeds.seeds)
+        Some(&self.matches.seeds)
     }
 
     fn params_string(&self) -> String {
