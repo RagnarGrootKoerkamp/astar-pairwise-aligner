@@ -70,6 +70,8 @@ impl SH2I {
 
         // Initialize layers.
         let mut layer_starts = SplitVec::default();
+        // Layer 0 starts at the end of A.
+        layer_starts.push(a.len() as I);
         for seed in matches.seeds.iter().rev() {
             let weight = seed.seed_potential - seed.seed_cost;
             for _ in 0..weight {
@@ -94,13 +96,14 @@ impl SH2I {
             .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
             .collect();
 
-        // Count number of matches per seed of each cost.
+        // Count number of matches per seed of each length.
+        // The max length is r=1+max_match_cost.
         let mut num_arrows_per_length =
-            vec![vec![0; matches.seeds.len()]; params.match_config.max_match_cost as usize + 1];
+            vec![vec![0; matches.seeds.len()]; params.match_config.max_match_cost as usize + 2];
 
         for (start, arrows) in &arrows {
             for a in arrows {
-                assert!(a.len > 0);
+                assert!(0 < a.len && a.len <= params.match_config.max_match_cost + 1);
                 num_arrows_per_length[a.len as usize]
                     [matches.seed_at[start.0 as usize].unwrap() as usize] += 1;
             }
@@ -204,7 +207,8 @@ impl SH2I {
         // No seeds of length a.len remain, so we remove the layer.
         let mut removed = 0;
         let mut layer = self.value_with_hint(a.start, hint).0;
-        for l in (0..=a.len).rev() {
+        // NOTE: we don't actually have arrows of length 0.
+        for l in (1..=a.len).rev() {
             if self.num_arrows_per_length[l as usize][seed_idx] > 0 {
                 break;
             }
@@ -276,20 +280,23 @@ impl<'a> HeuristicInstance<'a> for SH2I {
                     }
                     let match_start = Pos(s.start, s.start + pos.1 - pos.0);
                     let mut try_prune_pos = |startpos: Pos| {
-                        let Some(matches) = self.arrows.get_mut(&startpos) else { return; };
+                        let Some(mut matches) = self.arrows.get_mut(&startpos).map(std::mem::take) else { return; };
                         // Filter arrows starting in the current position.
-                        if matches
-                            .drain_filter(|a| a.end == pos)
-                            .map(|_| todo!("PRUNE GIVEN MATCH"))
-                            .count()
-                            == 0
-                        {
+                        let mut delta = false;
+                        for a in matches.drain_filter(|a| a.end == pos) {
+                            self.update_layers_on_pruning_arrow(a, hint);
+                            delta = true;
+                        }
+                        if !delta {
+                            *self.arrows.get_mut(&startpos).unwrap() = matches;
                             return;
                         }
+                        self.num_pruned += 1;
                         if matches.is_empty() {
                             self.arrows.remove(&startpos).unwrap();
+                        } else {
+                            *self.arrows.get_mut(&startpos).unwrap() = matches;
                         }
-                        self.num_pruned += 1;
                     };
                     // First try pruning neighbouring start states, and prune the diagonal start state last.
                     for d in 1..=max_match_cost {
