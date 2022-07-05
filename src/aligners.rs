@@ -10,6 +10,7 @@ pub mod diagonal_transition;
 pub mod front;
 pub mod nw;
 pub mod nw_lib;
+#[cfg(feature = "wfa")]
 pub mod wfa;
 
 pub mod edit_graph;
