@@ -1,5 +1,5 @@
 all: fig1
-export: fig1-export
+export: fig1-export scaling-export
 
 fig1:
 	cargo run --example fig1
@@ -9,3 +9,6 @@ fig1:
 fig1-export: fig1
 	rm -rf ../pairwise-aligner-paper/imgs/fig1
 	cp -r imgs/fig1/*.png ../pairwise-aligner-paper/imgs
+
+scaling-export:
+	cp evals/imgs/tools_*.pdf evals/imgs/scaling_e*.pdf ../pairwise-aligner-paper/imgs/scaling/
