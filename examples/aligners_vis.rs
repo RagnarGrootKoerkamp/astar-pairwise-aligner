@@ -1,3 +1,4 @@
+#![cfg(feature = "sdl2")]
 use pairwise_aligner::{
     aligners::{
         diagonal_transition::{DiagonalTransition, GapCostHeuristic},

@@ -1,3 +1,4 @@
+#![cfg(feature = "sdl2")]
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 use pairwise_aligner::{
     aligners::{

@@ -3,6 +3,7 @@ use crate::{
     prelude::{Pos, Seq},
 };
 use itertools::Itertools;
+#[cfg(feature = "sdl2")]
 use sdl2::{
     event::Event,
     keyboard::Keycode,
@@ -160,6 +161,10 @@ pub struct Visualizer {
     file_number: usize,
 }
 
+#[cfg(not(feature = "sdl2"))]
+impl Visualizer {}
+
+#[cfg(feature = "sdl2")]
 impl Visualizer {
     pub fn new(config: Config, a: Seq, b: Seq) -> Self {
         let sdl_context = sdl2::init().unwrap();
@@ -501,6 +506,14 @@ impl Visualizer {
     }
 }
 
+#[cfg(not(feature = "sdl2"))]
+impl VisualizerT for Visualizer {
+    fn expand(&mut self, pos: Pos) {}
+    fn explore(&mut self, pos: Pos) {}
+    fn last_frame(&mut self, path: Option<&Path>) {}
+}
+
+#[cfg(feature = "sdl2")]
 impl VisualizerT for Visualizer {
     fn expand(&mut self, pos: Pos) {
         self.expanded.push(pos);

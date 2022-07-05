@@ -1,3 +1,4 @@
+#![cfg(feature = "sdl2")]
 use pairwise_aligner::prelude::*;
 
 fn main() {
