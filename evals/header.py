@@ -54,6 +54,7 @@ def algo2color(algo):
         'biwfa': '#625AFF',
         
         'csh+gap': 'black',
+        'csh+dt': 'blue',
         
         #'astarix-prefix': '#FF6D29',
         #'astar-prefix': '#FF6D29',
@@ -78,6 +79,7 @@ def algo2beautiful(algo):
         'csh+gap-noprune': 'CSH (no prune)',
         'csh+gap': 'A*PA',
         'cp-csh+gap': 'A*PA-cherrypick',
+        'cp-csh+dt': 'CSH (DT)',
         'sh': 'SH',
         'csh': 'CSH',
         'cp-sh': 'SH',
