@@ -29,7 +29,7 @@ See [[todo.org]] for our internal list of things to do and things done, and some
 
 * Links
 
-Blog: [[research.curiouscoding.nl]]
+Blog: [[https://research.curiouscoding.nl]]
 
 Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]], 
 
