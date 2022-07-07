@@ -25,7 +25,13 @@ If you would like to try out A*PA, please make an issue here as soon as you run 
 
 * TODOs
 
-See [[todo.org]]
+See [[todo.org]] for our internal list of things to do and things done, and some more observations.
+
+* Links
+
+Blog: [[research.curiouscoding.nl]]
+
+Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]], 
 
 * LICENCE
 MPL-2.0
