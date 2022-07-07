@@ -10,7 +10,7 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
 * Current state
 
 Currently we're in the process of adding visualizations and linking to external (WFA, Edlib) libraries.
-We will put them behind feature flags soon, so that compiling just those repository works again.
+We will put them behind feature flags soon, so that compiling just this repository works again.
 
 If you would like to try out A*PA, please make an issue here as soon as you run into any kind of problems or unclarity
 -- writing documentation is pending, but we're happy to help you out.
