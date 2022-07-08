@@ -25,6 +25,8 @@ pub trait VisualizerT {
     fn explore(&mut self, _pos: Pos) {}
     fn expand(&mut self, _pos: Pos) {}
 
+    fn new_layer(&mut self) {} // This function should be called after completing each layer
+
     //This function may be called after the main loop to display final image.
     fn last_frame(&mut self, _path: Option<&Path>) {}
 }
@@ -124,6 +126,7 @@ pub struct Config {
     pub save: Save,
     pub style: Style,
     pub draw_old_on_top: bool,
+    pub layer_drawing: bool,
 }
 
 impl Default for Config {
@@ -146,6 +149,7 @@ impl Default for Config {
                 path_width: Some(2),
             },
             draw_old_on_top: true,
+            layer_drawing: false,
         }
     }
 }
@@ -159,6 +163,8 @@ pub struct Visualizer {
     width: u32,
     height: u32,
     file_number: usize,
+    layer: Option<usize>,
+    expanded_layers: Vec<usize>,
 }
 
 #[cfg(not(feature = "sdl2"))]
@@ -203,6 +209,8 @@ impl Visualizer {
             width: a.len() as u32 + 1,
             height: b.len() as u32 + 1,
             file_number: 0,
+            layer: if config.layer_drawing { Some(0) } else { None },
+            expanded_layers: vec![],
         }
     }
 
@@ -377,15 +385,28 @@ impl Visualizer {
                     self.draw_pixel(&mut canvas, *pos, color);
                 }
             }
+            let mut current_layer = if let Some(layer) = self.layer {
+                layer
+            } else {
+                0
+            };
             for (i, pos) in self.expanded.iter().enumerate().rev() {
                 self.draw_pixel(
                     &mut canvas,
                     *pos,
-                    self.config
-                        .style
-                        .gradient
-                        .expand(i as f32 / self.expanded.len() as f32),
-                );
+                    self.config.style.gradient.expand(
+                        if let Some(layer) = self.layer && layer != 0 {
+                            if current_layer > 0
+                                && i < self.expanded_layers[current_layer - 1]
+                            {
+                                current_layer -= 1;
+                            }
+                            current_layer as f32 / layer as f32
+                        } else {
+                                 i as f32 / self.expanded.len() as f32
+                        },
+                        ),
+                    );
             }
         } else {
             for (i, pos) in self.explored.iter().enumerate() {
@@ -398,14 +419,21 @@ impl Visualizer {
                     self.draw_pixel(&mut canvas, *pos, color);
                 }
             }
+            let mut current_layer = 0;
             for (i, pos) in self.expanded.iter().enumerate() {
                 self.draw_pixel(
                     &mut canvas,
                     *pos,
-                    self.config
-                        .style
-                        .gradient
-                        .expand(i as f32 / self.expanded.len() as f32),
+                    self.config.style.gradient.expand(
+                        if let Some(layer) = self.layer && layer != 0 {
+                            if current_layer < layer && i >= self.expanded_layers[current_layer] {
+                                current_layer += 1;
+                            }
+                            current_layer as f32 / layer as f32
+                        } else {
+                                 i as f32 / self.expanded.len() as f32
+                        },
+                        ),
                 );
             }
         }
@@ -510,6 +538,7 @@ impl Visualizer {
 impl VisualizerT for Visualizer {
     fn expand(&mut self, pos: Pos) {}
     fn explore(&mut self, pos: Pos) {}
+    fn new_layer(&mut self) {}
     fn last_frame(&mut self, path: Option<&Path>) {}
 }
 
@@ -523,6 +552,13 @@ impl VisualizerT for Visualizer {
     fn explore(&mut self, pos: Pos) {
         self.explored.push(pos);
         self.draw(false, None);
+    }
+
+    fn new_layer(&mut self) {
+        if let Some(layer) = self.layer {
+            self.layer = Some(layer + 1);
+            self.expanded_layers.push(self.expanded.len());
+        }
     }
 
     fn last_frame(&mut self, path: Option<&Path>) {
