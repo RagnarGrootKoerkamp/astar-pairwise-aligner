@@ -608,6 +608,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         }
 
         // Extend all points in the m layer and check if we're done.
+        self.v.new_layer();
         self.extend(get_front(fronts, 0), a, b, offset, direction)
     }
 
