@@ -24,7 +24,7 @@
 use super::cigar::Cigar;
 use super::edit_graph::{CigarOps, EditGraph, Layer};
 use super::{exponential_search, Aligner, Path, Seq, StateT};
-use crate::aligners::cigar::CigarOp;
+use crate::aligners::cigar::{append_paths, CigarOp};
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance};
 use crate::prelude::{to_string, Pos};
@@ -620,7 +620,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         offset: Pos,
         layer: Layer,
         direction: Direction,
-    ) -> Option<Fronts<N>> {
+    ) -> Result<Fronts<N>, (Cost, Path, Cigar)> {
         let mut fronts = Fronts::new(
             Fr::MIN,
             // We only create a front for the s=0 layer.
@@ -637,9 +637,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         fronts[0].layer_mut(layer)[0] = 0;
 
         if self.next_front(a, b, &mut fronts.fronts, offset, layer, direction) {
-            None
+            let mut cigar = Cigar::default();
+            cigar.match_push(a.len());
+            Err((0, cigar.to_path(), cigar))
         } else {
-            Some(fronts)
+            Ok(fronts)
         }
     }
 
@@ -761,13 +763,17 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             b.len()
         );
         println!("Init forward {start_layer:?}");
-        let Some(mut forward_fronts) = self.init_fronts(a, b, offset, start_layer, Direction::Forward) else {
-            return (0, vec![], Cigar::default());
-        };
+        let mut forward_fronts =
+            match self.init_fronts(a, b, offset, start_layer, Direction::Forward) {
+                Ok(fronts) => fronts,
+                Err(r) => return r,
+            };
         println!("Init backward {end_layer:?}");
-        let Some(mut backward_fronts) = self.init_fronts(a, b, offset, end_layer, Direction::Backward) else {
-            return (0, vec![], Cigar::default());
-        };
+        let mut backward_fronts =
+            match self.init_fronts(a, b, offset, end_layer, Direction::Backward) {
+                Ok(fronts) => fronts,
+                Err(r) => return r,
+            };
 
         assert!(H::IS_DEFAULT);
         let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
@@ -909,6 +915,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 *p = offset + Pos::from_lengths(a, b) - *p;
             }
             path.reverse();
+            for p in &mut path {
+                *p = Pos::from_lengths(a, b) - fw.pos() - *p;
+            }
             cigar.reverse();
             (bw.s, path, cigar)
         } else {
@@ -936,10 +945,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
         // Join
         left.0 += right.0;
-        if left.1.last() == right.1.first() {
-            left.1.pop().unwrap();
-        }
-        left.1.append(&mut right.1);
+        append_paths(&mut left.1, fw.pos(), right.1);
         left.2.append(&mut right.2);
 
         //println!("MERGED:\n{left:?}");
@@ -1125,9 +1131,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
         self.v.expand(Pos(0, 0));
-        let Some(mut fronts) = self.init_fronts(a, b, Pos(0,0), None, Direction::Forward) else {
-            return Some(0);
+        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, Direction::Forward) {
+            Ok(fronts) => fronts,
+            Err(r) => return Some(r.0),
         };
+
         let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
 
         for s in 1.. {
@@ -1161,8 +1169,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Path, Cigar)> {
         self.v.expand(Pos(0, 0));
-        let Some(mut fronts) = self.init_fronts(a, b, Pos(0,0), None, Direction::Forward) else {
-            return Some((0, vec![], Cigar::default()));
+        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, Direction::Forward) {
+            Ok(fronts) => fronts,
+            Err(r) => return Some(r),
         };
 
         let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());

@@ -84,6 +84,17 @@ impl ToString for Cigar {
     }
 }
 
+pub fn append_paths(left: &mut Path, offset: Pos, mut right: Path) {
+    for p in &mut right {
+        *p = *p + offset;
+    }
+    let Some(first) = right.first_mut() else { return; };
+    if let Some(s) = left.last_mut() && s == first {
+        left.pop().unwrap();
+    }
+    left.append(&mut right);
+}
+
 impl Cigar {
     fn match_pos(delta: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOp {
         match delta {
