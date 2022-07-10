@@ -7,7 +7,6 @@ use super::{
     Aligner,
 };
 use crate::{
-    aligners::cigar::Cigar,
     generate::setup_sequences,
     heuristic::ZeroCost,
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
@@ -60,7 +59,6 @@ fn test_aligner_on_cost_model<const N: usize>(
             );
             assert_eq!(cost, nw_cost);
             assert_eq!(path, cigar.to_path());
-            assert_eq!(Cigar::from_path(a, b, &path), cigar);
             verify_cigar(&cm, a, b, &cigar);
         }
     }
