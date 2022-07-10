@@ -1,4 +1,4 @@
-#+TITLE: A* Pairwise Aligner
+#+TITLE: A*PA: A* Pairwise Aligner
 
 A pairwise sequence aligner using A*, extending ideas from [[https://github.com/eth-sri/astarix][AStarix]]:
 
