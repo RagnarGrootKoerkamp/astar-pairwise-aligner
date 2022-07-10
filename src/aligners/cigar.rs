@@ -103,7 +103,7 @@ impl Cigar {
 
     pub fn from_path(a: Seq, b: Seq, path: &Path) -> Cigar {
         if path[0] != Pos(0, 0) {
-            panic!("Cigar from path function: Error! Path should start from (0,0) point!");
+            panic!("Path must start at (0,0)!");
         }
         let mut cigar = Cigar::default();
         for (&prev, &cur) in path.iter().tuple_windows() {
@@ -111,6 +111,7 @@ impl Cigar {
         }
         cigar
     }
+
     pub fn push(&mut self, command: CigarOp) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
         if let Some(s) = self.ops.last_mut() && s.command == command {
