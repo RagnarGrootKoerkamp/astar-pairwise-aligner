@@ -836,8 +836,9 @@ macro_rules! test_diagonal_transition {
 
 test_diagonal_transition!(GapCostHeuristic::Disable, false, simple);
 test_diagonal_transition!(GapCostHeuristic::Enable, false, gap_heuristic);
-// FIXME: DiagonalTransition Divide & Conquer tests are not passing yet for double affine cost!
-// test_diagonal_transition!(GapCostHeuristic::Disable, true, dc);
+// FIXME: Enable diagonal transition + divide & conquer tests once they are
+// actually passing. For now, affine cost is not working yet.
+//test_diagonal_transition!(GapCostHeuristic::Disable, true, dc);
 
 mod nw_sh {
 
