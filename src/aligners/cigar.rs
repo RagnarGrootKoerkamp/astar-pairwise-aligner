@@ -39,7 +39,7 @@ impl CigarOp {
         }
     }
 
-    fn offset(&self) -> Option<Pos> {
+    fn delta(&self) -> Option<Pos> {
         match self {
             CigarOp::Match => Some(Pos(1, 1)),
             CigarOp::Mismatch => Some(Pos(1, 1)),
@@ -85,8 +85,8 @@ impl ToString for Cigar {
 }
 
 impl Cigar {
-    fn match_pos(offset: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOp {
-        match offset {
+    fn match_pos(delta: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOp {
+        match delta {
             Pos(1, 1) => {
                 assert!(pos.0 > 0 && pos.1 > 0);
                 if a[(pos.0 - 1) as usize] == b[(pos.1 - 1) as usize] {
@@ -155,7 +155,7 @@ impl Cigar {
         let mut path = vec![position];
         for el in &self.ops {
             for _ in 0..el.length {
-                if let Some(offset) = el.command.offset() {
+                if let Some(offset) = el.command.delta() {
                     position = position + offset;
                     path.push(position);
                 }
