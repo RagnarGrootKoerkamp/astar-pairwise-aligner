@@ -253,15 +253,15 @@ mod wfa {
 
     use super::*;
 
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(cm.clone(), NW::new(cm, false), true);
+    }
+
     #[test]
     fn unit_cost() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
         test_aligner_on_cost_model(cm.clone(), WFA { cm }, false);
-    }
-
-    fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(cm.clone(), NW::new(cm, false), true);
     }
 
     #[test]
@@ -484,50 +484,54 @@ mod nw {
     test_functions_macro!();
 }
 
-macro_rules! test_exp_band {
-    ($use_gap_cost_heuristic:expr, $name:ident) => {
-        paste::paste! {
-            mod [<exp_band_ $name>] {
-                use super::*;
+mod exp_band_simple {
+    use super::*;
 
-                fn test<const N: usize>(cm: AffineCost<N>) {
-                    test_aligner_on_cost_model(
-                        cm.clone(),
-                        NW::new(cm.clone(), $use_gap_cost_heuristic,$use_gap_cost_heuristic),
-                        true,
-                    );
-                }
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(cm.clone(), NW::new(cm.clone(), false, false), true);
+    }
 
-                test_functions_macro!();
-            }
-        }
-    };
+    test_functions_macro!();
 }
 
-test_exp_band!(false, simple);
-test_exp_band!(true, gap_heuristic);
+mod exp_band_gap_heuristic {
+    use super::*;
 
-macro_rules! test_diagonal_transition {
-    ($use_gap_cost_heuristic:expr, $dc:expr, $name:ident) => {
-        paste::paste! {
-            mod [<diagonal_transition_ $name>] {
-                use super::*;
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(cm.clone(), NW::new(cm.clone(), true, true), true);
+    }
 
-                fn test<const N: usize>(cm: AffineCost<N>) {
-                    test_aligner_on_cost_model(
-                        cm.clone(),
-                        DiagonalTransition::new(cm, $use_gap_cost_heuristic, ZeroCost, $dc, NoVisualizer),
-                        true);
-                }
-
-                test_functions_macro!();
-            }
-        }
-    };
+    test_functions_macro!();
 }
 
-test_diagonal_transition!(GapCostHeuristic::Disable, false, simple);
-test_diagonal_transition!(GapCostHeuristic::Enable, false, gap_heuristic);
+mod diagonal_transition_simple {
+    use super::*;
+
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(
+            cm.clone(),
+            DiagonalTransition::new(cm, GapCostHeuristic::Disable, ZeroCost, false, NoVisualizer),
+            true,
+        );
+    }
+
+    test_functions_macro!();
+}
+
+mod diagonal_transition_gap_heuristic {
+    use super::*;
+
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(
+            cm.clone(),
+            DiagonalTransition::new(cm, GapCostHeuristic::Enable, ZeroCost, false, NoVisualizer),
+            true,
+        );
+    }
+
+    test_functions_macro!();
+}
+
 // FIXME: Enable diagonal transition + divide & conquer tests once they are
 // actually passing. For now, affine cost is not working yet.
 //test_diagonal_transition!(GapCostHeuristic::Disable, true, dc);
