@@ -1,7 +1,4 @@
-use crate::{
-    aligners::Path,
-    prelude::{Pos, Seq},
-};
+use crate::{aligners::Path, prelude::Pos};
 
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
@@ -25,6 +22,7 @@ pub use with_sdl2::*;
 #[cfg(feature = "sdl2")]
 mod with_sdl2 {
     use super::*;
+    use crate::prelude::Seq;
     use itertools::Itertools;
     use sdl2::{
         event::Event,
