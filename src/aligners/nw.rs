@@ -105,6 +105,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 next.layer_mut(layer)[j] = best;
             });
         }
+        self.v.new_layer();
     }
 
     /// The range of rows `j` to consider in column `i`, when the cost is bounded by `s_bound`.
