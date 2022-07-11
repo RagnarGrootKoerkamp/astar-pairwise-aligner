@@ -318,6 +318,12 @@ mod nw {
     }
 
     #[test]
+    fn linear_cost_3() {
+        // sub=1, indel=3
+        test(AffineCost::new_linear(1, 3));
+    }
+
+    #[test]
     fn linear_asymmetric_cost() {
         // sub=1, insert=2, deletion=3
         test(AffineCost::new_linear_asymmetric(1, 2, 3));
@@ -495,6 +501,12 @@ macro_rules! test_exp_band {
                 fn linear_cost() {
                     // sub=1, indel=2
                     test(AffineCost::new_linear(1, 2));
+                }
+
+                #[test]
+                fn linear_cost_3() {
+                    // sub=1, indel=3
+                    test(AffineCost::new_linear(1, 3));
                 }
 
                 #[test]
@@ -680,6 +692,12 @@ macro_rules! test_diagonal_transition {
                 fn linear_cost() {
                     // sub=1, indel=2
                     test(AffineCost::new_linear(1, 2));
+                }
+
+                #[test]
+                fn linear_cost_3() {
+                    // sub=1, indel=3
+                    test(AffineCost::new_linear(1, 3));
                 }
 
                 #[test]
