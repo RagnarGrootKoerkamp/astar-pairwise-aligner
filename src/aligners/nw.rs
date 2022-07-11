@@ -22,6 +22,8 @@ pub struct NW<CostModel, V: VisualizerT, H: Heuristic> {
     /// When true, we only cover states with distance <=s/2.
     pub use_gap_cost_heuristic: bool,
 
+    pub exponential_search: bool,
+
     /// The heuristic to use.
     pub h: H,
 
@@ -54,10 +56,11 @@ const LEFT_BUFFER: Idx = 1;
 const RIGHT_BUFFER: Idx = 1;
 
 impl<const N: usize> NW<AffineCost<N>, NoVisualizer, ZeroCost> {
-    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool) -> Self {
+    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
         Self {
             cm,
             use_gap_cost_heuristic,
+            exponential_search,
             h: ZeroCost,
             v: NoVisualizer,
         }
@@ -105,7 +108,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 next.layer_mut(layer)[j] = best;
             });
         }
-        self.v.new_layer();
     }
 
     /// The range of rows `j` to consider in column `i`, when the cost is bounded by `s_bound`.
@@ -257,7 +259,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
     }
 
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
-        let (cost, cigar) = if self.use_gap_cost_heuristic || !H::IS_DEFAULT {
+        let (cost, cigar) = if self.exponential_search {
             exponential_search(
                 self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
                 2.,
@@ -305,8 +307,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
                 RIGHT_BUFFER,
             );
             self.next_front(i, a, b, prev, next);
+            if !self.exponential_search {
+                self.v.new_layer();
+            }
         }
-
+        if self.exponential_search {
+            self.v.new_layer();
+        }
         if let Some(&dist) = next.m().get(b.len() as Idx) {
             Some(dist)
         } else {
@@ -356,6 +363,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             );
             self.next_front(i, a, b, prev, &mut next);
             fronts.fronts.push(next);
+            if !self.exponential_search {
+                self.v.new_layer();
+            }
         }
 
         if let Some(&dist) = fronts[a.len() as Idx].m().get(b.len() as Idx) {
@@ -379,6 +389,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
                 );
                 return Some((dist, cigar));
             }
+        }
+
+        if self.exponential_search {
+            self.v.new_layer();
         }
         None
     }

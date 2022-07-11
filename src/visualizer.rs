@@ -56,12 +56,12 @@ mod with_sdl2 {
     impl VisualizerT for Visualizer {
         fn expand(&mut self, pos: Pos) {
             self.expanded.push(pos);
-            self.draw(false, None);
+            self.draw(false, None, false);
         }
 
         fn explore(&mut self, pos: Pos) {
             self.explored.push(pos);
-            self.draw(false, None);
+            self.draw(false, None, false);
         }
 
         fn new_layer(&mut self) {
@@ -69,10 +69,11 @@ mod with_sdl2 {
                 self.layer = Some(layer + 1);
                 self.expanded_layers.push(self.expanded.len());
             }
+            self.draw(false, None, true);
         }
 
         fn last_frame(&mut self, path: Option<&Path>) {
-            self.draw(true, path);
+            self.draw(true, path, true);
         }
     }
 
@@ -127,14 +128,16 @@ mod with_sdl2 {
         None,
         Last,
         All,
+        Layers,
     }
 
     impl Save {
-        fn do_save(&self, is_last: bool) -> bool {
+        fn do_save(&self, is_last: bool, new_layer: bool) -> bool {
             match &self {
                 Save::None => false,
                 Save::Last => is_last,
-                Save::All => true,
+                Save::All => !new_layer,
+                Save::Layers => new_layer,
             }
         }
     }
@@ -144,14 +147,16 @@ mod with_sdl2 {
         None,
         Last,
         All,
+        Layers,
     }
 
     impl Draw {
-        fn do_draw(&self, is_last: bool) -> bool {
+        fn do_draw(&self, is_last: bool, new_layer: bool) -> bool {
             match &self {
                 Draw::None => false,
                 Draw::Last => is_last,
-                Draw::All => true,
+                Draw::All => !new_layer,
+                Draw::Layers => new_layer,
             }
         }
     }
@@ -374,8 +379,10 @@ mod with_sdl2 {
             });
         }
 
-        fn draw(&mut self, is_last: bool, path: Option<&Path>) {
-            if !self.config.draw.do_draw(is_last) && !self.config.save.do_save(is_last) {
+        fn draw(&mut self, is_last: bool, path: Option<&Path>, is_new_layer: bool) {
+            if !self.config.draw.do_draw(is_last, is_new_layer)
+                && !self.config.save.do_save(is_last, is_new_layer)
+            {
                 return;
             }
 
@@ -483,7 +490,7 @@ mod with_sdl2 {
 
             // SAVE
 
-            if self.config.save.do_save(is_last) {
+            if self.config.save.do_save(is_last, is_new_layer) {
                 if is_last {
                     self.save_canvas(&mut canvas, is_last);
                 } else {
@@ -494,13 +501,13 @@ mod with_sdl2 {
 
             // SHOW
 
-            if !self.config.draw.do_draw(is_last) {
+            if !self.config.draw.do_draw(is_last, is_new_layer) {
                 return;
             }
 
             //Keyboard events
 
-            let sleep_duration = 0.00001;
+            let sleep_duration = 0.001;
             canvas.present();
             let mut start_time = Instant::now();
             'outer: loop {
