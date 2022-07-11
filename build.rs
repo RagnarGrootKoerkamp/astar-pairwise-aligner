@@ -1,21 +1,24 @@
-// ! make sure that astar-pairwaise-aligner and WFA2-lib are on the same level of directories
-// ! now you need to compile bith libraries
-// ! to compile WFA2-lib do
-// ! $ cd WFA2-lib
-// ! $ make lib_wfa
-// ! make sure you have make package installed
-// ! $ cd edlib
-// ! $ cd build
-// ! $ cmake -D CMAKE_BUILD_TYPE=Release ..
-// ! $ make
-// ! make sure you have make and Meson packages installed
+//! make sure that astar-pairwaise-aligner and WFA2-lib are on the same level of directories
+//! now you need to compile both libraries
+//! WFA:
+//! $ cd ..
+//! $ git clone https://github.com/smarco/WFA2-lib.git
+//! $ cd WFA2-lib
+//! $ make lib_wfa
+//!
+//! Edlib:
+//! $ cd ..
+//! $ git clone https://github.com/Martinsos/edlib.git
+//! $ cd edlib
+//! $ make
 
 extern crate bindgen;
 
-use std::env;
-use std::path::PathBuf;
-
+#[allow(unused)]
 fn wfa() {
+    use std::env;
+    use std::path::PathBuf;
+
     // Tell cargo to look for shared libraries in the specified directory
     println!("cargo:rustc-link-search=../WFA2-lib/lib");
     println!("cargo:rustc-link-lib=wfa");
@@ -45,10 +48,16 @@ fn wfa() {
         .expect("Couldn't write bindings!");
 }
 
+#[allow(unused)]
 fn edlib() {
+    use std::env;
+    use std::path::PathBuf;
+
     // Tell cargo to look for shared libraries in the specified directory
-    println!("cargo:rustc-link-search=../edlib/build/lib");
+    println!("cargo:rustc-link-search=../edlib/meson-build");
     println!("cargo:rustc-link-lib=edlib");
+    // Edlib depends on c++ libraries.
+    println!("cargo:rustc-link-lib=stdc++");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
