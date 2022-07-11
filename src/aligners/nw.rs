@@ -172,19 +172,20 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                     end -= 1;
                 }
 
-                // Increase end as needed.
-
-                // We use the cheapest possible way to extend vertically.
-                // h.h has (-1, -1) to offset the padding.
-                while end < b.len() as Idx
-                    && prev_end_cost
-                        + self
-                            .cm
-                            .extend_cost(Pos::from(i - 1, prev_end), Pos::from(i, end + 1))
-                        + h.h(Pos::from(i - 1, end + 1 - 1))
-                        <= s
-                {
-                    end += 1;
+                // Increase end as needed, when not already decreased.
+                if end == prev_end {
+                    // We use the cheapest possible way to extend vertically.
+                    // h.h has (-1, -1) to offset the padding.
+                    while end < b.len() as Idx
+                        && prev_end_cost
+                            + self
+                                .cm
+                                .extend_cost(Pos::from(i - 1, prev_end), Pos::from(i, end + 1))
+                            + h.h(Pos::from(i - 1, end + 1 - 1))
+                            <= s
+                    {
+                        end += 1;
+                    }
                 }
                 start..=end
             }
