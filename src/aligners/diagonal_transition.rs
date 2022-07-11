@@ -23,8 +23,8 @@
 //!
 use super::cigar::Cigar;
 use super::edit_graph::{CigarOps, EditGraph, Layer};
-use super::{exponential_search, Aligner, Path, Seq, StateT};
-use crate::aligners::cigar::{append_paths, CigarOp};
+use super::{exponential_search, Aligner, Seq, StateT};
+use crate::aligners::cigar::CigarOp;
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance};
 use crate::prelude::{to_string, Pos};
@@ -620,7 +620,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         offset: Pos,
         layer: Layer,
         direction: Direction,
-    ) -> Result<Fronts<N>, (Cost, Path, Cigar)> {
+    ) -> Result<Fronts<N>, (Cost, Cigar)> {
         let mut fronts = Fronts::new(
             Fr::MIN,
             // We only create a front for the s=0 layer.
@@ -639,7 +639,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         if self.next_front(a, b, &mut fronts.fronts, offset, layer, direction) {
             let mut cigar = Cigar::default();
             cigar.match_push(a.len());
-            Err((0, cigar.to_path(), cigar))
+            Err((0, cigar))
         } else {
             Ok(fronts)
         }
@@ -756,7 +756,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         offset: Pos,
         start_layer: Layer,
         end_layer: Layer,
-    ) -> (Cost, Path, Cigar) {
+    ) -> (Cost, Cigar) {
         println!(
             "Path between {} {} {start_layer:?} {end_layer:?} Offset {offset}",
             a.len(),
@@ -827,7 +827,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     }
                     if let Some(best_meet) = best_meet &&
                         (forward_fronts.range().end() + backward_fronts.range().end()) as Cost >=
-                        best_meet.0.s + best_meet.1.s + max(self.cm.sub.unwrap_or(0), max(self.cm.max_ins_open_extend, self.cm.max_del_open_extend)){
+                        best_meet.0.s + best_meet.1.s /*+ max(self.cm.sub.unwrap_or(0), max(self.cm.max_ins_open_extend, self.cm.max_del_open_extend))*/{
                         break 'outer;
                     }
                 }
@@ -858,7 +858,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             while (fw.s as Fr) < *forward_fronts.range().end() {
                 forward_fronts.rotate_back();
             }
-            let (mut path, cigar) = self.trace(
+            let cigar = self.trace(
                 a,
                 b,
                 &forward_fronts,
@@ -871,10 +871,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 fw,
                 Direction::Forward,
             );
-            for p in &mut path {
-                *p = *p + offset;
-            }
-            (fw.s, path, cigar)
+            (fw.s, cigar)
         } else {
             println!(
                 "\n LEFT RECURSION\nCOST: {}\n{}\n{}\n",
@@ -882,7 +879,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 to_string(&a[..i as usize]),
                 to_string(&b[..j as usize])
             );
-            let (cost, path, cigar) = self.path_between_dc(
+            let (cost, cigar) = self.path_between_dc(
                 &a[..i as usize],
                 &b[..j as usize],
                 offset,
@@ -890,7 +887,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 fw.layer,
             );
             assert_eq!(cost, fw.s);
-            (cost, path, cigar)
+            (cost, cigar)
         };
         println!("BACKWARD\n");
         let mut right = if backward_fronts.full_range().contains(&0) {
@@ -898,7 +895,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             while (bw.s as Fr) < *backward_fronts.range().end() {
                 backward_fronts.rotate_back();
             }
-            let (mut path, mut cigar) = self.trace(
+            let mut cigar = self.trace(
                 a,
                 b,
                 &backward_fronts,
@@ -911,15 +908,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 bw,
                 Direction::Backward,
             );
-            for p in &mut path {
-                *p = offset + Pos::from_lengths(a, b) - *p;
-            }
-            path.reverse();
-            for p in &mut path {
-                *p = Pos::from_lengths(a, b) - fw.pos() - *p;
-            }
             cigar.reverse();
-            (bw.s, path, cigar)
+            (bw.s, cigar)
         } else {
             println!(
                 "\n RIGHT RECURSION\nCOST: {}\n{}\n{}\n",
@@ -927,7 +917,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 to_string(&a[i as usize..]),
                 to_string(&b[j as usize..])
             );
-            let (cost, path, cigar) = self.path_between_dc(
+            let (cost, cigar) = self.path_between_dc(
                 &a[i as usize..],
                 &b[j as usize..],
                 offset + fw.pos(),
@@ -935,18 +925,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 end_layer,
             );
             assert_eq!(cost, bw.s);
-            // Offset the path.
 
-            (cost, path, cigar)
+            (cost, cigar)
         };
 
-        //println!("LEFT:\n{left:?}");
-        //println!("RIGHT:\n{right:?}");
+        println!("LEFT:\n{left:?}");
+        println!("RIGHT:\n{right:?}");
 
         // Join
         left.0 += right.0;
-        append_paths(&mut left.1, fw.pos(), right.1);
-        left.2.append(&mut right.2);
+        left.1.append(&mut right.1);
 
         //println!("MERGED:\n{left:?}");
         left
@@ -1104,26 +1092,26 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         cost
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
         if self.dc {
             return self.align_dc(a, b);
         }
-        let (cost, path, cigar) =
+        let (cost, cigar) =
             if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
                 exponential_search(
                     self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
                     2.,
                     |s| {
                         self.align_for_bounded_dist(a, b, Some(s))
-                            .map(|x @ (c, _, _)| (c, x))
+                            .map(|x @ (c, _)| (c, x))
                     },
                 )
                 .1
             } else {
                 self.align_for_bounded_dist(a, b, None).unwrap()
             };
-        self.v.last_frame(Some(&path));
-        (cost, path, cigar)
+        self.v.last_frame(Some(&cigar.to_path()));
+        (cost, cigar)
     }
 
     /// The cost-only version uses linear memory.
@@ -1167,7 +1155,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         a: Seq,
         b: Seq,
         s_bound: Option<Cost>,
-    ) -> Option<(Cost, Path, Cigar)> {
+    ) -> Option<(Cost, Cigar)> {
         self.v.expand(Pos(0, 0));
         let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, Direction::Forward) {
             Ok(fronts) => fronts,
@@ -1195,7 +1183,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 None,
                 Direction::Forward,
             ) {
-                let (path, cigar) = self.trace(
+                let cigar = self.trace(
                     a,
                     b,
                     &fronts,
@@ -1203,7 +1191,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                     DtState::target(a, b, s),
                     Direction::Forward,
                 );
-                return Some((s, path, cigar));
+                return Some((s, cigar));
             }
         }
         unreachable!()
@@ -1211,15 +1199,15 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
 
     /// Finds an alignment in linear memory, by using divide & conquer.
     /// TODO: Add a bounded distance option here?
-    fn align_dc(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
+    fn align_dc(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
         // D&C does not work with a heuristic yet, since the target state (where
         // the fronts meet) is not know.
         assert!(H::IS_DEFAULT);
         assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
 
         self.v.expand(Pos(0, 0));
-        let (cost, path, cigar) = self.path_between_dc(a, b, Pos(0, 0), None, None);
-        self.v.last_frame(Some(&path));
-        (cost, path, cigar)
+        let (cost, cigar) = self.path_between_dc(a, b, Pos(0, 0), None, None);
+        self.v.last_frame(Some(&cigar.to_path()));
+        (cost, cigar)
     }
 }

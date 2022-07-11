@@ -1,7 +1,7 @@
 use super::cigar::Cigar;
 use super::diagonal_transition::Direction;
 use super::edit_graph::{CigarOps, EditGraph, State};
-use super::{exponential_search, Aligner, Path};
+use super::{exponential_search, Aligner};
 use super::{Seq, Sequence};
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance, ZeroCost};
@@ -256,22 +256,22 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         cost
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar) {
-        let (cost, path, cigar) = if self.use_gap_cost_heuristic || !H::IS_DEFAULT {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
+        let (cost, cigar) = if self.use_gap_cost_heuristic || !H::IS_DEFAULT {
             exponential_search(
                 self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
                 2.,
                 |s| {
                     self.align_for_bounded_dist(a, b, Some(s))
-                        .map(|x @ (c, _, _)| (c, x))
+                        .map(|x @ (c, _)| (c, x))
                 },
             )
             .1
         } else {
             self.align_for_bounded_dist(a, b, None).unwrap()
         };
-        self.v.last_frame(Some(&path));
-        (cost, path, cigar)
+        self.v.last_frame(Some(&cigar.to_path()));
+        (cost, cigar)
     }
 
     /// Test whether the cost is at most s.
@@ -321,7 +321,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         a: Seq,
         b: Seq,
         s_bound: Option<Cost>,
-    ) -> Option<(Cost, Path, Cigar)> {
+    ) -> Option<(Cost, Cigar)> {
         // Pad both sequences.
         let ref a = pad(a);
         let ref b = pad(b);
@@ -361,7 +361,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         if let Some(&dist) = fronts[a.len() as Idx].m().get(b.len() as Idx) {
             // We only track the actual path if `s` is small enough.
             if dist <= s_bound.unwrap_or(INF) {
-                let (mut path, cigar) = self.trace(
+                let cigar = self.trace(
                     a,
                     b,
                     &fronts,
@@ -377,8 +377,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
                     },
                     Direction::Forward,
                 );
-                path.iter_mut().for_each(|pos| *pos = *pos - Pos(1, 1));
-                return Some((dist, path, cigar));
+                return Some((dist, cigar));
             }
         }
         None

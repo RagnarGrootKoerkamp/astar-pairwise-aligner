@@ -96,34 +96,20 @@ pub trait Aligner: std::fmt::Debug {
         from: Self::State,
         mut to: Self::State,
         direction: Direction,
-    ) -> (Path, Cigar) {
-        let mut path: Path = vec![];
+    ) -> Cigar {
         let mut cigar = Cigar::default();
-
-        path.push(to.pos());
-
-        let mut save = |st: &Self::State| {
-            if let Some(last) = path.last() {
-                if *last == st.pos() {
-                    return;
-                }
-            }
-            path.push(st.pos());
-        };
 
         while to != from {
             let (parent, cigar_ops) = self.parent(a, b, fronts, to, direction).unwrap();
             to = parent;
-            save(&to);
             for op in cigar_ops {
                 if let Some(op) = op {
                     cigar.push(op);
                 }
             }
         }
-        path.reverse();
         cigar.reverse();
-        (path, cigar)
+        cigar
     }
 
     /// Finds the cost of aligning `a` and `b`.
@@ -132,10 +118,10 @@ pub trait Aligner: std::fmt::Debug {
 
     /// Finds an alignments (path/Cigar) of sequences `a` and `b`.
     /// Uses the visualizer to record progress.
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Path, Cigar);
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar);
 
     /// Finds an alignment in linear memory, by using divide & conquer.
-    fn align_dc(&mut self, _a: Seq, _b: Seq) -> (Cost, Path, Cigar) {
+    fn align_dc(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
         unimplemented!();
     }
 
@@ -159,5 +145,5 @@ pub trait Aligner: std::fmt::Debug {
         _a: Seq,
         _b: Seq,
         _s_bound: Option<Cost>,
-    ) -> Option<(Cost, Path, Cigar)>;
+    ) -> Option<(Cost, Cigar)>;
 }
