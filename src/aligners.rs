@@ -12,6 +12,7 @@ pub mod front;
 pub mod nw;
 pub mod nw_lib;
 #[cfg(feature = "wfa")]
+#[cfg(feature = "edlib")]
 pub mod wfa;
 
 pub mod edit_graph;
