@@ -12,7 +12,7 @@ use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Seq};
 #[allow(non_camel_case_types)]
 #[allow(unused)]
 mod wfa {
-    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+    include!(concat!(env!("OUT_DIR"), "/bindings_wfa.rs"));
 }
 
 pub struct WFA<CostModel> {

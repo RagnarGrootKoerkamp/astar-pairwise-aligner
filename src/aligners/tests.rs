@@ -246,6 +246,17 @@ mod astar {
         }
     }
 }
+mod edlib {
+    use crate::{aligners::edlib::Edlib, cost_model::LinearCost};
+
+    use super::*;
+
+    #[test]
+    fn unit_cost() {
+        // sub=indel=1
+        test_aligner_on_cost_model(LinearCost::new_unit(), Edlib, false);
+    }
+}
 
 #[cfg(feature = "wfa")]
 mod wfa {

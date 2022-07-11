@@ -7,6 +7,7 @@ use std::cmp::max;
 pub mod astar;
 pub mod cigar;
 pub mod diagonal_transition;
+pub mod edlib;
 pub mod front;
 pub mod nw;
 pub mod nw_lib;
