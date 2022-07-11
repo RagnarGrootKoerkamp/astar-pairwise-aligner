@@ -1,4 +1,6 @@
 use std::intrinsics::transmute;
+#[cfg(feature = "edlib")]
+use std::intrinsics::transmute;
 
 use crate::{
     aligners::edlib::edlib::{

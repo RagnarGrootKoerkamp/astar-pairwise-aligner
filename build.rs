@@ -78,5 +78,6 @@ fn edlib() {
 fn main() {
     #[cfg(feature = "wfa")]
     wfa();
+    #[cfg(feature = "edlib")]
     edlib();
 }
