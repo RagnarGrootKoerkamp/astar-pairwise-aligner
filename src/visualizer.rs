@@ -73,7 +73,7 @@ mod with_sdl2 {
         }
 
         fn last_frame(&mut self, path: Option<&Path>) {
-            self.draw(true, path, true);
+            self.draw(true, path, self.config.draw == Draw::Layers);
         }
     }
 
