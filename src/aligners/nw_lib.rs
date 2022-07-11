@@ -1,8 +1,6 @@
 use crate::prelude::{Cost, LinearCost};
 
-use super::{
-    cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps, Aligner, Path, Seq,
-};
+use super::{cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps, Aligner, Seq};
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
 #[derive(Debug)]
@@ -43,7 +41,7 @@ impl Aligner for NWLib {
             bio::alignment::distance::levenshtein(a, b)
         }
     }
-    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Path, Cigar) {
+    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
         unimplemented!()
     }
     fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Option<Cost>) -> Option<Cost> {
@@ -55,7 +53,7 @@ impl Aligner for NWLib {
         _a: Seq,
         _b: Seq,
         _s_bound: Option<Cost>,
-    ) -> Option<(Cost, Path, Cigar)> {
+    ) -> Option<(Cost, Cigar)> {
         unimplemented!();
     }
 }

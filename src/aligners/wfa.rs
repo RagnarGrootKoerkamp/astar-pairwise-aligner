@@ -5,7 +5,7 @@ use crate::{
 };
 use std::intrinsics::transmute;
 
-use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Path, Seq};
+use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Seq};
 
 #[allow(non_upper_case_globals)]
 #[allow(non_snake_case)]
@@ -217,7 +217,7 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
         unimplemented!()
     }
 
-    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Path, Cigar) {
+    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
         unimplemented!()
     }
 
@@ -230,7 +230,7 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
         _a: Seq,
         _b: Seq,
         _s_bound: Option<Cost>,
-    ) -> Option<(Cost, Path, Cigar)> {
+    ) -> Option<(Cost, Cigar)> {
         unimplemented!();
     }
 

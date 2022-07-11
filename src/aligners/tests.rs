@@ -44,21 +44,20 @@ fn test_aligner_on_cost_model<const N: usize>(
             "{n} {e}\na == {}\nb == {}\nNW cigar: {}\nAligner\n{aligner:?}",
             to_string(&a),
             to_string(&b),
-            nw.align(a, b).2.to_string()
+            nw.align(a, b).1.to_string()
         );
 
         if test_path {
-            let (cost, path, cigar) = aligner.align(a, b);
+            let (cost, cigar) = aligner.align(a, b);
             println!("\n================= TEST CIGAR ======================\n");
             println!(
                 "a {}\nb {}\ncigar: {}\nnwcig: {}",
                 to_string(a),
                 to_string(b),
                 cigar.to_string(),
-                nw.align(a, b).2.to_string()
+                nw.align(a, b).1.to_string()
             );
             assert_eq!(cost, nw_cost);
-            assert_eq!(path, cigar.to_path());
             verify_cigar(&cm, a, b, &cigar);
         }
     }
@@ -996,7 +995,7 @@ mod homopolymer {
         assert_eq!(nw.cost(b"AAAAAAAAA", b""), 12);
         let a = b"ABC";
         let b = b"AC";
-        let cigar = nw.align(a, b).2;
+        let cigar = nw.align(a, b).1;
         verify_cigar(&cm, a, b, &cigar);
 
         assert_eq!(nw.cost(b"ABC", b""), 8);
