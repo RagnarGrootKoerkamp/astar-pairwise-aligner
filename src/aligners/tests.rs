@@ -31,7 +31,7 @@ fn test_aligner_on_cost_model<const N: usize>(
     mut aligner: impl Aligner,
     test_path: bool,
 ) {
-    let mut nw = NW::new(cm.clone(), false);
+    let mut nw = NW::new(cm.clone(), false, false);
     for (&n, &e) in test_sequences() {
         let (ref a, ref b) = setup_sequences(n, e);
         let nw_cost = nw.cost(a, b);
@@ -296,7 +296,7 @@ mod nw {
     use super::*;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(cm.clone(), NW::new(cm, false), true);
+        test_aligner_on_cost_model(cm.clone(), NW::new(cm, false, false), true);
     }
 
     #[test]
@@ -480,7 +480,7 @@ macro_rules! test_exp_band {
                 fn test<const N: usize>(cm: AffineCost<N>) {
                     test_aligner_on_cost_model(
                         cm.clone(),
-                        NW::new(cm.clone(), $use_gap_cost_heuristic),
+                        NW::new(cm.clone(), $use_gap_cost_heuristic,$use_gap_cost_heuristic),
                         true,
                     );
                 }
@@ -869,6 +869,7 @@ mod nw_sh {
             NW {
                 cm,
                 use_gap_cost_heuristic: false,
+                exponential_search: false,
                 h: SH {
                     match_config: MatchConfig::exact(5),
                     pruning: false,
@@ -950,6 +951,7 @@ mod homopolymer {
         let mut nw = NW {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
+            exponential_search: false,
             h: ZeroCost,
             v: NoVisualizer,
         };
@@ -998,6 +1000,7 @@ mod homopolymer {
         let mut nw = NW {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
+            exponential_search: false,
             v: NoVisualizer,
             h: ZeroCost,
         };

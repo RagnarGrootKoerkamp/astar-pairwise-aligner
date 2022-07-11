@@ -41,6 +41,7 @@ fn main() {
         let mut nw = NW {
             cm: cm.clone(),
             use_gap_cost_heuristic: true,
+            exponential_search: true,
             h: ZeroCost,
             v: vis(config.clone(), "1_ukkonen"),
         };
