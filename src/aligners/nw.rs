@@ -244,7 +244,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        let cost = if self.use_gap_cost_heuristic || !H::IS_DEFAULT {
+        let cost = if self.exponential_search {
             exponential_search(
                 self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
                 2.,
@@ -252,6 +252,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             )
             .1
         } else {
+            assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
             self.cost_for_bounded_dist(a, b, None).unwrap()
         };
         self.v.last_frame(None);
@@ -270,6 +271,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             )
             .1
         } else {
+            assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
             self.align_for_bounded_dist(a, b, None).unwrap()
         };
         self.v.last_frame(Some(&cigar.to_path()));

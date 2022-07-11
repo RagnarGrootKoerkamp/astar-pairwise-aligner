@@ -64,7 +64,7 @@ fn make_nw_sh() -> NW<LinearCost, NoVisualizer, SH> {
     NW {
         cm: LinearCost::new_unit(),
         use_gap_cost_heuristic: false,
-        exponential_search: false,
+        exponential_search: true,
         h: SH {
             match_config: MatchConfig::exact(10),
             pruning: false,

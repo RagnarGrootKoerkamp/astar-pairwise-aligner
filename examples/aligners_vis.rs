@@ -69,7 +69,7 @@ fn main() {
         let mut nw = NW {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
-            exponential_search: false,
+            exponential_search: true,
             h: GapCost,
             v: vis("nw_gapcost_h"),
         };
@@ -81,7 +81,7 @@ fn main() {
         let mut nw = NW {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
-            exponential_search: false,
+            exponential_search: true,
             h: sh,
             v: vis("nw_sh"),
         };
@@ -93,7 +93,7 @@ fn main() {
         let mut nw = NW {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
-            exponential_search: false,
+            exponential_search: true,
             h: csh,
             v: vis("nw_csh"),
         };

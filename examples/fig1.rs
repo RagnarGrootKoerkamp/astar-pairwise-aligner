@@ -22,13 +22,13 @@ fn main() {
 
     let cm = LinearCost::new_unit();
     let mut config = visualizer::Config::default();
-    config.draw = Draw::Layers;
+    config.draw = Draw::None;
     config.save = Save::Last;
-    config.delay = 1.;
-    config.cell_size = 2;
+    config.delay = 0.0001;
+    config.cell_size = 4;
     config.style.bg_color = Color::RGBA(255, 255, 255, 128);
     config.style.gradient = Gradient::TurboGradient(0.25..0.90);
-    config.style.path_width = Some(2);
+    config.style.path_width = Some(4);
     config.draw_old_on_top = false;
     config.layer_drawing = true;
     let vis = |mut config: visualizer::Config, name: &str| {

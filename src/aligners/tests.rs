@@ -566,6 +566,7 @@ mod nw_sh {
         test(AffineCost::new_unit());
     }
 }
+
 mod diagonal_transition_sh {
     use crate::{heuristic::SH, matches::MatchConfig};
 
