@@ -7,12 +7,12 @@ use std::cmp::max;
 pub mod astar;
 pub mod cigar;
 pub mod diagonal_transition;
+#[cfg(feature = "edlib")]
 pub mod edlib;
 pub mod front;
 pub mod nw;
 pub mod nw_lib;
 #[cfg(feature = "wfa")]
-#[cfg(feature = "edlib")]
 pub mod wfa;
 
 pub mod edit_graph;
