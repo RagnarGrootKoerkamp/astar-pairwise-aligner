@@ -1,6 +1,9 @@
-#![cfg(feature = "sdl2")]
 use pairwise_aligner::prelude::*;
 
+#[cfg(not(feature = "sdl2"))]
+fn main() {}
+
+#[cfg(feature = "sdl2")]
 fn main() {
     let n = 500;
     let e = 0.2;

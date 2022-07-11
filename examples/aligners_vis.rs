@@ -1,16 +1,18 @@
-#![cfg(feature = "sdl2")]
-use pairwise_aligner::{
-    aligners::{
-        diagonal_transition::{DiagonalTransition, GapCostHeuristic},
-        nw::NW,
-        Aligner,
-    },
-    prelude::*,
-    visualizer::{Draw, Gradient, Save, Visualizer},
-};
-use sdl2::pixels::Color;
+#[cfg(not(feature = "sdl2"))]
+fn main() {}
 
+#[cfg(feature = "sdl2")]
 fn main() {
+    use pairwise_aligner::{
+        aligners::{
+            diagonal_transition::{DiagonalTransition, GapCostHeuristic},
+            nw::NW,
+            Aligner,
+        },
+        prelude::*,
+        visualizer::{Draw, Gradient, Save, Visualizer},
+    };
+    use sdl2::pixels::Color;
     let n = 500;
     let e = 0.20;
     let (ref a, ref b) = setup_sequences(n, e);
