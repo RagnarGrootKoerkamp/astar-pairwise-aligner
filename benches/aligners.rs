@@ -42,7 +42,11 @@ fn nw_lib_exp(bench: &mut Bencher) {
 }
 
 fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, ZeroCost> {
-    NW::new(LinearCost::new_unit(), use_gap_cost_heuristic)
+    NW::new(
+        LinearCost::new_unit(),
+        use_gap_cost_heuristic,
+        use_gap_cost_heuristic,
+    )
 }
 
 #[bench]
@@ -60,6 +64,7 @@ fn make_nw_sh() -> NW<LinearCost, NoVisualizer, SH> {
     NW {
         cm: LinearCost::new_unit(),
         use_gap_cost_heuristic: false,
+        exponential_search: false,
         h: SH {
             match_config: MatchConfig::exact(10),
             pruning: false,
