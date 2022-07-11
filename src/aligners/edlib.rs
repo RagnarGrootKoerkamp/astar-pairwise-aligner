@@ -1,21 +1,16 @@
-use std::intrinsics::transmute;
-#[cfg(feature = "edlib")]
-use std::intrinsics::transmute;
-
+use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Seq};
 use crate::{
     aligners::edlib::edlib::{
         edlibAlign, edlibDefaultAlignConfig, edlibFreeAlignResult, EDLIB_STATUS_OK,
     },
     cost_model::{Cost, LinearCost},
 };
-
-use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Path, Seq};
+use std::intrinsics::transmute;
 
 #[allow(non_upper_case_globals)]
 #[allow(non_camel_case_types)]
 #[allow(non_snake_case)]
 #[allow(unused)]
-
 mod edlib {
     include!(concat!(env!("OUT_DIR"), "/bindings_edlib.rs"));
 }
@@ -57,7 +52,7 @@ impl Aligner for Edlib {
         unit_cost(a, b)
     }
 
-    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Path, Cigar) {
+    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
         unimplemented!()
     }
 
@@ -70,7 +65,7 @@ impl Aligner for Edlib {
         _a: Seq,
         _b: Seq,
         _s_bound: Option<Cost>,
-    ) -> Option<(Cost, Path, Cigar)> {
+    ) -> Option<(Cost, Cigar)> {
         unimplemented!();
     }
 

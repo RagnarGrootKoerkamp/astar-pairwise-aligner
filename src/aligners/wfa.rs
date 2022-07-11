@@ -1,11 +1,9 @@
-#![cfg(feature = "wfa")]
+use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Seq};
 use crate::{
     aligners::wfa::wfa::distance_metric_t_gap_linear,
     cost_model::{AffineCost, AffineLayerType, Cost},
 };
 use std::intrinsics::transmute;
-
-use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Seq};
 
 #[allow(non_upper_case_globals)]
 #[allow(non_snake_case)]
