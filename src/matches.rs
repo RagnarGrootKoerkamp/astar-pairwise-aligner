@@ -333,7 +333,14 @@ mod test {
             matches::Mutations {
                 deletions: [6, 7, 11, 27].to_vec(),
                 substitutions: [11, 19, 23, 24, 25, 26, 31, 43, 59, 91, 155, 219].to_vec(),
-                insertions: [27, 75, 91, 99, 103, 107, 123, 155, 219, 283, 539, 795].to_vec(),
+                insertions: if SKIP_INEXACT_INSERT_START_END {
+                    [27, 75, 91, 99, 103, 107, 123, 155, 219, 283, 539, 795].to_vec()
+                } else {
+                    [
+                        27, 75, 91, 99, 103, 107, 108, 109, 110, 111, 123, 155, 219, 283, 539, 795,
+                    ]
+                    .to_vec()
+                }
             }
         );
     }
