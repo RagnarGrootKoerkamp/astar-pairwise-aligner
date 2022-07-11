@@ -5,18 +5,16 @@ use pairwise_aligner::prelude::*;
 fn main() {
     PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
 
-    let n = 61;
-    let e = 0.9;
-    let seed = 7237;
-    let k = 4;
-    let max_match_cost = 0;
-    let pruning = false;
+    let n = 500;
+    let e = 0.3;
+    let seed = 31415;
+    let k = 6;
+    let max_match_cost = 1;
+    let pruning = true;
 
-    let h = CSH {
+    let h = SH {
         match_config: MatchConfig::new(k, max_match_cost),
         pruning,
-        use_gap_cost: false,
-        c: PhantomData::<HintContours<BruteForceContour>>::default(),
     };
 
     let (a, b, alphabet, stats) = setup_with_seed(n, e, seed);
@@ -40,42 +38,59 @@ fn main() {
         println!("Test: {} {} => {}", start, end, v);
         v
     };
-    let start;
+    let mut start = 0;
     let mut end = max(a.len(), b.len()) as I;
 
-    // Binary search the start of the sequence in steps of k.
-    {
-        let mut left = 0;
-        let mut right = end;
-        while left / k < right / k {
-            let mid = (left + right + k - 1) / 2 / k * k;
-            if test(mid, end) {
-                right = mid - 1;
-            } else {
-                left = mid;
-            }
-        }
-        start = left;
-    }
-    // Binary search the end of the sequence.
-    {
-        let mut left = start;
-        let mut right = end;
-        while left < right {
-            let mid = (left + right) / 2;
-            if test(start, mid) {
-                left = mid + k;
-            } else {
-                right = mid;
-            }
-        }
-        end = left;
-    }
+    let mut change = false;
 
-    assert!(
-        !test(start, end),
-        "Could not shrink: Testcase doesn't fail!"
-    );
+    loop {
+        let new_start;
+        let new_end;
+
+        // Binary search the start of the sequence in steps of k.
+        {
+            let mut left = start;
+            let mut right = end;
+            while left / k < right / k {
+                let mid = (left + right + k - 1) / 2 / k * k;
+                if test(mid, end) {
+                    right = mid - 1;
+                } else {
+                    left = mid;
+                }
+            }
+            new_start = left;
+        }
+        // Binary search the end of the sequence.
+        {
+            let mut left = start;
+            let mut right = end;
+            while left < right {
+                let mid = (left + right) / 2;
+                if test(start, mid) {
+                    left = mid + k;
+                } else {
+                    right = mid;
+                }
+            }
+            new_end = left;
+        }
+
+        if new_start == start && new_end == end {
+            start = new_start;
+            end = new_end;
+            break;
+        }
+        change = true;
+        start = new_start;
+        end = new_end;
+    }
+    if !change {
+        assert!(
+            !test(start, end),
+            "Could not shrink: Testcase doesn't fail!"
+        );
+    }
 
     let Pos(n, m) = Pos::from_lengths(&a, &b);
     let a = &a[start as usize..min(n, end) as usize].to_vec();
