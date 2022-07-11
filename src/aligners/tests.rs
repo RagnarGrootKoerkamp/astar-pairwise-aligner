@@ -559,7 +559,7 @@ mod nw_sh {
             NW {
                 cm,
                 use_gap_cost_heuristic: false,
-                exponential_search: false,
+                exponential_search: true,
                 h: SH {
                     match_config: MatchConfig::exact(5),
                     pruning: false,
