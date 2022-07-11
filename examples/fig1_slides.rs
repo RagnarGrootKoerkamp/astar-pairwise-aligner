@@ -26,6 +26,7 @@ fn main() {
     config.style.gradient = Gradient::TurboGradient(0.25..0.90);
     config.style.path_width = None;
     config.draw_old_on_top = false;
+    config.layer_drawing = false;
     let vis = |mut config: visualizer::Config, name: &str| {
         config.filepath = "imgs/fig1-slides/".to_string() + name;
         Visualizer::new(config, a, b)
