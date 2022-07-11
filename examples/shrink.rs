@@ -38,6 +38,9 @@ fn main() {
         println!("Test: {} {} => {}", start, end, v);
         v
     };
+
+    assert!(!test(0, max(a.len(), b.len()) as I));
+
     let mut start = 0;
     let mut end = max(a.len(), b.len()) as I;
 
