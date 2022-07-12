@@ -15,6 +15,8 @@ mod wfa {
 
 pub struct WFA<CostModel> {
     pub cm: CostModel,
+    //check if BiWFA is enabled
+    pub bool_wfa: bool,
 }
 
 impl<CostModel> std::fmt::Debug for WFA<CostModel> {
@@ -29,6 +31,9 @@ fn unit_cost(a: Seq, b: Seq) -> Cost {
         let mut attributes = wfa::wavefront_aligner_attr_default;
         attributes.distance_metric = wfa::distance_metric_t_edit;
         attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
+        if bool_wfa == true {
+            attributes.memory_mode = wfa::wavefront_memory_ultrwlow;
+        }
         // Initialize Wavefront Aligner
         let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
         let a: &[i8] = transmute(a);
@@ -53,6 +58,9 @@ fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost) -> Cost {
         attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         attributes.linear_penalties.mismatch = sub as i32;
         attributes.linear_penalties.indel = indel as i32;
+        if bool_wfa == true {
+            attributes.memory_mode = wfa::wavefront_memory_ultrwlow;
+        }
         // Initialize Wavefront Aligner
         let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
         let a: &[i8] = transmute(a);
@@ -74,6 +82,9 @@ fn lcs_cost(a: Seq, b: Seq) -> Cost {
         // Configure alignment attributes
         let mut attributes = wfa::wavefront_aligner_attr_default;
         attributes.distance_metric = wfa::distance_metric_t_indel;
+        if bool_wfa == true {
+            attributes.memory_mode = wfa::wavefront_memory_ultrwlow;
+        }
         // Initialize Wavefront Aligner
         let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
         let a: &[i8] = transmute(a);
@@ -98,6 +109,9 @@ fn affine_cost(a: Seq, b: Seq, mismatch: Cost, gap_open: Cost, gap_extend: Cost)
         attributes.affine_penalties.mismatch = mismatch as i32;
         attributes.affine_penalties.gap_opening = gap_open as i32;
         attributes.affine_penalties.gap_extension = gap_extend as i32;
+        if bool_wfa == true {
+            attributes.memory_mode = wfa::wavefront_memory_ultrwlow;
+        }
         let a: &[i8] = transmute(a);
         let b: &[i8] = transmute(b);
         let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
@@ -131,6 +145,9 @@ fn double_affine_cost(
         attributes.affine2p_penalties.gap_opening2 = gap_open2 as i32;
         attributes.affine2p_penalties.gap_extension1 = gap_extend1 as i32;
         attributes.affine2p_penalties.gap_extension2 = gap_extend2 as i32;
+        if bool_wfa == true {
+            attributes.memory_mode = wfa::wavefront_memory_ultrwlow;
+        }
         let a: &[i8] = transmute(a);
         let b: &[i8] = transmute(b);
         let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
