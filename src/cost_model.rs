@@ -408,6 +408,34 @@ impl<const N: usize> AffineCost<N> {
         d
     }
 
+    /// The maximum number of inserted characters, where entering an affine layer has cost o.
+    pub fn max_ins_for_cost_open_only(&self, s: Cost) -> I {
+        let mut d = 0;
+        if let Some(ins) = self.ins {
+            d = max(d, s / ins);
+        }
+        for cm in &self.affine {
+            if cm.affine_type.is_insert() && s >= min(cm.open, cm.extend) {
+                d = max(d, 1 + (s - min(cm.open, cm.extend)) / cm.extend);
+            }
+        }
+        d
+    }
+
+    /// The maximum number of deleted characters, where entering an affine layer has cost o.
+    pub fn max_del_for_cost_open_only(&self, s: Cost) -> I {
+        let mut d = 0;
+        if let Some(del) = self.del {
+            d = max(d, s / del);
+        }
+        for cm in &self.affine {
+            if cm.affine_type.is_delete() && s >= min(cm.open, cm.extend) {
+                d = max(d, 1 + (s - min(cm.open, cm.extend)) / cm.extend);
+            }
+        }
+        d
+    }
+
     /// d<0: insertion cost
     /// d=0: substitution cost
     /// d>0: deletion cost

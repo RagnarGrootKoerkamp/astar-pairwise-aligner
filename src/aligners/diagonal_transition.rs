@@ -407,7 +407,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         direction: Direction,
     ) -> RangeInclusive<Fr> {
         // The range that is reachable within cost s.
-        let mut r = -(self.cm.max_ins_for_cost(s) as Fr)..=self.cm.max_del_for_cost(s) as Fr;
+        let mut r = match direction {
+            Forward => {
+                -(self.cm.max_ins_for_cost_open_only(s) as Fr)
+                    ..=(self.cm.max_del_for_cost_open_only(s) as Fr)
+            }
+            Backward => -((s / self.cm.min_ins_extend) as Fr)..=(s / self.cm.min_del_extend) as Fr,
+        };
+        println!("D Range: {direction:?} {s} {r:?}");
 
         let Some(s_bound) = s_bound else {
             return r;
