@@ -115,6 +115,9 @@ pub struct AffineCost<const N: usize> {
     pub max_ins_open_extend: Cost,
     pub min_del_open_extend: Cost,
     pub max_del_open_extend: Cost,
+
+    // Make the constructor private.
+    _private: (),
 }
 
 /// A linear cost model is simply an affine cost model without any affine layers.
@@ -248,6 +251,14 @@ impl<const N: usize> AffineCost<N> {
         del: Option<Cost>,
         affine: [AffineLayerCosts; N],
     ) -> AffineCost<N> {
+        assert!(sub.unwrap_or(1) > 0);
+        assert!(ins.unwrap_or(1) > 0);
+        assert!(del.unwrap_or(1) > 0);
+        for layer in &affine {
+            assert!(layer.open > 0);
+            assert!(layer.extend > 0);
+        }
+
         let layers = |affine_type| {
             affine
                 .iter()
@@ -312,6 +323,7 @@ impl<const N: usize> AffineCost<N> {
             max_ins_open_extend,
             min_del_open_extend,
             max_del_open_extend,
+            _private: (),
         }
     }
 
