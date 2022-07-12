@@ -2,6 +2,8 @@
 //! There may be multiple graphs corresponding to the same cost model:
 //! https://research.curiouscoding.nl/posts/diagonal-transition-variations/
 
+use std::cmp::max;
+
 use super::{
     cigar::CigarOp,
     diagonal_transition::{Direction, Fr},
@@ -70,6 +72,18 @@ impl StateT for State {
 pub struct EditGraph;
 
 impl EditGraph {
+    pub fn max_edge_cost<const N: usize>(cm: &AffineCost<N>) -> Cost {
+        let mut e = 0;
+        e = max(e, cm.sub.unwrap_or_default());
+        e = max(e, cm.ins.unwrap_or_default());
+        e = max(e, cm.del.unwrap_or_default());
+        for cml in &cm.affine {
+            e = max(e, cml.open);
+            e = max(e, cml.extend);
+        }
+        e
+    }
+
     /// Iterate over the states/layers at the given position in 'the right'
     /// order, making sure dependencies within the states at the given position
     /// come first.

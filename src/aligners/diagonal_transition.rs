@@ -839,8 +839,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     }
                     if let Some(best_meet) = best_meet &&
                         (forward_fronts.range().end() + backward_fronts.range().end()) as Cost >=
-                        // FIXME: Replace this by EditGraph::MAX_EDGE_COST.
-                        best_meet.0.s + best_meet.1.s + max(self.cm.sub.unwrap_or(0), max(self.cm.max_ins_open_extend, self.cm.max_del_open_extend)) {
+                        best_meet.0.s + best_meet.1.s + EditGraph::max_edge_cost(&self.cm) {
                         break 'outer;
                     }
                 }
