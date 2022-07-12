@@ -593,7 +593,19 @@ mod diagonal_transition_gap_heuristic {
 
 // FIXME: Enable diagonal transition + divide & conquer tests once they are
 // actually passing. For now, affine cost is not working yet.
-//test_diagonal_transition!(GapCostHeuristic::Disable, true, dc);
+mod diagonal_transition_dc {
+    use super::*;
+
+    fn test<const N: usize>(cm: AffineCost<N>) {
+        test_aligner_on_cost_model(
+            cm.clone(),
+            DiagonalTransition::new(cm, GapCostHeuristic::Disable, ZeroCost, true, NoVisualizer),
+            true,
+        );
+    }
+
+    test_functions_macro!();
+}
 
 mod nw_sh {
 
