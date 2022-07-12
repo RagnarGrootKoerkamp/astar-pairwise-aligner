@@ -73,7 +73,7 @@ mod with_sdl2 {
         }
 
         fn last_frame(&mut self, path: Option<&Path>) {
-            self.draw(true, path, self.config.draw == Draw::Layers);
+            self.draw(true, path, false);
         }
     }
 
@@ -136,8 +136,8 @@ mod with_sdl2 {
             match &self {
                 Save::None => false,
                 Save::Last => is_last,
-                Save::All => !new_layer,
-                Save::Layers => new_layer,
+                Save::All => is_last || !new_layer,
+                Save::Layers => is_last || new_layer,
             }
         }
     }
@@ -155,8 +155,8 @@ mod with_sdl2 {
             match &self {
                 Draw::None => false,
                 Draw::Last => is_last,
-                Draw::All => !new_layer,
-                Draw::Layers => new_layer,
+                Draw::All => is_last || !new_layer,
+                Draw::Layers => is_last || new_layer,
             }
         }
     }
@@ -173,6 +173,7 @@ mod with_sdl2 {
         pub style: Style,
         pub draw_old_on_top: bool,
         pub layer_drawing: bool,
+        pub num_layers: Option<usize>,
     }
 
     impl Default for Config {
@@ -196,6 +197,7 @@ mod with_sdl2 {
                 },
                 draw_old_on_top: true,
                 layer_drawing: false,
+                num_layers: None,
             }
         }
     }
@@ -416,11 +418,7 @@ mod with_sdl2 {
                         self.draw_pixel(&mut canvas, *pos, color);
                     }
                 }
-                let mut current_layer = if let Some(layer) = self.layer {
-                    layer
-                } else {
-                    0
-                };
+                let mut current_layer = self.layer.unwrap_or(0);
                 for (i, pos) in self.expanded.iter().enumerate().rev() {
                     self.draw_pixel(
                     &mut canvas,
@@ -432,7 +430,7 @@ mod with_sdl2 {
                             {
                                 current_layer -= 1;
                             }
-                            current_layer as f32 / layer as f32
+                            current_layer as f32 / self.config.num_layers.unwrap_or(layer) as f32
                         } else {
                                  i as f32 / self.expanded.len() as f32
                         },
@@ -460,7 +458,7 @@ mod with_sdl2 {
                             if current_layer < layer && i >= self.expanded_layers[current_layer] {
                                 current_layer += 1;
                             }
-                            current_layer as f32 / layer as f32
+                            current_layer as f32 / self.config.num_layers.unwrap_or(layer) as f32
                         } else {
                                  i as f32 / self.expanded.len() as f32
                         },
@@ -492,9 +490,13 @@ mod with_sdl2 {
 
             if self.config.save.do_save(is_last, is_new_layer) {
                 if is_last {
-                    self.save_canvas(&mut canvas, is_last);
+                    // Save the image twice, once as final result, and once as numbered in the directory.
+                    if self.config.save == Save::All || self.config.save == Save::Layers {
+                        self.save_canvas(&mut canvas, false);
+                    }
+                    self.save_canvas(&mut canvas, true);
                 } else {
-                    self.save_canvas(&mut canvas, is_last);
+                    self.save_canvas(&mut canvas, false);
                     self.file_number += 1;
                 }
             }
