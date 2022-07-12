@@ -160,8 +160,7 @@ impl DtState {
 
 impl StateT for DtState {
     fn is_root(&self) -> bool {
-        if self.d == 0 && self.fr == 0 && self.layer == None {
-            assert!(self.s == 0);
+        if self.d == 0 && self.fr == 0 && self.layer == None && self.s == 0 {
             true
         } else {
             false
@@ -303,7 +302,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             1 + cm.max_ins_open_extend.div_ceil(cm.min_del_extend),
         ) as Fr;
 
-        // Formulas need to move to EditGraph somehow. For Gap Close, here they are:
+        // FIXME Formulas need to move to EditGraph somehow. For Gap Close, here they are:
         if false {
             let _top_buffer = max(
                 max(cm.sub.unwrap_or(0), max(cm.max_del_open, cm.max_ins_open)),
@@ -342,6 +341,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         }
     }
 
+    /// Returns true when the end is reached.
     fn extend(
         &mut self,
         front: &mut Front<N>,
@@ -384,9 +384,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             }
         }
 
-        if front.range().contains(&(a.len() as Fr - b.len() as Fr))
-            && front.m_mut()[a.len() as Fr - b.len() as Fr] >= (a.len() + b.len()) as Fr
-        {
+        let target_d = a.len() as Fr - b.len() as Fr;
+        if front.range().contains(&target_d) && front.m()[target_d] >= (a.len() + b.len()) as Fr {
             return true;
         }
         false
@@ -395,6 +394,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
     /// The range of diagonals to consider for the given cost `s`.
     /// Computes the minimum and maximum possible diagonal reachable for this `s`.
     /// TODO: For simplicity, this does not take into account gap-open costs currently.
+    /// TODO: Some of the functions here should move to EditGraph.
+    /// NOTE: This assumes affine open cost o and affine close cost e.
     fn d_range(
         &self,
         a: Seq,
@@ -403,6 +404,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         s: Cost,
         s_bound: Option<Cost>,
         prev: &[Front<N>],
+        direction: Direction,
     ) -> RangeInclusive<Fr> {
         // The range that is reachable within cost s.
         let mut r = -(self.cm.max_ins_for_cost(s) as Fr)..=self.cm.max_del_for_cost(s) as Fr;
@@ -545,7 +547,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
                         if fr >= 0 {
-                            println!("Expand {}!", offset + fr_to_pos(d, fr));
                             self.v.expand(offset + fr_to_pos(d, fr));
                         }
                     });
@@ -591,7 +592,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
                         if fr <= max_fr {
-                            println!("Expand {}!", offset + mirror_pos(fr_to_pos(d, fr)));
                             self.v.expand(offset + mirror_pos(fr_to_pos(d, fr)));
                         }
                     });
@@ -604,12 +604,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         // That in turn simplifies the overlap condition check, since we only need to check overlap for the two last fronts.
         let front = get_front(fronts, 0);
         if front.range().contains(&0) {
-            front.layer_mut(start_layer)[0] = max(front.m()[0], 0);
+            front.layer_mut(start_layer)[0] = max(front.layer(start_layer)[0], 0);
         }
 
         // Extend all points in the m layer and check if we're done.
+        let r = self.extend(get_front(fronts, 0), a, b, offset, direction);
         self.v.new_layer();
-        self.extend(get_front(fronts, 0), a, b, offset, direction)
+        r
     }
 
     // Returns None when the sequences are equal.
@@ -618,7 +619,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         a: Seq,
         b: Seq,
         offset: Pos,
-        layer: Layer,
+        start_layer: Layer,
+        end_layer: Layer,
         direction: Direction,
     ) -> Result<Fronts<N>, (Cost, Cigar)> {
         let mut fronts = Fronts::new(
@@ -634,9 +636,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             self.right_buffer,
         );
 
-        fronts[0].layer_mut(layer)[0] = 0;
+        fronts[0].layer_mut(start_layer)[0] = 0;
 
-        if self.next_front(a, b, &mut fronts.fronts, offset, layer, direction) {
+        // NOTE: The order of the && here matters!
+        if start_layer == None
+            && self.extend(&mut fronts[0], a, b, offset, direction)
+            && end_layer == None
+        {
             let mut cigar = Cigar::default();
             cigar.match_push(a.len());
             Err((0, cigar))
@@ -679,11 +685,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         // M
         let mut meet = None;
         let mut s_meet = None;
-            println!("Overlap layer {layer:?}");
         EditGraph::iterate_layers(&self.cm, |layer| {
             for d in d_range.clone() {
+                if forward.last().layer(layer)[d] < 0 || backward.last().layer(layer)[mirror(d)] < 0
+                {
+                    continue;
+                }
                 println!(
-                    "Overlap test {d}: {} + {} >= {fr_target}",
+                    "Overlap test {layer:?} {d}: {} + {} >= {fr_target}",
                     forward.last().layer(layer)[d],
                     backward.last().layer(layer)[mirror(d)]
                 );
@@ -720,11 +729,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             backward[bs].layer(bw.layer)[bw.d],
                             fr_target - mirror(bw.d).abs(),
                         );
-                        println!("mirror d: {}", bw.d);
-                        println!("b range {:?}", backward[bs].range());
-                        let ok = f_fr >= 0 && b_fr >= 0 && f_fr + b_fr >= fr_target;
-                        println!("Shrink distances to {fs} {bs}: {f_fr} {b_fr} {ok}");
-                        ok
+                        f_fr >= 0 && b_fr >= 0 && f_fr + b_fr >= fr_target
                     };
                     while fs > *forward.full_range().start() && test(fs - 1, bs) {
                         fs -= 1;
@@ -764,13 +769,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         );
         println!("Init forward {start_layer:?}");
         let mut forward_fronts =
-            match self.init_fronts(a, b, offset, start_layer, Direction::Forward) {
+            match self.init_fronts(a, b, offset, start_layer, end_layer, Direction::Forward) {
                 Ok(fronts) => fronts,
                 Err(r) => return r,
             };
         println!("Init backward {end_layer:?}");
         let mut backward_fronts =
-            match self.init_fronts(a, b, offset, end_layer, Direction::Backward) {
+            match self.init_fronts(a, b, offset, end_layer, start_layer, Direction::Backward) {
                 Ok(fronts) => fronts,
                 Err(r) => return r,
             };
@@ -789,7 +794,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         Forward => &mut forward_fronts,
                         Backward => &mut backward_fronts,
                     };
-                    let range = self.d_range(a, b, h, s, None, &fronts.fronts);
+                    let range = self.d_range(a, b, h, s, None, &fronts.fronts, dir);
                     assert!(!range.is_empty());
                     fronts.rotate(range);
                     self.next_front(
@@ -827,7 +832,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     }
                     if let Some(best_meet) = best_meet &&
                         (forward_fronts.range().end() + backward_fronts.range().end()) as Cost >=
-                        best_meet.0.s + best_meet.1.s /*+ max(self.cm.sub.unwrap_or(0), max(self.cm.max_ins_open_extend, self.cm.max_del_open_extend))*/{
+                        // FIXME: Replace this by EditGraph::MAX_EDGE_COST.
+                        best_meet.0.s + best_meet.1.s + max(self.cm.sub.unwrap_or(0), max(self.cm.max_ins_open_extend, self.cm.max_del_open_extend)) {
                         break 'outer;
                     }
                 }
@@ -979,7 +985,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                         |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
                             let parent_cost = st.s as Fr - edge_cost as Fr;
                             if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
-                                //println!("Parent {di} {dj} {edge_cost} with absolute cost {parent_cost} is out of range: {:?}", fronts.full_range());
                                 return None;
                             }
                             let fr = fronts[parent_cost].layer(layer)[st.d + (di - dj) as Fr]
@@ -991,7 +996,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                             }
                         },
                         |di, dj, i, j, layer, edge_cost, ops| {
-                            //println!("Parent {di} {dj} {edge_cost} => ij {i} {j} fr {}", i + j);
                             let fr = (i + j) as Fr;
                             if fr > max_fr {
                                 max_fr = fr;
@@ -1009,6 +1013,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 // Match
                 // TODO: Add a setting to do greedy backtracking before checking other parents.
                 if max_fr < st.fr {
+                    assert!(st.layer == None);
                     //println!("Max fr {max_fr} best found {}", st.fr);
                     let (i, j) = fr_to_coords(st.d, st.fr);
                     assert_eq!(a[i as usize - 1], b[j as usize - 1]);
@@ -1119,7 +1124,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
         self.v.expand(Pos(0, 0));
-        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, Direction::Forward) {
+        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
             Ok(fronts) => fronts,
             Err(r) => return Some(r.0),
         };
@@ -1130,7 +1135,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             if let Some(s_bound) = s_bound && s > s_bound {
                 return None;
             }
-            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
+            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts, Direction::Forward);
             if range.is_empty() {
                 return None;
             }
@@ -1157,7 +1162,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Cigar)> {
         self.v.expand(Pos(0, 0));
-        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, Direction::Forward) {
+        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
             Ok(fronts) => fronts,
             Err(r) => return Some(r),
         };
@@ -1170,7 +1175,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             }
 
             // We can not initialize all layers directly at the start, since we do not know the final distance s.
-            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
+            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts, Direction::Forward);
             if range.is_empty() {
                 return None;
             }
