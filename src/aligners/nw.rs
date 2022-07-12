@@ -75,7 +75,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
     fn next_front(&mut self, i: Idx, a: Seq, b: Seq, prev: &Front<N>, next: &mut Front<N>) {
         for j in next.range().clone() {
             self.v.expand(Pos::from(i - 1, j - 1));
-            EditGraph::iterate_parent_layers(&self.cm, |layer| {
+            EditGraph::iterate_layers(&self.cm, |layer| {
                 let mut best = INF;
                 EditGraph::iterate_parents(
                     a,

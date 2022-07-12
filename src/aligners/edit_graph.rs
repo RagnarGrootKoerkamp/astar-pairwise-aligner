@@ -59,32 +59,14 @@ impl EditGraph {
     /// order, making sure dependencies within the states at the given position
     /// come first.
     ///
-    /// I.e., in this normal case affine layers are iterated before the main
+    /// I.e., in the normal case affine layers are iterated before the main
     /// layer, to ensure that the ends of the gap-close edges within this
     /// position are visited first.
-    pub fn iterate_parent_layers<const N: usize>(_cm: &AffineCost<N>, mut f: impl FnMut(Layer)) {
+    pub fn iterate_layers<const N: usize>(_cm: &AffineCost<N>, mut f: impl FnMut(Layer)) {
         for layer in 0..N {
             f(Some(layer));
         }
         f(None);
-    }
-
-    pub fn iterate_child_layers<const N: usize>(_cm: &AffineCost<N>, mut f: impl FnMut(Layer)) {
-        f(None);
-        for layer in 0..N {
-            f(Some(layer));
-        }
-    }
-
-    pub fn iterate_layers<const N: usize>(
-        cm: &AffineCost<N>,
-        direction: Direction,
-        f: impl FnMut(Layer),
-    ) {
-        match direction {
-            Direction::Forward => Self::iterate_parent_layers(cm, f),
-            Direction::Backward => Self::iterate_child_layers(cm, f),
-        }
     }
 
     /// Iterate over the parents of the given state by calling `f` for each of them.
