@@ -44,4 +44,4 @@ aho-corasick = "*"
 [features]
 wfa = []
 edlib = []
-default = ["sdl2"]
+default = ["sdl2", "wfa"]
