@@ -519,7 +519,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         match direction {
             Direction::Forward => {
                 for d in get_front(fronts, 0).range().clone() {
-                    EditGraph::iterate_parent_layers(&self.cm, |layer| {
+                    EditGraph::iterate_layers(&self.cm, |layer| {
                         let mut fr = Fr::MIN;
                         EditGraph::iterate_parents_dt(
                             a,
@@ -558,7 +558,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 let mirror_fr = |fr| max_fr - fr;
                 for d in get_front(fronts, 0).range().clone() {
                     //println!("Next layer {direction:?} for d={d}");
-                    EditGraph::iterate_child_layers(&self.cm, |layer| {
+                    EditGraph::iterate_layers(&self.cm, |layer| {
                         let mut fr = Fr::MIN;
                         EditGraph::iterate_children_dt(
                             a,
@@ -679,8 +679,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         // M
         let mut meet = None;
         let mut s_meet = None;
-        EditGraph::iterate_parent_layers(&self.cm, |layer| {
             println!("Overlap layer {layer:?}");
+        EditGraph::iterate_layers(&self.cm, |layer| {
             for d in d_range.clone() {
                 println!(
                     "Overlap test {d}: {} + {} >= {fr_target}",
