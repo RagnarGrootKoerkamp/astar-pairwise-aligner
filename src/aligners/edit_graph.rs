@@ -46,6 +46,21 @@ impl StateT for State {
 /// For now, `EditGraph` is simply a type containing functions to iterate over
 /// the parents of a given position.
 ///
+/// NOTE: It is important that all edges between different affine layers have positive (>0) cost!
+/// This ensures that the order of iteration over the layers is not important.
+/// The only exception is a gap-close cost of 0, when no backward iteration is done.
+/// This is fine, because the main layer is iterated last.
+///
+/// The transitions to the affine layers are as follows:
+/// gap-open: cost o
+/// gap-extend: cost e
+/// gap-close: cost e
+///
+/// NOTE that this is different from the default WFA formulation, which uses
+/// gap-open: cost o+e
+/// gap-extend: cost e
+/// gap-close: cost 0
+///
 /// TODO: Generalize to CostModel trait, instead of only AffineCost.
 /// TODO: Make EditGraph a trait instead of type? Then we can implement
 /// different graph shapes in different types, and each can be optimized individually.
@@ -114,14 +129,12 @@ impl EditGraph {
                 }
 
                 // affine close
-                // NOTE: gap-close edges have a cost of 0 and stay in the current position.
-                // This requires that the iteration order over layers at the current position visits the main layer last.
-                for (layer, _cml) in cm.affine.iter().enumerate() {
+                for (layer, cml) in cm.affine.iter().enumerate() {
                     f(
                         0,
                         0,
                         Some(layer),
-                        0,
+                        cml.extend,
                         [Some(CigarOp::AffineClose(layer)), None],
                     );
                 }
@@ -147,7 +160,7 @@ impl EditGraph {
                     di,
                     dj,
                     None,
-                    cml.open + cml.extend,
+                    cml.open,
                     [Some(op), Some(CigarOp::AffineOpen(layer))],
                 );
 
@@ -219,17 +232,15 @@ impl EditGraph {
                 }
 
                 // affine close
-                // NOTE: gap-close edges have a cost of 0 and stay in the current position.
-                // This requires that the iteration order over layers at the current position visits the main layer last.
-                for (layer, _cml) in cm.affine.iter().enumerate() {
-                    if let Some((i, j)) = f(0, 0, Some(layer), 0) {
+                for (layer, cml) in cm.affine.iter().enumerate() {
+                    if let Some((i, j)) = f(0, 0, Some(layer), cml.extend) {
                         g(
                             0,
                             0,
                             i,
                             j,
                             Some(layer),
-                            0,
+                            cml.extend,
                             [Some(CigarOp::AffineClose(layer)), None],
                         );
                     }
@@ -252,14 +263,14 @@ impl EditGraph {
                         (-1, 0, CigarOp::AffineDeletion(layer))
                     }
                 };
-                if let Some((i, j)) = f(di, dj, None, cml.open + cml.extend) {
+                if let Some((i, j)) = f(di, dj, None, cml.open) {
                     g(
                         di,
                         dj,
                         i,
                         j,
                         None,
-                        cml.open + cml.extend,
+                        cml.open,
                         [Some(op), Some(CigarOp::AffineOpen(layer))],
                     );
                 }
@@ -338,14 +349,14 @@ impl EditGraph {
                             (1, 0, CigarOp::AffineDeletion(layer))
                         }
                     };
-                    if let Some((i, j)) = f(di, dj, Some(layer), cml.open + cml.extend) {
+                    if let Some((i, j)) = f(di, dj, Some(layer), cml.open) {
                         g(
                             di,
                             dj,
                             i,
                             j,
                             Some(layer),
-                            cml.open + cml.extend,
+                            cml.open,
                             [Some(CigarOp::AffineOpen(layer)), Some(op)],
                         );
                     }
@@ -392,14 +403,14 @@ impl EditGraph {
                 // affine close
                 // NOTE: gap-close edges have a cost of 0 and stay in the current position.
                 // This requires that the iteration order over layers at the current position visits the main layer first.
-                if let Some((i, j)) = f(0, 0, None, 0) {
+                if let Some((i, j)) = f(0, 0, None, cml.extend) {
                     g(
                         0,
                         0,
                         i,
                         j,
                         None,
-                        0,
+                        cml.extend,
                         [Some(CigarOp::AffineClose(layer)), None],
                     );
                 }
