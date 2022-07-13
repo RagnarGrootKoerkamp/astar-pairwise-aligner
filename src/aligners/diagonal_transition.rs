@@ -282,12 +282,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         v: V,
     ) -> Self {
         // The maximum cost we look back:
-        // max(substitution, indel, affine indel of size 1)
-        let top_buffer = max(
-            max(cm.sub.unwrap_or(0), 0),
-            max(cm.max_ins_open_extend, cm.max_del_open_extend),
-        ) as Fr;
+        let top_buffer = EditGraph::max_edge_cost(&cm) as Fr;
 
+        // FIXME: left_buffer and right_buffer need updating for the new edit graph, and modifcation for the backward direction.
         let left_buffer = max(
             // substitution, if allowed
             cm.sub.unwrap_or(0).div_ceil(cm.ins.unwrap_or(Cost::MAX)),
@@ -301,32 +298,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             // number of deletions (right moves) done in range of looking one insertion (left move) backwards
             1 + cm.max_ins_open_extend.div_ceil(cm.min_del_extend),
         ) as Fr;
-
-        // FIXME Formulas need to move to EditGraph somehow. For Gap Close, here they are:
-        if false {
-            let _top_buffer = max(
-                max(cm.sub.unwrap_or(0), max(cm.max_del_open, cm.max_ins_open)),
-                max(cm.max_ins_extend, cm.max_del_extend),
-            ) as Fr;
-
-            let _left_buffer = max(
-                // substitution, if allowed
-                cm.sub
-                    .unwrap_or(max(cm.max_del_open, cm.max_ins_open))
-                    .div_ceil(cm.ins.unwrap_or(Cost::MAX)),
-                // number of insertions (left moves) done in range of looking one deletion (right move) backwards
-                1 + cm.max_del_extend.div_ceil(cm.min_ins_extend),
-            ) as Fr;
-            // Idem.
-            let _right_buffer = max(
-                // substitution, if allowed
-                cm.sub
-                    .unwrap_or(max(cm.max_del_open, cm.max_ins_open))
-                    .div_ceil(cm.del.unwrap_or(Cost::MAX)),
-                // number of deletions (right moves) done in range of looking one insertion (left move) backwards
-                1 + cm.max_ins_extend.div_ceil(cm.min_del_extend),
-            ) as Fr;
-        }
 
         Self {
             cm,
@@ -396,6 +367,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
     /// TODO: For simplicity, this does not take into account gap-open costs currently.
     /// TODO: Some of the functions here should move to EditGraph.
     /// NOTE: This assumes affine open cost o and affine close cost e.
+    /// FIXME: It is much simpler to compute the range dynamically, based on the
+    /// ranges of previous fronts. That is what WFA does.
     fn d_range(
         &self,
         a: Seq,

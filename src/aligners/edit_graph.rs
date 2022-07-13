@@ -54,14 +54,19 @@ impl StateT for State {
 /// This is fine, because the main layer is iterated last.
 ///
 /// The transitions to the affine layers are as follows:
-/// gap-open: cost o
-/// gap-extend: cost e
-/// gap-close: cost e
+/// gap-open:   cost o fr 1
+/// gap-extend: cost e fr 1
+/// gap-close:  cost e fr 0
+///
+/// NOTE: An alternative, with a lower maximum edge cost, would be:
+/// gap-open:   cost floor((o+e)/2) fr 0
+/// gap-extend: cost e              fr 1
+/// gap-close:  cost ceil( (o+e)/2) fr 1
 ///
 /// NOTE that this is different from the default WFA formulation, which uses
-/// gap-open: cost o+e
-/// gap-extend: cost e
-/// gap-close: cost 0
+/// gap-open:   cost o+e fr 1
+/// gap-extend: cost e   fr 1
+/// gap-close:  cost 0   fr 0
 ///
 /// TODO: Generalize to CostModel trait, instead of only AffineCost.
 /// TODO: Make EditGraph a trait instead of type? Then we can implement
