@@ -17,7 +17,7 @@ fn test_sequences(
 ) -> itertools::Product<std::slice::Iter<'static, usize>, std::slice::Iter<'static, f32>> {
     let ns = &[
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50, 100,
-        200, /*500, 1000*/
+        200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 500, /*1000*/
     ];
     let es = &[0.0, 0.01, 0.05, 0.10, 0.20, 0.30, 0.50, 1.0];
     ns.iter().cartesian_product(es)

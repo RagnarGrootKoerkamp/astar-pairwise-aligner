@@ -598,7 +598,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         );
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
-                        if fr <= max_fr {
+                        if fr_to_pos(d, fr) <= Pos::from_lengths(a, b) {
                             self.v.expand(offset + mirror_pos(fr_to_pos(d, fr)));
                         }
                     });
