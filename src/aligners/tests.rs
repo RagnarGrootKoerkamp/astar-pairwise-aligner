@@ -265,7 +265,7 @@ mod wfa {
     use super::*;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(cm.clone(), WFA { cm, biwfa: false }, true);
+        test_aligner_on_cost_model(cm.clone(), WFA { cm, biwfa: false }, false);
     }
 
     #[test]
@@ -314,7 +314,7 @@ mod biwfa {
     use super::*;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(cm.clone(), WFA { cm, biwfa: true }, true);
+        test_aligner_on_cost_model(cm.clone(), WFA { cm, biwfa: true }, false);
     }
 
     #[test]
