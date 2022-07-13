@@ -146,8 +146,8 @@ fn double_affine_cost(
     b: Seq,
     mismatch: Cost,
     gap_open1: Cost,
-    gap_open2: Cost,
     gap_extend1: Cost,
+    gap_open2: Cost,
     gap_extend2: Cost,
     biwfa: bool,
 ) -> Cost {
@@ -157,8 +157,8 @@ fn double_affine_cost(
         attributes.distance_metric = wfa::distance_metric_t_gap_affine_2p;
         attributes.affine2p_penalties.mismatch = mismatch as i32;
         attributes.affine2p_penalties.gap_opening1 = gap_open1 as i32;
-        attributes.affine2p_penalties.gap_opening2 = gap_open2 as i32;
         attributes.affine2p_penalties.gap_extension1 = gap_extend1 as i32;
+        attributes.affine2p_penalties.gap_opening2 = gap_open2 as i32;
         attributes.affine2p_penalties.gap_extension2 = gap_extend2 as i32;
         if biwfa {
             attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
@@ -188,9 +188,10 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        if N == 0 {
-            //lcs cost
-            if self.cm.sub == None && self.cm.ins == self.cm.del{
+        let mut cost = (|| {
+            if N == 0 {
+                //lcs cost
+                if self.cm.sub == None && self.cm.ins == self.cm.del{
                 return lcs_cost(a, b, self.biwfa);
                 //unit cost
             } else if self.cm.sub == Some(1) && self.cm.ins == Some(1) && self.cm.del == Some(1){
@@ -202,9 +203,9 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
             && ins == del {
                 return linear_cost(a, b, sub, ins, self.biwfa);
             }
-            //affine cost
-        } else if N == 2 {
-            if let Some(sub) = self.cm.sub  && self.cm.ins == None && self.cm.del == None {
+                //affine cost
+            } else if N == 2 {
+                if let Some(sub) = self.cm.sub  && self.cm.ins == None && self.cm.del == None {
                 let l0 = &self.cm.affine[0];
                 let l1 = &self.cm.affine[1];
                 if l0.affine_type == AffineLayerType::InsertLayer
@@ -220,12 +221,12 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
                     );
                 }
             }
-        } else if N == 4 {
-            let l0 = &self.cm.affine[0];
-            let l1 = &self.cm.affine[1];
-            let l2 = &self.cm.affine[2];
-            let l3 = &self.cm.affine[3];
-            if let Some(sub) = self.cm.sub && self.cm.ins == None && self.cm.del == None {
+            } else if N == 4 {
+                let l0 = &self.cm.affine[0];
+                let l1 = &self.cm.affine[1];
+                let l2 = &self.cm.affine[2];
+                let l3 = &self.cm.affine[3];
+                if let Some(sub) = self.cm.sub && self.cm.ins == None && self.cm.del == None {
                 if l0.affine_type == AffineLayerType::InsertLayer
                     && l1.affine_type == AffineLayerType::DeleteLayer
                     && l2.affine_type == AffineLayerType::InsertLayer
@@ -247,8 +248,14 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
                     );
                 }
             }
+            }
+            unimplemented!("Cost model is not of a supported type!");
+        })();
+        // Work around a BiWFA bug.
+        if cost == i32::MIN as u32 {
+            cost = 0;
         }
-        unimplemented!("Cost model is not of a supported type!");
+        cost
     }
 
     fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
