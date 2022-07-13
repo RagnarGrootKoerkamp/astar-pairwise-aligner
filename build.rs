@@ -22,6 +22,7 @@ fn wfa() {
     // Tell cargo to look for shared libraries in the specified directory
     println!("cargo:rustc-link-search=../WFA2-lib/lib");
     println!("cargo:rustc-link-lib=wfa");
+    println!("cargo:rustc-link-lib=omp");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
