@@ -24,6 +24,32 @@ impl<CostModel> std::fmt::Debug for WFA<CostModel> {
     }
 }
 
+fn lcs_cost(a: Seq, b: Seq, biwfa: bool) -> Cost {
+    unsafe {
+        // Configure alignment attributes
+        let mut attributes = wfa::wavefront_aligner_attr_default;
+        attributes.distance_metric = wfa::distance_metric_t_indel;
+        if biwfa {
+            attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
+        }
+        // Initialize Wavefront Aligner
+        let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
+        let a: &[i8] = transmute(a);
+        let b: &[i8] = transmute(b);
+        let status = wfa::wavefront_align(
+            wf_aligner,
+            a.as_ptr(),
+            a.len() as i32,
+            b.as_ptr(),
+            b.len() as i32,
+        );
+        assert_eq!(status, 0);
+        let cost = (*wf_aligner).cigar.score as Cost;
+        wfa::wavefront_aligner_delete(wf_aligner);
+        cost
+    }
+}
+
 fn unit_cost(a: Seq, b: Seq, biwfa: bool) -> Cost {
     unsafe {
         // Configure alignment attributes
@@ -45,7 +71,9 @@ fn unit_cost(a: Seq, b: Seq, biwfa: bool) -> Cost {
             b.len() as i32,
         );
         assert_eq!(status, 0);
-        -(*wf_aligner).cigar.score as Cost
+        let cost = (*wf_aligner).cigar.score as Cost;
+        wfa::wavefront_aligner_delete(wf_aligner);
+        cost
     }
 }
 
@@ -72,31 +100,9 @@ fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost, biwfa: bool) -> Cost {
             b.len() as i32,
         );
         assert_eq!(status, 0);
-        -(*wf_aligner).cigar.score as Cost
-    }
-}
-
-fn lcs_cost(a: Seq, b: Seq, biwfa: bool) -> Cost {
-    unsafe {
-        // Configure alignment attributes
-        let mut attributes = wfa::wavefront_aligner_attr_default;
-        attributes.distance_metric = wfa::distance_metric_t_indel;
-        if biwfa {
-            attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
-        }
-        // Initialize Wavefront Aligner
-        let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
-        let a: &[i8] = transmute(a);
-        let b: &[i8] = transmute(b);
-        let status = wfa::wavefront_align(
-            wf_aligner,
-            a.as_ptr(),
-            a.len() as i32,
-            b.as_ptr(),
-            b.len() as i32,
-        );
-        assert_eq!(status, 0);
-        -(*wf_aligner).cigar.score as Cost
+        let cost = -(*wf_aligner).cigar.score as Cost;
+        wfa::wavefront_aligner_delete(wf_aligner);
+        cost
     }
 }
 
@@ -129,7 +135,9 @@ fn affine_cost(
             b.len() as i32,
         );
         assert_eq!(status, 0);
-        -(*wf_aligner).cigar.score as Cost
+        let cost = -(*wf_aligner).cigar.score as Cost;
+        wfa::wavefront_aligner_delete(wf_aligner);
+        cost
     }
 }
 
@@ -166,7 +174,9 @@ fn double_affine_cost(
             b.len() as i32,
         );
         assert_eq!(status, 0);
-        -(*wf_aligner).cigar.score as Cost
+        let cost = -(*wf_aligner).cigar.score as Cost;
+        wfa::wavefront_aligner_delete(wf_aligner);
+        cost
     }
 }
 
@@ -238,11 +248,11 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
                 }
             }
         }
-        unimplemented!()
+        unimplemented!("Cost model is not of a supported type!");
     }
 
     fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
-        unimplemented!()
+        unimplemented!();
     }
 
     fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Option<Cost>) -> Option<Cost> {
