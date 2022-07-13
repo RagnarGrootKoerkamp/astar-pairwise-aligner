@@ -26,7 +26,7 @@ jobs:
           output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
-          alert-threshold: "175%"
+          alert-threshold: "100%"
           comment-on-alert: false
           fail-on-alert: true
           alert-comment-cc-users: "@RagnarGrootKoerkamp"
