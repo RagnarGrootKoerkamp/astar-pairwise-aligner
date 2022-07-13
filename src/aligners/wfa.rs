@@ -290,3 +290,48 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
         unimplemented!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rand::Rng;
+
+    use crate::{
+        aligners::{nw::NW, Aligner},
+        cost_model::LinearCost,
+        generate::setup_sequences,
+        heuristic::ZeroCost,
+        prelude::to_string,
+        visualizer::NoVisualizer,
+    };
+
+    use super::WFA;
+
+    #[ignore]
+    #[test]
+    fn biwfa_fuzz() {
+        let cm = LinearCost::new_linear(1, 10);
+        let mut nw = NW {
+            cm: cm.clone(),
+            use_gap_cost_heuristic: false,
+            exponential_search: false,
+            h: ZeroCost,
+            v: NoVisualizer,
+        };
+        let mut biwfa = WFA { cm, biwfa: true };
+        loop {
+            let n = rand::thread_rng().gen_range(10..1000);
+            let e = rand::thread_rng().gen_range(0.0..1.0);
+            let (ref a, ref b) = setup_sequences(n, e);
+            let nw_cost = nw.cost(a, b);
+            let cost = biwfa.cost(a, b);
+
+            assert_eq!(
+                nw_cost,
+                cost,
+                "\n{n} {e}\nA\n{}\nB\n{}\n",
+                to_string(&a),
+                to_string(&b),
+            );
+        }
+    }
+}
