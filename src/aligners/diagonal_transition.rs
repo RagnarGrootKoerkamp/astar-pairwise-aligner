@@ -600,7 +600,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             // We only create a front for the s=0 layer.
             0..=0,
             // The range of the s=0 front is 0..=0.
-            |_| 0..=0,
+            |i| if i == 0 { 0..=0 } else { 0..=-1 },
             // Additionally, we have `top_buffer` fronts before the current front.
             self.top_buffer,
             0,
