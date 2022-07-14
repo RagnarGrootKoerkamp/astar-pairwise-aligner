@@ -364,11 +364,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
     /// The range of diagonals to consider for the given cost `s`.
     /// Computes the minimum and maximum possible diagonal reachable for this `s`.
-    /// TODO: For simplicity, this does not take into account gap-open costs currently.
     /// TODO: Some of the functions here should move to EditGraph.
-    /// NOTE: This assumes affine open cost o and affine close cost e.
-    /// FIXME: It is much simpler to compute the range dynamically, based on the
-    /// ranges of previous fronts. That is what WFA does.
     fn d_range(
         &self,
         a: Seq,
@@ -377,16 +373,44 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         s: Cost,
         s_bound: Option<Cost>,
         prev: &[Front<N>],
-        direction: Direction,
     ) -> RangeInclusive<Fr> {
-        // The range that is reachable within cost s.
-        let mut r = match direction {
-            Forward => {
-                -(self.cm.max_ins_for_cost_open_only(s) as Fr)
-                    ..=(self.cm.max_del_for_cost_open_only(s) as Fr)
-            }
-            Backward => -((s / self.cm.min_ins_extend) as Fr)..=(s / self.cm.min_del_extend) as Fr,
-        };
+        fn get_front<const N: usize>(fronts: &[Front<N>], cost: Cost) -> &Front<N> {
+            &fronts[fronts.len() - cost as usize]
+        }
+
+        let mut r = prev.last().unwrap().range().clone();
+
+        EditGraph::iterate_layers(&self.cm, |layer| {
+            // Find an initial range.
+            EditGraph::iterate_parents_dt(
+                a,
+                b,
+                &self.cm,
+                layer,
+                |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
+                    // Get start and end of parent layer.
+                    let pr = get_front(prev, edge_cost);
+                    let mut start = *pr.range().start();
+                    let mut end = *pr.range().end();
+                    let d = di - dj;
+                    // Shrink range while the parent layer has negative inf values.
+                    while start + d < *r.start()
+                        && start <= end
+                        && pr.layer(layer)[start] == Fr::MIN
+                    {
+                        start += 1;
+                    }
+                    while end + d > *r.end() && start <= end && pr.layer(layer)[end] == Fr::MIN {
+                        end -= 1;
+                    }
+                    if start <= end {
+                        r = min(*r.start(), start - d)..=max(*r.end(), end - d);
+                    }
+                    None
+                },
+                |_di, _dj, _i, _j, _layer, _edge_cost, _cigar_ops| {},
+            );
+        });
 
         let Some(s_bound) = s_bound else {
             return r;
@@ -404,10 +428,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             }
             return r;
         } else {
-            fn get_front<const N: usize>(fronts: &[Front<N>], cost: Cost) -> &Front<N> {
-                &fronts[fronts.len() - cost as usize]
-            }
-
             let mut d_min = Fr::MAX;
             let mut d_max = Fr::MIN;
 
@@ -748,7 +768,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         Forward => &mut forward_fronts,
                         Backward => &mut backward_fronts,
                     };
-                    let range = self.d_range(a, b, h, s, None, &fronts.fronts, dir);
+                    let range = self.d_range(a, b, h, s, None, &fronts.fronts);
                     assert!(!range.is_empty());
                     fronts.rotate(range);
                     self.next_front(
@@ -1034,7 +1054,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             if let Some(s_bound) = s_bound && s > s_bound {
                 return None;
             }
-            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts, Direction::Forward);
+            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
             if range.is_empty() {
                 return None;
             }
@@ -1074,7 +1094,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             }
 
             // We can not initialize all layers directly at the start, since we do not know the final distance s.
-            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts, Direction::Forward);
+            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
             if range.is_empty() {
                 return None;
             }
