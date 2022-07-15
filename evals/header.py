@@ -114,13 +114,15 @@ def algo2marker(algo):
     assert False, algo
     #return str(algo)  
     
-def r2marker(algo):
+def r2marker(algo, r):
+    if algo == 'dijkstra':
+        return 'o'
     d = {
         1: '^',
         2: 's',
         }
-    if algo in d:
-        return d[algo]
+    if r in d:
+        return d[r]
     return 'o'
     
 def col2name(col):
