@@ -17,7 +17,18 @@
 #   - make clean all
 #
 # Instructions for running:
-# - snakemake -p -c all run_benchmark
+# - compile A*PA:
+# cargo build --release
+# cargo build --release --example generate_dataset
+# - pin CPU frequency to 800MHz:
+# sudo cpupower frequency-set -g performance
+# sudo cpupower frequency-set -d 800MHz
+# sudo cpupower frequency-set -u 800MHz
+# - Run the following commands:
+# taskset -c 0,2,4 snakemake -j 3 table/tools_N1e7.tsv -f --rerun-incomplete
+# taskset -c 0,2,4 snakemake -j 3 table/scaling_n_N1e7.tsv -f --rerun-incomplete
+# - Then set TOOL_TIMEOUT below to 200s, and run
+# taskset -c 0,2,4 snakemake -j 3 table/scaling_e_N1e7 -F --rerun-incomplete
 
 import itertools
 import shutil
@@ -29,7 +40,7 @@ import statistics
 # Time after which snakemake kills the program.
 TIMEOUT = "14400s"
 # Time passed to the program.
-TOOL_TIMEOUT = "15400s"
+TOOL_TIMEOUT = "100s"
 REPEATS = 1
 
 ## TOOL DEFINITIONS
@@ -64,10 +75,11 @@ tool_command = {
     'csh+gap-noprune':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm CSH_GapCost',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
-    'edlib':            binaries["edlib"]   + '-p -s {input}', # -p: compute the path, -s: no output
+    'edlib':            binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
     'wfa':              binaries["wfa"]     + ' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
     'wfa2':             binaries["wfa2"]    + ' -i {input} -a edit-wfa',
-    'biwfa':            binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
+    #'biwfa':            binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
+    'biwfa':            binaries["wfa2"]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow',
 }
 
 # Generate testcases
@@ -308,10 +320,10 @@ rule pruning_table:
 def scaling_e_runs(N):
     N = int(float(N))
     ns = [10000]
-    es = [0.01] + [x/100 for x in range(2, 40, 2)]
+    es = [0.01] + [x/100 for x in range(2, 35, 2)]
     ms = [0, 1]
-    ks = [9, 11]
-    tools = ['cp-sh', 'cp-csh', 'cp-sh+dt', 'cp-csh+dt']
+    ks = [9]
+    tools = ['cp-sh', 'cp-csh']
 
     inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
     # Dijkstra is separate because it does not use parameters.
@@ -334,22 +346,29 @@ rule scaling_e_table:
 
 def scaling_n_runs(N):
     N = int(float(N))
-    ns = [100, 300, 1000, 3000, 10_000, 30_000, 100_000, 300_000, 1_000_000]
-    es = [0.01]
+    ns = [100, 300, 1000, 3000, 10_000, 30_000, 100_000]
+    es = [0.05]
     ms = [0]
     ks = [15]
-    tools = ['cp-sh-noprune', 'cp-csh-noprune', 'cp-sh', 'cp-csh']
-    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    fast_tools = ['cp-sh', 'cp-csh']
+    slow_tools = ['cp-sh-noprune', 'cp-csh-noprune']
+    fast_inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    slow_inputs = [Input(cnt=N//100//n, n=n, e=e) for n in ns for e in es if N//n > 0]
     # Dijkstra is separate because it does not use parameters.
     dijkstra_runs = [Run(input=input, tool=tool)
-                        for input in inputs
+                        for input in slow_inputs
                         for tool in ['dijkstra']]
-    our_runs = [Run(input=input, tool=tool, m=m, k=k)
+    fast_runs = [Run(input=input, tool=tool, m=m, k=k)
                         for k in ks
                         for m in ms
-                        for input in inputs
-                        for tool in tools]
-    return dijkstra_runs + our_runs
+                        for input in fast_inputs
+                        for tool in fast_tools]
+    slow_runs = [Run(input=input, tool=tool, m=m, k=k)
+                        for k in ks
+                        for m in ms
+                        for input in slow_inputs
+                        for tool in slow_tools]
+    return fast_runs + slow_runs + dijkstra_runs
 
 rule scaling_n_table:
     input: lambda w: [run.bench_path() for run in scaling_n_runs(w.N)]
