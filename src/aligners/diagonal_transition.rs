@@ -412,22 +412,31 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             );
         });
 
+        // If no bound on the cost was specified, return here.
         let Some(s_bound) = s_bound else {
             return r;
         };
 
+        // Nothing to do.
+        if H::IS_DEFAULT && self.use_gap_cost_heuristic == GapCostHeuristic::Disable {
+            return r;
+        }
+
         // If needed and possible, reduce with gap_cost heuristic.
         if H::IS_DEFAULT {
-            if self.use_gap_cost_heuristic == GapCostHeuristic::Enable {
-                let d = a.len() as Fr - b.len() as Fr;
-                let s_remaining = s_bound - s;
-                // NOTE: Gap open cost was already paid, so we only restrict by extend cost.
-                let gap_cost_r = d - (s_remaining / self.cm.min_del_extend) as Fr
-                    ..=d + (s_remaining / self.cm.min_ins_extend) as Fr;
-                r = max(*r.start(), *gap_cost_r.start())..=min(*r.end(), *gap_cost_r.end());
-            }
+            assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Enable);
+            // Shrink the range by distance to end.
+            let d = a.len() as Fr - b.len() as Fr;
+            let s_remaining = s_bound - s;
+            // NOTE: Gap open cost was already paid, so we only restrict by extend cost.
+            // TODO: Extract this from the EditGraph somehow.
+            let gap_cost_r = d - (s_remaining / self.cm.min_del_extend) as Fr
+                ..=d + (s_remaining / self.cm.min_ins_extend) as Fr;
+            r = max(*r.start(), *gap_cost_r.start())..=min(*r.end(), *gap_cost_r.end());
             return r;
         } else {
+            // Only one type of heuristic may be used.
+            assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
             let mut d_min = Fr::MAX;
             let mut d_max = Fr::MIN;
 
