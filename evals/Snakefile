@@ -291,57 +291,6 @@ rule tools_table:
     output: 'table/tools_N{N}.tsv'
     run: make_table(tools_runs(wildcards.N), output)
 
-# === PRUNING ===
-
-def pruning_runs(N):
-    N = int(float(N))
-    ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
-    es = [0.05]
-    # Change range for slower tools.
-    fast_tools = ['sh', 'csh',]
-    fast_inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    fast_runs = [Run(input=input, tool=tool)
-                        for input in fast_inputs
-                        for tool in fast_tools]
-    N /= 100
-    slow_tools = ['dijkstra', 'sh-noprune', 'csh-noprune']
-    slow_inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    slow_runs = [Run(input=input, tool=tool)
-                        for input in slow_inputs
-                        for tool in slow_tools]
-    return fast_runs + slow_runs
-rule pruning_table:
-    input: lambda w: [run.bench_path() for run in pruning_runs(w.N)]
-    output: 'table/pruning_N{N}.tsv'
-    run: make_table(pruning_runs(wildcards.N), output)
-
-# === SCALING WITH E ===
-
-def scaling_e_runs(N):
-    N = int(float(N))
-    ns = [10000]
-    es = [0.01] + [x/100 for x in range(2, 35, 2)]
-    ms = [0, 1]
-    ks = [9]
-    tools = ['cp-sh', 'cp-csh']
-
-    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    # Dijkstra is separate because it does not use parameters.
-    dijkstra_runs = [Run(input=input, tool=tool)
-                        for input in inputs
-                        for tool in ['dijkstra']]
-    our_runs = [Run(input=input, tool=tool, m=m, k=k)
-                        for k in ks
-                        for m in ms
-                        for input in inputs
-                        for tool in tools]
-    return dijkstra_runs + our_runs
-
-rule scaling_e_table:
-    input: lambda w: [run.bench_path() for run in scaling_e_runs(w.N)]
-    output: 'table/scaling_e_N{N}.tsv'
-    run: make_table(scaling_e_runs(wildcards.N), output)
-
 # === SCALING WITH N ===
 
 def scaling_n_runs(N):
@@ -374,6 +323,33 @@ rule scaling_n_table:
     input: lambda w: [run.bench_path() for run in scaling_n_runs(w.N)]
     output: 'table/scaling_n_N{N}.tsv'
     run: make_table(scaling_n_runs(wildcards.N), output)
+
+# === SCALING WITH E ===
+
+def scaling_e_runs(N):
+    N = int(float(N))
+    ns = [10000]
+    es = [0.01] + [x/100 for x in range(2, 35, 2)]
+    ms = [0, 1]
+    ks = [9]
+    tools = ['cp-sh', 'cp-csh']
+
+    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    # Dijkstra is separate because it does not use parameters.
+    dijkstra_runs = [Run(input=input, tool=tool)
+                        for input in inputs
+                        for tool in ['dijkstra']]
+    our_runs = [Run(input=input, tool=tool, m=m, k=k)
+                        for k in ks
+                        for m in ms
+                        for input in inputs
+                        for tool in tools]
+    return dijkstra_runs + our_runs
+
+rule scaling_e_table:
+    input: lambda w: [run.bench_path() for run in scaling_e_runs(w.N)]
+    output: 'table/scaling_e_N{N}.tsv'
+    run: make_table(scaling_e_runs(wildcards.N), output)
 
 # === SCALING WITH K (vary n) ===
 
