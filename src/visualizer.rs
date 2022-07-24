@@ -44,7 +44,7 @@ mod with_sdl2 {
         canvas: Option<RefCell<Canvas<Window>>>,
         sdl_context: Sdl,
         config: Config,
-        expanded: Vec<Pos>,
+        pub expanded: Vec<Pos>,
         explored: Vec<Pos>,
         width: u32,
         height: u32,
