@@ -30,7 +30,7 @@ fn main() {
     config.style.gradient = Gradient::TurboGradient(0.25..0.90);
     config.style.path_width = Some(4);
     config.draw_old_on_top = false;
-    config.layer_drawing = true;
+    config.layer_drawing = false;
     let vis = |mut config: visualizer::Config, name: &str| {
         config.filepath = "imgs/fig1/".to_string() + name;
         Visualizer::new(config, a, b)
@@ -58,6 +58,7 @@ fn main() {
             v: vis(config.clone(), "1_ukkonen"),
         };
         nw.align(a, b);
+        println!("{}", nw.v.expanded.len() as f32 / a.len() as f32);
     }
 
     {
@@ -68,6 +69,7 @@ fn main() {
             v: vis(config.clone(), "2_dijkstra"),
         };
         a_star.align(a, b);
+        println!("{}", a_star.v.expanded.len() as f32 / a.len() as f32);
     }
 
     {
@@ -79,6 +81,7 @@ fn main() {
             vis(config.clone(), "3_diagonal-transition"),
         );
         dt.align(a, b);
+        println!("{}", dt.v.expanded.len() as f32 / a.len() as f32);
     }
 
     {
@@ -91,23 +94,7 @@ fn main() {
             vis(config.clone(), "4_dt-divide-and-conquer"),
         );
         dt.align(a, b);
-    }
-
-    {
-        let k = 5;
-        let h = CSH {
-            match_config: MatchConfig::exact(k),
-            pruning: false,
-            use_gap_cost: false,
-            c: PhantomData::<BruteForceContours>::default(),
-        };
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: vis(config.clone(), "5_astar-csh"),
-        };
-        a_star.align(a, b);
+        println!("{}", dt.v.expanded.len() as f32 / a.len() as f32);
     }
 
     {
@@ -122,8 +109,9 @@ fn main() {
             diagonal_transition: false,
             greedy_edge_matching: true,
             h,
-            v: vis(config.clone(), "6_astar-csh-pruning"),
+            v: vis(config.clone(), "5_astar-csh-pruning"),
         };
         a_star.align(a, b);
+        println!("{}", a_star.v.expanded.len() as f32 / a.len() as f32);
     }
 }
