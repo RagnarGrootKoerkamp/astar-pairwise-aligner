@@ -24,6 +24,9 @@ fn wfa() {
     println!("cargo:rustc-link-lib=wfa");
     println!("cargo:rustc-link-lib=omp");
 
+    // Tell cargo to invalidate the built crate whenever the wrapper changes
+    println!("cargo:rerun-if-changed=../WFA2-lib/lib/libwfa.a");
+
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
     // the resulting bindings.
