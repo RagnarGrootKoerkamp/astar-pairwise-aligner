@@ -293,10 +293,14 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
 
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
+    use rand::{thread_rng, Rng, SeedableRng};
 
     use crate::{
-        aligners::{nw::NW, Aligner},
+        aligners::{
+            diagonal_transition::{DiagonalTransition, GapCostHeuristic},
+            nw::NW,
+            Aligner,
+        },
         cost_model::LinearCost,
         generate::setup_sequences,
         heuristic::ZeroCost,
@@ -317,18 +321,33 @@ mod tests {
             h: ZeroCost,
             v: NoVisualizer,
         };
-        let mut biwfa = WFA { cm, biwfa: true };
+        let mut biwfa = WFA {
+            cm: cm.clone(),
+            biwfa: true,
+        };
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            true,
+            NoVisualizer,
+        );
+        let _seed = thread_rng().gen_range(0..100000);
+        let seed = 51244;
+        println!("Seed {seed}");
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
         loop {
-            let n = rand::thread_rng().gen_range(10..1000);
-            let e = rand::thread_rng().gen_range(0.0..1.0);
+            let n = rng.gen_range(10..1000);
+            let e = rng.gen_range(0.0..1.0);
             let (ref a, ref b) = setup_sequences(n, e);
             let nw_cost = nw.cost(a, b);
-            let cost = biwfa.cost(a, b);
+            let biwfa_cost = biwfa.cost(a, b);
+            let dt_cost = dt.cost(a, b);
 
             assert_eq!(
                 nw_cost,
-                cost,
-                "\n{n} {e}\nA\n{}\nB\n{}\n",
+                biwfa_cost,
+                "\nnw:    {nw_cost}\ndt:    {dt_cost}\nbiwfa: {biwfa_cost}\n{n} {e}\nA\n{}\nB\n{}\nseed: {seed}",
                 to_string(&a),
                 to_string(&b),
             );
