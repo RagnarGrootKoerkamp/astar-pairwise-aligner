@@ -20,7 +20,7 @@ const N: usize = 30000;
 const E: f32 = 0.05;
 
 fn run_aligner(
-    mut aligner: impl pairwise_aligner::aligners::Aligner,
+    mut aligner: impl astar_pairwise_aligner::aligners::Aligner,
     n: usize,
     e: f32,
     seed: &mut u64,
