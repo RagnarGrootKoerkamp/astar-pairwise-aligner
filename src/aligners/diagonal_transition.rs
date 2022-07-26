@@ -1168,7 +1168,7 @@ mod tests {
         config.paused = true;
         config.cell_size = 40;
         config.style.bg_color = Color::RGBA(255, 255, 255, 128);
-        config.style.gradient = Gradient::TurboGradient(0.25..0.90);
+        config.style.expanded = Gradient::TurboGradient(0.25..0.90);
         config.style.path_width = Some(4);
         config.draw_old_on_top = false;
         config.num_layers = Some(6);
