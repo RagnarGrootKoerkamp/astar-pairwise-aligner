@@ -1,3 +1,12 @@
+//! To turn images into a video, use this:
+//!
+//! ```
+//! ffmpeg -framerate 20 -i %d.bmp output.mp4
+//! ```
+//! or when that gives errors:
+//! ```
+//! ffmpeg -framerate 20 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" output.mp4
+//! ```
 use crate::{
     aligners::Path,
     heuristic::{HeuristicInstance, ZeroCostI},
@@ -43,7 +52,7 @@ pub use with_sdl2::*;
 #[cfg(feature = "sdl2")]
 mod with_sdl2 {
     use super::*;
-    use crate::prelude::Seq;
+    use crate::{matches::MatchStatus, prelude::Seq};
     use itertools::Itertools;
     use sdl2::{
         event::Event,
@@ -69,6 +78,7 @@ mod with_sdl2 {
         explored: Vec<Pos>,
         width: u32,
         height: u32,
+        frame_number: usize,
         file_number: usize,
         layer: Option<usize>,
         expanded_layers: Vec<usize>,
@@ -136,10 +146,9 @@ mod with_sdl2 {
         pub expanded: Gradient,
         pub explored: Option<Color>,
         pub bg_color: Color,
-        pub path: Color,
+        pub path: Option<Color>,
         /// None to draw cells.
         pub path_width: Option<usize>,
-    }
 
         // Options to draw heuristics
         pub draw_heuristic: bool,
@@ -203,8 +212,17 @@ mod with_sdl2 {
                     expanded: Gradient::Fixed(Color::BLUE),
                     explored: None,
                     bg_color: Color::WHITE,
-                    path: Color::BLACK,
+                    path: Some(Color::BLACK),
                     path_width: Some(2),
+                    draw_heuristic: false,
+                    heuristic: Gradient::Gradient(Color::WHITE..Color::RGB(128, 128, 128)),
+                    max_heuristic: None,
+                    active_match: Color::BLACK,
+                    pruned_match: Color::RED,
+                    match_shrink: 2,
+                    match_width: 2,
+                    contour: Color::GREEN,
+                    layer_label: Color::BLACK,
                 },
                 draw_old_on_top: true,
                 layer_drawing: false,
@@ -250,6 +268,7 @@ mod with_sdl2 {
                 explored: vec![],
                 width: a.len() as u32 + 1,
                 height: b.len() as u32 + 1,
+                frame_number: 0,
                 file_number: 0,
                 layer: if config.layer_drawing { Some(0) } else { None },
                 expanded_layers: vec![],
@@ -397,7 +416,7 @@ mod with_sdl2 {
             is_last: bool,
             path: Option<&Path>,
             is_new_layer: bool,
-            _h: Option<&H>,
+            h: Option<&H>,
         ) {
             let current_frame = self.frame_number;
             self.frame_number += 1;
@@ -431,7 +450,104 @@ mod with_sdl2 {
                 ))
                 .unwrap();
 
-            // Draw explored and expanded.
+            // Draw heuristic values.
+            if self.config.style.draw_heuristic && let Some(h) = h {
+                for i in 0..self.width {
+                    for j in 0..self.height {
+                        let pos = Pos(i, j);
+                        let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
+                        let h = h.h(pos);
+                        self.draw_pixel(
+                            &mut canvas,
+                            pos,
+                            self.config.style.heuristic.color(h as f32 / h_max as f32),
+                        );
+                    }
+                }
+            }
+
+            // Draw layers and contours.
+            if self.config.style.draw_heuristic && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
+                    canvas.set_draw_color(self.config.style.contour);
+                    let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                        canvas
+                            .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)))
+                            .unwrap();
+                    };
+                    let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                        canvas
+                            .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)))
+                            .unwrap();
+                    };
+
+                    // Right borders
+                    let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                    for i in 0..self.width-1 {
+                        for j in 0..self.height {
+                            let pos = Pos(i, j);
+                            let v = h.layer(pos).unwrap();
+                            let pos_r = Pos(i + 1, j);
+                            let v_r = h.layer(pos_r).unwrap();
+                            if v_r != v {
+                                draw_right_border(&mut canvas, pos);
+
+                                if j == 0 {
+                                    top_borders.push((i+1, v_r));
+                                }
+                            }
+                        }
+                    }
+                    top_borders.push((self.width, 0));
+
+                    // Bottom borders
+                    let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                    for i in 0..self.width {
+                        for j in 0..self.height-1 {
+                            let pos = Pos(i, j);
+                            let v = h.layer(pos).unwrap();
+                            let pos_l = Pos(i, j + 1);
+                            let v_l = h.layer(pos_l).unwrap();
+                            if v_l != v {
+                                draw_bottom_border(&mut canvas, pos);
+
+                                if i == 0 {
+                                    left_borders.push((j+1, v_l));
+                                }
+                            }
+                        }
+                    }
+                    left_borders.push((self.height, 0));
+
+                    // Draw layer numbers
+                    let context = sdl2::ttf::init().unwrap();
+                    let font = context.load_font("/usr/share/fonts/TTF/OpenSans-Regular.ttf", 24).unwrap();
+
+                    // Draw at the top
+                    let texture_creator = canvas.texture_creator();
+                    for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
+                        if right < 10 { continue; }
+                        let surface = font.render(&layer.to_string()).blended(self.config.style.layer_label).unwrap();
+                        let w = surface.width();
+                        let h = surface.height();
+                        //let x = ((left*self.config.cell_size as u32+right*self.config.cell_size as u32)/2).saturating_sub(w/2);
+                        let x = (right * self.config.cell_size as u32).saturating_sub(w + 1);
+                        let y = -6;
+                        canvas.copy(&surface.as_texture(&texture_creator).unwrap(),
+                            None, Some(Rect::new(x as i32,y,w,h))).unwrap();
+                    }
+                    for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
+                        if bottom < 10 { continue; }
+                        let surface = font.render(&layer.to_string()).blended(self.config.style.layer_label).unwrap();
+                        let w = surface.width();
+                        let h = surface.height();
+                        //let y = ((top*self.config.cell_size as u32+bottom*self.config.cell_size as u32)/2).saturating_sub(h/2);
+                        let x = 3;
+                        let y = (bottom * self.config.cell_size as u32).saturating_sub(h)+5;
+                        canvas.copy(&surface.as_texture(&texture_creator).unwrap(),
+                            None, Some(Rect::new(x, y as i32,w,h))).unwrap();
+                    }
+            }
+
             if self.config.draw_old_on_top {
                 // Explored
                 if let Some(color) = self.config.style.explored {
@@ -486,21 +602,46 @@ mod with_sdl2 {
                 }
             }
 
+            // Draw matches.
+            if self.config.style.draw_heuristic && let  Some(h) = h && let Some(matches) = h.matches() {
+                for m in &matches {
+                    if m.match_cost > 0 {
+                        continue;
+                    }
+                    let mut b = self.cell_center(m.start);
+                    b.x += self.config.style.match_shrink as i32;
+                    b.y += self.config.style.match_shrink as i32;
+                    let mut e = self.cell_center(m.end);
+                    e.x -= self.config.style.match_shrink as i32;
+                    e.y -= self.config.style.match_shrink as i32;
+                    Self::draw_diag_line(
+                        &mut canvas,
+                        b, e,
+                        match m.pruned {
+                            MatchStatus::Active => self.config.style.active_match,
+                            MatchStatus::Pruned => self.config.style.pruned_match,
+                        },
+                        self.config.style.match_width,
+                    );
+                }
+            }
+
             // Draw path.
-            if let Some(path) = path {
+            if let Some(path) = path &&
+               let Some(path_color) = self.config.style.path {
                 if let Some(path_width) = self.config.style.path_width {
                     for (from, to) in path.iter().tuple_windows() {
                         Self::draw_diag_line(
                             &mut canvas,
                             self.cell_center(*from),
                             self.cell_center(*to),
-                            self.config.style.path,
+                            path_color,
                             path_width,
                         );
                     }
                 } else {
                     for p in path {
-                        self.draw_pixel(&mut canvas, *p, self.config.style.path)
+                        self.draw_pixel(&mut canvas, *p, path_color)
                     }
                 }
             }

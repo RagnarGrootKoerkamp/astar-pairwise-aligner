@@ -32,7 +32,7 @@ lazy_static = "*"
 smallvec = {version="*", features=["union"]}
 ropey = "*"
 num-traits = "*"
-sdl2 = {version="*", optional=true}
+sdl2 = {version="*", optional=true, features=["ttf"]}
 parse_duration = "*"
 seq-macro = "*"
 paste = "*"
