@@ -37,9 +37,9 @@ evals:
 	sudo cpupower frequency-set -u 2.6GHz
 	# Run snakemake on 3 threads, with 3 jobs in parallel
 	cd evals && \
-	  taskset -c 0,2,4 snakemake -j 3 -F --rerun-incomplete \
+	  taskset -c 0,2,4 snakemake -j 3 --rerun-incomplete \
 	  table/scaling_n_N1e7.tsv \
 	  table/tools_N1e7.tsv \
-	  table/scaling_e_N1e5.tsv \
+	  table/scaling_e_N1e6.tsv \
 
 .PHONY: all evals
