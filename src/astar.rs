@@ -94,6 +94,8 @@ where
     //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
     let mut states = HashMap::<Pos, State<H::Hint>>::default();
 
+    v.new_layer_with_h(Some(h));
+
     // Initialization with the root state.
     {
         let start = Pos(0, 0);

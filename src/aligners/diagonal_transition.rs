@@ -1162,8 +1162,8 @@ mod tests {
         let b = b"CACG";
 
         let mut config = Config::default();
-        config.draw = Draw::Layers;
-        config.save = Save::Layers;
+        config.draw = When::Layers;
+        config.save = When::Layers;
         config.delay = 1.;
         config.paused = true;
         config.cell_size = 40;

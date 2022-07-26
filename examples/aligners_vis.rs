@@ -10,7 +10,7 @@ fn main() {
             Aligner,
         },
         prelude::*,
-        visualizer::{Draw, Gradient, Save, Visualizer},
+        visualizer::{Gradient, Visualizer, When},
     };
     use sdl2::pixels::Color;
     let n = 500;
@@ -20,8 +20,8 @@ fn main() {
 
     let cm = LinearCost::new_unit();
     let mut config = visualizer::Config::default();
-    config.draw = Draw::All;
-    config.save = Save::Last;
+    config.draw = When::All;
+    config.save = When::Last;
     config.delay = 0.0001;
     config.cell_size = 2;
     config.style.bg_color = Color::RGBA(255, 255, 255, 128);
