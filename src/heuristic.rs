@@ -83,7 +83,7 @@ pub trait HeuristicInstance<'a> {
     fn h(&self, pos: Pos) -> Cost;
 
     /// The internal contour value at the given position, if available.
-    fn contour_value(&self, _pos: Pos) -> Option<Cost> {
+    fn layer(&self, _pos: Pos) -> Option<Cost> {
         None
     }
 
@@ -384,7 +384,7 @@ pub trait HeuristicInstance<'a> {
         }
 
         // Draw contours
-        if let Some(_) = self.contour_value(Pos(0, 0)) {
+        if let Some(_) = self.layer(Pos(0, 0)) {
             canvas.set_draw_color(CONTOUR_COLOR);
             let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
                 canvas
@@ -401,9 +401,9 @@ pub trait HeuristicInstance<'a> {
             for i in 0..canvas_size_cells.0 - 1 {
                 for j in 0..canvas_size_cells.1 {
                     let pos = Pos(i, j);
-                    let v = self.contour_value(pos).unwrap();
+                    let v = self.layer(pos).unwrap();
                     let pos_r = Pos(i + 1, j);
-                    let v_r = self.contour_value(pos_r).unwrap();
+                    let v_r = self.layer(pos_r).unwrap();
                     if v_r != v {
                         draw_right_border(&mut canvas, pos);
                     }
@@ -413,9 +413,9 @@ pub trait HeuristicInstance<'a> {
             for i in 0..canvas_size_cells.0 {
                 for j in 0..canvas_size_cells.1 - 1 {
                     let pos = Pos(i, j);
-                    let v = self.contour_value(pos).unwrap();
+                    let v = self.layer(pos).unwrap();
                     let pos_l = Pos(i, j + 1);
-                    let v_l = self.contour_value(pos_l).unwrap();
+                    let v_l = self.layer(pos_l).unwrap();
                     if v_l != v {
                         draw_bottom_border(&mut canvas, pos);
                     }
