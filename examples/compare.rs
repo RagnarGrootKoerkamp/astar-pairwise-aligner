@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use pairwise_aligner::prelude::*;
+use astar_pairwise_aligner::prelude::*;
 
 fn main() {
     let mut wtr = csv::WriterBuilder::new()

@@ -1,6 +1,6 @@
 use std::panic::AssertUnwindSafe;
 
-use pairwise_aligner::prelude::*;
+use astar_pairwise_aligner::prelude::*;
 
 fn main() {
     PRINT.store(false, std::sync::atomic::Ordering::Relaxed);

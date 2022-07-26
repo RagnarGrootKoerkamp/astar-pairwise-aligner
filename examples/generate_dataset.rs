@@ -1,4 +1,4 @@
-use pairwise_aligner::generate::{generate_pair, GenerateOptions};
+use astar_pairwise_aligner::generate::{generate_pair, GenerateOptions};
 use std::{io::Write, path::PathBuf};
 use structopt::StructOpt;
 

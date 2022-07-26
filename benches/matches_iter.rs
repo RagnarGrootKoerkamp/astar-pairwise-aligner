@@ -3,7 +3,7 @@
 
 use std::hint::black_box;
 
-use pairwise_aligner::{matches::find_matches_qgram_hash_exact, prelude::*};
+use astar_pairwise_aligner::{matches::find_matches_qgram_hash_exact, prelude::*};
 
 extern crate test;
 

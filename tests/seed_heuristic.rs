@@ -1,4 +1,4 @@
-use pairwise_aligner::prelude::*;
+use astar_pairwise_aligner::prelude::*;
 
 /// This was broken because seed_heuristic didn't clear the previous state before rebuilding.
 #[test]
