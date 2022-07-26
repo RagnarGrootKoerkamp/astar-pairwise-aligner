@@ -78,9 +78,12 @@ fig3-export: fig3
 fig3-video-clean:
 	rm -rf imgs/fig3-video
 
+fig-readme:
+	cargo run --release --example fig-readme
+
 fig-readme-video:
-	ffmpeg -y -framerate 30 -i imgs/fig-readme/%d.bmp imgs/fig-readme.mp4
-	ffmpeg -y -framerate 30 -i imgs/fig-readme/%d.bmp $(FILTER) imgs/fig-readme.gif
+	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp -vf fps=50 imgs/fig-readme.mp4
+	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp $(FILTER),fps=50 imgs/fig-readme.gif
 
 
 scaling-export:

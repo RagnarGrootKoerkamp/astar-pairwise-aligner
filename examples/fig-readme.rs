@@ -10,6 +10,7 @@ fn main() {
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };
+    use itertools::Itertools;
     use sdl2::pixels::Color;
 
     let n = 500;
@@ -17,8 +18,9 @@ fn main() {
     let (ref a, ref b) = setup_sequences(n, e);
 
     let mut config = visualizer::Config::default();
-    config.draw = When::All;
-    config.save = When::All;
+    let frames = (0..10000).step_by(4).collect_vec();
+    config.draw = When::Frames(frames.clone());
+    config.save = When::Frames(frames);
     config.paused = false;
     config.delay = 0.0001;
     config.cell_size = 2;
@@ -30,7 +32,7 @@ fn main() {
         Gradient::Gradient(Color::RGB(250, 250, 250)..Color::RGB(180, 180, 180));
     config.style.max_heuristic = Some(35);
     config.style.pruned_match = Color::GREEN;
-    config.style.path = None;
+    config.style.path = Some(Color::BLACK);
     config.style.match_width = 3;
     config.style.draw_heuristic = true;
     config.style.draw_contours = true;
