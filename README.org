@@ -7,10 +7,28 @@ Ivanov, Bichsel, Vechev (2021, preprint)
 
 Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
 
-* Current state
+* Videos
 
-Currently we're in the process of adding visualizations and linking to external (WFA, Edlib) libraries.
-We will put them behind feature flags soon, so that compiling just this repository works again.
+[[img:imgs/fig-readme.gif][A* with chaining seed heuristic and pruning]]
+
+Here are some competitor algorithms:
+
+1. Ukkonen's exponential band algorithm (Ukkonen'85)
+   [[img:imgs/fig1/1_ukkonen.gif][Ukkonen]]
+2. Dijkstra's algorithm
+   [[img:imgs/fig1/2_dijkstra.gif][Dijkstra]]
+3. Diagonal transition (Ukkonen'85, Myers'86, WFA)
+   [[img:igms/fig1/3_diagonal-transition.gif][Diagonal transition]]
+4. Diagonal transition with divide and conquer (Myers'86, BiWFA)
+   [[img:imgs/fig1/4_dt-divide-and-conquer.gif][Diagonal transition with divide and conquer]]
+5. A* with chaining seed heuristic and pruning (A*PA, this work)
+   [[img:imgs/fig1/5_astar-csh-pruning.gif][A* with chaining seed heuristic and pruning]]
+
+And here is another one:
+[[img:imgs/fig3.gif][Figure 3 from our paper]]
+
+
+* Current state
 
 If you would like to try out A*PA, please make an issue here as soon as you run into any kind of problems or unclarity
 -- writing documentation is pending, but we're happy to help you out.
