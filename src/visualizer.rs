@@ -1,15 +1,36 @@
-use crate::{aligners::Path, prelude::Pos};
+use crate::{
+    aligners::Path,
+    heuristic::{HeuristicInstance, ZeroCostI},
+    prelude::Pos,
+};
 
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
-    fn explore(&mut self, _pos: Pos) {}
-    fn expand(&mut self, _pos: Pos) {}
+    fn explore(&mut self, pos: Pos) {
+        self.explore_with_h::<ZeroCostI>(pos, None);
+    }
+    fn expand(&mut self, pos: Pos) {
+        self.expand_with_h::<ZeroCostI>(pos, None);
+    }
+    fn explore_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&H>) {}
+    fn expand_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&H>) {}
 
     /// This function should be called after completing each layer
-    fn new_layer(&mut self) {}
+    fn new_layer(&mut self) {
+        self.new_layer_with_h::<ZeroCostI>(None);
+    }
+    fn new_layer_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _h: Option<&H>) {}
 
     /// This function may be called after the main loop to display final image.
-    fn last_frame(&mut self, _path: Option<&Path>) {}
+    fn last_frame(&mut self, path: Option<&Path>) {
+        self.last_frame_with_h::<ZeroCostI>(path, None);
+    }
+    fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
+        &mut self,
+        _path: Option<&Path>,
+        _h: Option<&H>,
+    ) {
+    }
 }
 
 /// A trivial visualizer that does not do anything.
@@ -54,26 +75,30 @@ mod with_sdl2 {
     }
 
     impl VisualizerT for Visualizer {
-        fn expand(&mut self, pos: Pos) {
+        fn expand_with_h<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, h: Option<&H>) {
             self.expanded.push(pos);
-            self.draw(false, None, false);
+            self.draw(false, None, false, h);
         }
 
-        fn explore(&mut self, pos: Pos) {
+        fn explore_with_h<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, h: Option<&H>) {
             self.explored.push(pos);
-            self.draw(false, None, false);
+            self.draw(false, None, false, h);
         }
 
-        fn new_layer(&mut self) {
+        fn new_layer_with_h<'a, H: HeuristicInstance<'a>>(&mut self, h: Option<&H>) {
             if let Some(layer) = self.layer {
                 self.layer = Some(layer + 1);
                 self.expanded_layers.push(self.expanded.len());
             }
-            self.draw(false, None, true);
+            self.draw(false, None, true, h);
         }
 
-        fn last_frame(&mut self, path: Option<&Path>) {
-            self.draw(true, path, false);
+        fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
+            &mut self,
+            path: Option<&Path>,
+            h: Option<&H>,
+        ) {
+            self.draw(true, path, false, h);
         }
     }
 
@@ -381,7 +406,13 @@ mod with_sdl2 {
             });
         }
 
-        fn draw(&mut self, is_last: bool, path: Option<&Path>, is_new_layer: bool) {
+        fn draw<'a, H: HeuristicInstance<'a>>(
+            &mut self,
+            is_last: bool,
+            path: Option<&Path>,
+            is_new_layer: bool,
+            _h: Option<&H>,
+        ) {
             if !self.config.draw.do_draw(is_last, is_new_layer)
                 && !self.config.save.do_save(is_last, is_new_layer)
             {
