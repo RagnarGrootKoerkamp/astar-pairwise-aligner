@@ -194,6 +194,8 @@ def params_filter(run):
 # === GENERATE INPUT ===
 
 rule generate_input:
+    # Input generation has priority over all other rules.
+    priority: 2
     output: Input.pattern()
     shell: generate_command
 
