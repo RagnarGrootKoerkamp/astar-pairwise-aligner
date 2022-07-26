@@ -17,7 +17,7 @@ fn main() {
 
     let mut config = visualizer::Config::default();
     config.draw = When::None;
-    config.save = When::All;
+    config.save = When::Frames(vec![0, usize::MAX]);
     config.paused = true;
     config.delay = 0.0001;
     config.cell_size = 6;
@@ -35,8 +35,9 @@ fn main() {
     config.style.layer_label = Color::BLACK;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
-    config.filepath = "imgs/fig3-all".to_string();
+    config.filepath = "imgs/fig3".to_string();
 
+    // First and last frame
     {
         let k = 3;
         let h = CSH {
@@ -49,9 +50,29 @@ fn main() {
             diagonal_transition: false,
             greedy_edge_matching: true,
             h,
-            v: Visualizer::new(config, a, b),
+            v: Visualizer::new(config.clone(), a, b),
         };
         let cost = a_star.align(a, b).0;
         println!("Distance: {cost}");
+    }
+
+    // All frames, for video
+    config.save = When::All;
+    config.filepath = "imgs/fig3-video/".to_string();
+    {
+        let k = 3;
+        let h = CSH {
+            match_config: MatchConfig::exact(k),
+            pruning: true,
+            use_gap_cost: false,
+            c: PhantomData::<BruteForceContours>::default(),
+        };
+        let mut a_star = AStar {
+            diagonal_transition: false,
+            greedy_edge_matching: true,
+            h,
+            v: Visualizer::new(config.clone(), a, b),
+        };
+        a_star.align(a, b);
     }
 }
