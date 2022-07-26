@@ -18,7 +18,7 @@ fn main() {
     let mut config = visualizer::Config::default();
     config.draw = When::None;
     config.save = When::Frames(vec![0, usize::MAX]);
-    config.paused = true;
+    config.paused = false;
     config.delay = 0.0001;
     config.cell_size = 6;
     config.style.bg_color = Color::WHITE;
@@ -31,6 +31,8 @@ fn main() {
     config.style.path = None;
     config.style.match_width = 3;
     config.style.draw_heuristic = true;
+    config.style.draw_contours = true;
+    config.style.draw_matches = true;
     config.style.contour = Color::BLACK;
     config.style.layer_label = Color::BLACK;
     config.draw_old_on_top = false;
@@ -65,7 +67,7 @@ fn main() {
             match_config: MatchConfig::exact(k),
             pruning: true,
             use_gap_cost: false,
-            c: PhantomData::<BruteForceContours>::default(),
+            c: PhantomData::<HintContours<BruteForceContour>>::default(),
         };
         let mut a_star = AStar {
             diagonal_transition: false,
