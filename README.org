@@ -9,23 +9,23 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
 
 * Videos
 
-[[img:imgs/fig-readme.gif][A* with chaining seed heuristic and pruning]]
+[[file:imgs/fig-readme.gif]]
 
 Here are some competitor algorithms:
 
 1. Ukkonen's exponential band algorithm (Ukkonen'85)
-   [[file:imgs/fig1/1_ukkonen.gif][Ukkonen]]
+   [[file:imgs/fig1/1_ukkonen.gif]]
 2. Dijkstra's algorithm
-   [[file:imgs/fig1/2_dijkstra.gif][Dijkstra]]
+   [[file:imgs/fig1/2_dijkstra.gif]]
 3. Diagonal transition (Ukkonen'85, Myers'86, WFA)
-   [[file:imgs/fig1/3_diagonal_transition.gif][Diagonal transition]]
+   [[file:imgs/fig1/3_diagonal_transition.gif]]
 4. Diagonal transition with divide and conquer (Myers'86, BiWFA)
-   [[file:imgs/fig1/4_dt-divide-and-conquer.gif][Diagonal transition with divide and conquer]]
+   [[file:imgs/fig1/4_dt-divide-and-conquer.gif]]
 5. A* with chaining seed heuristic and pruning (A*PA, this work)
-   [[file:imgs/fig1/5_astar-csh-pruning.gif][A* with chaining seed heuristic and pruning]]
+   [[file:imgs/fig1/5_astar-csh-pruning.gif]]
 
 And here is another one:
-[[img:imgs/fig3.gif][Figure 3 from our paper]]
+[[file:imgs/fig3.gif]]
 
 
 * Current state
