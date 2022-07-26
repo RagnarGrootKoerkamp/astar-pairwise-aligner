@@ -25,7 +25,7 @@ fn main() {
     config.delay = 0.0001;
     config.cell_size = 2;
     config.style.bg_color = Color::RGBA(255, 255, 255, 128);
-    config.style.gradient = Gradient::TurboGradient(0.25..0.90);
+    config.style.expanded = Gradient::TurboGradient(0.25..0.90);
     config.draw_old_on_top = true;
     let mut vis = |name: &str| {
         config.filepath = "imgs/".to_string() + name;

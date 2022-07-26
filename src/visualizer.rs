@@ -104,16 +104,16 @@ mod with_sdl2 {
 
     #[derive(Clone)]
     pub enum Gradient {
-        NoGradient { expand: Color, explore: Color },
+        Fixed(Color),
         Gradient(Range<Color>),
         // 0 <= start < end <= 1
         TurboGradient(Range<f32>),
     }
 
     impl Gradient {
-        fn expand(&self, f: f32) -> Color {
+        fn color(&self, f: f32) -> Color {
             match self {
-                Gradient::NoGradient { expand, .. } => *expand,
+                Gradient::Fixed(color) => *color,
                 Gradient::Gradient(range) => {
                     let frac = |a: u8, b: u8| -> u8 { ((1. - f) * a as f32 + f * b as f32) as u8 };
                     Color::RGB(
@@ -129,19 +129,12 @@ mod with_sdl2 {
                 }
             }
         }
-
-        fn explore(&self, _f: f32) -> Option<Color> {
-            match self {
-                Gradient::NoGradient { explore, .. } => Some(*explore),
-                Gradient::Gradient(_) => None,
-                Gradient::TurboGradient(_) => None,
-            }
-        }
     }
 
     #[derive(Clone)]
     pub struct Style {
-        pub gradient: Gradient,
+        pub expanded: Gradient,
+        pub explored: Option<Color>,
         pub bg_color: Color,
         pub path: Color,
         /// None to draw cells.
@@ -207,10 +200,8 @@ mod with_sdl2 {
                 delay: 0.2,
                 paused: false,
                 style: Style {
-                    gradient: Gradient::NoGradient {
-                        expand: Color::BLUE,
-                        explore: Color::RGB(128, 0, 128),
-                    },
+                    expanded: Gradient::Fixed(Color::BLUE),
+                    explored: None,
                     bg_color: Color::WHITE,
                     path: Color::BLACK,
                     path_width: Some(2),
@@ -442,22 +433,19 @@ mod with_sdl2 {
 
             // Draw explored and expanded.
             if self.config.draw_old_on_top {
-                for (i, pos) in self.explored.iter().enumerate().rev() {
-                    if let Some(color) = self
-                        .config
-                        .style
-                        .gradient
-                        .explore(i as f32 / self.explored.len() as f32)
-                    {
+                // Explored
+                if let Some(color) = self.config.style.explored {
+                    for pos in &self.explored {
                         self.draw_pixel(&mut canvas, *pos, color);
                     }
                 }
+                // Expanded
                 let mut current_layer = self.layer.unwrap_or(0);
                 for (i, pos) in self.expanded.iter().enumerate().rev() {
                     self.draw_pixel(
                     &mut canvas,
                     *pos,
-                    self.config.style.gradient.expand(
+                    self.config.style.expanded.color(
                         if let Some(layer) = self.layer && layer != 0 {
                             if current_layer > 0
                                 && i < self.expanded_layers[current_layer - 1]
@@ -472,22 +460,19 @@ mod with_sdl2 {
                     );
                 }
             } else {
-                for (i, pos) in self.explored.iter().enumerate() {
-                    if let Some(color) = self
-                        .config
-                        .style
-                        .gradient
-                        .explore(i as f32 / self.explored.len() as f32)
-                    {
+                // Explored
+                if let Some(color) = self.config.style.explored {
+                    for pos in &self.explored {
                         self.draw_pixel(&mut canvas, *pos, color);
                     }
                 }
+                // Expanded
                 let mut current_layer = 0;
                 for (i, pos) in self.expanded.iter().enumerate() {
                     self.draw_pixel(
                     &mut canvas,
                     *pos,
-                    self.config.style.gradient.expand(
+                    self.config.style.expanded.color(
                         if let Some(layer) = self.layer && layer != 0 {
                             if current_layer < layer && i >= self.expanded_layers[current_layer] {
                                 current_layer += 1;
