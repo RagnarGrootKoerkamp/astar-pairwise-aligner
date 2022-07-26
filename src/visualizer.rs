@@ -60,19 +60,26 @@ mod with_sdl2 {
         pixels::Color,
         rect::{Point, Rect},
         render::Canvas,
+        ttf::{Font, Sdl2TtfContext},
         video::Window,
         Sdl,
     };
     use std::{
         cell::RefCell,
+        collections::HashMap,
         ops::Range,
         path,
         time::{Duration, Instant},
     };
 
+    lazy_static! {
+        static ref TTF_CONTEXT: Sdl2TtfContext = sdl2::ttf::init().unwrap();
+    }
+
     pub struct Visualizer {
         canvas: Option<RefCell<Canvas<Window>>>,
         sdl_context: Sdl,
+        font: Font<'static, 'static>,
         config: Config,
         pub expanded: Vec<Pos>,
         explored: Vec<Pos>,
@@ -152,6 +159,8 @@ mod with_sdl2 {
 
         // Options to draw heuristics
         pub draw_heuristic: bool,
+        pub draw_contours: bool,
+        pub draw_matches: bool,
         pub heuristic: Gradient,
         pub max_heuristic: Option<u32>,
         pub active_match: Color,
@@ -192,6 +201,7 @@ mod with_sdl2 {
         pub delay: f32,
         pub paused: bool,
         pub save: When,
+        pub save_last: bool,
         pub style: Style,
         pub draw_old_on_top: bool,
         pub layer_drawing: bool,
@@ -204,6 +214,7 @@ mod with_sdl2 {
                 cell_size: 8,
                 prescaler: 1,
                 save: When::None,
+                save_last: false,
                 filepath: String::from(""),
                 draw: When::None,
                 delay: 0.2,
@@ -215,6 +226,8 @@ mod with_sdl2 {
                     path: Some(Color::BLACK),
                     path_width: Some(2),
                     draw_heuristic: false,
+                    draw_contours: false,
+                    draw_matches: false,
                     heuristic: Gradient::Gradient(Color::WHITE..Color::RGB(128, 128, 128)),
                     max_heuristic: None,
                     active_match: Color::BLACK,
@@ -234,12 +247,18 @@ mod with_sdl2 {
     impl Visualizer {
         pub fn new(config: Config, a: Seq, b: Seq) -> Self {
             let sdl_context = sdl2::init().unwrap();
+
+            // Draw layer numbers
+            let font = TTF_CONTEXT
+                .load_font("/usr/share/fonts/TTF/OpenSans-Regular.ttf", 24)
+                .unwrap();
+
             Visualizer {
                 canvas: {
                     let canvas_size_cells = Pos::from(a.len() + 1, b.len() + 1);
                     let video_subsystem = sdl_context.video().unwrap();
                     video_subsystem.gl_attr().set_double_buffer(true);
-                    if config.draw != When::None || config.save != When::None {
+                    if config.draw != When::None || config.save != When::None || config.save_last {
                         Some(RefCell::new(
                             video_subsystem
                                 .window(
@@ -263,6 +282,7 @@ mod with_sdl2 {
                     }
                 },
                 sdl_context,
+                font,
                 config: config.clone(),
                 expanded: vec![],
                 explored: vec![],
@@ -300,6 +320,24 @@ mod with_sdl2 {
                     (self.config.cell_size * self.config.prescaler) as u32,
                 ))
                 .unwrap();
+        }
+
+        fn draw_pixels(&self, canvas: &mut Canvas<Window>, p: Vec<Pos>, c: Color) {
+            canvas.set_draw_color(c);
+            let rects = p
+                .iter()
+                .map(|p| {
+                    let mut begin = self.cell_begin(*p);
+                    begin *= self.config.prescaler as i32;
+                    Rect::new(
+                        begin.x,
+                        begin.y,
+                        (self.config.cell_size * self.config.prescaler) as u32,
+                        (self.config.cell_size * self.config.prescaler) as u32,
+                    )
+                })
+                .collect_vec();
+            canvas.fill_rects(&rects).unwrap();
         }
 
         fn draw_diag_line(
@@ -428,6 +466,7 @@ mod with_sdl2 {
                     .config
                     .save
                     .is_active(current_frame, is_last, is_new_layer)
+                && !(is_last && self.config.save_last)
             {
                 return;
             }
@@ -452,22 +491,30 @@ mod with_sdl2 {
 
             // Draw heuristic values.
             if self.config.style.draw_heuristic && let Some(h) = h {
+                let mut hint = Default::default();
+                let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
+                let mut value_pos_map = HashMap::<u32, Vec<Pos>>::default();
                 for i in 0..self.width {
+                    hint = h.h_with_hint(Pos(i,0), hint).1;
+                    let mut hint = hint;
                     for j in 0..self.height {
                         let pos = Pos(i, j);
-                        let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
-                        let h = h.h(pos);
-                        self.draw_pixel(
+                        let (h, new_hint) = h.h_with_hint(pos, hint);
+                        hint = new_hint;
+                        value_pos_map.entry(h).or_default().push(pos);
+                    }
+                }
+                for (h, poss) in value_pos_map {
+                        self.draw_pixels(
                             &mut canvas,
-                            pos,
+                            poss,
                             self.config.style.heuristic.color(h as f32 / h_max as f32),
                         );
-                    }
                 }
             }
 
             // Draw layers and contours.
-            if self.config.style.draw_heuristic && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
+            if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
                     canvas.set_draw_color(self.config.style.contour);
                     let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
                         canvas
@@ -480,14 +527,20 @@ mod with_sdl2 {
                             .unwrap();
                     };
 
+
                     // Right borders
+                    let mut hint = Default::default();
                     let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
                     for i in 0..self.width-1 {
+                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                        let mut hint = hint;
                         for j in 0..self.height {
                             let pos = Pos(i, j);
-                            let v = h.layer(pos).unwrap();
+                            let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                            hint = new_hint;
                             let pos_r = Pos(i + 1, j);
-                            let v_r = h.layer(pos_r).unwrap();
+                            let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
+                            hint = new_hint;
                             if v_r != v {
                                 draw_right_border(&mut canvas, pos);
 
@@ -500,13 +553,18 @@ mod with_sdl2 {
                     top_borders.push((self.width, 0));
 
                     // Bottom borders
+                    let mut hint = Default::default();
                     let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
                     for i in 0..self.width {
+                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                        let mut hint = hint;
                         for j in 0..self.height-1 {
                             let pos = Pos(i, j);
-                            let v = h.layer(pos).unwrap();
+                            let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                            hint = new_hint;
                             let pos_l = Pos(i, j + 1);
-                            let v_l = h.layer(pos_l).unwrap();
+                            let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
+                            hint = new_hint;
                             if v_l != v {
                                 draw_bottom_border(&mut canvas, pos);
 
@@ -518,15 +576,11 @@ mod with_sdl2 {
                     }
                     left_borders.push((self.height, 0));
 
-                    // Draw layer numbers
-                    let context = sdl2::ttf::init().unwrap();
-                    let font = context.load_font("/usr/share/fonts/TTF/OpenSans-Regular.ttf", 24).unwrap();
-
                     // Draw at the top
                     let texture_creator = canvas.texture_creator();
                     for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
                         if right < 10 { continue; }
-                        let surface = font.render(&layer.to_string()).blended(self.config.style.layer_label).unwrap();
+                        let surface = self.font.render(&layer.to_string()).blended(self.config.style.layer_label).unwrap();
                         let w = surface.width();
                         let h = surface.height();
                         //let x = ((left*self.config.cell_size as u32+right*self.config.cell_size as u32)/2).saturating_sub(w/2);
@@ -537,7 +591,7 @@ mod with_sdl2 {
                     }
                     for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
                         if bottom < 10 { continue; }
-                        let surface = font.render(&layer.to_string()).blended(self.config.style.layer_label).unwrap();
+                        let surface = self.font.render(&layer.to_string()).blended(self.config.style.layer_label).unwrap();
                         let w = surface.width();
                         let h = surface.height();
                         //let y = ((top*self.config.cell_size as u32+bottom*self.config.cell_size as u32)/2).saturating_sub(h/2);
@@ -603,7 +657,7 @@ mod with_sdl2 {
             }
 
             // Draw matches.
-            if self.config.style.draw_heuristic && let  Some(h) = h && let Some(matches) = h.matches() {
+            if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
                 for m in &matches {
                     if m.match_cost > 0 {
                         continue;
@@ -657,7 +711,8 @@ mod with_sdl2 {
                 self.file_number += 1;
             }
 
-            if is_last && self.config.save == When::Last {
+            // Save the final frame separately if needed.
+            if is_last && self.config.save_last {
                 self.save_canvas(&mut canvas, true);
             }
 
