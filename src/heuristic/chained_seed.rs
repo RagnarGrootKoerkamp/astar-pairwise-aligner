@@ -267,6 +267,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         Some(self.contours.value(self.transform(pos)))
     }
 
+    fn layer_with_hint(&self, pos: Pos, hint: Self::Hint) -> Option<(Cost, Self::Hint)> {
+        Some(self.contours.value_with_hint(self.transform(pos), hint))
+    }
+
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let p = self.seeds.potential(pos);
         let (val, new_hint) = self.contours.value_with_hint(self.transform(pos), hint);
