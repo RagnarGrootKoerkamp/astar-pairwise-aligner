@@ -15,20 +15,6 @@
 #   - git clone https://github.com/RagnarGrootKoerkamp/WFA wfa
 #   - cd wfa
 #   - make clean all
-#
-# Instructions for running:
-# - compile A*PA:
-# cargo build --release
-# cargo build --release --example generate_dataset
-# - pin CPU frequency to 800MHz:
-# sudo cpupower frequency-set -g performance
-# sudo cpupower frequency-set -d 800MHz
-# sudo cpupower frequency-set -u 800MHz
-# - Run the following commands:
-# taskset -c 0,2,4 snakemake -j 3 table/tools_N1e7.tsv -f --rerun-incomplete
-# taskset -c 0,2,4 snakemake -j 3 table/scaling_n_N1e7.tsv -f --rerun-incomplete
-# - Then set TOOL_TIMEOUT below to 200s, and run
-# taskset -c 0,2,4 snakemake -j 3 table/scaling_e_N1e7 -F --rerun-incomplete
 
 import itertools
 import shutil
@@ -42,8 +28,7 @@ TIMEOUT = "24h"
 # Time passed to the program.
 TOOL_TIMEOUT = "24h"
 # Memory limit for each invocation, in kb. 30GB default
-#MEMORY_LIMIT = 30000000
-MEMORY_LIMIT = 1000 # 1MB
+MEMORY_LIMIT = 30000000
 # Number of times to rerun each benchmark.
 # NOTE: Not well tested for values > 1.
 REPEATS = 1
