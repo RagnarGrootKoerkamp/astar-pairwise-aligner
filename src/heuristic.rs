@@ -87,6 +87,11 @@ pub trait HeuristicInstance<'a> {
         None
     }
 
+    /// The internal contour value at the given position, if available.
+    fn layer_with_hint(&self, _pos: Pos, _hint: Self::Hint) -> Option<(Cost, Self::Hint)> {
+        None
+    }
+
     fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
         (self.h(pos), Pos::default())
     }

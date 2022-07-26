@@ -235,6 +235,10 @@ impl<'a> HeuristicInstance<'a> for SHI {
         Some(self.value(pos))
     }
 
+    fn layer_with_hint(&self, pos: Pos, hint: Self::Hint) -> Option<(Cost, Self::Hint)> {
+        Some(self.value_with_hint(pos, hint))
+    }
+
     fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
         (self.h(pos), Pos::default())
     }
