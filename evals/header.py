@@ -75,6 +75,7 @@ def algo2color(algo):
 def algo2beautiful(algo):
     d = {
         'dijkstra': 'Dijkstra',
+        'sh-noprune': 'SH (no prune)',
         'csh-noprune': 'CSH (no prune)',
         'csh+gap-noprune': 'CSH (no prune)',
         'csh+gap': 'A*PA',
@@ -89,6 +90,9 @@ def algo2beautiful(algo):
         'wfa': 'WFA',
         'biwfa': 'BiWFA',
         }
+    if algo in d:
+        return d[algo]
+    algo = algo.removeprefix('cp-')
     if algo in d:
         return d[algo]
     return algo
