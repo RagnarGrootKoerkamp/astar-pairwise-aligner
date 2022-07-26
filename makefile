@@ -12,8 +12,12 @@ fig1-export: fig1
 
 fig3:
 	cargo run --example fig3
-	rm imgs/fig3.bmp
 	mogrify -format png imgs/fig3/*bmp
+
+fig3-video:
+	ffmpeg -y -framerate 20 -i imgs/fig3-video/%d.bmp imgs/fig3.mp4
+	# https://superuser.com/questions/1049606/reduce-generated-gif-size-using-ffmpeg
+	ffmpeg -y -framerate 20 -i imgs/fig3-video/%d.bmp -filter_complex "split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer" imgs/fig3.gif
 
 fig3-export: fig3
 	rm -rf ../pairwise-aligner-paper/imgs/fig3/*
