@@ -2,7 +2,7 @@
 
 #![feature(test)]
 #![cfg(test)]
-use pairwise_aligner::prelude::*;
+use astar_pairwise_aligner::prelude::*;
 
 extern crate test;
 

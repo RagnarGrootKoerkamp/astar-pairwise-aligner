@@ -1,4 +1,4 @@
-use pairwise_aligner::prelude::*;
+use astar_pairwise_aligner::prelude::*;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]

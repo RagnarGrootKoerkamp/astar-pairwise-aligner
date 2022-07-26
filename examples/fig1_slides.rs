@@ -4,7 +4,7 @@ fn main() {}
 
 #[cfg(feature = "sdl2")]
 fn main() {
-    use pairwise_aligner::{
+    use astar_pairwise_aligner::{
         aligners::{
             astar::AStar,
             diagonal_transition::{DiagonalTransition, GapCostHeuristic},

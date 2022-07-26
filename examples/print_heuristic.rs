@@ -1,4 +1,4 @@
-use pairwise_aligner::{prelude::*, visualizer::NoVisualizer};
+use astar_pairwise_aligner::{prelude::*, visualizer::NoVisualizer};
 
 fn main() {
     let pruning = true;

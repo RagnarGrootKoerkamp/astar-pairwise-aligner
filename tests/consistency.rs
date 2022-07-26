@@ -1,5 +1,5 @@
+use astar_pairwise_aligner::prelude::*;
 use itertools::Itertools;
-use pairwise_aligner::prelude::*;
 
 #[test]
 fn bicount_admissible() {

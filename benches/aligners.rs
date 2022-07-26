@@ -2,7 +2,7 @@
 #![cfg(test)]
 
 extern crate test;
-use pairwise_aligner::{
+use astar_pairwise_aligner::{
     aligners::{
         diagonal_transition::{DiagonalTransition, GapCostHeuristic},
         nw::NW,

@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 #![feature(test)]
 #![cfg(test)]
-use pairwise_aligner::{
+use astar_pairwise_aligner::{
     matches::{find_matches_qgram_hash_exact, find_matches_qgramindex, find_matches_trie},
     prelude::*,
 };

@@ -1,9 +1,9 @@
-use bio::io::fasta;
-use itertools::Itertools;
-use pairwise_aligner::{
+use astar_pairwise_aligner::{
     generate::{generate_pair, GenerateOptions},
     prelude::*,
 };
+use bio::io::fasta;
+use itertools::Itertools;
 use rand::SeedableRng;
 use std::{
     fs::File,
