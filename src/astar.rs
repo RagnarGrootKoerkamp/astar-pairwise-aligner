@@ -184,7 +184,7 @@ where
         if DEBUG {
             stats.expanded_states.push(pos);
         }
-        v.expand(pos);
+        v.expand_with_h(pos, Some(h));
 
         // Prune is needed
         if h.is_seed_start_or_end(pos) {
@@ -233,8 +233,8 @@ where
                         //stats.tree.push((next, edge));
                         //edge = Edge::GreedyMatch
                     }
-                    v.explore(next);
-                    v.expand(next);
+                    v.explore_with_h(next, Some(h));
+                    v.expand_with_h(next, Some(h));
                     if D {
                         println!("Greedy expand {next} {}", state.g);
                     }
@@ -274,7 +274,7 @@ where
                 stats.explored_states.push(next);
                 //stats.tree.push((next, edge));
             }
-            v.explore(next);
+            v.explore_with_h(next, Some(h));
         });
     }
 
@@ -297,9 +297,9 @@ where
         }
     }
     if let Some((_, actual_path)) = path.as_ref() {
-        v.last_frame(Some(actual_path));
+        v.last_frame_with_h(Some(actual_path), Some(h));
     } else {
-        v.last_frame(None);
+        v.last_frame_with_h(None, Some(h));
     }
     (path, stats)
 }
