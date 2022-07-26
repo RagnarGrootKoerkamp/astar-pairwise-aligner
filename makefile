@@ -12,6 +12,11 @@ fig1-export: fig1
 scaling-export:
 	cp evals/imgs/tools_*.pdf evals/imgs/scaling_e.pdf evals/imgs/scaling_n.pdf ../pairwise-aligner-paper/imgs/scaling/
 
+# NOTE: BIOS settings used:
+# - no hyperthreading
+# - `balanced` performance, even with A/C power.
+#   - `performance` leads to throttling
+# - laptop plugged in
 evals:
 	# Make sure there are no uncommited changes, and log commit ids.
 	echo A*PA > evals/commit-ids
