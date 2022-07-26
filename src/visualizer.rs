@@ -657,14 +657,8 @@ mod with_sdl2 {
                 self.file_number += 1;
             }
 
-            if is_last {
-                if self
-                    .config
-                    .save
-                    .is_active(current_frame, is_last, is_new_layer)
-                {
-                    self.save_canvas(&mut canvas, true);
-                }
+            if is_last && self.config.save == When::Last {
+                self.save_canvas(&mut canvas, true);
             }
 
             // SHOW
