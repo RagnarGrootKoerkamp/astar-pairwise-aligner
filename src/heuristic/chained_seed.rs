@@ -263,7 +263,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         }
     }
 
-    fn contour_value(&self, pos: Pos) -> Option<Cost> {
+    fn layer(&self, pos: Pos) -> Option<Cost> {
         Some(self.contours.value(self.transform(pos)))
     }
 

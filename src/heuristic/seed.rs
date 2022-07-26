@@ -231,7 +231,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
         p - m
     }
 
-    fn contour_value(&self, pos: Pos) -> Option<Cost> {
+    fn layer(&self, pos: Pos) -> Option<Cost> {
         Some(self.value(pos))
     }
 
