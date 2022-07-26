@@ -185,33 +185,33 @@ impl<C: Contour> Contours for HintContours<C> {
         const SEARCH_RANGE: Cost = 5;
 
         // Do a linear search for 5 steps, starting at contour v.
-        if v < self.contours.len() as Cost {
-            self.stats.borrow_mut().contains_calls += 1;
-            if self.contours[v].contains(q) {
-                // Go up.
-                for v in v + 1..min(v + 1 + SEARCH_RANGE, self.contours.len() as Cost) {
-                    self.stats.borrow_mut().contains_calls += 1;
-                    if !self.contours[v].contains(q) {
-                        return (
-                            v - 1,
-                            Hint {
-                                original_layer: v - 1 + self.layers_removed,
-                            },
-                        );
-                    }
-                }
-            } else {
-                // Go down.
+        let v = min(v, self.contours.len() as Cost - 1);
+        self.stats.borrow_mut().contains_calls += 1;
+        if self.contours[v].contains(q) {
+            // Go up.
+            let upper_bound = min(v + SEARCH_RANGE, self.contours.len() as Cost);
+            for v in v + 1..=upper_bound {
                 self.stats.borrow_mut().contains_calls += 1;
-                for v in (v.saturating_sub(SEARCH_RANGE)..v).rev() {
-                    if self.contours[v].contains(q) {
-                        return (
-                            v,
-                            Hint {
-                                original_layer: v + self.layers_removed,
-                            },
-                        );
-                    }
+                if v == self.contours.len() as Cost || !self.contours[v].contains(q) {
+                    return (
+                        v - 1,
+                        Hint {
+                            original_layer: v - 1 + self.layers_removed,
+                        },
+                    );
+                }
+            }
+        } else {
+            // Go down.
+            self.stats.borrow_mut().contains_calls += 1;
+            for v in (v.saturating_sub(SEARCH_RANGE)..v).rev() {
+                if self.contours[v].contains(q) {
+                    return (
+                        v,
+                        Hint {
+                            original_layer: v + self.layers_removed,
+                        },
+                    );
                 }
             }
         }
@@ -240,7 +240,6 @@ impl<C: Contour> Contours for HintContours<C> {
         if D {
             self.debug(p, v, arrows);
         }
-
 
         assert!(v > 0);
 
