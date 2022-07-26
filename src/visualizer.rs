@@ -148,40 +148,35 @@ mod with_sdl2 {
         pub path_width: Option<usize>,
     }
 
-    #[derive(PartialEq, Eq, Clone, Copy)]
-    pub enum Save {
+        // Options to draw heuristics
+        pub draw_heuristic: bool,
+        pub heuristic: Gradient,
+        pub max_heuristic: Option<u32>,
+        pub active_match: Color,
+        pub pruned_match: Color,
+        pub match_shrink: usize,
+        pub match_width: usize,
+        pub contour: Color,
+        pub layer_label: Color,
+    }
+
+    #[derive(PartialEq, Eq, Clone)]
+    pub enum When {
         None,
         Last,
         All,
         Layers,
+        Frames(Vec<usize>),
     }
 
-    impl Save {
-        fn do_save(&self, is_last: bool, new_layer: bool) -> bool {
+    impl When {
+        fn is_active(&self, frame: usize, is_last: bool, new_layer: bool) -> bool {
             match &self {
-                Save::None => false,
-                Save::Last => is_last,
-                Save::All => is_last || !new_layer,
-                Save::Layers => is_last || new_layer,
-            }
-        }
-    }
-
-    #[derive(PartialEq, Eq, Clone, Copy)]
-    pub enum Draw {
-        None,
-        Last,
-        All,
-        Layers,
-    }
-
-    impl Draw {
-        fn do_draw(&self, is_last: bool, new_layer: bool) -> bool {
-            match &self {
-                Draw::None => false,
-                Draw::Last => is_last,
-                Draw::All => is_last || !new_layer,
-                Draw::Layers => is_last || new_layer,
+                When::None => false,
+                When::Last => is_last,
+                When::All => is_last || !new_layer,
+                When::Layers => is_last || new_layer,
+                When::Frames(v) => v.contains(&frame) || (is_last && v.contains(&usize::MAX)),
             }
         }
     }
@@ -191,10 +186,10 @@ mod with_sdl2 {
         pub cell_size: usize,
         pub prescaler: usize,
         pub filepath: String,
-        pub draw: Draw,
+        pub draw: When,
         pub delay: f32,
         pub paused: bool,
-        pub save: Save,
+        pub save: When,
         pub style: Style,
         pub draw_old_on_top: bool,
         pub layer_drawing: bool,
@@ -206,9 +201,9 @@ mod with_sdl2 {
             Self {
                 cell_size: 8,
                 prescaler: 1,
-                save: Save::None,
+                save: When::None,
                 filepath: String::from(""),
-                draw: Draw::None,
+                draw: When::None,
                 delay: 0.2,
                 paused: false,
                 style: Style {
@@ -235,7 +230,7 @@ mod with_sdl2 {
                     let canvas_size_cells = Pos::from(a.len() + 1, b.len() + 1);
                     let video_subsystem = sdl_context.video().unwrap();
                     video_subsystem.gl_attr().set_double_buffer(true);
-                    if config.draw != Draw::None || config.save != Save::None {
+                    if config.draw != When::None || config.save != When::None {
                         Some(RefCell::new(
                             video_subsystem
                                 .window(
@@ -413,8 +408,16 @@ mod with_sdl2 {
             is_new_layer: bool,
             _h: Option<&H>,
         ) {
-            if !self.config.draw.do_draw(is_last, is_new_layer)
-                && !self.config.save.do_save(is_last, is_new_layer)
+            let current_frame = self.frame_number;
+            self.frame_number += 1;
+            if !self
+                .config
+                .draw
+                .is_active(current_frame, is_last, is_new_layer)
+                && !self
+                    .config
+                    .save
+                    .is_active(current_frame, is_last, is_new_layer)
             {
                 return;
             }
@@ -519,22 +522,32 @@ mod with_sdl2 {
 
             // SAVE
 
-            if self.config.save.do_save(is_last, is_new_layer) {
-                if is_last {
-                    // Save the image twice, once as final result, and once as numbered in the directory.
-                    if self.config.save == Save::All || self.config.save == Save::Layers {
-                        self.save_canvas(&mut canvas, false);
-                    }
+            if self
+                .config
+                .save
+                .is_active(current_frame, is_last, is_new_layer)
+            {
+                self.save_canvas(&mut canvas, false);
+                self.file_number += 1;
+            }
+
+            if is_last {
+                if self
+                    .config
+                    .save
+                    .is_active(current_frame, is_last, is_new_layer)
+                {
                     self.save_canvas(&mut canvas, true);
-                } else {
-                    self.save_canvas(&mut canvas, false);
-                    self.file_number += 1;
                 }
             }
 
             // SHOW
 
-            if !self.config.draw.do_draw(is_last, is_new_layer) {
+            if !self
+                .config
+                .draw
+                .is_active(current_frame, is_last, is_new_layer)
+            {
                 return;
             }
 
@@ -578,7 +591,7 @@ mod with_sdl2 {
                                 self.config.delay /= 0.8;
                             }
                             Keycode::Q => {
-                                self.config.draw = Draw::Last;
+                                self.config.draw = When::Last;
                                 break 'outer;
                             }
                             _ => {}
