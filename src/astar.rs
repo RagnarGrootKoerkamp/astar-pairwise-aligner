@@ -94,6 +94,7 @@ where
     //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
     let mut states = HashMap::<Pos, State<H::Hint>>::default();
 
+    let mut max_f = 0;
     v.new_layer_with_h(Some(h));
 
     // Initialization with the root state.
@@ -158,6 +159,11 @@ where
                     queue_f - queue_g
                 );
             }
+        }
+
+        if queue_f > max_f {
+            max_f = queue_f;
+            v.new_layer_with_h(Some(h));
         }
 
         // Expand the state.
