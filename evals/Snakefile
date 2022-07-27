@@ -37,7 +37,8 @@ tool_command = {
 # Command to generate testcases.
 generate_command    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
 
-# Wrap `command` in a small shell script than handles timeouts.
+# Wrap `command` in a small shell script than handles timeouts and memory limits
+# using `ulimit`.
 # Writes the exit status into `status_path`.
 def timeout(command, status_path):
     return f"""
@@ -46,25 +47,19 @@ ulimit -v {MEMORY_LIMIT}
 # Allow the command to fail.
 set +e
 {command}
-exit_code=$?
+status=$?
 set -e
 # Normal exit
-if [ $exit_code -eq 0 ] ; then
+if [ $status -eq 0 ] ; then
     echo ok > {status_path}
     exit 0
 fi
-if [ $exit_code -eq 124 ] ; then
-    echo timeout {TIMEOUT} > {status_path}
-    exit 0
-fi
-# Handle out of memory (OOM);
 # typically from SIGKILL (137) (when killed by linux) or SIGSEGV (139) or SIGABRT (134)
-if [ $exit_code -eq 137 ] || [ $exit_code -eq 139 ] || [ $exit_code -eq 134 ]; then
-    echo out-of-memory {MEMORY_LIMIT} $exit_code > {status_path}
+if [ $status -eq 137 ] || [ $status -eq 139 ] || [ $status -eq 134 ]; then
+    echo limit {TIMEOUT} {MEMORY_LIMIT} $status > {status_path}
     exit 0
 fi
-echo Unexpected exit status $exit_code
-# Fail with an error.
+echo Unexpected exit status $status
 exit 1
 """
 
