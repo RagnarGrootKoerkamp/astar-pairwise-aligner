@@ -27,10 +27,6 @@ import statistics
 TIMEOUT = "24h"
 # Memory limit for each invocation, in kb. 30GB default
 MEMORY_LIMIT = 30000000
-# Number of times to rerun each benchmark.
-# NOTE: Not well tested for values > 1.
-REPEATS = 1
-
 
 ## TOOL DEFINITIONS
 binaries = {
@@ -193,13 +189,13 @@ def build_command(w):
 
 rule run_tool:
     input: lambda w: Input(**w).path()
-    benchmark: repeat(Run.pattern(), REPEATS)
+    benchmark: Run.pattern()
     params: command = lambda w: build_command(w)
     shell: "{params.command}"
 
 rule run_tool_with_parameters:
     input: lambda w: Input(**w).path()
-    benchmark: repeat(Run.pattern_with_params(), REPEATS)
+    benchmark: Run.pattern_with_params()
     wildcard_constraints: tool = '.*cp-.*'
     params: command = lambda w: build_command(w)
     shell: '{params.command}'
@@ -391,14 +387,14 @@ def ont_inputs(N):
 # Run PA with given parameters.
 rule ont_run_pa_for_parameters:
     input: lambda w: Input(**w).path()
-    benchmark: repeat(Run.pattern_with_params(ont=True), REPEATS)
+    benchmark: Run.pattern_with_params(ont=True)
     wildcard_constraints: tool = '.*cp-.*'
     params: command = lambda w: build_command(w, params=True)
     shell: '{params.command}'
 
 rule ont_run_tool:
     input: lambda w: Input(**w).path()
-    benchmark: repeat(Run.pattern(ont=True), REPEATS)
+    benchmark: Run.pattern(ont=True)
     params: command = lambda w: build_command(w, params=False)
     shell: "{params.command}"
 
