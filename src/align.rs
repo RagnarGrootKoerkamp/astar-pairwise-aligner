@@ -1,12 +1,10 @@
 use crate::visualizer::NoVisualizer;
 use crate::{astar::astar, astar_dt::astar_dt, prelude::*};
 
-use csv::Writer;
 use serde::Serialize;
 use std::{
     fmt,
     io::{stdout, Write},
-    path::Path,
     time,
 };
 
@@ -289,51 +287,6 @@ impl AlignResult {
         } else {
             stdout().flush().unwrap();
         }
-    }
-    pub fn write(&self, writer: &mut Writer<std::fs::File>) {
-        #[derive(Serialize)]
-        struct Distance {
-            distance: Cost,
-        }
-        writer
-            .serialize((
-                &self.input,
-                &self.heuristic_params,
-                &self.timing,
-                &self.astar,
-                &self.heuristic_stats2,
-                Distance {
-                    distance: self.edit_distance,
-                },
-            ))
-            .unwrap();
-    }
-    pub fn write_explored_states<P: AsRef<Path>>(&self, filename: P) {
-        if self.astar.explored_states.is_empty() {
-            return;
-        }
-        let mut wtr = csv::Writer::from_path(filename).unwrap();
-        // type: Explored, Expanded, Path, Match
-        // Match does not have step set
-        wtr.write_record(&["i", "j", "type", "step", "match_cost"])
-            .unwrap();
-        for (i, pos) in self.astar.explored_states.iter().enumerate() {
-            wtr.serialize((pos.0, pos.1, "Explored", i, -1)).unwrap();
-        }
-        for (i, pos) in self.astar.expanded_states.iter().enumerate() {
-            wtr.serialize((pos.0, pos.1, "Expanded", i, -1)).unwrap();
-        }
-        for pos in &self.path {
-            wtr.serialize((pos.0, pos.1, "Path", -1, -1)).unwrap();
-        }
-        for Match {
-            start, match_cost, ..
-        } in &self.heuristic_stats.matches
-        {
-            wtr.serialize((start.0, start.1, "Match", -1, match_cost))
-                .unwrap();
-        }
-        wtr.flush().unwrap();
     }
 }
 

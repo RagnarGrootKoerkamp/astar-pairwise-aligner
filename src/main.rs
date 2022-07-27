@@ -45,12 +45,6 @@ struct Cli {
     #[structopt(short, long, parse(from_os_str))]
     output: Option<PathBuf>,
 
-    // Where to write a csv of visited states.
-    // NOTE: Only works in debug mode.
-    // This information is not stored in release mode.
-    #[structopt(short, long, parse(from_os_str))]
-    visited_states: Option<PathBuf>,
-
     #[structopt(flatten)]
     params: Params,
 
@@ -69,10 +63,6 @@ struct Cli {
 
 fn main() {
     let args = Cli::from_args();
-
-    if args.visited_states.is_some() && !DEBUG {
-        assert!(false, "--visited-states does not work in release mode.");
-    }
 
     // Read the input
     let mut avg_result = AlignResult::default();
@@ -175,10 +165,6 @@ fn main() {
                 ),
             )
             .unwrap();
-        }
-
-        if let Some(output) = args.visited_states {
-            avg_result.write_explored_states(output);
         }
     }
 }
