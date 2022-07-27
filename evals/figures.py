@@ -8,7 +8,6 @@ from header import *
 # Tool comparison / scaling with n.
 df = read_benchmarks("table/tools_N1e7.tsv")
 df = df[df.exit_status == "ok"]
-df = df[df.n >= 3 * 10**3]
 for e in pd.unique(df.e):
     df_n = df[df.e == e]
     plot_scaling(
