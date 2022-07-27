@@ -41,6 +41,8 @@ generate_command    = '../target/release/examples/generate_dataset -x {wildcards
 # Writes the exit status into `status_path`.
 def timeout(command, status_path):
     return f"""
+# Disable coredumps and set the time and memory limit
+ulimit -c 0
 ulimit -t {TIMEOUT}
 ulimit -v {MEMORY_LIMIT}
 # Allow the command to fail.
@@ -155,7 +157,7 @@ rule benchmark_tool:
 # - .status file
 # - .stats file if present
 def make_table(runs, output):
-    headers = ["alg","model", "cnt","n","e","r","k","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
+    headers = ["alg","cnt","n","e","r","k","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
@@ -175,7 +177,7 @@ def make_table(runs, output):
         except:
             stats = ''
         for bench_line in run.bench_path().read_text().splitlines()[1:]:
-            table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
+            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
 
 # === TOOL COMPARISON ===
 
