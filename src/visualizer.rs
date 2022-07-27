@@ -1,10 +1,10 @@
 //! To turn images into a video, use this:
 //!
-//! ```
+//! ```sh
 //! ffmpeg -framerate 20 -i %d.bmp output.mp4
 //! ```
 //! or when that gives errors:
-//! ```
+//! ```sh
 //! ffmpeg -framerate 20 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" output.mp4
 //! ```
 use crate::{
