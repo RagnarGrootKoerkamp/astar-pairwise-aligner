@@ -56,12 +56,13 @@ evals:
         snakemake -j 3 --rerun-incomplete
 
 plots:
-	cd evals && python3 ./figures.py
+	cd evals && python3 ./plots.py
 
 evals-export: plots
 	rm -rf ../pairwise-aligner-paper/imgs/scaling/*
 	cp evals/imgs/tools_*.pdf evals/imgs/scaling_e.pdf evals/imgs/scaling_n.pdf \
       ../pairwise-aligner-paper/imgs/scaling/
+	mogrify -format png ../pairwise-aligner-paper/scaling/*pdf
 
 # ========== IMAGES ==========
 
