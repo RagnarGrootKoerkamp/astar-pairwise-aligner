@@ -26,19 +26,18 @@ strum = "*"
 strum_macros = "*"
 rustc-hash = "*"
 structopt = "*"
-suffix = "*"
 lazy_static = "*"
 smallvec = {version="*", features=["union"]}
 ropey = "*"
 num-traits = "*"
 sdl2 = {version="*", optional=true, features=["ttf"]}
 parse_duration = "*"
-seq-macro = "*"
 paste = "*"
 
 [dev-dependencies]
 # For benchmarking only.
 aho-corasick = "*"
+suffix = "*"
 
 [features]
 wfa = []
