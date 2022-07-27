@@ -33,8 +33,8 @@ videos-clean: fig1-video-clean fig3-video-clean fig-readme-video-clean
 # - laptop plugged in
 evals:
 	# Make sure there are no uncommited changes, and log commit ids.
-	echo A*PA > evals/commit-ids
 	git diff-index --quiet HEAD
+	echo A*PA > evals/commit-ids
 	git rev-parse --short HEAD >> evals/commit-ids
 	echo Edlib >> evals/commit-ids
 	git -C ../edlib diff-index --quiet HEAD
