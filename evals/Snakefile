@@ -38,39 +38,25 @@ REPEATS = 1
 binaries = {
     'pa' : '../target/release/astar-pairwise-aligner',
     'edlib' : '../../edlib/meson-build/edlib-aligner',
-    'wfa'   : '../../wfa/bin/align_benchmark',
-    'wfa2'   : '../../wfa2/bin/align_benchmark',
-    'biwfa'   : '../../biwfa/bin/align_benchmark',
+    'wfa'   : '../../wfa2/bin/align_benchmark',
 }
 tool_command = {
     # Versions with manual parameter choosing.
     'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm SH',
-    'cp-sh+dt':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm SH_DT',
     'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
-    'cp-csh+dt':        binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_DT',
-    'cp-csh+gap':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_GapCost',
-    'cp-csh+gap+dt':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH_GapCost_DT',
     'cp-sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm SH',
     'cp-csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH',
-    'cp-csh+gap-noprune': binaries["pa"]    + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH_GapCost',
     # choosed k and m values automatically.
     'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm SH',
-    'sh+dt':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm SH_DT',
     'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH',
-    'csh+dt':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH_DT',
-    'csh+gap':          binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH_GapCost',
     # slower PA variants
     'dijkstra':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm Dijkstra',
     'sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm SH',
     'csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm CSH',
-    'csh+gap-noprune':  binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm CSH_GapCost',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':            binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
-    'wfa':              binaries["wfa"]     + ' -i {input} -a gap-affine-wfa --affine-penalties="0,1,0,1"',
-    'wfa2':             binaries["wfa2"]    + ' -i {input} -a edit-wfa',
-    #'biwfa':           binaries["biwfa"]   + ' -i {input} --affine-penalties 0,1,0,1 --wfa-bidirectional',
-    'biwfa':            binaries["wfa2"]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow',
+    'biwfa':            binaries["wfa" ]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow',
 }
 
 # Generate testcases
