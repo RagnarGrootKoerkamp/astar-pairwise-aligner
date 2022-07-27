@@ -20,12 +20,11 @@ import itertools
 import shutil
 import statistics
 
-## TOOLS
+## LIMITS
 
-## RUN SETTINGS
-# Time after which snakemake kills the program.
-TIMEOUT = "24h"
-# Memory limit for each invocation, in kb. 30GB default
+# Timeout (cpu-time) in seconds, or 'unlimited'
+TIMEOUT = 'unlimited'
+# Memory limit (virtual memory) in KB, or 'unlimited'
 MEMORY_LIMIT = 30000000
 
 ## TOOL DEFINITIONS
@@ -56,15 +55,15 @@ tool_command = {
 # Generate testcases
 generate_command    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
 
-# Wrap a {command} in a small shell script than handles timeouts.
-# Uses the TIMEOUT variable, and writes status to params.status_path.
-def timeout(command, status_path, timeout):
+# Wrap `command` in a small shell script than handles timeouts.
+# Writes the exit status into `status_path`.
+def timeout(command, status_path):
     return f"""
-# Limit memory usage to 10MB
+ulimit -t {TIMEOUT}
 ulimit -v {MEMORY_LIMIT}
-# Allow this command to fail.
+# Allow the command to fail.
 set +e
-timeout {timeout} {command}
+{command}
 exit_code=$?
 set -e
 # Normal exit
@@ -73,13 +72,13 @@ if [ $exit_code -eq 0 ] ; then
     exit 0
 fi
 if [ $exit_code -eq 124 ] ; then
-    echo timeout {timeout} > {status_path}
+    echo timeout {TIMEOUT} > {status_path}
     exit 0
 fi
 # Handle out of memory (OOM);
 # typically from SIGKILL (137) (when killed by linux) or SIGSEGV (139) or SIGABRT (134)
 if [ $exit_code -eq 137 ] || [ $exit_code -eq 139 ] || [ $exit_code -eq 134 ]; then
-    echo out-of-memory $exit_code > {status_path}
+    echo out-of-memory {MEMORY_LIMIT} $exit_code > {status_path}
     exit 0
 fi
 echo Unexpected exit status $exit_code
@@ -185,7 +184,7 @@ def build_command(w):
     input = Input(**w)
     run = Run(input=input, **w)
     command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
-    return timeout(command, run.status_path(), TIMEOUT)
+    return timeout(command, run.status_path())
 
 rule run_tool:
     input: lambda w: Input(**w).path()
