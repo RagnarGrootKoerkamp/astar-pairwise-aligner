@@ -53,12 +53,6 @@ pub struct AStarStats {
     pub pq_shifts: usize,
     /// Number of states allocated in the DiagonalMap
     pub diagonalmap_capacity: usize,
-    #[serde(skip_serializing)]
-    pub explored_states: Vec<Pos>,
-    #[serde(skip_serializing)]
-    pub expanded_states: Vec<Pos>,
-    #[serde(skip_serializing)]
-    pub tree: Vec<(Pos, Edge)>,
 
     pub traceback_duration: f32,
 }
@@ -106,9 +100,6 @@ where
             data: (start, 0),
         });
         stats.explored += 1;
-        if DEBUG {
-            stats.explored_states.push(Pos(0, 0));
-        }
         states.insert(
             start,
             State {
@@ -191,9 +182,6 @@ where
         let state = *state;
 
         stats.expanded += 1;
-        if DEBUG {
-            stats.expanded_states.push(pos);
-        }
         v.expand_with_h(pos, Some(h));
 
         // Prune is needed
@@ -237,12 +225,6 @@ where
                     stats.explored += 1;
                     stats.expanded += 1;
                     stats.greedy_expanded += 1;
-                    if DEBUG {
-                        stats.explored_states.push(next);
-                        stats.expanded_states.push(next);
-                        //stats.tree.push((next, edge));
-                        //edge = Edge::GreedyMatch
-                    }
                     v.explore_with_h(next, Some(h));
                     v.expand_with_h(next, Some(h));
                     if D {
@@ -279,10 +261,6 @@ where
 
             h.explore(next);
             stats.explored += 1;
-            if DEBUG {
-                stats.explored_states.push(next);
-                //stats.tree.push((next, edge));
-            }
             v.explore_with_h(next, Some(h));
         });
     }
@@ -291,20 +269,6 @@ where
     let traceback_start = time::Instant::now();
     let path = traceback::<H>(&states, graph.target());
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
-    if DEBUG {
-        for &p in &stats.explored_states {
-            let g = {
-                let mut p = p;
-                loop {
-                    if let Some(s) = DiagonalMapTrait::get(&states, p) {
-                        break s.g;
-                    }
-                    p = p.add_diagonal(1);
-                }
-            };
-            stats.tree.push((p, parent::<H>(&states, p, g)));
-        }
-    }
     if let Some((_, actual_path)) = path.as_ref() {
         v.last_frame_with_h(Some(actual_path), Some(h));
     } else {

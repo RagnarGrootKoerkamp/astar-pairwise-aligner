@@ -42,7 +42,6 @@ pub struct HeuristicStats2 {
     pub root_h: Cost,
     pub root_h_end: Cost,
     pub path_matches: usize,
-    pub explored_matches: usize,
 }
 
 #[derive(Serialize, Default, Clone)]
@@ -83,8 +82,6 @@ impl AlignResult {
         self.astar.retries += other.astar.retries;
         self.astar.pq_shifts += other.astar.pq_shifts;
         self.astar.diagonalmap_capacity += other.astar.diagonalmap_capacity;
-        self.astar.expanded_states = other.astar.expanded_states.clone();
-        self.astar.explored_states = other.astar.explored_states.clone();
         self.path = other.path.clone();
         self.timing.precomputation += other.timing.precomputation;
         self.timing.astar += other.timing.astar;
@@ -367,11 +364,6 @@ where
     } else {
         Default::default()
     };
-    let explored_matches = if DEBUG {
-        num_matches_on_path(&astar_stats.explored_states, &h_stats.matches)
-    } else {
-        Default::default()
-    };
     AlignResult {
         heuristic_params: heuristic.params(),
         input: sequence_stats,
@@ -387,7 +379,6 @@ where
             root_h: start_val,
             root_h_end: end_val,
             path_matches,
-            explored_matches,
         },
         edit_distance: distance,
         path,
