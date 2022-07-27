@@ -18,7 +18,7 @@ figures: fig1 fig3 plots
 # Shorthands below are mostly for private use.
 
 # Copy generated images and plots to the paper.
-export: fig1-export fig3-export evals-export
+export: fig1-export fig3-export plots-export
 # Generate videos for the figures above, for the readme.
 videos: fig1-video fig3-video fig-readme-video
 # Remove generated images for videos
@@ -58,11 +58,10 @@ evals:
 plots:
 	cd evals && python3 ./plots.py
 
-evals-export: plots
-	rm -rf ../pairwise-aligner-paper/imgs/scaling/*
+plots-export: plots
+	rm -f ../pairwise-aligner-paper/imgs/{tools_*,scaling_e,scaling_n}.pdf
 	cp evals/imgs/tools_*.pdf evals/imgs/scaling_e.pdf evals/imgs/scaling_n.pdf \
       ../pairwise-aligner-paper/imgs/scaling/
-	mogrify -format png ../pairwise-aligner-paper/scaling/*pdf
 
 # ========== IMAGES ==========
 
