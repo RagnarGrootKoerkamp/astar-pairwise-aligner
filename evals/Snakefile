@@ -86,7 +86,7 @@ class Input:
         return 'x{cnt}-n{n}-e{e}'
     # The wildcard pattern for an input file.
     def pattern():
-        return f'input/synthetic/{Input.name_pattern(ont)}.seq'
+        return f'input/synthetic/{Input.name_pattern()}.seq'
 
     # The name of this input file.
     def name(self):
@@ -192,7 +192,7 @@ def tools_runs():
             Run(input=input,
                 tool=tool,
                 k=15,
-                m=0 if e < 0.1 else 1)
+                m=0 if input.e < 0.1 else 1)
             if tool in ['sh', 'csh'] else
             Run(input=input, tool=tool)
         )
@@ -201,6 +201,7 @@ def tools_runs():
     ]
 
 rule tools_table:
+    priority: 2
     input: lambda w: [run.bench_path() for run in tools_runs()]
     output: 'table/tools.tsv'
     run: make_table(tools_runs(), output)
@@ -237,6 +238,7 @@ def scaling_n_runs():
     return fast_runs + slow_runs + dijkstra_runs
 
 rule scaling_n_table:
+    priority: 2
     input: lambda w: [run.bench_path() for run in scaling_n_runs()]
     output: 'table/scaling_n.tsv'
     run: make_table(scaling_n_runs(), output)
@@ -244,7 +246,7 @@ rule scaling_n_table:
 # === SCALING WITH E ===
 
 # Returns the list of runs for scaling with e, with exact and inexact matches.
-def scaling_e_runs(N):
+def scaling_e_runs():
     N = 10**5
     ns = [10000]
     es = [0.01] + [x/100 for x in range(2, 35, 2)]
@@ -265,6 +267,7 @@ def scaling_e_runs(N):
     return dijkstra_runs + our_runs
 
 rule scaling_e_table:
+    priority: 2
     input: lambda w: [run.bench_path() for run in scaling_e_runs()]
     output: 'table/scaling_e.tsv'
     run: make_table(scaling_e_runs(), output)
