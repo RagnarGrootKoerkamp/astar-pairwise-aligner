@@ -1,16 +1,8 @@
-//! make sure that astar-pairwaise-aligner and WFA2-lib are on the same level of directories
-//! now you need to compile both libraries
-//! WFA:
-//! $ cd ..
-//! $ git clone https://github.com/smarco/WFA2-lib.git
-//! $ cd WFA2-lib
-//! $ make lib_wfa
-//!
-//! Edlib:
-//! $ cd ..
-//! $ git clone https://github.com/Martinsos/edlib.git
-//! $ cd edlib
-//! $ make
+//! Make sure to clone both WFA and Edlib to the sibling directory.
+//! See
+//! $ make wfa
+//! and
+//! $ make edlib
 
 extern crate bindgen;
 
@@ -20,12 +12,12 @@ fn wfa() {
     use std::path::PathBuf;
 
     // Tell cargo to look for shared libraries in the specified directory
-    println!("cargo:rustc-link-search=../WFA2-lib/lib");
+    println!("cargo:rustc-link-search=../wfa2/lib");
     println!("cargo:rustc-link-lib=wfa");
     println!("cargo:rustc-link-lib=omp");
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
-    println!("cargo:rerun-if-changed=../WFA2-lib/lib/libwfa.a");
+    println!("cargo:rerun-if-changed=../wfa2/lib/libwfa.a");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -33,8 +25,8 @@ fn wfa() {
     let bindings = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
-        .header("../WFA2-lib/wavefront/wavefront_align.h")
-        .clang_arg("-I../WFA2-lib")
+        .header("../wfa2/wavefront/wavefront_align.h")
+        .clang_arg("-I../wfa2")
         .allowlist_function("wavefront_.*")
         .allowlist_var("wavefront_.*")
         // Tell cargo to invalidate the built crate whenever any of the
