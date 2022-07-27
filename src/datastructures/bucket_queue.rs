@@ -2,19 +2,18 @@ use std::cmp::min;
 
 use crate::{config::SORT_QUEUE_ELEMENTS, prelude::Cost};
 
-/// `MinScored<K, T>` holds a score `K` and a scored object `T` in
-/// a pair for use with priority queue.
 ///
-/// `MinScored` compares in reverse order by the score.
 #[derive(Copy, Clone)]
-pub struct MinScored<V, Pos, D>(pub V, pub Pos, pub D);
+pub struct QueueElement<Score, T> {
+    pub f: Score,
+    pub data: T,
+}
 
 /// A heap where values are sorted by bucket sort.
 // TODO: Investigate whether to enable sorting.
 // Can be disabled by initializing next_sort to 0.
-// TODO: Could be generalized to take arbitrary T instead of NodeG<G>.
-pub struct BucketQueue<Pos, D> {
-    layers: Vec<Vec<(Pos, D)>>,
+pub struct BucketQueue<T> {
+    layers: Vec<Vec<T>>,
     next: Cost,
     next_sort: Cost,
     next_clear: Cost,
@@ -25,22 +24,22 @@ pub trait QueueOrder {
     fn key(&self) -> Self::O;
 }
 
-impl<Pos, D> BucketQueue<Pos, D>
+impl<T> BucketQueue<T>
 where
-    (Pos, D): QueueOrder,
+    T: QueueOrder,
 {
     #[inline]
-    pub fn push(&mut self, MinScored(k, v, d): MinScored<Cost, Pos, D>) {
-        if self.layers.len() <= k as usize {
-            self.layers.resize_with(k as usize + 1, Vec::default);
+    pub fn push(&mut self, QueueElement { f, data }: QueueElement<Cost, T>) {
+        if self.layers.len() <= f as usize {
+            self.layers.resize_with(f as usize + 1, Vec::default);
         }
-        self.next = min(self.next, k);
-        self.layers[k as usize].push((v, d));
+        self.next = min(self.next, f);
+        self.layers[f as usize].push(data);
     }
-    pub fn pop(&mut self) -> Option<MinScored<Cost, Pos, D>> {
+    pub fn pop(&mut self) -> Option<QueueElement<Cost, T>> {
         while let Some(layer) = self.layers.get_mut(self.next as usize) {
-            if let Some((back, d)) = layer.pop() {
-                return Some(MinScored(self.next, back, d));
+            if let Some(data) = layer.pop() {
+                return Some(QueueElement { f: self.next, data });
             }
             self.next += 1;
             if SORT_QUEUE_ELEMENTS {
@@ -63,7 +62,7 @@ where
     }
 }
 
-impl<Pos, D> Default for BucketQueue<Pos, D> {
+impl<T> Default for BucketQueue<T> {
     fn default() -> Self {
         Self {
             layers: Default::default(),

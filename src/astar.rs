@@ -79,8 +79,8 @@ where
 
     let mut stats = AStarStats::default();
 
-    // f -> pos
-    let mut queue = BucketQueue::<Pos, Cost>::default();
+    // f -> (pos, g)
+    let mut queue = BucketQueue::<(Pos, Cost)>::default();
     // When > 0, queue[x] corresponds to f=x+offset.
     // Increasing the offset implicitly shifts all elements of the queue up.
     let mut queue_offset: Cost = 0;
@@ -101,11 +101,10 @@ where
     {
         let start = Pos(0, 0);
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
-        queue.push(MinScored(
-            hroot + (max_queue_offset - queue_offset),
-            start,
-            0,
-        ));
+        queue.push(QueueElement {
+            f: hroot + (max_queue_offset - queue_offset),
+            data: (start, 0),
+        });
         stats.explored += 1;
         if DEBUG {
             stats.explored_states.push(Pos(0, 0));
@@ -120,7 +119,11 @@ where
         );
     }
 
-    'outer: while let Some(MinScored(queue_f, pos, queue_g)) = queue.pop() {
+    'outer: while let Some(QueueElement {
+        f: queue_f,
+        data: (pos, queue_g),
+    }) = queue.pop()
+    {
         let queue_f = queue_f + queue_offset - max_queue_offset;
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
@@ -145,11 +148,10 @@ where
             );
             if current_f > queue_f {
                 stats.retries += 1;
-                queue.push(MinScored(
-                    current_f + (max_queue_offset - queue_offset),
-                    pos,
-                    queue_g,
-                ));
+                queue.push(QueueElement {
+                    f: current_f + (max_queue_offset - queue_offset),
+                    data: (pos, queue_g),
+                });
                 continue;
             }
             assert!(current_f == queue_f);
@@ -267,11 +269,10 @@ where
             cur_next.hint = next_hint;
             let next_f = next_g + next_h;
 
-            queue.push(MinScored(
-                next_f + (max_queue_offset - queue_offset),
-                next,
-                next_g,
-            ));
+            queue.push(QueueElement {
+                f: next_f + (max_queue_offset - queue_offset),
+                data: (next, next_g),
+            });
             if D {
                 println!("Explore {next} from {pos} g {next_g}");
             }
