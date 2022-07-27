@@ -63,9 +63,6 @@ where
             data: (DtPos::from_pos(start, 0), DtPos::fr(start)),
         });
         stats.explored += 1;
-        if DEBUG {
-            stats.explored_states.push(Pos(0, 0));
-        }
         states.insert(DtPos::from_pos(start, 0), State { fr: 0, hint });
     }
 
@@ -119,9 +116,6 @@ where
         }
 
         stats.expanded += 1;
-        if DEBUG {
-            stats.expanded_states.push(pos);
-        }
 
         if D {
             println!("Expand {pos} {}", queue_g);
@@ -149,12 +143,6 @@ where
                 stats.explored += 1;
                 stats.expanded += 1;
                 stats.greedy_expanded += 1;
-                if DEBUG {
-                    stats.explored_states.push(n);
-                    stats.expanded_states.push(n);
-                    //stats.tree.push((pos, edge));
-                    //edge = Edge::GreedyMatch
-                }
                 if D {
                     println!("Greedy expand {n} {}", queue_g);
                 }
@@ -219,10 +207,6 @@ where
 
             h.explore(next);
             stats.explored += 1;
-            if DEBUG {
-                stats.explored_states.push(next);
-                //stats.tree.push((next, edge));
-            }
         });
     }
 
@@ -232,49 +216,7 @@ where
     let traceback_start = time::Instant::now();
     let path = traceback::<H>(&states, DtPos::from_pos(graph.target(), dist));
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
-    if DEBUG {
-        for &p in &stats.explored_states {
-            stats.tree.push((p, pos_parent::<H>(&states, p)));
-        }
-    }
     (path, stats)
-}
-
-fn pos_parent<'a, H>(states: &HashMap<DtPos, State<H::Hint>>, pos: Pos) -> Edge
-where
-    H: HeuristicInstance<'a>,
-{
-    let mut g = 0;
-    loop {
-        if let Some(s) = DiagonalMapTrait::get(states, DtPos::from_pos(pos, g)) {
-            if s.fr >= DtPos::fr(pos) {
-                break;
-            }
-        }
-        g += 1;
-    }
-    let dt_pos = DtPos::from_pos(pos, g);
-
-    let mut max_fr = (0, Edge::Match);
-    for edge in [Edge::Right, Edge::Down, Edge::Substitution] {
-        if let Some(p) = edge.dt_back(&dt_pos) {
-            if let Some(state) = DiagonalMapTrait::get(states, p) {
-                if state.fr >= max_fr.0 {
-                    max_fr = (state.fr, edge);
-                }
-            }
-        }
-    }
-    let dt_next = max_fr
-        .1
-        .dt_back(&dt_pos)
-        .expect("No parent found for position!");
-    let next_pos = dt_next.to_pos(max_fr.0);
-    if max_fr.1.back(&pos).map_or(false, |x| x != next_pos) {
-        Edge::Match
-    } else {
-        max_fr.1
-    }
 }
 
 fn dt_parent<'a, H>(states: &HashMap<DtPos, State<H::Hint>>, dt_pos: DtPos) -> (I, Edge)
