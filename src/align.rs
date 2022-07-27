@@ -114,7 +114,7 @@ impl AlignResult {
             (format!("{:>10}", "|b|"), |this: &AlignResult| {
                 format!("{:>10}", this.input.len_b / this.sample_size)
             }),
-            (format!("{:>4}", "r"), |this: &AlignResult| {
+            (format!("{:>4}", "e"), |this: &AlignResult| {
                 format!("{:>4.2}", this.input.error_rate)
             }),
             (format!("{:<7}", "H"), |this: &AlignResult| {
