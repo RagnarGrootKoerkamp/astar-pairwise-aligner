@@ -34,25 +34,19 @@ binaries = {
     'wfa'   : '../../wfa2/bin/align_benchmark',
 }
 tool_command = {
-    # Versions with manual parameter choosing.
-    'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm SH',
-    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
-    'cp-sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm SH',
-    'cp-csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH',
-    # choosed k and m values automatically.
-    'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm SH',
-    'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm CSH',
-    # slower PA variants
-    'dijkstra':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm Dijkstra',
-    'sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm SH',
-    'csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm CSH',
+    'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm SH',
+    'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
+    # Slower variants for comparison
+    'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm SH  --no-prune',
+    'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH --no-prune',
+    'dijkstra':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2                                   --algorithm Dijkstra',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
-    'edlib':            binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
-    'biwfa':            binaries["wfa" ]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow',
+    'edlib':         binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
+    'biwfa':         binaries["wfa" ]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow',
 }
 
-# Generate testcases
+# Command to generate testcases.
 generate_command    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} -o {output}'
 
 # Wrap `command` in a small shell script than handles timeouts.
@@ -86,116 +80,88 @@ echo Unexpected exit status $exit_code
 exit 1
 """
 
-
-## WRAPPER CLASSES
 wildcard_constraints:
+    # Error rates start with a digit.
     e="[0-9.]+",
+    # Tool names do not start with a digit.
     tool='[^.0-9]*'
 
+## WRAPPER CLASSES
 
+# An input is a generated file containing test sequences.
 class Input:
+    # An input dataset is given by:
     def __init__(self, **kwargs):
+        # The number of sequence pairs.
         self.cnt = int(kwargs['cnt'])
+        # The length of each sequence.
         self.n = int(kwargs['n'])
-        self.ont = 'model' in kwargs
-        if self.ont:
-            self.model = kwargs['model']
-            # ONT has roughly 10% error rate
-            self.e = 0.1
-        else:
-            self.model = 'synthetic'
-            self.e = float(kwargs['e'])
-    def name_pattern(ont=False):
-        if ont:
-            return '{model}-x{cnt}-n{n}'
-        else:
-            return 'x{cnt}-n{n}-e{e}'
-    def dir(ont=False):
-        if ont:
-            return 'simulated'
-        else:
-            return 'synthetic'
-    def pattern(ont=False):
-        if ont:
-            return f'input/{Input.dir(ont)}/{Input.name_pattern(ont)}.seq'
-        else:
-            return f'input/{Input.dir(ont)}/{Input.name_pattern(ont)}.seq'
+        # The error rate.
+        self.e = float(kwargs['e'])
+
+    # The wildcard string used for pattern matches.
+    def name_pattern():
+        return 'x{cnt}-n{n}-e{e}'
+    # The wildcard pattern for an input file.
+    def pattern():
+        return f'input/synthetic/{Input.name_pattern(ont)}.seq'
+
+    # The name of this input file.
     def name(self):
-        if self.ont:
-            return Path(f'{self.model}-x{self.cnt}-n{self.n}')
-        else:
-            return Path(f'x{self.cnt}-n{self.n}-e{self.e}')
+        return Path(f'x{self.cnt}-n{self.n}-e{self.e}')
+    # The path of this input file.
     def path(self):
-        return Path(f'input/{Input.dir(self.ont)}/{self.name()}.seq')
+        return Path(f'input/synthetic/{self.name()}.seq')
 
 
+# A run is an execution of a tool (with optional parameters) on an input.
+# The most important part is the bench_path, which is where Snakemake will write the timings.
 class Run:
+    # A run consists of an input and tool, and optionally m and k parameters.
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
         self.has_params = 'k' in kwargs and 'm' in kwargs
-    def pattern_with_params(ont=False):
-        return f'runs/{Input.name_pattern(ont)}-A{{tool}}-m{{m}}-k{{k}}.bench'
-    def pattern(ont=False):
-        return f'runs/{Input.name_pattern(ont)}-A{{tool}}.bench'
+    # The wildcard pattern for an run benchmark with parameters.
+    def pattern_with_params():
+        return f'runs/{Input.name_pattern()}-A{{tool}}-m{{m}}-k{{k}}.bench'
+    # The wildcard pattern for an run benchmark without parameters.
+    def pattern():
+        return f'runs/{Input.name_pattern()}-A{{tool}}.bench'
+    # The benchmark path of this run.
     def bench_path(self):
         if self.has_params:
             return Path(f'runs/{self.input.name()}-A{self.tool}-m{self.m}-k{self.k}.bench')
         else:
             return Path(f'runs/{self.input.name()}-A{self.tool}.bench')
+    # The status path of this run, where the exit status is written after success/timeout/out-of-memory.
     def status_path(self):
         return self.bench_path().with_suffix('.status')
+    # The stats path of this run, where A*PA writes additional statistics.
     def stats_path(self):
         return self.bench_path().with_suffix('.stats')
-
-# Returns false for parameters that should be skipped.
-def params_filter(run):
-    assert run.has_params
-
-    # If the error rate is larger than the max rate this (k,m) can handle, skip.
-    # e is made a bit lower, since an induced error rate of 20% only gives ~15% edit distance.
-    max_error_rate = (run.m+1) / (run.k-1) # -1 to allow slightly too large k.
-    if run.input.e * 0.85 > max_error_rate:
-        return False
-
-    # Don't do inexact matches for low error rates.
-    if run.input.e < 0.10 and run.m > 0:
-        return False
-
-    # If we expect multiple matches per seed, skip since we should increase k instead.
-    if run.m == 0 and run.input.n / 4.**(run.k+2) > 2*(run.k+1): # +1 to allow slightly too small k.
-        return False
-    # The number of distance-1 matches per seed is roughly 8*k.
-    if run.m == 1 and 8*(run.k+1)* run.input.n / 4.**(run.k+2) > 2*(run.k+2): # +2 allow slightly too small k.
-        return False
-
-    return True
 
 # === GENERATE INPUT ===
 
 rule generate_input:
-    # Input generation has priority over all other rules.
+    # Input generation has priority over other rules, so that all inputs are
+    # generated at the start.
     priority: 2
     output: Input.pattern()
     shell: generate_command
 
 # === RULES TO RUN ON TESTCASES ===
 
+# Given a set of wildcards (input specs, tool, parameters), return the command to run.
 def build_command(w):
     input = Input(**w)
     run = Run(input=input, **w)
     command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
     return timeout(command, run.status_path())
 
-rule run_tool:
-    input: lambda w: Input(**w).path()
-    benchmark: Run.pattern()
-    params: command = lambda w: build_command(w)
-    shell: "{params.command}"
-
-rule run_tool_with_parameters:
+# Benchmark the tool inferred from the parameters.
+rule benchmark_tool:
     input: lambda w: Input(**w).path()
     benchmark: Run.pattern_with_params()
-    wildcard_constraints: tool = '.*cp-.*'
     params: command = lambda w: build_command(w)
     shell: '{params.command}'
 
@@ -229,54 +195,43 @@ def make_table(runs, output):
         for bench_line in run.bench_path().read_text().splitlines()[1:]:
             table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "m", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
 
-# === PARAMETER COMPARISON ===
-
-def params_runs(N):
-    N = int(float(N))
-    ns = [100_000, 1_000_000, 3_000_000, 10_000_000]
-    es = [0.10, 0.15]
-    mks = [
-       #(0,7), (0,8), (9,0), (0, 10), (0, 11), (0, 12), (0,13), (0,14), (0,15), (0,16), (0, 17), (0, 31),
-       (1, 14), (1, 15), (1, 16)]
-    tools = ['cp-sh', 'cp-csh']
-    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    return [Run(input=input, tool=tool, m=m, k=k)
-                        for (m, k) in mks
-                        for input in inputs
-                        for tool in tools]
-rule params_table:
-    input: lambda w: [run.bench_path() for run in params_runs(w.N)]
-    output: 'table/params_N{N}.tsv'
-    run: make_table(params_runs(wildcards.N), output)
-
 # === TOOL COMPARISON ===
 
-def tools_runs(N):
-    N = int(float(N))
-    ns = [100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000]
+# Returns the list of runs for the tool comparison table.
+def tools_runs():
+    N = 10**7
+    ns = [3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000]
     es = [0.01, 0.05, 0.10, 0.15]
     tools = ['edlib', 'biwfa', 'sh', 'csh']
     inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    return [Run(input=input, tool=tool)
-                        for input in inputs
-                        for tool in tools]
+    return [Run(input=input,
+                tool=tool,
+                k=15,
+                # NOTE: exact matches are used for e < 10%, and inexact matches for e >= 10%.
+                m=0 if e < 0.1 else 1)
+            for input in inputs
+            for tool in tools]
+
 rule tools_table:
-    input: lambda w: [run.bench_path() for run in tools_runs(w.N)]
-    output: 'table/tools_N{N}.tsv'
-    run: make_table(tools_runs(wildcards.N), output)
+    input: lambda w: [run.bench_path() for run in tools_runs()]
+    output: 'table/tools.tsv'
+    run: make_table(tools_runs(), output)
 
 # === SCALING WITH N ===
 
-def scaling_n_runs(N):
-    N = int(float(N))
+# Returns the list of runs for the scaling with n comparison with and without pruning.
+def scaling_n_runs():
     ns = [100, 300, 1000, 3000, 10_000, 30_000, 100_000]
     es = [0.05]
     ms = [0]
     ks = [15]
-    fast_tools = ['cp-sh', 'cp-csh']
-    slow_tools = ['cp-sh-noprune', 'cp-csh-noprune']
-    fast_inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    slow_inputs = [Input(cnt=N//100//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    # Split tools into two groups using a different N.
+    fast_N = 10**7
+    slow_N = 10**5
+    fast_tools = ['sh', 'csh']
+    slow_tools = ['sh-noprune', 'csh-noprune']
+    fast_inputs = [Input(cnt=fast_N//n, n=n, e=e) for n in ns for e in es if fast_N//n > 0]
+    slow_inputs = [Input(cnt=slow_N//n, n=n, e=e) for n in ns for e in es if slow_N//n > 0]
     # Dijkstra is separate because it does not use parameters.
     dijkstra_runs = [Run(input=input, tool=tool)
                         for input in slow_inputs
@@ -294,19 +249,20 @@ def scaling_n_runs(N):
     return fast_runs + slow_runs + dijkstra_runs
 
 rule scaling_n_table:
-    input: lambda w: [run.bench_path() for run in scaling_n_runs(w.N)]
-    output: 'table/scaling_n_N{N}.tsv'
-    run: make_table(scaling_n_runs(wildcards.N), output)
+    input: lambda w: [run.bench_path() for run in scaling_n_runs()]
+    output: 'table/scaling_n.tsv'
+    run: make_table(scaling_n_runs(), output)
 
 # === SCALING WITH E ===
 
+# Returns the list of runs for scaling with e, with exact and inexact matches.
 def scaling_e_runs(N):
     N = int(float(N))
     ns = [10000]
     es = [0.01] + [x/100 for x in range(2, 35, 2)]
     ms = [0, 1]
     ks = [9]
-    tools = ['cp-sh', 'cp-csh']
+    tools = ['sh', 'csh']
 
     inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
     # Dijkstra is separate because it does not use parameters.
@@ -325,6 +281,8 @@ rule scaling_e_table:
     output: 'table/scaling_e_N{N}.tsv'
     run: make_table(scaling_e_runs(wildcards.N), output)
 
+################################################################################
+# Everything below here should move elsewhere.
 
 # ==== ONT Runs ==== #
 
@@ -345,15 +303,8 @@ def ont_inputs(N):
 rule ont_run_pa_for_parameters:
     input: lambda w: Input(**w).path()
     benchmark: Run.pattern_with_params(ont=True)
-    wildcard_constraints: tool = '.*cp-.*'
     params: command = lambda w: build_command(w, params=True)
     shell: '{params.command}'
-
-rule ont_run_tool:
-    input: lambda w: Input(**w).path()
-    benchmark: Run.pattern(ont=True)
-    params: command = lambda w: build_command(w, params=False)
-    shell: "{params.command}"
 
 rule ont_params_table:
     input: lambda w: [run.bench_path() for run in params_runs(tools_cp, ont_inputs(w.N), ont=True)]
