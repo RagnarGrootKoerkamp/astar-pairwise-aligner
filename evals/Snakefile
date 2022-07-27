@@ -1,20 +1,8 @@
-# Instructions for compiling:
-# - A* Pairwise Aligner:
-#   - cargo build --release
-# - edlib:
-#   - From this directory:
-#   - cd ..
-#   - Clone the fork, which contains an updated binary to handle the WFA input format.
-#   - git clone https://github.com/RagnarGrootKoerkamp/edlib
-#   - cd edlib/build
-#   - cmake -D CMAKE_BUILD_TYPE=Release .. && make
-# - WFA:
-#   - From this directory:
-#   - cd ..
-#   - Clone the fork, which contains a fix to allow setting parameters to mimick edit distance.
-#   - git clone https://github.com/RagnarGrootKoerkamp/WFA wfa
-#   - cd wfa
-#   - make clean all
+# See the makefile in the root of the repository for instructions.
+
+rule all:
+    input: ['table/tools.tsv', 'table/scaling_e.tsv', 'table/scaling_n.tsv']
+    default_target: True
 
 import itertools
 import shutil
@@ -204,13 +192,19 @@ def tools_runs():
     es = [0.01, 0.05, 0.10, 0.15]
     tools = ['edlib', 'biwfa', 'sh', 'csh']
     inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    return [Run(input=input,
+    return [
+        (
+            # NOTE: exact matches are used for e < 10%, and inexact matches for e >= 10%.
+            Run(input=input,
                 tool=tool,
                 k=15,
-                # NOTE: exact matches are used for e < 10%, and inexact matches for e >= 10%.
                 m=0 if e < 0.1 else 1)
-            for input in inputs
-            for tool in tools]
+            if tool in ['sh', 'csh'] else
+            Run(input=input, tool=tool)
+        )
+        for input in inputs
+        for tool in tools
+    ]
 
 rule tools_table:
     input: lambda w: [run.bench_path() for run in tools_runs()]
@@ -257,7 +251,7 @@ rule scaling_n_table:
 
 # Returns the list of runs for scaling with e, with exact and inexact matches.
 def scaling_e_runs(N):
-    N = int(float(N))
+    N = 10**5
     ns = [10000]
     es = [0.01] + [x/100 for x in range(2, 35, 2)]
     ms = [0, 1]
@@ -277,9 +271,6 @@ def scaling_e_runs(N):
     return dijkstra_runs + our_runs
 
 rule scaling_e_table:
-    input: lambda w: [run.bench_path() for run in scaling_e_runs(w.N)]
-    output: 'table/scaling_e_N{N}.tsv'
-    run: make_table(scaling_e_runs(wildcards.N), output)
 
 ################################################################################
 # Everything below here should move elsewhere.
