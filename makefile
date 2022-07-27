@@ -1,5 +1,5 @@
-all: fig1
-export: fig1-export fig3-export scaling-export
+all: export
+export: fig1-export fig3-export evals-export
 
 # NOTE: BIOS settings used:
 # - no hyperthreading
@@ -30,6 +30,11 @@ evals:
 	  table/scaling_n_N1e7.tsv \
 	  table/tools_N1e7.tsv \
 	  table/scaling_e_N1e6.tsv \
+
+evals-export:
+	cd evals && python3 ./figures.py
+	rm -rf ../pairwise-aligner-paper/imgs/scaling/*
+	cp evals/imgs/tools_*.pdf evals/imgs/scaling_e.pdf evals/imgs/scaling_n.pdf ../pairwise-aligner-paper/imgs/scaling/
 
 fig1:
 	cargo run --release --example fig1
@@ -84,9 +89,5 @@ fig-readme:
 fig-readme-video:
 	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp -vf fps=50 imgs/fig-readme.mp4
 	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp $(FILTER),fps=50 imgs/fig-readme.gif
-
-
-scaling-export:
-	cp evals/imgs/tools_*.pdf evals/imgs/scaling_e.pdf evals/imgs/scaling_n.pdf ../pairwise-aligner-paper/imgs/scaling/
 
 .PHONY: all evals
