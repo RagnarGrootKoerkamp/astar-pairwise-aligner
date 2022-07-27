@@ -325,48 +325,6 @@ rule scaling_e_table:
     output: 'table/scaling_e_N{N}.tsv'
     run: make_table(scaling_e_runs(wildcards.N), output)
 
-# === SCALING WITH K (vary n) ===
-
-def scaling_k_runs(N):
-    N = int(float(N))
-    ns = [100, 300, 1000, 3000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000]
-    es = [0.05]
-    ms = [0]
-    ks = range(5, 26, 1)
-    tools = ['cp-sh', 'cp-csh']
-    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    return [Run(input=input, tool=tool, m=m, k=k)
-                        for k in ks
-                        for m in ms
-                        for input in inputs
-                        for tool in tools]
-
-rule scaling_k_table:
-    input: lambda w: [run.bench_path() for run in scaling_k_runs(w.N)]
-    output: 'table/scaling_k_N{N}.tsv'
-    run: make_table(scaling_k_runs(wildcards.N), output)
-
-# === SCALING WITH K (vary e) ===
-
-def scaling_k_e_runs(N):
-    N = int(float(N))
-    ns = [10000]
-    es = [0.01] + [x/100 for x in range(2, 15, 2)]
-    ms = [0]
-    ks = range(5, 26, 1)
-    tools = ['cp-sh', 'cp-csh']
-    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
-    return [Run(input=input, tool=tool, m=m, k=k)
-                        for k in ks
-                        for m in ms
-                        for input in inputs
-                        for tool in tools]
-
-rule scaling_k_e_table:
-    input: lambda w: [run.bench_path() for run in scaling_k_e_runs(w.N)]
-    output: 'table/scaling_k_e_N{N}.tsv'
-    run: make_table(scaling_k_e_runs(wildcards.N), output)
-
 
 # ==== ONT Runs ==== #
 
