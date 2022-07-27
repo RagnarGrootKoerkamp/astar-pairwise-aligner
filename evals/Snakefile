@@ -429,14 +429,6 @@ rule ont_tools_table:
     run: make_table(tool_runs(tools, ont_inputs(wildcards.N)), output)
 
 
-# ==== Visualizations ==== #
-
-rule astar_visualization:
-    input:
-    output: 'astar-visualization/dijkstra.csv'
-    # Note: no --release, since this data is only tracked in debug mode.
-    shell: "cargo run --example astar_visualization"
-
 # ======= Reference ======= #
 rule human_reference:
     #output: f'input/reference/human.fa'
