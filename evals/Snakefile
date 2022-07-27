@@ -25,8 +25,6 @@ import statistics
 ## RUN SETTINGS
 # Time after which snakemake kills the program.
 TIMEOUT = "24h"
-# Time passed to the program.
-TOOL_TIMEOUT = "24h"
 # Memory limit for each invocation, in kb. 30GB default
 MEMORY_LIMIT = 30000000
 # Number of times to rerun each benchmark.
@@ -42,17 +40,17 @@ binaries = {
 }
 tool_command = {
     # Versions with manual parameter choosing.
-    'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm SH',
-    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
-    'cp-sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm SH',
-    'cp-csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH',
+    'cp-sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm SH',
+    'cp-csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
+    'cp-sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm SH',
+    'cp-csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --no-prune --algorithm CSH',
     # choosed k and m values automatically.
-    'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm SH',
-    'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm CSH',
+    'sh':               binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm SH',
+    'csh':              binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm CSH',
     # slower PA variants
-    'dijkstra':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --algorithm Dijkstra',
-    'sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm SH',
-    'csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --timeout {timeout} --error-rate {e} --no-prune --algorithm CSH',
+    'dijkstra':         binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --algorithm Dijkstra',
+    'sh-noprune':       binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm SH',
+    'csh-noprune':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 --error-rate {e} --no-prune --algorithm CSH',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':            binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
@@ -190,7 +188,7 @@ rule generate_input:
 def build_command(w):
     input = Input(**w)
     run = Run(input=input, **w)
-    command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path(), timeout=TOOL_TIMEOUT)
+    command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
     return timeout(command, run.status_path(), TIMEOUT)
 
 rule run_tool:
