@@ -6,6 +6,7 @@ from IPython.display import display
 from pathlib import Path
 import seaborn as sns
 import math
+
 #%matplotlib inline
 
 pd.set_option("display.max_rows", 500)
@@ -216,7 +217,8 @@ def read_benchmarks(tsv_fn, algo=None):
     df["s_per_pair"] = df["s"] / ns
     df["s_per_bp"] = df["s"] / (ns * df["n"])
     df["e_pct"] = 100 * df["e"]
-    df["r"] = df["m.1"] + 1
+    # FIXME: Use 'r' directly after a proper rerun.
+    df["r"] = df["m"] + 1
     df["r"].fillna(value=0)
 
     if "align" in df:
@@ -263,7 +265,6 @@ def algo2color(algo):
         #'pasgal': '#AC68FF',
         #'vargas': '#F387FF',
     }
-    algo = algo.removeprefix("cp-")
     algo = algo.removesuffix("-noprune")
     if algo in d:
         return d[algo]
@@ -281,9 +282,6 @@ def algo2beautiful(algo):
         "wfa": "WFA",
         "biwfa": "BiWFA",
     }
-    if algo in d:
-        return d[algo]
-    algo = algo.removeprefix("cp-")
     if algo in d:
         return d[algo]
     return algo
