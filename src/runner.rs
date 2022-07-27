@@ -89,8 +89,8 @@ pub struct Params {
     #[structopt(long)]
     max_matches: Option<usize>,
 
-    #[structopt(short, default_value = "0")]
-    max_seed_cost: MatchCost,
+    #[structopt(short = "r", default_value = "1")]
+    r: MatchCost,
 
     #[structopt(long, default_value)]
     match_algorithm: MatchAlgorithm,
@@ -119,7 +119,7 @@ impl Params {
     // Returns a pair (m,k).
     fn determine_mk(&self, _a: Seq, b: Seq) -> (MatchCost, I) {
         if let Some(k) = self.k {
-            return (self.max_seed_cost, k);
+            return (self.r - 1, k);
         }
 
         // New simpler version.

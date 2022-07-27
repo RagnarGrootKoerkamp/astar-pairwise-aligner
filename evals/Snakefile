@@ -21,11 +21,11 @@ binaries = {
     'wfa'   : '../../wfa2/bin/align_benchmark',
 }
 tool_command = {
-    'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm SH',
-    'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH',
+    'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -r {wildcards.r} --algorithm SH',
+    'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -r {wildcards.r} --algorithm CSH',
     # Slower variants for comparison
-    'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm SH  --no-prune',
-    'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -m {wildcards.m} --algorithm CSH --no-prune',
+    'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -r {wildcards.r} --algorithm SH  --no-prune',
+    'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -r {wildcards.r} --algorithm CSH --no-prune',
     'dijkstra':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2                                   --algorithm Dijkstra',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
@@ -99,20 +99,20 @@ class Input:
 # A run is an execution of a tool (with optional parameters) on an input.
 # The most important part is the bench_path, which is where Snakemake will write the timings.
 class Run:
-    # A run consists of an input and tool, and optionally m and k parameters.
+    # A run consists of an input and tool, and optionally r and k parameters.
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
-        self.has_params = 'k' in kwargs and 'm' in kwargs
+        self.has_params = 'k' in kwargs and 'r' in kwargs
     # The wildcard pattern for an run benchmark with parameters.
     def pattern_with_params():
-        return f'runs/{Input.name_pattern()}-A{{tool}}-m{{m}}-k{{k}}.bench'
+        return f'runs/{Input.name_pattern()}-A{{tool}}-r{{r}}-k{{k}}.bench'
     # The wildcard pattern for an run benchmark without parameters.
     def pattern():
         return f'runs/{Input.name_pattern()}-A{{tool}}.bench'
     # The benchmark path of this run.
     def bench_path(self):
         if self.has_params:
-            return Path(f'runs/{self.input.name()}-A{self.tool}-m{self.m}-k{self.k}.bench')
+            return Path(f'runs/{self.input.name()}-A{self.tool}-r{self.r}-k{self.k}.bench')
         else:
             return Path(f'runs/{self.input.name()}-A{self.tool}.bench')
     # The status path of this run, where the exit status is written after success/timeout/out-of-memory.
@@ -155,7 +155,7 @@ rule benchmark_tool:
 # - .status file
 # - .stats file if present
 def make_table(runs, output):
-    headers = ["alg","model", "cnt","n","e","m","k","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
+    headers = ["alg","model", "cnt","n","e","r","k","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
@@ -175,7 +175,7 @@ def make_table(runs, output):
         except:
             stats = ''
         for bench_line in run.bench_path().read_text().splitlines()[1:]:
-            table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "m", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
+            table_file.write(f'{run.tool}\t{run.input.model}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
 
 # === TOOL COMPARISON ===
 
@@ -192,7 +192,7 @@ def tools_runs():
             Run(input=input,
                 tool=tool,
                 k=15,
-                m=0 if input.e < 0.1 else 1)
+                r=1 if input.e < 0.1 else 2)
             if tool in ['sh', 'csh'] else
             Run(input=input, tool=tool)
         )
@@ -211,28 +211,24 @@ rule tools_table:
 # Returns the list of runs for the scaling with n comparison with and without pruning.
 def scaling_n_runs():
     ns = [100, 300, 1000, 3000, 10_000, 30_000, 100_000]
-    es = [0.05]
-    ms = [0]
-    ks = [15]
+    e = 0.05
+    r = 1
+    k = 15
     # Split tools into two groups using a different N.
     fast_N = 10**7
     slow_N = 10**5
     fast_tools = ['sh', 'csh']
     slow_tools = ['sh-noprune', 'csh-noprune']
-    fast_inputs = [Input(cnt=fast_N//n, n=n, e=e) for n in ns for e in es if fast_N//n > 0]
-    slow_inputs = [Input(cnt=slow_N//n, n=n, e=e) for n in ns for e in es if slow_N//n > 0]
+    fast_inputs = [Input(cnt=fast_N//n, n=n, e=e) for n in ns if fast_N//n > 0]
+    slow_inputs = [Input(cnt=slow_N//n, n=n, e=e) for n in ns if slow_N//n > 0]
     # Dijkstra is separate because it does not use parameters.
     dijkstra_runs = [Run(input=input, tool=tool)
                         for input in slow_inputs
                         for tool in ['dijkstra']]
-    fast_runs = [Run(input=input, tool=tool, m=m, k=k)
-                        for k in ks
-                        for m in ms
+    fast_runs = [Run(input=input, tool=tool, r=r, k=k)
                         for input in fast_inputs
                         for tool in fast_tools]
-    slow_runs = [Run(input=input, tool=tool, m=m, k=k)
-                        for k in ks
-                        for m in ms
+    slow_runs = [Run(input=input, tool=tool, r=r, k=k)
                         for input in slow_inputs
                         for tool in slow_tools]
     return fast_runs + slow_runs + dijkstra_runs
@@ -248,20 +244,19 @@ rule scaling_n_table:
 # Returns the list of runs for scaling with e, with exact and inexact matches.
 def scaling_e_runs():
     N = 10**5
-    ns = [10000]
+    n = 10000
     es = [0.01] + [x/100 for x in range(2, 35, 2)]
-    ms = [0, 1]
-    ks = [9]
+    rs = [1, 2]
+    k = 9
     tools = ['sh', 'csh']
 
-    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    inputs = [Input(cnt=N//n, n=n, e=e) for e in es if N//n > 0]
     # Dijkstra is separate because it does not use parameters.
     dijkstra_runs = [Run(input=input, tool=tool)
                         for input in inputs
                         for tool in ['dijkstra']]
-    our_runs = [Run(input=input, tool=tool, m=m, k=k)
-                        for k in ks
-                        for m in ms
+    our_runs = [Run(input=input, tool=tool, r=r, k=k)
+                        for r in rs
                         for input in inputs
                         for tool in tools]
     return dijkstra_runs + our_runs
