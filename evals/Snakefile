@@ -2,7 +2,6 @@
 
 rule all:
     input: ['table/tools.tsv', 'table/scaling_e.tsv', 'table/scaling_n.tsv']
-    default_target: True
 
 import itertools
 import shutil
