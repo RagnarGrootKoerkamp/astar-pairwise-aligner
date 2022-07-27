@@ -59,9 +59,9 @@ plots:
 	cd evals && python3 ./plots.py
 
 plots-export: plots
-	rm -f ../pairwise-aligner-paper/imgs/{tools_*,scaling_e,scaling_n}.pdf
-	cp evals/imgs/tools_*.pdf evals/imgs/scaling_e.pdf evals/imgs/scaling_n.pdf \
-      ../pairwise-aligner-paper/imgs/scaling/
+	rm -f ../pairwise-aligner-paper/imgs/plots/*
+	cp evals/plots/tools_*.pdf evals/plots/scaling_e.pdf evals/plots/scaling_n.pdf \
+      ../pairwise-aligner-paper/imgs/plots/
 
 # ========== IMAGES ==========
 

@@ -9,10 +9,12 @@
 /proof.tex
 /proof.pdf
 .snakemake
-/evals/imgs
+/evals/plots
+/evals/data
 __pycache__
 /.cargo/config
 /evals/runs.backup/
 /imgs/
 /tmp/
 .vscode/
+.ipynb_checkpoints

@@ -208,7 +208,7 @@ def plot_scaling(
     ax.set_ylabel(col2name(y), rotation=0, ha="left", size=18)
     ax.yaxis.set_label_coords(-0.10, 1.00)
 
-    plt.savefig(f"imgs/{filename}.pdf", bbox_inches="tight")
+    plt.savefig(f"plots/{filename}.pdf", bbox_inches="tight")
 
 
 def read_benchmarks(tsv_fn, algo=None):
