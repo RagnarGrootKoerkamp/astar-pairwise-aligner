@@ -9,7 +9,7 @@
 /proof.tex
 /proof.pdf
 .snakemake
-/evals/plots
+/evals/results
 /evals/data
 __pycache__
 /.cargo/config
