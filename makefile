@@ -5,20 +5,20 @@ all:
 # $ make edlib
 # Then, you can run all evals using
 # $ make evals
-# Generate the plots using
-# $ make plots
+# Generate the plots and table data using
+# $ make results
 # or generate all figures using
 # $ make figures
 
 # ========== SHORTHANDS ==========
 
 # Generate figures 1 and 3.
-figures: fig1 fig3 plots
+figures: fig1 fig3 results
 
 # Shorthands below are mostly for private use.
 
-# Copy generated images and plots to the paper.
-export: fig1-export fig3-export plots-export
+# Copy generated images and results to the paper.
+export: fig1-export fig3-export results-export
 # Generate videos for the figures above, for the readme.
 videos: fig1-video fig3-video fig-readme-video
 # Remove generated images for videos
@@ -55,13 +55,15 @@ evals:
 	  taskset -c 0,2,4 \
         snakemake -j 3 --rerun-incomplete
 
-plots:
-	cd evals && python3 ./plots.py
+results:
+	cd evals && python3 ./results.py
 
-plots-export: plots
-	rm -f ../pairwise-aligner-paper/imgs/plots/*
-	cp evals/plots/tools_*.pdf evals/plots/scaling_e.pdf evals/plots/scaling_n.pdf \
+results-export: results
+	rm -f ../pairwise-aligner-paper/imgs/results/*
+	cp evals/results/tools_*.pdf evals/results/scaling_e.pdf evals/results/scaling_n.pdf \
       ../pairwise-aligner-paper/imgs/plots/
+	cp evals/results/table.csv ../pairwise-aligner-paper/data/table.csv
+	cp evals/results/speedup ../pairwise-aligner-paper/data/speedup
 
 # ========== IMAGES ==========
 
