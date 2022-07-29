@@ -44,11 +44,19 @@ See [[todo.org]] for our internal list of things to do and things done, and some
 
 * Flamegraphs
 
-Flamegraphs after running on $n=10^7$ at [[file:imgs/flamegraphs/0.05.svg][$5\%$]] and $15\%$:
+Flamegraphs after running on $n=10^7$ at [[https://raw.githubusercontent.com/RagnarGrootKoerkamp/astar-pairwise-aligner/master/imgs/flamegraphs/0.05.svg][5%]] and [[https://raw.githubusercontent.com/RagnarGrootKoerkamp/astar-pairwise-aligner/master/imgs/flamegraphs/0.15.svg][15%]] with SH ($r=1$) and CSH
+($r=2$), from ~make flamegraphs~. (Download them for better interaction.)
 
-[[file:imgs/flamegraphs/0.05.svg]]
+Breakdown:
+- $e=5\%$
+  - $9\%$: finding all matches,
+  - $31\%$: exploring edges,
+  - $\mathbf 21\%$: traceback.
+- $e=15\%$ :
+  - $14\%$: computing $h$,
+  - $10\%$: exploring edges,
+  - $\mathbf 60\%$: hashmap indexing. Large memory is slower probably?
 
-[[file:imgs/flamegraphs/0.15.svg]]
 
 * Links
 
