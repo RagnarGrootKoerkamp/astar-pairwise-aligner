@@ -44,7 +44,7 @@ See [[todo.org]] for our internal list of things to do and things done, and some
 
 * Flamegraphs
 
-Flamegraphs after running on $n=10^7$ at $5\%$ and $15\%$:
+Flamegraphs after running on $n=10^7$ at [[file:imgs/flamegraphs/0.05.svg][$5\%$]] and $15\%$:
 
 [[file:imgs/flamegraphs/0.05.svg]]
 
