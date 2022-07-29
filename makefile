@@ -24,14 +24,33 @@ videos: fig1-video fig3-video fig-readme-video
 # Remove generated images for videos
 videos-clean: fig1-video-clean fig3-video-clean fig-readme-video-clean
 
+# ========== WFA & EDLIB SETUP ==========
+
+# Clone WFA2-lib and build using makefile
+wfa:
+	cd .. && git clone https://github.com/smarco/WFA2-lib.git wfa2
+	cd ../wfa2 && make
+
+# Clone fork of Edlib and build using meson
+edlib:
+	cd .. && git clone https://github.com/RagnarGrootKoerkamp/edlib.git
+	cd ../edlib && make
+
 # ========== EVALS ==========
+
+cpu-freq:
+	@echo -e "Sudo is needed to call 'cpupower frequency-set' to pin the cpu frequency.\n\
+Feel free to remove the dependency on the 'cpu-freq' rule from the makefile if you don't want this."
+	sudo cpupower frequency-set -g performance
+	sudo cpupower frequency-set -d 2.6GHz
+	sudo cpupower frequency-set -u 2.6GHz
 
 # NOTE: BIOS settings used:
 # - no hyperthreading
 # - `balanced` performance, even with A/C power.
 #   - `performance` leads to throttling
 # - laptop plugged in
-evals:
+evals: cpu-freq
 	# Make sure there are no uncommited changes, and log commit ids.
 	git diff-index --quiet HEAD
 	echo A*PA > evals/commit-ids
@@ -45,10 +64,6 @@ evals:
 	# Build tools
 	cargo build --no-default-features --release
 	cargo build --no-default-features --release --example generate_dataset
-	# Set CPU frequency
-	sudo cpupower frequency-set -g performance
-	sudo cpupower frequency-set -d 2.6GHz
-	sudo cpupower frequency-set -u 2.6GHz
 	# Run snakemake on 3 threads, with 3 jobs in parallel.
 	# The first rule `all` is executed automatically.
 	cd evals && \
@@ -125,17 +140,12 @@ fig-readme-video:
 fig-readme-video-clean:
 	rm -rf imgs/fig-readme
 
-# ========== WFA & EDLIB SETUP ==========
+# ========== FLAMEGRAPHS ==========
 
-# Clone WFA2-lib and build using makefile
-wfa:
-	cd .. && git clone https://github.com/smarco/WFA2-lib.git wfa2
-	cd ../wfa2 && make
-
-# Clone fork of Edlib and build using meson
-edlib:
-	cd .. && git clone https://github.com/RagnarGrootKoerkamp/edlib.git
-	cd ../edlib && make
+flamegraphs: cpu-freq
+	mkdir -p imgs/flamegraphs/
+	cargo flamegraph -o imgs/flamegraphs/0.05.svg --bin astar-pairwise-aligner -- -n 10000000 -e 0.05 -k 15 -r 1 -a SH
+	cargo flamegraph -o imgs/flamegraphs/0.15.svg --bin astar-pairwise-aligner -- -n 10000000 -e 0.15 -k 15 -r 2 -a CSH
 
 # ========== CONFIG ==========
 
