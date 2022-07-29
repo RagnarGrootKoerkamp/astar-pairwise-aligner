@@ -42,11 +42,19 @@ If you would like to try out A*PA, please make an issue here as soon as you run 
 
 See [[todo.org]] for our internal list of things to do and things done, and some more observations.
 
+* Flamegraphs
+
+Flamegraphs after running on $n=10^7$ at $5\%$ and $15\%$:
+
+[[file:imgs/flamegraphs/0.05.svg]]
+
+[[file:imgs/flamegraphs/0.15.svg]]
+
 * Links
 
 Blog: [[https://research.curiouscoding.nl]]
 
-Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]], 
+Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
 
 * LICENCE
 MPL-2.0
