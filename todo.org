@@ -585,3 +585,19 @@ Target function may be inlined elsewhere!
   - https://www.intel.com/content/www/us/en/developer/articles/technical/optimize-scan-operations-explicit-vectorization.html#gs.3ym2aq
   - https://stackoverflow.com/questions/36085271/horizontal-running-diff-and-conditional-update-using-simd-sse
   - Blog post on exactly this recursion: https://matklad.github.io/2017/03/18/min-of-three-part-2.html
+
+
+* Flamegraph notes
+
+Flamegraphs after running on $n=10^7$ at [[https://raw.githubusercontent.com/RagnarGrootKoerkamp/astar-pairwise-aligner/master/imgs/flamegraphs/0.05.svg][5%]] and [[https://raw.githubusercontent.com/RagnarGrootKoerkamp/astar-pairwise-aligner/master/imgs/flamegraphs/0.15.svg][15%]] with SH ($r=1$) and CSH
+($r=2$), from ~make flamegraphs~. (Download them for better interaction.)
+
+Breakdown:
+- $e=5\%$
+  - $9\%$: finding all matches,
+  - $31\%$: exploring edges,
+  - $\mathbf 21\%$: traceback.
+- $e=15\%$ :
+  - $14\%$: computing $h$,
+  - $10\%$: exploring edges,
+  - $\mathbf 60\%$: hashmap indexing. Large memory is slower probably?

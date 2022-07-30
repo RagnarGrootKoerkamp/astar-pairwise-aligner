@@ -44,4 +44,4 @@ suffix = "*"
 [features]
 wfa = []
 edlib = []
-default = ["sdl2", "wfa"]
+default = ["sdl2"]

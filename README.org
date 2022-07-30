@@ -1,17 +1,131 @@
 #+TITLE: A*PA: A* Pairwise Aligner
 
-A pairwise sequence aligner using A*, extending ideas from [[https://github.com/eth-sri/astarix][AStarix]]:
-
-Ivanov, Bichsel, Vechev (2021, preprint)
-[[https://www.biorxiv.org/content/10.1101/2021.11.05.467453v1][Fast and Optimal Sequence-to-Graph Alignment Guided by Seeds]]
+A pairwise sequence aligner using A*, extending the seed heuristic from [[https://github.com/eth-sri/astarix][AStarix]].
 
 Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
 
-* Videos
-
+Here's an alignment of two sequences of length $500$ with $30\%$ error rate
+using the /chaining seed heuristic/ with /pruning/:
 [[file:imgs/fig-readme.gif]]
 
-Here are some other algorithms visualized:
+* Getting started
+
+** Rust
+
+First, install Rust:
+1. Install [[https://rustup.rs/][rustup]].
+1. Install Rust Nightly using ~rustup install nightly~
+1. Make nightly the default: ~rustup default nightly~
+
+** Examples
+
+Flags are given by ~cargo run -- -h~ from anywhere in the repository. (The
+binary will be at ~/target/{release,debug}/astar-pairwise-aligner}~.)
+#+begin_src shell
+USAGE:
+    astar-pairwise-aligner [OPTIONS] <--input <INPUT>|--length <LENGTH>>
+
+OPTIONS:
+    -h, --help                 Print help information
+    -o, --output <OUTPUT>      Where to write optional statistics
+    -s, --silent               Print less. Pass twice for summary line only
+        --timeout <TIMEOUT>    Stop aligning new pairs after this timeout
+
+INPUT:
+    -i, --input <INPUT>              The .seq, .txt, or Fasta file with sequence pairs to align
+    -x, --cnt <CNT>                  The number of sequence pairs to generate [default: 1]
+    -n, --length <LENGTH>            Length of generated sequences
+    -e, --error-rate <ERROR_RATE>    Input error rate
+        --seed <SEED>                Seed to initialize RNG for reproducability
+
+PARAMETERS:
+    -a, --algorithm <ALGORITHM>    nw, nw-simd, dijkstra, sh, csh [default: sh]
+    -k <k>                         Seed length
+    -r <r>                         Seed potential [default: 1]
+        --print-parameters         Do not run anything, but print inferred parameters
+#+end_src
+Use ~cargo run -- --help~ for some more explanation and flags not really meant for
+external users. Note that input can either from a file (~--input~) or randomly
+generated (the remaining options under ~INPUT~).
+Parameters ~-r~ and ~-k~ must be specified or can be inferred from the error
+rate ~-e~.
+
+If you have a =.fasta=, =.txt=, or =.seq= (see WFA) file containing sequences, use e.g.
+to following to align all consecutive pairs:
+#+begin_src
+cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq} -r 1 -k 15
+#+end_src
+or do this to run on $100$ sequences of length $10^5$ with error rate $5\%$:
+#+begin_src
+cargo run --release -- -x 100 -n 100000 -e 0.05 -r 1 -k 15
+#+end_src
+
+** Features
+
+Currently the =sdl2= feature that is used for visualizations is on by default.
+This requires the =sdl2= and =sdl2_ttf= libraries to be installed on the system.
+If you do not have these, run with ~cargo run --no-default-features~ or simply
+remove =sdl2= from the list of default features at the bottom of [[./Cargo.toml][Cargo.toml]].
+
+There are also the =edlib= and =wfa= features. These enable linking against the
+C-libraries directly and are used for (fuzz)-testing. Run ~make wfa~ and ~make
+edlib~ before using these.
+
+* Tests & benchmarks
+
+Tests and benchmarks are run by GitHub Actions CI. Performance history of
+benchmarks is [[https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/][here]].
+
+The [[./src/aligners/]] directory contains our own implementations of
+many algorithms:
+- Needleman-Wunsch,
+- Exponential banded search (Ukkonen),
+- /Computational domains/ of Spouge (1989),
+- Diagonal Transition (WFA)
+  - With optional divide & conquer (BiWFA).
+All of these support the following cost models:
+- unit costs
+- linear costs
+- affine costs
+- dual (and more) affine costs
+- and asymmetric variants of all of the above with distinct insert and delete costs.
+
+We also include wrappers for the following:
+- NW and Ukkonen's exponential search from
+  the [[https://docs.rs/triple_accel/latest/triple_accel/index.html][triple accel]] crate,
+- [[https://github.com/Martinsos/edlib][Edlib]]
+- [[https://github.com/smarco/WFA2-lib][WFA2]]
+- our own A* based aligner.
+
+All these methods are tested in [[./src/aligners/tests.rs]].
+
+
+* Evals & results
+
+The evaluations and results in our upcoming preprint should be entirely
+reproducible using the [[./makefile][=makefile=]]:
+
+Before running evals, make sure WFA and Edlib are cloned to the directory
+adjacent to this repository, using ~make wfa~ and ~make edlib~. Then, you should
+be able to run all evals (takes ~5h) using ~make evals~. Note that this asks for
+the root password to fix the CPU frequency using =cpupower=. If you do not
+have/want this, just comment the lines in the =makefile=.
+
+Either way, the results of the evals are committed in [[./evals/table/]]. Plots and
+table data can be generated using ~make results~.
+
+Use ~make figures~ to run some of the provided [[./examples][examples]] to generate the figures
+shown in figure 1 and 3 of the paper, and reproduced as videos below.
+
+* Further notes
+
+See [[todo.org]] for our internal list of things to do and things done, and random observations.
+
+* Videos
+
+
+
+Here are the algorithms of figure 1 of our (upcoming) preprint visualized:
 
 |---------------------------------------------------------------+--------------------------------------------|
 | Ukkonen's exponential band algorithm (Ukkonen'85)             | [[file:imgs/fig1/1_ukkonen.gif]]               |
@@ -20,43 +134,9 @@ Here are some other algorithms visualized:
 | Diagonal transition with divide and conquer (Myers'86, BiWFA) | [[file:imgs/fig1/4_dt-divide-and-conquer.gif]] |
 | A* with chaining seed heuristic and pruning (A*PA, this work) | [[file:imgs/fig1/5_astar-csh-pruning.gif]]     |
 
-And here is another one:
+And here is a video of figure 3 of our preprint:
 
 [[file:imgs/fig3.gif]]
-
-
-* Current state
-
-If you would like to try out A*PA, please make an issue here as soon as you run into any kind of problems or unclarity
--- writing documentation is pending, but we're happy to help you out.
-
-* Getting started
-
-1. Install [[https://rustup.rs/][rustup]].
-1. Install Rust Nightly using ~rustup install nightly~
-1. Make it the default: ~rustup default nightly~
-1. Run tests in [[src/lib.rs]] using ~cargo test [name_of_test]~
-1. Run benchmarks in [[src/lib.rs]] using ~cargo bench~
-
-* TODOs
-
-See [[todo.org]] for our internal list of things to do and things done, and some more observations.
-
-* Flamegraphs
-
-Flamegraphs after running on $n=10^7$ at [[https://raw.githubusercontent.com/RagnarGrootKoerkamp/astar-pairwise-aligner/master/imgs/flamegraphs/0.05.svg][5%]] and [[https://raw.githubusercontent.com/RagnarGrootKoerkamp/astar-pairwise-aligner/master/imgs/flamegraphs/0.15.svg][15%]] with SH ($r=1$) and CSH
-($r=2$), from ~make flamegraphs~. (Download them for better interaction.)
-
-Breakdown:
-- $e=5\%$
-  - $9\%$: finding all matches,
-  - $31\%$: exploring edges,
-  - $\mathbf 21\%$: traceback.
-- $e=15\%$ :
-  - $14\%$: computing $h$,
-  - $10\%$: exploring edges,
-  - $\mathbf 60\%$: hashmap indexing. Large memory is slower probably?
-
 
 * Links
 
@@ -64,5 +144,11 @@ Blog: [[https://research.curiouscoding.nl]]
 
 Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
 
-* LICENCE
+* Citations
+
+Ivanov, Bichsel, Vechev (2021, preprint)
+[[https://www.biorxiv.org/content/10.1101/2021.11.05.467453v1][Fast and Optimal Sequence-to-Graph Alignment Guided by Seeds]]
+
+
+* License
 MPL-2.0
