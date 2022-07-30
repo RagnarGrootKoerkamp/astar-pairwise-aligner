@@ -141,8 +141,8 @@ mod with_sdl2 {
                 }
                 Gradient::TurboGradient(range) => {
                     let f = range.start + f * (range.end - range.start);
-                    let c = colorgrad::turbo().at(f as f64).rgba_u8();
-                    Color::RGBA(c.0, c.1, c.2, c.3)
+                    let c = colorgrad::turbo().at(f as f64).to_rgba8();
+                    Color::RGBA(c[0], c[1], c[2], c[3])
                 }
             }
         }
