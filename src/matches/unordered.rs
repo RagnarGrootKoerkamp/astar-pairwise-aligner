@@ -308,16 +308,20 @@ pub fn find_matches_qgram_hash_inexact_unordered<'a>(
     SeedMatches::new(a, seeds, matches)
 }
 
-fn unordered_matches_hash<'a>(
+/// Initialize a counter to 0 for all seeds in a.
+/// Then count these kmers in b.
+/// Keep only seeds for which the counter is at most 1.
+pub fn unordered_matches<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
     alph: &Alphabet,
-    match_config @ MatchConfig {
+    match_config: MatchConfig,
+) -> SeedMatches {
+    let match_config @ MatchConfig {
         length,
         max_match_cost,
         ..
-    }: MatchConfig,
-) -> SeedMatches {
+    } = match_config;
     let rank_transform = RankTransform::new(alph);
 
     if let Fixed(_) = length {
@@ -378,19 +382,4 @@ fn unordered_matches_hash<'a>(
             m,
         ))
     })
-}
-
-/// Initialize a counter to 0 for all seeds in a.
-/// Then count these kmers in b.
-/// Keep only seeds for which the counter is at most 1.
-pub fn unordered_matches<'a>(
-    a: Seq<'a>,
-    b: Seq<'a>,
-    alph: &Alphabet,
-    match_config @ MatchConfig { algorithm, .. }: MatchConfig,
-) -> SeedMatches {
-    match algorithm {
-        MatchAlgorithm::Hash => unordered_matches_hash(a, b, alph, match_config),
-        _ => unimplemented!("This algorithm is not implemented."),
-    }
 }

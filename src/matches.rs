@@ -2,7 +2,6 @@ pub mod ordered;
 pub mod qgrams;
 pub mod unordered;
 
-use clap::ValueEnum;
 use itertools::Itertools;
 
 use crate::prelude::*;
@@ -181,22 +180,12 @@ impl LengthConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
-pub enum MatchAlgorithm {
-    #[default]
-    Hash,
-    HashSet,
-    Bloom,
-    Cuckoo,
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct MatchConfig {
     // TODO: Add settings for variable length matches in here.
     pub length: LengthConfig,
     // TODO: Move the max_match_cost into MatchLength.
     pub max_match_cost: MatchCost,
-    pub algorithm: MatchAlgorithm,
     pub window_filter: bool,
 }
 
@@ -205,7 +194,6 @@ impl MatchConfig {
         Self {
             length: Fixed(k),
             max_match_cost,
-            algorithm: MatchAlgorithm::default(),
             window_filter: false,
         }
     }
@@ -213,7 +201,6 @@ impl MatchConfig {
         Self {
             length: Fixed(k),
             max_match_cost: 0,
-            algorithm: MatchAlgorithm::default(),
             window_filter: false,
         }
     }
@@ -221,7 +208,6 @@ impl MatchConfig {
         Self {
             length: Fixed(k),
             max_match_cost: 1,
-            algorithm: MatchAlgorithm::default(),
             window_filter: false,
         }
     }
@@ -232,7 +218,6 @@ impl Default for MatchConfig {
         Self {
             length: Fixed(0),
             max_match_cost: 0,
-            algorithm: MatchAlgorithm::default(),
             window_filter: false,
         }
     }
