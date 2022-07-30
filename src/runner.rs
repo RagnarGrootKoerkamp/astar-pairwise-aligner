@@ -116,10 +116,6 @@ pub struct Params {
     #[clap(long, hide_short_help = true)]
     max_matches: Option<usize>,
 
-    /// Algorithm to use to find all matches
-    #[clap(long, value_enum, default_value_t, hide_short_help = true)]
-    match_algorithm: MatchAlgorithm,
-
     /// The cost function to use in BruteForceCsh.
     #[clap(long, default_value_t, value_enum, hide_short_help = true)]
     cost: CostFunction,
@@ -234,7 +230,6 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
                 Fixed(k)
             },
             max_match_cost: m,
-            algorithm: params.match_algorithm,
             window_filter,
         }
     }
