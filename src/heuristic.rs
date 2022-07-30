@@ -19,11 +19,9 @@ pub use perfect::*;
 pub use seed::*;
 pub use symmetric::*;
 
-use serde::Serialize;
-
 use crate::{matches::Match, prelude::*};
 
-#[derive(Serialize, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct HeuristicParams {
     pub name: String,
     pub distance_function: String,
@@ -33,12 +31,11 @@ pub struct HeuristicParams {
     pub build_fast: bool,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Clone)]
 pub struct HeuristicStats {
     pub num_seeds: I,
     pub num_matches: usize,
     pub num_filtered_matches: usize,
-    #[serde(skip_serializing)]
     pub matches: Vec<Match>,
     pub pruning_duration: f32,
     pub num_prunes: usize,

@@ -1,14 +1,13 @@
 use crate::visualizer::NoVisualizer;
 use crate::{astar::astar, astar_dt::astar_dt, prelude::*};
 
-use serde::Serialize;
 use std::{
     fmt,
     io::{stdout, Write},
     time,
 };
 
-#[derive(Serialize, Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum Source {
     Uniform,
     Manual,
@@ -21,7 +20,7 @@ impl fmt::Display for Source {
     }
 }
 
-#[derive(Clone, Copy, Serialize, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct SequenceStats {
     pub len_a: usize,
     pub len_b: usize,
@@ -29,7 +28,7 @@ pub struct SequenceStats {
     pub source: Source,
 }
 
-#[derive(Serialize, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct TimingStats {
     pub total: f32,
     pub total_sum_squares: f32,
@@ -37,14 +36,14 @@ pub struct TimingStats {
     pub astar: f32,
 }
 
-#[derive(Serialize, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct HeuristicStats2 {
     pub root_h: Cost,
     pub root_h_end: Cost,
     pub path_matches: usize,
 }
 
-#[derive(Serialize, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct AlignResult {
     pub input: SequenceStats,
     pub heuristic_params: HeuristicParams,
@@ -55,7 +54,6 @@ pub struct AlignResult {
 
     // Output
     pub edit_distance: Cost,
-    #[serde(skip_serializing)]
     pub path: Vec<Pos>,
 
     // For averaging
