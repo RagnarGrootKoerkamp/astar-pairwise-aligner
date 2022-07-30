@@ -1,11 +1,9 @@
 use crate::prelude::*;
+use clap::{Parser, ValueEnum};
 use contour::central::CentralContour;
 use std::{marker::PhantomData, process::exit};
-use structopt::StructOpt;
-use strum_macros::EnumString;
 
-#[derive(EnumString, Default, Debug, PartialEq, Eq, strum_macros::Display)]
-#[strum(ascii_case_insensitive)]
+#[derive(Default, Debug, PartialEq, Eq, ValueEnum, Clone, Copy)]
 pub enum CostFunction {
     #[default]
     Zero,
@@ -15,30 +13,27 @@ pub enum CostFunction {
     BiCount,
 }
 
-#[derive(EnumString, Default, Debug, strum_macros::Display)]
-#[strum(ascii_case_insensitive)]
+#[derive(Default, Debug, ValueEnum, Clone, Copy)]
 pub enum Contour {
     #[default]
     BruteForce,
     Central,
 }
 
-#[derive(EnumString, Debug, Default, strum_macros::Display)]
-#[strum(ascii_case_insensitive)]
+#[derive(Debug, Default, ValueEnum, Clone, Copy)]
 pub enum Contours {
     BruteForce,
     #[default]
     Hint,
 }
 
-#[derive(EnumString, Debug, PartialEq, Default, strum_macros::Display, Clone, Copy)]
-#[strum(ascii_case_insensitive)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
 #[allow(non_camel_case_types)]
 pub enum Algorithm {
     // The basic n^2 DP
-    Naive,
+    Nw,
     // Naive, but with SIMD
-    Simd,
+    NwSimd,
     // Dijkstra
     Dijkstra,
     // Slow CSH implementation with the provided --cost function.
@@ -68,51 +63,86 @@ impl Algorithm {
     }
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub struct Params {
-    #[structopt(short, long, default_value)]
+    /// nw, nw-simd, dijkstra, sh, csh
+    ///
+    /// More values:
+    /// brute-force-csh, csh-gap-cost
+    /// With diagonal transition:
+    /// {dijkstra,sh,csh,csh-gap-cost}-dt
+    #[clap(
+        short,
+        long,
+        default_value_t,
+        value_enum,
+        hide_possible_values = true,
+        display_order = 10
+    )]
     algorithm: Algorithm,
 
-    #[structopt(short)]
-    k: Option<I>,
-
-    #[structopt(long)]
-    kmin: Option<I>,
-
-    #[structopt(long)]
-    kmax: Option<I>,
-
-    // Either k or e must be specified.
-    #[structopt(long)]
-    error_rate: Option<f32>,
-
-    #[structopt(long)]
-    max_matches: Option<usize>,
-
-    #[structopt(short = "r", default_value = "1")]
+    /// Seed potential
+    ///
+    /// 1 for exact matches,
+    /// 2 for inexact matches.
+    #[clap(
+        short = 'r',
+        default_value_t = 1,
+        value_name = "r",
+        display_order = 10,
+        requires = "k"
+    )]
     r: MatchCost,
 
-    #[structopt(long, default_value)]
+    /// Seed length
+    #[clap(short, value_name = "k", display_order = 10, requires = "r")]
+    k: Option<I>,
+
+    /// Error rate of input to infer r and k.
+    ///
+    /// Copied from GenerateArgs.
+    #[clap(skip)]
+    pub error_rate: Option<f32>,
+
+    /// Minimal seed length
+    #[clap(long, hide_short_help = true)]
+    kmin: Option<I>,
+
+    /// Maximal seed length
+    #[clap(long, hide_short_help = true)]
+    kmax: Option<I>,
+
+    /// The maximal number of matches per seed
+    #[clap(long, hide_short_help = true)]
+    max_matches: Option<usize>,
+
+    /// Algorithm to use to find all matches
+    #[clap(long, value_enum, default_value_t, hide_short_help = true)]
     match_algorithm: MatchAlgorithm,
 
-    #[structopt(long, default_value)]
+    /// The cost function to use in BruteForceCsh.
+    #[clap(long, default_value_t, value_enum, hide_short_help = true)]
     cost: CostFunction,
 
-    #[structopt(short = "C", long, default_value)]
+    /// The type of contours to use
+    #[clap(short = 'C', long, default_value_t, value_enum, hide_short_help = true)]
     contours: Contours,
 
-    #[structopt(short = "c", long, default_value)]
+    /// The type of inner-contour to use
+    #[clap(short = 'c', long, default_value_t, value_enum, hide_short_help = true)]
     contour: Contour,
 
-    #[structopt(long)]
+    /// Disable pruning
+    #[clap(long, hide_short_help = true)]
     no_prune: bool,
 
-    #[structopt(long)]
+    /// Disable greedy matching
+    #[clap(long, hide_short_help = true)]
     no_greedy_matching: bool,
 
-    // Do not run anything, but only print the automatically chosen parameters.
-    #[structopt(long)]
-    only_print_parameters: bool,
+    /// Do not run anything, but print inferred parameters
+    #[clap(long)]
+    print_parameters: bool,
 }
 
 impl Params {
@@ -182,7 +212,7 @@ impl Params {
         //println!("kmin {k_min}, kmax {k_max}, k{k}");
         // k can be at most 31.
         let k = min(k.round() as I, 31);
-        if self.only_print_parameters {
+        if self.print_parameters {
             println!("m = {m}  k = {k}");
             exit(0);
         }
@@ -210,7 +240,7 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
     }
 
     match params.algorithm {
-        Algorithm::Naive => {
+        Algorithm::Nw => {
             let dist = bio::alignment::distance::levenshtein(a, b);
             AlignResult {
                 sample_size: 1,
@@ -223,7 +253,7 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
                 ..Default::default()
             }
         }
-        Algorithm::Simd => {
+        Algorithm::NwSimd => {
             let dist = bio::alignment::distance::simd::levenshtein(a, b);
             AlignResult {
                 sample_size: 1,

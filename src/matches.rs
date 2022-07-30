@@ -2,8 +2,8 @@ pub mod ordered;
 pub mod qgrams;
 pub mod unordered;
 
+use clap::ValueEnum;
 use itertools::Itertools;
-use strum_macros::EnumString;
 
 use crate::prelude::*;
 
@@ -181,8 +181,7 @@ impl LengthConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, EnumString, strum_macros::Display)]
-#[strum(ascii_case_insensitive)]
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
 pub enum MatchAlgorithm {
     #[default]
     Hash,

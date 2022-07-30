@@ -3,6 +3,7 @@ use astar_pairwise_aligner::{
     prelude::*,
 };
 use bio::io::fasta;
+use clap::{ArgGroup, Parser};
 use itertools::Itertools;
 use rand::SeedableRng;
 use std::{
@@ -11,69 +12,71 @@ use std::{
     path::PathBuf,
     time::{self, Duration},
 };
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
+#[clap(help_heading = "INPUT", group = ArgGroup::new("inputmethod").required(true))]
 struct Input {
-    #[structopt(short, long, parse(from_os_str))]
+    /// The .seq, .txt, or Fasta file with sequence pairs to align.
+    #[clap(
+        short,
+        long,
+        parse(from_os_str),
+        display_order = 1,
+        group = "inputmethod"
+    )]
     input: Option<PathBuf>,
 
-    /// Length of the sequences to generate.
-    #[structopt(short = "x", long, default_value = "1")]
-    pub cnt: usize,
-
-    /// Seed to initialize RNG.
-    #[structopt(long)]
-    pub seed: Option<u64>,
-
     /// Options to generate an input pair.
-    #[structopt(flatten)]
-    generate_options: GenerateOptions,
+    #[clap(flatten)]
+    generate: GenerateArgs,
 }
 
-#[derive(StructOpt)]
-#[structopt(
-    name = "A* Pairwise Aligner",
-    about = "Exact pairwise alignment using A*",
-    author = "Ragnar Groot Koerkamp, Pesho Ivanov"
-)]
+#[derive(Parser)]
+#[clap(author, about)]
 struct Cli {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     input: Input,
 
-    // Where to write the statistics.
-    #[structopt(short, long, parse(from_os_str))]
+    /// Where to write optional statistics.
+    #[clap(short, long, parse(from_os_str))]
     output: Option<PathBuf>,
 
-    #[structopt(flatten)]
+    /// Parameters and settings for the algorithm.
+    #[clap(flatten, help_heading = "PARAMETERS")]
     params: Params,
 
+    /// Print less. Pass twice for summary line only.
+    ///
     /// Do not print a new line per alignment, but instead overwrite the previous one.
     /// Pass twice to only print a summary line and avoid all terminal clutter, e.g. for benchmarking.
-    #[structopt(short, long, parse(from_occurrences))]
+    #[clap(short, long, parse(from_occurrences))]
     silent: u8,
 
-    /// Maximum duration to run for.
-    #[structopt(long, parse(try_from_str = parse_duration::parse))]
+    /// Stop aligning new pairs after this timeout.
+    #[clap(long, parse(try_from_str = parse_duration::parse))]
     timeout: Option<Duration>,
 }
 
 fn main() {
-    let args = Cli::from_args();
+    let mut args = Cli::parse();
+    // Hacky, but needed for now.
+    args.params.error_rate = args.input.generate.error_rate;
 
     // Read the input
     let mut avg_result = AlignResult::default();
     let mut run_pair = |mut a: Seq, mut b: Seq| {
         // Shrink if needed.
-        let n = args.input.generate_options.length;
-        if n != 0 {
-            if a.len() > n {
-                a = &a[..n];
-            }
-            if b.len() > n {
-                b = &b[..n];
+        if let Some(n) = args.input.generate.length {
+            if n != 0 {
+                if a.len() > n {
+                    a = &a[..n];
+                }
+                if b.len() > n {
+                    b = &b[..n];
+                }
             }
         }
+
         // Run the pair.
         let r = run(&a, &b, &args.params);
 
@@ -117,7 +120,7 @@ fn main() {
                         }
                     }
                 }
-                ext if ext == "fna" || ext == "fa" => {
+                ext if ext == "fna" || ext == "fa" || ext == "fasta" => {
                     for (a, b) in fasta::Reader::new(BufReader::new(File::open(&f).unwrap()))
                         .records()
                         .tuples()
@@ -130,18 +133,28 @@ fn main() {
                         }
                     }
                 }
-                _ => unreachable!("Unknown file extension"),
+                ext => {
+                    unreachable!(
+                        "Unknown file extension {ext:?}. Must be in {{seq,txt,fna,fa,fasta}}."
+                    )
+                }
             };
         }
     } else {
         // Generate random input.
-        let ref mut rng = if let Some(seed) = args.input.seed {
+        let args = &args.input.generate;
+        let ref mut rng = if let Some(seed) = args.seed {
             rand_chacha::ChaCha8Rng::seed_from_u64(seed)
         } else {
             rand_chacha::ChaCha8Rng::from_entropy()
         };
-        for _ in 0..args.input.cnt {
-            let (a, b) = generate_pair(&args.input.generate_options, rng);
+        let generate_options = GenerateOptions {
+            length: args.length.unwrap(),
+            error_rate: args.error_rate.unwrap(),
+            error_model: args.error_model,
+        };
+        for _ in 0..args.cnt {
+            let (a, b) = generate_pair(&generate_options, rng);
             run_pair(&a, &b);
         }
     }
@@ -163,5 +176,15 @@ fn main() {
             )
             .unwrap();
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Cli;
+
+    #[test]
+    fn cli_test() {
+        <Cli as clap::CommandFactory>::command().debug_assert();
     }
 }
