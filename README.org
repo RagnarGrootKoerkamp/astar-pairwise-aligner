@@ -20,7 +20,7 @@ First, install Rust:
 ** Usage
 
 Flags are given by ~cargo run -- -h~ from anywhere in the repository. (The
-binary will be at ~/target/{release,debug}/astar-pairwise-aligner}~.)
+binary will be at ~/target/{release,debug}/astar-pairwise-aligner~.)
 #+begin_src shell
 USAGE:
     astar-pairwise-aligner [OPTIONS] <--input <INPUT>|--length <LENGTH>>
@@ -58,6 +58,11 @@ cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq}> -r 1 -k 15
 or do this to run on $100$ sequences of length $10^5$ with error rate $5\%$:
 #+begin_src
 cargo run --release -- -x 100 -n 100000 -e 0.05 -r 1 -k 15
+#+end_src
+
+A =.seq= input file can be generated like this:
+#+begin_src
+cargo run --release --example generate_dataset -- -x 1000 -n 10000 -e 0.05 /tmp/random-sequences.seq
 #+end_src
 
 ** Features
