@@ -17,3 +17,4 @@ __pycache__
 /tmp/
 .vscode/
 .ipynb_checkpoints
+.DS_Store
