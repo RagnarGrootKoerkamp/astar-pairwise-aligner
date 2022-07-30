@@ -1,15 +1,5 @@
 all:
 
-# Before running evals, make sure WFA and Edlib are cloned to the directory adjacent to this repository, e.g. using
-# $ make wfa
-# $ make edlib
-# Then, you can run all evals using
-# $ make evals
-# Generate the plots and table data using
-# $ make results
-# or generate all figures using
-# $ make figures
-
 # ========== SHORTHANDS ==========
 
 # Generate figures 1 and 3.
