@@ -1,33 +1,33 @@
 use bio::io::fasta::{self, IndexedReader};
+use clap::Parser;
 use itertools::Itertools;
 use std::{io::Write, path::PathBuf};
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
-#[structopt(
+#[derive(Parser)]
+#[clap(
     name = "NanoSim to .seq",
     about = "Given NanoSim .fasta output, extract the corresponding reference parts by using sequence header information.",
     author = "Ragnar Groot Koerkamp"
 )]
 struct Cli {
     // Where to write the output .seq.
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     output: PathBuf,
 
     // The reference.
-    #[structopt(long, parse(from_os_str))]
+    #[clap(long, parse(from_os_str))]
     reference: PathBuf,
 
     // The NanoSim samples.
-    #[structopt(long, parse(from_os_str))]
+    #[clap(long, parse(from_os_str))]
     reads: PathBuf,
 
     // The number of reads to keep.
-    #[structopt(short = "n", long)]
+    #[clap(short = 'n', long)]
     count: Option<usize>,
 
     // Whether to strip head/tail unaligned regions
-    #[structopt(long)]
+    #[clap(long)]
     strip_unaligned: bool,
 }
 

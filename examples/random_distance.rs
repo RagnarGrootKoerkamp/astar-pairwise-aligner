@@ -1,15 +1,15 @@
 use astar_pairwise_aligner::prelude::*;
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Cli {
-    #[structopt(short, default_value = "10")]
+    #[clap(short, default_value_t = 10)]
     k: I,
-    #[structopt(short, default_value = "10000")]
+    #[clap(short, default_value_t = 10000)]
     n: usize,
-    #[structopt(short, default_value = "0.2")]
+    #[clap(short, default_value_t = 0.2)]
     e: f32,
-    #[structopt(short = "x", default_value = "50")]
+    #[clap(short = 'x', default_value_t = 50)]
     samples: usize,
 }
 

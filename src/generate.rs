@@ -1,12 +1,10 @@
+use clap::{Parser, ValueEnum};
 use itertools::Itertools;
 use rand::{Rng, SeedableRng};
-use structopt::StructOpt;
-use strum_macros::EnumString;
 
 use crate::{aligners::Sequence, prelude::*};
 
-#[derive(EnumString, Default, Debug, Clone, Copy)]
-#[strum(ascii_case_insensitive)]
+#[derive(ValueEnum, Default, Debug, Clone, Copy)]
 pub enum ErrorModel {
     #[default]
     Uniform,
@@ -16,18 +14,57 @@ pub enum ErrorModel {
     Move,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser, Clone)]
+pub struct GenerateArgs {
+    /// The number of sequence pairs to generate
+    #[clap(short = 'x', long, default_value_t = 1, display_order = 2)]
+    pub cnt: usize,
+
+    /// Length of generated sequences
+    #[clap(
+        short = 'n',
+        long,
+        group = "inputmethod",
+        requires_all = &["error-rate"],
+        display_order = 3,
+    )]
+    pub length: Option<usize>,
+
+    /// Input error rate
+    ///
+    /// This is used both to generate input sequences with the given induced
+    /// error rate, and to choose values for parameters r and k
+    #[clap(short, long, display_order = 4, required_unless_all = &["r", "k"])]
+    pub error_rate: Option<f32>,
+
+    #[clap(
+        long,
+        value_enum,
+        default_value_t,
+        value_name = "MODEL",
+        hide_short_help = true
+    )]
+    pub error_model: ErrorModel,
+
+    /// Seed to initialize RNG for reproducability
+    #[clap(long)]
+    pub seed: Option<u64>,
+}
+
+impl GenerateArgs {
+    pub fn to_generate_options(&self) -> GenerateOptions {
+        GenerateOptions {
+            length: self.length.unwrap(),
+            error_rate: self.error_rate.unwrap(),
+            error_model: self.error_model,
+        }
+    }
+}
+
 pub struct GenerateOptions {
-    // Length of the sequences to generate.
-    #[structopt(short = "n", long, required_unless = "input", default_value = "0")]
     pub length: usize,
-
-    // Induced error rate.
-    #[structopt(short = "e", long, default_value = "0.1")]
-    pub error: f32,
-
-    #[structopt(long, default_value = "Uniform")]
-    pub model: ErrorModel,
+    pub error_rate: f32,
+    pub error_model: ErrorModel,
 }
 
 const ALPH: [char; 4] = ['A', 'C', 'G', 'T'];
@@ -61,10 +98,15 @@ fn random_mutation(len_b: usize, rng: &mut impl Rng) -> Mutation {
 }
 
 pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Sequence) {
+    assert!(opt.length > 0, "-n/--length must be specified when generating sequences. Use -i <file> to align pairs in a file.");
+    assert!(
+        opt.length > 0,
+        "-e/--error-rate must be specified when generating sequences."
+    );
     let a = (0..opt.length).map(|_| rand_char(rng)).collect_vec();
-    let num_mutations = (opt.error * opt.length as f32).ceil() as usize;
+    let num_mutations = (opt.error_rate * opt.length as f32).ceil() as usize;
     let mut b = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
-    match opt.model {
+    match opt.error_model {
         ErrorModel::Uniform => {
             for _ in 0..num_mutations {
                 let m = random_mutation(b.len_bytes(), rng);
@@ -132,8 +174,8 @@ pub fn setup_sequences_with_seed(seed: u64, n: usize, e: f32) -> (Sequence, Sequ
     let (a, b) = generate_pair(
         &GenerateOptions {
             length: n,
-            error: e,
-            model: ErrorModel::Uniform,
+            error_rate: e,
+            error_model: ErrorModel::Uniform,
         },
         &mut rng,
     );
@@ -180,8 +222,8 @@ mod test {
                 let p1 = generate_pair(
                     &GenerateOptions {
                         length: n,
-                        error: e,
-                        model: ErrorModel::Uniform,
+                        error_rate: e,
+                        error_model: ErrorModel::Uniform,
                     },
                     &mut rng_1,
                 );

@@ -1,15 +1,15 @@
 use itertools::Itertools;
 use std::{io::Write, path::PathBuf};
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(StructOpt)]
-#[structopt(
+#[derive(Parser)]
+#[clap(
     name = "Txt to .seq",
     about = "Convert a plaint text file containing pairs of sequences on consecutive lines to a .seq file with > and < prefixes.",
     author = "Ragnar Groot Koerkamp, Pesho Ivanov"
 )]
 struct Cli {
-    #[structopt(parse(from_os_str))]
+    #[clap(parse(from_os_str))]
     file: PathBuf,
 }
 

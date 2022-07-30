@@ -32,7 +32,7 @@ itertools = "*"
 strum = "*"
 strum_macros = "*"
 rustc-hash = "*"
-structopt = "*"
+clap = {version="3.*", features=["derive", "wrap_help"]}
 lazy_static = "*"
 smallvec = {version="*", features=["union"]}
 ropey = "*"

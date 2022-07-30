@@ -1,24 +1,20 @@
-use astar_pairwise_aligner::generate::{generate_pair, GenerateOptions};
+use astar_pairwise_aligner::generate::{generate_pair, GenerateArgs};
+use clap::Parser;
 use std::{io::Write, path::PathBuf};
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
-#[structopt(
-    name = "Generate Dataset",
-    about = "Generate pairs of sequences with given edit distance. Mirror of WFA/generate_dataset.",
-    author = "Ragnar Groot Koerkamp, Pesho Ivanov"
-)]
+#[derive(Parser)]
+#[clap(next_line_help = false)]
 struct Cli {
-    // Where to write the file.
-    #[structopt(short, long, parse(from_os_str))]
+    /// Location of the output file
+    #[clap(parse(from_os_str))]
     output: PathBuf,
 
-    // Number of patterns (pairs of sequences) to generate.
-    #[structopt(short = "x", long, default_value = "1")]
-    num_patterns: usize,
+    /// Number of generated pairs
+    #[clap(short = 'x', long, default_value_t = 1, help_heading = "INPUT")]
+    cnt: usize,
 
-    #[structopt(flatten)]
-    generate_options: GenerateOptions,
+    #[clap(flatten)]
+    generate_args: GenerateArgs,
 }
 
 fn main() {
@@ -32,8 +28,11 @@ fn main() {
         .truncate(true)
         .open(args.output)
         .unwrap();
-    for _ in 0..args.num_patterns {
-        let (a, b) = generate_pair(&args.generate_options, &mut rand::thread_rng());
+    for _ in 0..args.cnt {
+        let (a, b) = generate_pair(
+            &args.generate_args.to_generate_options(),
+            &mut rand::thread_rng(),
+        );
         f.write(">".as_bytes()).unwrap();
         f.write(&a).unwrap();
         f.write("\n".as_bytes()).unwrap();
