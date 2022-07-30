@@ -21,12 +21,12 @@ binaries = {
     'wfa'   : '../../wfa2/bin/align_benchmark',
 }
 tool_command = {
-    'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -r {wildcards.r} --algorithm SH',
-    'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -r {wildcards.r} --algorithm CSH',
+    'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm SH',
+    'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm CSH',
     # Slower variants for comparison
-    'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -r {wildcards.r} --algorithm SH  --no-prune',
-    'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} --silent2 -k {wildcards.k} -r {wildcards.r} --algorithm CSH --no-prune',
-    'dijkstra':      binaries["pa"]      + ' -i {input} -o {stats_path} --silent2                                   --algorithm Dijkstra',
+    'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm SH  --no-prune',
+    'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm CSH --no-prune',
+    'dijkstra':      binaries["pa"]      + ' -i {input} -o {stats_path} -ss                                   --algorithm Dijkstra',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':         binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output

@@ -48,13 +48,10 @@ struct Cli {
     #[structopt(flatten)]
     params: Params,
 
-    // Do not print a new line per alignment, but instead overwrite the previous one.
-    #[structopt(short, long)]
-    silent: bool,
-
-    // Only print a summary line, for benchmarking.
-    #[structopt(short = "S", long)]
-    silent2: bool,
+    /// Do not print a new line per alignment, but instead overwrite the previous one.
+    /// Pass twice to only print a summary line and avoid all terminal clutter, e.g. for benchmarking.
+    #[structopt(short, long, parse(from_occurrences))]
+    silent: u8,
 
     /// Maximum duration to run for.
     #[structopt(long, parse(try_from_str = parse_duration::parse))]
@@ -82,9 +79,9 @@ fn main() {
 
         // Record and print stats.
         avg_result.add_sample(&r);
-        if !args.silent2 {
+        if args.silent <= 1 {
             print!("\r");
-            if !args.silent {
+            if args.silent == 0 {
                 r.print();
             }
             avg_result.print_no_newline();
