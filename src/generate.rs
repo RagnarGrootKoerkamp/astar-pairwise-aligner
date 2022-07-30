@@ -98,11 +98,6 @@ fn random_mutation(len_b: usize, rng: &mut impl Rng) -> Mutation {
 }
 
 pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Sequence) {
-    assert!(opt.length > 0, "-n/--length must be specified when generating sequences. Use -i <file> to align pairs in a file.");
-    assert!(
-        opt.length > 0,
-        "-e/--error-rate must be specified when generating sequences."
-    );
     let a = (0..opt.length).map(|_| rand_char(rng)).collect_vec();
     let num_mutations = (opt.error_rate * opt.length as f32).ceil() as usize;
     let mut b = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
