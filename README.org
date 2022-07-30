@@ -17,7 +17,7 @@ First, install Rust:
 1. Install Rust Nightly using ~rustup install nightly~
 1. Make nightly the default: ~rustup default nightly~
 
-** Examples
+** Usage
 
 Flags are given by ~cargo run -- -h~ from anywhere in the repository. (The
 binary will be at ~/target/{release,debug}/astar-pairwise-aligner}~.)
@@ -53,7 +53,7 @@ rate ~-e~.
 If you have a =.fasta=, =.txt=, or =.seq= (see WFA) file containing sequences, use e.g.
 to following to align all consecutive pairs:
 #+begin_src
-cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq} -r 1 -k 15
+cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq}> -r 1 -k 15
 #+end_src
 or do this to run on $100$ sequences of length $10^5$ with error rate $5\%$:
 #+begin_src
@@ -99,6 +99,8 @@ We also include wrappers for the following:
 
 All these methods are tested in [[./src/aligners/tests.rs]].
 
+Note that we do not currently expose these via a command line utility. See the
+tests file above for usage examples.
 
 * Evals & results
 
@@ -123,16 +125,23 @@ See [[todo.org]] for our internal list of things to do and things done, and rand
 
 * Videos
 
+We have support for live-rendering of the progress of all internally implemented
+algorithm. However, this is not currently exposed as a binary. See e.g.
+[[./examples/fig-readme.rs]] for an example. If you run it, you may want to first
+set ~config.save = When::None~ to prevent saving (a lot) of frames to disk.
 
+Here are the algorithms of figure 1 of our (upcoming) preprint visualized. Note
+that timings are not comparable since different methods are drawing are used --
+the timescales and number of frames are too different. Dijkstra's
+algorithm and diagonal transition are shown per-front, instead of per cell, so
+are not linear with time.
 
-Here are the algorithms of figure 1 of our (upcoming) preprint visualized:
-
-|---------------------------------------------------------------+--------------------------------------------|
-| Ukkonen's exponential band algorithm (Ukkonen'85)             | [[file:imgs/fig1/1_ukkonen.gif]]               |
-| Dijkstra's algorithm                                          | [[file:imgs/fig1/2_dijkstra.gif]]              |
-| Diagonal transition (Ukkonen'85, Myers'86, WFA)               | [[file:imgs/fig1/3_diagonal_transition.gif]]   |
-| Diagonal transition with divide and conquer (Myers'86, BiWFA) | [[file:imgs/fig1/4_dt-divide-and-conquer.gif]] |
-| A* with chaining seed heuristic and pruning (A*PA, this work) | [[file:imgs/fig1/5_astar-csh-pruning.gif]]     |
+|----------------------------------------------------------------------------------+--------------------------------------------|
+| The exponential search steps of Ukkonen's banded algorithm                       | [[file:imgs/fig1/1_ukkonen.gif]]               |
+| Fronts of Dijkstra's algorithm                                                   | [[file:imgs/fig1/2_dijkstra.gif]]              |
+| Fronts of Diagonal transition (Ukkonen'85, Myers'86, WFA)                        | [[file:imgs/fig1/3_diagonal_transition.gif]]   |
+| Fronts of Diagonal transition with divide and conquer (Myers'86, BiWFA)          | [[file:imgs/fig1/4_dt-divide-and-conquer.gif]] |
+| Expanded states of A* with chaining seed heuristic and pruning (A*PA, this work) | [[file:imgs/fig1/5_astar-csh-pruning.gif]]     |
 
 And here is a video of figure 3 of our preprint:
 
