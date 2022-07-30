@@ -5,7 +5,6 @@ use std::{
     ops::{Add, Sub},
 };
 
-use serde::Serialize;
 use std::cmp::Ordering;
 
 use crate::{
@@ -19,7 +18,7 @@ pub type I = u32;
 pub type MatchCost = u8;
 
 /// A position in a pairwise matching.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Pos(pub I, pub I);
 
 impl Add for Pos {

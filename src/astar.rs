@@ -1,7 +1,6 @@
 use std::time;
 
 use crate::{prelude::*, visualizer::VisualizerT};
-use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Status {
@@ -40,7 +39,7 @@ impl QueueOrder for (Pos, Cost) {
     }
 }
 
-#[derive(Serialize, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct AStarStats {
     pub expanded: usize,
     pub explored: usize,
