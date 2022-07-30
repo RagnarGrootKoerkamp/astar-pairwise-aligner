@@ -23,7 +23,6 @@ bindgen = "0.60.1"
 
 [dependencies]
 colorgrad = "*"
-bio-types = "*"
 bio = "*"
 rand = "*"
 rand_chacha = "*"
@@ -36,7 +35,6 @@ ropey = "*"
 num-traits = "*"
 sdl2 = {version="*", optional=true, features=["ttf"]}
 parse_duration = "*"
-paste = "*"
 
 [dev-dependencies]
 # For benchmarking only.
