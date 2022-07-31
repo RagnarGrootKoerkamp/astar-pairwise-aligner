@@ -16,7 +16,7 @@ fn base_100(bench: &mut Bencher) {
         match_config: MatchConfig::inexact(6),
         pruning: true,
         use_gap_cost: true,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -31,7 +31,7 @@ fn base_1000(bench: &mut Bencher) {
         match_config: MatchConfig::inexact(7),
         pruning: true,
         use_gap_cost: true,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -46,7 +46,7 @@ fn base_10000(bench: &mut Bencher) {
         match_config: MatchConfig::inexact(8),
         pruning: true,
         use_gap_cost: true,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
     let (a, b, alphabet, stats) = setup(n, e);
@@ -61,7 +61,7 @@ fn base_50000_similar(bench: &mut Bencher) {
         match_config: MatchConfig::inexact(10),
         pruning: true,
         use_gap_cost: true,
-        c: PhantomData::<HintContours<CentralContour>>,
+        c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
     let (a, b, alphabet, stats) = setup(n, e);

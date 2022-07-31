@@ -86,27 +86,6 @@ fn pruning_hint_bruteforce_gap() {
 }
 
 #[test]
-fn pruning_hint_central_gap() {
-    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
-        for n in [40, 100, 200, 500, 1000] {
-            for e in [0.1, 0.3, 1.0] {
-                let h = CSH {
-                    match_config: MatchConfig::new(k, max_match_cost),
-                    pruning: true,
-                    use_gap_cost: true,
-                    c: PhantomData::<HintContours<CentralContour>>,
-                };
-                let (a, b, alph, stats) = setup(n, e);
-                println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
-                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
-            }
-        }
-    }
-}
-
-#[test]
 fn exact_no_pruning() {
     for k in [4, 5] {
         for n in [40, 100, 200, 500] {
@@ -180,27 +159,6 @@ fn pruning_hint_bruteforce_no_gap() {
                     pruning: true,
                     use_gap_cost: false,
                     c: PhantomData::<HintContours<BruteForceContour>>,
-                };
-                let (a, b, alph, stats) = setup(n, e);
-                println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, &alph, stats, h.equal_to_bruteforce_contours());
-                let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
-            }
-        }
-    }
-}
-
-#[test]
-fn pruning_hint_central() {
-    for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
-        for n in [40, 100, 200, 500, 1000] {
-            for e in [0.1, 0.3, 1.0] {
-                let h = CSH {
-                    match_config: MatchConfig::new(k, max_match_cost),
-                    pruning: true,
-                    use_gap_cost: false,
-                    c: PhantomData::<HintContours<CentralContour>>,
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);

@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use clap::{Parser, ValueEnum};
-use contour::central::CentralContour;
 use std::{marker::PhantomData, process::exit};
 
 #[derive(Default, Debug, PartialEq, Eq, ValueEnum, Clone, Copy)]
@@ -11,13 +10,6 @@ pub enum CostFunction {
     Max,
     Count,
     BiCount,
-}
-
-#[derive(Default, Debug, ValueEnum, Clone, Copy)]
-pub enum Contour {
-    #[default]
-    BruteForce,
-    Central,
 }
 
 #[derive(Debug, Default, ValueEnum, Clone, Copy)]
@@ -123,10 +115,6 @@ pub struct Params {
     /// The type of contours to use
     #[clap(short = 'C', long, default_value_t, value_enum, hide_short_help = true)]
     contours: Contours,
-
-    /// The type of inner-contour to use
-    #[clap(short = 'c', long, default_value_t, value_enum, hide_short_help = true)]
-    contour: Contour,
 
     /// Disable pruning
     #[clap(long, hide_short_help = true)]
@@ -361,12 +349,7 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
 
             match params.contours {
                 Contours::BruteForce => run_contours::<BruteForceContours>(a, b, params),
-                Contours::Hint => match params.contour {
-                    Contour::BruteForce => {
-                        run_contours::<HintContours<BruteForceContour>>(a, b, params)
-                    }
-                    Contour::Central => run_contours::<HintContours<CentralContour>>(a, b, params),
-                },
+                Contours::Hint => run_contours::<HintContours<BruteForceContour>>(a, b, params),
             }
         }
         Algorithm::SH | Algorithm::SH_DT => {
