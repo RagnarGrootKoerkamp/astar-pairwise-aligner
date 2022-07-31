@@ -171,7 +171,7 @@ fn pruning_bruteforce() {
 }
 
 #[test]
-fn pruning_hint_bruteforce() {
+fn pruning_hint_bruteforce_no_gap() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
