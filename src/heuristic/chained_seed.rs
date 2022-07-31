@@ -255,7 +255,7 @@ impl<C: Contours> CSHI<C> {
 impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     fn h(&self, pos: Pos) -> Cost {
         let p = self.seeds.potential(pos);
-        let val = self.contours.value(self.transform(pos));
+        let val = self.contours.score(self.transform(pos));
         if val == 0 {
             self.distance(pos, self.target)
         } else {
@@ -264,16 +264,16 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn layer(&self, pos: Pos) -> Option<Cost> {
-        Some(self.contours.value(self.transform(pos)))
+        Some(self.contours.score(self.transform(pos)))
     }
 
     fn layer_with_hint(&self, pos: Pos, hint: Self::Hint) -> Option<(Cost, Self::Hint)> {
-        Some(self.contours.value_with_hint(self.transform(pos), hint))
+        Some(self.contours.score_with_hint(self.transform(pos), hint))
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let p = self.seeds.potential(pos);
-        let (val, new_hint) = self.contours.value_with_hint(self.transform(pos), hint);
+        let (val, new_hint) = self.contours.score_with_hint(self.transform(pos), hint);
         if val == 0 {
             (self.distance(pos, self.target), new_hint)
         } else {

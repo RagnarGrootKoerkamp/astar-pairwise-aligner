@@ -49,7 +49,7 @@ pub trait Contour: Default + Debug + Clone {
     // Arguments:
     // - Point in contour
     // - True when the point is dominant
-    fn iterate_points<F: FnMut(Pos) -> ()>(&self, _f: F) {}
+    fn iterate_points<F: FnMut(Pos)>(&self, _f: F) {}
 }
 
 /// An arrow implies f(start) >= f(end) + len.
@@ -91,14 +91,14 @@ pub trait Contours: Default + Debug {
     fn new(_arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self;
     /// The value of the contour this point is on.
     /// Hint is guaranteed to be for the current position.
-    fn value(&self, _q: Pos) -> Cost;
+    fn score(&self, _q: Pos) -> Cost;
 
     type Hint: Copy + Debug + Default = ();
-    fn value_with_hint(&self, _q: Pos, _hint: Self::Hint) -> (Cost, Self::Hint)
+    fn score_with_hint(&self, _q: Pos, _hint: Self::Hint) -> (Cost, Self::Hint)
     where
         Self::Hint: Default,
     {
-        (self.value(_q), Self::Hint::default())
+        (self.score(_q), Self::Hint::default())
     }
     /// Remove the point at the given position, and shift all contours.
     /// This removes all arrows starting at the given position.

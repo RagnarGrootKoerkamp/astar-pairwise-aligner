@@ -57,7 +57,7 @@ impl Contour for BruteForceContour {
         x.len()
     }
 
-    fn iterate_points<F: FnMut(Pos) -> ()>(&self, mut f: F) {
+    fn iterate_points<F: FnMut(Pos)>(&self, mut f: F) {
         for p in &self.points {
             f(*p);
         }
@@ -83,13 +83,13 @@ impl Contours for BruteForceContours {
             valued_arrows: Vec::default(),
         };
         for arrow in arrows {
-            let val = this.value(arrow.end) + arrow.len as Cost;
+            let val = this.score(arrow.end) + arrow.len as Cost;
             this.valued_arrows.push((arrow, val));
         }
         this
     }
 
-    fn value(&self, q: Pos) -> Cost {
+    fn score(&self, q: Pos) -> Cost {
         self.valued_arrows
             .iter()
             .filter(|(arrow, _)| q <= arrow.start)

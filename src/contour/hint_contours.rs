@@ -132,13 +132,13 @@ impl<C: Contour> Contours for HintContours<C> {
         for (start, pos_arrows) in &arrows.into_iter().group_by(|a| a.start) {
             let mut v = 0;
             let mut l = 0;
-            // TODO: The this.value() could also be implemented using a fenwick tree, as done in LCSk++.
+            // TODO: The this.score() could also be implemented using a fenwick tree, as done in LCSk++.
             for a in pos_arrows {
                 this.start.0 = min(this.start.0, a.end.0);
                 this.start.1 = min(this.start.1, a.end.1);
                 this.target.0 = max(this.target.0, a.end.0);
                 this.target.1 = max(this.target.1, a.end.1);
-                let nv = this.value(a.end) + a.len as Cost;
+                let nv = this.score(a.end) + a.len as Cost;
                 if nv > v || (nv == v && a.len < l) {
                     v = nv;
                 }
@@ -158,7 +158,6 @@ impl<C: Contour> Contours for HintContours<C> {
     }
 
     /// The max sum of arrows starting at pos
-    fn value(&self, q: Pos) -> Cost {
         self.contours
             .binary_search_by(|contour| {
                 if contour.contains(q) {
@@ -169,12 +168,13 @@ impl<C: Contour> Contours for HintContours<C> {
             })
             .unwrap_err() as Cost
             - 1
+    fn score(&self, q: Pos) -> Cost {
     }
 
     // The layer for the parent node.
     type Hint = Hint;
 
-    fn value_with_hint(&self, q: Pos, hint: Self::Hint) -> (Cost, Self::Hint)
+    fn score_with_hint(&self, q: Pos, hint: Self::Hint) -> (Cost, Self::Hint)
     where
         Self::Hint: Default,
     {
@@ -218,7 +218,7 @@ impl<C: Contour> Contours for HintContours<C> {
         self.stats.borrow_mut().binary_search_fallback += 1;
 
         // Fall back to binary search if not found close to the hint.
-        let v = self.value(q);
+        let v = self.score(q);
         (
             v,
             Hint {
