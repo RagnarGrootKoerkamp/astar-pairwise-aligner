@@ -12,6 +12,20 @@ pub enum ErrorModel {
     Gap,
     /// Delete a region of size e*n and insert a region of size e*n.
     Move,
+    /// Takes a region of size e*n and insert it untill the initial length
+    /// of the sequence is not achieved
+    Repetition,
+    /// Takes a region of size e*n and insert it
+    Insert,
+    /// Takes a region of size e*n and inserts it twice in a row next to
+    /// each other
+    Doubleinsert,
+    /// Construct the sequence of e*n repeating suqences and mutates each of
+    /// them randomly
+    PiecesMutation,
+    /// Construct the sequence of e*n repeating suqences and mutates each of
+    /// them from the previous sequence
+    RecursiveMutation,
 }
 
 #[derive(Parser, Clone)]
@@ -104,17 +118,7 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
     match opt.error_model {
         ErrorModel::Uniform => {
             for _ in 0..num_mutations {
-                let m = random_mutation(b.len_bytes(), rng);
-                match m {
-                    Mutation::Substitution(i, c) => {
-                        b.remove(i..=i);
-                        b.insert(i, std::str::from_utf8(&[c]).unwrap());
-                    }
-                    Mutation::Insertion(i, c) => b.insert(i, std::str::from_utf8(&[c]).unwrap()),
-                    Mutation::Deletion(i) => {
-                        b.remove(i..=i);
-                    }
-                }
+                make_mutation(&mut b, rng);
             }
         }
         ErrorModel::Gap => {
@@ -138,8 +142,67 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
             let start = rng.gen_range(0..=b.len_bytes());
             b.insert(start, piece.as_str());
         }
+        ErrorModel::Repetition => {
+            let start = rng.gen_range(0..=b.len_bytes() - num_mutations);
+            let piece = b.slice(start..num_mutations).to_string();
+            let initial_length = b.len_bytes();
+            b = ropey::Rope::new();
+            // insert pieces
+            for _ in 0..initial_length / num_mutations {
+                b.insert(b.len_bytes(), piece.as_str());
+            }
+            // insert the segment of the last piece
+            b.insert(b.len_bytes(), &piece[initial_length - b.len_bytes()..]);
+        }
+        ErrorModel::Insert => {
+            let start = rng.gen_range(0..num_mutations - num_mutations);
+            let piece = b.slice(start..start + num_mutations).to_string();
+            b.insert(start, piece.as_str());
+        }
+        ErrorModel::Doubleinsert => {
+            let start = rng.gen_range(0..num_mutations);
+            let piece = b.slice(start..start + num_mutations * 2).to_string();
+            b.insert(start, piece.as_str());
+        }
+        ErrorModel::PiecesMutation => {
+            let mut b_initial = b.clone();
+            let mut b_substitutional = b.clone();
+            for i in 0..num_mutations {
+                for _ in 0..num_mutations {
+                    make_mutation(&mut b_substitutional, rng);
+                }
+                b.insert(b_initial.len_bytes() * i, &b_substitutional.to_string());
+                b_initial = b_substitutional.clone();
+            }
+        }
+        ErrorModel::RecursiveMutation => {
+            let mut b_substitutional = b.clone();
+            for i in 0..num_mutations {
+                for _ in 0..num_mutations {
+                    make_mutation(&mut b_substitutional, rng);
+                }
+                b.insert(
+                    b_substitutional.len_bytes() * i,
+                    &b_substitutional.to_string(),
+                );
+            }
+        }
     }
     (a, b.to_string().into_bytes())
+}
+
+fn make_mutation(b: &mut ropey::Rope, rng: &mut impl Rng) {
+    let m = random_mutation(b.len_bytes(), rng);
+    match m {
+        Mutation::Substitution(i, c) => {
+            b.remove(i..=i);
+            b.insert(i, std::str::from_utf8(&[c]).unwrap());
+        }
+        Mutation::Insertion(i, c) => b.insert(i, std::str::from_utf8(&[c]).unwrap()),
+        Mutation::Deletion(i) => {
+            b.remove(i..=i);
+        }
+    }
 }
 
 // For quick testing
