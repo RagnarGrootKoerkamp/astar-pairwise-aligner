@@ -120,6 +120,12 @@ pub struct Params {
     #[clap(long, hide_short_help = true)]
     no_prune: bool,
 
+    /// Skip pruning every Nth match. 0 to disable
+    ///
+    /// This is only used for CSH, not for SH.
+    #[clap(long, hide_short_help = true, default_value_t = 0)]
+    skip_prune: usize,
+
     /// Disable greedy matching
     #[clap(long, hide_short_help = true)]
     no_greedy_matching: bool,
@@ -279,7 +285,10 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
                 let heuristic = BruteForceCSH {
                     match_config: match_config(params, a, b, false),
                     distance_function: C::default(),
-                    pruning: !params.no_prune,
+                    pruning: Pruning {
+                        enabled: !params.no_prune,
+                        skip_prune: params.skip_prune,
+                    },
                 };
 
                 let alphabet = Alphabet::new(b"ACTG");
@@ -322,7 +331,10 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
                 assert!(params.cost == CostFunction::Zero || params.cost == CostFunction::Gap);
                 let heuristic = CSH {
                     match_config: match_config(params, a, b, params.cost == CostFunction::Gap),
-                    pruning: !params.no_prune,
+                    pruning: Pruning {
+                        enabled: !params.no_prune,
+                        skip_prune: params.skip_prune,
+                    },
                     use_gap_cost: params.algorithm == Algorithm::CSH_GapCost
                         || params.algorithm == Algorithm::CSH_GapCost_DT,
                     c: PhantomData::<C>,
@@ -355,7 +367,10 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
         Algorithm::SH | Algorithm::SH_DT => {
             let heuristic = SH {
                 match_config: match_config(params, a, b, false),
-                pruning: !params.no_prune,
+                pruning: Pruning {
+                    enabled: !params.no_prune,
+                    skip_prune: params.skip_prune,
+                },
             };
 
             let alphabet = Alphabet::new(b"ACTG");

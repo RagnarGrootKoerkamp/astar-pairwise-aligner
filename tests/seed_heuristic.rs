@@ -8,7 +8,7 @@ fn seed_heuristic_rebuild() {
         match_config: MatchConfig::new(k, m),
         pruning: Pruning {
             enabled: pruning,
-            keep_fraction: 0,
+            skip_prune: 0,
         },
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
@@ -41,7 +41,7 @@ fn never_use_gap_distance() {
         match_config: MatchConfig::new(k, m),
         pruning: Pruning {
             enabled: pruning,
-            keep_fraction: 0,
+            skip_prune: 0,
         },
         use_gap_cost: true,
         c: PhantomData::<BruteForceContours>,

@@ -12,7 +12,7 @@ fn main() {
     let max_match_cost = 1;
     let pruning = Pruning {
         enabled: true,
-        keep_fraction: 0,
+        skip_prune: 0,
     };
 
     let h = SH {

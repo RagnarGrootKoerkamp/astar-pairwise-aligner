@@ -8,7 +8,7 @@ fn main() {
                 match_config: MatchConfig::new(k, m),
                 pruning: Pruning {
                     enabled: pruning,
-                    keep_fraction: 0,
+                    skip_prune: 0,
                 },
                 use_gap_cost: false,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),

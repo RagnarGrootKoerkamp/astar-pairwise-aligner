@@ -14,14 +14,14 @@ use std::{
 pub struct Pruning {
     pub enabled: bool,
     /// Skip pruning one in N.
-    pub keep_fraction: usize,
+    pub skip_prune: usize,
 }
 
 impl Default for Pruning {
     fn default() -> Self {
         Self {
             enabled: false,
-            keep_fraction: 0,
+            skip_prune: 0,
         }
     }
 }
@@ -30,7 +30,7 @@ impl Pruning {
     pub fn enabled() -> Self {
         Pruning {
             enabled: true,
-            keep_fraction: 0,
+            skip_prune: 0,
         }
     }
 }
