@@ -15,7 +15,7 @@ use crate::{
 pub struct BruteForceCSH<DH: Distance> {
     pub match_config: MatchConfig,
     pub distance_function: DH,
-    pub pruning: bool,
+    pub pruning: Pruning,
 }
 
 impl<DH: Distance> Heuristic for BruteForceCSH<DH>
@@ -195,7 +195,7 @@ where
     /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
     fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
         const D: bool = false;
-        if !self.params.pruning {
+        if !self.params.pruning.enabled {
             return 0;
         }
 

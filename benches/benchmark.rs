@@ -14,7 +14,7 @@ fn base_100(bench: &mut Bencher) {
     let e = 0.2;
     let h = CSH {
         match_config: MatchConfig::inexact(6),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -29,7 +29,7 @@ fn base_1000(bench: &mut Bencher) {
     let e = 0.2;
     let h = CSH {
         match_config: MatchConfig::inexact(7),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -44,7 +44,7 @@ fn base_10000(bench: &mut Bencher) {
     let e = 0.2;
     let h = CSH {
         match_config: MatchConfig::inexact(8),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -59,7 +59,7 @@ fn base_50000_similar(bench: &mut Bencher) {
     let e = 0.05;
     let h = CSH {
         match_config: MatchConfig::inexact(10),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -74,7 +74,7 @@ fn fast_100(bench: &mut Bencher) {
     let e = 0.2;
     let h = CSH {
         match_config: MatchConfig::inexact(6),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -89,7 +89,7 @@ fn fast_1000(bench: &mut Bencher) {
     let e = 0.2;
     let h = CSH {
         match_config: MatchConfig::inexact(7),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -104,7 +104,7 @@ fn fast_10000(bench: &mut Bencher) {
     let e = 0.2;
     let h = CSH {
         match_config: MatchConfig::inexact(8),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -119,7 +119,7 @@ fn fast_50000_similar(bench: &mut Bencher) {
     let e = 0.05;
     let h = CSH {
         match_config: MatchConfig::inexact(10),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };

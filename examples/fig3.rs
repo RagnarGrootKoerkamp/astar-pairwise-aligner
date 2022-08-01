@@ -44,7 +44,7 @@ fn main() {
         let k = 3;
         let h = CSH {
             match_config: MatchConfig::exact(k),
-            pruning: true,
+            pruning: Pruning::enabled(),
             use_gap_cost: false,
             c: PhantomData::<BruteForceContours>::default(),
         };
@@ -65,7 +65,7 @@ fn main() {
         let k = 3;
         let h = CSH {
             match_config: MatchConfig::exact(k),
-            pruning: true,
+            pruning: Pruning::enabled(),
             use_gap_cost: false,
             c: PhantomData::<HintContours<BruteForceContour>>::default(),
         };

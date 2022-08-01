@@ -27,7 +27,7 @@ pub struct HeuristicParams {
     pub distance_function: String,
     pub k: I,
     pub max_match_cost: MatchCost,
-    pub pruning: bool,
+    pub pruning: Pruning,
     pub build_fast: bool,
 }
 

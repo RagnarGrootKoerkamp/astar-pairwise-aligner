@@ -6,7 +6,10 @@ fn main() {
             let (k, m, n, e, pruning) = (4, 0, n, 0.9, true);
             let h = CSH {
                 match_config: MatchConfig::new(k, m),
-                pruning,
+                pruning: Pruning {
+                    enabled: pruning,
+                    keep_fraction: 0,
+                },
                 use_gap_cost: false,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),
             };

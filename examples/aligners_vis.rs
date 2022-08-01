@@ -34,11 +34,11 @@ fn main() {
 
     let sh = SH {
         match_config: MatchConfig::exact(4),
-        pruning: false,
+        pruning: Pruning::default(),
     };
     let csh = CSH {
         match_config: MatchConfig::exact(4),
-        pruning: false,
+        pruning: Pruning::default(),
         use_gap_cost: false,
         c: PhantomData::<BruteForceContours>,
     };

@@ -10,7 +10,10 @@ fn main() {
     let seed = 31415;
     let k = 6;
     let max_match_cost = 1;
-    let pruning = true;
+    let pruning = Pruning {
+        enabled: true,
+        keep_fraction: 0,
+    };
 
     let h = SH {
         match_config: MatchConfig::new(k, max_match_cost),

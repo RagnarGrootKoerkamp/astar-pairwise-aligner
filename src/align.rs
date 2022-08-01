@@ -125,7 +125,14 @@ impl AlignResult {
                 format!("{:>2}", this.heuristic_params.max_match_cost)
             }),
             (format!("{:>2}", "pr"), |this: &AlignResult| {
-                format!("{:>2}", if this.heuristic_params.pruning { 1 } else { 0 })
+                format!(
+                    "{:>2}",
+                    if this.heuristic_params.pruning.enabled {
+                        1
+                    } else {
+                        0
+                    }
+                )
             }),
             (format!("{:>2}", "bf"), |this: &AlignResult| {
                 format!(

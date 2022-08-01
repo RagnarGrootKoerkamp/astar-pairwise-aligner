@@ -7,7 +7,7 @@ fn exact_no_pruning_gap() {
             for e in [0.1, 0.3, 1.0] {
                 let h = CSH {
                     match_config: MatchConfig::exact(k),
-                    pruning: false,
+                    pruning: Pruning::default(),
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
@@ -28,7 +28,7 @@ fn inexact_no_pruning_gap() {
             for e in [0.1, 0.3, 1.0] {
                 let h = CSH {
                     match_config: MatchConfig::inexact(k),
-                    pruning: false,
+                    pruning: Pruning::default(),
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
@@ -50,7 +50,7 @@ fn pruning_bruteforce_gap() {
             for e in [0.1, 0.3, 1.0] {
                 let h = CSH {
                     match_config: MatchConfig::new(k, max_match_cost),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
@@ -71,7 +71,7 @@ fn pruning_hint_bruteforce_gap() {
             for e in [0.1, 0.3, 1.0] {
                 let h = CSH {
                     match_config: MatchConfig::new(k, max_match_cost),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                     use_gap_cost: true,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 };
@@ -92,7 +92,7 @@ fn exact_no_pruning() {
             for e in [0.1, 0.3, 1.0] {
                 let h = CSH {
                     match_config: MatchConfig::exact(k),
-                    pruning: false,
+                    pruning: Pruning::default(),
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
@@ -113,7 +113,7 @@ fn inexact_no_pruning() {
             for e in [0.1, 0.3, 1.0] {
                 let h = CSH {
                     match_config: MatchConfig::inexact(k),
-                    pruning: false,
+                    pruning: Pruning::default(),
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
@@ -135,7 +135,7 @@ fn pruning_bruteforce() {
             for e in [0.1, 0.3, 1.0] {
                 let h = CSH {
                     match_config: MatchConfig::new(k, max_match_cost),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
@@ -156,7 +156,7 @@ fn pruning_hint_bruteforce_no_gap() {
             for e in [0.1, 0.3, 1.0] {
                 let h = CSH {
                     match_config: MatchConfig::new(k, max_match_cost),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                     use_gap_cost: false,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 };
@@ -177,7 +177,7 @@ fn unordered() {
             for e in [0.1, 0.3, 1.0] {
                 let h = SH {
                     match_config: MatchConfig::new(k, max_match_cost),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                 };
                 let (a, b, alph, stats) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);

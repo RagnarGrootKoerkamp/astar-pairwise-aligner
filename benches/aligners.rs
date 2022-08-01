@@ -10,7 +10,7 @@ use astar_pairwise_aligner::{
     },
     cost_model::LinearCost,
     generate::setup_sequences_with_seed,
-    heuristic::{ZeroCost, SH},
+    heuristic::{Pruning, ZeroCost, SH},
     matches::MatchConfig,
     visualizer::NoVisualizer,
 };
@@ -67,7 +67,7 @@ fn make_nw_sh() -> NW<LinearCost, NoVisualizer, SH> {
         exponential_search: true,
         h: SH {
             match_config: MatchConfig::exact(10),
-            pruning: false,
+            pruning: Pruning::default(),
         },
         v: NoVisualizer,
     }
@@ -116,7 +116,7 @@ fn make_dt_sh(
         use_gap_cost_heuristic,
         SH {
             match_config: MatchConfig::exact(10),
-            pruning: false,
+            pruning: Pruning::default(),
         },
         false,
         NoVisualizer,

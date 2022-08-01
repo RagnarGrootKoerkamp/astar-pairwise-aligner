@@ -89,7 +89,7 @@ mod astar {
     use crate::{
         aligners::astar::AStar,
         cost_model::LinearCost,
-        heuristic::{CSH, SH},
+        heuristic::{Pruning, CSH, SH},
         matches::MatchConfig,
         prelude::{BruteForceContour, HintContours},
     };
@@ -117,7 +117,7 @@ mod astar {
                 diagonal_transition: false,
                 h: SH {
                     match_config: MatchConfig::exact(5),
-                    pruning: false,
+                    pruning: Pruning::default(),
                 },
                 v: NoVisualizer,
             };
@@ -133,7 +133,7 @@ mod astar {
                 diagonal_transition: false,
                 h: SH {
                     match_config: MatchConfig::exact(5),
-                    pruning: true,
+                    pruning: Pruning::default(),
                 },
                 v: NoVisualizer,
             };
@@ -149,7 +149,7 @@ mod astar {
                 diagonal_transition: false,
                 h: SH {
                     match_config: MatchConfig::inexact(9),
-                    pruning: false,
+                    pruning: Pruning::default(),
                 },
                 v: NoVisualizer,
             };
@@ -165,7 +165,7 @@ mod astar {
                 diagonal_transition: false,
                 h: SH {
                     match_config: MatchConfig::inexact(9),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                 },
                 v: NoVisualizer,
             };
@@ -181,7 +181,7 @@ mod astar {
                 diagonal_transition: false,
                 h: CSH {
                     match_config: MatchConfig::exact(5),
-                    pruning: false,
+                    pruning: Pruning::default(),
                     use_gap_cost: false,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 },
@@ -199,7 +199,7 @@ mod astar {
                 diagonal_transition: false,
                 h: CSH {
                     match_config: MatchConfig::exact(5),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                     use_gap_cost: false,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 },
@@ -217,7 +217,7 @@ mod astar {
                 diagonal_transition: false,
                 h: CSH {
                     match_config: MatchConfig::inexact(9),
-                    pruning: false,
+                    pruning: Pruning::default(),
                     use_gap_cost: false,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 },
@@ -235,7 +235,7 @@ mod astar {
                 diagonal_transition: false,
                 h: CSH {
                     match_config: MatchConfig::inexact(9),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                     use_gap_cost: false,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 },
@@ -609,7 +609,10 @@ mod diagonal_transition_dc {
 
 mod nw_sh {
 
-    use crate::{heuristic::SH, matches::MatchConfig};
+    use crate::{
+        heuristic::{Pruning, SH},
+        matches::MatchConfig,
+    };
 
     use super::*;
 
@@ -622,7 +625,7 @@ mod nw_sh {
                 exponential_search: true,
                 h: SH {
                     match_config: MatchConfig::exact(5),
-                    pruning: false,
+                    pruning: Pruning::default(),
                 },
                 v: NoVisualizer,
             },
@@ -639,7 +642,10 @@ mod nw_sh {
 }
 
 mod diagonal_transition_sh {
-    use crate::{heuristic::SH, matches::MatchConfig};
+    use crate::{
+        heuristic::{Pruning, SH},
+        matches::MatchConfig,
+    };
 
     use super::*;
 
@@ -651,7 +657,7 @@ mod diagonal_transition_sh {
                 GapCostHeuristic::Disable,
                 SH {
                     match_config: MatchConfig::exact(5),
-                    pruning: false,
+                    pruning: Pruning::default(),
                 },
                 false,
                 NoVisualizer,

@@ -20,10 +20,9 @@ fn contour_graph() {
         let b = b.as_bytes().to_vec();
         let k = 7;
         let max_match_cost = 1;
-        let pruning = false;
         let h = CSH {
             match_config: MatchConfig::new(k, max_match_cost),
-            pruning,
+            pruning: Pruning::default(),
             use_gap_cost: true,
             c: PhantomData::<BruteForceContours>,
         };
@@ -56,7 +55,7 @@ fn small_test() {
 
     let h = CSH {
         match_config: MatchConfig::inexact(k),
-        pruning: false,
+        pruning: Pruning::default(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -69,10 +68,10 @@ fn small_test() {
 /// This was broken because seed_heuristic didn't clear the previous state before rebuilding.
 #[test]
 fn seed_heuristic_rebuild() {
-    let (k, m, n, e, pruning) = (4, 0, 100, 0.3, true);
+    let (k, m, n, e) = (4, 0, 100, 0.3);
     let h = CSH {
         match_config: MatchConfig::new(k, m),
-        pruning,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -96,10 +95,10 @@ fn seed_heuristic_rebuild() {
 /// This and the test below are fixed by disabling greedy matching.
 #[test]
 fn no_double_expand() {
-    let (k, m, n, e, pruning) = (5, 1, 78, 0.3, true);
+    let (k, m, n, e) = (5, 1, 78, 0.3);
     let h = CSH {
         match_config: MatchConfig::new(k, m),
-        pruning,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<BruteForceContours>,
     };
@@ -121,10 +120,10 @@ fn no_double_expand() {
 
 #[test]
 fn no_double_expand_2() {
-    let (k, m, n, e, pruning) = (7, 1, 61, 0.3, true);
+    let (k, m, n, e) = (7, 1, 61, 0.3);
     let h = CSH {
         match_config: MatchConfig::new(k, m),
-        pruning,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -147,10 +146,10 @@ fn no_double_expand_2() {
 /// When points are removed from a layer, we may have to add new shadow points to cover for the next layer.
 #[test]
 fn missing_shadow_points() {
-    let (k, m, n, e, pruning) = (10, 1, 61, 0.3, true);
+    let (k, m, n, e) = (10, 1, 61, 0.3);
     let h = CSH {
         match_config: MatchConfig::new(k, m),
-        pruning,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };

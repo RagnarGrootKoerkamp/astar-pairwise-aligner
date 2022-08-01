@@ -27,7 +27,7 @@ fn bicount_admissible() {
         BruteForceCSH {
             match_config: MatchConfig::inexact(k),
             distance_function: BiCountCost,
-            pruning: false,
+            pruning: Pruning::default(),
         },
     );
     assert!(r.heuristic_stats2.root_h <= r.edit_distance);
@@ -38,7 +38,7 @@ fn bicount_admissible() {
 fn consistency_1() {
     let h = CSH {
         match_config: MatchConfig::inexact(4),
-        pruning: false,
+        pruning: Pruning::default(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -57,7 +57,7 @@ fn consistency_1() {
 fn consistency_2() {
     let h = CSH {
         match_config: MatchConfig::inexact(5),
-        pruning: false,
+        pruning: Pruning::default(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -77,7 +77,7 @@ fn consistency_2() {
 fn consistency_3() {
     let h = CSH {
         match_config: MatchConfig::exact(4),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -96,7 +96,7 @@ fn consistency_3() {
 fn consistency_4() {
     let h = CSH {
         match_config: MatchConfig::inexact(6),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -117,7 +117,7 @@ fn consistency_4() {
 fn consistency_5() {
     let h = CSH {
         match_config: MatchConfig::exact(4),
-        pruning: true,
+        pruning: Pruning::enabled(),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -136,7 +136,7 @@ fn consistency_5() {
 fn consistency_6() {
     let h = CSH {
         match_config: MatchConfig::exact(4),
-        pruning: false,
+        pruning: Pruning::default(),
         use_gap_cost: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -155,7 +155,7 @@ fn consistency_6() {
 fn consistency_7() {
     let h = CSH {
         match_config: MatchConfig::exact(4),
-        pruning: false,
+        pruning: Pruning::default(),
         use_gap_cost: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -173,7 +173,7 @@ fn consistency_7() {
 fn consistency_8() {
     let h = CSH {
         match_config: MatchConfig::exact(4),
-        pruning: false,
+        pruning: Pruning::default(),
         use_gap_cost: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };

@@ -10,9 +10,34 @@ use std::{
     time::{self, Duration},
 };
 
+#[derive(Copy, Clone, Debug)]
+pub struct Pruning {
+    pub enabled: bool,
+    /// Skip pruning one in N.
+    pub keep_fraction: usize,
+}
+
+impl Default for Pruning {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            keep_fraction: 0,
+        }
+    }
+}
+
+impl Pruning {
+    pub fn enabled() -> Self {
+        Pruning {
+            enabled: true,
+            keep_fraction: 0,
+        }
+    }
+}
+
 pub struct CSH<C: Contours> {
     pub match_config: MatchConfig,
-    pub pruning: bool,
+    pub pruning: Pruning,
     // When false, gaps are free and only the max chain of matches is found.
     pub use_gap_cost: bool,
     pub c: PhantomData<C>,
@@ -294,7 +319,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     /// TODO: Separate into one step removing as many arrows as needed, and a separate step updating the contours.
     fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
         const D: bool = false;
-        if !self.params.pruning {
+        if !self.params.pruning.enabled {
             return 0;
         }
 

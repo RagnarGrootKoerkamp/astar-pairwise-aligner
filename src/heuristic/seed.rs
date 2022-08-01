@@ -7,7 +7,7 @@ use crate::prelude::*;
 #[derive(Debug, Copy, Clone)]
 pub struct SH {
     pub match_config: MatchConfig,
-    pub pruning: bool,
+    pub pruning: Pruning,
 }
 
 impl Heuristic for SH {
@@ -264,7 +264,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     /// FIXME: This code is copied from CSH. Should be extracted into a pruning module.
     fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
         const D: bool = false;
-        if !self.params.pruning {
+        if !self.params.pruning.enabled {
             return 0;
         }
 

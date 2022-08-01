@@ -6,7 +6,10 @@ fn seed_heuristic_rebuild() {
     let (k, m, n, e, pruning) = (4, 0, 100, 0.3, true);
     let h = CSH {
         match_config: MatchConfig::new(k, m),
-        pruning,
+        pruning: Pruning {
+            enabled: pruning,
+            keep_fraction: 0,
+        },
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
@@ -36,7 +39,10 @@ fn never_use_gap_distance() {
     let (k, m, n, e, pruning) = (5, 1, 14, 0.3, true);
     let h = CSH {
         match_config: MatchConfig::new(k, m),
-        pruning,
+        pruning: Pruning {
+            enabled: pruning,
+            keep_fraction: 0,
+        },
         use_gap_cost: true,
         c: PhantomData::<BruteForceContours>,
     }
@@ -60,7 +66,7 @@ fn seed_heuristic_zero_dist_consistent() {
             for e in [0.1, 0.3, 1.0] {
                 let h = BruteForceCSH {
                     match_config: MatchConfig::new(k, m),
-                    pruning: true,
+                    pruning: Pruning::enabled(),
                     distance_function: ZeroCost,
                 };
 
