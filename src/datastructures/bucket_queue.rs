@@ -1,11 +1,10 @@
 use std::cmp::min;
 
-use crate::{config::SORT_QUEUE_ELEMENTS, prelude::Cost};
+use crate::prelude::Cost;
 
-///
 #[derive(Copy, Clone)]
-pub struct QueueElement<Score, T> {
-    pub f: Score,
+pub struct QueueElement<T> {
+    pub f: Cost,
     pub data: T,
 }
 
@@ -15,42 +14,26 @@ pub struct QueueElement<Score, T> {
 pub struct BucketQueue<T> {
     layers: Vec<Vec<T>>,
     next: Cost,
-    next_sort: Cost,
+    /// Layers far lower than the current minimum are shrunk when the minimum f
+    /// has increased sufficiently beyond them.
     next_clear: Cost,
 }
 
-pub trait QueueOrder {
-    type O: Ord;
-    fn key(&self) -> Self::O;
-}
-
-impl<T> BucketQueue<T>
-where
-    T: QueueOrder,
-{
-    #[inline]
-    pub fn push(&mut self, QueueElement { f, data }: QueueElement<Cost, T>) {
+impl<T> BucketQueue<T> {
+    pub fn push(&mut self, QueueElement { f, data }: QueueElement<T>) {
         if self.layers.len() <= f as usize {
             self.layers.resize_with(f as usize + 1, Vec::default);
         }
         self.next = min(self.next, f);
         self.layers[f as usize].push(data);
     }
-    pub fn pop(&mut self) -> Option<QueueElement<Cost, T>> {
+    pub fn pop(&mut self) -> Option<QueueElement<T>> {
         while let Some(layer) = self.layers.get_mut(self.next as usize) {
             if let Some(data) = layer.pop() {
                 return Some(QueueElement { f: self.next, data });
             }
             self.next += 1;
-            if SORT_QUEUE_ELEMENTS {
-                if self.next == self.next_sort {
-                    if let Some(layer) = self.layers.get_mut(self.next_sort as usize) {
-                        layer.sort_unstable_by_key(|pd| QueueOrder::key(pd));
-                    }
-                    self.next_sort += 1;
-                }
-            }
-            // Clearing memory 10 layers back.
+            // Releasing memory 10 layers back.
             // The value of f shouldn't go down more than the maximum match
             // distance of 1 or 2, so this should be plenty.
             if self.next_clear + 10 < self.next {
@@ -67,7 +50,6 @@ impl<T> Default for BucketQueue<T> {
         Self {
             layers: Default::default(),
             next: 0,
-            next_sort: 1,
             next_clear: 0,
         }
     }

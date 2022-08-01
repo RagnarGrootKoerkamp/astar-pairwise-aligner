@@ -10,10 +10,6 @@ pub fn print() -> bool {
     PRINT.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// When the priority queue moves to the next value, it can sort all points and
-/// start with those closer to the target.
-pub const SORT_QUEUE_ELEMENTS: bool = false;
-
 /// Enables some assumptions that make code faster that should be fine, but are just safer to turn off by default.
 pub const FAST_ASSUMPTIONS: bool = false;
 
