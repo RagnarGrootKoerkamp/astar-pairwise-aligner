@@ -85,6 +85,7 @@ impl AlignResult {
         self.timing.total += other.timing.total;
         self.timing.total_sum_squares += other.timing.total_sum_squares;
         self.astar.traceback_duration += other.astar.traceback_duration;
+        self.astar.retries_duration += other.astar.retries_duration;
         self.heuristic_stats.pruning_duration += other.heuristic_stats.pruning_duration;
         self.edit_distance += other.edit_distance;
         self.heuristic_stats2.root_h += other.heuristic_stats2.root_h;
@@ -155,12 +156,12 @@ impl AlignResult {
             (format!("{:>7}", "matches"), |this: &AlignResult| {
                 format!("{:>7}", this.heuristic_stats.num_matches / this.sample_size)
             }),
-            (format!("{:>7}", "f-match"), |this: &AlignResult| {
-                format!(
-                    "{:>7}",
-                    this.heuristic_stats.num_filtered_matches / this.sample_size
-                )
-            }),
+            // (format!("{:>7}", "f-match"), |this: &AlignResult| {
+            //     format!(
+            //         "{:>7}",
+            //         this.heuristic_stats.num_filtered_matches / this.sample_size
+            //     )
+            // }),
             (format!("{:>9}", "expanded"), |this: &AlignResult| {
                 format!("{:>9}", this.astar.expanded / this.sample_size)
             }),
@@ -217,6 +218,12 @@ impl AlignResult {
                 format!(
                     "{:>8.2}",
                     1000. * this.heuristic_stats.pruning_duration / this.sample_size as f32
+                )
+            }),
+            (format!("{:>8}", "retries"), |this: &AlignResult| {
+                format!(
+                    "{:>8.2}",
+                    1000. * this.astar.retries_duration / this.sample_size as f32
                 )
             }),
             (format!("{:>8}", "trace"), |this: &AlignResult| {

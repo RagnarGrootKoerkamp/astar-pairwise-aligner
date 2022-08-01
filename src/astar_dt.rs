@@ -1,4 +1,4 @@
-use std::time;
+use std::time::Instant;
 
 use crate::prelude::*;
 use astar::*;
@@ -66,12 +66,21 @@ where
         states.insert(DtPos::from_pos(start, 0), State { fr: 0, hint });
     }
 
+    let mut retry_cnt = 0;
+
     let mut dist = None;
     'outer: while let Some(QueueElement {
         f: queue_f,
         data: (dt_pos, queue_fr),
     }) = queue.pop()
     {
+        const RETRY_COUNT_EACH: i32 = 64;
+        let expand_start = if retry_cnt % RETRY_COUNT_EACH == 0 {
+            Some(Instant::now())
+        } else {
+            None
+        };
+
         let queue_g = dt_pos.g;
         let queue_f = queue_f + queue_offset - max_queue_offset;
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
@@ -104,6 +113,11 @@ where
                     f: current_f + (max_queue_offset - queue_offset),
                     data: (dt_pos, queue_fr),
                 });
+                retry_cnt += 1;
+                if let Some(expand_start) = expand_start {
+                    stats.retries_duration +=
+                        RETRY_COUNT_EACH as f32 * expand_start.elapsed().as_secs_f32();
+                }
                 continue;
             }
             assert!(current_f == queue_f);
@@ -213,7 +227,7 @@ where
     let Some(dist) = dist else {  return (None, stats); };
 
     stats.diagonalmap_capacity = states.dm_capacity();
-    let traceback_start = time::Instant::now();
+    let traceback_start = Instant::now();
     let path = traceback::<H>(&states, DtPos::from_pos(graph.target(), dist));
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
     (path, stats)

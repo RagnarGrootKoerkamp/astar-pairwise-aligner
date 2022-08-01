@@ -1,4 +1,4 @@
-use std::time;
+use std::time::{self, Instant};
 
 use crate::{prelude::*, visualizer::VisualizerT};
 
@@ -54,6 +54,7 @@ pub struct AStarStats {
     pub diagonalmap_capacity: usize,
 
     pub traceback_duration: f32,
+    pub retries_duration: f32,
 }
 
 // h: heuristic = lower bound on cost from node to end
@@ -109,11 +110,19 @@ where
         );
     }
 
+    let mut retry_cnt = 0;
+
     'outer: while let Some(QueueElement {
         f: queue_f,
         data: (pos, queue_g),
     }) = queue.pop()
     {
+        const RETRY_COUNT_EACH: i32 = 64;
+        let expand_start = if retry_cnt % RETRY_COUNT_EACH == 0 {
+            Some(Instant::now())
+        } else {
+            None
+        };
         let queue_f = queue_f + queue_offset - max_queue_offset;
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
@@ -142,6 +151,11 @@ where
                     f: current_f + (max_queue_offset - queue_offset),
                     data: (pos, queue_g),
                 });
+                retry_cnt += 1;
+                if let Some(expand_start) = expand_start {
+                    stats.retries_duration +=
+                        RETRY_COUNT_EACH as f32 * expand_start.elapsed().as_secs_f32();
+                }
                 continue;
             }
             assert!(current_f == queue_f);
