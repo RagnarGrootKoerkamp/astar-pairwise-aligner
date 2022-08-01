@@ -3,13 +3,6 @@
 
 use std::sync::atomic::AtomicBool;
 
-/// If true: insert 'shadow' points in contours to make sure that contour v always contains contour v+1.
-/// This makes contour[v].query(p) monotone in v, allowing simpler binary search/query operations.
-pub const USE_SHADOW_POINTS: bool = true;
-
-/// When true, do greedy matching inside the A* itself, to avoid redundantly pushing and popping consecutive states.
-pub const GREEDY_EDGE_MATCHING_IN_ASTAR: bool = true;
-
 /// Whether printing is enabled.
 pub static PRINT: AtomicBool = AtomicBool::new(false);
 
@@ -26,6 +19,7 @@ pub const FAST_ASSUMPTIONS: bool = false;
 
 /// Use a Trie to find matches.
 pub const FIND_MATCHES_TRIE: bool = false;
+
 /// Use a HashMap to find matches. Only works with exact matches and fixed k.
 /// Default: Use QGramIndex to find matches.
 pub const FIND_MATCHES_HASH: bool = true;
