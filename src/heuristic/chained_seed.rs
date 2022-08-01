@@ -275,6 +275,13 @@ impl<C: Contours> CSHI<C> {
             pos
         }
     }
+
+    /// True when the next position should be pruned.
+    /// Returns false once every `params.pruning.skip_prune` steps.
+    fn add_prune(&mut self) -> bool {
+        self.num_pruned += 1;
+        self.params.pruning.skip_prune == 0 || self.num_pruned % self.params.pruning.skip_prune != 0
+    }
 }
 
 impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
@@ -341,6 +348,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                     }
                     let match_start = Pos(s.start, s.start + pos.1 - pos.0);
                     let mut try_prune_pos = |startpos: Pos| {
+                        if !self.add_prune() {
+                            return;
+                        }
                         let tp = self.transform(startpos);
                         let Some(arrows) = self.arrows.get_mut(&tp) else { return; };
                         // Filter arrows starting in the current position.
@@ -350,7 +360,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                         if arrows.is_empty() {
                             self.arrows.remove(&tp).unwrap();
                         }
-                        self.num_pruned += 1;
                         // TODO: Propagate this change.
                         self.contours.prune_with_hint(tp, hint, &self.arrows).1;
                     };
@@ -413,9 +422,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                     let tp = self.transform(pos);
                     if let Some(arrows) = self.arrows.get(&tp) {
                         if arrows.iter().all(|a2| a2.end == a.end) {
-                            self.num_pruned += 1;
-                            self.arrows.remove(&tp);
-                            self.contours.prune_with_hint(tp, hint, &self.arrows);
+                            if self.add_prune() {
+                                self.arrows.remove(&tp);
+                                self.contours.prune_with_hint(tp, hint, &self.arrows);
+                            }
                         }
                     } else {
                         if CHECK_MATCH_CONSISTENCY {
@@ -433,24 +443,31 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         if PRUNE_MATCHES_BY_START {
             change += if min_len == 0 {
-                self.arrows.remove(&tpos).unwrap();
-                self.contours.prune_with_hint(tpos, hint, &self.arrows).1
-            } else {
-                // If we only remove a subset of arrows, do no actual pruning.
-                // TODO: Also update contours on partial pruning.
-                let arrows = self.arrows.get_mut(&tpos).unwrap();
-                if D {
-                    println!("Remove arrows of length > {min_len} at pos {pos}.");
+                if self.add_prune() {
+                    self.arrows.remove(&tpos).unwrap();
+                    self.contours.prune_with_hint(tpos, hint, &self.arrows).1
+                } else {
+                    0
                 }
-                arrows.drain_filter(|a| a.len > min_len).count();
-                assert!(arrows.len() > 0);
-                self.contours.prune_with_hint(tpos, hint, &self.arrows).1
+            } else {
+                if self.add_prune() {
+                    // If we only remove a subset of arrows, do no actual pruning.
+                    // TODO: Also update contours on partial pruning.
+                    let arrows = self.arrows.get_mut(&tpos).unwrap();
+                    if D {
+                        println!("Remove arrows of length > {min_len} at pos {pos}.");
+                    }
+                    arrows.drain_filter(|a| a.len > min_len).count();
+                    assert!(arrows.len() > 0);
+                    self.contours.prune_with_hint(tpos, hint, &self.arrows).1
+                } else {
+                    0
+                }
             };
         }
 
         self.pruning_duration += start.elapsed();
 
-        self.num_pruned += 1;
         return if tpos >= self.max_transformed_pos {
             change
         } else {
