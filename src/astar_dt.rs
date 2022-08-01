@@ -135,46 +135,36 @@ where
             println!("Expand {pos} {}", queue_g);
         }
 
-        // Do greedy matching within the current seed.
-        // TODO: Do greedy matching on expand instead of on explore
-        if graph.greedy_matching {
-            while let Some(n) = graph.is_match(pos) {
-                // TODO: Is pruning during greedy matching OK?
-                // Never greedy expand the start of a seed.
-                // Doing so may cause problems when h is not consistent and is
-                // larger at the start of seed than at the position where the
-                // greedy run started.
-                if h.is_seed_start_or_end(pos) {
-                    // Prune
-                    let pq_shift = h.prune(pos, state.hint);
-                    if REDUCE_RETRIES && pq_shift > 0 {
-                        stats.pq_shifts += pq_shift as usize;
-                        queue_offset += pq_shift;
-                    }
-                }
-
-                // Explore & expand `n`
-                stats.explored += 1;
-                stats.expanded += 1;
-                stats.greedy_expanded += 1;
-                if D {
-                    println!("Greedy expand {n} {}", queue_g);
-                }
-
-                // Move to the pos state.
-                pos = n;
-                state.fr += 1;
+        let mut prune = |pos| {
+            if !h.is_seed_start_or_end(pos) {
+                return;
             }
+
+            let shift = h.prune(pos, state.hint);
+            if REDUCE_RETRIES {
+                stats.pq_shifts += shift as usize;
+                queue_offset += shift;
+            }
+        };
+
+        while let Some(n) = graph.is_match(pos) {
+            prune(pos);
+
+            // Explore & expand `n`
+            stats.explored += 1;
+            stats.expanded += 1;
+            stats.greedy_expanded += 1;
+            if D {
+                println!("Greedy expand {n} {}", queue_g);
+            }
+
+            // Move to the pos state.
+            pos = n;
+            state.fr += 1;
         }
 
         // Check if prune is needed for the final pos.
-        if h.is_seed_start_or_end(pos) {
-            let pq_shift = h.prune(pos, state.hint);
-            if REDUCE_RETRIES && pq_shift > 0 {
-                stats.pq_shifts += pq_shift as usize;
-                queue_offset += pq_shift;
-            }
-        }
+        prune(pos);
 
         // Copy for local usage.
         let state = *state;
