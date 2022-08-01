@@ -3,12 +3,6 @@
 
 use std::sync::atomic::AtomicBool;
 
-#[cfg(debug_assertions)]
-pub const DEBUG: bool = true;
-
-#[cfg(not(debug_assertions))]
-pub const DEBUG: bool = false;
-
 /// If true: insert 'shadow' points in contours to make sure that contour v always contains contour v+1.
 /// This makes contour[v].query(p) monotone in v, allowing simpler binary search/query operations.
 pub const USE_SHADOW_POINTS: bool = true;

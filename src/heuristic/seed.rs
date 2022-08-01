@@ -422,7 +422,6 @@ impl<'a> HeuristicInstance<'a> for SHI {
             num_seeds: self.matches.seeds.len() as I,
             num_matches,
             num_filtered_matches: num_matches,
-            matches: Default::default(),
             pruning_duration: Default::default(),
             num_prunes: self.num_pruned,
         }

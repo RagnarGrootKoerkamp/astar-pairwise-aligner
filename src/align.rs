@@ -325,11 +325,6 @@ where
         start_val
     );
 
-    let path: Vec<Pos> = if DEBUG {
-        path.into_iter().collect()
-    } else {
-        Default::default()
-    };
     let h_stats = h.stats();
 
     AlignResult {

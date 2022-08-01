@@ -36,7 +36,6 @@ pub struct HeuristicStats {
     pub num_seeds: I,
     pub num_matches: usize,
     pub num_filtered_matches: usize,
-    pub matches: Vec<Match>,
     pub pruning_duration: f32,
     pub num_prunes: usize,
 }
@@ -47,7 +46,6 @@ impl Default for HeuristicStats {
             num_seeds: 0,
             num_matches: 0,
             num_filtered_matches: 0,
-            matches: Default::default(),
             pruning_duration: 0.,
             num_prunes: 0,
         }

@@ -339,7 +339,6 @@ where
             num_seeds: self.seeds.seeds.len() as I,
             num_matches: self.seeds.matches.len(),
             num_filtered_matches: self.seeds.matches.len(),
-            matches: self.seeds.matches.clone(),
             pruning_duration: self.pruning_duration.as_secs_f32(),
             num_prunes: self.num_pruned,
         }

@@ -470,11 +470,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             num_seeds: self.seeds.seeds.len() as I,
             num_matches: self.num_matches,
             num_filtered_matches: self.num_filtered_matches,
-            matches: if DEBUG {
-                self.seeds.matches.clone()
-            } else {
-                Default::default()
-            },
             pruning_duration: self.pruning_duration.as_secs_f32(),
             num_prunes: self.num_pruned,
         }
