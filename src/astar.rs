@@ -8,6 +8,7 @@ enum Status {
     Explored,
     Expanded,
 }
+use datastructures::shift_queue::ShiftQueue;
 use Status::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -27,15 +28,6 @@ impl<Hint: Default> Default for State<Hint> {
             g: Cost::MAX,
             hint: Hint::default(),
         }
-    }
-}
-
-impl QueueOrder for (Pos, Cost) {
-    type O = I;
-
-    // Sort by Pos.i.
-    fn key(&self) -> Self::O {
-        self.0 .0
     }
 }
 
@@ -74,16 +66,11 @@ where
     let mut stats = AStarStats::default();
 
     // f -> (pos, g)
-    let mut queue = BucketQueue::<(Pos, Cost)>::default();
-    // When > 0, queue[x] corresponds to f=x+offset.
-    // Increasing the offset implicitly shifts all elements of the queue up.
-    let mut queue_offset: Cost = 0;
-    // An upper bound on the queue_offset, to make sure indices never become negative.
-    let max_queue_offset = if REDUCE_RETRIES {
+    let mut queue = ShiftQueue::<(Pos, Cost)>::new(if REDUCE_RETRIES {
         h.root_potential()
     } else {
         0
-    };
+    });
 
     //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
     let mut states = HashMap::<Pos, State<H::Hint>>::default();
@@ -96,7 +83,7 @@ where
         let start = Pos(0, 0);
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
         queue.push(QueueElement {
-            f: hroot + (max_queue_offset - queue_offset),
+            f: hroot,
             data: (start, 0),
         });
         stats.explored += 1;
@@ -123,7 +110,6 @@ where
         } else {
             None
         };
-        let queue_f = queue_f + queue_offset - max_queue_offset;
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
         //let g = gs[pos];
@@ -148,7 +134,7 @@ where
             if current_f > queue_f {
                 stats.retries += 1;
                 queue.push(QueueElement {
-                    f: current_f + (max_queue_offset - queue_offset),
+                    f: current_f,
                     data: (pos, queue_g),
                 });
                 retry_cnt += 1;
@@ -202,7 +188,7 @@ where
             let pq_shift = h.prune(pos, state.hint);
             if REDUCE_RETRIES && pq_shift > 0 {
                 stats.pq_shifts += pq_shift as usize;
-                queue_offset += pq_shift;
+                queue.shift(pq_shift);
             }
         }
 
@@ -265,7 +251,7 @@ where
             let next_f = next_g + next_h;
 
             queue.push(QueueElement {
-                f: next_f + (max_queue_offset - queue_offset),
+                f: next_f,
                 data: (next, next_g),
             });
             if D {

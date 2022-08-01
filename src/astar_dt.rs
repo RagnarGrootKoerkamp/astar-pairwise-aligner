@@ -1,21 +1,12 @@
 use std::time::Instant;
 
-use crate::prelude::*;
+use crate::{datastructures::shift_queue::ShiftQueue, prelude::*};
 use astar::*;
 
 #[derive(Clone, Copy, Debug)]
 struct State<Hint> {
     fr: I,
     hint: Hint,
-}
-
-// Sort by furthest reaching.
-impl QueueOrder for (DtPos, I) {
-    type O = I;
-
-    fn key(&self) -> Self::O {
-        self.1
-    }
 }
 
 impl<Hint: Default> Default for State<Hint> {
@@ -40,16 +31,11 @@ where
     let mut stats = AStarStats::default();
 
     // f -> (DtPos(diagonal, g), fr)
-    let mut queue = BucketQueue::<(DtPos, I)>::default();
-    // When > 0, queue[x] corresponds to f=x+offset.
-    // Increasing the offset implicitly shifts all elements of the queue up.
-    let mut queue_offset: Cost = 0;
-    // An upper bound on the queue_offset, to make sure indices never become negative.
-    let max_queue_offset = if REDUCE_RETRIES {
+    let mut queue = ShiftQueue::<(DtPos, I)>::new(if REDUCE_RETRIES {
         h.root_potential()
     } else {
         0
-    };
+    });
 
     //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
     let mut states = HashMap::<DtPos, State<H::Hint>>::default();
@@ -59,7 +45,7 @@ where
         let start = Pos(0, 0);
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
         queue.push(QueueElement {
-            f: hroot + (max_queue_offset - queue_offset),
+            f: hroot,
             data: (DtPos::from_pos(start, 0), DtPos::fr(start)),
         });
         stats.explored += 1;
@@ -82,7 +68,7 @@ where
         };
 
         let queue_g = dt_pos.g;
-        let queue_f = queue_f + queue_offset - max_queue_offset;
+        let queue_f = queue_f;
         // This lookup can be unwrapped without fear of panic since the node was necessarily scored
         // before adding it to `visit_next`.
         //let g = gs[pos];
@@ -110,7 +96,7 @@ where
             if current_f > queue_f {
                 stats.retries += 1;
                 queue.push(QueueElement {
-                    f: current_f + (max_queue_offset - queue_offset),
+                    f: current_f,
                     data: (dt_pos, queue_fr),
                 });
                 retry_cnt += 1;
@@ -143,7 +129,7 @@ where
             let shift = h.prune(pos, state.hint);
             if REDUCE_RETRIES {
                 stats.pq_shifts += shift as usize;
-                queue_offset += shift;
+                queue.shift(shift);
             }
         };
 
@@ -182,9 +168,6 @@ where
         graph.iterate_outgoing_edges(pos, |next, edge| {
             // Explore next
             let next_g = queue_g + edge.cost() as Cost;
-            // TODO: Move this logic to some function internal to h. Not all
-            // heuristics necessarily have seeds along A.
-
             let dt_next = DtPos::from_pos(next, next_g);
             let cur_next = DiagonalMapTrait::get_mut(&mut states, dt_next);
             // If the next state was already visited with larger FR point, skip exploring again.
@@ -202,7 +185,7 @@ where
 
             //println!("Push g={next_g:3} f={next_f:3} fr={next_fr:3} pos={next} {dt_next}");
             queue.push(QueueElement {
-                f: next_f + (max_queue_offset - queue_offset),
+                f: next_f,
                 data: (dt_next, next_fr),
             });
             if D {
