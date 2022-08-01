@@ -35,6 +35,9 @@ struct HintContourStats {
     // Total number of layers processed.
     contours: usize,
 
+    // Number of times a shift was possible.
+    shifts: usize,
+
     // Number of times we stop pruning early.
     no_change: usize,
     shift_layers: usize,
@@ -189,6 +192,8 @@ impl<C: Contour> Contours for HintContours<C> {
         Self::Hint: Default,
     {
         self.stats.borrow_mut().score_with_hint_calls += 1;
+        // NOTE: v - #layers_removed is equivalent to v - (contours.len() -
+        // hint_v) as written in the paper.
         let v = min(
             hint.original_layer.saturating_sub(self.layers_removed),
             self.contours.len() as Cost - 1,
@@ -234,11 +239,11 @@ impl<C: Contour> Contours for HintContours<C> {
         self.stats.borrow_mut().binary_search_fallback += 1;
 
         // Fall back to binary search if not found close to the hint.
-        let v = self.score(q);
+        let w = self.score(q);
         (
-            v,
+            w,
             Hint {
-                original_layer: v + self.layers_removed,
+                original_layer: w + self.layers_removed,
             },
         )
     }
@@ -339,9 +344,9 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // If this was the last arrow in its layer and all arrows in the next
         // max_len layers depend on the pruned match, all of them will shift.
-        let change = 'change: {
+        let shift = 'shift: {
             if self.contours[v].len() > 0 {
-                break 'change 0;
+                break 'shift 0;
             }
             //println!("Removed {p} last in layer {v}");
             let mut all_depend_on_pos = true;
@@ -355,7 +360,7 @@ impl<C: Contour> Contours for HintContours<C> {
                     }
                 });
                 if !all_depend_on_pos {
-                    break 'change 0;
+                    break 'shift 0;
                 }
             }
 
@@ -370,12 +375,16 @@ impl<C: Contour> Contours for HintContours<C> {
                 if self.contours[w].len() > 0 {
                     break;
                 }
+                self.layers_removed += 1;
                 self.contours.remove(w as usize);
                 first_to_check = min(first_to_check, w);
                 removed += 1;
             }
-            break 'change removed;
+            break 'shift removed;
         };
+        if shift > 0 {
+            self.stats.borrow_mut().shifts += 1;
+        }
 
         // Loop over the matches in the next layer, and repeatedly prune while needed.
         let mut last_change = v;
@@ -490,19 +499,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             }
         }
-        // FIXME
-        // self.debug(p, v, arrows);
-        // // Make sure the next max_len layer are all correct
-        // for w in max(v - 10, 1)..min(v + 1 + self.max_len + 10, self.contours.len() as Cost) {
-        //     self.contours[w].iterate_points(|pos| {
-        //         let new_layer = score_at_pos(&self.contours, pos, w);
-        //         assert!(
-        //             new_layer == w,
-        //             "Bad new value {new_layer} for {pos} at layer {w}"
-        //         );
-        //     })
-        // }
-        (true, change)
+        (true, shift)
     }
 
     #[allow(unreachable_code)]
@@ -528,13 +525,14 @@ impl<C: Contour> Contours for HintContours<C> {
             checked_false,
             sum_prune_shifts,
             num_prune_shifts,
+            max_prune_shift,
             contours,
+            shifts,
             no_change,
             shift_layers,
-            score_with_hint_calls: value_with_hint_calls,
             binary_search_fallback,
             contains_calls,
-            max_prune_shift,
+            score_with_hint_calls,
         }: HintContourStats = *self.stats.borrow();
 
         if prunes == 0 {
@@ -560,14 +558,22 @@ impl<C: Contour> Contours for HintContours<C> {
         println!("max shift             {}", max_prune_shift);
         println!("Stop count: no change    {}", no_change);
         println!("Stop count: shift layers {}", shift_layers);
-        println!("value_hint calls         {}", value_with_hint_calls);
+        println!("layers removed total     {}", self.layers_removed);
+        println!(
+            "layers removed change    {}",
+            self.layers_removed as usize - shift_layers
+        );
+
+        println!("#shifts                  {}", shifts);
+        println!("");
+        println!("score_hint calls         {}", score_with_hint_calls);
         println!(
             "%binary search fallback  {}",
-            binary_search_fallback as f32 / value_with_hint_calls as f32
+            binary_search_fallback as f32 / score_with_hint_calls as f32
         );
         println!(
             "avg contains calls       {}",
-            contains_calls as f32 / value_with_hint_calls as f32
+            contains_calls as f32 / score_with_hint_calls as f32
         );
 
         println!("----------------------------");
