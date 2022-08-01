@@ -40,7 +40,6 @@ pub struct TimingStats {
 pub struct HeuristicStats2 {
     pub root_h: Cost,
     pub root_h_end: Cost,
-    pub path_matches: usize,
 }
 
 #[derive(Default, Clone)]
@@ -244,24 +243,6 @@ impl AlignResult {
                     this.heuristic_stats2.root_h_end as f32 / this.sample_size as f32
                 )
             }),
-            // (format!("{:>5}", "m_pat"), |this: &AlignResult| {
-            //     format!(
-            //         "{:>5}",
-            //         this.heuristic_stats2.path_matches
-            //     )
-            // }),
-            // (format!("{:>5}", "m_exp"), |this: &AlignResult| {
-            //     format!(
-            //         "{:>5}",
-            //         this.heuristic_stats2.explored_matches
-            //     )
-            // }),
-            // (format!("{:>5}", "dm-fr"), |this: &AlignResult| {
-            //     format!(
-            //         "{:>5.3}",
-            //         this.astar.explored as f32 / this.astar.diagonalmap_capacity as f32
-            //     )
-            // }),
         ];
 
         let mut header = Vec::new();
@@ -290,19 +271,6 @@ impl AlignResult {
             stdout().flush().unwrap();
         }
     }
-}
-
-fn num_matches_on_path(path: &[Pos], matches: &[Match]) -> usize {
-    let matches = {
-        let mut s = HashSet::<Pos>::default();
-        for &Match { start, .. } in matches {
-            s.insert(start);
-        }
-        s
-    };
-    path.iter()
-        .map(|p| if matches.contains(p) { 1 } else { 0 })
-        .sum()
 }
 
 pub fn align<'a, H: Heuristic>(
@@ -364,11 +332,6 @@ where
     };
     let h_stats = h.stats();
 
-    let path_matches = if DEBUG {
-        num_matches_on_path(&path, &h_stats.matches)
-    } else {
-        Default::default()
-    };
     AlignResult {
         heuristic_params: heuristic.params(),
         input: sequence_stats,
@@ -383,7 +346,6 @@ where
         heuristic_stats2: HeuristicStats2 {
             root_h: start_val,
             root_h_end: end_val,
-            path_matches,
         },
         edit_distance: distance,
         path,
