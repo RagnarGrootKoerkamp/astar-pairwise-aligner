@@ -53,11 +53,6 @@ pub enum GapCostHeuristic {
     Enable,
     Disable,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum HistoryCompression {
-    Enable,
-    Disable,
-}
 
 /// Settings for the algorithm, and derived constants.
 ///
@@ -75,10 +70,6 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
 
     /// When true, `align` uses divide & conquer to compute the alignment in linear memory.
     dc: bool,
-
-    /// When true, calls to `align` store a compressed version of the full 'history' of visited states.
-    #[allow(unused)]
-    history_compression: HistoryCompression,
 
     pub v: V,
 
@@ -123,7 +114,6 @@ impl<CostModel, V: VisualizerT, H: Heuristic> std::fmt::Debug
             .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
             .field("h", &self.h)
             .field("dc", &self.dc)
-            .field("history_compression", &self.history_compression)
             .field("top_buffer", &self.top_buffer)
             .field("left_buffer", &self.left_buffer)
             .field("right_buffer", &self.right_buffer)
@@ -308,7 +298,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             top_buffer,
             left_buffer,
             right_buffer,
-            history_compression: HistoryCompression::Disable,
         }
     }
 
