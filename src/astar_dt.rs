@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::{datastructures::shift_queue::ShiftQueue, prelude::*};
+use crate::prelude::*;
 use astar::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -18,10 +18,12 @@ impl<Hint: Default> Default for State<Hint> {
     }
 }
 
-// h: heuristic = lower bound on cost from node to end
-// g: computed cost to reach node from the start
-// f: g+h
-// TODO: Inline on_expand and on_explore functions by direct calls to h.
+impl<P: PosOrderT> ShiftOrderT<(DtPos, I)> for P {
+    fn from_t(t: &(DtPos, I)) -> Self {
+        P::from_pos(t.0.to_pos(t.1))
+    }
+}
+
 pub fn astar_dt<'a, H>(graph: &EditGraph, h: &mut H) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
     H: HeuristicInstance<'a>,
@@ -31,7 +33,7 @@ where
     let mut stats = AStarStats::default();
 
     // f -> (DtPos(diagonal, g), fr)
-    let mut queue = ShiftQueue::<(DtPos, I)>::new(if REDUCE_RETRIES {
+    let mut queue = ShiftQueue::<(DtPos, I), H::Order>::new(if REDUCE_RETRIES {
         h.root_potential()
     } else {
         0
@@ -126,10 +128,9 @@ where
                 return;
             }
 
-            let shift = h.prune(pos, state.hint);
+            let (shift, pos) = h.prune(pos, state.hint);
             if REDUCE_RETRIES {
-                stats.pq_shifts += shift as usize;
-                queue.shift(shift);
+                stats.pq_shifts += queue.shift(shift, pos) as usize;
             }
         };
 

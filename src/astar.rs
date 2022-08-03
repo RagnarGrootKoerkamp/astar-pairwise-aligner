@@ -8,7 +8,6 @@ enum Status {
     Explored,
     Expanded,
 }
-use datastructures::shift_queue::ShiftQueue;
 use Status::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -28,6 +27,12 @@ impl<Hint: Default> Default for State<Hint> {
             g: Cost::MAX,
             hint: Hint::default(),
         }
+    }
+}
+
+impl<P: PosOrderT> ShiftOrderT<(Pos, Cost)> for P {
+    fn from_t(t: &(Pos, Cost)) -> Self {
+        P::from_pos(t.0)
     }
 }
 
@@ -66,7 +71,7 @@ where
     let mut stats = AStarStats::default();
 
     // f -> (pos, g)
-    let mut queue = ShiftQueue::<(Pos, Cost)>::new(if REDUCE_RETRIES {
+    let mut queue = ShiftQueue::<(Pos, Cost), H::Order>::new(if REDUCE_RETRIES {
         h.root_potential()
     } else {
         0
@@ -185,10 +190,9 @@ where
 
         // Prune is needed
         if h.is_seed_start_or_end(pos) {
-            let pq_shift = h.prune(pos, state.hint);
-            if REDUCE_RETRIES && pq_shift > 0 {
-                stats.pq_shifts += pq_shift as usize;
-                queue.shift(pq_shift);
+            let (shift, pos) = h.prune(pos, state.hint);
+            if REDUCE_RETRIES {
+                stats.pq_shifts += queue.shift(shift, pos) as usize;
             }
         }
 
