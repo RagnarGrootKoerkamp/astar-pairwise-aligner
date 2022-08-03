@@ -11,33 +11,37 @@ fn wfa() {
     use std::env;
     use std::path::PathBuf;
 
-    // Tell cargo to look for shared libraries in the specified directory
-    println!("cargo:rustc-link-search=../wfa2/lib");
-    println!("cargo:rustc-link-lib=wfa");
-    println!("cargo:rustc-link-lib=omp");
+    // 1. Link instructions for Cargo.
 
-    // Tell cargo to invalidate the built crate whenever the wrapper changes
+    // The directory of the WFA libraries, added to the search path.
+    println!("cargo:rustc-link-search=../wfa2/lib");
+    // Link the `wfa-lib` library.
+    println!("cargo:rustc-link-lib=wfa");
+    // Also link `omp`.
+    println!("cargo:rustc-link-lib=omp");
+    // Invalidate the built crate whenever the linked library changes.
     println!("cargo:rerun-if-changed=../wfa2/lib/libwfa.a");
 
-    // The bindgen::Builder is the main entry point
-    // to bindgen, and lets you build up options for
-    // the resulting bindings.
+    // 2. Generate bindings.
+
     let bindings = bindgen::Builder::default()
-        // The input header we would like to generate
-        // bindings for.
+        // Generate bindings for this header file.
         .header("../wfa2/wavefront/wavefront_align.h")
+        // Add this directory to the include path to find included header files.
         .clang_arg("-I../wfa2")
+        // Generate bindings for all functions starting with `wavefront_`.
         .allowlist_function("wavefront_.*")
+        // Generate bindings for all variables starting with `wavefront_`.
         .allowlist_var("wavefront_.*")
-        // Tell cargo to invalidate the built crate whenever any of the
-        // included header files changed.
+        // Invalidate the built crate whenever any of the included header files
+        // changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         // Finish the builder and generate the bindings.
         .generate()
         // Unwrap the Result and panic on failure.
         .expect("Unable to generate bindings");
 
-    // Write the bindings to the $OUT_DIR/bindings.rs file.
+    // Write the bindings to the $OUT_DIR/bindings_wfa.rs file.
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
         .write_to_file(out_path.join("bindings_wfa.rs"))
