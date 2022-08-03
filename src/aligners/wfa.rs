@@ -1,8 +1,5 @@
 use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Seq};
-use crate::{
-    aligners::wfa::wfa::distance_metric_t_gap_linear,
-    cost_model::{AffineCost, AffineLayerType, Cost},
-};
+use crate::cost_model::{AffineCost, AffineLayerType, Cost};
 use std::intrinsics::transmute;
 
 #[allow(non_upper_case_globals)]
@@ -28,7 +25,9 @@ fn lcs_cost(a: Seq, b: Seq, biwfa: bool) -> Cost {
     unsafe {
         // Configure alignment attributes
         let mut attributes = wfa::wavefront_aligner_attr_default;
+        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
         attributes.distance_metric = wfa::distance_metric_t_indel;
+        attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         if biwfa {
             attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
         }
@@ -54,6 +53,7 @@ fn unit_cost(a: Seq, b: Seq, biwfa: bool) -> Cost {
     unsafe {
         // Configure alignment attributes
         let mut attributes = wfa::wavefront_aligner_attr_default;
+        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
         attributes.distance_metric = wfa::distance_metric_t_edit;
         attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         if biwfa {
@@ -81,13 +81,16 @@ fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost, biwfa: bool) -> Cost {
     unsafe {
         // Configure alignment attributes
         let mut attributes = wfa::wavefront_aligner_attr_default;
-        attributes.distance_metric = distance_metric_t_gap_linear;
+        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
+        attributes.distance_metric = wfa::distance_metric_t_gap_linear;
         attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         attributes.linear_penalties.mismatch = sub as i32;
         attributes.linear_penalties.indel = indel as i32;
+
         if biwfa {
             attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
         }
+
         // Initialize Wavefront Aligner
         let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
         let a: &[i8] = transmute(a);
@@ -100,7 +103,7 @@ fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost, biwfa: bool) -> Cost {
             b.len() as i32,
         );
         assert_eq!(status, 0);
-        let cost = -(*wf_aligner).cigar.score as Cost;
+        let cost = (-(*wf_aligner).cigar.score) as Cost;
         wfa::wavefront_aligner_delete(wf_aligner);
         cost
     }
@@ -117,10 +120,12 @@ fn affine_cost(
     // Configure alignment attributes
     unsafe {
         let mut attributes = wfa::wavefront_aligner_attr_default;
+        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
         attributes.distance_metric = wfa::distance_metric_t_gap_affine;
         attributes.affine_penalties.mismatch = mismatch as i32;
         attributes.affine_penalties.gap_opening = gap_open as i32;
         attributes.affine_penalties.gap_extension = gap_extend as i32;
+        attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         if biwfa {
             attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
         }
@@ -135,7 +140,7 @@ fn affine_cost(
             b.len() as i32,
         );
         assert_eq!(status, 0);
-        let cost = -(*wf_aligner).cigar.score as Cost;
+        let cost = (-(*wf_aligner).cigar.score) as Cost;
         wfa::wavefront_aligner_delete(wf_aligner);
         cost
     }
@@ -154,12 +159,14 @@ fn double_affine_cost(
     // Configure alignment attributes
     unsafe {
         let mut attributes = wfa::wavefront_aligner_attr_default;
+        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
         attributes.distance_metric = wfa::distance_metric_t_gap_affine_2p;
         attributes.affine2p_penalties.mismatch = mismatch as i32;
         attributes.affine2p_penalties.gap_opening1 = gap_open1 as i32;
         attributes.affine2p_penalties.gap_extension1 = gap_extend1 as i32;
         attributes.affine2p_penalties.gap_opening2 = gap_open2 as i32;
         attributes.affine2p_penalties.gap_extension2 = gap_extend2 as i32;
+        attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         if biwfa {
             attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
         }
@@ -174,7 +181,7 @@ fn double_affine_cost(
             b.len() as i32,
         );
         assert_eq!(status, 0);
-        let cost = -(*wf_aligner).cigar.score as Cost;
+        let cost = (-(*wf_aligner).cigar.score) as Cost;
         wfa::wavefront_aligner_delete(wf_aligner);
         cost
     }
