@@ -74,6 +74,7 @@ pub trait PosOrderT: PartialOrd + Default + Copy + std::fmt::Debug {
     fn max(p: Self, q: Self) -> Self;
     type D: std::fmt::Debug;
     fn diff(p: Self, q: Self) -> Self::D;
+    fn tip_start(s: usize, p: Self) -> Self;
 }
 
 impl PosOrderT for () {
@@ -81,6 +82,7 @@ impl PosOrderT for () {
     fn max(_: Self, _: Self) -> Self {}
     type D = ();
     fn diff(_: Self, _: Self) -> Self::D {}
+    fn tip_start(_: usize, _: Self) -> Self {}
 }
 
 /// The order for CSH
@@ -95,6 +97,9 @@ impl PosOrderT for Pos {
     fn diff(p: Self, q: Self) -> Self::D {
         (p.0 as i32 - q.0 as i32, p.1 as i32 - q.1 as i32)
     }
+    fn tip_start(s: usize, p: Self) -> Self {
+        Pos(p.0.saturating_sub(s as I), p.1.saturating_sub(s as I))
+    }
 }
 
 /// The order of SH.
@@ -108,6 +113,9 @@ impl PosOrderT for I {
     type D = i32;
     fn diff(p: Self, q: Self) -> Self::D {
         p as i32 - q as i32
+    }
+    fn tip_start(s: usize, p: Self) -> Self {
+        p.saturating_sub(s as I)
     }
 }
 
