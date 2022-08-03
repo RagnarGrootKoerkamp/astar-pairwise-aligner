@@ -17,14 +17,14 @@ pub enum ErrorModel {
     /// Takes a region of size e*n/2 and inserts it twice in a row next to
     /// each other
     Doubleinsert,
-    /// Construct the sequence of e*n repeating subsequences for sequence A
+    /// Construct the sequence of n/pattern_length repeating subsequences for sequence A
     /// and adds e*n mutations for sequence B
     Repeat,
-    /// Construct the sequence of e*n repeating subsequences for sequence and adds
+    /// Construct the sequence of n/pattern_length repeating subsequences for sequence and adds
     /// e*n mutations for sequence A, and then adds
     /// e*n mutations for sequence B
     MutatedRepeat,
-    /// Construct the sequence of e*n repeating subsequences for sequence and adds
+    /// Construct the sequence of n/pattern_length repeating subsequences for sequence and adds
     /// e*n/2 mutations for sequences A and B individually
     DoubleMutatedRepeat,
 }
@@ -225,7 +225,7 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
                 a.append(&mut pattern.to_string().into_bytes());
             }
             let mut a_rope = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
-            for _ in 0..(opt.length as f32 * opt.error_rate / 2 as f32) as usize {
+            for _ in 0..(opt.length as f32 * opt.error_rate / 2.) as usize {
                 make_mutation(&mut a_rope, rng);
             }
             b = ropey::Rope::new();
@@ -233,7 +233,7 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
             for _ in 0..opt.m.unwrap_or(opt.length) / opt.pattern_length {
                 b.append(pattern.clone());
             }
-            for _ in 0..(opt.m.unwrap_or(opt.length) as f32 * opt.error_rate / 2 as f32) as usize {
+            for _ in 0..(opt.m.unwrap_or(opt.length) as f32 * opt.error_rate / 2.) as usize {
                 make_mutation(&mut b, rng);
             }
             a = a_rope.to_string().into_bytes();
