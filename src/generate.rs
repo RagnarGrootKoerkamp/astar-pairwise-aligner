@@ -12,29 +12,26 @@ pub enum ErrorModel {
     Gap,
     /// Delete a region of size e*n and insert a region of size e*n.
     Move,
-    /// Takes a region of size e*n/2 and insert it
+    /// Takes a region of size e*n and insert it
     Insert,
     /// Takes a region of size e*n/2 and inserts it twice in a row next to
     /// each other
     Doubleinsert,
-    /// Construct the sequence of e*n repeating subsequences B and mutates each
-    /// of them randomly
-    RepeatedPattern,
     /// Construct the sequence of e*n repeating subsequences for sequence A
-    /// and adds sequence_length*error_rate mutations for sequence B
+    /// and adds e*n mutations for sequence B
     Repeat,
     /// Construct the sequence of e*n repeating subsequences for sequence and adds
-    /// sequence_length*error_rate mutations for sequence A, and then adds
-    /// sequence_length*error_rate mutations for sequence B
+    /// e*n mutations for sequence A, and then adds
+    /// e*n mutations for sequence B
     MutatedRepeat,
     /// Construct the sequence of e*n repeating subsequences for sequence and adds
-    /// sequence_length*error_rate mutations for sequences A and B individually
+    /// e*n mutations for sequences A and B individually
     DoubleMutatedRepeat,
 }
 
 #[derive(Parser, Clone)]
 pub struct GenerateArgs {
-    /// The number of sequence pairs to generate
+    /// The number of repetitive patterns from which A is constracted
     #[clap(short = 'x', long, default_value_t = 1, display_order = 2)]
     pub cnt: usize,
 
@@ -47,7 +44,8 @@ pub struct GenerateArgs {
         display_order = 3,
     )]
     pub length: Option<usize>,
-    /// The length of b for the case MutatedRepetativePattern3
+
+    /// The length of b for the case DoubleMutatedRepeat
     #[clap(short, hide_short_help = true)]
     pub m: Option<usize>,
 
@@ -71,7 +69,7 @@ pub struct GenerateArgs {
     #[clap(long)]
     pub seed: Option<u64>,
 
-    /// The number of sequence pairs to generate
+    /// The length of a pattern
     #[clap(long, default_value_t = 0, hide_short_help = true)]
     pub pattern_length: usize,
 }
@@ -159,43 +157,14 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
         }
         ErrorModel::Insert => {
             let start = rng.gen_range(0..b.len_bytes() - num_mutations);
-            let piece = b.slice(start..start + num_mutations / 2).to_string();
+            let piece = b.slice(start..start + num_mutations).to_string();
             b.insert(start, piece.as_str());
         }
         ErrorModel::Doubleinsert => {
             let start = rng.gen_range(0..b.len_bytes() - num_mutations);
-            let piece = b.slice(start..start + num_mutations).to_string();
+            let piece = b.slice(start..(start + num_mutations) / 2).to_string();
             b.insert(start, piece.as_str());
             b.insert(start + piece.len(), piece.as_str());
-        }
-        ErrorModel::RepeatedPattern => {
-            let pattern = ropey::Rope::from_str(
-                std::str::from_utf8(
-                    &(0..opt.pattern_length)
-                        .map(|_| rand_char(rng))
-                        .collect_vec(),
-                )
-                .unwrap(),
-            );
-            a = Vec::new();
-            let mut bb: Vec<u8> = Vec::new();
-            // fill a
-            for _ in 0..opt.length / opt.pattern_length {
-                let mut mutated_pattern = pattern.clone();
-                for _ in 0..(opt.error_rate * opt.pattern_length as f32).ceil() as usize {
-                    make_mutation(&mut mutated_pattern, rng);
-                }
-                a.append(&mut mutated_pattern.to_string().into_bytes());
-            }
-            // fill b
-            for _ in 0..opt.length / opt.pattern_length {
-                let mut mutated_pattern = pattern.clone();
-                for _ in 0..(opt.error_rate * opt.pattern_length as f32).ceil() as usize {
-                    make_mutation(&mut mutated_pattern, rng);
-                }
-                bb.append(&mut mutated_pattern.to_string().into_bytes());
-            }
-            b = ropey::Rope::from_str(std::str::from_utf8(&bb).unwrap());
         }
         ErrorModel::Repeat => {
             let pattern = ropey::Rope::from_str(
@@ -207,15 +176,14 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
                 .unwrap(),
             );
             a = Vec::new();
-            // fill a
+            // A is n/pattern_length copies of the pattern
             for _ in 0..opt.length / opt.pattern_length {
                 a.append(&mut pattern.to_string().into_bytes());
             }
-            let mut bb = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
+            let mut b = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
             for _ in 0..(opt.length as f32 * opt.error_rate) as usize {
-                make_mutation(&mut bb, rng);
+                make_mutation(&mut b, rng);
             }
-            b = bb;
         }
         ErrorModel::MutatedRepeat => {
             let pattern = ropey::Rope::from_str(
@@ -226,19 +194,21 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
                 )
                 .unwrap(),
             );
-            let mut aa = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
+            let mut a_rope = ropey::Rope::new();
             // fill a
             for _ in 0..opt.length / opt.pattern_length {
-                a.append(&mut pattern.to_string().into_bytes());
+                a_rope.append(pattern.clone());
             }
+            // Apply n*e mutations to A
             for _ in 0..(opt.length as f32 * opt.error_rate) as usize {
-                make_mutation(&mut aa, rng);
+                make_mutation(&mut a_rope, rng);
             }
-            // fill b
+            b = a_rope.clone();
+            // Apply n*e mutations to B
             for _ in 0..(opt.length as f32 * opt.error_rate) as usize {
                 make_mutation(&mut b, rng);
             }
-            a = aa.to_string().into_bytes();
+            a = a_rope.to_string().into_bytes();
         }
         ErrorModel::DoubleMutatedRepeat => {
             let pattern = ropey::Rope::from_str(
@@ -254,9 +224,9 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
             for _ in 0..opt.length / opt.pattern_length {
                 a.append(&mut pattern.to_string().into_bytes());
             }
-            let mut aa = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
+            let mut a_rope = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
             for _ in 0..(opt.length as f32 * opt.error_rate / 2 as f32) as usize {
-                make_mutation(&mut aa, rng);
+                make_mutation(&mut a_rope, rng);
             }
             b = ropey::Rope::new();
             // fill b
@@ -266,10 +236,10 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
             for _ in 0..(opt.m.unwrap_or(opt.length) as f32 * opt.error_rate / 2 as f32) as usize {
                 make_mutation(&mut b, rng);
             }
-            a = aa.to_string().into_bytes();
+            a = a_rope.to_string().into_bytes();
         }
     }
-    println!("{}\n\n{}\n", to_string(&a), b);
+    println!("{}\n{}\n", to_string(&a), b);
     (a, b.to_string().into_bytes())
 }
 
@@ -317,7 +287,7 @@ pub fn setup_sequences_with_seed(seed: u64, n: usize, e: f32) -> (Sequence, Sequ
             error_rate: e,
             error_model: ErrorModel::Uniform,
             pattern_length: 0,
-            m: Some(n),
+            m: None,
         },
         &mut rng,
     );
@@ -367,7 +337,7 @@ mod test {
                         error_rate: e,
                         error_model: ErrorModel::Uniform,
                         pattern_length: 0,
-                        m: Some(n),
+                        m: None,
                     },
                     &mut rng_1,
                 );
