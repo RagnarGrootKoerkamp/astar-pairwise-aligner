@@ -193,10 +193,10 @@ where
     }
 
     /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
-    fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> Cost {
+    fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> (Cost, ()) {
         const D: bool = false;
         if !self.params.pruning.enabled {
-            return 0;
+            return (0, ());
         }
 
         let start = time::Instant::now();
@@ -255,7 +255,7 @@ where
         } else {
             self.pruning_duration += start.elapsed();
             self.build();
-            return 0;
+            return (0, ());
         };
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
@@ -278,7 +278,7 @@ where
 
         if a.len <= min_len {
             self.build();
-            return 0;
+            return (0, ());
         }
 
         if D || print() {
@@ -331,7 +331,7 @@ where
 
         self.num_pruned += 1;
         self.build();
-        return 0;
+        return (0, ());
     }
 
     fn stats(&self) -> HeuristicStats {

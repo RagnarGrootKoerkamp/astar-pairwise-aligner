@@ -261,18 +261,20 @@ impl<'a> HeuristicInstance<'a> for SHI {
         self.matches.is_seed_start_or_end(pos)
     }
 
+    type Order = I;
+
     /// FIXME: This code is copied from CSH. Should be extracted into a pruning module.
-    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
+    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> (Cost, I) {
         const D: bool = false;
         if !self.params.pruning.enabled {
-            return 0;
+            return (0, 0);
         }
 
         // Maximum length arrow at given pos.
         let max_match_cost = self.params.match_config.max_match_cost;
 
         // Prune any matches ending here.
-        let mut change = 0;
+        // TODO: Shifting for prune by end.
         if PRUNE_MATCHES_BY_END {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
@@ -315,12 +317,10 @@ impl<'a> HeuristicInstance<'a> for SHI {
         let a = if let Some(matches) = self.arrows.get(&pos) {
             matches.iter().max_by_key(|a| a.len).unwrap().clone()
         } else {
-            return if pos >= self.max_explored_pos {
-                change
-            } else {
-                0
-            };
+            return (0, 0);
         };
+
+        let mut change = 0;
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
         // TODO: Make this smarter and allow pruning long arrows even when pruning short arrows is not possible.
@@ -341,7 +341,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
         }
 
         if a.len <= min_len {
-            return 0;
+            return (0, 0);
         }
 
         if D || print() {
@@ -400,9 +400,9 @@ impl<'a> HeuristicInstance<'a> for SHI {
 
         self.num_pruned += 1;
         return if pos >= self.max_explored_pos {
-            change
+            (change, pos.0)
         } else {
-            0
+            (0, 0)
         };
     }
 

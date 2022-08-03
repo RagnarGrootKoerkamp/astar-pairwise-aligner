@@ -65,10 +65,10 @@ where
         s1 || s2
     }
 
-    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
-        let c1 = self.h1.prune(pos, hint.0);
-        let c2 = self.h2.prune(pos, hint.1);
-        min(c1, c2)
+    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> (Cost, ()) {
+        let _c1 = self.h1.prune(pos, hint.0);
+        let _c2 = self.h2.prune(pos, hint.1);
+        (0, ())
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {

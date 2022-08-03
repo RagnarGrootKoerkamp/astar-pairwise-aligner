@@ -8,6 +8,8 @@ pub mod perfect;
 pub mod seed;
 pub mod symmetric;
 
+use crate::{matches::Match, prelude::*};
+
 pub use bruteforce_csh::*;
 pub use chained_seed::*;
 pub use distance::*;
@@ -15,11 +17,8 @@ pub use equal::*;
 pub use max::*;
 pub use mirror::*;
 pub use perfect::*;
-
 pub use seed::*;
 pub use symmetric::*;
-
-use crate::{matches::Match, prelude::*};
 
 #[derive(Default, Clone)]
 pub struct HeuristicParams {
@@ -70,8 +69,49 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct DisplayOptions {}
+pub trait PosOrderT: PartialOrd + Default + Copy + std::fmt::Debug {
+    fn from_pos(p: Pos) -> Self;
+    fn max(p: Self, q: Self) -> Self;
+    type D: std::fmt::Debug;
+    fn diff(p: Self, q: Self) -> Self::D;
+}
+
+impl PosOrderT for () {
+    fn from_pos(_: Pos) -> Self {}
+    fn max(_: Self, _: Self) -> Self {}
+    type D = ();
+    fn diff(_: Self, _: Self) -> Self::D {}
+}
+
+/// The order for CSH
+impl PosOrderT for Pos {
+    fn from_pos(p: Pos) -> Self {
+        p
+    }
+    fn max(p: Self, q: Self) -> Self {
+        Pos(max(p.0, q.0), max(p.1, q.1))
+    }
+    type D = (i32, i32);
+    fn diff(p: Self, q: Self) -> Self::D {
+        (p.0 as i32 - q.0 as i32, p.1 as i32 - q.1 as i32)
+    }
+}
+
+/// The order of SH.
+impl PosOrderT for I {
+    fn from_pos(p: Pos) -> Self {
+        p.0
+    }
+    fn max(p: Self, q: Self) -> Self {
+        max(p, q)
+    }
+    type D = i32;
+    fn diff(p: Self, q: Self) -> Self::D {
+        p as i32 - q as i32
+    }
+}
+
+pub type X = ();
 
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
@@ -109,11 +149,13 @@ pub trait HeuristicInstance<'a> {
         false
     }
 
+    type Order: PosOrderT = ();
+
     /// Returns the offset by which all expanded states in the priority queue can be shifted.
     ///
     /// `seed_cost`: The cost made in the seed ending at pos.
-    fn prune(&mut self, _pos: Pos, _hint: Self::Hint) -> Cost {
-        0
+    fn prune(&mut self, _pos: Pos, _hint: Self::Hint) -> (Cost, Self::Order) {
+        (0, Default::default())
     }
 
     /// Tells the heuristic that the position was explored, so it knows which

@@ -324,10 +324,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     /// `seed_cost` can be used to filter out lookups for states that won't have a match ending there.
     /// TODO: Separate into one step removing as many arrows as needed, and a separate step updating the contours.
-    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> Cost {
+    type Order = Pos;
+    fn prune(&mut self, pos: Pos, hint: Self::Hint) -> (Cost, Pos) {
         const D: bool = false;
         if !self.params.pruning.enabled {
-            return 0;
+            return (0, Pos::default());
         }
 
         let start = time::Instant::now();
@@ -348,9 +349,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                     }
                     let match_start = Pos(s.start, s.start + pos.1 - pos.0);
                     let mut try_prune_pos = |startpos: Pos| {
-                        if !self.add_prune() {
-                            return;
-                        }
                         let tp = self.transform(startpos);
                         let Some(arrows) = self.arrows.get_mut(&tp) else { return; };
                         // Filter arrows starting in the current position.
@@ -360,7 +358,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                         if arrows.is_empty() {
                             self.arrows.remove(&tp).unwrap();
                         }
-                        // TODO: Propagate this change.
+                        self.num_pruned += 1;
+                        // FIXME: Propagate this change.
                         self.contours.prune_with_hint(tp, hint, &self.arrows).1;
                     };
                     // First try pruning neighbouring start states, and prune the diagonal start state last.
@@ -378,11 +377,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             arrows.iter().max_by_key(|a| a.len).unwrap().clone()
         } else {
             self.pruning_duration += start.elapsed();
-            return if tpos >= self.max_transformed_pos {
-                change
-            } else {
-                0
-            };
+            // FIXME: Fix queue shifting with gapcost.
+            return (change, pos);
         };
 
         // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
@@ -404,7 +400,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         }
 
         if a.len <= min_len {
-            return 0;
+            return (0, Pos::default());
         }
 
         if D || print() {
@@ -468,11 +464,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         self.pruning_duration += start.elapsed();
 
-        return if tpos >= self.max_transformed_pos {
-            change
-        } else {
-            0
-        };
+        // TODO: FIX for transformed pos.
+        (change, pos)
     }
 
     /// Update the max_explored_pos, so we know when the priority queue can be shifted after a prune.
