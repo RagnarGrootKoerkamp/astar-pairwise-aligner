@@ -152,6 +152,8 @@ fn main() {
             length: args.length.unwrap(),
             error_rate: args.error_rate.unwrap(),
             error_model: args.error_model,
+            pattern_length: args.pattern_length,
+            m: args.m,
         };
         for _ in 0..args.cnt {
             let (a, b) = generate_pair(&generate_options, rng);
