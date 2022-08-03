@@ -25,13 +25,13 @@ pub enum ErrorModel {
     /// e*n mutations for sequence B
     MutatedRepeat,
     /// Construct the sequence of e*n repeating subsequences for sequence and adds
-    /// e*n mutations for sequences A and B individually
+    /// e*n/2 mutations for sequences A and B individually
     DoubleMutatedRepeat,
 }
 
 #[derive(Parser, Clone)]
 pub struct GenerateArgs {
-    /// The number of repetitive patterns from which A is constracted
+    /// The number of sequence pairs to generate
     #[clap(short = 'x', long, default_value_t = 1, display_order = 2)]
     pub cnt: usize,
 
@@ -180,7 +180,7 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
             for _ in 0..opt.length / opt.pattern_length {
                 a.append(&mut pattern.to_string().into_bytes());
             }
-            let mut b = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
+            b = ropey::Rope::from_str(std::str::from_utf8(&a).unwrap());
             for _ in 0..(opt.length as f32 * opt.error_rate) as usize {
                 make_mutation(&mut b, rng);
             }
@@ -239,7 +239,6 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
             a = a_rope.to_string().into_bytes();
         }
     }
-    println!("{}\n{}\n", to_string(&a), b);
     (a, b.to_string().into_bytes())
 }
 
