@@ -1077,7 +1077,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             } else {
                 self.align_for_bounded_dist(a, b, None).unwrap()
             };
-        self.v.last_frame(Some(&cigar.to_path()));
         (cost, cigar)
     }
 
@@ -1158,6 +1157,34 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                     DtState::target(a, b, s),
                     Direction::Forward,
                 );
+
+                self.v.borrow_mut().last_frame_with_tree(
+                    Some(&cigar.to_path()),
+                    Some(
+                        &(|pos| {
+                            // Determine the cost for the position.
+                            let mut st = DtState::from_pos(pos, 0);
+                            // println!("pos: {pos}");
+                            // println!("st: {st:?}");
+                            loop {
+                                let front = &fronts[st.s as Fr];
+                                if front.range().contains(&st.d) && front.layer(None)[st.d] >= st.fr
+                                {
+                                    break;
+                                    // println!(
+                                    //     "st: {st:?} fr {}",
+                                    //     fronts[st.s as Fr].layer(None)[st.d]
+                                    // );
+                                }
+                                st.s += 1;
+                            }
+
+                            self.parent(a, b, &fronts, st, Direction::Forward)
+                                .map(|x| x.0.to_pos())
+                        }),
+                    ),
+                );
+
                 return Some((s, cigar));
             }
         }

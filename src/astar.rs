@@ -273,9 +273,9 @@ where
     let path = traceback::<H>(&states, graph.target());
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
     if let Some((_, actual_path)) = path.as_ref() {
-        v.last_frame_with_h(Some(actual_path), Some(h));
+        v.last_frame_with_h(Some(actual_path), None, Some(h));
     } else {
-        v.last_frame_with_h(None, Some(h));
+        v.last_frame_with_h(None, None, Some(h));
     }
     (path, stats)
 }

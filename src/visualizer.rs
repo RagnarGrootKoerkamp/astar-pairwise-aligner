@@ -7,6 +7,7 @@
 //! ```sh
 //! ffmpeg -framerate 20 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" output.mp4
 //! ```
+
 use crate::{
     aligners::Path,
     heuristic::{HeuristicInstance, ZeroCostI},
@@ -32,11 +33,19 @@ pub trait VisualizerT {
 
     /// This function may be called after the main loop to display final image.
     fn last_frame(&mut self, path: Option<&Path>) {
-        self.last_frame_with_h::<ZeroCostI>(path, None);
+        self.last_frame_with_h::<ZeroCostI>(path, None, None);
+    }
+    fn last_frame_with_tree(
+        &mut self,
+        path: Option<&Path>,
+        parent: Option<&dyn Fn(Pos) -> Option<Pos>>,
+    ) {
+        self.last_frame_with_h::<ZeroCostI>(path, parent, None);
     }
     fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
         &mut self,
         _path: Option<&Path>,
+        _parent: Option<&dyn Fn(Pos) -> Option<Pos>>,
         _h: Option<&H>,
     ) {
     }
@@ -93,13 +102,19 @@ mod with_sdl2 {
 
     impl VisualizerT for Visualizer {
         fn expand_with_h<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, h: Option<&H>) {
+            if !(pos <= Pos(self.width - 1, self.height - 1)) {
+                return;
+            }
             self.expanded.push(pos);
-            self.draw(false, None, false, h);
+            self.draw(false, None, false, h, None);
         }
 
         fn explore_with_h<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, h: Option<&H>) {
+            if !(pos <= Pos(self.width - 1, self.height - 1)) {
+                return;
+            }
             self.explored.push(pos);
-            self.draw(false, None, false, h);
+            self.draw(false, None, false, h, None);
         }
 
         fn new_layer_with_h<'a, H: HeuristicInstance<'a>>(&mut self, h: Option<&H>) {
@@ -107,15 +122,16 @@ mod with_sdl2 {
                 self.layer = Some(layer + 1);
                 self.expanded_layers.push(self.expanded.len());
             }
-            self.draw(false, None, true, h);
+            self.draw(false, None, true, h, None);
         }
 
         fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
             &mut self,
             path: Option<&Path>,
+            parent: Option<&dyn Fn(Pos) -> Option<Pos>>,
             h: Option<&H>,
         ) {
-            self.draw(true, path, false, h);
+            self.draw(true, path, false, h, parent);
         }
     }
 
@@ -153,9 +169,14 @@ mod with_sdl2 {
         pub expanded: Gradient,
         pub explored: Option<Color>,
         pub bg_color: Color,
+        /// None to disable
         pub path: Option<Color>,
         /// None to draw cells.
         pub path_width: Option<usize>,
+
+        /// None to disable
+        pub tree: Option<Color>,
+        pub tree_width: usize,
 
         // Options to draw heuristics
         pub draw_heuristic: bool,
@@ -225,6 +246,8 @@ mod with_sdl2 {
                     bg_color: Color::WHITE,
                     path: Some(Color::BLACK),
                     path_width: Some(2),
+                    tree: Some(Color::GRAY),
+                    tree_width: 1,
                     draw_heuristic: false,
                     draw_contours: false,
                     draw_matches: false,
@@ -455,6 +478,7 @@ mod with_sdl2 {
             path: Option<&Path>,
             is_new_layer: bool,
             h: Option<&H>,
+            parent: Option<&dyn Fn(Pos) -> Option<Pos>>,
         ) {
             let current_frame = self.frame_number;
             self.frame_number += 1;
@@ -677,6 +701,26 @@ mod with_sdl2 {
                         },
                         self.config.style.match_width,
                     );
+                }
+            }
+
+            // Draw tree.
+            if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
+                let mut done = crate::prelude::HashSet::default();
+                for &u in &self.expanded {
+                    let mut u = u;
+                    if done.insert(u) {
+                        while let Some(p) = parent(u){
+                            Self::draw_diag_line(
+                                &mut canvas,
+                                self.cell_center(p),
+                                self.cell_center(u),
+                                tree_color,
+                                self.config.style.tree_width,
+                            );
+                            u = p;
+                        }
+                    }
                 }
             }
 
