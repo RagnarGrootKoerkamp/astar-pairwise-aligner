@@ -71,7 +71,7 @@ fn main() {
                 vis(config.clone(), "3_diagonal-transition"),
             );
             dt.align(a, b);
-            println!("{}", dt.v.expanded.len() as f32 / a.len() as f32);
+            println!("{}", dt.v.borrow().expanded.len() as f32 / a.len() as f32);
         }
 
         {
@@ -84,7 +84,7 @@ fn main() {
                 vis(config.clone(), "4_dt-divide-and-conquer"),
             );
             dt.align(a, b);
-            println!("{}", dt.v.expanded.len() as f32 / a.len() as f32);
+            println!("{}", dt.v.borrow().expanded.len() as f32 / a.len() as f32);
         }
 
         if video_mode {

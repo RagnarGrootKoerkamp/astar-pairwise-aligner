@@ -29,6 +29,7 @@ use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance};
 use crate::prelude::Pos;
 use crate::visualizer::VisualizerT;
+use std::cell::RefCell;
 use std::cmp::{max, min};
 use std::iter::zip;
 use std::ops::RangeInclusive;
@@ -54,6 +55,12 @@ pub enum GapCostHeuristic {
     Disable,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PathTracingMethod {
+    ForwardGreedy,
+    ReverseGreedy,
+}
+
 /// Settings for the algorithm, and derived constants.
 ///
 /// TODO: Split into two classes: A static user supplied config, and an instance
@@ -71,7 +78,10 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
     /// When true, `align` uses divide & conquer to compute the alignment in linear memory.
     dc: bool,
 
-    pub v: V,
+    /// The visualizer
+    pub v: RefCell<V>,
+
+    pub path_tracing_method: PathTracingMethod,
 
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
@@ -145,6 +155,20 @@ impl DtState {
             layer: None,
             s,
         }
+    }
+    fn from_pos(p: Pos, s: Cost) -> Self {
+        DtState {
+            d: p.0 as Fr - p.1 as Fr,
+            fr: p.0 as Fr + p.1 as Fr,
+            layer: None,
+            s,
+        }
+    }
+    fn to_pos(&self) -> Pos {
+        Pos(
+            ((self.fr + self.d) / 2) as crate::prelude::I,
+            ((self.fr - self.d) / 2) as crate::prelude::I,
+        )
     }
 }
 
@@ -294,7 +318,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             use_gap_cost_heuristic,
             h,
             dc,
-            v,
+            v: RefCell::new(v),
+            path_tracing_method: PathTracingMethod::ForwardGreedy,
             top_buffer,
             left_buffer,
             right_buffer,
@@ -320,7 +345,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 Forward => {
                     *fr += 2 * extend_diagonal(direction, a, b, d, *fr);
                     for fr in (fr_old + 2..=*fr).step_by(2) {
-                        self.v.expand(offset + fr_to_pos(d, fr));
+                        self.v.borrow_mut().expand(offset + fr_to_pos(d, fr));
                     }
                 }
                 Backward => {
@@ -332,7 +357,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         a.len() as Fr + b.len() as Fr - *fr,
                     );
                     for fr in (fr_old + 2..=*fr).step_by(2) {
-                        self.v.expand(
+                        self.v.borrow_mut().expand(
                             offset
                                 + fr_to_pos(
                                     a.len() as Fr - b.len() as Fr - d,
@@ -544,7 +569,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
                         if fr >= 0 {
-                            self.v.expand(offset + fr_to_pos(d, fr));
+                            self.v.borrow_mut().expand(offset + fr_to_pos(d, fr));
                         }
                     });
                 }
@@ -582,7 +607,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
                         if fr >= 0 && fr_to_pos(d, fr) <= Pos::from_lengths(a, b) {
-                            self.v.expand(offset + mirror_pos(fr_to_pos(d, fr)));
+                            self.v
+                                .borrow_mut()
+                                .expand(offset + mirror_pos(fr_to_pos(d, fr)));
                         }
                     });
                 }
@@ -599,7 +626,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
         // Extend all points in the m layer and check if we're done.
         let r = self.extend(get_front(fronts, 0), a, b, offset, direction);
-        self.v.new_layer();
+        self.v.borrow_mut().new_layer();
         r
     }
 
@@ -895,51 +922,69 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         st: Self::State,
         direction: Direction,
     ) -> Option<(Self::State, CigarOps)> {
+        if st.is_root() {
+            return None;
+        }
         let mut max_fr = Fr::MIN;
         let mut parent = None;
         let mut cigar_ops = [None, None];
 
         match direction {
-            Forward => {
-                if !st.is_root() {
-                    EditGraph::iterate_parents_dt(
-                        a,
-                        b,
-                        &self.cm,
-                        st.layer,
-                        |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
-                            let parent_cost = st.s as Fr - edge_cost as Fr;
-                            if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
-                                return None;
-                            }
-                            let fr = fronts[parent_cost].layer(layer)[st.d + (di - dj) as Fr]
-                                - (di + dj) as Fr;
-                            if fr >= 0 {
-                                Some(fr_to_coords(st.d, fr))
-                            } else {
-                                None
-                            }
-                        },
-                        |di, dj, i, j, layer, edge_cost, ops| {
-                            let fr = (i + j) as Fr;
-                            if fr > max_fr {
-                                max_fr = fr;
-                                parent = Some(DtState {
-                                    d: st.d + (di - dj),
-                                    fr: st.fr + (di + dj),
-                                    layer,
-                                    s: st.s - edge_cost as Cost,
-                                });
-                                cigar_ops = ops;
-                            }
-                        },
-                    );
+            Forward => 'forward: {
+                if self.path_tracing_method == PathTracingMethod::ReverseGreedy {
+                    // If reverse greedy matching is asked for, walk backwards
+                    // along matching edges if possible.
+                    if st.layer == None {
+                        let (i, j) = fr_to_coords(st.d, st.fr);
+                        if let Some(ca) = a.get(i as usize-1) && let Some(cb) = b.get(j as usize-1) && ca == cb {
+                            parent = Some(st);
+                            parent.as_mut().unwrap().fr -= 2;
+                            cigar_ops = [Some(CigarOp::Match), None];
+                            break 'forward;
+                        }
+                    }
                 }
+
+                EditGraph::iterate_parents_dt(
+                    a,
+                    b,
+                    &self.cm,
+                    st.layer,
+                    |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
+                        let parent_cost = st.s as Fr - edge_cost as Fr;
+                        if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
+                            return None;
+                        }
+                        let fr = fronts[parent_cost].layer(layer)[st.d + (di - dj) as Fr]
+                            - (di + dj) as Fr;
+                        if fr >= 0 {
+                            Some(fr_to_coords(st.d, fr))
+                        } else {
+                            None
+                        }
+                    },
+                    |di, dj, i, j, layer, edge_cost, ops| {
+                        let fr = (i + j) as Fr;
+                        // Prefer indel edges over substitution edges.
+                        if fr > max_fr || (fr == max_fr && di != dj) {
+                            max_fr = fr;
+                            parent = Some(DtState {
+                                d: st.d + (di - dj),
+                                fr: st.fr + (di + dj),
+                                layer,
+                                s: st.s - edge_cost as Cost,
+                            });
+                            cigar_ops = ops;
+                        }
+                    },
+                );
+
                 // Match
                 // TODO: Add a setting to do greedy backtracking before checking other parents.
                 if max_fr < st.fr {
                     assert!(st.layer == None);
                     let (i, j) = fr_to_coords(st.d, st.fr);
+                    assert!(i > 0 && j > 0, "bad coords {i} {j}");
                     assert_eq!(a[i as usize - 1], b[j as usize - 1]);
                     parent = Some(st);
                     parent.as_mut().unwrap().fr -= 2;
@@ -951,40 +996,40 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 let mirror = |(i, j)| (a.len() as Fr - i, b.len() as Fr - j);
                 //let mirror_pos = |Pos(i, j)| Pos(a.len() as u32 - i, b.len() as u32 - j);
                 let mirror_fr = |fr| a.len() as Fr + b.len() as Fr - fr;
-                if !st.is_root() {
-                    EditGraph::iterate_children_dt(
-                        a,
-                        b,
-                        &self.cm,
-                        st.layer,
-                        |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
-                            let parent_cost = st.s as Fr - edge_cost as Fr;
-                            if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
-                                return None;
-                            }
-                            let fr = fronts[parent_cost].layer(layer)[st.d - (di - dj) as Fr];
-                            //+ (di + dj) as Fr;
-                            if fr >= 0 {
-                                Some(mirror(fr_to_coords(st.d - (di - dj), fr)))
-                            } else {
-                                None
-                            }
-                        },
-                        |di, dj, i, j, layer, edge_cost, ops| {
-                            let fr = mirror_fr((i + j) as Fr) + (di + dj) as Fr;
-                            if fr > max_fr {
-                                max_fr = fr;
-                                parent = Some(DtState {
-                                    d: st.d - (di - dj),
-                                    fr: st.fr - (di + dj),
-                                    layer,
-                                    s: st.s - edge_cost as Cost,
-                                });
-                                cigar_ops = ops;
-                            }
-                        },
-                    );
-                }
+
+                EditGraph::iterate_children_dt(
+                    a,
+                    b,
+                    &self.cm,
+                    st.layer,
+                    |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
+                        let parent_cost = st.s as Fr - edge_cost as Fr;
+                        if parent_cost < 0 || !fronts.full_range().contains(&parent_cost) {
+                            return None;
+                        }
+                        let fr = fronts[parent_cost].layer(layer)[st.d - (di - dj) as Fr];
+                        //+ (di + dj) as Fr;
+                        if fr >= 0 {
+                            Some(mirror(fr_to_coords(st.d - (di - dj), fr)))
+                        } else {
+                            None
+                        }
+                    },
+                    |di, dj, i, j, layer, edge_cost, ops| {
+                        let fr = mirror_fr((i + j) as Fr) + (di + dj) as Fr;
+                        if fr > max_fr {
+                            max_fr = fr;
+                            parent = Some(DtState {
+                                d: st.d - (di - dj),
+                                fr: st.fr - (di + dj),
+                                layer,
+                                s: st.s - edge_cost as Cost,
+                            });
+                            cigar_ops = ops;
+                        }
+                    },
+                );
+
                 // Match
                 // TODO: Add a setting to do greedy backtracking before checking other parents.
                 if max_fr < st.fr {
@@ -1010,7 +1055,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         } else {
             self.cost_for_bounded_dist(a, b, None).unwrap()
         };
-        self.v.last_frame(None);
+        self.v.borrow_mut().last_frame(None);
         cost
     }
 
@@ -1040,7 +1085,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
-        self.v.expand(Pos(0, 0));
+        self.v.borrow_mut().expand(Pos(0, 0));
         let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
             Ok(fronts) => fronts,
             Err(r) => return Some(r.0),
@@ -1078,7 +1123,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         b: Seq,
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Cigar)> {
-        self.v.expand(Pos(0, 0));
+        self.v.borrow_mut().expand(Pos(0, 0));
         let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
             Ok(fronts) => fronts,
             Err(r) => return Some(r),
@@ -1127,9 +1172,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         assert!(H::IS_DEFAULT);
         assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
 
-        self.v.expand(Pos(0, 0));
+        self.v.borrow_mut().expand(Pos(0, 0));
         let (cost, cigar) = self.path_between_dc(a, b, Pos(0, 0), None, None);
-        self.v.last_frame(Some(&cigar.to_path()));
+        self.v.borrow_mut().last_frame(Some(&cigar.to_path()));
         (cost, cigar)
     }
 }
