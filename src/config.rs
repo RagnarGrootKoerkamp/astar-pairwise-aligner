@@ -34,7 +34,7 @@ pub const SLIDING_WINDOW_MATCHES: bool = false;
 pub const PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END: bool = false;
 
 /// Whether to prune matches by end, in addition to pruning by start.
-pub const PRUNE_MATCHES_BY_END: bool = false;
+pub const PRUNE_MATCHES_BY_END: bool = true;
 
 /// Whether to prune matches by start.
 pub const PRUNE_MATCHES_BY_START: bool = true;
