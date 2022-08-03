@@ -5,13 +5,8 @@ List of TODOs and other quick remarks.
 * Correctness
 ** DONE Proof for consistency of $h$ at start of matches
 ** DONE Proof that =consistent pruned heuristics= works
-A lowerbound on the shortest path to the end, not using any already expanded
-states. Consistent when $f$ never decreases over edges.
 ** DONE Proof that pruning heuristic yields a consistent pruned heuristic
-CLOSED: [2022-03-01 Tue 14:23]
 By definition, now that we are more conservative with checking neighbours before pruning.
-** TODO ZeroCost heuristic is not consistent
-On diagonals, h can increase. Greedy Diagonal Matches requires that this doesn't happen.
 
 * Run-time analysis
 ** TODO What is the expected deviation from the diagonal for a random sequence?
@@ -26,123 +21,10 @@ $e \leq 1/k \leq 1/\lg n$.
 them: $n \cdot s = n ^2 e = n^2 / \lg n$
 us: $n$
 
-* Failing assertions / Bugs
-** DONE Investigate inconsistent heuristic before pruning
-CLOSED: [2022-01-22 Sat 23:05]
-For n=300000 e=0.2, the assertion failed at least once.
-Also found counterexamples for n=100.
-
-Fixed by the point below.
-** DONE Fix consistency of pruning with shadow points
-CLOSED: [2022-01-22 Sat 23:05]
-When a point is removed from a layer, dependent dominant points in the next
-layer need to be checked, because they may need to be inserted in the current
-layer as new shadow points. It is unclear to me why this hasn't been an issue
-for NaiveContours so for, but only shown up for HintContours.
-
-Fixed by for each point that is up to date in the prune callback, checking
-whether shadow points need to be added after pruning on the layer below.
-** DONE Pruning may result in double expansion of matches
-CLOSED: [2022-01-11 Tue 14:21]
-We have to make sure that we only prune when we found the shortest path to a
-node. Currently this assertion fails, probably because of issues around pruning
-inexact matches next to exact matches.
-
-It seems that this is not an issue anymore when retrying on outdated heuristic values.
-
-** DONE GappedSeedHeuristic differs from SeedHeuristic in some edge cases
-CLOSED: [2022-01-11 Tue 16:28]
-SeedHeuristic was using outdated values of h when rebuilding, leading to differences.
-** DONE Do we need some special consideration for seeds exactly on the edge of the cone region?
-CLOSED: [2022-01-11 Tue 16:28]
-Nope, fixed by the above
-** DONE NaiveContours sometimes drops values by more than max_len.
-CLOSED: [2022-01-11 Tue 14:23]
-Fixed by replacing the pruning of the single root point by also
-pruning silently pruned potential new dominant points in the layer.
-
-** DONE Make sure SeedHeuristic never uses the GapCost.
-CLOSED: [2022-01-11 Tue 20:34]
-In the ChainedSeedsHeuristic, we never use a gap distance, unless it's towards the target.
-This test makes sure that SeedHeuristic<Gap> does the same:
-Instead of taking max(gap distance, potential distance), in cases when gap >
-potential, this parent should be skipped completely.
-** DONE Double expanding start of seeds
-CLOSED: [2022-01-12 Wed 11:28]
-*** Broken solution
-Disabled greedy matching. Removing multiple types of not-best paths can lead
-to deletion of all best paths, since we don't have a strict inequality.
-In particular, greedy matching can lead to a non-consistent heuristic.
-
-Even with greedy matching disabled, that doesn't mean this problem won't happen
-anymore.
-Solutions:
-- Do not prune matches where the cell above/below it has a lower value, as that
-  would lead to an inconsistent heuristic.
-- Argue that the current situation is fine. That may or may not be true, and
-  likely depends on the order in which the A* breaks ties between equal $f$ values.
-*** Good solution
-Re-enabled greedy matching -- that was not the problem.
-
-Instead, we have to make sure that even after pruning $h$ remains consistent.
-If we have a situation where we prune a position with $h$ larger than a
-neighbour above or below, after pruning this difference will be at least $2$,
-which is not consistent.
-
-As a fix, both ~SeedHeuristic~ and ~ChainedSeedsHeuristic~ now check whether the
-current $h$ value is larger than any of the neighbours above/below, and if so,
-skip pruning.
-** DONE Greedy matching on expand instead of explore
-- NOTE: Never expand starts of matches this way.
-- This makes the PQ smaller -- only states at end of greedy runs are ever stored.
-- Broken, because we may be able to get to the diagonal with smaller ~g~ than
-  the current ~g+1~.
-- Could be fixed by doing A* in order or ~(f, g)~.
-
-* Statistics
-** DONE avg total estimated distance
-CLOSED: [2022-02-10 Thu 16:20]
-** TODO max number of consecutive matches
-** TODO contribution to h from matches and distance heuristic
-** TODO heuristic time
-** DONE number of skipped matches
-CLOSED: [2022-02-14 Mon 20:09]
-** DONE pruning time
-CLOSED: [2022-01-13 Thu 18:56]
-** TODO Use ~explored/path-len~ for band, instead of ~explored/max(n,m)~
-** DONE Report number of allocated DiagonalMap states and % filled
-CLOSED: [2022-02-08 Tue 17:31]
-** TODO Size of wrapper vec around DM
-** TODO Max size of queue
-** TODO Max deviation from diagonal (distance between min and max diagonal)
-** DONE Print allocated states
-CLOSED: [2022-02-10 Thu 16:24]
-** DONE Remove optional wrappers from statistics; just make them 0
-CLOSED: [2022-02-14 Mon 20:09]
-
 * Code
-** TODO fuzzing/testing that fast impls equal slow impls
-** TODO efficient pruning: skip explored states that have outdated heuristic value (aka pruning with offset)
-** DONE Investigate doing long jumps on matching diagonals.
-CLOSED: [2022-01-15 Sat 17:19]
-Did not give much, because A* will expand jumped-over states anyway.
 ** TODO Rename max_match_cost to something that includes the +1 that's present everywhere.
-** DONE Make a separate type for transformed positions
-CLOSED: [2022-01-19 Wed 18:02]
-** DONE Parameter for enabling greedy matching
-CLOSED: [2022-01-19 Wed 18:02]
-** DONE Remove sorting from BucketHeap? (Doesn't matter for A*, but may help for cache locality.)
-CLOSED: [2022-01-19 Wed 18:02]
-** DONE Colour ~print_heuristic~ by contours instead of by parent.
-CLOSED: [2022-01-15 Sat 17:18]
-** DONE Consider using Intrusive Collections for storing contours.
-CLOSED: [2022-02-14 Mon 20:09]
-This is not going to be helpful now that contours are typically very small.
-** TODO Check code coverage to see which edge cases are never hit.
-** DONE Extract tests to /tests.
-CLOSED: [2022-01-19 Wed 18:03]
-** DONE Replace ~Sequence: Vec<u8>~ by ~&[u8]~.
-CLOSED: [2022-06-24 Fri 05:58]
+** TODO Make a separate type for transformed positions
+** TODO Check code coverage
 ** TODO Test if ~dyn Contour~ is as fast as ~C: Contour~, and if so simplify the code this way.
 Same for Heuristic. Compilation is very slow after enumerating over all possible
 implementations in ~algorithms.rs~.
@@ -152,13 +34,9 @@ WIP, but not so efficient yet.
 *** TODO Insert words in sorted order
 - Cache locality
 - data can be a slice from larger vector.
-
-** DONE Shrink size of Pos
-CLOSED: [2022-01-15 Sat 17:18]
-** DONE Add new strong type for costs.
-CLOSED: [2022-01-15 Sat 17:18]
 ** TODO More compact Match/Arrow representation; using delta encoding for end
-** TODO Parallelize code
+** TODO
+** TODO Parallellize code
 *** TODO Trie building (lock after the first 2 layers)
 *** TODO Trie lookup: trie is immutable at this point
 *** TODO A*: One thread for pruning, one thread for querying
@@ -173,22 +51,11 @@ always accurate in context of pruning.
 Double-expands slightly more now, but retries much less, because the check for
 ~g_queue == g~ (which just ignores the element if false), makes for skipping
 some retries.
-*** DONE Optimize for matching states: process these directly instead of pushing & popping from the queue
-CLOSED: [2022-01-21 Fri 02:45]
-This gives up to 2x speedup of the A* for highly similar sequences.
-** DONE Fix timing of pruning
-CLOSED: [2022-01-21 Fri 15:50]
-Currently it often reports 0, even though it's much more in the flamegraph.
 ** DONE Make deleting from ~contours~ vector faster
 CLOSED: [2022-02-10 Thu 16:16]
 Replace the single vector by something that allows faster deletion but still
-constant time lookup. Maybe something using sqrt decomposition or fenwick trees.
-Or maybe soft-deletion in combination with something with Union-Find, where each
-original contour points to the contour it merged into.
+constant time lookup.
 *** Fixed by using a double-stack approach, shifting elements from one to the other once we pass them.
-** TODO Make the Default for the DiagonalMap State be all-zero, so that ~calloc~ can be used.
-** TODO Reduce memory usage by deallocating DiagonalMap entries that won't be used anymore.
-** TODO Reduce memory by storing DiagonalMap g/h as u8/u16 delta instead of u32 absolute.
 ** DONE Reduce number of retries by adding an offset to the BucketQueue that's updated after every prune.
 CLOSED: [2022-02-06 Sun 13:02]
 When the position to be pruned is the largest transformed position seen so far,
@@ -201,13 +68,7 @@ larger than the pruned position in the transformed domain.
 For large n and e=0.01 or e=0.05, this reduces the number of retries by 10x to 100x.
 ** TODO Reduce retries more: Also prune when there's <Constant~=10 states that need updating.
 
-** TODO Estimate/Exponential search f, and prune states with larger f.
-** TODO Keep best-g per diagonal, and skip previous states with a higher g.
-** TODO Fix consistency handling
-Add a separate ~ArrowPruner~ class that decides when or not to remove arrows.
-In particular, the current check to not prune when h(x) > h(x+-1) is wrong, and
-needs to be replaced by a check that the maximal arrow value drops by at most one.
-
+** TODO Computational domains: Estimate/Exponential search f, and prune states with larger f.
 ** TODO Single-vec bucket queue: Just use a normal queue and keep indices to the slices for each value
 This only works when we only push values equal to the minimum f or 1 larger (so
 that a single swap is sufficient).
@@ -222,58 +83,8 @@ When all contours only contain one point, this is much more compact.
 ** TODO Add bloom filters in front of hashmaps
 These can be very small, so fit in L1 cache and can quickly discard elements not
 in the hashmap.
-** TODO Or a cuckoomap
 ** TODO Try out a 4^k bitvector as well
-** TODO What about Judy / Rudy
-A fast u32 -> word map.
-** DONE Refactor Matches
-CLOSED: [2022-02-17 Thu 03:22]
-- make a constructor that handles ~start_of_seed~ and ~potential~.
-- should also take a ~Vec<Seed>~.
-** TODO Inexact unordered matches
-** DONE Dynamic unordered matches
-CLOSED: [2022-02-17 Thu 09:40]
-Reduces band by a factor up to 2. Sometimes 2x slower, sometimes 2x faster.
 ** TODO Use u64 instead of usize where appropriate (i.e. for qgrams)
-** TODO Update A* state for first and last state in a run of equal values.
-Instead of only the first state.
-
-* Evals
-NOTE: Make sure to set a constant CPU frequency of 3200MHz:
-- ~sudo cpupower frequency-set -g powersave~
-- ~sudo cpupower frequency-set -d 1800MHz~
-- ~sudo cpupower frequency-set -u 1800MHz~
-- ~taskset -c 0,2,4 snakemake table/{params,tools}_N1e6.tsv -j3~
-- Note: the lower half of IDs are good; 0 and n/2 will collide  with hyperthreading.
-- Understand dijkstra slowness
-
-** DONE Put timelimit in tables
-CLOSED: [2022-02-10 Thu 16:12]
-** DONE Rerun once with 64GB of reserved memory, so only one at a time is run
-CLOSED: [2022-04-18 Mon 10:26]
-- Add --mem parameter to the command line.
-- Not needed anymore, now that BiWFA doesn't go OOM anymore.
-** DONE Rename 100000 to 1e6 everywhere (or 1M?)
-CLOSED: [2022-02-10 Thu 16:12]
-Done, but only for the table/tools_N1e5 'input' variable.
-** DONE Big indels
-CLOSED: [2022-02-10 Thu 16:12]
-Just an insert or delete is fine. A move (or insert + delete) is much worse though.
-
-** DATA
-*** TODO PacBio n=100 reads
-*** TODO ONP n=400 reads
-*** TODO ONP n=100k reads, from block aligner paper
-*** TODO Filter our own long reads from the accession numbers at [TODO]
-
-** Figures
-- [-] Main text: n vs time for different tools (best/inferred k)
-- [ ] Supplement: e vs time for different tools (fixed n, best k)
-- [ ] Supplement: k vs time for different n
-
-* DONE Auto-parameter choosing based on e
-** DONE add ~-e~ parameter
-** DONE add rules to infer (m,k) from (n,e)
 
 * WFA merger / next version
 ** TODO Do not store parent pointers
@@ -282,9 +93,6 @@ Just an insert or delete is fine. A move (or insert + delete) is much worse thou
 ** TODO Try to get rid of A* state (not needed for consistent h)
 ** TODO What to do with current_seed_cost?
 ** TODO Extend multiple chars at a time (usize for 8 / SIMD for 16)
-
-* Tests
-** TODO Test all pairs with n <= 6
 
 * Extensions
 ** LCS: Do not generate substitutions
@@ -303,18 +111,11 @@ least in the range 5-10. This allows much more aggressive pruning.
 ** Investigate kmer-counting distance
 Similar, but does all kmers instead of disjoint kmers.
 
-* Edit Distance
-** TODO Run SeedHeuristic with k=1 as edit distance computation algorithm.
-- This generalizes the LCS Contours algorithm to edit distance.
-- For k>1, it generalizes the LCS_{k[+]}  algorithm and provides a lower bound.
-
 * Seeds
 ** TODO Dynamic seeding, either greedy or using some DP[i, j, distance].
 - Maximize h(0,0) or (max_match_cost+1)/k
 - Minimize number of extra seeds.
 ** TODO choosing seeds bases on guessed alignment
-** DONE Fix the gap heuristic transform to take the seeds into account.
-CLOSED: [2022-02-10 Thu 17:11]
 ** DONE Strategies for choosing seeds:
 CLOSED: [2022-01-19 Wed 18:01]
 - A: Each seed does not match, and covers exactly max_dist+1 mutations.
@@ -323,144 +124,26 @@ CLOSED: [2022-01-19 Wed 18:01]
     very narrow region is expanded.
 - B: Maximize the number of seeds that matches exactly (at most 10 times).
 - Experiment: make one mutation every k positions, and make seeds of length k.
-** DONE Try SeedHeuristic without Gaps
-CLOSED: [2022-02-10 Thu 16:25]
-- Maybe now that we have pruning, gaps aren't actually needed anymore.
-***  Nope, not good at all
 ** DONE Instead of finding all matches and then filtering, only find matches within the cone
 CLOSED: [2022-02-10 Thu 16:26]
 - Could be done by keeping a dynamic trie, only inserting positions in b once
   they fall within the cone, and removing then as soon as they leave the cone again.
 *** Added an option to config.rs. Slightly slower but saves a lot of memory potentially.
 
-* Pruning
-** HOLD Partial pruning: only prune matches where it is cheap to do so
-- Currently pruning is already very fast and not the bottleneck, so not needed
-  for now.
-** DONE Proof that pruning doesn't interact badly with consistency
-CLOSED: [2022-02-10 Thu 16:28]
-** DONE Implementation for fast partial pruning:
-CLOSED: [2022-02-10 Thu 16:52]
-- If the current match has no prev/next on the pareto front, *all* previous points must have optimal paths through this match.
-- Removing this match decreases h for *all* previous matches
-- Either bruteforce decrement the value at previous nodes, or keep some log-time datastructure for this.
-- Most of the time, the match will be at the very front and there are going
-  to be very few expanded states in front, so we can do an offset and only
-  update h for those expanded states beyond this match.
-** DONE Remove matches from indels at the start and ends of seeds. Replace by doing a wider lookup along the diagonal.
-CLOSED: [2022-02-10 Thu 16:52]
-The extra matches are needed for consistency.
-
-** DONE Don't only query the current point, but also points above/below it
-CLOSED: [2022-02-10 Thu 16:52]
-- to correct for small differences between heuristic implementations.
-*** Not needed as long as the matches are consistent
-** DONE Banded pruning
-CLOSED: [2022-02-10 Thu 16:35]
-only prune and update matches within $\sqrt n$ of the main diagonal. The rest
-won't be relevant anyway.
-*** This won't do much -- we don't get there anyway.
-
-** DONE Pruning with offset
-CLOSED: [2022-02-10 Thu 16:48]
-- Need to figure out when all previous vertices depend on the current match
-** TODO More greedy pruning of matches that were skipped initially because of their neighbours.
-If we skip because there is a higher valued neighbour, then when pruning that
-neighbour, the original should also be pruned.
-- Currently we only propagate a prune as a shift when there are at least two
-  consecutive exact matches, preventing this from happening with large edit distances.
-** TODO More shifting: for inexact and unorderd matches
-For long sequences retries are maybe half of the runtime. Most of this can be avoided.
-
-** NOTE Pruning of inexact matches has differences between the bruteforce and contour algorithm:
-- In the bruteforce, when an exact match is pruned, neighbouring exact matches
-  can still be used. Thus, the pruning only affects one state.
-- Using contours, more states get an increased value, because for states
-  'before' the pruned inexact match, going through the exact match is never
-  optimal to begin with. This leads to non-equal heuristic values between the
-  two approaches, but not to an inadmissible heuristic.
-
-* Performance
-** DONE Use Pos(u32,u32) instead of Pos(usize,usize)
-CLOSED: [2022-01-19 Wed 18:00]
-** TODO Use array + sorting + binary search to find optimal path.
-** DONE Do Greedy extending of edges along diagonals
-Whenever a state $(i,j)$ has a matching outgoing edge, we only generate
-$(i,j) \to (i+1, j+1)$ and skip the indel edges.
-** DONE Skip insertions at the start/end of seeds.
-CLOSED: [2022-02-10 Thu 16:54]
-Infeasible; they are needed for match consistency.
-** DONE Prune only half (some fixed %) of matches. This should result in O(matches) total pruning time.
-CLOSED: [2022-01-19 Wed 18:00]
-** DONE Prune only matches at (or close to) the 'front': with so far maximal i and j, for not having to update the priority queue.
-CLOSED: [2022-02-10 Thu 17:11]
-** DONE Replace IncreasingFunction by a vector: value -> position, instead of the current position->value map.
-CLOSED: [2022-02-10 Thu 17:10]
-   This is sufficient, because values only increase by 1 or 2 at a time anyway, and set lookup becomes binary search.
-ContourGraph isn't used anymore.
-** DONE ContourGraph: Add child pointer to incremental state, for faster moving diagonally.
-CLOSED: [2022-02-10 Thu 17:10]
-ContourGraph isn't used anymore.
-** TODO Investigate gap between h(0,0) and the actual distance.
-   - For exact matches, do we want exactly 1 mutation per seed? That way h(0,0) is as large as possible, and we don't have any matches.
-** DONE When building ContourGraphs, to get the value at the end of a match,
-CLOSED: [2022-02-10 Thu 17:10]
-   instead of walking there using incremental steps, compute and store the value
-   of the match once then end-column is processed, but insert it only when the
-   start-column is being processed.
-ContourGraph isn't used anymore.
-** DONE Use SuffixArray instead of multiple QGramIndices for fixed k.
-CLOSED: [2022-02-10 Thu 17:09]
-SuffixArray is not faster than Qgrams / hashmaps
-** DONE Update ContourGraph to set the value of a match after processing the end-column, instead of doing a lookup when processing the start column.
-CLOSED: [2022-02-10 Thu 17:10]
-ContourGraph isn't used anymore.
-** TODO Use suffix tree/array of ~A$B$~ to find length of greedy matching run in $O(1)$
-
-* DONE Fast Seed+Gap heuristic implementation:
-** Bruteforce from bottom right to top left, fully processing everything all
-   matches that are 'shadowed', i.e. only matter for going left/up, but not diagonally anymore.
-
 * Optimizations done:
 ** Seed Heuristic
 ** Count Heuristic
 ** Inexact matches
 ** Pruning
-** sort nodes closer to target first, among those with equal distance+h estimate
-   - this almost halves the part of the bandwidth above 1.
 ** Pruning correctness: Do not prune matches that are next to a better match.
+** Skip pruning some a small % of matches, giving faster overall pruning time
 ** A* optimizations: together 4x speedup
    - HashMap -> FxHashMap: a faster hash function for ints
    - HashMap -> DiagonalMap: for expanded/explored states, since these are dense on the diagonal.
    - BinaryHeap -> BucketHeap: much much faster; turns log(n) pop into O(1) push&pop
-     - For unknown reasons, sorting positions before popping them makes more expanded states, but faster code.
-** delete consistency code
-** delete incoming edges code
-** more efficient edges iteration
-** Pre-allocate DiagonalMap edges
 ** Do internal iteration over outgoing edges, instead of collecting them.
-** Sort nodes in IncreasingFunction for better caching
-** incremental_h is slowly becoming more efficient (move fewer steps backwards)
-** incremental_h: Add Pos==Hint check to incremental_h
-
-
-
 
 * short-term todolist
-** Convert manual experiments into snakemake
-** Fix bug workaround
-** add visualizations from rust
-** note on induced vs observed error rates in paper
-** report memory usage on one datapoint
-*** discussion: diagonal-transition will reduce memory
-** Experiment setup:
-- Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
-- pinned to run at 1.8GHz instead. (TODO: Run at 2.6?)
-    - sudo cpupower
-- running 3 jobs on 3 cores in parallel: taskset -c 0,2,4
-- benchmarking using snakemake
-- timeout of 1000s on 10MB sets
-- write that we should be good on actual ONT reads, i.e. de-novo assembly
 ** Analysis
 - $k \geq log_\Sigma(n)$
 - $k \ll q/e$, but by how much? $k\leq 3/4\cdot 1/e$ seems good? -> next
@@ -468,29 +151,8 @@ ContourGraph isn't used anymore.
 ** Supplement
 - Expanded states plots
 - Memory usage plots
-** Result vs method vs generic titles
-- we do method
-** Cite A* paper
-** Ordered seed heuristic -> Chained-seeds heuristic (CSH)
-** Run experiments for unordered heuristic
-** Run experiments for version without gapcost
-** Test that we give the same distance as edlib/WFA
-** cite paper that does PA of random strings
 ** TODO Fixed k performs better than dynamic k for unordered, but WHY?
 Has to do with h0 being smaller
-** TODO Is zero-heuristic consistent?
-Yes, but need to fix greedy matching.
-** TODO ONLY WORK ON CSH / zero heuristic
-** DONE Improve pruning: do delayed pruning where needed
-CLOSED: [2022-05-02 Mon 01:08]
-We now prune matches by end as well, when the start of an exact match is expanded.
-** TODO Prune inexact matches next to an exact match that is on a greedy path
-Currently these matches are not pruned at all.
-Could be fixed by also pruning by match-end, or by clustering matches.
-** TODO Find reason for slowdown in benchmarks
-https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/
-** TODO Prune matches by end
-This results in fewer skipped prunes
 ** TODO Only consider inexact matches that satisfy greedy matching
 Inexact matches that can not occur as a result of greedy matching can be disregarded.
 ** TODO Batch pruning
@@ -503,6 +165,7 @@ For CSH, we first put seeds in a map and then only store seeds matching a key.
 For SH, we currently make a map of all kmers of B, which is inefficient.
 ** DONE Skip insertions at inexact match start/end
 *** TODO Why do we need to preserve insertions at the end when using gapcost?
+** TODO Can we use computational domains
 
 * Parameter tuning
 ** CSH [no gapcost]
@@ -601,3 +264,34 @@ Breakdown:
   - $14\%$: computing $h$,
   - $10\%$: exploring edges,
   - $\mathbf 60\%$: hashmap indexing. Large memory is slower probably?
+
+* New list of ideas
+** More shifting: Bucket queue with buffer
+- Allow shifting everything less than a given position, even when a few
+  positions remain constant.
+** Fewer retries:
+- From the HintContours, return a pair ~(Pos, shift)~: the bottom-right most
+  position ~p~ for which all other positions ~q <= p~ are shifted by the given
+  amount ~shift~.
+** HashMap with buffer for DT
+- The last few layers could be stored separately, so that accessing the front is
+  faster. Especially since this memory will remain hot, while indexing the
+  larger hashmap may go to random parts of memory.
+** Computational domains for DT
+- When a potential optimal path is given, we can compute in advance which
+  regions need to be computed.
+- Together with storing matches in a vector per diagonal, this should make most
+  indexing operations more predictable.
+** Return Cigar instead of Path from A* and A*-DT
+- Should save a bit of time.
+** Linear memory optimization for DT
+- Using less memory by only storing positions where the traceback joins/splits
+  should make the hashmap smaller, leading to faster operations.
+- Hypotheses: it is sufficient to only store those states at the parent of a
+  /critical/ substitution edge.
+*** Figure out exactly how to on-line determine which states to store.
+** Run SH with dynamic seeds such that (after direct pruning) no matches remain
+- This way, computing the value of the heuristic anyway is trivial, and fewer
+  datastructures need to be kept. The only numbers needed are the total number
+  of seeds and the number of seeds starting before the given position.
+- NOTE: This first requires reviving/re-implementing the dynamic seed choosing.
