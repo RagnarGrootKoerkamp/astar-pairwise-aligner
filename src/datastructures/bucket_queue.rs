@@ -105,7 +105,7 @@ where
         T: Clone + std::fmt::Debug,
     {
         element.f += self.down_shift;
-        if O::from_t(&element.data) >= self.tip_start {
+        if !(O::from_t(&element.data) <= self.tip_start) {
             self.tip_queue.push(element.clone());
         } else {
             self.queue.push(element.clone());
