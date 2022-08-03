@@ -14,8 +14,8 @@ fn main() {
         visualizer::{Gradient, Visualizer, When},
     };
     use sdl2::pixels::Color;
-    let a = b"CGCAACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACGCCGATACATGCTACGATCGA";
-    let b = b"CGCAATCTGCTCTCTGAGTCAGTGCAGTAACAGCGTACG";
+    let a = b"CACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACGCCGATACATGCTACGATCGA";
+    let b = b"CATCTGCTCTCTGAGTCAGTGCAGTAACAGCGTACG";
 
     let cm = LinearCost::new_unit();
     let mut config = visualizer::Config::default();

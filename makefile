@@ -130,6 +130,13 @@ fig-readme-video:
 fig-readme-video-clean:
 	rm -rf imgs/fig-readme
 
+# ========== BLOGSPOSTS IMAGES ==========
+path-tracing:
+	cargo run --example path-tracing
+path-tracing-export:
+	mogrify -format png imgs/path-tracing/*bmp
+	cp imgs/path-tracing/*png ../../research/posts/linear-memory-wfa/
+
 # ========== FLAMEGRAPHS ==========
 
 flamegraphs: cpu-freq
