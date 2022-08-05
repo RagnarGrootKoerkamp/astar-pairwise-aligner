@@ -68,7 +68,7 @@ impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
         // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
         let graph = alignment_graph::EditGraph::new(a, b, self.greedy_edge_matching);
         let (distance_and_path, _) = if self.diagonal_transition {
-            astar_dt(&graph, h)
+            astar_dt(&graph, h, &mut self.v)
         } else {
             astar(&graph, h, &mut self.v)
         };

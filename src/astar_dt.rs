@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::prelude::*;
+use crate::{prelude::*, visualizer::VisualizerT};
 use astar::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -24,7 +24,11 @@ impl<P: PosOrderT> ShiftOrderT<(DtPos, I)> for P {
     }
 }
 
-pub fn astar_dt<'a, H>(graph: &EditGraph, h: &mut H) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
+pub fn astar_dt<'a, H>(
+    graph: &EditGraph,
+    h: &mut H,
+    v: &mut impl VisualizerT,
+) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
 where
     H: HeuristicInstance<'a>,
 {
@@ -124,6 +128,7 @@ where
         }
 
         let mut prune = |pos| {
+            v.expand_with_h(pos, Some(h));
             if !h.is_seed_start_or_end(pos) {
                 return;
             }
@@ -204,6 +209,11 @@ where
     let traceback_start = Instant::now();
     let path = traceback::<H>(&states, DtPos::from_pos(graph.target(), dist));
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
+    if let Some((_, actual_path)) = path.as_ref() {
+        v.last_frame_with_h(Some(actual_path), None, Some(h));
+    } else {
+        v.last_frame_with_h(None, None, Some(h));
+    }
     (path, stats)
 }
 
