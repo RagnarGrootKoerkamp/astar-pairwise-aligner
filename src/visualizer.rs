@@ -66,7 +66,7 @@ pub use with_sdl2::*;
 mod with_sdl2 {
     use super::*;
     use crate::{matches::MatchStatus, prelude::Seq};
-    use itertools::{chain, Itertools};
+    use itertools::Itertools;
     use sdl2::{
         event::Event,
         keyboard::Keycode,
@@ -772,7 +772,7 @@ mod with_sdl2 {
 
             // Draw tree.
             if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
-                for &(t, u) in &self.expanded {
+                for &(_t, u) in &self.expanded {
                     if self.config.style.tree_fr_only {
                         // Only trace if u is the furthest point on this diagonal.
                         let mut v = u;

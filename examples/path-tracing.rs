@@ -5,18 +5,14 @@ fn main() {}
 
 #[cfg(feature = "sdl2")]
 fn main() {
-    use std::time::SystemTime;
-
     use astar_pairwise_aligner::{
         aligners::{
-            astar::AStar,
             diagonal_transition::{DiagonalTransition, GapCostHeuristic, PathTracingMethod},
             Aligner,
         },
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };
-    use rand::thread_rng;
     use sdl2::pixels::Color;
     let a = b"CACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACGCCGATACATGCTACGATCGA";
     let b = b"CATCTGCTCTCTGAGTCAGTGCAGTAACAGCGTACG";
@@ -65,7 +61,29 @@ fn main() {
     config.style.expanded = Gradient::Fixed(Color::RGB(200, 200, 200));
     config.style.extended = Some(Color::RGB(230, 230, 230));
     config.style.tree_substitution = Some(Color::RED);
-    config.style.tree_width = 3;
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            false,
+            vis(a, b, config.clone(), "forward-greedy-grey"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            false,
+            vis(a, b, config.clone(), "backward-greedy-grey"),
+        );
+        dt.path_tracing_method = PathTracingMethod::ReverseGreedy;
+        dt.align(a, b);
+    }
 
     {
         let mut dt = DiagonalTransition::new(
@@ -113,61 +131,54 @@ fn main() {
         );
         dt.align(a, b);
     }
+
     {
-        let (ref a, ref b) = generate_pair(
-            &GenerateOptions {
-                length: 110,
-                error_rate: 0.5,
-                error_model: ErrorModel::DoubleMutatedRepeat,
-                pattern_length: 10,
-                m: Some(60),
-            },
-            &mut thread_rng(),
-        );
-        println!("{}\n{}", to_string(a), to_string(b));
+        let a = b"CTTGTGGATCTTAAGGGCATCATAGTGGATCTCGTTGACTTGTGGATCTTAGCTGGATCATAGTGGTTCTTAGGGAGTCTCAAATGGATCTTAGTGGGTCTTAGTGGAAT";
+        let b = b"CTTAGTGGATCTAGTGGGACTCTAGTGAATCTTAGTGGCATCTAGCTGATTCGACTAGTGGA";
+
         {
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
                 ZeroCost,
                 false,
-                vis(a, b, config.clone(), "repeats-forward"),
+                vis(a, b, config.clone(), "repeats"),
             );
             dt.align(a, b);
         }
 
+        config.style.tree_match = Some(Color::RGB(160, 160, 160));
         {
-            config.style.tree_match = Some(Color::RGB(160, 160, 160));
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
                 ZeroCost,
                 false,
-                vis(a, b, config.clone(), "repeats-forward-no-match"),
+                vis(a, b, config.clone(), "repeats-no-matches"),
             );
             dt.align(a, b);
         }
 
+        config.style.tree = Some(Color::RGB(160, 160, 160));
         {
-            config.style.tree = Some(Color::RGB(160, 160, 160));
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
                 ZeroCost,
                 false,
-                vis(a, b, config.clone(), "repeats-forward-only-sub"),
+                vis(a, b, config.clone(), "repeats-subs"),
             );
             dt.align(a, b);
         }
 
+        config.style.tree_fr_only = true;
         {
-            config.style.tree_fr_only = true;
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
                 ZeroCost,
                 false,
-                vis(a, b, config.clone(), "repeats-forward-active"),
+                vis(a, b, config.clone(), "repeats-active"),
             );
             dt.align(a, b);
         }
@@ -179,9 +190,21 @@ fn main() {
                 GapCostHeuristic::Disable,
                 ZeroCost,
                 false,
-                vis(a, b, config.clone(), "repeats-forward-active-fixed"),
+                vis(a, b, config.clone(), "repeats-fixed"),
             );
             dt.align(a, b);
         }
+    }
+
+    {
+        config.style.tree_direction_change = Some(Color::MAGENTA);
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            false,
+            vis(a, b, config.clone(), "simple-final"),
+        );
+        dt.align(a, b);
     }
 }
