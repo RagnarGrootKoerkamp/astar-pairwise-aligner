@@ -344,9 +344,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             match direction {
                 Forward => {
                     *fr += 2 * extend_diagonal(direction, a, b, d, *fr);
-                    for fr in (fr_old + 2..=*fr).step_by(2) {
+                    for fr in (fr_old..*fr).step_by(2) {
                         self.v.borrow_mut().extend(offset + fr_to_pos(d, fr));
                     }
+                    self.v.borrow_mut().expand(offset + fr_to_pos(d, *fr));
                 }
                 Backward => {
                     *fr += 2 * extend_diagonal(
@@ -356,7 +357,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         a.len() as Fr - b.len() as Fr - d,
                         a.len() as Fr + b.len() as Fr - *fr,
                     );
-                    for fr in (fr_old + 2..=*fr).step_by(2) {
+                    for fr in (fr_old..*fr).step_by(2) {
                         self.v.borrow_mut().extend(
                             offset
                                 + fr_to_pos(
@@ -365,6 +366,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                 ),
                         );
                     }
+                    self.v.borrow_mut().expand(
+                        offset
+                            + fr_to_pos(
+                                a.len() as Fr - b.len() as Fr - d,
+                                a.len() as Fr + b.len() as Fr - *fr,
+                            ),
+                    );
                 }
             }
         }
@@ -568,15 +576,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         );
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
-                        if fr >= 0 {
-                            self.v.borrow_mut().expand(offset + fr_to_pos(d, fr));
-                        }
                     });
                 }
             }
             Direction::Backward => {
                 let mirror = |(i, j)| (a.len() as Fr - i, b.len() as Fr - j);
-                let mirror_pos = |Pos(i, j)| Pos(a.len() as u32 - i, b.len() as u32 - j);
                 let max_fr = a.len() as Fr + b.len() as Fr;
                 let mirror_fr = |fr| max_fr - fr;
                 for d in get_front(fronts, 0).range().clone() {
@@ -606,11 +610,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         );
                         let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
                         *val = max(*val, fr);
-                        if fr >= 0 && fr_to_pos(d, fr) <= Pos::from_lengths(a, b) {
-                            self.v
-                                .borrow_mut()
-                                .expand(offset + mirror_pos(fr_to_pos(d, fr)));
-                        }
                     });
                 }
             }
