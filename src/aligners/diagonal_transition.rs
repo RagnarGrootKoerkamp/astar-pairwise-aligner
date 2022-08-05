@@ -345,7 +345,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 Forward => {
                     *fr += 2 * extend_diagonal(direction, a, b, d, *fr);
                     for fr in (fr_old + 2..=*fr).step_by(2) {
-                        self.v.borrow_mut().expand(offset + fr_to_pos(d, fr));
+                        self.v.borrow_mut().extend(offset + fr_to_pos(d, fr));
                     }
                 }
                 Backward => {
@@ -357,7 +357,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         a.len() as Fr + b.len() as Fr - *fr,
                     );
                     for fr in (fr_old + 2..=*fr).step_by(2) {
-                        self.v.borrow_mut().expand(
+                        self.v.borrow_mut().extend(
                             offset
                                 + fr_to_pos(
                                     a.len() as Fr - b.len() as Fr - d,
@@ -936,7 +936,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                     // along matching edges if possible.
                     if st.layer == None {
                         let (i, j) = fr_to_coords(st.d, st.fr);
-                        if let Some(ca) = a.get(i as usize-1) && let Some(cb) = b.get(j as usize-1) && ca == cb {
+                        if i > 0 && j > 0 && let Some(ca) = a.get(i as usize-1) && let Some(cb) = b.get(j as usize-1) && ca == cb {
                             parent = Some(st);
                             parent.as_mut().unwrap().fr -= 2;
                             cigar_ops = [Some(CigarOp::Match), None];
@@ -1180,7 +1180,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                             }
 
                             self.parent(a, b, &fronts, st, Direction::Forward)
-                                .map(|x| x.0.to_pos())
+                                .map(|x| (x.0.to_pos(), x.1[0].unwrap()))
                         }),
                     ),
                 );

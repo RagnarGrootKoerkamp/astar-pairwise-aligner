@@ -9,7 +9,7 @@
 //! ```
 
 use crate::{
-    aligners::Path,
+    aligners::{cigar::CigarOp, Path},
     heuristic::{HeuristicInstance, ZeroCostI},
     prelude::Pos,
 };
@@ -22,8 +22,12 @@ pub trait VisualizerT {
     fn expand(&mut self, pos: Pos) {
         self.expand_with_h::<ZeroCostI>(pos, None);
     }
+    fn extend(&mut self, pos: Pos) {
+        self.extend_with_h::<ZeroCostI>(pos, None);
+    }
     fn explore_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&H>) {}
     fn expand_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&H>) {}
+    fn extend_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&H>) {}
 
     /// This function should be called after completing each layer
     fn new_layer(&mut self) {
@@ -38,14 +42,14 @@ pub trait VisualizerT {
     fn last_frame_with_tree(
         &mut self,
         path: Option<&Path>,
-        parent: Option<&dyn Fn(Pos) -> Option<Pos>>,
+        parent: Option<&dyn Fn(Pos) -> Option<(Pos, CigarOp)>>,
     ) {
         self.last_frame_with_h::<ZeroCostI>(path, parent, None);
     }
     fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
         &mut self,
         _path: Option<&Path>,
-        _parent: Option<&dyn Fn(Pos) -> Option<Pos>>,
+        _parent: Option<&dyn Fn(Pos) -> Option<(Pos, CigarOp)>>,
         _h: Option<&H>,
     ) {
     }
@@ -62,7 +66,7 @@ pub use with_sdl2::*;
 mod with_sdl2 {
     use super::*;
     use crate::{matches::MatchStatus, prelude::Seq};
-    use itertools::Itertools;
+    use itertools::{chain, Itertools};
     use sdl2::{
         event::Event,
         keyboard::Keycode,
@@ -85,13 +89,20 @@ mod with_sdl2 {
         static ref TTF_CONTEXT: Sdl2TtfContext = sdl2::ttf::init().unwrap();
     }
 
+    #[derive(PartialEq, Eq, Clone, Copy)]
+    pub enum Type {
+        Expanded,
+        Explored,
+        Extended,
+    }
+    use Type::*;
+
     pub struct Visualizer {
         canvas: Option<RefCell<Canvas<Window>>>,
         sdl_context: Sdl,
         font: Font<'static, 'static>,
         config: Config,
-        pub expanded: Vec<Pos>,
-        explored: Vec<Pos>,
+        pub expanded: Vec<(Type, Pos)>,
         width: u32,
         height: u32,
         frame_number: usize,
@@ -105,7 +116,7 @@ mod with_sdl2 {
             if !(pos <= Pos(self.width - 1, self.height - 1)) {
                 return;
             }
-            self.expanded.push(pos);
+            self.expanded.push((Expanded, pos));
             self.draw(false, None, false, h, None);
         }
 
@@ -113,7 +124,15 @@ mod with_sdl2 {
             if !(pos <= Pos(self.width - 1, self.height - 1)) {
                 return;
             }
-            self.explored.push(pos);
+            self.expanded.push((Explored, pos));
+            self.draw(false, None, false, h, None);
+        }
+
+        fn extend_with_h<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, h: Option<&H>) {
+            if !(pos <= Pos(self.width - 1, self.height - 1)) {
+                return;
+            }
+            self.expanded.push((Extended, pos));
             self.draw(false, None, false, h, None);
         }
 
@@ -128,7 +147,7 @@ mod with_sdl2 {
         fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
             &mut self,
             path: Option<&Path>,
-            parent: Option<&dyn Fn(Pos) -> Option<Pos>>,
+            parent: Option<&dyn Fn(Pos) -> Option<(Pos, CigarOp)>>,
             h: Option<&H>,
         ) {
             self.draw(true, path, false, h, parent);
@@ -168,6 +187,7 @@ mod with_sdl2 {
     pub struct Style {
         pub expanded: Gradient,
         pub explored: Option<Color>,
+        pub extended: Option<Color>,
         pub bg_color: Color,
         /// None to disable
         pub path: Option<Color>,
@@ -176,7 +196,11 @@ mod with_sdl2 {
 
         /// None to disable
         pub tree: Option<Color>,
+        pub tree_substitution: Option<Color>,
+        pub tree_match: Option<Color>,
         pub tree_width: usize,
+        pub tree_fr_only: bool,
+        pub tree_direction_change: Option<Color>,
 
         // Options to draw heuristics
         pub draw_heuristic: bool,
@@ -243,11 +267,16 @@ mod with_sdl2 {
                 style: Style {
                     expanded: Gradient::Fixed(Color::BLUE),
                     explored: None,
+                    extended: None,
                     bg_color: Color::WHITE,
                     path: Some(Color::BLACK),
                     path_width: Some(2),
                     tree: Some(Color::GRAY),
+                    tree_substitution: None,
+                    tree_match: None,
                     tree_width: 1,
+                    tree_fr_only: false,
+                    tree_direction_change: None,
                     draw_heuristic: false,
                     draw_contours: false,
                     draw_matches: false,
@@ -308,7 +337,6 @@ mod with_sdl2 {
                 font,
                 config: config.clone(),
                 expanded: vec![],
-                explored: vec![],
                 width: a.len() as u32 + 1,
                 height: b.len() as u32 + 1,
                 frame_number: 0,
@@ -478,7 +506,7 @@ mod with_sdl2 {
             path: Option<&Path>,
             is_new_layer: bool,
             h: Option<&H>,
-            parent: Option<&dyn Fn(Pos) -> Option<Pos>>,
+            parent: Option<&dyn Fn(Pos) -> Option<(Pos, CigarOp)>>,
         ) {
             let current_frame = self.frame_number;
             self.frame_number += 1;
@@ -629,54 +657,72 @@ mod with_sdl2 {
             if self.config.draw_old_on_top {
                 // Explored
                 if let Some(color) = self.config.style.explored {
-                    for pos in &self.explored {
-                        self.draw_pixel(&mut canvas, *pos, color);
+                    for &(t, pos) in &self.expanded {
+                        if t == Type::Explored {
+                            self.draw_pixel(&mut canvas, pos, color);
+                        }
                     }
                 }
                 // Expanded
                 let mut current_layer = self.layer.unwrap_or(0);
-                for (i, pos) in self.expanded.iter().enumerate().rev() {
+                for (i, &(t, pos)) in self.expanded.iter().enumerate().rev() {
+                    if t == Type::Explored {
+                        continue;
+                    }
+                    if t == Type::Extended && let Some(c) = self.config.style.extended {
+                        self.draw_pixel(&mut canvas, pos, c);
+                        continue;
+                    }
                     self.draw_pixel(
-                    &mut canvas,
-                    *pos,
-                    self.config.style.expanded.color(
-                        if let Some(layer) = self.layer && layer != 0 {
-                            if current_layer > 0
-                                && i < self.expanded_layers[current_layer - 1]
-                            {
-                                current_layer -= 1;
-                            }
-                            current_layer as f32 / self.config.num_layers.unwrap_or(layer) as f32
-                        } else {
-                                 i as f32 / self.expanded.len() as f32
-                        },
+                        &mut canvas,
+                        pos,
+                        self.config.style.expanded.color(
+                            if let Some(layer) = self.layer && layer != 0 {
+                                if current_layer > 0
+                                    && i < self.expanded_layers[current_layer - 1]
+                                {
+                                    current_layer -= 1;
+                                }
+                                current_layer as f32 / self.config.num_layers.unwrap_or(layer) as f32
+                            } else {
+                                    i as f32 / self.expanded.len() as f32
+                            },
                         ),
                     );
                 }
             } else {
                 // Explored
                 if let Some(color) = self.config.style.explored {
-                    for pos in &self.explored {
-                        self.draw_pixel(&mut canvas, *pos, color);
+                    for &(t, pos) in &self.expanded {
+                        if t == Type::Explored {
+                            self.draw_pixel(&mut canvas, pos, color);
+                        }
                     }
                 }
                 // Expanded
                 let mut current_layer = 0;
-                for (i, pos) in self.expanded.iter().enumerate() {
+                for (i, &(t, pos)) in self.expanded.iter().enumerate() {
+                    if t == Type::Explored {
+                        continue;
+                    }
+                    if t == Type::Extended && let Some(c) = self.config.style.extended {
+                        self.draw_pixel(&mut canvas, pos, c);
+                        continue;
+                    }
                     self.draw_pixel(
-                    &mut canvas,
-                    *pos,
-                    self.config.style.expanded.color(
-                        if let Some(layer) = self.layer && layer != 0 {
-                            if current_layer < layer && i >= self.expanded_layers[current_layer] {
-                                current_layer += 1;
-                            }
-                            current_layer as f32 / self.config.num_layers.unwrap_or(layer) as f32
-                        } else {
-                                 i as f32 / self.expanded.len() as f32
-                        },
+                        &mut canvas,
+                        pos,
+                        self.config.style.expanded.color(
+                            if let Some(layer) = self.layer && layer != 0 {
+                                if current_layer < layer && i >= self.expanded_layers[current_layer] {
+                                    current_layer += 1;
+                                }
+                                current_layer as f32 / self.config.num_layers.unwrap_or(layer) as f32
+                            } else {
+                                    i as f32 / self.expanded.len() as f32
+                            },
                         ),
-                );
+                    );
                 }
             }
 
@@ -704,26 +750,6 @@ mod with_sdl2 {
                 }
             }
 
-            // Draw tree.
-            if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
-                let mut done = crate::prelude::HashSet::default();
-                for &u in &self.expanded {
-                    let mut u = u;
-                    if done.insert(u) {
-                        while let Some(p) = parent(u){
-                            Self::draw_diag_line(
-                                &mut canvas,
-                                self.cell_center(p),
-                                self.cell_center(u),
-                                tree_color,
-                                self.config.style.tree_width,
-                            );
-                            u = p;
-                        }
-                    }
-                }
-            }
-
             // Draw path.
             if let Some(path) = path &&
                let Some(path_color) = self.config.style.path {
@@ -741,6 +767,85 @@ mod with_sdl2 {
                     for p in path {
                         self.draw_pixel(&mut canvas, *p, path_color)
                     }
+                }
+            }
+
+            // Draw tree.
+            if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
+                for &(t, u) in &self.expanded {
+                    if self.config.style.tree_fr_only {
+                        // Only trace if u is the furthest point on this diagonal.
+                        let mut v = u;
+                        let mut skip = false;
+                        loop {
+                            v = v + Pos(1,1);
+                            if !(v <= Pos(self.width, self.height)) {
+                                break;
+                            }
+                            if self.expanded.iter().filter(|(_, u)| *u == v).count() > 0 {
+                                skip = true;
+                                break;
+                            }
+                        }
+                        if skip {
+                            continue;
+                        }
+                    }
+                    let mut u = u;
+                    let mut path = vec![];
+                    while let Some((p, op)) = parent(u){
+                        path.push((u, p, op));
+                        Self::draw_diag_line(
+                            &mut canvas,
+                            self.cell_center(p),
+                            self.cell_center(u),
+                            match op {
+                                CigarOp::Match => self.config.style.tree_match,
+                                CigarOp::Mismatch => self.config.style.tree_substitution,
+                                _ => None,
+                            }.unwrap_or(tree_color),
+                            self.config.style.tree_width,
+                        );
+
+                        u = p;
+                    }
+                    if let Some(c) = self.config.style.tree_direction_change {
+                        let mut last = CigarOp::Match;
+                        for &(u, p, op)  in path.iter().rev() {
+                            match op {
+                                CigarOp::Insertion => {
+                                    if last == CigarOp::Deletion {
+                                        Self::draw_diag_line(
+                                            &mut canvas,
+                                            self.cell_center(p),
+                                            self.cell_center(u),
+                                            c,
+                                            self.config.style.tree_width,
+                                        );
+                                    }
+                                    last = op;
+                                }
+                                CigarOp::Deletion => {
+                                    if last == CigarOp::Insertion {
+                                        Self::draw_diag_line(
+                                            &mut canvas,
+                                            self.cell_center(p),
+                                            self.cell_center(u),
+                                            c,
+                                            self.config.style.tree_width,
+                                        );
+                                    }
+                                    last = op;
+                                }
+                                CigarOp::Mismatch => {
+                                    last = op;
+                                }
+                                _ => {
+                                }
+                            }
+                        }
+                    }
+
                 }
             }
 
