@@ -53,7 +53,7 @@ pub struct GenerateArgs {
     ///
     /// This is used both to generate input sequences with the given induced
     /// error rate, and to choose values for parameters r and k
-    #[clap(short, long, display_order = 4, required_unless_all = &["r", "k"])]
+    #[clap(short, long, display_order = 4)]
     pub error_rate: Option<f32>,
 
     #[clap(
