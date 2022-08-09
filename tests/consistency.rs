@@ -35,6 +35,7 @@ fn bicount_admissible() {
 
 // Failed because of match distance > 0
 #[test]
+#[ignore = "GapCost"]
 fn consistency_1() {
     let h = CSH {
         match_config: MatchConfig::inexact(4),
@@ -54,6 +55,7 @@ fn consistency_1() {
 
 // Failed because of match distance > 0 and stricter consistency check
 #[test]
+#[ignore = "GapCost"]
 fn consistency_2() {
     let h = CSH {
         match_config: MatchConfig::inexact(5),
@@ -73,7 +75,7 @@ fn consistency_2() {
 
 // Failed because of pruning
 #[test]
-#[ignore]
+#[ignore = "GapCost"]
 fn consistency_3() {
     let h = CSH {
         match_config: MatchConfig::exact(4),
@@ -93,6 +95,7 @@ fn consistency_3() {
 
 // Failed because of pruning and match distance
 #[test]
+#[ignore = "GapCost"]
 fn consistency_4() {
     let h = CSH {
         match_config: MatchConfig::inexact(6),
@@ -114,6 +117,7 @@ fn consistency_4() {
 
 // Failed because of pruning and large edit distance
 #[test]
+#[ignore = "GapCost"]
 fn consistency_5() {
     let h = CSH {
         match_config: MatchConfig::exact(4),
