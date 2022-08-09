@@ -53,4 +53,4 @@ pub const SKIP_INEXACT_INSERT_START_END: bool = false;
 /// When true, states close to the tip (after the last prune) are stored
 /// separately for shifting purposes.
 /// NOTE: Not in paper.
-pub const USE_TIP_QUEUE: bool = false;
+pub const USE_TIP_QUEUE: bool = true;

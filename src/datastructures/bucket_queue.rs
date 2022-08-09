@@ -64,7 +64,7 @@ pub trait ShiftOrderT<T>: PosOrderT + Default + Copy {
     fn from_t(t: &T) -> Self;
 }
 
-const TIP_SIZE: usize = 0;
+const TIP_SIZE: usize = 20;
 
 /// A queue that supports increasing all elements below a position by a given
 /// amount.
@@ -108,33 +108,36 @@ where
     {
         element.f += self.down_shift;
         if USE_TIP_QUEUE {
-            if !(O::from_t(&element.data) <= self.tip_start) {
-                self.tip_queue.push(element.clone());
+            if O::from_t(&element.data) <= self.tip_start {
+                self.queue.push(element);
             } else {
-                self.queue.push(element.clone());
+                self.tip_queue.push(element);
             }
         } else {
-            self.queue.push(element.clone());
             self.tip_start = O::max(self.tip_start, O::from_t(&element.data));
+            self.queue.push(element);
         }
     }
     pub fn pop(&mut self) -> Option<QueueElement<T>> {
-        let tf = if USE_TIP_QUEUE {
-            None
+        if !USE_TIP_QUEUE {
+            let mut e = self.queue.pop();
+            if let Some(e) = e.as_mut() {
+                e.f -= self.down_shift;
+            }
+            e
         } else {
-            self.tip_queue.peek()
-        };
-        let qf = self.queue.peek();
-        let mut e = if let Some(tf) = tf && qf.map_or(true, |qf| tf <= qf) {
-            self.tip_queue.pop()
-        } else {
-            self.queue.pop()
-        };
-
-        if let Some(e) = e.as_mut() {
-            e.f -= self.down_shift;
+            let tf = self.tip_queue.peek();
+            let qf = self.queue.peek();
+            let mut e = if let Some(tf) = tf && qf.map_or(true, |qf| tf <= qf) {
+                self.tip_queue.pop()
+            } else {
+                self.queue.pop()
+            };
+            if let Some(e) = e.as_mut() {
+                e.f -= self.down_shift;
+            }
+            e
         }
-        e
     }
     pub fn shift(&mut self, shift: Cost, below: O) -> Cost {
         if shift == 0 {
