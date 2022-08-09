@@ -108,7 +108,7 @@ where
                 retry_cnt += 1;
                 if let Some(expand_start) = expand_start {
                     stats.retries_duration +=
-                        RETRY_COUNT_EACH as f32 * expand_start.elapsed().as_secs_f32();
+                        RETRY_COUNT_EACH as f64 * expand_start.elapsed().as_secs_f64();
                 }
                 continue;
             }

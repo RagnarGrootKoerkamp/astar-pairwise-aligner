@@ -223,7 +223,7 @@ impl AlignResult {
             (format!("{:>8}", "retries"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
-                    1000. * this.astar.retries_duration / this.sample_size as f32
+                    1000. * this.astar.retries_duration / this.sample_size as f64
                 )
             }),
             (format!("{:>8}", "trace"), |this: &AlignResult| {
