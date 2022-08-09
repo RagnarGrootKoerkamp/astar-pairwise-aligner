@@ -302,15 +302,6 @@ impl<C: Contour> Contours for HintContours<C> {
                     if end_layer + arrow.len as Cost <= max_score {
                         break;
                     }
-
-                    if FAST_ASSUMPTIONS {
-                        // We know that max_new_val will be within [v-max_len, v].
-                        // Thus, value(arrow.end) will be in [v-max_len-arrow.len, v-arrow.len].
-                        // For simplicity, we skip this check.
-                        if end_layer + self.max_len == v - arrow.len as Cost {
-                            break;
-                        }
-                    }
                 }
 
                 let start_layer = end_layer + arrow.len as Cost;
