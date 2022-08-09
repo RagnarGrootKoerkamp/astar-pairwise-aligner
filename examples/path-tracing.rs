@@ -60,7 +60,6 @@ fn main() {
 
     config.style.expanded = Gradient::Fixed(Color::RGB(200, 200, 200));
     config.style.extended = Some(Color::RGB(230, 230, 230));
-    config.style.tree_substitution = Some(Color::RED);
 
     {
         let mut dt = DiagonalTransition::new(
@@ -84,6 +83,8 @@ fn main() {
         dt.path_tracing_method = PathTracingMethod::ReverseGreedy;
         dt.align(a, b);
     }
+
+    config.style.tree_substitution = Some(Color::RED);
 
     {
         let mut dt = DiagonalTransition::new(
@@ -195,15 +196,32 @@ fn main() {
             dt.align(a, b);
         }
     }
+    config.style.expanded = Gradient::Fixed(Color::RGB(200, 200, 200));
+    config.style.extended = Some(Color::RGB(230, 230, 230));
+    config.style.tree_substitution = Some(Color::RED);
+    config.style.tree = Some(Color::RGB(160, 160, 160));
+    config.style.tree_fr_only = true;
+    config.style.tree_direction_change = Some(Color::MAGENTA);
 
     {
-        config.style.tree_direction_change = Some(Color::MAGENTA);
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
             ZeroCost,
             false,
             vis(a, b, config.clone(), "simple-final"),
+        );
+        dt.align(a, b);
+    }
+
+    {
+        let (ref a, ref b) = setup_sequences_with_seed(125, 60, 4.0);
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            false,
+            vis(a, b, config.clone(), "random"),
         );
         dt.align(a, b);
     }

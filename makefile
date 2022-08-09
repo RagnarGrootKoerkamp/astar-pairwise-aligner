@@ -64,7 +64,7 @@ results:
 	cd evals && python3 ./results.py
 
 results-export: results
-	rm -f ../pairwise-aligner-paper/imgs/results/*
+	rm -f ../pairwise-aligner-paper/imgs/plots/*
 	cp evals/results/tools_*.pdf evals/results/scaling_e.pdf evals/results/scaling_n.pdf \
       ../pairwise-aligner-paper/imgs/plots/
 	cp evals/results/table.csv ../pairwise-aligner-paper/data/table.csv
@@ -133,6 +133,7 @@ fig-readme-video-clean:
 # ========== BLOGSPOSTS IMAGES ==========
 path-tracing:
 	cargo run --example path-tracing
+	cargo run --example path-tracing-affine
 path-tracing-export:
 	mogrify -format png imgs/path-tracing/*bmp
 	cp imgs/path-tracing/*png ../../research/posts/linear-memory-wfa/
