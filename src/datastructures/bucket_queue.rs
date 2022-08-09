@@ -64,7 +64,8 @@ pub trait ShiftOrderT<T>: PosOrderT + Default + Copy {
     fn from_t(t: &T) -> Self;
 }
 
-const TIP_SIZE: usize = 20;
+// NOTE: 0 for paper
+const TIP_SIZE: usize = 0;
 
 /// A queue that supports increasing all elements below a position by a given
 /// amount.
