@@ -52,5 +52,6 @@ pub const SKIP_INEXACT_INSERT_START_END: bool = false;
 
 /// When true, states close to the tip (after the last prune) are stored
 /// separately for shifting purposes.
+/// This seems helpful for CSH with high error rate, but causes significant slowdown for SH.
 /// NOTE: Not in paper.
-pub const USE_TIP_QUEUE: bool = true;
+pub const USE_TIP_BUFFER: bool = false;

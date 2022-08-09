@@ -1,5 +1,5 @@
-use crate::{config::USE_TIP_QUEUE, cost_model::Cost, heuristic::PosOrderT};
-use std::cmp::min;
+use crate::{config::USE_TIP_BUFFER, cost_model::Cost, heuristic::PosOrderT};
+use std::cmp::{max, min};
 
 #[derive(Copy, Clone, Debug)]
 pub struct QueueElement<T> {
@@ -13,9 +13,11 @@ pub struct BucketQueue<T> {
     layers: Vec<Vec<T>>,
     /// The first layer with an element is at least `next`.
     next: usize,
+    last: usize,
     /// Layers far lower than the current minimum are shrunk when the minimum f
     /// has increased sufficiently beyond them.
     next_clear: usize,
+    size: usize,
 }
 
 impl<T> BucketQueue<T> {
@@ -24,11 +26,17 @@ impl<T> BucketQueue<T> {
             self.layers.resize_with(f as usize + 1, Vec::default);
         }
         self.next = min(self.next, f as usize);
+        self.last = max(self.last, f as usize + 1);
         self.layers[f as usize].push(data);
+        self.size += 1;
     }
+
     pub fn peek(&mut self) -> Option<Cost> {
-        while let Some(layer) = self.layers.get_mut(self.next as usize) {
-            if !layer.is_empty() {
+        if self.is_empty() {
+            return None;
+        }
+        loop {
+            if !self.layers[self.next as usize].is_empty() {
                 return Some(self.next as Cost);
             }
             self.next += 1;
@@ -36,17 +44,36 @@ impl<T> BucketQueue<T> {
             // The value of f shouldn't go down more than the maximum match
             // distance of 1 or 2, so this should be plenty.
             if self.next_clear + 10 < self.next {
-                self.layers[self.next_clear as usize].shrink_to_fit();
+                assert!(self.layers[self.next_clear as usize].is_empty());
+                self.layers[self.next_clear as usize].clear();
                 self.next_clear += 1;
             }
         }
-        None
     }
+
     pub fn pop(&mut self) -> Option<QueueElement<T>> {
-        self.peek().map(|f| QueueElement {
+        let Some(f) = self.peek() else {
+            return None;
+        };
+        let qe = QueueElement {
             f,
             data: self.layers[f as usize].pop().unwrap(),
-        })
+        };
+        assert!(self.size > 0);
+        self.size -= 1;
+        if self.size == 0 {
+            self.next = usize::MAX;
+            self.last = 0;
+        }
+        Some(qe)
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
     }
 }
 
@@ -54,8 +81,10 @@ impl<T> Default for BucketQueue<T> {
     fn default() -> Self {
         Self {
             layers: Default::default(),
-            next: 0,
+            next: usize::MAX,
+            last: 0,
             next_clear: 0,
+            size: 0,
         }
     }
 }
@@ -108,19 +137,19 @@ where
         T: Clone + std::fmt::Debug,
     {
         element.f += self.down_shift;
-        if USE_TIP_QUEUE {
+        if !USE_TIP_BUFFER {
+            self.tip_start = O::max(self.tip_start, O::from_t(&element.data));
+            self.queue.push(element);
+        } else {
             if O::from_t(&element.data) <= self.tip_start {
                 self.queue.push(element);
             } else {
                 self.tip_queue.push(element);
             }
-        } else {
-            self.tip_start = O::max(self.tip_start, O::from_t(&element.data));
-            self.queue.push(element);
         }
     }
     pub fn pop(&mut self) -> Option<QueueElement<T>> {
-        if !USE_TIP_QUEUE {
+        if !USE_TIP_BUFFER {
             let mut e = self.queue.pop();
             if let Some(e) = e.as_mut() {
                 e.f -= self.down_shift;
@@ -146,20 +175,20 @@ where
         }
         if !(self.tip_start <= below) {
             self.missed += 1;
-            // println!(
-            //     "{} Missed out by {:?}",
-            //     self.missed,
-            //     O::diff(self.tip_start, below)
-            // );
             return 0;
         }
 
         assert!(shift <= self.down_shift);
         self.down_shift -= shift;
 
+        if !USE_TIP_BUFFER {
+            return shift;
+        }
+
         // Any elements in the tip not smaller than `below` are shifted down, to correct for the global down_shift offset.
         let Some(f) = self.tip_queue.peek() else { return shift; };
-        for f in f as usize..self.tip_queue.layers.len() {
+
+        for f in f as usize..self.tip_queue.last {
             // Extract draining layer so we can modify it together with the target layer.
             let mut to_drain = std::mem::take(&mut self.tip_queue.layers[f]);
             //for data in to_drain.drain_filter(|data| !(O::from_t(data) <= below)) {
@@ -179,6 +208,7 @@ where
             for data in
                 self.tip_queue.layers[f].drain_filter(|data| O::from_t(data) <= self.tip_start)
             {
+                self.tip_queue.size -= 1;
                 self.queue.push(QueueElement { f: f as Cost, data });
             }
         }
