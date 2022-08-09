@@ -58,7 +58,7 @@ evals: cpu-freq
 	# The first rule `all` is executed automatically.
 	cd evals && \
 	  taskset -c 0,2,4 \
-        snakemake -j 3 --rerun-incomplete
+        snakemake -j 3 -f --rerun-incomplete
 
 results:
 	cd evals && python3 ./results.py
