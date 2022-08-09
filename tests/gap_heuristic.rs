@@ -1,6 +1,7 @@
 use astar_pairwise_aligner::prelude::*;
 
 #[test]
+#[ignore = "GapCost"]
 fn contour_graph() {
     let tests = [
         (
@@ -34,8 +35,8 @@ fn contour_graph() {
     }
 }
 
-#[ignore = "Failing, but GapCost is not relevant as of now"]
 #[test]
+#[ignore = "GapCost"]
 fn small_test() {
     let alphabet = &Alphabet::new(b"ACTG");
 
@@ -67,6 +68,7 @@ fn small_test() {
 
 /// This was broken because seed_heuristic didn't clear the previous state before rebuilding.
 #[test]
+#[ignore = "GapCost"]
 fn seed_heuristic_rebuild() {
     let (k, m, n, e) = (4, 0, 100, 0.3);
     let h = CSH {
@@ -94,6 +96,7 @@ fn seed_heuristic_rebuild() {
 
 /// This and the test below are fixed by disabling greedy matching.
 #[test]
+#[ignore = "GapCost"]
 fn no_double_expand() {
     let (k, m, n, e) = (5, 1, 78, 0.3);
     let h = CSH {
@@ -119,6 +122,7 @@ fn no_double_expand() {
 }
 
 #[test]
+#[ignore = "GapCost"]
 fn no_double_expand_2() {
     let (k, m, n, e) = (7, 1, 61, 0.3);
     let h = CSH {
@@ -145,6 +149,7 @@ fn no_double_expand_2() {
 
 /// When points are removed from a layer, we may have to add new shadow points to cover for the next layer.
 #[test]
+#[ignore = "GapCost"]
 fn missing_shadow_points() {
     let (k, m, n, e) = (10, 1, 61, 0.3);
     let h = CSH {
