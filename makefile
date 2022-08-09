@@ -57,6 +57,7 @@ evals: cpu-freq
 	# Run snakemake on 3 threads, with 3 jobs in parallel.
 	# The first rule `all` is executed automatically.
 	cd evals && \
+	  nice -n -20 \
 	  taskset -c 0,2,4 \
         snakemake -j 3 -f --rerun-incomplete \
 	      table/scaling_e.tsv \
