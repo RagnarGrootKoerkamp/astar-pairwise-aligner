@@ -46,3 +46,7 @@ pub const CHECK_MATCH_CONSISTENCY: bool = false;
 /// When true, inexact matches with an insertion at the start/end are skipped.
 /// TODO: This is not yet in the paper.
 pub const SKIP_INEXACT_INSERT_START_END: bool = false;
+
+/// When true, states close to the tip (after the last prune) are stored
+/// separately for shifting purposes.
+pub const USE_TIP_QUEUE: bool = false;

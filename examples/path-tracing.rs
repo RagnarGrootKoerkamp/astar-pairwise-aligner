@@ -1,4 +1,4 @@
-//! This generates the visualizations used in figure 1 in the paper and in the slides.
+//! This generates the visualizations used in the blogpost on linear memory WFA.
 
 #[cfg(not(feature = "sdl2"))]
 fn main() {}

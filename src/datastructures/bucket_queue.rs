@@ -1,4 +1,4 @@
-use crate::{cost_model::Cost, heuristic::PosOrderT};
+use crate::{config::USE_TIP_QUEUE, cost_model::Cost, heuristic::PosOrderT};
 use std::cmp::min;
 
 #[derive(Copy, Clone, Debug)]
@@ -105,14 +105,18 @@ where
         T: Clone + std::fmt::Debug,
     {
         element.f += self.down_shift;
-        if !(O::from_t(&element.data) <= self.tip_start) {
+        if USE_TIP_QUEUE && !(O::from_t(&element.data) <= self.tip_start) {
             self.tip_queue.push(element.clone());
         } else {
             self.queue.push(element.clone());
         }
     }
     pub fn pop(&mut self) -> Option<QueueElement<T>> {
-        let tf = self.tip_queue.peek();
+        let tf = if USE_TIP_QUEUE {
+            None
+        } else {
+            self.tip_queue.peek()
+        };
         let qf = self.queue.peek();
         let mut e = if let Some(tf) = tf && qf.map_or(true, |qf| tf <= qf) {
             self.tip_queue.pop()
