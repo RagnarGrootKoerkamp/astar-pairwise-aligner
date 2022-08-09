@@ -67,13 +67,14 @@ mod with_sdl2 {
     use super::*;
     use crate::{matches::MatchStatus, prelude::Seq};
     use itertools::Itertools;
+    #[cfg(feature = "sdl2_ttf")]
+    use sdl2::ttf::{Font, Sdl2TtfContext};
     use sdl2::{
         event::Event,
         keyboard::Keycode,
         pixels::Color,
         rect::{Point, Rect},
         render::Canvas,
-        ttf::{Font, Sdl2TtfContext},
         video::Window,
         Sdl,
     };
@@ -85,6 +86,7 @@ mod with_sdl2 {
         time::{Duration, Instant},
     };
 
+    #[cfg(feature = "sdl2_ttf")]
     lazy_static! {
         static ref TTF_CONTEXT: Sdl2TtfContext = sdl2::ttf::init().unwrap();
     }
@@ -100,6 +102,7 @@ mod with_sdl2 {
     pub struct Visualizer {
         canvas: Option<RefCell<Canvas<Window>>>,
         sdl_context: Sdl,
+        #[cfg(feature = "sdl2_ttf")]
         font: Font<'static, 'static>,
         config: Config,
         pub expanded: Vec<(Type, Pos)>,
@@ -301,6 +304,7 @@ mod with_sdl2 {
             let sdl_context = sdl2::init().unwrap();
 
             // Draw layer numbers
+            #[cfg(feature = "sdl2_ttf")]
             let font = TTF_CONTEXT
                 .load_font("/usr/share/fonts/TTF/OpenSans-Regular.ttf", 24)
                 .unwrap();
@@ -334,6 +338,7 @@ mod with_sdl2 {
                     }
                 },
                 sdl_context,
+                #[cfg(feature = "sdl2_ttf")]
                 font,
                 config: config.clone(),
                 expanded: vec![],
@@ -567,68 +572,70 @@ mod with_sdl2 {
 
             // Draw layers and contours.
             if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
-                    canvas.set_draw_color(self.config.style.contour);
-                    let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
-                        canvas
-                            .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)))
-                            .unwrap();
-                    };
-                    let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
-                        canvas
-                            .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)))
-                            .unwrap();
-                    };
+                canvas.set_draw_color(self.config.style.contour);
+                let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                    canvas
+                        .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)))
+                        .unwrap();
+                };
+                let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                    canvas
+                        .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)))
+                        .unwrap();
+                };
 
 
-                    // Right borders
-                    let mut hint = Default::default();
-                    let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
-                    for i in 0..self.width-1 {
-                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
-                        let mut hint = hint;
-                        for j in 0..self.height {
-                            let pos = Pos(i, j);
-                            let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
-                            hint = new_hint;
-                            let pos_r = Pos(i + 1, j);
-                            let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
-                            hint = new_hint;
-                            if v_r != v {
-                                draw_right_border(&mut canvas, pos);
+                // Right borders
+                let mut hint = Default::default();
+                let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                for i in 0..self.width-1 {
+                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                    let mut hint = hint;
+                    for j in 0..self.height {
+                        let pos = Pos(i, j);
+                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                        hint = new_hint;
+                        let pos_r = Pos(i + 1, j);
+                        let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
+                        hint = new_hint;
+                        if v_r != v {
+                            draw_right_border(&mut canvas, pos);
 
-                                if j == 0 {
-                                    top_borders.push((i+1, v_r));
-                                }
+                            if j == 0 {
+                                top_borders.push((i+1, v_r));
                             }
                         }
                     }
-                    top_borders.push((self.width, 0));
+                }
+                top_borders.push((self.width, 0));
 
-                    // Bottom borders
-                    let mut hint = Default::default();
-                    let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
-                    for i in 0..self.width {
-                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
-                        let mut hint = hint;
-                        for j in 0..self.height-1 {
-                            let pos = Pos(i, j);
-                            let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
-                            hint = new_hint;
-                            let pos_l = Pos(i, j + 1);
-                            let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
-                            hint = new_hint;
-                            if v_l != v {
-                                draw_bottom_border(&mut canvas, pos);
+                // Bottom borders
+                let mut hint = Default::default();
+                let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                for i in 0..self.width {
+                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                    let mut hint = hint;
+                    for j in 0..self.height-1 {
+                        let pos = Pos(i, j);
+                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                        hint = new_hint;
+                        let pos_l = Pos(i, j + 1);
+                        let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
+                        hint = new_hint;
+                        if v_l != v {
+                            draw_bottom_border(&mut canvas, pos);
 
-                                if i == 0 {
-                                    left_borders.push((j+1, v_l));
-                                }
+                            if i == 0 {
+                                left_borders.push((j+1, v_l));
                             }
                         }
                     }
-                    left_borders.push((self.height, 0));
+                }
+                left_borders.push((self.height, 0));
 
-                    // Draw at the top
+                // Draw numbers at the top and left.
+                #[cfg(feature = "sdl2_ttf")]
+                {
                     let texture_creator = canvas.texture_creator();
                     for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
                         if right < 10 { continue; }
@@ -639,7 +646,7 @@ mod with_sdl2 {
                         let x = (right * self.config.cell_size as u32).saturating_sub(w + 1);
                         let y = -6;
                         canvas.copy(&surface.as_texture(&texture_creator).unwrap(),
-                            None, Some(Rect::new(x as i32,y,w,h))).unwrap();
+                                    None, Some(Rect::new(x as i32,y,w,h))).unwrap();
                     }
                     for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
                         if bottom < 10 { continue; }
@@ -650,8 +657,9 @@ mod with_sdl2 {
                         let x = 3;
                         let y = (bottom * self.config.cell_size as u32).saturating_sub(h)+5;
                         canvas.copy(&surface.as_texture(&texture_creator).unwrap(),
-                            None, Some(Rect::new(x, y as i32,w,h))).unwrap();
+                                    None, Some(Rect::new(x, y as i32,w,h))).unwrap();
                     }
+                }
             }
 
             if self.config.draw_old_on_top {

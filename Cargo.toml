@@ -33,7 +33,7 @@ lazy_static = "*"
 smallvec = {version="*", features=["union"]}
 ropey = "*"
 num-traits = "*"
-sdl2 = {version="*", optional=true, features=["ttf"]}
+sdl2 = {version="*", optional=true, default_features=false}
 parse_duration = "*"
 
 [dev-dependencies]
@@ -44,4 +44,5 @@ suffix = "*"
 [features]
 wfa = []
 edlib = []
+sdl2_ttf = ["sdl2/ttf"]
 default = ["sdl2"]
