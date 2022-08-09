@@ -49,7 +49,7 @@ plot_scaling(
 
 # Table 1: n=10^7 slice of tool comparison, including memory.
 # TABLE AT 5%, 10^7
-df = read_benchmarks("table/tools_N1e7.tsv")
+df = read_benchmarks("table/tools.tsv")
 df["alg_order"] = pd.Categorical(
     df["alg"], categories=["edlib", "biwfa", "sh", "csh"], ordered=True
 )
