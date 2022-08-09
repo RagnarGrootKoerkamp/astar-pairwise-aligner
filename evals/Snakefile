@@ -142,8 +142,15 @@ def build_command(w):
     command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
     return timeout(command, run.status_path())
 
-# Benchmark the tool inferred from the parameters.
+# Benchmark the tool.
 rule benchmark_tool:
+    input: lambda w: Input(**w).path()
+    benchmark: Run.pattern()
+    params: command = lambda w: build_command(w)
+    shell: '{params.command}'
+
+# Benchmark the tool with given parameters.
+rule benchmark_tool_with_params:
     input: lambda w: Input(**w).path()
     benchmark: Run.pattern_with_params()
     params: command = lambda w: build_command(w)
