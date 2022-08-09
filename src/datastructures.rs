@@ -1,6 +1,5 @@
 pub mod bucket_queue;
 pub mod diagonal_map;
-pub mod shift_queue;
 pub mod split_vec;
 pub mod trie;
 
