@@ -22,7 +22,7 @@
 //!
 //!
 use super::cigar::Cigar;
-use super::edit_graph::{CigarOps, EditGraph, Layer};
+use super::edit_graph::{CigarOps, EditGraph, Layer, State};
 use super::{exponential_search, Aligner, Seq, StateT};
 use crate::aligners::cigar::CigarOp;
 use crate::cost_model::*;
@@ -965,7 +965,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                     |di, dj, i, j, layer, edge_cost, ops| {
                         let fr = (i + j) as Fr;
                         // Prefer indel edges over substitution edges.
-                        if fr > max_fr || (fr == max_fr && di != dj) {
+                        if fr > max_fr || (fr == max_fr && (di != dj || layer != None)) {
                             max_fr = fr;
                             parent = Some(DtState {
                                 d: st.d + (di - dj),
@@ -1160,14 +1160,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 self.v.borrow_mut().last_frame_with_tree(
                     Some(&cigar.to_path()),
                     Some(
-                        &(|pos| {
+                        &(|st| {
                             // Determine the cost for the position.
-                            let mut st = DtState::from_pos(pos, 0);
+                            let mut dst = DtState::from_pos(st.pos(), 0);
+                            dst.layer = st.layer;
                             // println!("pos: {pos}");
                             // println!("st: {st:?}");
                             loop {
-                                let front = &fronts[st.s as Fr];
-                                if front.range().contains(&st.d) && front.layer(None)[st.d] >= st.fr
+                                let front = &fronts[dst.s as Fr];
+                                if front.range().contains(&dst.d)
+                                    && front.layer(dst.layer)[dst.d] >= dst.fr
                                 {
                                     break;
                                     // println!(
@@ -1175,11 +1177,21 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                                     //     fronts[st.s as Fr].layer(None)[st.d]
                                     // );
                                 }
-                                st.s += 1;
+                                dst.s += 1;
                             }
 
-                            self.parent(a, b, &fronts, st, Direction::Forward)
-                                .map(|x| (x.0.to_pos(), x.1[0].unwrap()))
+                            self.parent(a, b, &fronts, dst, Direction::Forward)
+                                .map(|x| {
+                                    let p = x.0.to_pos();
+                                    (
+                                        State {
+                                            i: p.0 as isize,
+                                            j: p.1 as isize,
+                                            layer: x.0.layer,
+                                        },
+                                        x.1,
+                                    )
+                                })
                         }),
                     ),
                 );

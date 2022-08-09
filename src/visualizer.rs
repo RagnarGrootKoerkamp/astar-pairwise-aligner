@@ -9,10 +9,12 @@
 //! ```
 
 use crate::{
-    aligners::{cigar::CigarOp, Path},
+    aligners::{cigar::CigarOp, edit_graph::State, Path},
     heuristic::{HeuristicInstance, ZeroCostI},
     prelude::Pos,
 };
+
+type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
@@ -39,17 +41,13 @@ pub trait VisualizerT {
     fn last_frame(&mut self, path: Option<&Path>) {
         self.last_frame_with_h::<ZeroCostI>(path, None, None);
     }
-    fn last_frame_with_tree(
-        &mut self,
-        path: Option<&Path>,
-        parent: Option<&dyn Fn(Pos) -> Option<(Pos, CigarOp)>>,
-    ) {
+    fn last_frame_with_tree(&mut self, path: Option<&Path>, parent: ParentFn) {
         self.last_frame_with_h::<ZeroCostI>(path, parent, None);
     }
     fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
         &mut self,
         _path: Option<&Path>,
-        _parent: Option<&dyn Fn(Pos) -> Option<(Pos, CigarOp)>>,
+        _parent: ParentFn<'_>,
         _h: Option<&H>,
     ) {
     }
@@ -65,7 +63,11 @@ pub use with_sdl2::*;
 #[cfg(feature = "sdl2")]
 mod with_sdl2 {
     use super::*;
-    use crate::{matches::MatchStatus, prelude::Seq};
+    use crate::{
+        aligners::{edit_graph::State, StateT},
+        matches::MatchStatus,
+        prelude::Seq,
+    };
     use itertools::Itertools;
     #[cfg(feature = "sdl2_ttf")]
     use sdl2::ttf::{Font, Sdl2TtfContext};
@@ -150,7 +152,7 @@ mod with_sdl2 {
         fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
             &mut self,
             path: Option<&Path>,
-            parent: Option<&dyn Fn(Pos) -> Option<(Pos, CigarOp)>>,
+            parent: ParentFn<'_>,
             h: Option<&H>,
         ) {
             self.draw(true, path, false, h, parent);
@@ -511,7 +513,7 @@ mod with_sdl2 {
             path: Option<&Path>,
             is_new_layer: bool,
             h: Option<&H>,
-            parent: Option<&dyn Fn(Pos) -> Option<(Pos, CigarOp)>>,
+            parent: ParentFn,
         ) {
             let current_frame = self.frame_number;
             self.frame_number += 1;
@@ -562,11 +564,11 @@ mod with_sdl2 {
                     }
                 }
                 for (h, poss) in value_pos_map {
-                        self.draw_pixels(
-                            &mut canvas,
-                            poss,
-                            self.config.style.heuristic.color(h as f32 / h_max as f32),
-                        );
+                    self.draw_pixels(
+                        &mut canvas,
+                        poss,
+                        self.config.style.heuristic.color(h as f32 / h_max as f32),
+                    );
                 }
             }
 
@@ -799,15 +801,15 @@ mod with_sdl2 {
                             continue;
                         }
                     }
-                    let mut u = u;
+                    let mut st = State{i: u.0 as isize, j: u.1 as isize, layer: None};
                     let mut path = vec![];
-                    while let Some((p, op)) = parent(u){
-                        path.push((u, p, op));
+                    while let Some((p, op)) = parent(st){
+                        path.push((st, p, op));
                         Self::draw_diag_line(
                             &mut canvas,
-                            self.cell_center(p),
-                            self.cell_center(u),
-                            match op {
+                            self.cell_center(p.pos()),
+                            self.cell_center(st.pos()),
+                            match op[0].unwrap() {
                                 CigarOp::Match => self.config.style.tree_match,
                                 CigarOp::Mismatch => self.config.style.tree_substitution,
                                 _ => None,
@@ -815,18 +817,19 @@ mod with_sdl2 {
                             self.config.style.tree_width,
                         );
 
-                        u = p;
+                        st = p;
                     }
                     if let Some(c) = self.config.style.tree_direction_change {
                         let mut last = CigarOp::Match;
                         for &(u, p, op)  in path.iter().rev() {
+                            let op = op[0].unwrap();
                             match op {
                                 CigarOp::Insertion => {
                                     if last == CigarOp::Deletion {
                                         Self::draw_diag_line(
                                             &mut canvas,
-                                            self.cell_center(p),
-                                            self.cell_center(u),
+                                            self.cell_center(p.pos()),
+                                            self.cell_center(u.pos()),
                                             c,
                                             self.config.style.tree_width,
                                         );
@@ -837,8 +840,8 @@ mod with_sdl2 {
                                     if last == CigarOp::Insertion {
                                         Self::draw_diag_line(
                                             &mut canvas,
-                                            self.cell_center(p),
-                                            self.cell_center(u),
+                                            self.cell_center(p.pos()),
+                                            self.cell_center(u.pos()),
                                             c,
                                             self.config.style.tree_width,
                                         );
