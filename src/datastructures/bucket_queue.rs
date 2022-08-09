@@ -76,6 +76,8 @@ pub struct ShiftQueue<T, O> {
     tip_queue: BucketQueue<T>,
 
     /// Elements at most `tip_start` go in the main `queue`. Updated after each shift.
+    /// When USE_TIP_QUEUE is false, this is the maximum inserted element in the
+    /// main queue.
     tip_start: O,
 
     /// The amount added to each element in the queues.
@@ -105,10 +107,15 @@ where
         T: Clone + std::fmt::Debug,
     {
         element.f += self.down_shift;
-        if USE_TIP_QUEUE && !(O::from_t(&element.data) <= self.tip_start) {
-            self.tip_queue.push(element.clone());
+        if USE_TIP_QUEUE {
+            if !(O::from_t(&element.data) <= self.tip_start) {
+                self.tip_queue.push(element.clone());
+            } else {
+                self.queue.push(element.clone());
+            }
         } else {
             self.queue.push(element.clone());
+            self.tip_start = O::max(self.tip_start, O::from_t(&element.data));
         }
     }
     pub fn pop(&mut self) -> Option<QueueElement<T>> {
@@ -135,11 +142,11 @@ where
         }
         if !(self.tip_start <= below) {
             self.missed += 1;
-            println!(
-                "{} Missed out by {:?}",
-                self.missed,
-                O::diff(self.tip_start, below)
-            );
+            // println!(
+            //     "{} Missed out by {:?}",
+            //     self.missed,
+            //     O::diff(self.tip_start, below)
+            // );
             return 0;
         }
 
