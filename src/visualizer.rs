@@ -206,6 +206,7 @@ mod with_sdl2 {
         pub tree_width: usize,
         pub tree_fr_only: bool,
         pub tree_direction_change: Option<Color>,
+        pub tree_affine_open: Option<Color>,
 
         // Options to draw heuristics
         pub draw_heuristic: bool,
@@ -282,6 +283,7 @@ mod with_sdl2 {
                     tree_width: 1,
                     tree_fr_only: false,
                     tree_direction_change: None,
+                    tree_affine_open: None,
                     draw_heuristic: false,
                     draw_contours: false,
                     draw_matches: false,
@@ -805,15 +807,21 @@ mod with_sdl2 {
                     let mut path = vec![];
                     while let Some((p, op)) = parent(st){
                         path.push((st, p, op));
+                        let color = if let Some(CigarOp::AffineOpen(_)) = op[1]
+                            && let Some(c) = self.config.style.tree_affine_open {
+                                c
+                            } else {
+                                match op[0].unwrap() {
+                                    CigarOp::Match => self.config.style.tree_match,
+                                    CigarOp::Mismatch => self.config.style.tree_substitution,
+                                    _ => None,
+                                }.unwrap_or(tree_color)
+                            };
                         Self::draw_diag_line(
                             &mut canvas,
                             self.cell_center(p.pos()),
                             self.cell_center(st.pos()),
-                            match op[0].unwrap() {
-                                CigarOp::Match => self.config.style.tree_match,
-                                CigarOp::Mismatch => self.config.style.tree_substitution,
-                                _ => None,
-                            }.unwrap_or(tree_color),
+                            color,
                             self.config.style.tree_width,
                         );
 
