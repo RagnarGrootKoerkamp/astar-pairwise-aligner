@@ -73,7 +73,7 @@ results-export: results
 # ========== IMAGES ==========
 
 fig1:
-	cargo run --release --example fig1
+	cargo run --features sdl2 --release --example fig1
 	mogrify -format png imgs/fig1/*bmp
 
 fig1-export: fig1
@@ -83,7 +83,7 @@ fig1-export: fig1
       ../pairwise-aligner-paper/imgs/fig1/
 
 fig3:
-	cargo run --release --example fig3
+	cargo run --features sdl2_ttf --release --example fig3
 	mogrify -format png imgs/fig3/*bmp
 
 fig3-export: fig3
@@ -123,7 +123,7 @@ fig3-video-clean:
 	rm -rf imgs/fig3-video
 
 fig-readme-video:
-	cargo run --release --example fig-readme
+	cargo run --features sdl2_ttf --release --example fig-readme
 	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp -vf fps=50 imgs/fig-readme.mp4
 	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp $(FILTER),fps=50 imgs/fig-readme.gif
 
@@ -132,8 +132,8 @@ fig-readme-video-clean:
 
 # ========== BLOGSPOSTS IMAGES ==========
 path-tracing:
-	cargo run --example path-tracing
-	cargo run --example path-tracing-affine
+	cargo run --features sdl2 --release --example path-tracing
+	cargo run --features sdl2 --release --example path-tracing-affine
 path-tracing-export:
 	mogrify -format png imgs/path-tracing/*bmp
 	cp imgs/path-tracing/*png ../../research/posts/linear-memory-wfa/
