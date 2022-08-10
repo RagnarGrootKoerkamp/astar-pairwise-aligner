@@ -59,7 +59,7 @@ evals: cpu-freq
 	cd evals && \
 	  nice -n -20 \
 	  taskset -c 0,2,4 \
-        snakemake -j 3 -f --rerun-incomplete \
+	    snakemake -j 3 -f --rerun-incomplete \
 	      table/scaling_e.tsv \
 	      table/scaling_n.tsv \
 	      table/tools.tsv
