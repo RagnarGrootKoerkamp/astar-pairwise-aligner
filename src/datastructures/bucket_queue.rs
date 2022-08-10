@@ -20,6 +20,8 @@ pub struct BucketQueue<T> {
     size: usize,
 }
 
+const CLEAR_DELAY: usize = 10;
+
 impl<T> BucketQueue<T> {
     pub fn push(&mut self, QueueElement { f, data }: QueueElement<T>) {
         if self.layers.len() <= f as usize {
@@ -43,9 +45,10 @@ impl<T> BucketQueue<T> {
             // Releasing memory 10 layers back.
             // The value of f shouldn't go down more than the maximum match
             // distance of 1 or 2, so this should be plenty.
-            if self.next_clear + 10 < self.next {
+            // TODO: Figure out if we can reuse this memory, possibly by moving it to the end of the layers vector?
+            if self.next_clear + CLEAR_DELAY < self.next {
                 assert!(self.layers[self.next_clear as usize].is_empty());
-                self.layers[self.next_clear as usize].clear();
+                self.layers[self.next_clear as usize].shrink_to_fit();
                 self.next_clear += 1;
             }
         }
