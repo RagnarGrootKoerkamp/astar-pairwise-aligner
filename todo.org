@@ -295,3 +295,9 @@ Breakdown:
   datastructures need to be kept. The only numbers needed are the total number
   of seeds and the number of seeds starting before the given position.
 - NOTE: This first requires reviving/re-implementing the dynamic seed choosing.
+** Reduce allocations
+** Reuse allocations between runs
+** Divide & Conquer without bidirectional
+Instead of going from two sides, go from one side and keep the middle layer.
+For each position in the front keep the parent in the middle layer, so we can
+restart there.
