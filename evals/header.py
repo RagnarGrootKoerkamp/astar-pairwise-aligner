@@ -307,6 +307,7 @@ def col2name(col):
         "s": "Runtime [s]",
         "n": "Sequence length [bp]",
         "s_per_pair": "Runtime [s]",
+        "cpu_time": "CPU Runtime [s]",
         "max_uss": "Memory [MB]",
     }
     if col in d:
