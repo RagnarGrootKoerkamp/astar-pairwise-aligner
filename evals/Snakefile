@@ -37,27 +37,25 @@ tool_command = {
 generate_command    = '../target/release/examples/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} {output}'
 
 # Wrap `command` in a small shell script than handles timeouts and memory limits
-# using `ulimit`.
-# Writes the exit status into `status_path`.
-def timeout(command, status_path):
+# using `ulimit`, and write time and memory usage to `bench_path`.
+def timeout(command, bench_path):
     return f"""
 # Disable coredumps and set the time and memory limit
 ulimit -c 0
 ulimit -t {TIMEOUT}
 ulimit -v {MEMORY_LIMIT}
 # Allow the command to fail.
+TIME="s\tuser\tsystem\tmax_rss\texit\n%e\t%U\t%S\t%M\t%x"
 set +e
-{command}
+/usr/bin/time -o {bench_path} {command}
 status=$?
 set -e
 # Normal exit
 if [ $status -eq 0 ] ; then
-    echo ok > {status_path}
     exit 0
 fi
-# typically from SIGKILL (137) (when killed by linux) or SIGSEGV (139) or SIGABRT (134)
+# Out of memory from SIGKILL (137) (when killed by linux) or SIGSEGV (139) or SIGABRT (134)
 if [ $status -eq 137 ] || [ $status -eq 139 ] || [ $status -eq 134 ]; then
-    echo limit {TIMEOUT} {MEMORY_LIMIT} $status > {status_path}
     exit 0
 fi
 echo Unexpected exit status $status
@@ -111,15 +109,12 @@ class Run:
     # The wildcard pattern for an run benchmark without parameters.
     def pattern():
         return f'runs/{Input.name_pattern()}-A{{tool}}.bench'
-    # The benchmark path of this run.
+    # The benchmark path of this run, containing the time and memory usage measured by `/usr/bin/time`.
     def bench_path(self):
         if self.has_params:
             return Path(f'runs/{self.input.name()}-A{self.tool}-r{self.r}-k{self.k}.bench')
         else:
             return Path(f'runs/{self.input.name()}-A{self.tool}.bench')
-    # The status path of this run, where the exit status is written after success/timeout/out-of-memory.
-    def status_path(self):
-        return self.bench_path().with_suffix('.status')
     # The stats path of this run, where A*PA writes additional statistics.
     def stats_path(self):
         return self.bench_path().with_suffix('.stats')
@@ -139,20 +134,20 @@ rule generate_input:
 def build_command(w):
     input = Input(**w)
     run = Run(input=input, **w)
-    command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, status_path=run.status_path(), stats_path=run.stats_path())
-    return timeout(command, run.status_path())
+    command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, stats_path=run.stats_path())
+    return timeout(command, run.bench_path())
 
 # Benchmark the tool.
 rule benchmark_tool:
     input: lambda w: Input(**w).path()
-    benchmark: Run.pattern()
+    output: Run.pattern()
     params: command = lambda w: build_command(w)
     shell: '{params.command}'
 
 # Benchmark the tool with given parameters.
 rule benchmark_tool_with_params:
     input: lambda w: Input(**w).path()
-    benchmark: Run.pattern_with_params()
+    output: Run.pattern_with_params()
     params: command = lambda w: build_command(w)
     shell: '{params.command}'
 
@@ -164,7 +159,7 @@ rule benchmark_tool_with_params:
 # - .status file
 # - .stats file if present
 def make_table(runs, output):
-    headers = ["alg","cnt","n","e","r","k","s","h:m:s","max_rss","max_vms","max_uss","max_pss","io_in","io_out","mean_load","cpu_time", "exit_status"]
+    headers = ["alg","cnt","n","e","r","k","s","user","system","max_rss","exit_status"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
@@ -178,13 +173,12 @@ def make_table(runs, output):
         table_file.write("\t".join(headers) + '\n')
 
     for run in runs:
-        status = run.status_path().read_text().strip()
         try:
             stats = '\t' + run.stats_path().read_text().splitlines()[1]
         except:
             stats = ''
         for bench_line in run.bench_path().read_text().splitlines()[1:]:
-            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{status}{stats}\n')
+            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}{stats}\n')
 
 # === TOOL COMPARISON ===
 
