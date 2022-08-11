@@ -46,7 +46,8 @@ impl<T> BucketQueue<T> {
             // The value of f shouldn't go down more than the maximum match
             // distance of 1 or 2, so this should be plenty.
             // TODO: Figure out if we can reuse this memory, possibly by moving it to the end of the layers vector?
-            if self.next_clear + CLEAR_DELAY < self.next {
+            // NOTE: This needs to be a while loop since `next` can go up in jumps after being empty.
+            while self.next_clear + CLEAR_DELAY < self.next {
                 assert!(self.layers[self.next_clear as usize].is_empty());
                 self.layers[self.next_clear as usize].shrink_to_fit();
                 self.next_clear += 1;
