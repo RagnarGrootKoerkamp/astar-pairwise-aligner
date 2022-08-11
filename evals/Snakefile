@@ -218,8 +218,8 @@ def scaling_n_runs():
     r = 1
     k = 15
     # Split tools into two groups using a different N.
-    fast_N = 10**7
-    slow_N = 10**5
+    fast_N = 10**8
+    slow_N = 10**6
     fast_tools = ['sh', 'csh']
     slow_tools = ['sh-noprune', 'csh-noprune']
     fast_inputs = [Input(cnt=fast_N//n, n=n, e=e) for n in ns if fast_N//n > 0]
