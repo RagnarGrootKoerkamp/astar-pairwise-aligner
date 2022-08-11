@@ -55,8 +55,8 @@ df["alg_order"] = pd.Categorical(
 )
 df = df[df.exit_status == "ok"]
 df = df[df.n == 10**7]
-pt = df.pivot_table(["s_per_pair", "max_uss"], ["alg_order"], ["e"])
-pt = pt[["s_per_pair", "max_uss"]]
+pt = df.pivot_table(["s_per_pair", "max_rss_mb"], ["alg_order"], ["e"])
+pt = pt[["s_per_pair", "max_rss_mb"]]
 pt.to_csv("results/table.csv")
 
 # Speedup
