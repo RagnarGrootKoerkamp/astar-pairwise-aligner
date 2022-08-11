@@ -217,8 +217,7 @@ def read_benchmarks(tsv_fn, algo=None):
     df["s_per_pair"] = df["s"] / ns
     df["s_per_bp"] = df["s"] / (ns * df["n"])
     df["e_pct"] = 100 * df["e"]
-    # FIXME: Use 'r' directly after a proper rerun.
-    df["r"] = df["m"] + 1
+    df["max_rss_mb"] = df["max_rss"] / 1024
     df["r"].fillna(value=0)
 
     if "align" in df:
