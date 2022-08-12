@@ -45,7 +45,7 @@ ulimit -c 0
 ulimit -t {TIMEOUT}
 ulimit -v {MEMORY_LIMIT}
 # Allow the command to fail.
-TIME="s\tuser\tsystem\tmax_rss\texit\n%e\t%U\t%S\t%M\t%x"
+export TIME="s\tuser\tsystem\tmax_rss\texit\n%e\t%U\t%S\t%M\t%x"
 set +e
 /usr/bin/time -o {bench_path} {command}
 status=$?

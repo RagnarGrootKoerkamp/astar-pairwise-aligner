@@ -7,7 +7,7 @@ from header import *
 
 # Fig 4: Tool comparison / scaling with n.
 df = read_benchmarks("table/tools.tsv")
-df = df[df.exit_status == "ok"]
+df = df[df.exit_status == 0]
 for e in pd.unique(df.e):
     df_n = df[df.e == e]
     plot_scaling(
@@ -53,7 +53,7 @@ df = read_benchmarks("table/tools.tsv")
 df["alg_order"] = pd.Categorical(
     df["alg"], categories=["edlib", "biwfa", "sh", "csh"], ordered=True
 )
-df = df[df.exit_status == "ok"]
+df = df[df.exit_status == 0]
 df = df[df.n == 10**7]
 pt = df.pivot_table(["s_per_pair", "max_rss_mb"], ["alg_order"], ["e"])
 pt = pt[["s_per_pair", "max_rss_mb"]]

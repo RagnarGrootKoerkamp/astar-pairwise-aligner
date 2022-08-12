@@ -311,6 +311,4 @@ def col2name(col):
     }
     if col in d:
         return d[col]
-    print(col)
-    assert False
     return col
