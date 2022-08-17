@@ -67,11 +67,11 @@ evals: cpu-freq
 results:
 	cd evals && python3 ./results.py
 
-results-export: results
+results-export:
 	rm -f ../pairwise-aligner-paper/imgs/plots/*
-	cp evals/results/tools_*.pdf evals/results/scaling_e.pdf evals/results/scaling_n.pdf \
+	cp evals/results/{tools,explored}_*.pdf evals/results/scaling_e.pdf evals/results/scaling_n.pdf \
       ../pairwise-aligner-paper/imgs/plots/
-	cp evals/results/table.csv ../pairwise-aligner-paper/data/table.csv
+	cp evals/results/table* ../pairwise-aligner-paper/data/
 	cp evals/results/speedup ../pairwise-aligner-paper/data/speedup
 
 # ========== IMAGES ==========
@@ -136,6 +136,7 @@ fig-readme-video-clean:
 
 # ========== BLOGSPOSTS IMAGES ==========
 path-tracing:
+	rm imgs/path-tracing/*
 	cargo run --features sdl2 --release --example path-tracing
 	cargo run --features sdl2 --release --example path-tracing-affine
 path-tracing-export:

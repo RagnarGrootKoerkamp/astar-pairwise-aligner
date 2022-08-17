@@ -217,7 +217,7 @@ def read_benchmarks(tsv_fn, algo=None):
     df["s_per_pair"] = df["s"] / ns
     df["s_per_bp"] = df["s"] / (ns * df["n"])
     df["e_pct"] = 100 * df["e"]
-    df["max_rss_mb"] = df["max_rss"] / 1024
+    df["max_rss_mb"] = df["max_rss"] / 1000
     df["r"].fillna(value=0)
 
     if "align" in df:
@@ -308,6 +308,8 @@ def col2name(col):
         "s_per_pair": "Runtime [s]",
         "cpu_time": "CPU Runtime [s]",
         "max_uss": "Memory [MB]",
+        "explored": "Explored states",
+        "band": "Effective band",
     }
     if col in d:
         return d[col]
