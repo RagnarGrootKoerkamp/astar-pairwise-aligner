@@ -38,70 +38,30 @@ fn main() {
 
     config.style.expanded = Gradient::Fixed(Color::RGB(200, 200, 200));
     config.style.extended = Some(Color::RGB(230, 230, 230));
-    config.style.tree_substitution = Some(Color::RED);
+    config.style.tree_substitution = None;
     config.style.tree = Some(Color::RGB(160, 160, 160));
+    config.style.tree_fr_only = true;
+    config.style.tree_affine_open = Some(Color::BLUE);
 
     {
         let a = b"CTTGTGGATCTTAAGGGCATCATAGTGGATCTCGTTGACTTGTGGATCTTAGCTGGATCATAGTGGTTCTTAGGGAGTCTCAAATGGATCTTAGTGGGTCTTAGTGGAAT";
         let b = b"CTTAGTGGATCTAGTGGGACTCTAGTGAATCTTAGTGGCATCTAGCTGATTCGACTAGTGGA";
-
-        {
-            let mut dt = DiagonalTransition::new(
-                cm.clone(),
-                GapCostHeuristic::Disable,
-                ZeroCost,
-                false,
-                vis(a, b, config.clone(), "affine-repeats"),
-            );
-            dt.align(a, b);
-        }
-
-        config.style.tree_fr_only = true;
-
-        {
-            let mut dt = DiagonalTransition::new(
-                cm.clone(),
-                GapCostHeuristic::Disable,
-                ZeroCost,
-                false,
-                vis(a, b, config.clone(), "affine-repeats-active"),
-            );
-            dt.align(a, b);
-        }
-
-        {
-            config.style.tree_affine_open = Some(Color::MAGENTA);
-            config.style.tree_substitution = None;
-            let mut dt = DiagonalTransition::new(
-                cm.clone(),
-                GapCostHeuristic::Disable,
-                ZeroCost,
-                false,
-                vis(a, b, config.clone(), "affine-repeats-open"),
-            );
-            dt.align(a, b);
-        }
+        let mut dt = DiagonalTransition::new(
+            cm.clone(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            false,
+            vis(a, b, config.clone(), "affine-repeats-open"),
+        );
+        dt.align(a, b);
     }
     {
-        config.style.tree_affine_open = Some(Color::MAGENTA);
-        config.style.tree_substitution = Some(Color::RED);
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
             ZeroCost,
             false,
             vis(a, b, config.clone(), "affine-simple-open"),
-        );
-        dt.align(a, b);
-    }
-    {
-        let (ref a, ref b) = setup_sequences_with_seed(125, 60, 4.0);
-        let mut dt = DiagonalTransition::new(
-            cm.clone(),
-            GapCostHeuristic::Disable,
-            ZeroCost,
-            false,
-            vis(a, b, config.clone(), "affine-random"),
         );
         dt.align(a, b);
     }
