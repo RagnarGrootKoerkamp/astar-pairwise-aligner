@@ -305,9 +305,9 @@ def col2name(col):
         "expanded": "Expanded states",
         "s": "Runtime [s]",
         "n": "Sequence length [bp]",
-        "s_per_pair": "Runtime [s]",
+        "s_per_pair": "Runtime per alignment [s]",
         "cpu_time": "CPU Runtime [s]",
-        "max_uss": "Memory [MB]",
+        "max_rss": "Memory [MB]",
         "explored": "Explored states",
         "band": "Effective band",
     }
