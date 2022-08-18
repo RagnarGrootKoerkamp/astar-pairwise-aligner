@@ -265,6 +265,8 @@ def algo2color(algo):
         #'vargas': '#F387FF',
     }
     algo = algo.removesuffix("-noprune")
+    algo = algo.removesuffix("-s_per_pair")
+    algo = algo.removesuffix("-s_per_pair_no_retry")
     if algo in d:
         return d[algo]
     return "black"
@@ -277,10 +279,13 @@ def algo2beautiful(algo):
         "csh": "CSH",
         "sh-noprune": "SH (no prune)",
         "csh-noprune": "CSH (no prune)",
+        "sh-s_per_pair_no_retry": "SH (excluding reordering)",
+        "csh-s_per_pair_no_retry": "CSH (excluding reordering)",
         "edlib": "Edlib",
         "wfa": "WFA",
         "biwfa": "BiWFA",
     }
+    algo = algo.removesuffix("-s_per_pair")
     if algo in d:
         return d[algo]
     return algo
