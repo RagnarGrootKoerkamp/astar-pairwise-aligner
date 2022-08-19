@@ -184,7 +184,7 @@ def make_table(runs, output):
 
 # Returns the list of runs for the tool comparison table.
 def tools_runs():
-    N = 10**7
+    N = 10**8
     ns = [3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000]
     es = [0.01, 0.05, 0.10, 0.15]
     tools = ['edlib', 'biwfa', 'sh', 'csh']
