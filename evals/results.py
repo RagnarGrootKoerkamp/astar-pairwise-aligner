@@ -72,25 +72,26 @@ Path("results/speedup").write_text(speedups)
 # Band table
 df = read_benchmarks("table/tools.tsv")
 df = df[df.exit_status == 0]
+df = df[df.n.isin([10**4, 10**5, 10**6, 10**7])]
 b = df[["alg", "n", "e", "band"]].dropna()
 alg_order = ["sh", "csh"]
 b["alg_idx"] = b["alg"].map(lambda a: alg_order.index(a))
 b = b.sort_values(by=["e", "n", "alg_idx"])
 pt = pd.pivot_table(b, values="band", columns=["n"], index=["e", "alg"], sort=False)
-pt.to_csv("results/table_band.csv")
-pt.style.to_latex("results/table_band.tex")
+pt.to_csv("results/table_band.csv", float_format="%.2f")
+pt.style.format(precision=2).to_latex("results/table_band.tex")
 
-# Explored states
+# Expanded states
 df = read_benchmarks("table/tools.tsv")
 df = df[df.exit_status == 0]
 for e in pd.unique(df.e):
     df_n = df[df.e == e]
-    df_n = df_n.dropna(subset=["explored"])
+    df_n = df_n.dropna(subset=["expanded"])
     plot_scaling(
         df_n,
-        y="explored",
+        y="expanded",
         x="n",
-        filename=f"explored_e{e}",
+        filename=f"expanded_e{e}",
         xlog=True,
         ylog=True,
         trend_line="poly",

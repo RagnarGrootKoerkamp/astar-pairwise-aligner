@@ -219,6 +219,8 @@ def read_benchmarks(tsv_fn, algo=None):
     df["e_pct"] = 100 * df["e"]
     df["max_rss_mb"] = df["max_rss"] / 1000
     df["r"].fillna(value=0)
+    df["band"] = df["expanded"] / df["n"]
+    df = df.round({'band': 2})
 
     if "align" in df:
         df["align_frac"] = df["align"] / (df["precom"] + df["align"])
