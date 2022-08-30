@@ -68,9 +68,14 @@ results:
 	cd evals && python3 ./results.py
 
 results-export:
-	rm -f ../pairwise-aligner-paper/imgs/plots/*
-	cp evals/results/{tools,explored}_*.pdf evals/results/scaling_e.pdf evals/results/scaling_n.pdf \
-      ../pairwise-aligner-paper/imgs/plots/
+	rm -f ../pairwise-aligner-paper/imgs/fig4/*
+	rm -f ../pairwise-aligner-paper/imgs/fig6/*
+	cp evals/results/tools_*.pdf \
+      ../pairwise-aligner-paper/imgs/fig4/
+	cp evals/results/scaling_*.pdf \
+      ../pairwise-aligner-paper/imgs/fig5/
+	cp evals/results/expanded_*.pdf \
+      ../pairwise-aligner-paper/imgs/fig6/
 	cp evals/results/table* ../pairwise-aligner-paper/data/
 	cp evals/results/speedup ../pairwise-aligner-paper/data/speedup
 
