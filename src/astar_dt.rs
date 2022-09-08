@@ -236,41 +236,43 @@ where
 
 fn traceback<'a, H>(
     states: &HashMap<DtPos, State<H::Hint>>,
-    target: DtPos,
+    target_dt: DtPos,
 ) -> Option<(u32, Vec<Pos>)>
 where
     H: HeuristicInstance<'a>,
 {
     // Traceback algorithm from Ukkonen'85.
-    if let Some(state) = DiagonalMapTrait::get(states, target) {
-        let g = target.g;
+    if let Some(state) = DiagonalMapTrait::get(states, target_dt) {
+        let g = target_dt.g;
         let mut cost = 0;
-        let mut current_pos = target.to_pos(state.fr);
-        let mut path = vec![current_pos];
-        let mut current = target;
+        let mut cur_pos = target_dt.to_pos(state.fr);
+        let mut path = vec![cur_pos];
+        let mut cur_dt = target_dt;
         // If the state is not in the map, it was found via a match.
-        while current != (DtPos { diagonal: 0, g: 0 }) {
-            let e = dt_parent::<H>(states, current);
-            cost += e.1.cost();
-            let dt_next =
-                e.1.dt_back(&current)
-                    .expect("No parent found for position!");
-            let next_pos = dt_next.to_pos(e.0);
+        while cur_dt != (DtPos { diagonal: 0, g: 0 }) {
+            let (parent_fr, edge) = dt_parent::<H>(states, cur_dt);
+            cost += edge.cost();
+            let next_dt = edge
+                .dt_back(&cur_dt)
+                .expect("No parent found for position!");
+            let next_pos = next_dt.to_pos(parent_fr);
             // println!(
-            //     "current {current} pos {current_pos} edge {e:?} dt_next {dt_next} pos {next_pos}"
+            //     "current {cur_dt} pos {cur_pos} parent_fr {parent_fr} edge {edge:?} dt_next {next_dt} pos {next_pos}"
             // );
             // Add matches while needed.
-            while e.1.back(&current_pos).unwrap() != next_pos {
-                current_pos = Edge::Match.back(&current_pos).unwrap();
+            // NOTE: We need the > here, since next_pos may actually be larger
+            // than cur_pos, resulting in a possible infinite loop.
+            while edge.back(&cur_pos).unwrap() > next_pos {
+                cur_pos = Edge::Match.back(&cur_pos).unwrap();
                 // println!(
                 //     "Extra: {current_pos} with potential parent {}",
                 //     e.1.back(&current_pos).unwrap()
                 // );
-                path.push(current_pos);
+                path.push(cur_pos);
             }
-            path.push(dt_next.to_pos(e.0));
-            current = dt_next;
-            current_pos = next_pos;
+            path.push(next_dt.to_pos(parent_fr));
+            cur_dt = next_dt;
+            cur_pos = next_pos;
         }
         path.reverse();
         assert_eq!(
