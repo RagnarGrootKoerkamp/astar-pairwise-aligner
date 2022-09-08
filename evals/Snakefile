@@ -10,7 +10,8 @@ import statistics
 ## LIMITS
 
 # Timeout (cpu-time) in seconds, or 'unlimited'
-TIMEOUT = 'unlimited'
+#TIMEOUT = 'unlimited'
+TIMEOUT = '100'
 # Memory limit (virtual memory) in KB, or 'unlimited'
 MEMORY_LIMIT = 30000000
 
@@ -23,6 +24,7 @@ binaries = {
 tool_command = {
     'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh',
     'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh',
+    'csh-dt':        binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-dt',
     # Slower variants for comparison
     'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh  --no-prune',
     'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --no-prune',
@@ -45,17 +47,26 @@ ulimit -c 0
 ulimit -t {TIMEOUT}
 ulimit -v {MEMORY_LIMIT}
 # Allow the command to fail.
-export TIME="s\tuser\tsystem\tmax_rss\texit\n%e\t%U\t%S\t%M\t%x"
+export TIME="s\tuser\tsystem\tmax_rss\texit_status\n%e\t%U\t%S\t%M\t%x"
 set +e
 /usr/bin/time -o {bench_path} {command}
 status=$?
 set -e
+# NOTE: time returns 0 when the process was killed by a signal.
+# In this case, the first line of the bench_path is "Command terminated by signal <signal>"
+# We handle this separately.
+start=$(head -c 7 {bench_path})
+if [ "$start" == "Command" ] ; then
+    status=$(head -1 {bench_path} | cut -d ' ' -f 5)
+    sed -i '1d' {bench_path}
+    sed -i "s/0$/$status/" {bench_path}
+fi
 # Normal exit
 if [ $status -eq 0 ] ; then
     exit 0
 fi
-# Out of memory from SIGKILL (137) (when killed by linux) or SIGSEGV (139) or SIGABRT (134)
-if [ $status -eq 137 ] || [ $status -eq 139 ] || [ $status -eq 134 ]; then
+# Out of memory from SIGKILL (9) (when killed by linux) or SIGSEGV (11) or SIGABRT (6)
+if [ $status -eq 9 ] || [ $status -eq 11 ] || [ $status -eq 6 ]; then
     exit 0
 fi
 echo Unexpected exit status $status
@@ -71,7 +82,7 @@ wildcard_constraints:
 ## WRAPPER CLASSES
 
 # An input is a generated file containing test sequences.
-class Input:
+class RandomInput:
     # An input dataset is given by:
     def __init__(self, **kwargs):
         # The number of sequence pairs.
@@ -86,7 +97,7 @@ class Input:
         return 'x{cnt}-n{n}-e{e}'
     # The wildcard pattern for an input file.
     def pattern():
-        return f'input/synthetic/{Input.name_pattern()}.seq'
+        return f'input/synthetic/{RandomInput.name_pattern()}.seq'
 
     # The name of this input file.
     def name(self):
@@ -94,6 +105,35 @@ class Input:
     # The path of this input file.
     def path(self):
         return Path(f'input/synthetic/{self.name()}.seq')
+
+    def table_headers(self):
+        return ["cnt", "n", "e"]
+    def table_cells(self):
+        return [self.cnt, self.n, self.e]
+
+class OntUlInput:
+    # An input dataset is given by:
+    def __init__(self, **kwargs):
+        self.id = int(kwargs['id'])
+
+    # The wildcard string used for pattern matches.
+    def name_pattern():
+        return 'seq{id}'
+    # The wildcard pattern for an input file.
+    def pattern():
+        return f'human/ont-ul/{OntUlInput.name_pattern()}.seq'
+
+    # The name of this input file.
+    def name(self):
+        return Path(f'seq{self.id:02}')
+    # The path of this input file.
+    def path(self):
+        return Path(f'human/ont-ul/{self.name()}.seq')
+
+    def table_headers(self):
+        return ["id"]
+    def table_cells(self):
+        return [self.id]
 
 
 # A run is an execution of a tool (with optional parameters) on an input.
@@ -104,11 +144,11 @@ class Run:
         self.__dict__.update(kwargs)
         self.has_params = 'k' in kwargs and 'r' in kwargs
     # The wildcard pattern for an run benchmark with parameters.
-    def pattern_with_params():
-        return f'runs/{Input.name_pattern()}-A{{tool}}-r{{r}}-k{{k}}.bench'
+    def pattern_with_params(input):
+        return f'runs/{input}-A{{tool}}-r{{r}}-k{{k}}.bench'
     # The wildcard pattern for an run benchmark without parameters.
-    def pattern():
-        return f'runs/{Input.name_pattern()}-A{{tool}}.bench'
+    def pattern(input):
+        return f'runs/{input}-A{{tool}}.bench'
     # The benchmark path of this run, containing the time and memory usage measured by `/usr/bin/time`.
     def bench_path(self):
         if self.has_params:
@@ -125,29 +165,46 @@ rule generate_input:
     # Input generation has priority over other rules, so that all inputs are
     # generated at the start.
     priority: 2
-    output: Input.pattern()
+    output: RandomInput.pattern()
     shell: generate_command
 
 # === RULES TO RUN ON TESTCASES ===
 
 # Given a set of wildcards (input specs, tool, parameters), return the command to run.
 def build_command(w):
-    input = Input(**w)
+    if 'id' in w.keys():
+        input = OntUlInput(**w)
+    else:
+        input = RandomInput(**w)
     run = Run(input=input, **w)
-    command = tool_command[w.tool].format(input=input.path(), e=input.e, wildcards=w, stats_path=run.stats_path())
+    command = tool_command[w.tool].format(input=input.path(), wildcards=w, stats_path=run.stats_path())
     return timeout(command, run.bench_path())
 
 # Benchmark the tool.
 rule benchmark_tool:
-    input: lambda w: Input(**w).path()
-    output: Run.pattern()
+    input: lambda w: RandomInput(**w).path()
+    output: Run.pattern(RandomInput.name_pattern())
     params: command = lambda w: build_command(w)
     shell: '{params.command}'
 
 # Benchmark the tool with given parameters.
 rule benchmark_tool_with_params:
-    input: lambda w: Input(**w).path()
-    output: Run.pattern_with_params()
+    input: lambda w: RandomInput(**w).path()
+    output: Run.pattern_with_params(RandomInput.name_pattern())
+    params: command = lambda w: build_command(w)
+    shell: '{params.command}'
+
+# Benchmark the tool.
+rule benchmark_tool_ont_ul:
+    input: lambda w: OntUlInput(**w).path()
+    output: Run.pattern(OntUlInput.name_pattern())
+    params: command = lambda w: build_command(w)
+    shell: '{params.command}'
+
+# Benchmark the tool with given parameters.
+rule benchmark_tool_ont_ul_with_params:
+    input: lambda w: OntUlInput(**w).path()
+    output: Run.pattern_with_params(OntUlInput.name_pattern())
     params: command = lambda w: build_command(w)
     shell: '{params.command}'
 
@@ -159,7 +216,7 @@ rule benchmark_tool_with_params:
 # - .status file
 # - .stats file if present
 def make_table(runs, output):
-    headers = ["alg","cnt","n","e","r","k","s","user","system","max_rss","exit_status"]
+    headers = ["alg"] + runs[0].input.table_headers() + ["r","k","s","user","system","max_rss","exit_status"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
@@ -177,8 +234,10 @@ def make_table(runs, output):
             stats = '\t' + run.stats_path().read_text().splitlines()[1]
         except:
             stats = ''
-        for bench_line in run.bench_path().read_text().splitlines()[1:]:
-            table_file.write(f'{run.tool}\t{run.input.cnt}\t{run.input.n}\t{run.input.e}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}{stats}\n')
+        if run.bench_path().is_file():
+            for bench_line in run.bench_path().read_text().splitlines()[1:]:
+                input_fields = '\t'.join(map(str, run.input.table_cells()))
+                table_file.write(f'{run.tool}\t{input_fields}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}{stats}\n')
 
 # === TOOL COMPARISON ===
 
@@ -188,7 +247,7 @@ def tools_runs():
     ns = [3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000]
     es = [0.01, 0.05, 0.10, 0.15]
     tools = ['edlib', 'biwfa', 'sh', 'csh']
-    inputs = [Input(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
+    inputs = [RandomInput(cnt=N//n, n=n, e=e) for n in ns for e in es if N//n > 0]
     return [
         (
             # NOTE: exact matches are used for e < 10%, and inexact matches for e >= 10%.
@@ -222,8 +281,8 @@ def scaling_n_runs():
     slow_N = 10**6
     fast_tools = ['sh', 'csh']
     slow_tools = ['sh-noprune', 'csh-noprune']
-    fast_inputs = [Input(cnt=fast_N//n, n=n, e=e) for n in ns if fast_N//n > 0]
-    slow_inputs = [Input(cnt=slow_N//n, n=n, e=e) for n in ns if slow_N//n > 0]
+    fast_inputs = [RandomInput(cnt=fast_N//n, n=n, e=e) for n in ns if fast_N//n > 0]
+    slow_inputs = [RandomInput(cnt=slow_N//n, n=n, e=e) for n in ns if slow_N//n > 0]
     # Dijkstra is separate because it does not use parameters.
     dijkstra_runs = [Run(input=input, tool=tool)
                         for input in slow_inputs
@@ -253,7 +312,7 @@ def scaling_e_runs():
     k = 9
     tools = ['sh', 'csh']
 
-    inputs = [Input(cnt=N//n, n=n, e=e) for e in es if N//n > 0]
+    inputs = [RandomInput(cnt=N//n, n=n, e=e) for e in es if N//n > 0]
     # Dijkstra is separate because it does not use parameters.
     dijkstra_runs = [Run(input=input, tool=tool)
                         for input in inputs
@@ -269,3 +328,29 @@ rule scaling_e_table:
     input: lambda w: [run.bench_path() for run in scaling_e_runs()]
     output: 'table/scaling_e.tsv'
     run: make_table(scaling_e_runs(), output)
+
+# =========================== ONT MinION UL DATA ============================
+
+# === TOOL COMPARISON ON ONT MinION UL DATA ===
+
+# Returns the list of runs for the tool comparison table.
+def ont_ul_runs():
+    tools = ['biwfa', 'edlib', 'csh', 'csh-dt']
+    inputs = [OntUlInput(id=id) for id in range(1, 49)]
+    r = 2
+    k = 13
+    return [
+        (
+            Run(input=input, tool=tool, k=k, r=r)
+            if tool in ['sh', 'csh', 'csh-dt'] else
+            Run(input=input, tool=tool)
+        )
+        for input in inputs
+        for tool in tools
+    ]
+
+rule ont_ul_table:
+    priority: 2
+    input: lambda w: [run.bench_path() for run in ont_ul_runs()]
+    output: 'table/ont_ul.tsv'
+    run: make_table(ont_ul_runs(), output)
