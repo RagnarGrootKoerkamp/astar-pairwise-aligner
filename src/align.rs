@@ -171,9 +171,9 @@ impl AlignResult {
             (format!("{:>9}", "greedy"), |this: &AlignResult| {
                 format!("{:>9}", this.astar.greedy_expanded / this.sample_size)
             }),
-            (format!("{:>7}", "dbl"), |this: &AlignResult| {
-                format!("{:>7}", this.astar.double_expanded / this.sample_size)
-            }),
+            // (format!("{:>7}", "dbl"), |this: &AlignResult| {
+            //     format!("{:>7}", this.astar.double_expanded / this.sample_size)
+            // }),
             (format!("{:>7}", "ret"), |this: &AlignResult| {
                 format!("{:>7}", this.astar.retries / this.sample_size)
             }),
@@ -195,13 +195,13 @@ impl AlignResult {
                     1000. * this.timing.total / this.sample_size as f32
                 )
             }),
-            (format!("{:>8}", "t_std"), |this: &AlignResult| {
-                let n = this.sample_size as f32;
-                let avg = this.timing.total / n;
-                let sum_squares = this.timing.total_sum_squares;
-                let stddev = (1. / n * (sum_squares - n * avg * avg)).sqrt();
-                format!("{:>8.2}", 1000. * stddev)
-            }),
+            // (format!("{:>8}", "t_std"), |this: &AlignResult| {
+            //     let n = this.sample_size as f32;
+            //     let avg = this.timing.total / n;
+            //     let sum_squares = this.timing.total_sum_squares;
+            //     let stddev = (1. / n * (sum_squares - n * avg * avg)).sqrt();
+            //     format!("{:>8.2}", 1000. * stddev)
+            // }),
             (format!("{:>8}", "precom"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
