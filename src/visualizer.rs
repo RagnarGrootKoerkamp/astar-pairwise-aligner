@@ -172,8 +172,9 @@ mod with_sdl2 {
             match self {
                 Gradient::Fixed(color) => *color,
                 Gradient::Gradient(range) => {
-                    let frac =
-                        |a: u8, b: u8| -> u8 { ((1. - f) * a as f64 + f * b as f64).ceil() as u8 };
+                    let frac = |a: u8, b: u8| -> u8 {
+                        (a as f64 + f * (b as f64 - a as f64)).ceil() as u8
+                    };
                     Color::RGB(
                         frac(range.start.r, range.end.r),
                         frac(range.start.g, range.end.g),
@@ -378,9 +379,9 @@ mod with_sdl2 {
             )
         }
 
-        fn draw_pixel(&self, canvas: &mut Canvas<Window>, p: Pos, c: Color) {
-            canvas.set_draw_color(c);
-            let mut begin = self.cell_begin(p);
+        fn draw_pixel(&self, canvas: &mut Canvas<Window>, pos: Pos, color: Color) {
+            canvas.set_draw_color(color);
+            let mut begin = self.cell_begin(pos);
             begin *= self.config.prescaler as i32;
             canvas
                 .fill_rect(Rect::new(
@@ -392,9 +393,9 @@ mod with_sdl2 {
                 .unwrap();
         }
 
-        fn draw_pixels(&self, canvas: &mut Canvas<Window>, p: Vec<Pos>, c: Color) {
-            canvas.set_draw_color(c);
-            let rects = p
+        fn draw_pixels(&self, canvas: &mut Canvas<Window>, pos: Vec<Pos>, color: Color) {
+            canvas.set_draw_color(color);
+            let rects = pos
                 .iter()
                 .map(|p| {
                     let mut begin = self.cell_begin(*p);
