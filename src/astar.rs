@@ -109,6 +109,7 @@ where
         data: (pos, queue_g),
     }) = queue.pop()
     {
+        // Time the duration of retrying once in this many iterations.
         const RETRY_COUNT_EACH: i32 = 64;
         let expand_start = if retry_cnt % RETRY_COUNT_EACH == 0 {
             Some(Instant::now())
@@ -185,6 +186,20 @@ where
         // Copy for local usage.
         let state = *state;
 
+        // Retrace path to root and return.
+        if pos == graph.target() {
+            DiagonalMapTrait::insert(&mut states, pos, state);
+            if D {
+                println!("Reached target {pos} with state {state:?}");
+            }
+            break 'outer;
+        }
+
+        // Expand u
+        if D {
+            println!("Expand {pos} {}", state.g);
+        }
+
         stats.expanded += 1;
         v.expand_with_h(pos, Some(h));
 
@@ -194,19 +209,6 @@ where
             if REDUCE_RETRIES {
                 stats.pq_shifts += queue.shift(shift, pos) as usize;
             }
-        }
-
-        if D {
-            println!("Expand {pos} {}", state.g);
-        }
-
-        // Retrace path to root and return.
-        if pos == graph.target() {
-            DiagonalMapTrait::insert(&mut states, pos, state);
-            if D {
-                println!("Reached target {pos} with state {state:?}");
-            }
-            break 'outer;
         }
 
         graph.iterate_outgoing_edges(pos, |mut next, edge| {
@@ -245,6 +247,12 @@ where
             if cur_next.g <= next_g {
                 return;
             };
+
+            // Open next
+            if D {
+                println!("Open {next} from {pos} g {next_g}");
+            }
+
             cur_next.g = next_g;
             if cur_next.status == Unvisited {
                 cur_next.status = Explored;
@@ -258,9 +266,6 @@ where
                 f: next_f,
                 data: (next, next_g),
             });
-            if D {
-                println!("Explore {next} from {pos} g {next_g}");
-            }
 
             h.explore(next);
             stats.explored += 1;
