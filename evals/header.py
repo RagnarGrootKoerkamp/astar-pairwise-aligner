@@ -15,6 +15,28 @@ pd.set_option("display.width", 1000)
 plt.rcParams.update({"font.size": 16})
 
 
+def read_benchmarks(tsv_fn, algo=None):
+    df = pd.read_csv(tsv_fn, sep="\t", index_col=False)
+    if "nr" in df and 'cnt' in df:
+        ns = df["nr"].fillna(value=df["cnt"])
+        df["s_per_pair"] = df["s"] / ns
+        df["s_per_bp"] = df["s"] / (ns * df["n"])
+    if "e" in df:
+        df["e_pct"] = 100 * df["e"]
+    df["max_rss_mb"] = df["max_rss"] / 1000
+    if "r" in df:
+        df["r"].fillna(value=0)
+    if "expanded" in df:
+        df["band"] = df["expanded"] / df["|a|"]
+        df = df.round({'band': 2})
+    if "align" in df:
+        df["align_frac"] = df["align"] / (df["precom"] + df["align"])
+        df["prune_frac"] = df["prune"] / df["align"]
+        df["h_approx_frac"] = df["h0"] / df["ed"]
+        df["expanded_frac"] = df["expanded"] / df["explored"]
+    return df
+
+
 def plot_scaling(
     df,
     x,
@@ -210,24 +232,6 @@ def plot_scaling(
 
     plt.savefig(f"results/{filename}.pdf", bbox_inches="tight")
 
-
-def read_benchmarks(tsv_fn, algo=None):
-    df = pd.read_csv(tsv_fn, sep="\t", index_col=False)
-    ns = df["nr"].fillna(value=df["cnt"])
-    df["s_per_pair"] = df["s"] / ns
-    df["s_per_bp"] = df["s"] / (ns * df["n"])
-    df["e_pct"] = 100 * df["e"]
-    df["max_rss_mb"] = df["max_rss"] / 1000
-    df["r"].fillna(value=0)
-    df["band"] = df["expanded"] / df["n"]
-    df = df.round({'band': 2})
-
-    if "align" in df:
-        df["align_frac"] = df["align"] / (df["precom"] + df["align"])
-        df["prune_frac"] = df["prune"] / df["align"]
-        df["h_approx_frac"] = df["h0"] / df["ed"]
-        df["expanded_frac"] = df["expanded"] / df["explored"]
-    return df
 
 
 # green palette: #e1dd72, #a8c66c, #1b6535
