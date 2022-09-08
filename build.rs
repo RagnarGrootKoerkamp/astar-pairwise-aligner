@@ -58,6 +58,8 @@ fn edlib() {
     println!("cargo:rustc-link-lib=edlib");
     // Edlib depends on c++ libraries.
     println!("cargo:rustc-link-lib=stdc++");
+    // Rebuild when the edlib library changes.
+    println!("cargo:rerun-if-changed=../edlib/meson-build/edlib");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -85,6 +87,7 @@ fn edlib() {
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
     #[cfg(feature = "wfa")]
     wfa();
     #[cfg(feature = "edlib")]
