@@ -383,14 +383,18 @@ mod with_sdl2 {
             canvas.set_draw_color(color);
             let mut begin = self.cell_begin(pos);
             begin *= self.config.prescaler as i32;
-            canvas
-                .fill_rect(Rect::new(
-                    begin.x,
-                    begin.y,
-                    self.config.cell_size as u32 * self.config.prescaler,
-                    self.config.cell_size as u32 * self.config.prescaler,
-                ))
-                .unwrap();
+            if self.config.cell_size == 1 && self.config.prescaler == 1 {
+                canvas.draw_point(begin).unwrap();
+            } else {
+                canvas
+                    .fill_rect(Rect::new(
+                        begin.x,
+                        begin.y,
+                        self.config.cell_size as u32 * self.config.prescaler,
+                        self.config.cell_size as u32 * self.config.prescaler,
+                    ))
+                    .unwrap();
+            }
         }
 
         fn draw_pixels(&self, canvas: &mut Canvas<Window>, pos: Vec<Pos>, color: Color) {
