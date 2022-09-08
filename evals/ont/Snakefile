@@ -1,104 +1,4 @@
-# NOTE: This is untested and mostly scratchpad.
-
-# ==== ONT Runs ==== #
-
-ont_ns = [100_000, 300_000, 1_000_000]
-ont_models = ['random', 'human']
-ont_kms = [(14, 1), (15, 1), (16, 1), (17, 1)]
-
-# This runs on 3 types of data:
-# - synthetic data
-# - random sequences with ONT errors
-# - human sequences with ONT errors
-def ont_inputs(N):
-    N = int(float(N))
-    return ([Input(cnt=N//n, n=n, e=0.1) for n in ont_ns if N//n > 0]
-            + [Input(model=model, cnt=N//n, n=n) for n in ont_ns for model in ont_models if N//n > 0])
-
-# Run PA with given parameters.
-rule ont_run_pa_for_parameters:
-    input: lambda w: Input(**w).path()
-    benchmark: Run.pattern_with_params(ont=True)
-    params: command = lambda w: build_command(w, params=True)
-    shell: '{params.command}'
-
-rule ont_params_table:
-    input: lambda w: [run.bench_path() for run in params_runs(tools_cp, ont_inputs(w.N), ont=True)]
-    output: 'table/params_ont_N{N}.tsv'
-    run: make_table(params_runs(tools_cp, ont_inputs(wildcards.N), ont=True), output)
-
-rule ont_tools_table:
-    input: lambda w: [run.bench_path() for run in tool_runs(tools, ont_inputs(w.N))]
-    output: 'table/tools_ont_N{N}.tsv'
-    run: make_table(tool_runs(tools, ont_inputs(wildcards.N)), output)
-
-
-# ======= Reference ======= #
-rule human_reference:
-    #output: f'input/reference/human.fa'
-    shell: '''
-    wget -P input/reference http://ftp.ensembl.org/pub/release-106/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
-    gunzip --keep input/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz {output}
-    # Make .fai
-    samtools faidx {output}
-    '''
-
-# ======= Nanosim data ======= #
-
-rule nanosim:
-    output: 'input/simulated/{ref}-x{x}-n{n}.seq'
-    input: 'input/reference/{ref}.fa'
-    threads: 8
-    params:
-        min = lambda w: int(w.n)*3//4,
-        max = lambda w: int(w.n)*5//4,
-        seed = 31415,
-        # Generate a few more sequences, so that we have some room for filtering (unaligned, and N regions).
-        generate_x = lambda w: int(w.x) * 3 // 2
-    # NOTE: Run this in a conda env with nanosim loaded.
-    # TODO: Add this info to the snakefile.
-    # TODO: Fix path to the nanosim datafiles.
-    shell: '''
-    # Run the simulator to generate a .fa file.
-    simulator.py genome \
-      --ref_g input/reference/{wildcards.ref}.fa \
-      --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n} \
-      -dna_type linear \
-      --model_prefix ../../nanosim/pre-trained_models/human_NA12878_DNA_FAB49712_guppy/training \
-      --min_len {params.min} \
-      --median_len {wildcards.n} \
-      --max_len {params.max} \
-      --sd_len 1.05 \
-      --number {params.generate_x} \
-      --strandness 1 \
-      --seed 314151 \
-      --num_threads 8
-    # Convert to a .seq file,
-    ../target/release/examples/nanosim_to_seq \
-      --reference input/reference/{wildcards.ref}.fa \
-      --reads input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}_aligned_reads.fasta \
-      --output input/simulated/{wildcards.ref}-x{wildcards.x}-n{wildcards.n}.seq \
-      --count {wildcards.x} \
-      --strip-unaligned
-    '''
-
-#
-# simulator.py genome
-# -rg ../reads/reference/GRCh38_full_analysis_set_plus_decoy_hla.fa
-# -dna_type linear
-# -c ../../../../nanosim/pre-trained_models/human_NA12878_DNA_FAB49712_guppy/training
-# -min  750000
-# -max 12500000
-# -med 1000000
-# -sd 1.05
-# -n10
-# -s 1
-# --seed 31415
-
-
-
-
-# ================ BELOW HERE IS unused AND untested REAL DATA =================== #
+# ===== Block aligner test data =====
 
 # Nanopore / Illumina data is here: https://github.com/Daniel-Liu-c0deb0t/block-aligner/releases
 
@@ -110,11 +10,11 @@ rule nanosim:
 # Download reference genome.
 # Gets the entire directory, but not subdirectories.
 REFERENCE_FTP = 'ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/technical/reference/GRCh38_reference_genome/'
-REFERENCE2_DIR = 'input/reads/reference'
-REFERENCE_NAME = f'{REFERENCE2_DIR}/GRCh38_full_analysis_set_plus_decoy_hla.fa'
+REFERENCE_DIR = 'input/reads/reference'
+REFERENCE_NAME = f'{REFERENCE_DIR}/GRCh38_full_analysis_set_plus_decoy_hla.fa'
 rule download_reference:
     output: REFERENCE_NAME
-    shell: f'wget -r -nH -nc -l 1 -P {REFERENCE2_DIR} --cut-dirs=5 {REFERENCE_FTP}'
+    shell: f'echo wget -r -nH -nc -l 1 -P {REFERENCE_DIR} --cut-dirs=5 {REFERENCE_FTP}'
 
 
 # Download reads
@@ -127,7 +27,7 @@ FLOWCELLS = {
 
 # Copy from AWS S3.
 # Using AWS CLI is faster, but needs an AWS account and aws CLI set up and linked to your account.
-rule read:
+rule download_read_fasta:
     output: 'input/reads/{id}.fastq.gz'
     run:
         path = FLOWCELLS[wildcards.id]
@@ -135,7 +35,7 @@ rule read:
         shell('aws configure set default.s3.max_concurrent_requests 20')
         shell('aws s3 cp s3://{path} {output}')
 
-rule read_bam:
+rule download_read_bam:
     output: 'input/reads/{id}.fastq.gz.sorted.bam'
     run:
         path = FLOWCELLS[wildcards.id] + '.sorted.bam'
@@ -160,10 +60,15 @@ rule extract_reference:
     # -s: reverse-complement the reference when needed
     shell: 'bedtools getfasta -s -nameOnly -fi {REFERENCE_NAME}  -bed input/reads/{id}.bed > {output}'
 
+rule extract_references:
+    input: [f'input/reads/{id}.mapped.fa' for id in FLOWCELLS]
+
 # Reads are in the original .fasta.gz file, or can be extracted using
 # samtools fasta {id}.fastq.gz.sorted.bam
 # View the bam entry for a read with
 # samtools view {read_id}
+
+# ======= BiWFA test data ======
 
 # Large (500k+) read set from BiWFA paper:
 rule download_ont_500k:
@@ -176,5 +81,6 @@ rule ont_500k:
     shell: '''
     mkdir -p input/ont_500k/
     unzip {input} -d {params.dir}
-    cat {params.dir}/* > {output}
+    rename seq seq0 seq?.seq
+    cat {params.dir}/*.seq > {output}
     '''
