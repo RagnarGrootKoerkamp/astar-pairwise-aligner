@@ -186,7 +186,7 @@ impl AlignResult {
             (format!("{:>8}", "band"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
-                    this.astar.explored as f32 / max(this.input.len_a, this.input.len_b) as f32
+                    this.astar.expanded as f32 / this.input.len_a as f32
                 )
             }),
             (format!("{:>8}", "t"), |this: &AlignResult| {
