@@ -164,16 +164,16 @@ mod with_sdl2 {
         Fixed(Color),
         Gradient(Range<Color>),
         // 0 <= start < end <= 1
-        TurboGradient(Range<f32>),
+        TurboGradient(Range<f64>),
     }
 
     impl Gradient {
-        fn color(&self, f: f32) -> Color {
+        fn color(&self, f: f64) -> Color {
             match self {
                 Gradient::Fixed(color) => *color,
                 Gradient::Gradient(range) => {
                     let frac =
-                        |a: u8, b: u8| -> u8 { ((1. - f) * a as f32 + f * b as f32).ceil() as u8 };
+                        |a: u8, b: u8| -> u8 { ((1. - f) * a as f64 + f * b as f64).ceil() as u8 };
                     Color::RGB(
                         frac(range.start.r, range.end.r),
                         frac(range.start.g, range.end.g),
@@ -182,7 +182,7 @@ mod with_sdl2 {
                 }
                 Gradient::TurboGradient(range) => {
                     let f = range.start + f * (range.end - range.start);
-                    let c = colorgrad::turbo().at(f as f64).to_rgba8();
+                    let c = colorgrad::turbo().at(f).to_rgba8();
                     Color::RGBA(c[0], c[1], c[2], c[3])
                 }
             }
@@ -581,7 +581,7 @@ mod with_sdl2 {
                     self.draw_pixels(
                         &mut canvas,
                         poss,
-                        self.config.style.heuristic.color(h as f32 / h_max as f32),
+                        self.config.style.heuristic.color(h as f64 / h_max as f64),
                     );
                 }
             }
@@ -707,9 +707,9 @@ mod with_sdl2 {
                                 {
                                     current_layer -= 1;
                                 }
-                                current_layer as f32 / self.config.num_layers.unwrap_or(layer) as f32
+                                current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
                             } else {
-                                    i as f32 / self.expanded.len() as f32
+                                    i as f64 / self.expanded.len() as f64
                             },
                         ),
                     );
@@ -741,9 +741,9 @@ mod with_sdl2 {
                                 if current_layer < layer && i >= self.expanded_layers[current_layer] {
                                     current_layer += 1;
                                 }
-                                current_layer as f32 / self.config.num_layers.unwrap_or(layer) as f32
+                                current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
                             } else {
-                                    i as f32 / self.expanded.len() as f32
+                                    i as f64 / self.expanded.len() as f64
                             },
                         ),
                     );
