@@ -51,14 +51,14 @@ rule download_reads:
 rule bed_file:
     input: 'input/reads/{id}.fastq.gz.sorted.bam'
     output: 'input/reads/{id}.bed'
-    shell: 'bedtools bamtobed -i input/reads{id}.fastq.gz.sorted.bam > {output}'
+    shell: 'bedtools bamtobed -i input/reads/{wildcards.id}.fastq.gz.sorted.bam > {output}'
 
 # Extract parts of reference corresponding to reads:
 rule extract_reference:
     input: ['input/reads/{id}.bed', REFERENCE_NAME]
     output: 'input/reads/{id}.mapped.fa'
     # -s: reverse-complement the reference when needed
-    shell: 'bedtools getfasta -s -nameOnly -fi {REFERENCE_NAME}  -bed input/reads/{id}.bed > {output}'
+    shell: 'bedtools getfasta -s -nameOnly -fi {REFERENCE_NAME}  -bed input/reads/{wildcards.id}.bed > {output}'
 
 rule extract_references:
     input: [f'input/reads/{id}.mapped.fa' for id in FLOWCELLS]
