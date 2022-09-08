@@ -290,16 +290,7 @@ pub fn align<'a, H: Heuristic>(
 where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
-    align_advanced(
-        a,
-        b,
-        alphabet,
-        sequence_stats,
-        heuristic,
-        true,
-        false,
-        false,
-    )
+    align_advanced(a, b, alphabet, sequence_stats, heuristic, true, false, None)
 }
 
 pub fn align_advanced<'a, H: Heuristic>(
@@ -310,7 +301,7 @@ pub fn align_advanced<'a, H: Heuristic>(
     heuristic: H,
     greedy_edge_matching: bool,
     diagonal_transition: bool,
-    save_last: bool,
+    save_last: Option<&String>,
 ) -> AlignResult
 where
     H::Instance<'a>: HeuristicInstance<'a>,
@@ -325,10 +316,10 @@ where
     let astar_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = EditGraph::new(a, b, greedy_edge_matching);
-    let (distance_and_path, astar_stats) = if save_last {
+    let (distance_and_path, astar_stats) = if let Some(path) = save_last {
         let mut config = visualizer::Config::default();
         config.save_last = true;
-        config.filepath = "alignment".into();
+        config.filepath = path.clone();
         config.transparent_bmp = false;
         config.downscaler = 100;
         config.cell_size = 1;

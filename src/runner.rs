@@ -132,7 +132,7 @@ pub struct Params {
 
     /// Save last frame as image.
     #[clap(long, hide_short_help = true)]
-    save_last: bool,
+    save_last: Option<String>,
 
     /// Do not run anything, but print inferred parameters
     #[clap(long)]
@@ -279,7 +279,7 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
                 heuristic,
                 !params.no_greedy_matching,
                 params.algorithm.diagonal_transition(),
-                params.save_last,
+                params.save_last.as_ref(),
             )
         }
         Algorithm::BruteForceCSH => {
@@ -312,7 +312,7 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
                     heuristic,
                     !params.no_greedy_matching,
                     params.algorithm.diagonal_transition(),
-                    params.save_last,
+                    params.save_last.as_ref(),
                 )
             }
 
@@ -362,7 +362,7 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
                     heuristic,
                     !params.no_greedy_matching,
                     params.algorithm.diagonal_transition(),
-                    params.save_last,
+                    params.save_last.as_ref(),
                 )
             }
 
@@ -396,7 +396,7 @@ pub fn run(a: Seq, b: Seq, params: &Params) -> AlignResult {
                 heuristic,
                 !params.no_greedy_matching,
                 params.algorithm.diagonal_transition(),
-                params.save_last,
+                params.save_last.as_ref(),
             )
         }
     }
