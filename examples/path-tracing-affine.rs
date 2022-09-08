@@ -7,7 +7,7 @@ fn main() {}
 fn main() {
     use astar_pairwise_aligner::{
         aligners::{
-            diagonal_transition::{DiagonalTransition, GapCostHeuristic, PathTracingMethod},
+            diagonal_transition::{DiagonalTransition, GapCostHeuristic},
             Aligner,
         },
         prelude::*,
