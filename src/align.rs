@@ -290,7 +290,16 @@ pub fn align<'a, H: Heuristic>(
 where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
-    align_advanced(a, b, alphabet, sequence_stats, heuristic, true, false)
+    align_advanced(
+        a,
+        b,
+        alphabet,
+        sequence_stats,
+        heuristic,
+        true,
+        false,
+        false,
+    )
 }
 
 pub fn align_advanced<'a, H: Heuristic>(
@@ -301,6 +310,7 @@ pub fn align_advanced<'a, H: Heuristic>(
     heuristic: H,
     greedy_edge_matching: bool,
     diagonal_transition: bool,
+    save_last: bool,
 ) -> AlignResult
 where
     H::Instance<'a>: HeuristicInstance<'a>,
@@ -315,11 +325,29 @@ where
     let astar_time = time::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = EditGraph::new(a, b, greedy_edge_matching);
-    // FIXME: Pass a visualizer into this function.
-    let (distance_and_path, astar_stats) = if diagonal_transition {
-        astar_dt(&graph, h, &mut NoVisualizer)
+    let (distance_and_path, astar_stats) = if save_last {
+        let mut config = visualizer::Config::default();
+        config.save_last = true;
+        config.filepath = "alignment".into();
+        config.transparent_bmp = false;
+        config.downscaler = 100;
+        config.cell_size = 1;
+        config.style.path = None;
+        config.style.draw_matches = true;
+        config.style.match_width = 1;
+        config.style.match_shrink = 0;
+        let mut vis = visualizer::Visualizer::new(config, a, b);
+        if diagonal_transition {
+            astar_dt(&graph, h, &mut vis)
+        } else {
+            astar(&graph, h, &mut vis)
+        }
     } else {
-        astar(&graph, h, &mut NoVisualizer)
+        if diagonal_transition {
+            astar_dt(&graph, h, &mut NoVisualizer)
+        } else {
+            astar(&graph, h, &mut NoVisualizer)
+        }
     };
     let (distance, path) = distance_and_path.unwrap_or_default();
     let astar_duration = astar_time.elapsed();
