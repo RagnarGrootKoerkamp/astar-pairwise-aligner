@@ -254,6 +254,7 @@ mod with_sdl2 {
         pub save: When,
         pub save_last: bool,
         pub style: Style,
+        pub transparent_bmp: bool,
         pub draw_old_on_top: bool,
         pub layer_drawing: bool,
         pub num_layers: Option<usize>,
@@ -299,6 +300,7 @@ mod with_sdl2 {
                 draw_old_on_top: true,
                 layer_drawing: false,
                 num_layers: None,
+                transparent_bmp: true,
             }
         }
     }
@@ -501,8 +503,10 @@ mod with_sdl2 {
                 pixel_format,
             )
             .unwrap();
-            surf.set_color_key(true, self.config.style.bg_color)
-                .unwrap();
+            if self.config.transparent_bmp {
+                surf.set_color_key(true, self.config.style.bg_color)
+                    .unwrap();
+            }
 
             surf.save_bmp(path).unwrap_or_else(|error| {
                 print!("Problem saving the file: {:?}", error);
