@@ -50,6 +50,7 @@ def plot_scaling(
     cone=None,
     cone_x=10**4,
     ls="",
+    x_min = 0,
 ):
     fig, ax = plt.subplots(1, 1)
     fig.set_size_inches(6, 4, forward=True)
@@ -156,8 +157,8 @@ def plot_scaling(
             )
         print(exps)
     else:
-        label_x = d[y].index[-1]
         for algo in d[y].columns:
+            label_x = d[y][d[y][algo].notna()].index[-1]
             key = algo[0] if isinstance(algo, tuple) else algo
             ax.text(
                 label_x,
@@ -222,8 +223,17 @@ def plot_scaling(
         )
     if x == "e_pct":
         ax.xaxis.set_major_formatter(ticker.PercentFormatter(decimals=0))
-        ax.margins(x=0)
-        ax.set_xlim(left=0)
+        if x_min is not None:
+            ax.margins(x=0)
+            ax.set_xlim(left=x_min)
+    if x == "ord":
+        ax.tick_params(
+            axis='x',          # changes apply to the x-axis
+            which='both',      # both major and minor ticks are affected
+            bottom=False,      # ticks along the bottom edge are off
+            top=False,         # ticks along the top edge are off
+            labelbottom=False) # labels along the bottom edge are off
+
 
     # axis labels
     ax.set_xlabel(col2name(x), size=18)  # weight='bold',
@@ -321,6 +331,7 @@ def col2name(col):
         "max_rss": "Memory [MB]",
         "explored": "Explored states",
         "band": "Effective band",
+        "ord": "Sequence pair",
     }
     if col in d:
         return d[col]
