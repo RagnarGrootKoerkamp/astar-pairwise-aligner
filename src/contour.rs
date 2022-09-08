@@ -50,15 +50,14 @@ pub trait Contour: Default + Debug + Clone {
     fn iterate_points<F: FnMut(Pos)>(&self, _f: F) {}
 }
 
-/// An arrow implies f(start) >= f(end) + len.
+/// An arrow implies f(start) >= f(end) + score.
 /// This is only needed for Contours, since Contour already assumes the points all have the same value.
-/// NOTE: It is assumed that |start - end|_1 <= 2 * len. This is needed to ensure the bounded width of each contour.
+/// NOTE: It is assumed that |start - end|_1 <= 2 * score. This is needed to ensure the bounded width of each contour.
 #[derive(Clone, PartialEq)]
 pub struct Arrow {
     pub start: Pos,
     pub end: Pos,
-    // ~ discount
-    pub len: MatchCost,
+    pub score: MatchCost,
 }
 
 // Implementations for Arrow
@@ -66,7 +65,7 @@ impl Display for Arrow {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!(
             "{:?} => {:?} [{}]",
-            self.start, self.end, self.len
+            self.start, self.end, self.score
         ))
     }
 }

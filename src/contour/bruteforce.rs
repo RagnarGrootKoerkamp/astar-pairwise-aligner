@@ -83,7 +83,7 @@ impl Contours for BruteForceContours {
             valued_arrows: Vec::default(),
         };
         for arrow in arrows {
-            let val = this.score(arrow.end) + arrow.len as Cost;
+            let val = this.score(arrow.end) + arrow.score as Cost;
             this.valued_arrows.push((arrow, val));
         }
         this

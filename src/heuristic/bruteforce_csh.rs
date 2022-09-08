@@ -111,7 +111,7 @@ where
         let match_to_arrow = |m: &Match| Arrow {
             start: m.start,
             end: m.end,
-            len: m.seed_potential - m.match_cost,
+            score: m.seed_potential - m.match_cost,
         };
 
         h.arrows = h
@@ -145,7 +145,7 @@ where
             if !arrows.contains(&Arrow {
                 start: *start,
                 end: *end,
-                len: seed_potential - match_cost,
+                score: seed_potential - match_cost,
             }) {
                 continue;
             }
@@ -251,7 +251,7 @@ where
             }
         }
         let a = if let Some(arrows) = self.arrows.get(&tpos) {
-            arrows.iter().max_by_key(|a| a.len).unwrap().clone()
+            arrows.iter().max_by_key(|a| a.score).unwrap().clone()
         } else {
             self.pruning_duration += start.elapsed();
             self.build();
@@ -266,7 +266,10 @@ where
             for d in 1..=self.params.match_config.max_match_cost {
                 let mut check = |pos: Pos| {
                     if let Some(pos_arrows) = self.arrows.get(&pos) {
-                        min_len = max(min_len, pos_arrows.iter().map(|a| a.len).max().unwrap() - d);
+                        min_len = max(
+                            min_len,
+                            pos_arrows.iter().map(|a| a.score).max().unwrap() - d,
+                        );
                     }
                 };
                 if pos.0 >= d as Cost {
@@ -276,7 +279,7 @@ where
             }
         }
 
-        if a.len <= min_len {
+        if a.score <= min_len {
             self.build();
             return (0, ());
         }
@@ -288,7 +291,7 @@ where
         // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
         // TODO: Make this more precise for larger inexact matches.
         if PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END
-            && a.len == self.params.match_config.max_match_cost + 1
+            && a.score == self.params.match_config.max_match_cost + 1
         {
             // See if there are neighbouring points that can now be fully pruned.
             for d in 1..=self.params.match_config.max_match_cost {
@@ -322,7 +325,7 @@ where
                 if D {
                     println!("Remove arrows of length > {min_len} at pos {pos}.");
                 }
-                arrows.drain_filter(|a| a.len > min_len).count();
+                arrows.drain_filter(|a| a.score > min_len).count();
                 assert!(arrows.len() > 0);
             };
         }

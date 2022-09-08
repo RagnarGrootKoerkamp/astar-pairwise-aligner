@@ -84,7 +84,7 @@ impl SHI {
         let match_to_arrow = |m: &Match| Arrow {
             start: m.start,
             end: m.end,
-            len: m.seed_potential - m.match_cost,
+            score: m.seed_potential - m.match_cost,
         };
 
         let arrows: HashMap<Pos, Vec<Arrow>> = matches
@@ -103,8 +103,8 @@ impl SHI {
 
         for (start, arrows) in &arrows {
             for a in arrows {
-                assert!(0 < a.len && a.len <= params.match_config.max_match_cost + 1);
-                num_arrows_per_length[a.len as usize]
+                assert!(0 < a.score && a.score <= params.match_config.max_match_cost + 1);
+                num_arrows_per_length[a.score as usize]
                     [matches.seed_at[start.0 as usize].unwrap() as usize] += 1;
             }
         }
@@ -192,13 +192,13 @@ impl SHI {
     /// Returns the number of layers removed.
     fn update_layers_on_pruning_arrow(&mut self, a: Arrow, hint: Hint) -> Cost {
         let seed_idx = self.matches.seed_at[a.start.0 as usize].unwrap() as usize;
-        self.num_arrows_per_length[a.len as usize][seed_idx] -= 1;
-        if self.num_arrows_per_length[a.len as usize][seed_idx] != 0 {
+        self.num_arrows_per_length[a.score as usize][seed_idx] -= 1;
+        if self.num_arrows_per_length[a.score as usize][seed_idx] != 0 {
             // Remaining matches; nothing to prune.
             return 0;
         }
         // Make sure all larger lengths are also 0.
-        for l in a.len as usize + 1..self.num_arrows_per_length.len() {
+        for l in a.score as usize + 1..self.num_arrows_per_length.len() {
             if self.num_arrows_per_length[l][seed_idx] > 0 {
                 return 0;
             }
@@ -207,7 +207,7 @@ impl SHI {
         let mut removed = 0;
         let mut layer = self.value_with_hint(a.start, hint).0;
         // NOTE: we don't actually have arrows of length 0.
-        for l in (1..=a.len).rev() {
+        for l in (1..=a.score).rev() {
             if self.num_arrows_per_length[l as usize][seed_idx] > 0 {
                 break;
             }
@@ -315,7 +315,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
             }
         }
         let a = if let Some(matches) = self.arrows.get(&pos) {
-            matches.iter().max_by_key(|a| a.len).unwrap().clone()
+            matches.iter().max_by_key(|a| a.score).unwrap().clone()
         } else {
             return (0, 0);
         };
@@ -330,7 +330,10 @@ impl<'a> HeuristicInstance<'a> for SHI {
             for d in 1..=self.params.match_config.max_match_cost {
                 let mut check = |pos: Pos| {
                     if let Some(pos_arrows) = self.arrows.get(&pos) {
-                        min_len = max(min_len, pos_arrows.iter().map(|a| a.len).max().unwrap() - d);
+                        min_len = max(
+                            min_len,
+                            pos_arrows.iter().map(|a| a.score).max().unwrap() - d,
+                        );
                     }
                 };
                 if pos.0 >= d as Cost {
@@ -340,7 +343,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
             }
         }
 
-        if a.len <= min_len {
+        if a.score <= min_len {
             return (0, 0);
         }
 
@@ -351,7 +354,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
         // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
         // TODO: Make this more precise for larger inexact matches.
         if PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END
-            && a.len == self.params.match_config.max_match_cost + 1
+            && a.score == self.params.match_config.max_match_cost + 1
         {
             // See if there are neighbouring points that can now be fully pruned.
             for d in 1..=self.params.match_config.max_match_cost {
@@ -391,7 +394,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
                 if D {
                     println!("Remove arrows of length > {min_len} at pos {pos}.");
                 }
-                for a in arrows.drain_filter(|a| a.len > min_len) {
+                for a in arrows.drain_filter(|a| a.score > min_len) {
                     change += self.update_layers_on_pruning_arrow(a, hint);
                 }
                 *self.arrows.get_mut(&pos).unwrap() = arrows;

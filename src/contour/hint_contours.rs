@@ -95,7 +95,7 @@ impl<C: Contour> HintContours<C> {
             println!("{}: {:?}", i, self.contours[i]);
             self.contours[i].iterate_points(|p: Pos| {
                 let l = arrows.get(&p).map_or(0, |arrows| {
-                    arrows.iter().map(|a| a.len).max().expect("Empty arrows")
+                    arrows.iter().map(|a| a.score).max().expect("Empty arrows")
                 });
                 println!("{i} {p}: {l}");
                 arrows.get(&p).map(|arrows| {
@@ -150,11 +150,11 @@ impl<C: Contour> Contours for HintContours<C> {
                 this.start.1 = min(this.start.1, a.end.1);
                 this.target.0 = max(this.target.0, a.end.0);
                 this.target.1 = max(this.target.1, a.end.1);
-                let nv = this.score(a.end) + a.len as Cost;
-                if nv > v || (nv == v && a.len < l) {
+                let nv = this.score(a.end) + a.score as Cost;
+                if nv > v || (nv == v && a.score < l) {
                     v = nv;
                 }
-                l = max(l, a.len);
+                l = max(l, a.score);
             }
             assert!(v > 0);
             if this.contours.len() as Cost <= v {
@@ -299,12 +299,12 @@ impl<C: Contour> Contours for HintContours<C> {
                     end_layer -= 1;
 
                     // No need to continue when this value isn't going to be optimal anyway.
-                    if end_layer + arrow.len as Cost <= max_score {
+                    if end_layer + arrow.score as Cost <= max_score {
                         break;
                     }
                 }
 
-                let start_layer = end_layer + arrow.len as Cost;
+                let start_layer = end_layer + arrow.score as Cost;
                 max_score = max(max_score, start_layer);
             }
             max_score
