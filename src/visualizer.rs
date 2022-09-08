@@ -172,7 +172,8 @@ mod with_sdl2 {
             match self {
                 Gradient::Fixed(color) => *color,
                 Gradient::Gradient(range) => {
-                    let frac = |a: u8, b: u8| -> u8 { ((1. - f) * a as f32 + f * b as f32) as u8 };
+                    let frac =
+                        |a: u8, b: u8| -> u8 { ((1. - f) * a as f32 + f * b as f32).ceil() as u8 };
                     Color::RGB(
                         frac(range.start.r, range.end.r),
                         frac(range.start.g, range.end.g),
@@ -246,7 +247,9 @@ mod with_sdl2 {
     #[derive(Clone)]
     pub struct Config {
         pub cell_size: usize,
-        pub prescaler: usize,
+        pub prescaler: u32,
+        /// Divide all input coordinates by this for large inputs.
+        pub downscaler: u32,
         pub filepath: String,
         pub draw: When,
         pub delay: f32,
@@ -265,6 +268,7 @@ mod with_sdl2 {
             Self {
                 cell_size: 8,
                 prescaler: 1,
+                downscaler: 1,
                 save: When::None,
                 save_last: false,
                 filepath: String::from(""),
@@ -325,10 +329,10 @@ mod with_sdl2 {
                             video_subsystem
                                 .window(
                                     &config.filepath,
-                                    canvas_size_cells.0 as u32
+                                    (canvas_size_cells.0 as u32).div_ceil(config.downscaler)
                                         * config.cell_size as u32
                                         * config.prescaler as u32,
-                                    (canvas_size_cells.1 as u32)
+                                    (canvas_size_cells.1 as u32).div_ceil(config.downscaler)
                                         * config.cell_size as u32
                                         * config.prescaler as u32,
                                 )
@@ -359,14 +363,18 @@ mod with_sdl2 {
 
         fn cell_begin(&self, Pos(i, j): Pos) -> Point {
             Point::new(
-                (i * self.config.cell_size as u32) as i32,
-                (j * self.config.cell_size as u32) as i32,
+                (i / self.config.downscaler * self.config.prescaler * self.config.cell_size as u32)
+                    as i32,
+                (j / self.config.downscaler * self.config.prescaler * self.config.cell_size as u32)
+                    as i32,
             )
         }
         fn cell_center(&self, Pos(i, j): Pos) -> Point {
             Point::new(
-                (i * self.config.cell_size as u32 + self.config.cell_size as u32 / 2) as i32,
-                (j * self.config.cell_size as u32 + self.config.cell_size as u32 / 2) as i32,
+                (i / self.config.downscaler * self.config.prescaler * self.config.cell_size as u32
+                    + self.config.cell_size as u32 / 2) as i32,
+                (j / self.config.downscaler * self.config.prescaler * self.config.cell_size as u32
+                    + self.config.cell_size as u32 / 2) as i32,
             )
         }
 
@@ -378,8 +386,8 @@ mod with_sdl2 {
                 .fill_rect(Rect::new(
                     begin.x,
                     begin.y,
-                    (self.config.cell_size * self.config.prescaler) as u32,
-                    (self.config.cell_size * self.config.prescaler) as u32,
+                    self.config.cell_size as u32 * self.config.prescaler,
+                    self.config.cell_size as u32 * self.config.prescaler,
                 ))
                 .unwrap();
         }
@@ -394,8 +402,8 @@ mod with_sdl2 {
                     Rect::new(
                         begin.x,
                         begin.y,
-                        (self.config.cell_size * self.config.prescaler) as u32,
-                        (self.config.cell_size * self.config.prescaler) as u32,
+                        self.config.cell_size as u32 * self.config.prescaler,
+                        self.config.cell_size as u32 * self.config.prescaler,
                     )
                 })
                 .collect_vec();
