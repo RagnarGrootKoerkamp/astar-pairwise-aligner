@@ -225,7 +225,7 @@ where
     for edge in [Edge::Right, Edge::Down, Edge::Substitution] {
         if let Some(p) = edge.dt_back(&dt_pos) {
             if let Some(state) = DiagonalMapTrait::get(states, p) {
-                if state.fr >= max_fr.0 {
+                if state.fr + edge.to_f() >= max_fr.0 + max_fr.1.to_f() {
                     max_fr = (state.fr, edge);
                 }
             }

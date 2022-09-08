@@ -139,6 +139,14 @@ impl Edge {
     pub fn match_cost(&self) -> MatchCost {
         self.cost() as MatchCost
     }
+
+    pub fn to_f(&self) -> Cost {
+        match self {
+            Edge::None => 0,
+            Edge::Down => 0,
+            _ => 1,
+        }
+    }
 }
 
 impl Display for Pos {
