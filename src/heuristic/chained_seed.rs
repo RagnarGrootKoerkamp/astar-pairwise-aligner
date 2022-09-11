@@ -495,7 +495,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                 .iter()
                 .map(|m| {
                     let mut m = m.clone();
-                    m.pruned = if self.arrows.contains_key(&m.start) {
+                    m.pruned = if self.arrows.contains_key(&self.transform(m.start)) {
                         MatchStatus::Active
                     } else {
                         MatchStatus::Pruned
