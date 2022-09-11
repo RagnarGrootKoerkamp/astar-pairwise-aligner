@@ -423,6 +423,11 @@ mod with_sdl2 {
             width: usize,
         ) {
             canvas.set_draw_color(color);
+            if from == to {
+                // NOTE: We skip the line width in this case.
+                canvas.draw_point(from).unwrap();
+                return;
+            }
             canvas.draw_line(from, to).unwrap();
             for mut w in 1..width as i32 {
                 if w % 2 == 1 {
