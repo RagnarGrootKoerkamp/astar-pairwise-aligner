@@ -1,6 +1,9 @@
 use astar_pairwise_aligner::generate::{generate_pair, GenerateArgs};
 use clap::Parser;
-use std::{io::Write, path::PathBuf};
+use std::{
+    io::{BufWriter, Write},
+    path::PathBuf,
+};
 
 #[derive(Parser)]
 #[clap(next_line_help = false)]
@@ -22,22 +25,24 @@ fn main() {
 
     assert_eq!(args.output.extension().unwrap_or_default(), "seq");
 
-    let mut f = std::fs::File::options()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(args.output)
-        .unwrap();
+    let mut f = BufWriter::new(
+        std::fs::File::options()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(args.output)
+            .unwrap(),
+    );
     for _ in 0..args.cnt {
         let (a, b) = generate_pair(
             &args.generate_args.to_generate_options(),
             &mut rand::thread_rng(),
         );
-        f.write(">".as_bytes()).unwrap();
-        f.write(&a).unwrap();
-        f.write("\n".as_bytes()).unwrap();
-        f.write("<".as_bytes()).unwrap();
-        f.write(&b).unwrap();
-        f.write("\n".as_bytes()).unwrap();
+        f.write_all(">".as_bytes()).unwrap();
+        f.write_all(&a).unwrap();
+        f.write_all("\n".as_bytes()).unwrap();
+        f.write_all("<".as_bytes()).unwrap();
+        f.write_all(&b).unwrap();
+        f.write_all("\n".as_bytes()).unwrap();
     }
 }
