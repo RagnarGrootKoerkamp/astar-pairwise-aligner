@@ -349,6 +349,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                     }
                     let match_start = Pos(s.start, s.start + pos.1 - pos.0);
                     let mut try_prune_pos = |startpos: Pos| {
+                        if !self.add_prune() {
+                            return;
+                        }
                         let tp = self.transform(startpos);
                         let Some(arrows) = self.arrows.get_mut(&tp) else { return; };
                         // Filter arrows starting in the current position.
@@ -364,7 +367,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                     };
                     // First try pruning neighbouring start states, and prune the diagonal start state last.
                     for d in 1..=max_match_cost {
-                        if d as Cost <= match_start.1 {
+                        if (d as Cost) <= match_start.1 {
                             try_prune_pos(Pos(match_start.0, match_start.1 - d as I));
                         }
                         try_prune_pos(Pos(match_start.0, match_start.1 + d as I));
@@ -467,7 +470,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         self.pruning_duration += start.elapsed();
 
-        // TODO: FIX for transformed pos.
+        if self.params.use_gap_cost {
+            // FIXME: Return `change`, and `tpos` instead of `pos`.
+            change = 0;
+        }
         (change, pos)
     }
 
