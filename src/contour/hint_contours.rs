@@ -290,16 +290,17 @@ impl<C: Contour> Contours for HintContours<C> {
             for arrow in pos_arrows {
                 // Find the value at end_val via a linear search.
                 let mut end_layer = v as Cost - 1;
-                assert!(
-                    !contours[v].contains(arrow.end),
-                    "Hint of {v} is no good! Contains {} for arrow {arrow}",
-                    arrow.end
-                );
+                // Commented out because `contains` is not free.
+                // assert!(
+                //     !contours[v].contains(arrow.end),
+                //     "Hint of {v} is no good! Contains {} for arrow {arrow}",
+                //     arrow.end
+                // );
                 while !contours[end_layer].contains(arrow.end) {
                     end_layer -= 1;
 
                     // No need to continue when this value isn't going to be optimal anyway.
-                    if end_layer + arrow.score as Cost <= max_score {
+                    if (end_layer + arrow.score as Cost) <= max_score {
                         break;
                     }
                 }
