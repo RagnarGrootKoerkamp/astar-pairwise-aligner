@@ -28,61 +28,54 @@ rule block_aligner:
 
 # Data sources: https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md
 
-# Download reference genome.
-# Gets the entire directory, but not subdirectories.
-REFERENCE_FTP = 'ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/technical/reference/GRCh38_reference_genome/'
-REFERENCE_DIR = 'nanopore-wgs/reference'
-REFERENCE_NAME = f'{REFERENCE_DIR}/GRCh38_full_analysis_set_plus_decoy_hla.fa'
-rule download_reference:
-    output: REFERENCE_NAME
-    shell: f'echo wget -r -nH -nc -l 1 -P {REFERENCE_DIR} --cut-dirs=5 {REFERENCE_FTP}'
-
 # Raw reads
+# Length ~25k
+# Error rate 20%+
 FLOWCELLS = {
-    'FAB45271': 'nanopore-human-wgs/rel3-nanopore-wgs-152889212-FAB45271.fastq.gz',
     'FAB42316': 'nanopore-human-wgs/rel3-nanopore-wgs-216722908-FAB42316.fastq.gz',
+    'FAB45271': 'nanopore-human-wgs/rel3-nanopore-wgs-152889212-FAB45271.fastq.gz',
     'FAB49164': 'nanopore-human-wgs/rel3-nanopore-wgs-4045668814-FAB49164.fastq.gz',
 }
 
-# Copy from AWS S3.
-# Using AWS CLI is faster, but needs an AWS account and aws CLI set up and linked to your account.
-rule download_read_fasta:
-    output: 'nanopore-wgs/{id}.fastq.gz'
-    run:
-        path = FLOWCELLS[wildcards.id]
-        #shell('wget -O {output} http://s3.amazonaws.com/{path}')
-        shell('aws configure set default.s3.max_concurrent_requests 20')
-        shell('aws s3 cp s3://{path} {output}')
-
-rule download_read_bam:
+rule download_bam:
     output: 'nanopore-wgs/{id}.fastq.gz.sorted.bam'
     run:
         path = FLOWCELLS[wildcards.id] + '.sorted.bam'
-        for ext in ['', '.bai']:
-            #shell('wget -O {output}{ext} http://s3.amazonaws.com/{path}{ext}')
-            shell('aws configure set default.s3.max_concurrent_requests 20')
-            shell('aws s3 cp s3://{path}{ext} {output}{ext}')
+        #shell('wget -O {output}{ext} http://s3.amazonaws.com/{path}{ext}')
+        shell('aws s3 cp s3://{path}{ext} {output}')
 
-rule download_reads:
-    input: [f'nanopore-wgs/{id}.fastq.gz{ext}' for ext in ['', '.sorted.bam'] for id in FLOWCELLS]
-
-# Make .bed file containing reference locations of reads in .bam file:
-rule bed_file:
+rule convert_to_seq:
     input: 'nanopore-wgs/{id}.fastq.gz.sorted.bam'
-    output: 'nanopore-wgs/{id}.bed'
-    shell: 'bedtools bamtobed -i nanopore-wgs/{wildcards.id}.fastq.gz.sorted.bam > {output}'
+    output: 'nanopore-wgs/{id}.seq'
+    shell: 'bam2seq {input} {output} --min-len 25000'
 
-# Extract parts of reference corresponding to reads:
-rule extract_reference:
-    input: ['nanopore-wgs/{id}.bed', REFERENCE_NAME]
-    output: 'nanopore-wgs/{id}.mapped.fa'
-    # -s: reverse-complement the reference when needed
-    shell: 'bedtools getfasta -s -nameOnly -fi {REFERENCE_NAME}  -bed nanopore-wgs/{wildcards.id}.bed > {output}'
+rule nanopore_wgs:
+    input: [f'nanopore-wgs/{id}.seq' for id in FLOWCELLS]
 
-rule extract_references:
-    input: [f'nanopore-wgs/{id}.mapped.fa' for id in FLOWCELLS]
+# ==== CHM13
 
-# Reads are in the original .fasta.gz file, or can be extracted using
-# samtools fasta {id}.fastq.gz.sorted.bam
-# View the bam entry for a read with
-# samtools view {read_id}
+# Data sources: https://github.com/marbl/CHM13
+# Download: Assembly v1.1 Oxford nanopore Guppy alignments:
+# wget https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.bam
+# or
+# aws s3 cp s3://human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.bam .
+# NOTE: only downloading some prefix of the 300GB file also works.
+
+rule chm13_seq:
+    input: 'chm13/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.incomplete.bam'
+    output: 'chm13/reads.seq'
+    shell: 'bam2seq {input} {output} --min-len 500000'
+
+# Extract 50 sequence pairs
+import random
+import pathlib
+rule chm13_sample:
+    input: 'chm13/reads.seq'
+    output: 'chm13/seq01.seq'
+    run:
+        reads = pathlib.Path(input[0]).open().readlines()
+        num = len(reads)//2
+        random.seed(31415)
+        sample = random.sample(range(num), k=50)
+        for (i, sample_idx) in enumerate(sample, start=1):
+            pathlib.Path(f'chm13/seq{i:02}.seq').write_text(reads[2*i] + reads[2*i+1])
