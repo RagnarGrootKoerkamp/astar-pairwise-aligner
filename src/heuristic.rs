@@ -27,7 +27,6 @@ pub struct HeuristicParams {
     pub k: I,
     pub max_match_cost: MatchCost,
     pub pruning: Pruning,
-    pub build_fast: bool,
 }
 
 #[derive(Clone)]
