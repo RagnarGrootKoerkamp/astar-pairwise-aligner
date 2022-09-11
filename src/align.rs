@@ -124,37 +124,30 @@ impl AlignResult {
             (format!("{:>2}", "m"), |this: &AlignResult| {
                 format!("{:>2}", this.heuristic_params.max_match_cost)
             }),
-            (format!("{:>2}", "pr"), |this: &AlignResult| {
-                format!(
-                    "{:>2}",
-                    if this.heuristic_params.pruning.enabled {
-                        1
-                    } else {
-                        0
-                    }
-                )
-            }),
-            (format!("{:>2}", "bf"), |this: &AlignResult| {
-                format!(
-                    "{:>2}",
-                    if this.heuristic_params.build_fast {
-                        1
-                    } else {
-                        0
-                    }
-                )
-            }),
-            (format!("{:<5}", "d-f"), |this: &AlignResult| {
-                format!("{:<5}", this.heuristic_params.distance_function)
-            }),
+            // (format!("{:>2}", "pr"), |this: &AlignResult| {
+            //     format!(
+            //         "{:>2}",
+            //         if this.heuristic_params.pruning.enabled {
+            //             1
+            //         } else {
+            //             0
+            //         }
+            //     )
+            // }),
+            // (format!("{:<5}", "d-f"), |this: &AlignResult| {
+            //     format!("{:<5}", this.heuristic_params.distance_function)
+            // }),
             (format!("{:>7}", "seeds"), |this: &AlignResult| {
                 format!(
                     "{:>7}",
                     this.heuristic_stats.num_seeds as usize / this.sample_size
                 )
             }),
-            (format!("{:>7}", "matches"), |this: &AlignResult| {
-                format!("{:>7}", this.heuristic_stats.num_matches / this.sample_size)
+            (format!("{:>7}", "match/s"), |this: &AlignResult| {
+                format!(
+                    "{:>7.1}",
+                    this.heuristic_stats.num_matches as f32 / this.heuristic_stats.num_seeds as f32
+                )
             }),
             // (format!("{:>7}", "f-match"), |this: &AlignResult| {
             //     format!(
@@ -226,16 +219,22 @@ impl AlignResult {
                     1000. * this.astar.retries_duration / this.sample_size as f64
                 )
             }),
-            (format!("{:>8}", "trace"), |this: &AlignResult| {
-                format!(
-                    "{:>8.2}",
-                    1000. * this.astar.traceback_duration / this.sample_size as f32
-                )
-            }),
+            // (format!("{:>8}", "trace"), |this: &AlignResult| {
+            //     format!(
+            //         "{:>8.2}",
+            //         1000. * this.astar.traceback_duration / this.sample_size as f32
+            //     )
+            // }),
             (format!("{:>7}", "ed"), |this: &AlignResult| {
                 format!(
                     "{:>7.0}",
                     this.edit_distance as f32 / this.sample_size as f32
+                )
+            }),
+            (format!("{:>4}", "e%"), |this: &AlignResult| {
+                format!(
+                    "{:>4.1}",
+                    this.edit_distance as f32 / this.input.len_a as f32 * 100.0
                 )
             }),
             (format!("{:>6}", "h0"), |this: &AlignResult| {
@@ -318,6 +317,7 @@ where
     let graph = EditGraph::new(a, b, greedy_edge_matching);
     let (distance_and_path, astar_stats) = if let Some(path) = save_last {
         let mut config = visualizer::Config::default();
+        //config.style.expanded = Gradient::TurboGradient(0.0..1.);
         config.save_last = true;
         config.filepath = path.clone();
         config.transparent_bmp = false;
