@@ -17,7 +17,7 @@ plt.rcParams.update({"font.size": 16})
 
 def read_benchmarks(tsv_fn, algo=None):
     df = pd.read_csv(tsv_fn, sep="\t", index_col=False)
-    if "nr" in df and 'cnt' in df:
+    if "nr" in df and "cnt" in df:
         ns = df["nr"].fillna(value=df["cnt"])
         df["s_per_pair"] = df["s"] / ns
         df["s_per_bp"] = df["s"] / (ns * df["n"])
@@ -25,10 +25,14 @@ def read_benchmarks(tsv_fn, algo=None):
         df["e_pct"] = 100 * df["e"]
     df["max_rss_mb"] = df["max_rss"] / 1000
     if "r" in df:
-        df["r"].fillna(value=0)
+        df["r"] = df["r"].fillna(value=0)
+        df = df.astype({"r": int})
+    if "k" in df:
+        df["k"] = df["k"].fillna(value=0)
+        df = df.astype({"k": int})
     if "expanded" in df:
         df["band"] = df["expanded"] / df["|a|"]
-        df = df.round({'band': 2})
+        df = df.round({"band": 2})
     if "align" in df:
         df["align_frac"] = df["align"] / (df["precom"] + df["align"])
         df["prune_frac"] = df["prune"] / df["align"]
@@ -50,7 +54,8 @@ def plot_scaling(
     cone=None,
     cone_x=10**4,
     ls="",
-    x_min = 0,
+    x_min=0,
+    title=None,
 ):
     fig, ax = plt.subplots(1, 1)
     fig.set_size_inches(6, 4, forward=True)
@@ -58,30 +63,40 @@ def plot_scaling(
     if not isinstance(split, list):
         split = [split]
 
-    def group_label(algo):
+    def group_label(split_key):
         if len(split) == 1:
             return ""
-        if split[1] in ["r"]:
-            if np.isnan(algo[1]):
+        if split == ["alg", "r"]:
+            alg, r = split_key
+            if np.isnan(r) or r == 0:
                 return ""
-            if int(algo[1]) == 1:
+            if int(split_key[1]) == 1:
                 return f" (exact)"
             else:
                 return f" (inexact)"
+        if split == ["alg", "r", "k"]:
+            alg, r, k = split_key
+            if np.isnan(r) or r == 0:
+                return ""
+            else:
+                return f" ({split_key[1]}, {split_key[2]})"
+        print(split)
+        assert False
 
-    # Pivot table
-    d = df.pivot(index=x, columns=split, values=[y, "r"])
+    groups = df.groupby(split)
 
     # PLOT DATA
-    for algo in d[y].columns:
-        key = algo[0] if isinstance(algo, tuple) else algo
-        marker = r2marker(key, d["r"][algo][d[y][algo].index[0]])
-        d[y][algo].plot(
+    for split_key, group in groups:
+        key = split_key[0] if isinstance(split_key, tuple) else split_key
+        marker = r2marker(key, int(group["r"].max()))
+        group.plot(
+            x=x,
+            y=y,
             ax=ax,
             alpha=1,
             zorder=3,
             rot=0,
-            color=algo2color(key),
+            color=algo2color(split_key),
             marker=marker,
             ls=ls,
             legend=False,
@@ -89,25 +104,24 @@ def plot_scaling(
 
     # DRAW CONE
     # Fills the region between x**1 and x**2
-    def draw_cone(x_origin, x_max=d.index.max()):
-        # draw cone
-        x_max *= 3
-        y_min = d.index.min()
-        data = d[(y, cone)]
-        if len(split) > 1 and split[1] == "r":
-            data = data[1]
-        y_origin = data[x_origin]
-        coef = (data.iloc[-1] - y_origin) / (data.index[-1] - x_origin)  # tan
-        x_cone = (x_origin, x_max)
-        y_cone_lin = (y_origin, y_origin * (x_max / x_origin) ** 1)
-        y_cone_quad = (y_origin, y_origin * (x_max / x_origin) ** 2)
-        ax.fill_between(x_cone, y_cone_lin, y_cone_quad, color="grey", alpha=0.15)
+    def draw_cone(x0, x_max=None):
+        if x_max is None:
+            x_max = 3 * df[x].max()
+        # Find y0
+        gb = df.groupby(["alg", x])
+        index = (cone, x0)
+        y0 = gb[y].get_group(index).max()
+        x_range = (x0, x_max)
+        y_lin = (y0, y0 * (x_max / x0) ** 1)
+        y_quad = (y0, y0 * (x_max / x0) ** 2)
+        ax.fill_between(x_range, y_lin, y_quad, color="grey", alpha=0.15)
 
     if cone is not None:
-        draw_cone(x_origin=cone_x)
+        draw_cone(x0=cone_x)
 
     # FIT y = x^C
     if trend_line == "poly":
+        d = df.pivot(index=x, columns=split, values=[y, "r"])
         z = {}
         for algo in d[y].columns:
             s = d[y][algo].dropna()
@@ -140,7 +154,7 @@ def plot_scaling(
                     plot_xs,
                     regression_line,
                     linestyle="-",
-                    color=algo2color(key),
+                    color=algo2color(algo),
                     alpha=0.9,
                 )
                 label = "$\sim n^{{{:0.2f}}}$".format(a)  ## np.exp(b)*x^a
@@ -149,7 +163,7 @@ def plot_scaling(
                 plot_xs[-1],
                 regression_line[-1],
                 algo2beautiful(key) + group_label(algo) + label,
-                color=algo2color(key),
+                color=algo2color(algo),
                 ha="right",
                 va="bottom",
                 size=15,
@@ -157,14 +171,16 @@ def plot_scaling(
             )
         print(exps)
     else:
-        for algo in d[y].columns:
-            label_x = d[y][d[y][algo].notna()].index[-1]
-            key = algo[0] if isinstance(algo, tuple) else algo
+        for split_key, group in groups:
+            max_idx = group[x].idxmax()
+            label_x = group[x][max_idx]
+            label_y = group[y][max_idx]
+            key = split_key[0] if isinstance(split_key, tuple) else split_key
             ax.text(
                 label_x,
-                d[y][algo][label_x],
-                algo2beautiful(key) + group_label(algo),
-                color=algo2color(key),
+                label_y,
+                algo2beautiful(key) + group_label(split_key),
+                color=algo2color(split_key),
                 ha="right",
                 va="bottom",
                 size=15,
@@ -182,9 +198,10 @@ def plot_scaling(
 
     # SET LIMITS FOR LOG AXES
     if xlog:
-        ax.set_xlim(1 / 1.5 * d.index.min(), 1.5 * d.index.max())
+        xs = df[df[x] > 0][x]
+        ax.set_xlim(xs.min() / 1.5, xs.max() * 1.5)
     if ylog:
-        ax.set_ylim(1 / 3 * d.min().min(), 3 * d.max().max())
+        ax.set_ylim(df[y].min() / 3, df[y].max() * 3)
 
     # Background
     ax.set_facecolor("#F8F8F8")
@@ -212,6 +229,10 @@ def plot_scaling(
         right=False,
         labelbottom=False,  # labels along the bottom edge are off
     )
+
+    if xlog and xs.max() / xs.min() < 100:
+        ax.tick_params(axis="x", which="minor", bottom=True)
+
     if x == "n":
         ax.set_xticks(
             list(
@@ -228,20 +249,23 @@ def plot_scaling(
             ax.set_xlim(left=x_min)
     if x == "ord":
         ax.tick_params(
-            axis='x',          # changes apply to the x-axis
-            which='both',      # both major and minor ticks are affected
-            bottom=False,      # ticks along the bottom edge are off
-            top=False,         # ticks along the top edge are off
-            labelbottom=False) # labels along the bottom edge are off
-
+            axis="x",  # changes apply to the x-axis
+            which="both",  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False,  # ticks along the top edge are off
+            labelbottom=False,
+        )  # labels along the bottom edge are off
 
     # axis labels
     ax.set_xlabel(col2name(x), size=18)  # weight='bold',
     ax.set_ylabel(col2name(y), rotation=0, ha="left", size=18)
     ax.yaxis.set_label_coords(-0.10, 1.00)
+  
+    # Title
+    if title:
+        plt.title(title)
 
     plt.savefig(f"results/{filename}.pdf", bbox_inches="tight")
-
 
 
 # green palette: #e1dd72, #a8c66c, #1b6535
@@ -257,6 +281,23 @@ def plot_scaling(
 
 
 def algo2color(algo):
+    if isinstance(algo, tuple):
+        if len(algo) == 2:
+            algo, r = algo
+        if len(algo) == 3:
+            algo, r, k = algo
+            if k == 13:
+                return "#ff0000"
+            if k == 15:
+                return "#888800"
+            if k == 20:
+                return "#00ff00"
+            if k == 25:
+                return "#0000ff"
+            if k == 30:
+                return "#00ffff"
+            if r == 2.0:
+                return "#000000"
     palette = sns.color_palette("tab10", 10)
     d = {
         # mono red: , , EB2D12
@@ -322,6 +363,7 @@ def r2marker(algo, r):
 def col2name(col):
     d = {
         "e": "Error rate",
+        "ed": "Edit distance",
         "e_pct": "Error rate",
         "expanded": "Expanded states",
         "s": "Runtime [s]",

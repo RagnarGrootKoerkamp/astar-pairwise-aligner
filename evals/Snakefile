@@ -6,6 +6,7 @@ rule all:
 import itertools
 import shutil
 import statistics
+import pathlib
 
 ## LIMITS
 
@@ -25,6 +26,7 @@ tool_command = {
     'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh',
     'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh',
     'csh-dt':        binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-dt',
+    'csh-gap-cost-dt': binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-gap-cost-dt',
     # Slower variants for comparison
     'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh  --no-prune',
     'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --no-prune',
@@ -32,7 +34,7 @@ tool_command = {
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':         binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
-    'biwfa':         binaries["wfa" ]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow',
+    'biwfa':         binaries["wfa" ]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow -o {input}.score',
 }
 
 # Command to generate testcases.
@@ -111,29 +113,37 @@ class RandomInput:
     def table_cells(self):
         return [self.cnt, self.n, self.e]
 
-class OntUlInput:
+class HumanInput:
     # An input dataset is given by:
     def __init__(self, **kwargs):
-        self.id = int(kwargs['id'])
+        p = pathlib.Path(kwargs['path'])
+        if p.parts[0] == 'human':
+            p = pathlib.Path(*p.parts[1:])
+        if p.suffix == '.seq':
+            p = p.with_suffix('')
+        self.dir = p.parts[0]
+        self.id = str(pathlib.Path(*p.parts[1:]))
+        assert self.id.startswith('seq')
+        self.id = self.id.lstrip('seq')
 
     # The wildcard string used for pattern matches.
     def name_pattern():
-        return 'seq{id}'
+        return '{path}'
     # The wildcard pattern for an input file.
     def pattern():
-        return f'human/ont-ul/{OntUlInput.name_pattern()}.seq'
+        return f'{HumanInput.name_pattern()}.seq'
 
     # The name of this input file.
     def name(self):
-        return Path(f'seq{self.id:02}')
+        return Path(f'{self.dir}/seq{self.id}')
     # The path of this input file.
     def path(self):
-        return Path(f'human/ont-ul/{self.name()}.seq')
+        return Path(f'human/{self.name()}.seq')
 
     def table_headers(self):
-        return ["id"]
+        return ["dir", "id"]
     def table_cells(self):
-        return [self.id]
+        return [self.dir, self.id]
 
 
 # A run is an execution of a tool (with optional parameters) on an input.
@@ -172,8 +182,8 @@ rule generate_input:
 
 # Given a set of wildcards (input specs, tool, parameters), return the command to run.
 def build_command(w):
-    if 'id' in w.keys():
-        input = OntUlInput(**w)
+    if 'path' in w.keys():
+        input = HumanInput(**w)
     else:
         input = RandomInput(**w)
     run = Run(input=input, **w)
@@ -195,16 +205,16 @@ rule benchmark_tool_with_params:
     shell: '{params.command}'
 
 # Benchmark the tool.
-rule benchmark_tool_ont_ul:
-    input: lambda w: OntUlInput(**w).path()
-    output: Run.pattern(OntUlInput.name_pattern())
+rule benchmark_tool_human:
+    input: lambda w: HumanInput(**w).path()
+    output: Run.pattern(HumanInput.name_pattern())
     params: command = lambda w: build_command(w)
     shell: '{params.command}'
 
 # Benchmark the tool with given parameters.
-rule benchmark_tool_ont_ul_with_params:
-    input: lambda w: OntUlInput(**w).path()
-    output: Run.pattern_with_params(OntUlInput.name_pattern())
+rule benchmark_tool_human_with_params:
+    input: lambda w: HumanInput(**w).path()
+    output: Run.pattern_with_params(HumanInput.name_pattern())
     params: command = lambda w: build_command(w)
     shell: '{params.command}'
 
@@ -216,7 +226,7 @@ rule benchmark_tool_ont_ul_with_params:
 # - .status file
 # - .stats file if present
 def make_table(runs, output):
-    headers = ["alg"] + runs[0].input.table_headers() + ["r","k","s","user","system","max_rss","exit_status"]
+    headers = ["alg"] + runs[0].input.table_headers() + ["r","k","s","user","system","max_rss","exit_status", "ed"]
     table_file = Path(output[0]).open('w')
 
     found_headers = False
@@ -231,13 +241,18 @@ def make_table(runs, output):
 
     for run in runs:
         try:
-            stats = '\t' + run.stats_path().read_text().splitlines()[1]
+            score_file = run.input.path().parent / (run.input.path().name + '.score')
+            ed = score_file.read_text().split()[0]
+        except:
+            ed = 0
+        try:
+            stats = run.stats_path().read_text().splitlines()[1]
         except:
             stats = ''
         if run.bench_path().is_file():
             for bench_line in run.bench_path().read_text().splitlines()[1:]:
                 input_fields = '\t'.join(map(str, run.input.table_cells()))
-                table_file.write(f'{run.tool}\t{input_fields}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}{stats}\n')
+                table_file.write(f'{run.tool}\t{input_fields}\t{getattr(run, "r", "")}\t{getattr(run, "k", "")}\t{bench_line}\t{ed}\t{stats}\n')
 
 # === TOOL COMPARISON ===
 
@@ -329,28 +344,36 @@ rule scaling_e_table:
     output: 'table/scaling_e.tsv'
     run: make_table(scaling_e_runs(), output)
 
-# =========================== ONT MinION UL DATA ============================
+# =========================== HUMAN DATA ============================
 
-# === TOOL COMPARISON ON ONT MinION UL DATA ===
+# Comparison on 500k+ ONT-UL MinION reads (from BiWFA paper)
+# and 500k+ ONT reads from CHM13.
 
 # Returns the list of runs for the tool comparison table.
-def ont_ul_runs():
-    tools = ['biwfa', 'edlib', 'csh', 'csh-dt']
-    inputs = [OntUlInput(id=id) for id in range(1, 49)]
-    r = 2
-    k = 13
+def human_runs(dir):
+    tools = ['biwfa', 'edlib', 'sh', 'csh']
+    paths = sorted(pathlib.Path('human').glob(f'{dir}/seq*.seq'))
+    inputs = [HumanInput(path=path) for path in paths]
+    rks = [(1, 15), (1, 20), (2, 13), (2, 15), (2, 17), (2, 20), (2, 25), (2, 30)]
     return [
         (
-            Run(input=input, tool=tool, k=k, r=r)
-            if tool in ['sh', 'csh', 'csh-dt'] else
+            Run(input=input, tool=tool, r=r, k=k)
+            if 'sh' in tool else
             Run(input=input, tool=tool)
         )
         for input in inputs
         for tool in tools
+        for (r, k) in (rks if 'sh' in tool else [(0,0)])
     ]
 
 rule ont_ul_table:
     priority: 2
-    input: lambda w: [run.bench_path() for run in ont_ul_runs()]
-    output: 'table/ont_ul.tsv'
-    run: make_table(ont_ul_runs(), output)
+    input: lambda w: [run.bench_path() for run in human_runs('ont-ul')]
+    output: 'table/human_ont-ul.tsv'
+    run: make_table(human_runs('ont-ul'), output)
+
+rule chm13_table:
+    priority: 2
+    input: lambda w: [run.bench_path() for run in human_runs('chm13')]
+    output: 'table/human_chm13.tsv'
+    run: make_table(human_runs('chm13'), output)
