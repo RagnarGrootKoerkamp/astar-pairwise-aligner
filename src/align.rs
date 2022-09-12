@@ -316,22 +316,29 @@ where
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = EditGraph::new(a, b, greedy_edge_matching);
     let (distance_and_path, astar_stats) = if let Some(path) = save_last {
-        let mut config = visualizer::Config::default();
-        //config.style.expanded = Gradient::TurboGradient(0.0..1.);
-        config.save_last = true;
-        config.filepath = path.clone();
-        config.transparent_bmp = false;
-        config.downscaler = 100;
-        config.cell_size = 1;
-        config.style.path = None;
-        config.style.draw_matches = true;
-        config.style.match_width = 1;
-        config.style.match_shrink = 0;
-        let mut vis = visualizer::Visualizer::new(config, a, b);
-        if diagonal_transition {
-            astar_dt(&graph, h, &mut vis)
-        } else {
-            astar(&graph, h, &mut vis)
+        #[cfg(feature = "sdl2")]
+        {
+            let mut config = visualizer::Config::default();
+            //config.style.expanded = Gradient::TurboGradient(0.0..1.);
+            config.save_last = true;
+            config.filepath = path.clone();
+            config.transparent_bmp = false;
+            config.downscaler = 100;
+            config.cell_size = 1;
+            config.style.path = None;
+            config.style.draw_matches = true;
+            config.style.match_width = 1;
+            config.style.match_shrink = 0;
+            let mut vis = visualizer::Visualizer::new(config, a, b);
+            if diagonal_transition {
+                astar_dt(&graph, h, &mut vis)
+            } else {
+                astar(&graph, h, &mut vis)
+            }
+        }
+        #[cfg(not(feature = "sdl2"))]
+        {
+            panic!("Feature sdl2 must be enabled for visualizations.");
         }
     } else {
         if diagonal_transition {
