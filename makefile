@@ -3,7 +3,7 @@ all:
 # ========== SHORTHANDS ==========
 
 # Generate figures 1 and 3.
-figures: fig1 fig3 results
+figures: fig1 fig3 fig8 results
 
 # Shorthands below are mostly for private use.
 
@@ -62,7 +62,9 @@ evals: cpu-freq
 	    snakemake -j 3 -f --rerun-incomplete \
 	      table/scaling_e.tsv \
 	      table/scaling_n.tsv \
-	      table/tools.tsv
+	      table/tools.tsv \
+	      table/human_ont-ul.tsv \
+	      table/human_chm13.tsv \
 
 results:
 	cd evals && python3 ./results.py
@@ -78,6 +80,9 @@ results-export:
       ../pairwise-aligner-paper/imgs/fig6/
 	cp evals/results/table* ../pairwise-aligner-paper/data/
 	cp evals/results/speedup ../pairwise-aligner-paper/data/speedup
+	cp evals/results/human* ../pairwise-aligner-paper/imgs/fig7/
+	cp evals/results/stats_* ../pairwise-aligner-paper/data/
+	cp evals/results/prune_fraction_* ../pairwise-aligner-paper/data/
 
 # ========== IMAGES ==========
 
@@ -100,6 +105,15 @@ fig3-export: fig3
 	mkdir -p ../pairwise-aligner-paper/imgs/fig3/
 	cp imgs/fig3/0.png ../pairwise-aligner-paper/imgs/fig3/start.png
 	cp imgs/fig3/1.png ../pairwise-aligner-paper/imgs/fig3/end.png
+
+fig8:
+	cargo run --release --example fig8
+	mogrify -format png imgs/fig8/*bmp
+
+fig8-export: fig8
+	rm -rf ../pairwise-aligner-paper/imgs/fig8/*
+	mkdir -p ../pairwise-aligner-paper/imgs/fig8/
+	cp imgs/fig8/*png ../pairwise-aligner-paper/imgs/fig8/
 
 # ========== VIDEOS ==========
 
