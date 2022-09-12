@@ -62,9 +62,30 @@ evals: cpu-freq
 	    snakemake -j 3 -f --rerun-incomplete \
 	      table/scaling_e.tsv \
 	      table/scaling_n.tsv \
-	      table/tools.tsv \
+	      table/tools.tsv
+
+evals-human: cpu-freq
+	# Make sure there are no uncommited changes, and log commit ids.
+	git diff-index --quiet HEAD
+	echo A*PA > evals/commit-ids-human
+	git rev-parse --short HEAD >> evals/commit-ids-human
+	echo Edlib >> evals/commit-ids-human
+	git -C ../edlib diff-index --quiet HEAD
+	git -C ../edlib rev-parse --short HEAD >> evals/commit-ids-human
+	echo WFA2 >> evals/commit-ids-human
+	git -C ../wfa2 diff-index --quiet HEAD
+	git -C ../wfa2 rev-parse --short HEAD >> evals/commit-ids-human
+	# Build tools
+	cargo build --no-default-features --release
+	# Run snakemake on 3 threads, with 3 jobs in parallel.
+	# The first rule `all` is executed automatically.
+	cd evals && \
+	  nice -n -20 \
+	  taskset -c 0,2,4 \
+	    snakemake -j 3 -f --rerun-incomplete \
 	      table/human_ont-ul.tsv \
-	      table/human_chm13.tsv \
+	      table/human_chm13.tsv
+
 
 results:
 	cd evals && python3 ./results.py
