@@ -141,9 +141,10 @@ class HumanInput:
         return Path(f'human/{self.name()}.seq')
 
     def table_headers(self):
-        return ["dir", "id"]
+        return ["dir", "id", "n"]
     def table_cells(self):
-        return [self.dir, self.id]
+        n = len(self.path().read_text().splitlines()[0])-1
+        return [self.dir, self.id, n]
 
 
 # A run is an execution of a tool (with optional parameters) on an input.
