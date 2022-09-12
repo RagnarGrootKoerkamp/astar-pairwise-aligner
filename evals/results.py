@@ -96,3 +96,49 @@ for e in pd.unique(df.e):
         ylog=True,
         trend_line="poly",
     )
+
+# Human data
+def human_data(dir, title):
+    df = read_benchmarks(f"table/human_{dir}.tsv")
+    # Remove sequences for which BiWFA didn't finish in time.
+    df = df[df.ed > 0]
+    df = df[df.k.isin([0, 15])]
+    df.s = df.s.clip(0, 100)
+    df = df[((df.r == 0) | (df.r == 2)) & df.alg.isin(["biwfa", "edlib", "sh", "csh"])]
+    # Print min/mean/max length and error rate
+    df.e = df.ed / df.n
+    ds = df[df.alg == "biwfa"]
+    text = f"n: {ds.n.min()} {ds.n.mean()} {ds.n.max()}\n"
+    text += f"e: {ds.e.min()} {ds.e.mean()} {ds.e.max()}\n"
+    Path(f"results/stats_{dir}").write_text(text)
+
+    plot_scaling(
+        df,
+        y="s",
+        x="ed",
+        filename=f"human_{dir}",
+        xlog=True,
+        ylog=True,
+        split=["alg", "r"],
+        y_min=0.2,
+        x_margin=1.1,
+        # x_max = 120000,
+        xticks=[10000 if dir == "chm13" else 20000, 100000],
+        alpha=0.6,
+    )
+
+
+human_data("ont-ul", "ONT UL")
+human_data("chm13", "CHM13")
+
+
+# Max CSH Prune fraction
+for dir in ["chm13", "ont-ul"]:
+    r = 2
+    df = read_benchmarks(f"table/human_{dir}.tsv")
+    df = df[df.exit_status == 0]
+    df = df[df.r == r]
+    df = df[df.k == 15]
+    df = df[df.alg == "csh"]
+    m = (df.prune / df.t).max() * 100
+    Path(f"results/prune_fraction_{dir}").write_text(f"max prune fraction: {m}")

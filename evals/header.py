@@ -45,7 +45,7 @@ def plot_scaling(
     df,
     x,
     y,
-    filename,
+    filename=None,
     trend_line="",
     xlog=False,
     ylog=False,
@@ -54,11 +54,19 @@ def plot_scaling(
     cone=None,
     cone_x=10**4,
     ls="",
-    x_min=0,
     title=None,
+    ax=None,
+    x_min=0,
+    x_max=None,
+    x_margin=1.5,
+    xticks=None,
+    y_min=None,
+    alpha=1,
 ):
-    fig, ax = plt.subplots(1, 1)
-    fig.set_size_inches(6, 4, forward=True)
+    fig = None
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+        fig.set_size_inches(6, 4, forward=True)
 
     if not isinstance(split, list):
         split = [split]
@@ -93,11 +101,13 @@ def plot_scaling(
             x=x,
             y=y,
             ax=ax,
-            alpha=1,
+            alpha=alpha,
             zorder=3,
             rot=0,
             color=algo2color(split_key),
             marker=marker,
+            markersize=9,
+            markeredgewidth=0,
             ls=ls,
             legend=False,
         )
@@ -197,9 +207,9 @@ def plot_scaling(
         ax.set_xscale("log")
 
     # SET LIMITS FOR LOG AXES
-    if xlog:
+    if xlog and x_margin:
         xs = df[df[x] > 0][x]
-        ax.set_xlim(xs.min() / 1.5, xs.max() * 1.5)
+        ax.set_xlim(xs.min() / x_margin, xs.max() * x_margin)
     if ylog:
         ax.set_ylim(df[y].min() / 3, df[y].max() * 3)
 
@@ -233,20 +243,24 @@ def plot_scaling(
     if xlog and xs.max() / xs.min() < 100:
         ax.tick_params(axis="x", which="minor", bottom=True)
 
-    if x == "n":
-        ax.set_xticks(
-            list(
+    if x == "n" or xticks:
+        if xticks is None:
+            xticks = list(
                 filter(
                     lambda x: d.index.min() <= x and x <= d.index.max(),
                     [10**e for e in range(10)],
                 )
             )
-        )
+        ax.set_xticks(xticks)
     if x == "e_pct":
         ax.xaxis.set_major_formatter(ticker.PercentFormatter(decimals=0))
         if x_min is not None:
             ax.margins(x=0)
             ax.set_xlim(left=x_min)
+    if y_min is not None:
+        ax.set_ylim(bottom=y_min)
+    if x_max is not None:
+        ax.set_xlim(right=x_max)
     if x == "ord":
         ax.tick_params(
             axis="x",  # changes apply to the x-axis
@@ -260,12 +274,13 @@ def plot_scaling(
     ax.set_xlabel(col2name(x), size=18)  # weight='bold',
     ax.set_ylabel(col2name(y), rotation=0, ha="left", size=18)
     ax.yaxis.set_label_coords(-0.10, 1.00)
-  
+
     # Title
     if title:
-        plt.title(title)
+        ax.set_title(title)
 
-    plt.savefig(f"results/{filename}.pdf", bbox_inches="tight")
+    if filename and fig is not None:
+        fig.savefig(f"results/{filename}.pdf", bbox_inches="tight")
 
 
 # green palette: #e1dd72, #a8c66c, #1b6535
@@ -284,20 +299,16 @@ def algo2color(algo):
     if isinstance(algo, tuple):
         if len(algo) == 2:
             algo, r = algo
-        if len(algo) == 3:
+        elif len(algo) == 3:
             algo, r, k = algo
-            if k == 13:
-                return "#ff0000"
-            if k == 15:
-                return "#888800"
-            if k == 20:
-                return "#00ff00"
-            if k == 25:
-                return "#0000ff"
-            if k == 30:
-                return "#00ffff"
-            if r == 2.0:
-                return "#000000"
+            if k == 15 and algo == "sh":
+                return "#E8480C"
+            if k == 15 and algo == "csh":
+                return "#317D32"
+            if k == 20 and algo == "sh":
+                return "#78280C"
+            if k == 20 and algo == "csh":
+                return "#193D1A"
     palette = sns.color_palette("tab10", 10)
     d = {
         # mono red: , , EB2D12
@@ -351,9 +362,13 @@ def algo2beautiful(algo):
 def r2marker(algo, r):
     if algo == "dijkstra":
         return "o"
+    # if algo == "sh":
+    #     return "v"
+    # if algo == "csh":
+    #     return "^"
     d = {
         1: "^",
-        2: "s",
+        2: "v",
     }
     if r in d:
         return d[r]
