@@ -351,10 +351,10 @@ rule scaling_e_table:
 
 # Returns the list of runs for the tool comparison table.
 def human_runs(dir):
-    tools = ['biwfa', 'edlib', 'sh', 'csh']
+    tools = ['edlib', 'biwfa', 'sh', 'csh']
     paths = sorted(pathlib.Path('human').glob(f'{dir}/seq*.seq'))
     inputs = [HumanInput(path=path) for path in paths]
-    rks = [(1, 15), (1, 20), (2, 13), (2, 15), (2, 17), (2, 20), (2, 25), (2, 30)]
+    rks = [(2, 15)]
     return [
         (
             Run(input=input, tool=tool, r=r, k=k)
