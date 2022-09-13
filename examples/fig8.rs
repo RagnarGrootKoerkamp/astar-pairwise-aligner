@@ -23,19 +23,19 @@ fn main() {
     config.draw_old_on_top = false;
     config.layer_drawing = false;
     config.transparent_bmp = false;
-    let scale = 10;
+    let scale = 2;
     //config.downscaler = scale as u32;
     config.downscaler = 1;
     config.cell_size = 1;
     config.style.path = None;
     config.style.draw_matches = true;
-    config.style.match_width = 10;
+    config.style.match_width = 4;
     config.style.match_shrink = 0;
     config.style.pruned_match = Color::BLACK;
 
     {
-        let (mut a, mut b) = setup_sequences_with_seed(1, 200 * scale, 0.08);
-        let (mut a2, mut b2) = setup_sequences_with_seed(2, 200 * scale, 0.50);
+        let (mut a, mut b) = setup_sequences_with_seed(6, 250 * scale, 0.08);
+        let (mut a2, mut b2) = setup_sequences_with_seed(2, 200 * scale, 0.60);
         let (mut a3, mut b3) = setup_sequences_with_seed(3, 50 * scale, 0.08);
         a.append(&mut a2);
         b.append(&mut b2);
@@ -61,9 +61,9 @@ fn main() {
     }
 
     {
-        let (mut a, mut b) = setup_sequences_with_seed(1, 350 * scale, 0.08);
-        let (mut a2, _) = setup_sequences_with_seed(2, 50 * scale, 0.08);
-        let (mut a3, mut b3) = setup_sequences_with_seed(3, 100 * scale, 0.08);
+        let (mut a, mut b) = setup_sequences_with_seed(5, 350 * scale, 0.08);
+        let (mut a2, _) = setup_sequences_with_seed(8, 50 * scale, 0.08);
+        let (mut a3, mut b3) = setup_sequences_with_seed(9, 100 * scale, 0.08);
         a.append(&mut a2);
         //b.append(&mut b2);
         a.append(&mut a3);
