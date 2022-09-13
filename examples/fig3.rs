@@ -27,7 +27,7 @@ fn main() {
     config.style.heuristic =
         Gradient::Gradient(Color::RGB(250, 250, 250)..Color::RGB(180, 180, 180));
     config.style.max_heuristic = Some(10);
-    config.style.pruned_match = Color::GREEN;
+    config.style.pruned_match = Color::RED;
     config.style.path = None;
     config.style.match_width = 3;
     config.style.draw_heuristic = true;
