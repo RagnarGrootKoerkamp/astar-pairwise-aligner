@@ -106,7 +106,7 @@ def plot_scaling(
             rot=0,
             color=algo2color(split_key),
             marker=marker,
-            markersize=9,
+            markersize=11,
             markeredgewidth=0,
             ls=ls,
             legend=False,
