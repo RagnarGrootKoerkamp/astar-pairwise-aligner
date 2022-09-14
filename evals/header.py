@@ -295,7 +295,6 @@ def plot_scaling(
     if x == "e_pct":
         ax.xaxis.set_major_formatter(ticker.PercentFormatter(decimals=0))
         if x_min is not None:
-            ax.margins(x=0)
             ax.set_xlim(left=x_min)
     if y_min is not None:
         ax.set_ylim(bottom=y_min)
