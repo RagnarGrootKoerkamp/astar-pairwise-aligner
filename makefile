@@ -83,7 +83,7 @@ evals-human: cpu-freq
 	  nice -n -20 \
 	  taskset -c 0,2,4 \
 	    snakemake -j 3 -f --rerun-incomplete \
-	      table/human_ont-ul.tsv \
+	      table/human_na12878.tsv \
 	      table/human_chm13.tsv
 
 

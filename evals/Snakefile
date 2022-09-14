@@ -347,7 +347,7 @@ rule scaling_e_table:
 
 # =========================== HUMAN DATA ============================
 
-# Comparison on 500k+ ONT-UL MinION reads (from BiWFA paper)
+# Comparison on 500k+ ONT MinION long reads of NA12878 aligned to CHM13 v1.1 (from BiWFA paper)
 # and 500k+ ONT reads from CHM13.
 
 # Returns the list of runs for the tool comparison table.
@@ -367,11 +367,11 @@ def human_runs(dir):
         for (r, k) in (rks if 'sh' in tool else [(0,0)])
     ]
 
-rule ont_ul_table:
+rule na12878_table:
     priority: 2
-    input: lambda w: [run.bench_path() for run in human_runs('ont-ul')]
-    output: 'table/human_ont-ul.tsv'
-    run: make_table(human_runs('ont-ul'), output)
+    input: lambda w: [run.bench_path() for run in human_runs('na12878')]
+    output: 'table/human_na12878.tsv'
+    run: make_table(human_runs('na12878'), output)
 
 rule chm13_table:
     priority: 2

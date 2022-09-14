@@ -1,14 +1,14 @@
 # ======= BiWFA test data: 500k+ ONT MinION UL reads ======
 
-rule ont_ul_download:
-    output: 'ont-ul/ont_500k.zip'
+rule na12878_download:
+    output: 'na12878/ont_500k.zip'
     shell: 'wget -O {output} https://github.com/smarco/BiWFA-paper/raw/main/evaluation/data/ONT_MinION_UL.500kbps.zip'
-rule ont_ul:
-    input: 'ont-ul/ont_500k.zip'
-    output: 'ont-ul/all.seq'
-    params: dir = "ont-ul/"
+rule na12878:
+    input: 'na12878/ont_500k.zip'
+    output: 'na12878/all.seq'
+    params: dir = "na12878/"
     shell: '''
-    mkdir -p ont-ul/
+    mkdir -p na12878/
     unzip {input} -d {params.dir}
     rename seq seq0 {params.dir}/seq?.seq
     cat {params.dir}/*.seq > {output}
