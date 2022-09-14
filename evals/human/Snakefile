@@ -1,4 +1,33 @@
-# ======= BiWFA test data: 500k+ ONT MinION UL reads ======
+# ==== CHM13
+
+# Data sources: https://github.com/marbl/CHM13
+# Download: Assembly v1.1 Oxford nanopore Guppy alignments:
+# wget https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.bam
+# or
+# aws s3 cp s3://human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.bam .
+# NOTE: only downloading some prefix of the 300GB file also works.
+
+rule chm13_seq:
+    input: 'chm13/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.incomplete.bam'
+    output: 'chm13/reads.seq'
+    shell: 'bam2seq {input} {output} --min-len 500000'
+
+# Extract 50 sequence pairs
+import random
+import pathlib
+rule chm13_sample:
+    input: 'chm13/reads.seq'
+    output: 'chm13/seq01.seq'
+    run:
+        reads = pathlib.Path(input[0]).open().readlines()
+        num = len(reads)//2
+        random.seed(31415)
+        sample = random.sample(range(num), k=50)
+        for (i, sample_idx) in enumerate(sample, start=1):
+            pathlib.Path(f'chm13/seq{i:02}.seq').write_text(reads[2*i] + reads[2*i+1])
+
+# ==== NA12878
+# BiWFA test data: 500k+ ONT MinION UL reads of NA12878 aligned to CHM13 v1.1
 
 rule na12878_download:
     output: 'na12878/ont_500k.zip'
@@ -17,6 +46,7 @@ rule na12878:
 # ===== Block aligner 25kbp ONT test data =====
 #
 # Note: the download at https://github.com/ocxtal/diffbench/tree/master/seq is the same.
+# not long enough for our purposes, and error rate too high.
 rule block_aligner:
     output: 'block_aligner/sequences.txt'
     shell: '''
@@ -52,30 +82,3 @@ rule convert_to_seq:
 rule nanopore_wgs:
     input: [f'nanopore-wgs/{id}.seq' for id in FLOWCELLS]
 
-# ==== CHM13
-
-# Data sources: https://github.com/marbl/CHM13
-# Download: Assembly v1.1 Oxford nanopore Guppy alignments:
-# wget https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.bam
-# or
-# aws s3 cp s3://human-pangenomics/T2T/CHM13/assemblies/alignments/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.bam .
-# NOTE: only downloading some prefix of the 300GB file also works.
-
-rule chm13_seq:
-    input: 'chm13/chm13.draft_v1.1.ont_guppy_3.6.0.wm_2.01.pri.incomplete.bam'
-    output: 'chm13/reads.seq'
-    shell: 'bam2seq {input} {output} --min-len 500000'
-
-# Extract 50 sequence pairs
-import random
-import pathlib
-rule chm13_sample:
-    input: 'chm13/reads.seq'
-    output: 'chm13/seq01.seq'
-    run:
-        reads = pathlib.Path(input[0]).open().readlines()
-        num = len(reads)//2
-        random.seed(31415)
-        sample = random.sample(range(num), k=50)
-        for (i, sample_idx) in enumerate(sample, start=1):
-            pathlib.Path(f'chm13/seq{i:02}.seq').write_text(reads[2*i] + reads[2*i+1])
