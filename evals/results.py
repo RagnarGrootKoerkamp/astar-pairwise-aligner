@@ -100,17 +100,27 @@ for e in pd.unique(df.e):
 def human_data(dir):
     df = read_benchmarks(f"table/human_{dir}.tsv")
     # Remove sequences for which BiWFA didn't finish in time.
-    df = df[df.ed > 0]
     df = df[df.k.isin([0, 15])]
     df.s = df.s.clip(0, 100)
     df = df[((df.r == 0) | (df.r == 2)) & df.alg.isin(["biwfa", "edlib", "sh", "csh"])]
+
     # Print min/mean/max length and error rate
     df.e = df.ed / df.n
-    ds = df[df.alg == "biwfa"]
-    text = f"n: {ds.n.min()} {ds.n.mean()} {ds.n.max()}\n"
-    text += f"e: {ds.e.min()} {ds.e.mean()} {ds.e.max()}\n"
-    Path(f"results/stats_{dir}").write_text(text)
+    ds = df[df.alg == "edlib"]
+    # Print number of times SH is faster than both biwfa and edlib
+    pt = pd.pivot_table(df, values="s", columns=["alg"], index=["id"])
+    Path(f"results/stats_{dir}").write_text(
+        f"""{dir}
+total: {len(pt)}
+SH fastest: {len(pt[(pt.sh < pt.biwfa) & (pt.sh < pt.edlib)])}
+CSH fastest: {len(pt[(pt.csh < pt.biwfa) & (pt.csh < pt.edlib)])}
+cnt: {len(ds)}
+n: {ds.n.min()} {ds.n.mean()} {ds.n.max()}
+"""
+        # e: {ds.e.min()} {ds.e.mean()} {ds.e.max()}
+    )
 
+    df = df[df.ed > 0]
     plot_scaling(
         df,
         y="s",
@@ -124,6 +134,9 @@ def human_data(dir):
         xticks=[10000 if dir == "chm13" else 20000, 100000],
         alpha=0.8,
         markersize=6,
+        tle_tick=100,
+        yticks=[1, 10, 100],
+        legend=True,
     )
 
 
@@ -134,7 +147,6 @@ human_data("chm13")
 def human_data_sorted(dir):
     df = read_benchmarks(f"table/human_{dir}.tsv")
     df = df[df.k.isin([0, 15])]
-    # filter points that time out
     df = df[df.s < 100]
     df = df[((df.r == 0) | (df.r == 2)) & df.alg.isin(["biwfa", "edlib", "sh", "csh"])]
     # For each algorithm, sort datapoints by runtime.
@@ -154,6 +166,9 @@ def human_data_sorted(dir):
         ylog=True,
         alpha=0.8,
         markersize=6,
+        legend=True,
+        tle_tick=100,
+        yticks=[1, 10, 100],
     )
 
 

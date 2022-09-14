@@ -61,8 +61,12 @@ def plot_scaling(
     x_margin=1.5,
     xticks=None,
     y_min=None,
+    y_max=None,
+    yticks=None,
     alpha=1,
     markersize=11,
+    tle_tick=None,
+    legend=False,
 ):
     fig = None
     if ax is None:
@@ -95,10 +99,12 @@ def plot_scaling(
     groups = df.groupby(split)
 
     # PLOT DATA
-    alg_order = ["edlib", "biwfa", "csh", "sh"]
+    alg_order = ["edlib", "biwfa", "dijkstra", "csh-noprune", "sh-noprune", "csh", "sh"]
 
     def key_order(key):
-        if isinstance(key, list):
+        if isinstance(key, tuple):
+            new_key = list(key)
+        elif isinstance(key, list):
             new_key = key[:]
         else:
             new_key = [key]
@@ -107,6 +113,8 @@ def plot_scaling(
             alg = new_key[idx]
             if alg in alg_order:
                 new_key[idx] = alg_order.index(alg)
+            else:
+                print(f"alg not found: {alg}")
         return new_key
 
     group_keys = sorted(list(groups.groups.keys()), key=key_order)
@@ -114,6 +122,7 @@ def plot_scaling(
         group = groups.get_group(split_key)
         key = split_key[0] if isinstance(split_key, tuple) else split_key
         marker = r2marker(key, int(group["r"].max()))
+        label = algo2beautiful(key) + group_label(split_key)
         group.plot(
             x=x,
             y=y,
@@ -126,7 +135,8 @@ def plot_scaling(
             markersize=markersize,
             markeredgewidth=0,
             ls=ls,
-            legend=False,
+            legend=legend,
+            label=label,
         )
 
     # DRAW CONE
@@ -198,21 +208,32 @@ def plot_scaling(
             )
         print(exps)
     else:
-        for split_key, group in groups:
-            max_idx = group[x].idxmax()
-            label_x = group[x][max_idx]
-            label_y = group[y][max_idx]
-            key = split_key[0] if isinstance(split_key, tuple) else split_key
-            ax.text(
-                label_x,
-                label_y,
-                algo2beautiful(key) + group_label(split_key),
-                color=algo2color(split_key),
-                ha="right",
-                va="bottom",
-                size=15,
-                alpha=1,
+        if legend:
+            ax.legend(
+                handlelength=0.6,
+                handletextpad=0.3,
+                loc="lower right",
+                frameon=True,
+                labelspacing=0.3,
             )
+        else:
+            # If no legend and no fits are shown, show manual labels instead
+            for split_key, group in groups:
+                max_idx = group[x].idxmax()
+                label_x = group[x][max_idx]
+                label_y = group[y][max_idx]
+                key = split_key[0] if isinstance(split_key, tuple) else split_key
+                label = algo2beautiful(key) + group_label(split_key)
+                ax.text(
+                    label_x,
+                    label_y,
+                    label,
+                    color=algo2color(split_key),
+                    ha="right",
+                    va="bottom",
+                    size=15,
+                    alpha=1,
+                )
 
     # ENABLE LOG SCALE
     if ylog:
@@ -269,6 +290,8 @@ def plot_scaling(
                 )
             )
         ax.set_xticks(xticks)
+    if yticks:
+        ax.set_yticks(yticks)
     if x == "e_pct":
         ax.xaxis.set_major_formatter(ticker.PercentFormatter(decimals=0))
         if x_min is not None:
@@ -276,6 +299,8 @@ def plot_scaling(
             ax.set_xlim(left=x_min)
     if y_min is not None:
         ax.set_ylim(bottom=y_min)
+    if y_max is not None:
+        ax.set_ylim(top=y_max)
     if x_max is not None:
         ax.set_xlim(right=x_max)
     if x == "ord":
@@ -291,6 +316,27 @@ def plot_scaling(
     ax.set_xlabel(col2name(x), size=18)  # weight='bold',
     ax.set_ylabel(col2name(y), rotation=0, ha="left", size=18)
     ax.yaxis.set_label_coords(-0.10, 1.00)
+
+    if tle_tick is not None:
+        plt.axhline(y=tle_tick, color="red", linestyle="-", alpha=1, linewidth=0.5)
+        # Must draw the canvas to get tick labels.
+        fig.canvas.draw()
+        ylabels = [x for x in ax.get_yticklabels()]
+        found = False
+        for i, l in enumerate(ylabels):
+            if l.get_position()[1] == tle_tick:
+                ylabels[i] = "TL=" + ylabels[i].get_text()
+                found = True
+                break
+        if found:
+            ax.set_yticklabels(ylabels)
+        else:
+            yticks = list(ax.get_yticks())
+            ylabels = list(ax.get_yticklabels())
+            yticks.append(tle_tick)
+            ylabels.append("TLE")
+            ax.set_yticks(yticks)
+            ax.set_yticklabels(ylabels)
 
     # Title
     if title:
