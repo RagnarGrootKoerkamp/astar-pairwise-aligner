@@ -27,7 +27,6 @@ plot_scaling(
     read_benchmarks("table/scaling_n.tsv"),
     x="n",
     y="s_per_pair",
-    split=["alg", "r"],
     filename="scaling_n",
     ylog=True,
     xlog=True,
@@ -98,7 +97,7 @@ for e in pd.unique(df.e):
     )
 
 # Human data
-def human_data(dir, title):
+def human_data(dir):
     df = read_benchmarks(f"table/human_{dir}.tsv")
     # Remove sequences for which BiWFA didn't finish in time.
     df = df[df.ed > 0]
@@ -119,21 +118,51 @@ def human_data(dir, title):
         filename=f"human_{dir}",
         xlog=True,
         ylog=True,
-        split=["alg", "r"],
         y_min=0.2,
         x_margin=1.1,
         # x_max = 120000,
         xticks=[10000 if dir == "chm13" else 20000, 100000],
-        alpha=0.6,
+        alpha=0.8,
+        markersize=6,
     )
 
 
-human_data("ont-ul", "ONT UL")
-human_data("chm13", "CHM13")
+human_data("na12878")
+human_data("chm13")
+
+# Human data sorted plot
+def human_data_sorted(dir):
+    df = read_benchmarks(f"table/human_{dir}.tsv")
+    df = df[df.k.isin([0, 15])]
+    # filter points that time out
+    df = df[df.s < 100]
+    df = df[((df.r == 0) | (df.r == 2)) & df.alg.isin(["biwfa", "edlib", "sh", "csh"])]
+    # For each algorithm, sort datapoints by runtime.
+    df["ord"] = 0
+
+    def order_group(group):
+        group = group.sort_values(by="s")
+        group["ord"] = np.arange(len(group))
+        return group
+
+    df = df.groupby("alg", group_keys=False).apply(order_group)
+    plot_scaling(
+        df,
+        y="s",
+        x="ord",
+        filename=f"human_sorted_{dir}",
+        ylog=True,
+        alpha=0.8,
+        markersize=6,
+    )
+
+
+human_data_sorted("na12878")
+human_data_sorted("chm13")
 
 
 # Max CSH Prune fraction
-for dir in ["chm13", "ont-ul"]:
+for dir in ["chm13", "na12878"]:
     r = 2
     df = read_benchmarks(f"table/human_{dir}.tsv")
     df = df[df.exit_status == 0]

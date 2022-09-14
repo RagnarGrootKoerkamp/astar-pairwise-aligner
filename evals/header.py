@@ -49,7 +49,7 @@ def plot_scaling(
     trend_line="",
     xlog=False,
     ylog=False,
-    split="alg",
+    split=["alg"],
     fit_min=None,
     cone=None,
     cone_x=10**4,
@@ -62,6 +62,7 @@ def plot_scaling(
     xticks=None,
     y_min=None,
     alpha=1,
+    markersize=11,
 ):
     fig = None
     if ax is None:
@@ -94,7 +95,23 @@ def plot_scaling(
     groups = df.groupby(split)
 
     # PLOT DATA
-    for split_key, group in groups:
+    alg_order = ["edlib", "biwfa", "csh", "sh"]
+
+    def key_order(key):
+        if isinstance(key, list):
+            new_key = key[:]
+        else:
+            new_key = [key]
+        if "alg" in split:
+            idx = split.index("alg")
+            alg = new_key[idx]
+            if alg in alg_order:
+                new_key[idx] = alg_order.index(alg)
+        return new_key
+
+    group_keys = sorted(list(groups.groups.keys()), key=key_order)
+    for split_key in group_keys:
+        group = groups.get_group(split_key)
         key = split_key[0] if isinstance(split_key, tuple) else split_key
         marker = r2marker(key, int(group["r"].max()))
         group.plot(
@@ -106,7 +123,7 @@ def plot_scaling(
             rot=0,
             color=algo2color(split_key),
             marker=marker,
-            markersize=11,
+            markersize=markersize,
             markeredgewidth=0,
             ls=ls,
             legend=False,
