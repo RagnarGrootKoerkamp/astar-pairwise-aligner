@@ -25,7 +25,9 @@ binaries = {
 tool_command = {
     'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh',
     'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh',
+    'sh-dt':         binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh-dt',
     'csh-dt':        binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-dt',
+    'csh-gap-cost':  binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-gap-cost',
     'csh-gap-cost-dt': binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-gap-cost-dt',
     # Slower variants for comparison
     'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh  --no-prune',
@@ -35,6 +37,7 @@ tool_command = {
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':         binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
     'biwfa':         binaries["wfa" ]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow -o {input}.score',
+    'biwfa-affine':  binaries["wfa" ]    + ' -i {input} -a gap-affine-wfa --affine-penalties 0,1,1,1 --wfa-memory-mode ultralow',
 }
 
 # Command to generate testcases.
