@@ -99,7 +99,20 @@ def plot_scaling(
     groups = df.groupby(split)
 
     # PLOT DATA
-    alg_order = ["edlib", "biwfa", "dijkstra", "csh-noprune", "sh-noprune", "csh", "sh"]
+    alg_order = [
+        "edlib",
+        "biwfa",
+        "biwfa-affine",
+        "dijkstra",
+        "csh-noprune",
+        "sh-noprune",
+        "csh",
+        "sh",
+        "csh-dt",
+        "sh-dt",
+        "csh-gap-cost",
+        "csh-gap-cost-dt",
+    ]
 
     def key_order(key):
         if isinstance(key, tuple):
@@ -245,9 +258,11 @@ def plot_scaling(
         ax.set_xscale("log")
 
     # SET LIMITS FOR LOG AXES
-    if xlog and x_margin:
+    if xlog and x_margin is not None:
         xs = df[df[x] > 0][x]
         ax.set_xlim(xs.min() / x_margin, xs.max() * x_margin)
+    elif x_margin is not None:
+        ax.set_xmargin(x_margin)
     if ylog:
         ax.set_ylim(df[y].min() / 3, df[y].max() * 3)
 
@@ -258,7 +273,7 @@ def plot_scaling(
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     # Hide the left border for logarithmic x-axes.
-    if xlog:
+    if xlog or x == "ord":
         ax.spines["left"].set_visible(False)
 
     # GRID: major y-axis
@@ -382,13 +397,12 @@ def algo2color(algo):
         "edlib": "#DE4AFF",
         "wfa": "#625AFF",
         "biwfa": "#625AFF",
-        # "csh+gap": "black",
-        # "csh+dt": "blue",
-        #'astarix-prefix': '#FF6D29',
-        #'astar-prefix': '#FF6D29',
-        #'astarix-prefix-illumina': '#FF6D29',
-        #'astarix-seeds': '#EB2D12',
-        #'astar-seeds': '#EB2D12',
+        "sh-dt": "lime",
+        "csh-dt": "blue",
+        "csh-gap-cost": "pink",
+        "csh-gap-cost-dt": "red",
+        "biwfa-affine": "black",
+        # 'astar-seeds': '#EB2D12',
         #'astarix-seeds-illumina': '#EB2D12',
         #'graphaligner': '#8C8CFF',
         #'pasgal': '#AC68FF',
@@ -399,6 +413,7 @@ def algo2color(algo):
     algo = algo.removesuffix("-s_per_pair_no_retry")
     if algo in d:
         return d[algo]
+    return np.random.rand(3)
     return "black"
 
 

@@ -33,6 +33,7 @@ plot_scaling(
     cone="csh",
     cone_x=100,
     trend_line="poly",
+    alpha=0.8,
 )
 
 # Fig 6: Scaling with error rate
@@ -44,6 +45,7 @@ plot_scaling(
     filename=f"scaling_e",
     ylog=False,
     ls="-",
+    alpha=0.8,
 )
 
 # Table 1: n=10^7 slice of tool comparison, including memory.
@@ -116,6 +118,7 @@ SH fastest: {len(pt[(pt.sh < pt.biwfa) & (pt.sh < pt.edlib)])}
 CSH fastest: {len(pt[(pt.csh < pt.biwfa) & (pt.csh < pt.edlib)])}
 cnt: {len(ds)}
 n: {ds.n.min()} {ds.n.mean()} {ds.n.max()}
+e: {ds.e.min()} {ds.e.mean()} {ds.e.max()}
 """
         # e: {ds.e.min()} {ds.e.mean()} {ds.e.max()}
     )
@@ -169,6 +172,7 @@ def human_data_sorted(dir):
         legend=True,
         tle_tick=100,
         yticks=[1, 10, 100],
+        x_margin=0.01,
     )
 
 
