@@ -62,11 +62,13 @@ def plot_scaling(
     xticks=None,
     y_min=None,
     y_max=None,
+    y_margin=None,
     yticks=None,
     alpha=1,
     markersize=11,
     tle_tick=None,
     legend=False,
+    callback=None,
 ):
     fig = None
     if ax is None:
@@ -263,8 +265,14 @@ def plot_scaling(
         ax.set_xlim(xs.min() / x_margin, xs.max() * x_margin)
     elif x_margin is not None:
         ax.set_xmargin(x_margin)
+
     if ylog:
-        ax.set_ylim(df[y].min() / 3, df[y].max() * 3)
+        if y_margin is not None:
+            ax.set_ylim(df[y].min() / y_margin, df[y].max() * y_margin)
+        else:
+            ax.set_ylim(df[y].min() / 3, df[y].max() * 3)
+    elif y_margin is not None:
+        ax.set_ymargin(y_margin)
 
     # Background
     ax.set_facecolor("#F8F8F8")
@@ -355,6 +363,9 @@ def plot_scaling(
     # Title
     if title:
         ax.set_title(title)
+
+    if callback:
+        callback(ax)
 
     if filename and fig is not None:
         fig.savefig(f"results/{filename}.pdf", bbox_inches="tight")
