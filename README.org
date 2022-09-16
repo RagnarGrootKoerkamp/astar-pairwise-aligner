@@ -76,9 +76,57 @@ There are also the =edlib= and =wfa= features. These enable linking against the
 C-libraries directly and are used for (fuzz)-testing. Run ~make wfa~ and ~make
 edlib~ before using these.
 
+* Datasets
+
+The real datasets that we evaluate on are available in the
+[[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][Sequence data release]]. Synthetic data is generated using [[./examples/generate_dataset.rs]].
+
+* Evals & results
+
+The evaluations and results in our upcoming preprint should be entirely
+reproducible using the [[./makefile][makefile]]:
+
+Before running evals, make sure WFA and Edlib are cloned to the directory
+adjacent to this repository, using ~make wfa~ and ~make edlib~. Then, you should
+be able to run all evals (takes ~5h~) using ~make evals~. Note that this asks for
+the root password to fix the CPU frequency using =cpupower=. If you do not
+have/want this, just comment the lines in the =makefile=.
+
+Either way, the results of the evals are already committed in [[./evals/table/]]. Plots and
+table data can be generated from this in the [[./evals/results]] directory using
+~make results~, which calls the python script [[./evals/results.py]]. There is also
+a corresponding [[./evals/evals.ipynb]] notebook.
+
+Use ~make figures~ to run some of the provided [[./examples][examples]] to generate the figures
+shown in figure 1 and 3 of the paper, and reproduced as videos below.
+
+* Videos
+
+We have support for live-rendering of the progress of all internally implemented
+algorithm. However, this is not currently exposed as a binary. See e.g.
+[[./examples/fig-readme.rs]] for an example. If you run it, you may want to first
+set ~config.save = When::None~ to prevent saving (a lot) of frames to disk.
+
+Here are the algorithms of figure 1 of our (upcoming) preprint visualized. Note
+that timings are not comparable since different methods are drawing are used --
+the timescales and number of frames are too different. Dijkstra's
+algorithm and diagonal transition are shown per-front, instead of per cell, so
+are not linear with time.
+
+|----------------------------------------------------------------------------------+--------------------------------------------|
+| The exponential search steps of Ukkonen's banded algorithm                       | [[file:imgs/fig1/1_ukkonen.gif]]               |
+| Fronts of Dijkstra's algorithm                                                   | [[file:imgs/fig1/2_dijkstra.gif]]              |
+| Fronts of Diagonal transition (Ukkonen'85, Myers'86, WFA)                        | [[file:imgs/fig1/3_diagonal_transition.gif]]   |
+| Fronts of Diagonal transition with divide and conquer (Myers'86, BiWFA)          | [[file:imgs/fig1/4_dt-divide-and-conquer.gif]] |
+| Expanded states of A* with chaining seed heuristic and pruning (A*PA, this work) | [[file:imgs/fig1/5_astar-csh-pruning.gif]]     |
+
+And here is a video of figure 3 of our preprint:
+
+[[file:imgs/fig3.gif]]
+
 * Tests & benchmarks
 
-Tests and benchmarks are run by GitHub Actions CI. Performance history of
+All code is tested and benchmarked on GitHub Actions CI. Performance history of
 benchmarks is [[https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/][here]].
 
 The [[./src/aligners/]] directory contains our own implementations of
@@ -106,53 +154,6 @@ All these methods are tested in [[./src/aligners/tests.rs]].
 
 Note that we do not currently expose these via a command line utility. See the
 tests file above for usage examples.
-
-* Evals & results
-
-The evaluations and results in our upcoming preprint should be entirely
-reproducible using the [[./makefile][makefile]]:
-
-Before running evals, make sure WFA and Edlib are cloned to the directory
-adjacent to this repository, using ~make wfa~ and ~make edlib~. Then, you should
-be able to run all evals (takes ~5h~) using ~make evals~. Note that this asks for
-the root password to fix the CPU frequency using =cpupower=. If you do not
-have/want this, just comment the lines in the =makefile=.
-
-Either way, the results of the evals are committed in [[./evals/table/]]. Plots and
-table data can be generated from this in the [[./evals/results]] directory using
-~make results~, which calls the python script [[./evals/results.py]]. There is also
-the corresponding [[./evals/evals.ipynb]] notebook.
-
-Use ~make figures~ to run some of the provided [[./examples][examples]] to generate the figures
-shown in figure 1 and 3 of the paper, and reproduced as videos below.
-
-* Further notes
-
-See [[todo.org]] for our internal list of things to do and things done, and random observations.
-
-* Videos
-
-We have support for live-rendering of the progress of all internally implemented
-algorithm. However, this is not currently exposed as a binary. See e.g.
-[[./examples/fig-readme.rs]] for an example. If you run it, you may want to first
-set ~config.save = When::None~ to prevent saving (a lot) of frames to disk.
-
-Here are the algorithms of figure 1 of our (upcoming) preprint visualized. Note
-that timings are not comparable since different methods are drawing are used --
-the timescales and number of frames are too different. Dijkstra's
-algorithm and diagonal transition are shown per-front, instead of per cell, so
-are not linear with time.
-
-|----------------------------------------------------------------------------------+--------------------------------------------|
-| The exponential search steps of Ukkonen's banded algorithm                       | [[file:imgs/fig1/1_ukkonen.gif]]               |
-| Fronts of Dijkstra's algorithm                                                   | [[file:imgs/fig1/2_dijkstra.gif]]              |
-| Fronts of Diagonal transition (Ukkonen'85, Myers'86, WFA)                        | [[file:imgs/fig1/3_diagonal_transition.gif]]   |
-| Fronts of Diagonal transition with divide and conquer (Myers'86, BiWFA)          | [[file:imgs/fig1/4_dt-divide-and-conquer.gif]] |
-| Expanded states of A* with chaining seed heuristic and pruning (A*PA, this work) | [[file:imgs/fig1/5_astar-csh-pruning.gif]]     |
-
-And here is a video of figure 3 of our preprint:
-
-[[file:imgs/fig3.gif]]
 
 * Links
 
