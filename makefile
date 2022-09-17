@@ -53,7 +53,7 @@ evals: cpu-freq
 	git -C ../wfa2 rev-parse --short HEAD >> evals/commit-ids
 	# Build tools
 	cargo build --no-default-features --release
-	cargo build --no-default-features --release --example generate_dataset
+	cargo build --no-default-features --release --bin generate_dataset
 	# Run snakemake on 3 threads, with 3 jobs in parallel.
 	# The first rule `all` is executed automatically.
 	cd evals && \

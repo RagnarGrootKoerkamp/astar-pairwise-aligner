@@ -62,7 +62,7 @@ cargo run --release -- -x 100 -n 100000 -e 0.05 -r 1 -k 15
 
 A =.seq= input file can be generated like this:
 #+begin_src
-cargo run --release --example generate_dataset -- -x 1000 -n 10000 -e 0.05 /tmp/random-sequences.seq
+cargo run --release --bin generate_dataset -- -x 1000 -n 10000 -e 0.05 /tmp/random-sequences.seq
 #+end_src
 
 ** Features
@@ -79,7 +79,7 @@ edlib~ before using these.
 * Datasets
 
 The real datasets that we evaluate on are available in the
-[[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][Sequence data release]]. Synthetic data is generated using [[./examples/generate_dataset.rs]].
+[[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][Sequence data release]]. Synthetic data is generated using [[./src/bin/generate_dataset.rs]].
 
 * Evals & results
 
