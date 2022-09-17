@@ -2,9 +2,12 @@ use std::{fmt::Write, slice};
 
 use itertools::Itertools;
 
-use crate::prelude::Pos;
+use crate::{
+    cost_model::{AffineCost, AffineLayerType, Cost, CostModel},
+    prelude::Pos,
+};
 
-use super::{Path, Seq};
+use super::{edit_graph::I, Path, Seq};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum CigarOp {
@@ -170,6 +173,86 @@ impl Cigar {
                 if let Some(offset) = el.command.delta() {
                     position = position + offset;
                     path.push(position);
+                }
+            }
+        }
+        path
+    }
+
+    pub fn to_path_with_cost<const N: usize>(&self, cm: AffineCost<N>) -> Vec<(Pos, Cost)> {
+        let mut pos = Pos(0, 0);
+        let mut layer = None;
+        let mut cost = 0;
+        let mut path = vec![(pos, cost)];
+
+        for el in &self.ops {
+            let length = el.length as Cost;
+            match el.command {
+                CigarOp::Match => {
+                    assert!(layer == None);
+                    for _ in 0..length {
+                        pos.0 += 1;
+                        pos.1 += 1;
+                        path.push((pos, cost));
+                    }
+                }
+                CigarOp::Mismatch => {
+                    assert!(layer == None);
+                    for _ in 0..length {
+                        pos.0 += 1;
+                        pos.1 += 1;
+                        cost += cm.sub.unwrap();
+                        path.push((pos, cost));
+                    }
+                }
+                CigarOp::Insertion => {
+                    assert!(layer == None);
+                    for _ in 0..length {
+                        pos.1 += 1;
+                        cost += cm.ins.unwrap();
+                        path.push((pos, cost));
+                    }
+                }
+                CigarOp::Deletion => {
+                    assert!(layer == None);
+                    for _ in 0..length {
+                        pos.0 += 1;
+                        cost += cm.del.unwrap();
+                        path.push((pos, cost));
+                    }
+                }
+                CigarOp::AffineInsertion(l) => {
+                    assert_eq!(layer, Some(l));
+                    assert_eq!(
+                        cm.affine[l].affine_type.base(),
+                        AffineLayerType::InsertLayer
+                    );
+                    for _ in 0..length {
+                        pos.1 += 1;
+                        cost += cm.affine[l].extend;
+                        path.push((pos, cost));
+                    }
+                }
+                CigarOp::AffineDeletion(l) => {
+                    assert_eq!(layer, Some(l));
+                    assert_eq!(
+                        cm.affine[l].affine_type.base(),
+                        AffineLayerType::DeleteLayer
+                    );
+                    for _ in 0..length {
+                        pos.0 += 1;
+                        cost += cm.affine[l].extend;
+                        path.push((pos, cost));
+                    }
+                }
+                CigarOp::AffineOpen(l) => {
+                    assert_eq!(layer, None);
+                    cost += cm.affine[l].open;
+                    layer = Some(l)
+                }
+                CigarOp::AffineClose(l) => {
+                    assert_eq!(layer, Some(l));
+                    layer = None;
                 }
             }
         }
