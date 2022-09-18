@@ -15,41 +15,49 @@ pub enum Algorithm {
     Nw,
     // Naive, but with SIMD and O(ns) exponential search.
     NwSimd,
+    #[default]
+    AStar,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
+#[allow(non_camel_case_types)]
+pub enum HeuristicType {
     Dijkstra,
     #[default]
     SH,
     CSH,
 }
 
-impl Algorithm {
-    pub fn has_heuristic(self) -> bool {
-        use Algorithm::*;
-        match self {
-            Nw | NwSimd => false,
-            Dijkstra | SH | CSH => true,
-        }
-    }
+#[derive(Parser, Debug)]
+#[clap(help_heading = "ALGORITHM")]
+pub struct AlgorithmParams {
+    #[clap(short, long, default_value_t, value_enum, display_order = 10)]
+    pub algorithm: Algorithm,
+
+    /// Disable greedy matching
+    #[clap(long, hide_short_help = true)]
+    pub no_greedy_matching: bool,
+
+    /// Use diagonal-transition based methods.
+    #[clap(long, hide_short_help = true)]
+    pub dt: bool,
+
+    /// First find a candidate path and then proof its correctness.
+    #[clap(long, hide_short_help = true)]
+    pub proof_path: bool,
+
+    /// Save last frame as image.
+    // TODO: Move setting elsewhere?
+    #[clap(long, hide_short_help = true)]
+    pub save_last: Option<String>,
 }
 
 /// TODO: Add separate --dt and --gap-cost flags.
 #[derive(Parser, Debug)]
-#[clap(help_heading = "PARAMS")]
+#[clap(help_heading = "HEURISTIC")]
 pub struct HeuristicParams {
-    /// nw, nw-simd, dijkstra, sh, csh
-    ///
-    /// More values:
-    /// brute-force-csh, csh-gap-cost
-    /// With diagonal transition:
-    /// {dijkstra,sh,csh,csh-gap-cost}-dt
-    #[clap(
-        short,
-        long,
-        default_value_t,
-        value_enum,
-        hide_possible_values = true,
-        display_order = 10
-    )]
-    pub algorithm: Algorithm,
+    #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]
+    pub heuristic: HeuristicType,
 
     /// Seed potential
     ///
@@ -83,26 +91,9 @@ pub struct HeuristicParams {
     #[clap(long, hide_short_help = true, default_value_t = 0)]
     pub skip_prune: usize,
 
-    /// Disable greedy matching
-    #[clap(long, hide_short_help = true)]
-    pub no_greedy_matching: bool,
-
-    /// Use diagonal-transition based methods.
-    #[clap(long, hide_short_help = true)]
-    pub dt: bool,
-
     /// Use gap-cost for CSH.
     #[clap(long, hide_short_help = true)]
     pub gap_cost: bool,
-
-    /// First find a candidate path and then proof its correctness.
-    #[clap(long, hide_short_help = true)]
-    pub proof_path: bool,
-
-    /// Save last frame as image.
-    // TODO: Move setting elsewhere?
-    #[clap(long, hide_short_help = true)]
-    pub save_last: Option<String>,
 }
 
 pub trait HeuristicRunner {
@@ -130,11 +121,9 @@ impl HeuristicParams {
     }
 
     pub fn run_on_heuristic<F: HeuristicRunner>(&self, f: F) -> F::R {
-        assert!(self.algorithm.has_heuristic());
-        match self.algorithm {
-            Algorithm::Nw | Algorithm::NwSimd => unreachable!(),
-            Algorithm::Dijkstra => f.call(ZeroCost),
-            Algorithm::CSH => {
+        match self.heuristic {
+            HeuristicType::Dijkstra => f.call(ZeroCost),
+            HeuristicType::CSH => {
                 let heuristic = CSH {
                     match_config: self.match_config(self.gap_cost),
                     pruning: Pruning {
@@ -147,7 +136,7 @@ impl HeuristicParams {
 
                 f.call(heuristic)
             }
-            Algorithm::SH => {
+            HeuristicType::SH => {
                 let heuristic = SH {
                     match_config: self.match_config(false),
                     pruning: Pruning {

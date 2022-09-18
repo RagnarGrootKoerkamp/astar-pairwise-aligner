@@ -2,7 +2,7 @@
 
 use astar_pairwise_aligner::{
     cli::{
-        heuristic_params::{Algorithm, HeuristicRunner},
+        heuristic_params::{Algorithm, AlgorithmParams, HeuristicRunner},
         input::Input,
     },
     prelude::*,
@@ -27,7 +27,11 @@ struct Cli {
     output: Option<PathBuf>,
 
     /// Parameters and settings for the algorithm.
-    #[clap(flatten, help_heading = "PARAMETERS")]
+    #[clap(flatten)]
+    algorithm: AlgorithmParams,
+
+    /// Parameters and settings for the heuristic.
+    #[clap(flatten)]
     params: HeuristicParams,
 
     /// Print less. Pass twice for summary line only.
@@ -45,7 +49,7 @@ struct Cli {
 struct AlignWithHeuristic<'a, 'b> {
     a: Seq<'a>,
     b: Seq<'a>,
-    params: &'b HeuristicParams,
+    params: &'b AlgorithmParams,
 }
 
 impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
@@ -80,8 +84,8 @@ fn main() {
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = if !args.params.algorithm.has_heuristic() {
-            let dist = match args.params.algorithm {
+        let r = if args.algorithm.algorithm != Algorithm::AStar {
+            let dist = match args.algorithm.algorithm {
                 Algorithm::Nw => bio::alignment::distance::levenshtein(a, b),
                 Algorithm::NwSimd => bio::alignment::distance::simd::levenshtein(a, b),
                 _ => unreachable!(),
@@ -100,7 +104,7 @@ fn main() {
             args.params.run_on_heuristic(AlignWithHeuristic {
                 a,
                 b,
-                params: &args.params,
+                params: &args.algorithm,
             })
         };
 

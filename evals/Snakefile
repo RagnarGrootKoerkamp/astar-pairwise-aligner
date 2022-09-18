@@ -23,16 +23,16 @@ binaries = {
     'wfa'   : '../../wfa2/bin/align_benchmark',
 }
 tool_command = {
-    'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh',
-    'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh',
-    'sh-dt':         binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh --dt',
-    'csh-dt':        binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --dt',
-    'csh-gap-cost':  binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --gap-cost',
-    'csh-gap-cost-dt': binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --gap-cost --dt',
+    'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic sh',
+    'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh',
+    'sh-dt':         binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic sh --dt',
+    'csh-dt':        binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --dt',
+    'csh-gap-cost':  binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --gap-cost',
+    'csh-gap-cost-dt': binaries["pa"]    + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --gap-cost --dt',
     # Slower variants for comparison
-    'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh  --no-prune',
-    'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --no-prune',
-    'dijkstra':      binaries["pa"]      + ' -i {input} -o {stats_path} -ss                                   --algorithm dijkstra',
+    'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic sh  --no-prune',
+    'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --no-prune',
+    'dijkstra':      binaries["pa"]      + ' -i {input} -o {stats_path} -ss                                   --heuristic dijkstra',
     # Others
     # We use a fork of edlib that takes the .seq files as input and processes pairs one by one.
     'edlib':         binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output

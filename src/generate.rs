@@ -36,13 +36,9 @@ pub struct GenerateArgs {
     pub cnt: usize,
 
     /// Length of generated sequences
-    #[clap(
-        short = 'n',
-        long,
-        group = "inputmethod",
-        requires_all = &["error-rate"],
-        display_order = 3,
-    )]
+    ///
+    /// Input sequences from files are also cropped to this length, if set.
+    #[clap(short = 'n', long, group = "inputmethod", display_order = 3)]
     pub length: Option<usize>,
 
     /// The length of b for the case DoubleMutatedRepeat
