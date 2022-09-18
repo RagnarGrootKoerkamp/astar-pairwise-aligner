@@ -126,7 +126,11 @@ impl<C: Contour> HintContours<C> {
 impl<C: Contour> Contours for HintContours<C> {
     // NOTE: Arrows must satisfy the following 'consistency' properties:
     // - If there is an arrow A->B of cost c>1, there is also an arrow A'->B of cost c-1, where A' is an indel away from A.
-    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
+    fn new_with_filter(
+        arrows: impl IntoIterator<Item = Arrow>,
+        max_len: I,
+        mut filter: impl FnMut(&Arrow, Cost) -> bool,
+    ) -> Self {
         let mut this = HintContours {
             contours: {
                 let mut c = SplitVec::default();
@@ -151,13 +155,17 @@ impl<C: Contour> Contours for HintContours<C> {
                 this.target.0 = max(this.target.0, a.end.0);
                 this.target.1 = max(this.target.1, a.end.1);
                 let nv = this.score(a.end) + a.score as Cost;
-                if nv > v || (nv == v && a.score < l) {
-                    v = nv;
+                if filter(&a, nv) {
+                    continue;
                 }
+                v = max(v, nv);
                 l = max(l, a.score);
             }
-            assert!(v > 0);
-            if this.contours.len() as Cost <= v {
+            if v == 0 {
+                // All arrows at pos filtered out.
+                continue;
+            }
+            if (this.contours.len() as Cost) <= v {
                 this.contours
                     .resize_with(v as usize + 1, || C::with_max_len(max_len));
             }

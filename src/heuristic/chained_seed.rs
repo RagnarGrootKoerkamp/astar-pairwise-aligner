@@ -116,13 +116,18 @@ impl<C: Contours> Copy for CSH<C> {}
 impl<C: Contours> Heuristic for CSH<C> {
     type Instance<'a> = CSHI<C>;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
+    fn build_with_filter<'a>(
+        &self,
+        a: Seq<'a>,
+        b: Seq<'a>,
+        filter: impl FnMut(&Match, Cost) -> bool,
+    ) -> Self::Instance<'a> {
         // TODO: Warning
         assert!(
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
-        CSHI::new(a, b, *self)
+        CSHI::new(a, b, filter, *self)
     }
 
     fn name(&self) -> String {
@@ -190,7 +195,7 @@ impl<C: Contours> Drop for CSHI<C> {
 }
 
 impl<C: Contours> CSHI<C> {
-    fn new(a: Seq, b: Seq, params: CSH<C>) -> Self {
+    fn new(a: Seq, b: Seq, mut filter: impl FnMut(&Match, Cost) -> bool, params: CSH<C>) -> Self {
         let matches = find_matches(a, b, params.match_config, params.use_gap_cost);
         //println!("\nfind matches.. done: {}", matches.matches.len());
         let mut h = CSHI {
@@ -250,9 +255,22 @@ impl<C: Contours> CSHI<C> {
         // Sort revered by start (the order needed to construct contours).
         // TODO: Can we get away without sorting? It's probably possible if seeds
         // TODO: Fix the units here -- unclear whether it should be I or cost.
-        h.contours = C::new(
+        h.contours = C::new_with_filter(
             h.seeds.matches.iter().rev().map(match_to_arrow),
             h.params.match_config.max_match_cost as I + 1,
+            |arrow, layer| {
+                assert!(!h.params.use_gap_cost);
+                filter(
+                    &Match {
+                        start: arrow.start,
+                        end: arrow.end,
+                        match_cost: 1 - arrow.score,
+                        seed_potential: 0,
+                        pruned: MatchStatus::Active,
+                    },
+                    h.seeds.potential(arrow.start) - layer,
+                )
+            },
         );
         h.arrows = arrows;
         h.contours.print_stats();

@@ -85,17 +85,27 @@ impl Debug for Arrow {
 pub trait Contours: Default + Debug {
     /// Build the contours from a set of arrows.
     /// NOTE: Arrows must be reverse sorted by start.
-    fn new(_arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self;
+    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
+        Self::new_with_filter(arrows, max_len, |_, _| false)
+    }
+
+    /// For each arrow, call a callback to determine if should be skipped.
+    fn new_with_filter(
+        arrows: impl IntoIterator<Item = Arrow>,
+        max_len: I,
+        filter: impl FnMut(&Arrow, Cost) -> bool,
+    ) -> Self;
+
     /// The value of the contour this point is on.
     /// Hint is guaranteed to be for the current position.
-    fn score(&self, _q: Pos) -> Cost;
+    fn score(&self, q: Pos) -> Cost;
 
     type Hint: Copy + Debug + Default = ();
-    fn score_with_hint(&self, _q: Pos, _hint: Self::Hint) -> (Cost, Self::Hint)
+    fn score_with_hint(&self, q: Pos, _hint: Self::Hint) -> (Cost, Self::Hint)
     where
         Self::Hint: Default,
     {
-        (self.score(_q), Self::Hint::default())
+        (self.score(q), Self::Hint::default())
     }
     /// Remove the point at the given position, and shift all contours.
     /// This removes all arrows starting at the given position.

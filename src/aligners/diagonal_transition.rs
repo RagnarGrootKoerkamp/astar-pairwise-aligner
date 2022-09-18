@@ -898,6 +898,93 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
         left
     }
+
+    pub fn align_for_bounded_dist_with_h<'a>(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        s_bound: Option<Cost>,
+        h: &H::Instance<'_>,
+    ) -> Option<(Cost, Cigar)> {
+        self.v.borrow_mut().expand(Pos(0, 0));
+        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
+            Ok(fronts) => fronts,
+            Err(r) => return Some(r),
+        };
+
+        for s in 1.. {
+            if let Some(s_bound) = s_bound && s > s_bound {
+                return None;
+            }
+
+            // We can not initialize all layers directly at the start, since we do not know the final distance s.
+            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
+            if range.is_empty() {
+                return None;
+            }
+            fronts.push(range);
+            if self.next_front(
+                a,
+                b,
+                &mut fronts.fronts,
+                Pos(0, 0),
+                None,
+                Direction::Forward,
+            ) {
+                let cigar = self.trace(
+                    a,
+                    b,
+                    &fronts,
+                    DtState::start(),
+                    DtState::target(a, b, s),
+                    Direction::Forward,
+                );
+
+                self.v.borrow_mut().last_frame_with_h::<H::Instance<'_>>(
+                    Some(&cigar.to_path()),
+                    Some(
+                        &(|st| {
+                            // Determine the cost for the position.
+                            let mut dst = DtState::from_pos(st.pos(), 0);
+                            dst.layer = st.layer;
+                            // println!("pos: {pos}");
+                            // println!("st: {st:?}");
+                            loop {
+                                let front = &fronts[dst.s as Fr];
+                                if front.range().contains(&dst.d)
+                                    && front.layer(dst.layer)[dst.d] >= dst.fr
+                                {
+                                    break;
+                                    // println!(
+                                    //     "st: {st:?} fr {}",
+                                    //     fronts[st.s as Fr].layer(None)[st.d]
+                                    // );
+                                }
+                                dst.s += 1;
+                            }
+
+                            self.parent(a, b, &fronts, dst, Direction::Forward)
+                                .map(|x| {
+                                    let p = x.0.to_pos();
+                                    (
+                                        State {
+                                            i: p.0 as isize,
+                                            j: p.1 as isize,
+                                            layer: x.0.layer,
+                                        },
+                                        x.1,
+                                    )
+                                })
+                        }),
+                    ),
+                    Some(&h),
+                );
+
+                return Some((s, cigar));
+            }
+        }
+        unreachable!()
+    }
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
@@ -1121,85 +1208,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         b: Seq,
         s_bound: Option<Cost>,
     ) -> Option<(Cost, Cigar)> {
-        self.v.borrow_mut().expand(Pos(0, 0));
-        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
-            Ok(fronts) => fronts,
-            Err(r) => return Some(r),
-        };
-
-        let ref mut h = self.h.build(a, b);
-
-        for s in 1.. {
-            if let Some(s_bound) = s_bound && s > s_bound {
-                return None;
-            }
-
-            // We can not initialize all layers directly at the start, since we do not know the final distance s.
-            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
-            if range.is_empty() {
-                return None;
-            }
-            fronts.push(range);
-            if self.next_front(
-                a,
-                b,
-                &mut fronts.fronts,
-                Pos(0, 0),
-                None,
-                Direction::Forward,
-            ) {
-                let cigar = self.trace(
-                    a,
-                    b,
-                    &fronts,
-                    DtState::start(),
-                    DtState::target(a, b, s),
-                    Direction::Forward,
-                );
-
-                self.v.borrow_mut().last_frame_with_tree(
-                    Some(&cigar.to_path()),
-                    Some(
-                        &(|st| {
-                            // Determine the cost for the position.
-                            let mut dst = DtState::from_pos(st.pos(), 0);
-                            dst.layer = st.layer;
-                            // println!("pos: {pos}");
-                            // println!("st: {st:?}");
-                            loop {
-                                let front = &fronts[dst.s as Fr];
-                                if front.range().contains(&dst.d)
-                                    && front.layer(dst.layer)[dst.d] >= dst.fr
-                                {
-                                    break;
-                                    // println!(
-                                    //     "st: {st:?} fr {}",
-                                    //     fronts[st.s as Fr].layer(None)[st.d]
-                                    // );
-                                }
-                                dst.s += 1;
-                            }
-
-                            self.parent(a, b, &fronts, dst, Direction::Forward)
-                                .map(|x| {
-                                    let p = x.0.to_pos();
-                                    (
-                                        State {
-                                            i: p.0 as isize,
-                                            j: p.1 as isize,
-                                            layer: x.0.layer,
-                                        },
-                                        x.1,
-                                    )
-                                })
-                        }),
-                    ),
-                );
-
-                return Some((s, cigar));
-            }
-        }
-        unreachable!()
+        self.align_for_bounded_dist_with_h(a, b, s_bound, &self.h.build(a, b))
     }
 
     /// Finds an alignment in linear memory, by using divide & conquer.
