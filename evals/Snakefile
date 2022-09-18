@@ -25,10 +25,10 @@ binaries = {
 tool_command = {
     'sh':            binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh',
     'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh',
-    'sh-dt':         binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh-dt',
-    'csh-dt':        binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-dt',
-    'csh-gap-cost':  binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-gap-cost',
-    'csh-gap-cost-dt': binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh-gap-cost-dt',
+    'sh-dt':         binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh --dt',
+    'csh-dt':        binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --dt',
+    'csh-gap-cost':  binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --gap-cost',
+    'csh-gap-cost-dt': binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --gap-cost --dt',
     # Slower variants for comparison
     'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm sh  --no-prune',
     'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --algorithm csh --no-prune',
