@@ -47,11 +47,10 @@ fn small_test() {
     let ___text = "AGACGTCCA".as_bytes().to_vec();
     let b = ___text;
 
-    let stats = SequenceStats {
+    let stats = InputStats {
         len_a: a.len(),
         len_b: b.len(),
         error_rate: 0.,
-        source: Source::Manual,
     };
 
     let h = CSH {

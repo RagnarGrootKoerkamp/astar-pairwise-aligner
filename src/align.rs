@@ -21,11 +21,10 @@ impl fmt::Display for Source {
 }
 
 #[derive(Clone, Copy, Default)]
-pub struct SequenceStats {
+pub struct InputStats {
     pub len_a: usize,
     pub len_b: usize,
     pub error_rate: f32,
-    pub source: Source,
 }
 
 #[derive(Default, Clone)]
@@ -44,7 +43,7 @@ pub struct HeuristicStats2 {
 
 #[derive(Default, Clone)]
 pub struct AlignResult {
-    pub input: SequenceStats,
+    pub input: InputStats,
     pub heuristic_params: HeuristicParams,
     pub timing: TimingStats,
     pub astar: astar::AStarStats,
@@ -283,7 +282,7 @@ pub fn align<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,
     alphabet: &Alphabet,
-    sequence_stats: SequenceStats,
+    sequence_stats: InputStats,
     heuristic: H,
 ) -> AlignResult
 where
@@ -296,7 +295,7 @@ pub fn align_advanced<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,
     alphabet: &Alphabet,
-    sequence_stats: SequenceStats,
+    sequence_stats: InputStats,
     heuristic: H,
     greedy_edge_matching: bool,
     diagonal_transition: bool,

@@ -12,11 +12,10 @@ fn bicount_admissible() {
     let ___text = "AGACGTCCA".as_bytes().to_vec();
     let text = ___text;
 
-    let stats = SequenceStats {
+    let stats = InputStats {
         len_a: pattern.len(),
         len_b: text.len(),
         error_rate: 0.,
-        source: Source::Manual,
     };
 
     let r = align(
