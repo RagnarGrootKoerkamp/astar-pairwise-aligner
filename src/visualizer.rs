@@ -14,6 +14,14 @@ use crate::{
     prelude::Pos,
 };
 
+#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
+pub enum VisualizerStyle {
+    #[default]
+    Default,
+    Large,
+    Detailed,
+}
+
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
 /// A visualizer can be used to visualize progress of an implementation.
@@ -57,6 +65,7 @@ pub trait VisualizerT {
 pub struct NoVisualizer;
 impl VisualizerT for NoVisualizer {}
 
+use clap::ValueEnum;
 #[cfg(feature = "sdl2")]
 pub use with_sdl2::*;
 
@@ -224,12 +233,13 @@ mod with_sdl2 {
         pub layer_label: Color,
     }
 
-    #[derive(PartialEq, Eq, Clone)]
+    #[derive(Debug, PartialEq, Eq, Clone, ValueEnum)]
     pub enum When {
         None,
         Last,
         All,
         Layers,
+        #[clap(skip)]
         Frames(Vec<usize>),
     }
 
@@ -264,9 +274,9 @@ mod with_sdl2 {
         pub num_layers: Option<usize>,
     }
 
-    impl Default for Config {
-        fn default() -> Self {
-            Self {
+    impl Config {
+        pub fn new(style: VisualizerStyle) -> Self {
+            let mut config = Self {
                 cell_size: 8,
                 prescaler: 1,
                 downscaler: 1,
@@ -293,7 +303,9 @@ mod with_sdl2 {
                     draw_heuristic: false,
                     draw_contours: false,
                     draw_matches: false,
-                    heuristic: Gradient::Gradient(Color::WHITE..Color::RGB(128, 128, 128)),
+                    heuristic: Gradient::Gradient(
+                        Color::RGB(250, 250, 250)..Color::RGB(180, 180, 180),
+                    ),
                     max_heuristic: None,
                     active_match: Color::BLACK,
                     pruned_match: Color::RED,
@@ -306,7 +318,45 @@ mod with_sdl2 {
                 layer_drawing: false,
                 num_layers: None,
                 transparent_bmp: true,
+            };
+
+            if style == VisualizerStyle::Large {
+                config.transparent_bmp = false;
+                config.downscaler = 100;
+                config.cell_size = 1;
+                config.style.path = None;
+                config.style.draw_matches = true;
+                config.style.match_width = 1;
+                config.style.match_shrink = 0;
             }
+
+            if style == VisualizerStyle::Detailed {
+                config.paused = false;
+                config.delay = 0.0001;
+                config.cell_size = 6;
+                config.style.bg_color = Color::WHITE;
+                config.style.expanded = Gradient::Fixed(Color::RGB(130, 179, 102));
+                config.style.explored = Some(Color::RGB(0, 102, 204));
+                config.style.max_heuristic = Some(10);
+                config.style.pruned_match = Color::RED;
+                config.style.path = None;
+                config.style.match_width = 3;
+                config.style.draw_heuristic = true;
+                config.style.draw_contours = true;
+                config.style.draw_matches = true;
+                config.style.contour = Color::BLACK;
+                config.style.layer_label = Color::BLACK;
+                config.draw_old_on_top = false;
+                config.layer_drawing = false;
+            }
+
+            config
+        }
+    }
+
+    impl Default for Config {
+        fn default() -> Self {
+            Config::new(VisualizerStyle::Default)
         }
     }
 

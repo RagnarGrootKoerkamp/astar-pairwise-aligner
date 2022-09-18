@@ -4,11 +4,12 @@ use astar_pairwise_aligner::{
     cli::{
         heuristic_params::{Algorithm, AlgorithmParams, HeuristicRunner},
         input::Input,
+        visualizer::{VisualizerArgs, VisualizerRunner},
     },
     prelude::*,
 };
 use clap::Parser;
-use cli::heuristic_params::HeuristicParams;
+use cli::heuristic_params::HeuristicArgs;
 use itertools::Itertools;
 use std::{
     ops::ControlFlow,
@@ -32,7 +33,11 @@ struct Cli {
 
     /// Parameters and settings for the heuristic.
     #[clap(flatten)]
-    params: HeuristicParams,
+    params: HeuristicArgs,
+
+    /// Parameters and settings for the visualizer.
+    #[clap(flatten)]
+    visualizer: VisualizerArgs,
 
     /// Print less. Pass twice for summary line only.
     ///
@@ -46,31 +51,49 @@ struct Cli {
     timeout: Option<Duration>,
 }
 
+/// Wrapper function to run on each heuristic.
 struct AlignWithHeuristic<'a, 'b> {
     a: Seq<'a>,
     b: Seq<'a>,
-    params: &'b AlgorithmParams,
+    params: &'b Cli,
 }
 
 impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
     type R = AlignResult;
 
     fn call<H: Heuristic>(&self, h: H) -> Self::R {
-        let sequence_stats = InputStats {
-            len_a: self.a.len(),
-            len_b: self.b.len(),
-            error_rate: 0.,
-        };
-
-        // Greedy matching is disabled for Dijkstra to have more consistent runtimes.
-        align_advanced(
+        self.params.visualizer.run_on_visualizer(
             self.a,
             self.b,
+            <Cli as clap::CommandFactory>::command().get_matches(),
+            VisRunner { aligner: &self, h },
+        )
+    }
+}
+
+/// Wrapper function to run on each visualizer.
+struct VisRunner<'a, 'b, 'c, H: Heuristic> {
+    aligner: &'c AlignWithHeuristic<'a, 'b>,
+    h: H,
+}
+
+impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
+    type R = AlignResult;
+
+    fn call<V: visualizer::VisualizerT>(&self, mut v: V) -> Self::R {
+        let sequence_stats = InputStats {
+            len_a: self.aligner.a.len(),
+            len_b: self.aligner.b.len(),
+            error_rate: 0.,
+        };
+        align_advanced(
+            self.aligner.a,
+            self.aligner.b,
             sequence_stats,
-            h,
-            !self.params.no_greedy_matching,
-            self.params.dt,
-            self.params.save_last.as_ref(),
+            self.h,
+            !self.aligner.params.algorithm.no_greedy_matching,
+            self.aligner.params.algorithm.dt,
+            &mut v,
         )
     }
 }
@@ -104,7 +127,7 @@ fn main() {
             args.params.run_on_heuristic(AlignWithHeuristic {
                 a,
                 b,
-                params: &args.algorithm,
+                params: &args,
             })
         };
 

@@ -9,7 +9,6 @@ use clap::{Parser, ValueEnum};
 
 /// TODO: Add other aligners here as well.
 #[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
-#[allow(non_camel_case_types)]
 pub enum Algorithm {
     // The basic n^2 DP.
     Nw,
@@ -20,7 +19,6 @@ pub enum Algorithm {
 }
 
 #[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
-#[allow(non_camel_case_types)]
 pub enum HeuristicType {
     Dijkstra,
     #[default]
@@ -41,21 +39,12 @@ pub struct AlgorithmParams {
     /// Use diagonal-transition based methods.
     #[clap(long, hide_short_help = true)]
     pub dt: bool,
-
-    /// First find a candidate path and then proof its correctness.
-    #[clap(long, hide_short_help = true)]
-    pub proof_path: bool,
-
-    /// Save last frame as image.
-    // TODO: Move setting elsewhere?
-    #[clap(long, hide_short_help = true)]
-    pub save_last: Option<String>,
 }
 
 /// TODO: Add separate --dt and --gap-cost flags.
 #[derive(Parser, Debug)]
 #[clap(help_heading = "HEURISTIC")]
-pub struct HeuristicParams {
+pub struct HeuristicArgs {
     #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]
     pub heuristic: HeuristicType,
 
@@ -101,7 +90,7 @@ pub trait HeuristicRunner {
     fn call<H: Heuristic>(&self, h: H) -> Self::R;
 }
 
-impl HeuristicParams {
+impl HeuristicArgs {
     fn match_config(&self, window_filter: bool) -> MatchConfig {
         let r = self.r;
         let k = self.k;
