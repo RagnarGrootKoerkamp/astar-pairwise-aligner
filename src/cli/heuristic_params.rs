@@ -28,7 +28,7 @@ pub enum HeuristicType {
 
 #[derive(Parser, Debug)]
 #[clap(help_heading = "ALGORITHM")]
-pub struct AlgorithmParams {
+pub struct AlgorithmArgs {
     #[clap(short, long, default_value_t, value_enum, display_order = 10)]
     pub algorithm: Algorithm,
 

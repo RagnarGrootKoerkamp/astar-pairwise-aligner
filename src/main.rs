@@ -2,7 +2,7 @@
 
 use astar_pairwise_aligner::{
     cli::{
-        heuristic_params::{Algorithm, AlgorithmParams, HeuristicRunner},
+        heuristic_params::{Algorithm, AlgorithmArgs, HeuristicRunner},
         input::Input,
         visualizer::{VisualizerArgs, VisualizerRunner},
     },
@@ -29,11 +29,11 @@ struct Cli {
 
     /// Parameters and settings for the algorithm.
     #[clap(flatten)]
-    algorithm: AlgorithmParams,
+    algorithm: AlgorithmArgs,
 
     /// Parameters and settings for the heuristic.
     #[clap(flatten)]
-    params: HeuristicArgs,
+    heuristic: HeuristicArgs,
 
     /// Parameters and settings for the visualizer.
     #[clap(flatten)]
@@ -55,14 +55,14 @@ struct Cli {
 struct AlignWithHeuristic<'a, 'b> {
     a: Seq<'a>,
     b: Seq<'a>,
-    params: &'b Cli,
+    args: &'b Cli,
 }
 
 impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
     type R = AlignResult;
 
     fn call<H: Heuristic>(&self, h: H) -> Self::R {
-        self.params.visualizer.run_on_visualizer(
+        self.args.visualizer.run_on_visualizer(
             self.a,
             self.b,
             <Cli as clap::CommandFactory>::command().get_matches(),
@@ -91,8 +91,8 @@ impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
             self.aligner.b,
             sequence_stats,
             self.h,
-            !self.aligner.params.algorithm.no_greedy_matching,
-            self.aligner.params.algorithm.dt,
+            !self.aligner.args.algorithm.no_greedy_matching,
+            self.aligner.args.algorithm.dt,
             &mut v,
         )
     }
@@ -124,11 +124,8 @@ fn main() {
                 ..Default::default()
             }
         } else {
-            args.params.run_on_heuristic(AlignWithHeuristic {
-                a,
-                b,
-                params: &args,
-            })
+            args.heuristic
+                .run_on_heuristic(AlignWithHeuristic { a, b, args: &args })
         };
 
         // Record and print stats.

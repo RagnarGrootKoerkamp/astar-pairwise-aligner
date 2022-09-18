@@ -35,15 +35,15 @@ pub trait VisualizerT {
     fn extend(&mut self, pos: Pos) {
         self.extend_with_h::<ZeroCostI>(pos, None);
     }
-    fn explore_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&H>) {}
-    fn expand_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&H>) {}
-    fn extend_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&H>) {}
+    fn explore_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&HI>) {}
+    fn expand_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&HI>) {}
+    fn extend_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&HI>) {}
 
     /// This function should be called after completing each layer
     fn new_layer(&mut self) {
         self.new_layer_with_h::<ZeroCostI>(None);
     }
-    fn new_layer_with_h<'a, H: HeuristicInstance<'a>>(&mut self, _h: Option<&H>) {}
+    fn new_layer_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _h: Option<&HI>) {}
 
     /// This function may be called after the main loop to display final image.
     fn last_frame(&mut self, path: Option<&Path>) {
@@ -52,11 +52,11 @@ pub trait VisualizerT {
     fn last_frame_with_tree(&mut self, path: Option<&Path>, parent: ParentFn) {
         self.last_frame_with_h::<ZeroCostI>(path, parent, None);
     }
-    fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
+    fn last_frame_with_h<'a, HI: HeuristicInstance<'a>>(
         &mut self,
         _path: Option<&Path>,
         _parent: ParentFn<'_>,
-        _h: Option<&H>,
+        _h: Option<&HI>,
     ) {
     }
 }
