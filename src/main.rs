@@ -1,35 +1,20 @@
+#![feature(let_chains)]
+
 use astar_pairwise_aligner::{
-    generate::{generate_pair, GenerateOptions},
+    cli::{
+        heuristic_params::{Algorithm, HeuristicRunner},
+        input::Input,
+    },
     prelude::*,
 };
-use bio::io::fasta;
-use clap::{ArgGroup, Parser};
+use clap::Parser;
+use cli::heuristic_params::HeuristicParams;
 use itertools::Itertools;
-use rand::SeedableRng;
 use std::{
-    fs::File,
-    io::{BufRead, BufReader},
+    ops::ControlFlow,
     path::PathBuf,
     time::{self, Duration},
 };
-
-#[derive(Parser)]
-#[clap(help_heading = "INPUT", group = ArgGroup::new("inputmethod").required(true))]
-struct Input {
-    /// The .seq, .txt, or Fasta file with sequence pairs to align.
-    #[clap(
-        short,
-        long,
-        parse(from_os_str),
-        display_order = 1,
-        group = "inputmethod"
-    )]
-    input: Option<PathBuf>,
-
-    /// Options to generate an input pair.
-    #[clap(flatten)]
-    generate: GenerateArgs,
-}
 
 #[derive(Parser)]
 #[clap(author, about)]
@@ -43,7 +28,7 @@ struct Cli {
 
     /// Parameters and settings for the algorithm.
     #[clap(flatten, help_heading = "PARAMETERS")]
-    params: Params,
+    params: HeuristicParams,
 
     /// Print less. Pass twice for summary line only.
     ///
@@ -57,28 +42,69 @@ struct Cli {
     timeout: Option<Duration>,
 }
 
+struct AlignWithHeuristic<'a, 'b> {
+    a: Seq<'a>,
+    b: Seq<'a>,
+    params: &'b HeuristicParams,
+}
+
+impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
+    type R = AlignResult;
+
+    fn call<H: Heuristic>(&self, h: H) -> Self::R {
+        let alphabet = Alphabet::new(b"ACTG");
+        let sequence_stats = InputStats {
+            len_a: self.a.len(),
+            len_b: self.b.len(),
+            error_rate: 0.,
+        };
+
+        // Greedy matching is disabled for Dijkstra to have more consistent runtimes.
+        align_advanced(
+            self.a,
+            self.b,
+            &alphabet,
+            sequence_stats,
+            h,
+            !self.params.no_greedy_matching,
+            self.params.dt,
+            self.params.save_last.as_ref(),
+        )
+    }
+}
+
 fn main() {
-    let mut args = Cli::parse();
-    // Hacky, but needed for now.
-    args.params.error_rate = args.input.generate.error_rate;
+    let args = Cli::parse();
 
     // Read the input
     let mut avg_result = AlignResult::default();
-    let mut run_pair = |mut a: Seq, mut b: Seq| {
-        // Shrink if needed.
-        if let Some(n) = args.input.generate.length {
-            if n != 0 {
-                if a.len() > n {
-                    a = &a[..n];
-                }
-                if b.len() > n {
-                    b = &b[..n];
-                }
-            }
-        }
+    let start = time::Instant::now();
 
+    args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = run(&a, &b, &args.params);
+        let r = if !args.params.algorithm.has_heuristic() {
+            let dist = match args.params.algorithm {
+                Algorithm::Nw => bio::alignment::distance::levenshtein(a, b),
+                Algorithm::NwSimd => bio::alignment::distance::simd::levenshtein(a, b),
+                _ => unreachable!(),
+            };
+            AlignResult {
+                sample_size: 1,
+                input: InputStats {
+                    len_a: a.len(),
+                    len_b: b.len(),
+                    ..Default::default()
+                },
+                edit_distance: dist as Cost,
+                ..Default::default()
+            }
+        } else {
+            args.params.run_on_heuristic(AlignWithHeuristic {
+                a,
+                b,
+                params: &args.params,
+            })
+        };
 
         // Record and print stats.
         avg_result.add_sample(&r);
@@ -89,77 +115,13 @@ fn main() {
             }
             avg_result.print_no_newline();
         }
-    };
-    let start = time::Instant::now();
-    if let Some(input) = &args.input.input {
-        let files = if input.is_file() {
-            vec![input.clone()]
-        } else {
-            input
-                .read_dir()
-                .unwrap()
-                .map(|x| x.unwrap().path())
-                .collect_vec()
-        };
 
-        'outer: for f in files {
-            match f.extension().expect("Unknown file extension") {
-                ext if ext == "seq" || ext == "txt" => {
-                    let f = std::fs::File::open(&f).unwrap();
-                    let f = BufReader::new(f);
-                    for (mut a, mut b) in f.lines().map(|l| l.unwrap().into_bytes()).tuples() {
-                        if ext == "seq" {
-                            assert_eq!(a.remove(0), '>' as u8);
-                            assert_eq!(b.remove(0), '<' as u8);
-                        }
-                        run_pair(&a, &b);
-                        if let Some(d) = args.timeout {
-                            if start.elapsed() > d {
-                                break 'outer;
-                            }
-                        }
-                    }
-                }
-                ext if ext == "fna" || ext == "fa" || ext == "fasta" => {
-                    for (a, b) in fasta::Reader::new(BufReader::new(File::open(&f).unwrap()))
-                        .records()
-                        .tuples()
-                    {
-                        run_pair(a.unwrap().seq(), b.unwrap().seq());
-                        if let Some(d) = args.timeout {
-                            if start.elapsed() > d {
-                                break 'outer;
-                            }
-                        }
-                    }
-                }
-                ext => {
-                    unreachable!(
-                        "Unknown file extension {ext:?}. Must be in {{seq,txt,fna,fa,fasta}}."
-                    )
-                }
-            };
-        }
-    } else {
-        // Generate random input.
-        let args = &args.input.generate;
-        let ref mut rng = if let Some(seed) = args.seed {
-            rand_chacha::ChaCha8Rng::seed_from_u64(seed)
+        if let Some(d) = args.timeout && start.elapsed() > d {
+            ControlFlow::Break(())
         } else {
-            rand_chacha::ChaCha8Rng::from_entropy()
-        };
-        let generate_options = GenerateOptions {
-            length: args.length.unwrap(),
-            error_rate: args.error_rate.unwrap(),
-            error_model: args.error_model,
-            pattern_length: args.pattern_length,
-            m: args.m,
-        };
-        for _ in 0..args.cnt {
-            let (a, b) = generate_pair(&generate_options, rng);
-            run_pair(&a, &b);
+            ControlFlow::Continue(())
         }
-    }
+    });
 
     if avg_result.sample_size > 0 {
         print!("\r");

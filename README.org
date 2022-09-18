@@ -35,7 +35,6 @@ INPUT:
     -i, --input <INPUT>              The .seq, .txt, or Fasta file with sequence pairs to align
     -x, --cnt <CNT>                  The number of sequence pairs to generate [default: 1]
     -n, --length <LENGTH>            Length of generated sequences
-    -e, --error-rate <ERROR_RATE>    Input error rate
         --seed <SEED>                Seed to initialize RNG for reproducability
 
 PARAMETERS:

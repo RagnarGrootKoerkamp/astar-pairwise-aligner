@@ -25,6 +25,7 @@ pub mod aligners;
 pub mod alignment_graph;
 pub mod astar;
 pub mod astar_dt;
+pub mod cli;
 pub mod config;
 pub mod contour;
 pub mod cost_model;
@@ -32,7 +33,6 @@ pub mod datastructures;
 pub mod generate;
 pub mod heuristic;
 pub mod matches;
-pub mod runner;
 pub mod visualizer;
 
 pub mod prelude {
@@ -47,7 +47,6 @@ pub mod prelude {
     pub use crate::generate::*;
     pub use crate::heuristic::*;
     pub use crate::matches::{LengthConfig::Fixed, *};
-    pub use crate::runner::*;
     pub use bio::alphabets::{Alphabet, RankTransform};
     pub use bio::data_structures::qgram_index::QGramIndex;
     pub use rustc_hash::FxHashMap as HashMap;
