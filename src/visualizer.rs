@@ -22,6 +22,16 @@ pub enum VisualizerStyle {
     Detailed,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, ValueEnum)]
+pub enum When {
+    None,
+    Last,
+    All,
+    Layers,
+    #[clap(skip)]
+    Frames(Vec<usize>),
+}
+
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
 /// A visualizer can be used to visualize progress of an implementation.
@@ -231,16 +241,6 @@ mod with_sdl2 {
         pub match_width: usize,
         pub contour: Color,
         pub layer_label: Color,
-    }
-
-    #[derive(Debug, PartialEq, Eq, Clone, ValueEnum)]
-    pub enum When {
-        None,
-        Last,
-        All,
-        Layers,
-        #[clap(skip)]
-        Frames(Vec<usize>),
     }
 
     impl When {

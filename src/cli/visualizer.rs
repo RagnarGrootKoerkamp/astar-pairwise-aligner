@@ -2,7 +2,7 @@ use clap::{ArgMatches, Parser};
 
 use crate::{
     prelude::Seq,
-    visualizer::{Config, NoVisualizer, Visualizer, VisualizerStyle, VisualizerT, When},
+    visualizer::{NoVisualizer, VisualizerStyle, VisualizerT, When},
 };
 
 #[derive(Parser)]
@@ -60,6 +60,18 @@ pub trait VisualizerRunner {
 
 impl VisualizerArgs {
     // pass matches as <Cli as clap::CommandFactory>::command().get_matches()
+    #[cfg(not(feature = "sdl2"))]
+    pub fn run_on_visualizer<F: VisualizerRunner>(
+        &self,
+        _a: Seq,
+        _b: Seq,
+        _matches: ArgMatches,
+        f: F,
+    ) -> F::R {
+        f.call(NoVisualizer)
+    }
+
+    #[cfg(feature = "sdl2")]
     pub fn run_on_visualizer<F: VisualizerRunner>(
         &self,
         a: Seq,
@@ -67,6 +79,8 @@ impl VisualizerArgs {
         matches: ArgMatches,
         f: F,
     ) -> F::R {
+        use crate::visualizer::{Config, Visualizer};
+
         let draw = if matches.contains_id("visualize") {
             self.visualize.clone().unwrap_or(When::All)
         } else {
