@@ -779,7 +779,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             };
 
         assert!(H::IS_DEFAULT);
-        let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
+        let ref mut h = self.h.build(a, b);
 
         // The top level meet in the middle step is separate, since the distance is not known yet.
         // We check whether the fronts meet after each iteration.
@@ -1089,7 +1089,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             Err(r) => return Some(r.0),
         };
 
-        let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
+        let ref mut h = self.h.build(a, b);
 
         for s in 1.. {
             if let Some(s_bound) = s_bound && s > s_bound {
@@ -1127,7 +1127,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             Err(r) => return Some(r),
         };
 
-        let ref mut h = self.h.build(a, b, &bio::alphabets::dna::alphabet());
+        let ref mut h = self.h.build(a, b);
 
         for s in 1.. {
             if let Some(s_bound) = s_bound && s > s_bound {

@@ -27,9 +27,9 @@ fn contour_graph() {
             use_gap_cost: true,
             c: PhantomData::<BruteForceContours>,
         };
-        let (_, _, alph, stats) = setup(0, 0.0);
+        let (_, _, stats) = setup(0, 0.0);
 
-        let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+        let r = align(&a, &b, stats, h.equal_to_seed_heuristic());
         let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
         assert_eq!(r.edit_distance, dist);
     }
@@ -38,8 +38,6 @@ fn contour_graph() {
 #[test]
 #[ignore = "GapCost"]
 fn small_test() {
-    let alphabet = &Alphabet::new(b"ACTG");
-
     let _n = 25;
     let _e = 0.2;
     let k = 4;
@@ -59,7 +57,7 @@ fn small_test() {
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
-    let r = align(&a, &b, &alphabet, stats, h);
+    let r = align(&a, &b, stats, h);
     assert!(r.heuristic_stats2.root_h <= r.edit_distance);
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(r.edit_distance, dist);
@@ -76,19 +74,19 @@ fn seed_heuristic_rebuild() {
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
-    let (_a, _b, alph, stats) = setup(n, e);
+    let (_a, _b, stats) = setup(n, e);
 
     let a = "TGAGTTAAGCCGATTG".as_bytes().to_vec();
     let b = "AGAGTTTAAGCCGGATG".as_bytes().to_vec();
     println!("TESTING n {} e {}: {:?}", n, e, h);
     println!("{}\n{}", to_string(&a), to_string(&b));
-    align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+    align(&a, &b, stats, h.equal_to_seed_heuristic());
 
     let a = "TCGTCCCAACTGCGTGCAGACGTCCTGAGGACGTGGTCGCGACGCTATAGGCAGGGTACATCGAGATGCCGCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
     let b = "TCAGTCCCACACTCCTAGCAGACGTTCCTGCAGGACAGTGGACGCTGACGCCTATAGGAGAGGCATCGAGGTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
     println!("TESTING n {} e {}: {:?}", n, e, h);
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+    let r = align(&a, &b, stats, h.equal_to_seed_heuristic());
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(r.edit_distance, dist);
 }
@@ -105,7 +103,7 @@ fn no_double_expand() {
         c: PhantomData::<BruteForceContours>,
     };
 
-    let (_, _, alphabet, stats) = setup(n, e);
+    let (_, _, stats) = setup(n, e);
     let a = "TTGGAGATAGTGTAGACCAGTAGACTATCAGCGCGGGACCGGTGAAACCAGGCTACTAAGTGCCCGCTACAGTGTCCG"
         .as_bytes()
         .to_vec();
@@ -113,8 +111,8 @@ fn no_double_expand() {
         .as_bytes()
         .to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let r1 = align(&a, &b, &alphabet, stats, h.to_seed_heuristic());
-    let r2 = align(&a, &b, &alphabet, stats, h);
+    let r1 = align(&a, &b, stats, h.to_seed_heuristic());
+    let r2 = align(&a, &b, stats, h);
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(r1.edit_distance, dist);
     assert_eq!(r2.edit_distance, dist);
@@ -131,7 +129,7 @@ fn no_double_expand_2() {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (_, _, alphabet, stats) = setup(n, e);
+    let (_, _, stats) = setup(n, e);
     let a = "TCGGTCTGTACCGCCGTGGGCGGCTTCCTATCCTCTCTTGTCCCACCGGTCTTTTCAAAGC"
         .as_bytes()
         .to_vec();
@@ -139,8 +137,8 @@ fn no_double_expand_2() {
         .as_bytes()
         .to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let r1 = align(&a, &b, &alphabet, stats, h.to_seed_heuristic());
-    let r2 = align(&a, &b, &alphabet, stats, h);
+    let r1 = align(&a, &b, stats, h.to_seed_heuristic());
+    let r2 = align(&a, &b, stats, h);
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(r1.edit_distance, dist);
     assert_eq!(r2.edit_distance, dist);
@@ -158,14 +156,14 @@ fn missing_shadow_points() {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (_, _, alphabet, stats) = setup(n, e);
+    let (_, _, stats) = setup(n, e);
     let a = "CAGCGCGCGCGGGGAGCAAGCAGCAGCCGCTTGCCCTAGCCAATTACAAGTCGCTGTAAGGTGAAACAAACCCGCAGGCTAAATGTCGACCTCAAGACG";
     let a = a.as_bytes().to_vec();
     let b = "GGGGAGCGACAGCAGCCGCCGGCTTGCCCTAGCCAATTACTAGTCGCATTAAGGTGCAAAAAACCCCATCGGCTAAATGTGACCCTCAAGACGAGATGT";
     let b = b.as_bytes().to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let r1 = align(&a, &b, &alphabet, stats, h.to_seed_heuristic());
-    let r2 = align(&a, &b, &alphabet, stats, h);
+    let r1 = align(&a, &b, stats, h.to_seed_heuristic());
+    let r2 = align(&a, &b, stats, h);
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(r1.edit_distance, dist);
     assert_eq!(r2.edit_distance, dist);

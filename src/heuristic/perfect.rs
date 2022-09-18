@@ -15,7 +15,7 @@ impl Heuristic for PerfectHeuristic {
         "perfect".to_owned()
     }
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, _alphabet: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         PerfectHeuristicI { a, b }
     }
 }

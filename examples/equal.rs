@@ -23,11 +23,11 @@ fn main() {
         h2: h_fast,
     };
 
-    let (a, b, alphabet, stats) = setup(n, e);
+    let (a, b, stats) = setup(n, e);
     let start = 910;
     let end = 1050;
     let a = (&a[start..end - 20]).to_vec();
     let b = (&b[start + 20..end]).to_vec();
-    let result = align(&a, &b, &alphabet, stats, h);
+    let result = align(&a, &b, stats, h);
     result.print();
 }

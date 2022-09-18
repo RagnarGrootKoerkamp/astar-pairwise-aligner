@@ -23,15 +23,10 @@ where
         "max(".to_owned() + &self.h1.name() + "," + &self.h2.name() + ")"
     }
 
-    fn build<'a>(
-        &self,
-        a: Seq<'a>,
-        b: Seq<'a>,
-        alphabet: &bio::alphabets::Alphabet,
-    ) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         MaxHeuristicI {
-            h1: self.h1.build(a, b, alphabet),
-            h2: self.h2.build(a, b, alphabet),
+            h1: self.h1.build(a, b),
+            h2: self.h2.build(a, b),
         }
     }
 

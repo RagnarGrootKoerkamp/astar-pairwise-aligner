@@ -285,11 +285,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         let ref a = pad(a);
         let ref b = pad(b);
 
-        let ref mut h = self.h.build(
-            &a[1..a.len()],
-            &b[1..b.len()],
-            &bio::alphabets::dna::alphabet(),
-        );
+        let ref mut h = self.h.build(&a[1..a.len()], &b[1..b.len()]);
 
         let ref mut prev = Front::default();
         let ref mut next = Front::new(
@@ -336,11 +332,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         let ref b = pad(b);
 
         // Build `h` for the original, unpadded strings.
-        let ref mut h = self.h.build(
-            &a[1..a.len()],
-            &b[1..b.len()],
-            &bio::alphabets::dna::alphabet(),
-        );
+        let ref mut h = self.h.build(&a[1..a.len()], &b[1..b.len()]);
 
         let mut fronts = Fronts::new(
             INF,

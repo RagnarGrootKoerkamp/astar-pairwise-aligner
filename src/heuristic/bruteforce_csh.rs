@@ -24,12 +24,12 @@ where
 {
     type Instance<'a> = BruteForceCSHI<'a, DH>;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
-        BruteForceCSHI::new(a, b, alphabet, *self)
+        BruteForceCSHI::new(a, b, *self)
     }
 
     fn name(&self) -> String {
@@ -84,15 +84,14 @@ impl<'a, DH: Distance> BruteForceCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
-    fn new(a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet, params: BruteForceCSH<DH>) -> Self {
+    fn new(a: Seq<'a>, b: Seq<'a>, params: BruteForceCSH<DH>) -> Self {
         let mut h = BruteForceCSHI::<'a> {
             params,
-            distance_function: Distance::build(&params.distance_function, a, b, alphabet),
+            distance_function: Distance::build(&params.distance_function, a, b),
             target: Pos::from_lengths(a, b),
             seeds: find_matches(
                 a,
                 b,
-                alphabet,
                 params.match_config,
                 params.distance_function.name() == "Gap",
             ),

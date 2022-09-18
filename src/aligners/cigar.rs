@@ -3,11 +3,11 @@ use std::{fmt::Write, slice};
 use itertools::Itertools;
 
 use crate::{
-    cost_model::{AffineCost, AffineLayerType, Cost, CostModel},
+    cost_model::{AffineCost, AffineLayerType, Cost},
     prelude::Pos,
 };
 
-use super::{edit_graph::I, Path, Seq};
+use super::{Path, Seq};
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum CigarOp {

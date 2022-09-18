@@ -1,5 +1,3 @@
-use bio::alphabets::Alphabet;
-
 use crate::{alignment_graph, astar::astar};
 
 use super::{cigar::Cigar, edit_graph::State};
@@ -62,7 +60,7 @@ impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
         b: super::Seq,
     ) -> (crate::cost_model::Cost, super::cigar::Cigar) {
         // Instantiate the heuristic.
-        let ref mut h = self.h.build(a, b, &Alphabet::new(b"ACTG"));
+        let ref mut h = self.h.build(a, b);
 
         // Run A* with heuristic.
         // TODO: Make the greedy_matching bool a parameter in a struct with A* options.

@@ -52,7 +52,6 @@ impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
     type R = AlignResult;
 
     fn call<H: Heuristic>(&self, h: H) -> Self::R {
-        let alphabet = Alphabet::new(b"ACTG");
         let sequence_stats = InputStats {
             len_a: self.a.len(),
             len_b: self.b.len(),
@@ -63,7 +62,6 @@ impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
         align_advanced(
             self.a,
             self.b,
-            &alphabet,
             sequence_stats,
             h,
             !self.params.no_greedy_matching,

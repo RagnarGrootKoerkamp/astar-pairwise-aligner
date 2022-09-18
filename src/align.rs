@@ -281,20 +281,18 @@ impl AlignResult {
 pub fn align<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,
-    alphabet: &Alphabet,
     sequence_stats: InputStats,
     heuristic: H,
 ) -> AlignResult
 where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
-    align_advanced(a, b, alphabet, sequence_stats, heuristic, true, false, None)
+    align_advanced(a, b, sequence_stats, heuristic, true, false, None)
 }
 
 pub fn align_advanced<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,
-    alphabet: &Alphabet,
     sequence_stats: InputStats,
     heuristic: H,
     greedy_edge_matching: bool,
@@ -306,7 +304,7 @@ where
 {
     // Instantiate the heuristic.
     let start_time = time::Instant::now();
-    let ref mut h = heuristic.build(a, b, alphabet);
+    let ref mut h = heuristic.build(a, b);
     let heuristic_initialization = start_time.elapsed();
     let start_val = h.h(Pos(0, 0));
 

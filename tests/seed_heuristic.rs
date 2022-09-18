@@ -13,19 +13,19 @@ fn seed_heuristic_rebuild() {
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
-    let (_a, _b, alph, stats) = setup(n, e);
+    let (_a, _b, stats) = setup(n, e);
 
     let a = "TGAGTTAAGCCGATTG".as_bytes().to_vec();
     let b = "AGAGTTTAAGCCGGATG".as_bytes().to_vec();
     println!("TESTING n {} e {}: {:?}", n, e, h);
     println!("{}\n{}", to_string(&a), to_string(&b));
-    align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+    align(&a, &b, stats, h.equal_to_seed_heuristic());
 
     let a = "TCGTCCCAACTGCGTGCAGACGTCCTGAGGACGTGGTCGCGACGCTATAGGCAGGGTACATCGAGATGCCGCCTAAATGCGAACGTAGATTCGTTGTTCC".as_bytes().to_vec();
     let b = "TCAGTCCCACACTCCTAGCAGACGTTCCTGCAGGACAGTGGACGCTGACGCCTATAGGAGAGGCATCGAGGTGCCTCGCCTAAACGGGAACGTAGTTCGTTGTTC".as_bytes().to_vec();
     println!("TESTING n {} e {}: {:?}", n, e, h);
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let r = align(&a, &b, &alph, stats, h.equal_to_seed_heuristic());
+    let r = align(&a, &b, stats, h.equal_to_seed_heuristic());
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(r.edit_distance, dist);
 }
@@ -48,11 +48,11 @@ fn never_use_gap_distance() {
     }
     .equal_to_seed_heuristic();
 
-    let (_, _, alphabet, stats) = setup(n, e);
+    let (_, _, stats) = setup(n, e);
     let a = "CTAAGGAGTCCCAT".as_bytes().to_vec();
     let b = "GTAAGAGTCCACT".as_bytes().to_vec();
     println!("{}\n{}", to_string(&a), to_string(&b));
-    let r = align(&a, &b, &alphabet, stats, h);
+    let r = align(&a, &b, stats, h);
     r.print();
     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
     assert_eq!(r.edit_distance, dist);
@@ -72,8 +72,8 @@ fn seed_heuristic_zero_dist_consistent() {
 
                 println!("TESTING n {} e {}: {:?}", n, e, h);
 
-                let (a, b, alphabet, stats) = setup(n, e);
-                let r = align(&a, &b, &alphabet, stats, h);
+                let (a, b, stats) = setup(n, e);
+                let r = align(&a, &b, stats, h);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
                 assert_eq!(r.edit_distance, dist);
             }

@@ -4,17 +4,12 @@ use crate::prelude::*;
 
 type Key = usize;
 
-fn determine_seeds<'a, F>(
-    a: Seq<'a>,
-    alph: &Alphabet,
-    length: LengthConfig,
-    mut f: F,
-) -> SeedMatches
+fn determine_seeds<'a, F>(a: Seq<'a>, length: LengthConfig, mut f: F) -> SeedMatches
 where
     // f(i, k, qgram) returns true when the qgram was used.
     F: FnMut(I, I, usize) -> Option<(Seed, Option<Match>)>,
 {
-    let rank_transform = RankTransform::new(alph);
+    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     match length {
         Fixed(k) => {
             let mut seeds = Vec::<Seed>::new();
@@ -148,7 +143,6 @@ fn count_inexact_matches(
 pub fn find_matches_qgram_hash_exact_unordered<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    alph: &Alphabet,
     MatchConfig {
         length,
         max_match_cost,
@@ -161,7 +155,7 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
     };
     assert!(max_match_cost == 0);
 
-    let rank_transform = RankTransform::new(alph);
+    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
 
     let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
     let mut num_matches = vec![0; seeds.len()];
@@ -211,7 +205,6 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
 pub fn find_matches_qgram_hash_inexact_unordered<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    alph: &Alphabet,
     MatchConfig {
         length,
         max_match_cost,
@@ -224,7 +217,7 @@ pub fn find_matches_qgram_hash_inexact_unordered<'a>(
     };
     assert!(max_match_cost == 1);
 
-    let rank_transform = RankTransform::new(alph);
+    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
 
     let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
 
@@ -311,24 +304,19 @@ pub fn find_matches_qgram_hash_inexact_unordered<'a>(
 /// Initialize a counter to 0 for all seeds in a.
 /// Then count these kmers in b.
 /// Keep only seeds for which the counter is at most 1.
-pub fn unordered_matches<'a>(
-    a: Seq<'a>,
-    b: Seq<'a>,
-    alph: &Alphabet,
-    match_config: MatchConfig,
-) -> SeedMatches {
+pub fn unordered_matches<'a>(a: Seq<'a>, b: Seq<'a>, match_config: MatchConfig) -> SeedMatches {
     let match_config @ MatchConfig {
         length,
         max_match_cost,
         ..
     } = match_config;
-    let rank_transform = RankTransform::new(alph);
+    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
 
     if let Fixed(_) = length {
         if max_match_cost == 0 {
-            return find_matches_qgram_hash_exact_unordered(a, b, alph, match_config);
+            return find_matches_qgram_hash_exact_unordered(a, b, match_config);
         } else {
-            return find_matches_qgram_hash_inexact_unordered(a, b, alph, match_config);
+            return find_matches_qgram_hash_inexact_unordered(a, b, match_config);
         }
     }
     assert!(
@@ -349,7 +337,7 @@ pub fn unordered_matches<'a>(
     }
 
     // 2. Find the seeds, counting the number of (inexact) matches for each qgram.
-    determine_seeds(a, alph, length, |start, k, qgram| {
+    determine_seeds(a, length, |start, k, qgram| {
         let (seed_cost, m) = if max_match_cost == 0 {
             match m.get(&key_for_sized_qgram(k, qgram as Key)) {
                 None => (1, None),

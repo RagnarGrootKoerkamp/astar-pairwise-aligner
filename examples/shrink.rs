@@ -20,7 +20,7 @@ fn main() {
         pruning,
     };
 
-    let (a, b, alphabet, stats) = setup_with_seed(n, e, seed);
+    let (a, b, stats) = setup_with_seed(n, e, seed);
     println!("Heuristic:\n{:?}", h);
 
     // True on success.
@@ -31,7 +31,6 @@ fn main() {
             align(
                 &a[start as usize..min(n, end) as usize],
                 &b[start as usize..min(m, end) as usize],
-                &alphabet,
                 stats,
                 h,
             )

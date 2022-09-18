@@ -6,7 +6,7 @@ use crate::prelude::*;
 pub trait Distance: Heuristic + Default {
     // TODO: Provide default implementations for these.
     type DistanceInstance<'a>: DistanceInstance<'a>;
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::DistanceInstance<'a>;
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::DistanceInstance<'a>;
 }
 
 pub trait DistanceInstance<'a>: HeuristicInstance<'a> {
@@ -24,19 +24,14 @@ impl Heuristic for ZeroCost {
         "Zero".into()
     }
 
-    fn build<'a>(&self, _a: Seq<'a>, _b: Seq<'a>, _alphabet: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, _a: Seq<'a>, _b: Seq<'a>) -> Self::Instance<'a> {
         ZeroCostI
     }
 }
 impl Distance for ZeroCost {
     type DistanceInstance<'a> = ZeroCostI;
 
-    fn build<'a>(
-        &self,
-        _a: Seq<'a>,
-        _b: Seq<'a>,
-        _alphabet: &Alphabet,
-    ) -> Self::DistanceInstance<'a> {
+    fn build<'a>(&self, _a: Seq<'a>, _b: Seq<'a>) -> Self::DistanceInstance<'a> {
         ZeroCostI
     }
 }
@@ -62,7 +57,7 @@ impl Heuristic for MaxCost {
         "Max".into()
     }
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, _alphabet: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         MaxCostI {
             target: Pos::from_lengths(a, b),
         }
@@ -71,8 +66,8 @@ impl Heuristic for MaxCost {
 impl Distance for MaxCost {
     type DistanceInstance<'a> = MaxCostI;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::DistanceInstance<'a> {
-        <MaxCost as Heuristic>::build(self, a, b, alphabet)
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::DistanceInstance<'a> {
+        <MaxCost as Heuristic>::build(self, a, b)
     }
 }
 pub struct MaxCostI {
@@ -99,7 +94,7 @@ impl Heuristic for GapCost {
         "Gap".into()
     }
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, _alphabet: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         GapCostI {
             target: Pos::from_lengths(a, b),
         }
@@ -108,8 +103,8 @@ impl Heuristic for GapCost {
 impl Distance for GapCost {
     type DistanceInstance<'a> = GapCostI;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::DistanceInstance<'a> {
-        <GapCost as Heuristic>::build(self, a, b, alphabet)
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::DistanceInstance<'a> {
+        <GapCost as Heuristic>::build(self, a, b)
     }
 }
 pub struct GapCostI {
@@ -134,8 +129,8 @@ impl DistanceInstance<'_> for GapCostI {
 // # COUNT HEURISTIC
 // TODO: Make the 4 here variable.
 type Counts = Vec<[usize; 4]>;
-fn char_counts(a: Seq, alphabet: &Alphabet) -> Counts {
-    let transform = RankTransform::new(alphabet);
+fn char_counts(a: Seq) -> Counts {
+    let transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     let mut counts = vec![[0; 4]];
     for idx in transform.qgrams(1, a) {
         counts.push(*counts.last().unwrap());
@@ -152,10 +147,10 @@ impl Heuristic for CountCost {
         "Count".into()
     }
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         CountCostI {
-            a_cnts: char_counts(a, alphabet),
-            b_cnts: char_counts(b, alphabet),
+            a_cnts: char_counts(a),
+            b_cnts: char_counts(b),
             target: Pos::from_lengths(a, b),
         }
     }
@@ -163,8 +158,8 @@ impl Heuristic for CountCost {
 impl Distance for CountCost {
     type DistanceInstance<'a> = CountCostI;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::DistanceInstance<'a> {
-        <CountCost as Heuristic>::build(self, a, b, alphabet)
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::DistanceInstance<'a> {
+        <CountCost as Heuristic>::build(self, a, b)
     }
 }
 pub struct CountCostI {
@@ -211,8 +206,8 @@ impl DistanceInstance<'_> for CountCostI {
 // Maybe this can be fixed by returning floating point distances.
 // TODO: Make the 4^2 here variable.
 type BiCounts = Vec<[usize; 16]>;
-fn char_bicounts(a: Seq, alphabet: &Alphabet) -> BiCounts {
-    let transform = RankTransform::new(alphabet);
+fn char_bicounts(a: Seq) -> BiCounts {
+    let transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     let mut counts = vec![[0; 16]; 2];
     for idx in transform.qgrams(2, a) {
         counts.push(*counts.last().unwrap());
@@ -230,11 +225,11 @@ impl Heuristic for BiCountCost {
         "BiCount".into()
     }
 
-    fn build(&self, a: Seq, b: Seq, alphabet: &Alphabet) -> Self::Instance<'_> {
+    fn build(&self, a: Seq, b: Seq) -> Self::Instance<'_> {
         BiCountCostI {
-            cnt: Distance::build(&CountCost, a, b, alphabet),
-            a_cnts: char_bicounts(a, alphabet),
-            b_cnts: char_bicounts(b, alphabet),
+            cnt: Distance::build(&CountCost, a, b),
+            a_cnts: char_bicounts(a),
+            b_cnts: char_bicounts(b),
             target: Pos::from_lengths(a, b),
         }
     }
@@ -242,8 +237,8 @@ impl Heuristic for BiCountCost {
 impl Distance for BiCountCost {
     type DistanceInstance<'a> = BiCountCostI;
 
-    fn build(&self, a: Seq, b: Seq, alphabet: &Alphabet) -> Self::DistanceInstance<'_> {
-        <BiCountCost as Heuristic>::build(self, a, b, alphabet)
+    fn build(&self, a: Seq, b: Seq) -> Self::DistanceInstance<'_> {
+        <BiCountCost as Heuristic>::build(self, a, b)
     }
 }
 pub struct BiCountCostI {

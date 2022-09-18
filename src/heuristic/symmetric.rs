@@ -16,12 +16,12 @@ where
         "symm(".to_owned() + &self.0.name() + ")"
     }
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         let max_config = MaxHeuristic::<H, MirrorHeuristic<H>> {
             h1: self.0,
             h2: MirrorHeuristic(self.0),
         };
-        max_config.build(a, b, alphabet)
+        max_config.build(a, b)
     }
 
     fn params(&self) -> HeuristicParams {

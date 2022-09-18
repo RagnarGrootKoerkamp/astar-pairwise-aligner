@@ -5,7 +5,6 @@ use crate::prelude::*;
 pub fn find_matches_trie(
     a: Seq,
     b: Seq,
-    alph: &Alphabet,
     MatchConfig {
         length,
         max_match_cost,
@@ -21,14 +20,13 @@ pub fn find_matches_trie(
         b.windows(k as usize + max_match_cost as usize)
             .enumerate()
             .map(|(i, w)| (w, i as crate::datastructures::trie::Data)),
-        alph,
     );
     // Push all remaining suffixes of b.
     for i in b.len() as I - k - max_match_cost as I + 1..b.len() as I {
         trie.push(&b[i as usize..], i);
     }
 
-    let rank_transform = RankTransform::new(alph);
+    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
 
     // Find matches of the seeds of a in b.
@@ -63,7 +61,6 @@ pub fn find_matches_trie(
 pub fn find_matches_qgramindex<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    alph: &Alphabet,
     MatchConfig {
         length,
         max_match_cost,
@@ -80,20 +77,19 @@ pub fn find_matches_qgramindex<'a>(
     fn get_matches<'a, 'c>(
         qgrams: &'c mut HashMap<I, QGramIndex>,
         b: Seq<'a>,
-        alph: &Alphabet,
         k: I,
         qgram: usize,
     ) -> &'c [usize] {
         qgrams
             .entry(k)
-            .or_insert_with_key(|k| QGramIndex::new(*k as u32, b, alph))
+            .or_insert_with_key(|k| QGramIndex::new(*k as u32, b, &Alphabet::new(b"ACGT")))
             .qgram_matches(qgram)
     }
 
     // Stops counting when max_count is reached.
     let mut count_matches = |k: I, qgram, max_count: usize| -> usize {
         // exact matches
-        let mut cnt = get_matches(qgrams, b, alph, k, qgram).len();
+        let mut cnt = get_matches(qgrams, b, k, qgram).len();
         if cnt >= max_count {
             return max_count;
         }
@@ -105,7 +101,7 @@ pub fn find_matches_qgramindex<'a>(
                 (mutations.insertions, k + 1),
             ] {
                 for qgram in v {
-                    cnt += get_matches(qgrams, b, alph, k, qgram).len();
+                    cnt += get_matches(qgrams, b, k, qgram).len();
                     if cnt >= max_count {
                         return max_count;
                     }
@@ -116,7 +112,7 @@ pub fn find_matches_qgramindex<'a>(
     };
 
     // Convert to a binary sequences.
-    let rank_transform = RankTransform::new(alph);
+    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     let width = rank_transform.get_width();
 
     let mut seeds = {
@@ -185,7 +181,7 @@ pub fn find_matches_qgramindex<'a>(
         let len = end - start;
 
         // Exact matches
-        for &j in get_matches(qgrams, b, alph, len, qgram) {
+        for &j in get_matches(qgrams, b, len, qgram) {
             seed.seed_cost = 0;
             matches.push(Match {
                 start: Pos(start, j as I),
@@ -199,7 +195,7 @@ pub fn find_matches_qgramindex<'a>(
         if seed_potential > 1 {
             let mutations = mutations(len, qgram, true, gapcost);
             for mutation in mutations.deletions {
-                for &j in get_matches(qgrams, b, alph, len - 1, mutation) {
+                for &j in get_matches(qgrams, b, len - 1, mutation) {
                     seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
@@ -211,7 +207,7 @@ pub fn find_matches_qgramindex<'a>(
                 }
             }
             for mutation in mutations.substitutions {
-                for &j in get_matches(qgrams, b, alph, len, mutation) {
+                for &j in get_matches(qgrams, b, len, mutation) {
                     seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
@@ -223,7 +219,7 @@ pub fn find_matches_qgramindex<'a>(
                 }
             }
             for mutation in mutations.insertions {
-                for &j in get_matches(qgrams, b, alph, len + 1, mutation) {
+                for &j in get_matches(qgrams, b, len + 1, mutation) {
                     seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
@@ -244,7 +240,6 @@ pub fn find_matches_qgramindex<'a>(
 pub fn find_matches_qgram_hash_inexact<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    alph: &Alphabet,
     MatchConfig {
         length,
         max_match_cost,
@@ -258,7 +253,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     };
     assert!(max_match_cost == 1);
 
-    let rank_transform = RankTransform::new(alph);
+    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
 
     let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
 
@@ -343,7 +338,6 @@ pub fn find_matches_qgram_hash_inexact<'a>(
 pub fn find_matches_qgram_hash_exact<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    alph: &Alphabet,
     MatchConfig {
         length,
         max_match_cost,
@@ -357,7 +351,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
     };
     assert!(max_match_cost == 0);
 
-    let rank_transform = RankTransform::new(alph);
+    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     let width = rank_transform.get_width();
 
     let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
@@ -489,20 +483,19 @@ pub fn find_matches_qgram_hash_exact<'a>(
 pub fn find_matches<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    alph: &Alphabet,
     match_config: MatchConfig,
     gapcost: bool,
 ) -> SeedMatches {
     if FIND_MATCHES_HASH {
         return match match_config.max_match_cost {
-            0 => find_matches_qgram_hash_exact(a, b, alph, match_config),
-            1 => find_matches_qgram_hash_inexact(a, b, alph, match_config, gapcost),
+            0 => find_matches_qgram_hash_exact(a, b, match_config),
+            1 => find_matches_qgram_hash_inexact(a, b, match_config, gapcost),
             _ => unimplemented!("FIND_MATCHES with HashMap only works for max match cost 0 or 1"),
         };
     } else if FIND_MATCHES_TRIE {
-        return find_matches_trie(a, b, alph, match_config);
+        return find_matches_trie(a, b, match_config);
     } else {
-        return find_matches_qgramindex(a, b, alph, match_config, gapcost);
+        return find_matches_qgramindex(a, b, match_config, gapcost);
     }
 }
 
@@ -515,10 +508,10 @@ mod test {
         for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
-                    let (a, b, alph, _) = setup(n, e);
+                    let (a, b, _) = setup(n, e);
                     let matchconfig = MatchConfig::new(k, max_match_cost);
-                    let t = find_matches_trie(&a, &b, &alph, matchconfig);
-                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
+                    let t = find_matches_trie(&a, &b, matchconfig);
+                    let r = find_matches_qgramindex(&a, &b, matchconfig, false);
                     if t.matches == r.matches {
                         return;
                     }
@@ -545,10 +538,10 @@ mod test {
         for (k, max_match_cost) in [(4, 0), (5, 0), (6, 0), (7, 0)] {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
-                    let (a, b, alph, _) = setup(n, e);
+                    let (a, b, _) = setup(n, e);
                     let matchconfig = MatchConfig::new(k, max_match_cost);
-                    let r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
-                    let h = find_matches_qgram_hash_exact(&a, &b, &alph, matchconfig);
+                    let r = find_matches_qgramindex(&a, &b, matchconfig, false);
+                    let h = find_matches_qgram_hash_exact(&a, &b, matchconfig);
                     if !SLIDING_WINDOW_MATCHES {
                         if r.matches == h.matches {
                             continue;
@@ -577,13 +570,13 @@ mod test {
         for (k, max_match_cost) in [(6, 1), (7, 1), (10, 1)] {
             for n in [40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
-                    let (a, b, alph, _) = setup(n, e);
+                    let (a, b, _) = setup(n, e);
                     println!("{}\n{}", to_string(&a), to_string(&b));
                     let matchconfig = MatchConfig::new(k, max_match_cost);
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");
-                    let mut r = find_matches_qgramindex(&a, &b, &alph, matchconfig, false);
-                    let mut k = find_matches_qgram_hash_inexact(&a, &b, &alph, matchconfig, false);
+                    let mut r = find_matches_qgramindex(&a, &b, matchconfig, false);
+                    let mut k = find_matches_qgram_hash_inexact(&a, &b, matchconfig, false);
                     assert!(r
                         .matches
                         .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));

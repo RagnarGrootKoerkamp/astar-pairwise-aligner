@@ -36,14 +36,10 @@ impl Trie {
         self.states[state as usize].data.push(data);
     }
 
-    pub fn new<'a>(words: impl IntoIterator<Item = (&'a [u8], Data)>, alph: &Alphabet) -> Self {
-        assert!(
-            alph.len() <= 4,
-            "Trie can only be used for DNA alphabet for now."
-        );
+    pub fn new<'a>(words: impl IntoIterator<Item = (&'a [u8], Data)>) -> Self {
         let mut this = Trie {
             states: Vec::default(),
-            transform: RankTransform::new(alph),
+            transform: RankTransform::new(&Alphabet::new(b"ACGT")),
         };
         this.states.push(TrieNode::default());
         for (word, data) in words {

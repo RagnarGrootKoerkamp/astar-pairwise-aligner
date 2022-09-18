@@ -257,16 +257,15 @@ fn make_mutation(b: &mut ropey::Rope, rng: &mut impl Rng) {
 }
 
 // For quick testing
-pub fn setup_with_seed(n: usize, e: f32, seed: u64) -> (Sequence, Sequence, Alphabet, InputStats) {
+pub fn setup_with_seed(n: usize, e: f32, seed: u64) -> (Sequence, Sequence, InputStats) {
     let (a, b) = setup_sequences_with_seed(seed, n, e);
 
-    let alphabet = Alphabet::new(b"ACTG");
     let sequence_stats = InputStats {
         len_a: a.len(),
         len_b: b.len(),
         error_rate: e,
     };
-    (a, b, alphabet, sequence_stats)
+    (a, b, sequence_stats)
 }
 
 pub fn setup_sequences(n: usize, e: f32) -> (Sequence, Sequence) {
@@ -287,7 +286,7 @@ pub fn setup_sequences_with_seed(seed: u64, n: usize, e: f32) -> (Sequence, Sequ
     )
 }
 
-pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, Alphabet, InputStats) {
+pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, InputStats) {
     setup_with_seed(n, e, 31415)
 }
 

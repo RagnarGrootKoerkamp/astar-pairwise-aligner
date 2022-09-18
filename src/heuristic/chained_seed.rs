@@ -116,13 +116,13 @@ impl<C: Contours> Copy for CSH<C> {}
 impl<C: Contours> Heuristic for CSH<C> {
     type Instance<'a> = CSHI<C>;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alph: &Alphabet) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         // TODO: Warning
         assert!(
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
-        CSHI::new(a, b, alph, *self)
+        CSHI::new(a, b, *self)
     }
 
     fn name(&self) -> String {
@@ -190,12 +190,12 @@ impl<C: Contours> Drop for CSHI<C> {
 }
 
 impl<C: Contours> CSHI<C> {
-    fn new(a: Seq, b: Seq, alph: &Alphabet, params: CSH<C>) -> Self {
-        let matches = find_matches(a, b, alph, params.match_config, params.use_gap_cost);
+    fn new(a: Seq, b: Seq, params: CSH<C>) -> Self {
+        let matches = find_matches(a, b, params.match_config, params.use_gap_cost);
         //println!("\nfind matches.. done: {}", matches.matches.len());
         let mut h = CSHI {
             params,
-            gap_distance: Distance::build(&GapCost, a, b, alph),
+            gap_distance: Distance::build(&GapCost, a, b),
             target: Pos::from_lengths(a, b),
             seeds: matches,
             num_matches: 0,

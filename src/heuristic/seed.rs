@@ -13,8 +13,8 @@ pub struct SH {
 impl Heuristic for SH {
     type Instance<'a> = SHI;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>, alphabet: &Alphabet) -> Self::Instance<'a> {
-        SHI::new(a, b, alphabet, *self)
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
+        SHI::new(a, b, *self)
     }
 
     fn name(&self) -> String {
@@ -64,9 +64,9 @@ pub struct SHI {
 type Hint = Cost;
 
 impl SHI {
-    fn new(a: Seq, b: Seq, alph: &Alphabet, params: SH) -> Self {
+    fn new(a: Seq, b: Seq, params: SH) -> Self {
         // First find all matches.
-        let matches = find_matches(a, b, alph, params.match_config, false);
+        let matches = find_matches(a, b, params.match_config, false);
 
         // Initialize layers.
         let mut layer_starts = SplitVec::default();

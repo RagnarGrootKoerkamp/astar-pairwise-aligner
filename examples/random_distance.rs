@@ -15,16 +15,20 @@ struct Cli {
 
 fn main() {
     let args = Cli::from_args();
-    let (a, b, alph, _) = setup_with_seed(args.n, args.e, 31415);
+    let (a, b, _) = setup_with_seed(args.n, args.e, 31415);
     let k = args.k;
     let max_match_cost = 0;
-    fixed_seeds(&RankTransform::new(&alph), max_match_cost, &a, k);
+    fixed_seeds(
+        &RankTransform::new(&Alphabet::new(b"ACGT")),
+        max_match_cost,
+        &a,
+        k,
+    );
 
     let trie = Trie::new(
         b.windows(k as usize)
             .enumerate()
             .map(|(i, w)| (w, i as crate::datastructures::trie::Data)),
-        &alph,
     );
 
     // Find the closest match for each kmer in a.

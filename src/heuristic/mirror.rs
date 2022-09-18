@@ -18,14 +18,9 @@ where
         "mirror(".to_owned() + &self.0.name() + ")"
     }
 
-    fn build<'a>(
-        &self,
-        a: Seq<'a>,
-        b: Seq<'a>,
-        alphabet: &bio::alphabets::Alphabet,
-    ) -> Self::Instance<'a> {
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         MirrorHeuristicI {
-            h: self.0.build(b, a, alphabet),
+            h: self.0.build(b, a),
         }
     }
 

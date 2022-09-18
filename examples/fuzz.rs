@@ -15,9 +15,9 @@ fn main() {
             };
 
             println!("n={} r={} k={}", n, r, k);
-            let (ref a, ref b, ref alphabet, stats) = setup_with_seed(n, e, r);
+            let (ref a, ref b, stats) = setup_with_seed(n, e, r);
             //println!("{}\n{}", to_string(&a), to_string(&b));
-            let result = align(&a, &b, &alphabet, stats, h);
+            let result = align(&a, &b, stats, h);
             let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
             assert_eq!(result.edit_distance, dist);
             //result.print();
