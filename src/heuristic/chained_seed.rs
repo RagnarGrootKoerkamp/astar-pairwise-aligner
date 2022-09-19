@@ -259,7 +259,7 @@ impl<C: Contours> CSHI<C> {
             h.seeds.matches.iter().rev().map(match_to_arrow),
             h.params.match_config.max_match_cost as I + 1,
             |arrow, layer| {
-                assert!(!h.params.use_gap_cost);
+                // FIXME: This is broken with gap costs.
                 filter(
                     &Match {
                         start: arrow.start,
