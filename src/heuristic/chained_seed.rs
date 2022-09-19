@@ -255,23 +255,31 @@ impl<C: Contours> CSHI<C> {
         // Sort revered by start (the order needed to construct contours).
         // TODO: Can we get away without sorting? It's probably possible if seeds
         // TODO: Fix the units here -- unclear whether it should be I or cost.
-        h.contours = C::new_with_filter(
-            h.seeds.matches.iter().rev().map(match_to_arrow),
-            h.params.match_config.max_match_cost as I + 1,
-            |arrow, layer| {
-                // FIXME: This is broken with gap costs.
-                filter(
-                    &Match {
-                        start: arrow.start,
-                        end: arrow.end,
-                        match_cost: 1 - arrow.score,
-                        seed_potential: 0,
-                        pruned: MatchStatus::Active,
-                    },
-                    h.seeds.potential(arrow.start) - layer,
-                )
-            },
-        );
+        // FIXME: Allow passing a match filter even when using gap cost.
+        if h.params.use_gap_cost {
+            h.contours = C::new(
+                h.seeds.matches.iter().rev().map(match_to_arrow),
+                h.params.match_config.max_match_cost as I + 1,
+            );
+        } else {
+            h.contours = C::new_with_filter(
+                h.seeds.matches.iter().rev().map(match_to_arrow),
+                h.params.match_config.max_match_cost as I + 1,
+                |arrow, layer| {
+                    assert!(!h.params.use_gap_cost);
+                    filter(
+                        &Match {
+                            start: arrow.start,
+                            end: arrow.end,
+                            match_cost: 1 - arrow.score,
+                            seed_potential: 0,
+                            pruned: MatchStatus::Active,
+                        },
+                        h.seeds.potential(arrow.start) - layer,
+                    )
+                },
+            );
+        }
         h.arrows = arrows;
         h.contours.print_stats();
         h
