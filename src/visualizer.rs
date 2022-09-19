@@ -314,7 +314,7 @@ mod with_sdl2 {
                     contour: Color::GREEN,
                     layer_label: Color::BLACK,
                 },
-                draw_old_on_top: true,
+                draw_old_on_top: false,
                 layer_drawing: false,
                 num_layers: None,
                 transparent_bmp: true,
@@ -328,6 +328,7 @@ mod with_sdl2 {
                 config.style.draw_matches = true;
                 config.style.match_width = 1;
                 config.style.match_shrink = 0;
+                config.style.expanded = Gradient::TurboGradient(0.25..0.90)
             }
 
             if style == VisualizerStyle::Detailed {

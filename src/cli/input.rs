@@ -107,7 +107,7 @@ impl Input {
             };
             for _ in 0..self.generate.cnt {
                 let (a, b) = generate_pair(&generate_options, rng);
-                if let ControlFlow::Break(()) = run_cropped_pair(&a, &b) {
+                if let ControlFlow::Break(()) = run_pair(&a, &b) {
                     break;
                 }
             }
