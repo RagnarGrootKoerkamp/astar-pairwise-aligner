@@ -1,6 +1,7 @@
 #![feature(let_chains)]
 
 use astar_pairwise_aligner::{
+    aligners::{diagonal_transition::GapCostHeuristic, nw_lib::NWLib, Aligner},
     cli::{
         heuristic_params::{Algorithm, AlgorithmArgs, HeuristicRunner},
         input::Input,
@@ -14,7 +15,7 @@ use itertools::Itertools;
 use std::{
     ops::ControlFlow,
     path::PathBuf,
-    time::{self, Duration},
+    time::{self, Duration, Instant},
 };
 
 #[derive(Parser)]
@@ -47,7 +48,7 @@ struct Cli {
     silent: u8,
 
     /// Stop aligning new pairs after this timeout.
-    #[clap(long, parse(try_from_str = parse_duration::parse))]
+    #[clap(long, parse(try_from_str = parse_duration::parse), hide_short_help = true)]
     timeout: Option<Duration>,
 }
 
@@ -66,18 +67,18 @@ impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
             self.a,
             self.b,
             <Cli as clap::CommandFactory>::command().get_matches(),
-            VisRunner { aligner: &self, h },
+            AstarViz { aligner: &self, h },
         )
     }
 }
 
 /// Wrapper function to run on each visualizer.
-struct VisRunner<'a, 'b, 'c, H: Heuristic> {
+struct AstarViz<'a, 'b, 'c, H: Heuristic> {
     aligner: &'c AlignWithHeuristic<'a, 'b>,
     h: H,
 }
 
-impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
+impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, '_, H> {
     type R = AlignResult;
 
     fn call<V: visualizer::VisualizerT>(&self, mut v: V) -> Self::R {
@@ -98,6 +99,50 @@ impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
     }
 }
 
+struct NwViz<'a> {
+    a: Seq<'a>,
+    b: Seq<'a>,
+    exponential_search: bool,
+}
+
+impl VisualizerRunner for NwViz<'_> {
+    type R = Cost;
+
+    fn call<V: visualizer::VisualizerT>(&self, v: V) -> Self::R {
+        aligners::nw::NW {
+            cm: LinearCost::new_unit(),
+            use_gap_cost_heuristic: false,
+            exponential_search: self.exponential_search,
+            h: ZeroCost,
+            v,
+        }
+        .align(self.a, self.b)
+        .0
+    }
+}
+
+struct DtViz<'a> {
+    a: Seq<'a>,
+    b: Seq<'a>,
+    dc: bool,
+}
+
+impl VisualizerRunner for DtViz<'_> {
+    type R = Cost;
+
+    fn call<V: visualizer::VisualizerT>(&self, v: V) -> Self::R {
+        aligners::diagonal_transition::DiagonalTransition::new(
+            LinearCost::new_unit(),
+            GapCostHeuristic::Disable,
+            ZeroCost,
+            self.dc,
+            v,
+        )
+        .align(self.a, self.b)
+        .0
+    }
+}
+
 fn main() {
     let args = Cli::parse();
 
@@ -108,11 +153,59 @@ fn main() {
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
         let r = if args.algorithm.algorithm != Algorithm::AStar {
-            let dist = match args.algorithm.algorithm {
-                Algorithm::Nw => bio::alignment::distance::levenshtein(a, b),
-                Algorithm::NwSimd => bio::alignment::distance::simd::levenshtein(a, b),
-                _ => unreachable!(),
+            let start = Instant::now();
+            let cost = match args.algorithm.algorithm {
+                Algorithm::NwLib => NWLib { simd: false }.cost(a, b),
+                Algorithm::NwLibSimd => NWLib { simd: true }.cost(a, b),
+                Algorithm::Edlib => {
+                    #[cfg(not(feature = "edlib"))]
+                    panic!("Enable the edlib feature flag to use edlib.");
+                    #[cfg(feature = "edlib")]
+                    aligners::edlib::Edlib.cost(a, b)
+                }
+                Algorithm::Wfa => {
+                    #[cfg(not(feature = "wfa"))]
+                    panic!("Enable the wfa feature flag to use WFA.");
+                    #[cfg(feature = "wfa")]
+                    aligners::wfa::WFA {
+                        cm: LinearCost::new_unit(),
+                        biwfa: false,
+                    }
+                    .cost(a, b)
+                }
+                Algorithm::Biwfa => {
+                    #[cfg(not(feature = "wfa"))]
+                    panic!("Enable the wfa feature flag to use BiWFA.");
+                    #[cfg(feature = "wfa")]
+                    aligners::wfa::WFA {
+                        cm: LinearCost::new_unit(),
+                        biwfa: true,
+                    }
+                    .cost(a, b)
+                }
+                Algorithm::NW => args.visualizer.run_on_visualizer(
+                    a,
+                    b,
+                    <Cli as clap::CommandFactory>::command().get_matches(),
+                    NwViz {
+                        a,
+                        b,
+                        exponential_search: args.algorithm.exp_search,
+                    },
+                ),
+                Algorithm::DT => args.visualizer.run_on_visualizer(
+                    a,
+                    b,
+                    <Cli as clap::CommandFactory>::command().get_matches(),
+                    DtViz {
+                        a,
+                        b,
+                        dc: args.algorithm.dc,
+                    },
+                ),
+                Algorithm::AStar => unreachable!(),
             };
+            let total_duration = start.elapsed().as_secs_f32();
             AlignResult {
                 sample_size: 1,
                 input: InputStats {
@@ -120,7 +213,12 @@ fn main() {
                     len_b: b.len(),
                     ..Default::default()
                 },
-                edit_distance: dist as Cost,
+                edit_distance: cost as Cost,
+                timing: TimingStats {
+                    total: total_duration,
+                    total_sum_squares: total_duration * total_duration,
+                    ..Default::default()
+                },
                 ..Default::default()
             }
         } else {

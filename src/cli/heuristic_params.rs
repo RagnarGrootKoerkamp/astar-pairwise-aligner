@@ -10,12 +10,22 @@ use clap::{Parser, ValueEnum};
 /// TODO: Add other aligners here as well.
 #[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
 pub enum Algorithm {
-    // The basic n^2 DP.
-    Nw,
-    // Naive, but with SIMD and O(ns) exponential search.
-    NwSimd,
+    // Internal methods
+    NW,
+    DT,
+    // See HeuristicArgs for configuration.
     #[default]
     AStar,
+
+    // External methods
+
+    // The basic n^2 DP.
+    NwLib,
+    // Naive, but with SIMD and O(ns) exponential search.
+    NwLibSimd,
+    Edlib,
+    Wfa,
+    Biwfa,
 }
 
 #[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
@@ -36,9 +46,17 @@ pub struct AlgorithmArgs {
     #[clap(long, hide_short_help = true)]
     pub no_greedy_matching: bool,
 
-    /// Use diagonal-transition based methods.
+    /// Use diagonal-transition based A*.
     #[clap(long, hide_short_help = true)]
     pub dt: bool,
+
+    /// Use exponential search in NW algorithm (like edlib).
+    #[clap(long, hide_short_help = true)]
+    pub exp_search: bool,
+
+    /// Use divide and conquer for diagonal transition (like BiWFA).
+    #[clap(long, hide_short_help = true)]
+    pub dc: bool,
 }
 
 /// TODO: Add separate --dt and --gap-cost flags.

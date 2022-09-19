@@ -19,8 +19,8 @@ First, install Rust:
 
 ** Usage
 
-Flags are given by ~cargo run -- -h~ from anywhere in the repository. (The
-binary will be at ~/target/{release,debug}/astar-pairwise-aligner~.)
+The most important flags are given by ~cargo run -- -h~ from anywhere in the repository. Use
+~--help~ for more explanation and more flags/features not used in the paper.
 #+begin_src shell
 USAGE:
     astar-pairwise-aligner [OPTIONS] <--input <INPUT>|--length <LENGTH>>
@@ -29,22 +29,30 @@ OPTIONS:
     -h, --help                 Print help information
     -o, --output <OUTPUT>      Where to write optional statistics
     -s, --silent               Print less. Pass twice for summary line only
-        --timeout <TIMEOUT>    Stop aligning new pairs after this timeout
 
 INPUT:
     -i, --input <INPUT>              The .seq, .txt, or Fasta file with sequence pairs to align
     -x, --cnt <CNT>                  The number of sequence pairs to generate [default: 1]
     -n, --length <LENGTH>            Length of generated sequences
+    -e, --error-rate <ERROR_RATE>    Input error rate
         --seed <SEED>                Seed to initialize RNG for reproducability
 
-PARAMETERS:
-    -a, --algorithm <ALGORITHM>    nw, nw-simd, dijkstra, sh, csh [default: sh]
-    -k <k>                         Seed length
-    -r <r>                         Seed potential [default: 1]
-        --print-parameters         Do not run anything, but print inferred parameters
+ALGORITHM:
+    -a, --algorithm <ALGORITHM>    [default: a-star] [possible values: nw, nw-simd, a-star]
+
+HEURISTIC:
+    -H, --heuristic <HEURISTIC>    [default: sh] [possible values: dijkstra, sh, csh]
+    -k <k>                         Seed length [default: 15]
+    -r <r>                         Seed potential [default: 2]
+
+VISUALIZER:
+    -v, --visualize [<WHEN>...]    Run the interactive visualizer. See --help for controls. [default: all] [possible
+                                   values: none, last, all, layers]
+        --style <STYLE>            Visualizer style [default: default] [possible values: default, large, detailed]
+        --save [<WHEN>...]         Which frames to save [possible values: none, last, all, layers]
+        --save-path <PATH>         Where to save
 #+end_src
-Use ~cargo run -- --help~ for some more explanation and flags not really meant for
-external users. Note that input can either from a file (~--input~) or randomly
+Note that input can either from a file (~--input~) or randomly
 generated (the remaining options under ~INPUT~).
 Parameters ~-r~ and ~-k~ must be specified or can be inferred from the error
 rate ~-e~.
