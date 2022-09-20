@@ -65,9 +65,14 @@ impl VisualizerArgs {
         &self,
         _a: Seq,
         _b: Seq,
-        _matches: ArgMatches,
+        matches: ArgMatches,
         f: F,
     ) -> F::R {
+        if matches.contains_id("visualize") || matches.contains_id("save") {
+            eprintln!("The sdl2 feature must be enabled to use visualizations.");
+            panic!("The sdl2 feature must be enabled to use visualizations.");
+        }
+
         f.call(NoVisualizer)
     }
 
