@@ -128,7 +128,7 @@ fig3-export: fig3
 	cp imgs/fig3/1.png ../pairwise-aligner-paper/imgs/fig3/end.png
 
 fig8:
-	cargo run --release --example fig8
+	cargo run --features sdl2 --release --example fig8
 	mogrify -format png imgs/fig8/*bmp
 
 fig8-export: fig8

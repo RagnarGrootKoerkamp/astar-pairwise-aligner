@@ -46,4 +46,4 @@ suffix = "*"
 wfa = []
 edlib = []
 sdl2_ttf = ["sdl2/ttf"]
-default = ["sdl2"]
+default = []
