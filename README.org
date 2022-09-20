@@ -11,6 +11,9 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   Groot Koerkamp, Ivanov (2022, preprint)
   Exact pairwise alignment using A* with seed heuristic and match pruning
 
+Any kind of feedback and questions on the paper and code is welcome in the
+issues here.
+
 Here's an alignment of two sequences of length $500$ with $30\%$ error rate
 using the /chaining seed heuristic/ with /pruning/:
 [[file:imgs/fig-readme.gif]]
@@ -133,11 +136,11 @@ Visualizer options:
 - ~--save {all,last,layers}~ ::
   Save the corresponding frame as ~.bmp~ in the directory given by
   ~--save-path~. These can be manually turned into gifs.
-- ~--style~ :: Choose between different visualizer presets. ~detailed~ includes
+- ~--style {default,detailed,large}~ :: Choose between different visualizer presets. ~detailed~ includes
   the heuristic, and ~large~ scales things down a factor ~100~ to render long
   alignments. (Use ~-v last~ in this case.)
-- ~--cell-size~ :: Override the cell size (number of pixels per cell).
-- ~--downscaler~ :: Override the number of states drawn per cell.
+- ~--cell-size <size>~ :: Override the cell size (number of pixels per cell).
+- ~--downscaler <scale>~ :: Override the number of states drawn per cell.
 
 Sample videos corresponding to figure 1 of the paper are below. Due to different
 visualization strategies (per layer, per cell) timings are not at all comparable.
