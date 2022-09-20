@@ -10,9 +10,9 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
 - Citation ::
   Groot Koerkamp, Ivanov (2022, preprint)
   Exact pairwise alignment using A* with seed heuristic and match pruning
-
-Any kind of feedback and questions on the paper and code is welcome in the
-issues here.
+- Feedback/Issues ::
+  Any kind of feedback and questions on the paper and code is welcome in the
+  issues here.
 
 Here's an alignment of two sequences of length $500$ with $30\%$ error rate
 using the /chaining seed heuristic/ with /pruning/:
@@ -96,16 +96,16 @@ cargo run --release --bin generate_dataset -- -x 1000 -n 10000 -e 0.05 /tmp/rand
 
 * Evals
 
-The evaluations and results in our preprint are entirely reproducible using the [[./makefile][makefile]]:
+The results in our preprint are entirely reproducible using the [[./makefile][makefile]]:
 
-- Synthetic data ::
+- Synthetic data (~#evals-sythetic~ tag) ::
   1. Clone WFA and Edlib repos using ~make wfa~ and ~make edlib~ from this directory.
   2. Run the synthetic evals ([[evals/Snakefile]], ~5h~) using ~make evals~ to write data tables to
      [[evals/table/]]. Data used in the paper is already committed.
   3. Write plots to [[evals/results/]] using ~make results~ or [[evals/results.py]]
      directly. An interactive notebook is at [[evals/evals.ipynb]].
 
-- Human data ::
+- Human data (~#evals-human~ tag) ::
   1. Download the datasets from the [[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][sequence data release]] and unzip the
      files to ~evals/human/{chm13,na12878}/seq<id>.seq~.
 
@@ -119,11 +119,11 @@ Visualizations require the =sdl2= feature flag to be enabled, either via
 ~cargo run --features sdl2~ or by enabling then as default in [[Cargo.toml]].
 
 Reimplementations of the following algorithms can be visualized:
-- *nw* Needleman-Wunsch ::
+- Needleman-Wunsch (~nw~) ::
   - Pass ~--exp-search~ to enable exponential search on band, as in Edlib.
-- *dt* Diagonal-Transition ::
+- Diagonal-Transition (~dt~) ::
   - Pass ~--dc~ to enable divide & conquer, as in BiWFA.
-- *a-star* ::
+- A* (~a-star~) ::
   - Choose heuristic with ~-H {dijkstra,sh,csh}~.
   - Pass parameters with ~-r {1,2} -k <k>~.
   - Pass ~--dt~ to enable diagonal transition based A*.
@@ -145,12 +145,10 @@ Visualizer options:
 Sample videos corresponding to figure 1 of the paper are below. Due to different
 visualization strategies (per layer, per cell) timings are not at all comparable.
 
-|----------------------------------------------------------------------------------+--------------------------------------------|
-| The exponential search steps of Ukkonen's banded algorithm                       | [[file:imgs/fig1/1_ukkonen.gif]]               |
-| Fronts of Dijkstra's algorithm                                                   | [[file:imgs/fig1/2_dijkstra.gif]]              |
-| Fronts of Diagonal transition (Ukkonen'85, Myers'86, WFA)                        | [[file:imgs/fig1/3_diagonal_transition.gif]]   |
-| Fronts of Diagonal transition with divide and conquer (Myers'86, BiWFA)          | [[file:imgs/fig1/4_dt-divide-and-conquer.gif]] |
-| Expanded states of A* with chaining seed heuristic and pruning (A*PA, this work) | [[file:imgs/fig1/5_astar-csh-pruning.gif]]     |
+|-----------------------------------------------------------------------+--------------------------------------------------------------------------|
+| Dijkstra [[file:imgs/fig1/2_dijkstra.gif]]                                | Ukkonen's exponential search (Edlib) [[file:imgs/fig1/1_ukkonen.gif]]        |
+| Diagonal transition (WFA) [[file:imgs/fig1/3_diagonal_transition.gif]]    | DT + Divide & Conquer (BiWFA) [[file:imgs/fig1/4_dt-divide-and-conquer.gif]] |
+| A* with CSH and pruning (A*PA) [[file:imgs/fig1/5_astar-csh-pruning.gif]] |                                                                          |
 
 And here is a video of figure 3 of our preprint:
 
