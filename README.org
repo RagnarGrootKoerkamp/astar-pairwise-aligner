@@ -10,25 +10,25 @@ using the /chaining seed heuristic/ with /pruning/:
 
 * Getting started
 
-** Rust
+** Installing Rust
 
-First, install Rust:
 1. Install [[https://rustup.rs/][rustup]].
-1. Install Rust Nightly using ~rustup install nightly~
-1. Make nightly the default: ~rustup default nightly~
+2. Install Rust Nightly using ~rustup install nightly~
+3. Make nightly the default: ~rustup default nightly~
 
 ** Usage
 
-The most important flags are given by ~cargo run -- -h~ from anywhere in the repository. Use
-~--help~ for more explanation and more flags/features not used in the paper.
+- ~cargo run -- -h~ for the help below
+- ~cargo run -- --help~ for more flags/features not in the paper.
+
 #+begin_src shell
 USAGE:
     astar-pairwise-aligner [OPTIONS] <--input <INPUT>|--length <LENGTH>>
 
 OPTIONS:
-    -h, --help                 Print help information
-    -o, --output <OUTPUT>      Where to write optional statistics
-    -s, --silent               Print less. Pass twice for summary line only
+    -h, --help               Print help information
+    -o, --output <OUTPUT>    Where to write optional statistics
+    -s, --silent             Print less. Pass twice for summary line only
 
 INPUT:
     -i, --input <INPUT>              The .seq, .txt, or Fasta file with sequence pairs to align
@@ -38,7 +38,7 @@ INPUT:
         --seed <SEED>                Seed to initialize RNG for reproducability
 
 ALGORITHM:
-    -a, --algorithm <ALGORITHM>    [default: a-star] [possible values: nw, nw-simd, a-star]
+    -a, --algorithm <ALGORITHM>    [default: a-star] [possible values: nw, dt, a-star, nw-lib, nw-lib-simd, edlib, wfa, biwfa]
 
 HEURISTIC:
     -H, --heuristic <HEURISTIC>    [default: sh] [possible values: dijkstra, sh, csh]
@@ -46,66 +46,70 @@ HEURISTIC:
     -r <r>                         Seed potential [default: 2]
 
 VISUALIZER:
-    -v, --visualize [<WHEN>...]    Run the interactive visualizer. See --help for controls. [default: all] [possible
-                                   values: none, last, all, layers]
+    -v, --visualize [<WHEN>...]    Run the interactive visualizer. See --help for controls. [default: all] [possible values: none, last, all, layers]
         --style <STYLE>            Visualizer style [default: default] [possible values: default, large, detailed]
         --save [<WHEN>...]         Which frames to save [possible values: none, last, all, layers]
         --save-path <PATH>         Where to save
 #+end_src
-Note that input can either from a file (~--input~) or randomly
-generated (the remaining options under ~INPUT~).
-Parameters ~-r~ and ~-k~ must be specified or can be inferred from the error
-rate ~-e~.
 
-If you have a =.fasta=, =.txt=, or =.seq= (see WFA) file containing sequences, use e.g.
-to following to align all consecutive pairs:
+*Input* can be a file (~--input file.{fasta,txt,seq}~) or randomly generated (~--length <n> --error-rate <e>~).
+
+The *heuristic* can be changed between /seed heuristic/ (~-H sh~) and /chaining
+seed heuristic/ (~-H csh~).
+*Parameters* ~-r~ and ~-k~ can be specified if non-default values are needed.
+
+*** Examples
+
+To align all consecutive pairs in a file:
 #+begin_src
-cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq}> -r 1 -k 15
+cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq}>
 #+end_src
-or do this to run on $100$ sequences of length $10^5$ with error rate $5\%$:
+To run on $100$ random sequences of length $10^5$ with error rate $5\%$:
 #+begin_src
-cargo run --release -- -x 100 -n 100000 -e 0.05 -r 1 -k 15
+cargo run --release -- -x 100 -n 100000 -e 0.05
 #+end_src
 
-A =.seq= input file can be generated like this:
+To generate a =.seq= dataset:
 #+begin_src
 cargo run --release --bin generate_dataset -- -x 1000 -n 10000 -e 0.05 /tmp/random-sequences.seq
 #+end_src
 
-** Features
+** Feature flags
 
-Currently the =sdl2= feature that is used for visualizations is on by default.
-This requires the =sdl2= and =sdl2_ttf= libraries to be installed on the system.
-If you do not have these, run with ~cargo run --no-default-features~ or simply
-remove =sdl2= from the list of default features at the bottom of [[./Cargo.toml][Cargo.toml]].
+*** Visualizations
 
-There are also the =edlib= and =wfa= features. These enable linking against the
-C-libraries directly and are used for (fuzz)-testing. Run ~make wfa~ and ~make
-edlib~ before using these.
+Enable the =sdl2= feature flag ([[./Cargo.toml][Cargo.toml]]) to use visualizations.
+This requires the =sdl2= library to be installed on the system.
+To draw contour numbers, the =sdl2-ttf= library/flag is needed.
 
-* Datasets
+*** Edlib, WFA
 
-The real datasets that we evaluate on are available in the
-[[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][Sequence data release]]. Synthetic data is generated using [[./src/bin/generate_dataset.rs]].
+The =edlib= and =wfa= features enable linking directly against
+the C-libraries. Run ~make wfa~ and ~make edlib~ before using these.
 
-* Evals & results
+This enables the ~--algorithm {edlib,wfa,biwfa}~ options to align using those
+libraries.
+
+
+* Evals
 
 The evaluations and results in our upcoming preprint should be entirely
 reproducible using the [[./makefile][makefile]]:
 
-Before running evals, make sure WFA and Edlib are cloned to the directory
-adjacent to this repository, using ~make wfa~ and ~make edlib~. Then, you should
-be able to run all evals (takes ~5h~) using ~make evals~. Note that this asks for
-the root password to fix the CPU frequency using =cpupower=. If you do not
-have/want this, just comment the lines in the =makefile=.
+- Synthetic data ::
+  1. Clone WFA and Edlib repos using ~make wfa~ and ~make edlib~ from this directory.
+  2. Run the synthetic evals (~5h~) using ~make evals~ to write data tables to
+  [[./evals/table/]]. Data used in the paper is already committed.
+  1. Write plots to [[./evals/results/]] using ~make results~ or [[./evals/results.py]]
+  directly. An interactive notebook is at [[./evals/evals.ipynb]].
 
-Either way, the results of the evals are already committed in [[./evals/table/]]. Plots and
-table data can be generated from this in the [[./evals/results]] directory using
-~make results~, which calls the python script [[./evals/results.py]]. There is also
-a corresponding [[./evals/evals.ipynb]] notebook.
+- Human data ::
+  1. Download the dataset from the [[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][sequence data release]] and unzip the
+     files to ~./evals/human/{chm13,na12878}/seq<id>.seq~.
 
-Use ~make figures~ to run some of the provided [[./examples][examples]] to generate the figures
-shown in figure 1 and 3 of the paper, and reproduced as videos below.
+     The CHM13 set was created using the steps in [[./evals/human/Snakefile]].
+  2. Run ~make evals-human~ (~1-2h~) and ~make results~.
+
 
 * Videos
 
