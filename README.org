@@ -27,7 +27,7 @@ using the /chaining seed heuristic/ with /pruning/:
 ** Usage
 
 - ~cargo run -- -h~ for the help below
-- ~cargo run -- --help~ for more flags/features not in the paper.
+- Check out ~cargo run -- --help~ for more flags and features not in the paper.
 
 #+begin_src shell
 USAGE:
@@ -82,19 +82,14 @@ To generate a =.seq= dataset:
 cargo run --release --bin generate_dataset -- -x 1000 -n 10000 -e 0.05 /tmp/random-sequences.seq
 #+end_src
 
-** Feature flags
-
-- Visualizations ::
-    Enable the =sdl2= feature flag ([[./Cargo.toml][Cargo.toml]]) to use visualizations.
-    This requires the =sdl2= library to be installed on the system.
-    To draw contour numbers, the =sdl2-ttf= library/flag is needed.
-
-- Edlib, WFA ::
-    The =edlib= and =wfa= features enable linking directly against
-    the C-libraries. Run ~make wfa~ and ~make edlib~ before using these.
-
-    This enables the ~--algorithm {edlib,wfa,biwfa}~ options to align using those
-    libraries.
+** Work-in-progress features
+- Pass ~--dt~ to run diagonal-transition based A*. This can give up to $5$ times speedup.
+- Pass ~--gap-cost~ to improve the chaining seed heuristic with gap costs. This
+  improves runtime when the alignment contains long indels.
+- Pass ~--kmin <kmin>~, ~--kmax <kmax>~, and ~--max-matches <num>~ to use
+  variable length seeds with at most the given number of matches and between the given lengths.
+- Pass ~--skip-prune <N>~ to skip pruning every ~N~'th match that would
+  otherwise be pruned. This can speed up pruning when there are a lot of matches.
 
 * Evals
 
@@ -102,31 +97,50 @@ The evaluations and results in our preprint are entirely reproducible using the 
 
 - Synthetic data ::
   1. Clone WFA and Edlib repos using ~make wfa~ and ~make edlib~ from this directory.
-  2. Run the synthetic evals (~5h~) using ~make evals~ to write data tables to
-  [[./evals/table/]]. Data used in the paper is already committed.
-  1. Write plots to [[./evals/results/]] using ~make results~ or [[./evals/results.py]]
-  directly. An interactive notebook is at [[./evals/evals.ipynb]].
+  2. Run the synthetic evals ([[evals/Snakefile]], ~5h~) using ~make evals~ to write data tables to
+     [[evals/table/]]. Data used in the paper is already committed.
+  3. Write plots to [[evals/results/]] using ~make results~ or [[evals/results.py]]
+     directly. An interactive notebook is at [[evals/evals.ipynb]].
 
 - Human data ::
-  1. Download the dataset from the [[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][sequence data release]] and unzip the
-     files to ~./evals/human/{chm13,na12878}/seq<id>.seq~.
+  1. Download the datasets from the [[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][sequence data release]] and unzip the
+     files to ~evals/human/{chm13,na12878}/seq<id>.seq~.
 
-     The CHM13 set was created using the steps in [[./evals/human/Snakefile]].
+     The CHM13 set was created using the steps in [[evals/human/Snakefile]].
   2. Run ~make evals-human~ (~1-2h~) and ~make results~.
 
 
-* Videos
+* Visualizations
 
-We have support for live-rendering of the progress of all internally implemented
-algorithm. However, this is not currently exposed as a binary. See e.g.
-[[./examples/fig-readme.rs]] for an example. If you run it, you may want to first
-set ~config.save = When::None~ to prevent saving (a lot) of frames to disk.
+Visualizations require the =sdl2= feature flag to be enabled, either via
+~cargo run --features sdl2~ or by enabling then as default in [[Cargo.toml]].
 
-Here are the algorithms of figure 1 of our (upcoming) preprint visualized. Note
-that timings are not comparable since different methods are drawing are used --
-the timescales and number of frames are too different. Dijkstra's
-algorithm and diagonal transition are shown per-front, instead of per cell, so
-are not linear with time.
+Reimplementations of the following algorithms can be visualized:
+- *nw* Needleman-Wunsch ::
+  - Pass ~--exp-search~ to enable exponential search on band, as in Edlib.
+- *dt* Diagonal-Transition ::
+  - Pass ~--dc~ to enable divide & conquer, as in BiWFA.
+- *a-star* ::
+  - Choose heuristic with ~-H {dijkstra,sh,csh}~.
+  - Pass parameters with ~-r {1,2} -k <k>~.
+  - Pass ~--dt~ to enable diagonal transition based A*.
+  - Pass ~--gap-cost~ for an improved version of the chaining seed heuristic.
+
+Visualizer options:
+- ~-v {all,last,layers}~ ::
+  Visualize either all frames, only the last frame, or one frame per /layer/ (ie
+  NW column, DT wavefront, or A* value of $f$).
+- ~--save {all,last,layers}~ ::
+  Save the corresponding frame as ~.bmp~ in the directory given by
+  ~--save-path~. These can be manually turned into gifs.
+- ~--style~ :: Choose between different visualizer presets. ~detailed~ includes
+  the heuristic, and ~large~ scales things down a factor ~100~ to render long
+  alignments. (Use ~-v last~ in this case.)
+- ~--cell-size~ :: Override the cell size (number of pixels per cell).
+- ~--downscaler~ :: Override the number of states drawn per cell.
+
+Sample videos corresponding to figure 1 of the paper are below. Due to different
+visualization strategies (per layer, per cell) timings are not at all comparable.
 
 |----------------------------------------------------------------------------------+--------------------------------------------|
 | The exponential search steps of Ukkonen's banded algorithm                       | [[file:imgs/fig1/1_ukkonen.gif]]               |
@@ -139,36 +153,16 @@ And here is a video of figure 3 of our preprint:
 
 [[file:imgs/fig3.gif]]
 
-* Tests & benchmarks
+* Tests & Benchmarks
 
-All code is tested and benchmarked on GitHub Actions CI. Performance history of
-benchmarks is [[https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/][here]].
+- Tests ::
+  Code is tested for correctness in various tests ([[tests/]], [[src/aligners/tests/]])
+  against library implementation of edit distance, and against Edlib and WFA
+  when the ~edlib~ and ~wfa~ feature flags are set.
 
-The [[./src/aligners/]] directory contains our own implementations of
-many algorithms:
-- Needleman-Wunsch,
-- Exponential banded search (Ukkonen),
-- /Computational domains/ of Spouge (1989),
-- Diagonal Transition (WFA)
-  - With optional divide & conquer (BiWFA).
-All of these support the following cost models:
-- unit costs
-- linear costs
-- affine costs
-- dual (and more) affine costs
-- and asymmetric variants of all of the above with distinct insert and delete costs.
-
-We also include wrappers for the following:
-- NW and Ukkonen's exponential search from
-  the [[https://docs.rs/triple_accel/latest/triple_accel/index.html][triple accel]] crate,
-- [[https://github.com/Martinsos/edlib][Edlib]]
-- [[https://github.com/smarco/WFA2-lib][WFA2]]
-- our own A* based aligner.
-
-All these methods are tested in [[./src/aligners/tests.rs]].
-
-Note that we do not currently expose these via a command line utility. See the
-tests file above for usage examples.
+- Benchmarks ::
+  All code is benchmarked on GitHub Actions CI. Performance history of
+  benchmarks is [[https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/][here]].
 
 
 * License
