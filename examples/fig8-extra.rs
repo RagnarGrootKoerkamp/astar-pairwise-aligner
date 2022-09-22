@@ -44,9 +44,10 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8/high-error-rate".to_string();
+        config.filepath = "imgs/fig8-extra/high-error-rate-dt".to_string();
         let mut a_star = AStar {
-            diagonal_transition: false,
+            // NOTE: TRUE HERE
+            diagonal_transition: true,
             greedy_edge_matching: true,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
@@ -71,14 +72,44 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8/deletion".to_string();
+        config.filepath = "imgs/fig8-extra/deletion-dt".to_string();
         let mut a_star = AStar {
-            diagonal_transition: false,
+            // NOTE: TRUE
+            diagonal_transition: true,
             greedy_edge_matching: true,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
                 pruning: Pruning::enabled(),
                 use_gap_cost: false,
+                c: PhantomData::<HintContours<BruteForceContour>>::default(),
+            },
+            v: Visualizer::new(config.clone(), a, b),
+        };
+        let cost = a_star.align(a, b).0;
+        println!("cost {cost}");
+    }
+
+    {
+        let (mut a, mut b) = setup_sequences_with_seed(5, 350 * scale, 0.08);
+        let (mut a2, _) = setup_sequences_with_seed(8, 50 * scale, 0.08);
+        let (mut a3, mut b3) = setup_sequences_with_seed(9, 100 * scale, 0.08);
+        a.append(&mut a2);
+        //b.append(&mut b2);
+        a.append(&mut a3);
+        b.append(&mut b3);
+        let ref a = a;
+        let ref b = b;
+
+        config.filepath = "imgs/fig8-extra/deletion-dt-gapcost".to_string();
+        let mut a_star = AStar {
+            // NOTE: TRUE
+            diagonal_transition: true,
+            greedy_edge_matching: true,
+            h: CSH {
+                match_config: MatchConfig::inexact(10),
+                pruning: Pruning::enabled(),
+                // NOTE: TRUE
+                use_gap_cost: true,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),
             },
             v: Visualizer::new(config.clone(), a, b),
@@ -108,14 +139,25 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8/repeats".to_string();
+        config.filepath = "imgs/fig8-extra/repeats-variable-k".to_string();
         let mut a_star = AStar {
-            diagonal_transition: false,
+            // NOTE: TRUE
+            diagonal_transition: true,
             greedy_edge_matching: true,
             h: CSH {
-                match_config: MatchConfig::inexact(10),
+                // NOTE: At most 2 matches
+                match_config: MatchConfig {
+                    length: LengthConfig::Max(MaxMatches {
+                        max_matches: 15,
+                        k_min: 8,
+                        k_max: 14,
+                    }),
+                    max_match_cost: 0,
+                    window_filter: false,
+                },
                 pruning: Pruning::enabled(),
-                use_gap_cost: false,
+                // NOTE: TRUE
+                use_gap_cost: true,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),
             },
             v: Visualizer::new(config.clone(), a, b),

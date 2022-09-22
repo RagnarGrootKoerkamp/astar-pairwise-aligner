@@ -226,7 +226,7 @@ impl<C: Contours> CSHI<C> {
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
         h.num_matches = h.seeds.matches.len();
-        {
+        if params.use_gap_cost {
             // Need to take it out of h.seeds because transform also uses this.
             let mut matches = std::mem::take(&mut h.seeds.matches);
             matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);

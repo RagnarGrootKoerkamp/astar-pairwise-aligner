@@ -131,6 +131,10 @@ fig8:
 	cargo run --features sdl2 --release --example fig8
 	mogrify -format png imgs/fig8/*bmp
 
+fig8-exptra:
+	cargo run --features sdl2 --release --example fig8-extra
+	mogrify -format png imgs/fig8-extra/*bmp
+
 fig8-export: fig8
 	rm -rf ../pairwise-aligner-paper/imgs/fig8/*
 	mkdir -p ../pairwise-aligner-paper/imgs/fig8/
