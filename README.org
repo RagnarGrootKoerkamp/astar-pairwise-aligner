@@ -8,11 +8,13 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
   - Blog: [[https://research.curiouscoding.nl]]
 - Citation ::
-  Groot Koerkamp, Ivanov (2022, preprint)
-  Exact pairwise alignment using A* with seed heuristic and match pruning
+  *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
+  "Exact pairwise alignment using A* with seed heuristic and match pruning".
+  bioRxiv (2022). DOI [[https://doi.org/10.1101/2022.09.19.508631][2022.09.19.508631]]
+
 - Feedback/Issues ::
   Any kind of feedback and questions on the paper and code is welcome in the
-  issues here.
+  issues here. We're happy to help out with any kind of problems you may run into.
 
 Here's an alignment of two sequences of length $500$ with $30\%$ error rate
 using the /chaining seed heuristic/ with /pruning/:
@@ -29,7 +31,8 @@ using the /chaining seed heuristic/ with /pruning/:
 
 ** Usage
 
-- ~cargo run -- -h~ for the help below
+- Clone the repository.
+- Run ~cargo run -- -h~ for the help below
 - Check out ~cargo run -- --help~ for more flags and features not in the paper.
 
 #+begin_src shell
@@ -68,6 +71,13 @@ VISUALIZER:
 The *heuristic* can be changed between /seed heuristic/ (~-H sh~) and /chaining
 seed heuristic/ (~-H csh~).
 *Parameters* ~-r~ and ~-k~ can be specified if non-default values are needed.
+
+*** Notes
+- There is no option yet output alignments. Edit distances are shown
+  in the terminal output and ~--output~ file in the ~ed~ column towards the end.
+
+  I'll add it eventually, but make an issue if needed; it's not much work.
+- There is no standalone library/API yet. I'll add something soon (#1).
 
 ** Examples
 
