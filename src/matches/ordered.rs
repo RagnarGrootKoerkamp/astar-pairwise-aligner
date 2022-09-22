@@ -118,13 +118,12 @@ pub fn find_matches_qgramindex<'a>(
     let mut seeds = {
         let mut v: Vec<Seed> = Vec::default();
         let mut a = &a[..];
-        let mut long = false;
         let mut i = 0 as I;
         loop {
             // TODO: Clever seed choice, using variable k and m.
             let seed_len = {
                 match length {
-                    Fixed(k) => k,
+                    Fixed(k) => Some(k),
                     LengthConfig::Max(MaxMatches {
                         max_matches,
                         k_min,
@@ -141,10 +140,20 @@ pub fn find_matches_qgramindex<'a>(
                         {
                             k += 1;
                         }
-                        k
+                        if k <= k_max {
+                            Some(k)
+                        } else {
+                            None
+                        }
                     }
                 }
             };
+            let Some(seed_len) = seed_len else {
+                a = &a[1..];
+                i += 1;
+                continue;
+            };
+
             if seed_len > a.len() as I {
                 break;
             }
@@ -160,8 +169,6 @@ pub fn find_matches_qgramindex<'a>(
                 seed_cost: max_match_cost + 1,
             });
             i += seed_len;
-
-            long = !long;
         }
         v
     };
