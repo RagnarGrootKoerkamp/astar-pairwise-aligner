@@ -11,10 +11,32 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
   "Exact pairwise alignment using A* with seed heuristic and match pruning".
   bioRxiv (2022). DOI [[https://doi.org/10.1101/2022.09.19.508631][2022.09.19.508631]]
+- Usage ::
+  ~cargo run --release -- -i <input>.{seq,txt,fasta} [-a csh] [-s]~
 
+  Edit distance is shown in the ~ed~ column. The Cigar string is computed but
+  not written to a file currently (#15).
+- Visualizations ::
+  Show a video of a small alignment:
+  #+begin_src sh
+  cargo run --release --features sdl2 -- -i <input> -v [--style detailed]
+  #+end_src
+  Save a large alignment to disk:
+  #+begin_src sh
+  cargo run --release --features sdl2 -- -i <input> --save --save-path <filename>.bmp --style large
+  #+end_src
+- Rust/C library usage ::
+  This is TODO (#14).
 - Feedback/Issues ::
   Any kind of feedback and questions on the paper and code is welcome in the
   issues here. We're happy to help out with any kind of problems you may run into.
+- Disclaimer ::
+  While our method works well on random sequences with random errors, it can be
+  *very* slow on alignments containing long indels. Over $100\times$ slower than
+  WFA happens regularly. Use the unpublished ~--dt --gap-cost~ flags for
+  possible speed improvements in this case. If A*PA is still slow, feel free to
+  make an issue containing a ~.seq~ file and visualization. (It won't speed up
+  existing code, but may inspire new ideas.)
 
 Here's an alignment of two sequences of length $500$ with $30\%$ error rate
 using the /chaining seed heuristic/ with /pruning/:
