@@ -287,7 +287,7 @@ mod with_sdl2 {
                 delay: 0.2,
                 paused: false,
                 style: Style {
-                    expanded: Gradient::Fixed(Color::BLUE),
+                    expanded: Gradient::TurboGradient(0.2..0.95),
                     explored: None,
                     extended: None,
                     bg_color: Color::WHITE,

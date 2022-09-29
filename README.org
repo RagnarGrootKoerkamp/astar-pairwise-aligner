@@ -40,6 +40,7 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
 
 Here's an alignment of two sequences of length $500$ with $30\%$ error rate
 using the /chaining seed heuristic/ with /pruning/:
+
 [[file:imgs/fig-readme.gif]]
 
 
