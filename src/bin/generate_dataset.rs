@@ -12,10 +12,6 @@ struct Cli {
     #[clap(parse(from_os_str))]
     output: PathBuf,
 
-    /// Number of generated pairs
-    #[clap(short = 'x', long, default_value_t = 1, help_heading = "INPUT")]
-    cnt: usize,
-
     #[clap(flatten)]
     generate_args: GenerateArgs,
 }
@@ -33,7 +29,7 @@ fn main() {
             .open(args.output)
             .unwrap(),
     );
-    for _ in 0..args.cnt {
+    for _ in 0..args.generate_args.cnt {
         let (a, b) = generate_pair(
             &args.generate_args.to_generate_options(),
             &mut rand::thread_rng(),
