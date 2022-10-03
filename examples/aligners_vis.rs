@@ -48,6 +48,7 @@ fn main() {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: false,
+            local_doubling: false,
             h: NoCost,
             v: vis("nw"),
         };
@@ -59,6 +60,7 @@ fn main() {
             cm: cm.clone(),
             use_gap_cost_heuristic: true,
             exponential_search: true,
+            local_doubling: false,
             h: NoCost,
             v: vis("nw_gapcost"),
         };
@@ -70,6 +72,7 @@ fn main() {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: true,
+            local_doubling: false,
             h: GapCost,
             v: vis("nw_gapcost_h"),
         };
@@ -82,6 +85,7 @@ fn main() {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: true,
+            local_doubling: false,
             h: sh,
             v: vis("nw_sh"),
         };
@@ -94,6 +98,7 @@ fn main() {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: true,
+            local_doubling: false,
             h: csh,
             v: vis("nw_csh"),
         };

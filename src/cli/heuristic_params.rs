@@ -21,16 +21,30 @@ pub enum Algorithm {
 
     // The basic n^2 DP.
     NwLib,
-    // Naive, but with SIMD and O(ns) exponential search.
+    // SIMD and O(ns) band-doubling.
     NwLibSimd,
     Edlib,
     Wfa,
     Biwfa,
 }
 
+impl Algorithm {
+    pub fn external(&self) -> bool {
+        match self {
+            Algorithm::NwLib
+            | Algorithm::NwLibSimd
+            | Algorithm::Edlib
+            | Algorithm::Wfa
+            | Algorithm::Biwfa => true,
+            Algorithm::NW | Algorithm::DT | Algorithm::AStar => false,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
 pub enum HeuristicType {
-    Dijkstra,
+    None,
+    Zero,
     #[default]
     SH,
     CSH,
@@ -53,6 +67,10 @@ pub struct AlgorithmArgs {
     /// Use exponential search in NW algorithm (like edlib).
     #[clap(long, hide_short_help = true)]
     pub exp_search: bool,
+
+    /// Use local doubling in NW/DT.
+    #[clap(long, hide_short_help = true)]
+    pub local_doubling: bool,
 
     /// Use divide and conquer for diagonal transition (like BiWFA).
     #[clap(long, hide_short_help = true)]

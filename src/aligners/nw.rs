@@ -24,6 +24,8 @@ pub struct NW<CostModel, V: VisualizerT, H: Heuristic> {
 
     pub exponential_search: bool,
 
+    pub local_doubling: bool,
+
     /// The heuristic to use.
     pub h: H,
 
@@ -61,6 +63,7 @@ impl<const N: usize> NW<AffineCost<N>, NoVisualizer, NoCost> {
             cm,
             use_gap_cost_heuristic,
             exponential_search,
+            local_doubling: false,
             h: NoCost,
             v: NoVisualizer,
         }
@@ -110,23 +113,23 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
         }
     }
 
-    /// The range of rows `j` to consider in column `i`, when the cost is bounded by `s_bound`.
+    /// The range of rows `j` to consider in column `i`, when the cost is bounded by `f_bound`.
     fn j_range(
         &self,
         a: Seq,
         b: Seq,
         h: &H::Instance<'_>,
         i: Idx,
-        s_bound: Option<Cost>,
+        f_bound: Option<Cost>,
         prev: &Front<N>,
     ) -> RangeInclusive<Idx> {
         // Without a bound on the distance, we can notuse any heuristic.
-        let Some(s) = s_bound else {
+        let Some(s) = f_bound else {
             return 1..=b.len() as Idx;
         };
         if H::IS_DEFAULT {
             // For the default heuristic, either use the full range of diagonals
-            // covered by distance `s`, or do only the gap-cost to the end when
+            // covered by distance `f_max`, or do only the gap-cost to the end when
             // needed.
             let range = if self.use_gap_cost_heuristic {
                 let d = b.len() as Idx - a.len() as Idx;
@@ -147,9 +150,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
             } else {
                 // Start with the range of the previous front.
                 // Then:
-                // Keep increasing the start while prev[start]+h() > s_bound.
-                // Keep decreasing the end while prev[end]+h() > s_bound.
-                // Keep increasing the end while prev[prev_end]+extend_cost*(end-prev_end)+h() > s_bound.
+                // Keep increasing the start while prev[start]+h() > f_max.
+                // Keep decreasing the end while prev[end]+h() > f_max.
+                // Keep increasing the end while prev[prev_end]+extend_cost*(end-prev_end)+h() > f_max.
                 let mut start = *prev.range().start();
 
                 // To fix the padded character, we do max(start, 1) and max(i,1).
@@ -192,6 +195,101 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 start..=end
             }
         }
+    }
+
+    pub fn align_local_band_doubling<'a>(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
+        // Pad both sequences.
+        let ref a = pad(a);
+        let ref b = pad(b);
+
+        // Build `h` for the original, unpadded strings.
+        let ref mut h = self.h.build(&a[1..a.len()], &b[1..b.len()]);
+
+        let mut fronts = Fronts::new(
+            INF,
+            // The fronts to create.
+            0..=0 as Idx,
+            // The range for each front.
+            |i| self.j_range(a, b, h, i, Some(h.h(Pos(0, 0))), &Front::default()),
+            0,
+            0,
+            LEFT_BUFFER,
+            RIGHT_BUFFER,
+        );
+        fronts[0].m_mut()[0] = 0;
+
+        // Front i has been computed up to this f.
+        let mut f_max = vec![h.h(Pos(0, 0))];
+        // Each time a front is grown and recomputed, the increment of the f range doubles.
+        let mut f_delta = vec![1];
+
+        // The value of f at the tip. When going to the next front, this is
+        // incremented until the range is non-empty.
+        let mut f_tip = h.h(Pos(0, 0));
+
+        let mut i = 0;
+        loop {
+            i += 1;
+            // We can not initialize all layers directly at the start, since we do not know the final distance s.
+            let mut range;
+            loop {
+                range = self.j_range(a, b, h, i, Some(f_tip), &fronts[i - 1]);
+                if !range.is_empty() {
+                    break;
+                }
+                f_tip += 1;
+            }
+            println!("Col {i} f_tip {f_tip} range {range:?}");
+            f_max.push(f_tip);
+            f_delta.push(1);
+            fronts.push(range);
+
+            // Double previous front sizes as long as their f_max is not large enough.
+            let mut start_i = i as usize;
+            while start_i > 1 && f_max[start_i - 1] < f_max[start_i] {
+                start_i -= 1;
+                f_max[start_i] += f_delta[start_i];
+                println!(
+                    "Bump {start_i} from {} to {}",
+                    f_max[start_i] - f_delta[start_i],
+                    f_max[start_i]
+                );
+                assert!(f_max[start_i] >= f_max[start_i+1], "Doubling a front once should always be sufficient to cover the next front. From {} to {} by {} target {}", f_max[start_i]-f_delta[start_i], f_max[start_i], f_delta[start_i], f_max[start_i+1]);
+                f_delta[start_i] *= 2;
+            }
+
+            // Recompute all fronts from start_g upwards.
+            for i in start_i as Idx..=i {
+                let range = self.j_range(a, b, h, i, Some(f_max[i as usize]), &fronts[i - 1]);
+                fronts[i as Idx].reset(INF, range);
+                let (prev, next) = fronts.split_at(i);
+                self.next_front(i, a, b, prev, next);
+            }
+            self.v.new_layer();
+
+            if i == a.len() as Idx && fronts[a.len() as Idx].range().contains(&(b.len() as Idx)) {
+                break;
+            }
+        }
+        let dist = *fronts[a.len() as Idx].m().get(b.len() as Idx).unwrap();
+        let cigar = self.trace(
+            a,
+            b,
+            &fronts,
+            State {
+                i: 1,
+                j: 1,
+                layer: None,
+            },
+            State {
+                i: a.len() as Idx,
+                j: b.len() as Idx,
+                layer: None,
+            },
+            Direction::Forward,
+        );
+        self.v.last_frame(Some(&cigar.to_path()));
+        (dist, cigar)
     }
 }
 
@@ -260,8 +358,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
     }
 
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
-        let (cost, cigar) = if self.exponential_search {
-            exponential_search(
+        let cc;
+        if self.local_doubling {
+            return self.align_local_band_doubling(a, b);
+        } else if self.exponential_search {
+            cc = exponential_search(
                 self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
                 2.,
                 |s| {
@@ -269,18 +370,18 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
                         .map(|x @ (c, _)| (c, x))
                 },
             )
-            .1
+            .1;
         } else {
             assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
-            self.align_for_bounded_dist(a, b, None).unwrap()
+            cc = self.align_for_bounded_dist(a, b, None).unwrap();
         };
-        self.v.last_frame(Some(&cigar.to_path()));
-        (cost, cigar)
+        self.v.last_frame(Some(&cc.1.to_path()));
+        cc
     }
 
     /// Test whether the cost is at most s.
     /// Returns None if cost > s, or the actual cost otherwise.
-    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
+    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Option<Cost>) -> Option<Cost> {
         // Pad both sequences.
         let ref a = pad(a);
         let ref b = pad(b);
@@ -290,7 +391,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         let ref mut prev = Front::default();
         let ref mut next = Front::new(
             INF,
-            self.j_range(a, b, h, 0, s_bound, prev),
+            self.j_range(a, b, h, 0, f_max, prev),
             LEFT_BUFFER,
             RIGHT_BUFFER,
         );
@@ -298,12 +399,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         for i in 1..=a.len() as Idx {
             std::mem::swap(prev, next);
             // Update front size.
-            next.reset(
-                INF,
-                self.j_range(a, b, h, i, s_bound, prev),
-                LEFT_BUFFER,
-                RIGHT_BUFFER,
-            );
+            next.reset(INF, self.j_range(a, b, h, i, f_max, prev));
             self.next_front(i, a, b, prev, next);
             if !self.exponential_search {
                 self.v.new_layer();
@@ -325,7 +421,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         &mut self,
         a: Seq,
         b: Seq,
-        s_bound: Option<Cost>,
+        f_max: Option<Cost>,
     ) -> Option<(Cost, Cigar)> {
         // Pad both sequences.
         let ref a = pad(a);
@@ -339,7 +435,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             // The fronts to create.
             0..=0 as Idx,
             // The range for each front.
-            |i| self.j_range(a, b, h, i, s_bound, &Front::default()),
+            |i| self.j_range(a, b, h, i, f_max, &Front::default()),
             0,
             0,
             LEFT_BUFFER,
@@ -351,7 +447,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             let prev = &fronts[i - 1];
             let mut next = Front::new(
                 INF,
-                self.j_range(a, b, h, i, s_bound, prev),
+                self.j_range(a, b, h, i, f_max, prev),
                 LEFT_BUFFER,
                 RIGHT_BUFFER,
             );
@@ -364,7 +460,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
 
         if let Some(&dist) = fronts[a.len() as Idx].m().get(b.len() as Idx) {
             // We only track the actual path if `s` is small enough.
-            if dist <= s_bound.unwrap_or(INF) {
+            if dist <= f_max.unwrap_or(INF) {
                 let cigar = self.trace(
                     a,
                     b,

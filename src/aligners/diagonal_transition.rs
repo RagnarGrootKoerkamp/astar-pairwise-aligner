@@ -76,7 +76,9 @@ pub struct DiagonalTransition<CostModel, V: VisualizerT, H: Heuristic> {
     h: H,
 
     /// When true, `align` uses divide & conquer to compute the alignment in linear memory.
-    dc: bool,
+    pub dc: bool,
+
+    pub local_doubling: bool,
 
     /// The visualizer
     pub v: RefCell<V>,
@@ -319,6 +321,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             h,
             dc,
             v: RefCell::new(v),
+            local_doubling: false,
             path_tracing_method: PathTracingMethod::ForwardGreedy,
             top_buffer,
             left_buffer,

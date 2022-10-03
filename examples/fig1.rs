@@ -44,6 +44,7 @@ fn main() {
                 cm: cm.clone(),
                 use_gap_cost_heuristic: true,
                 exponential_search: true,
+                local_doubling: false,
                 h: NoCost,
                 v: vis(config.clone(), "1_ukkonen"),
             };

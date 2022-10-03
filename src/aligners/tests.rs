@@ -623,6 +623,7 @@ mod nw_sh {
                 cm,
                 use_gap_cost_heuristic: false,
                 exponential_search: true,
+                local_doubling: false,
                 h: SH {
                     match_config: MatchConfig::exact(5),
                     pruning: Pruning::default(),
@@ -709,6 +710,7 @@ mod homopolymer {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: false,
+            local_doubling: false,
             h: NoCost,
             v: NoVisualizer,
         };
@@ -758,6 +760,7 @@ mod homopolymer {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: false,
+            local_doubling: false,
             v: NoVisualizer,
             h: NoCost,
         };
