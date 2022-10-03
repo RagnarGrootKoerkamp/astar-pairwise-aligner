@@ -136,12 +136,7 @@ where
         for<'l> &'l I: RefNum<I>,
     {
         self.fronts.rotate_left(1);
-        self.fronts.last_mut().unwrap().reset(
-            self.value,
-            range,
-            self.lr_buffers.0,
-            self.lr_buffers.1,
-        );
+        self.fronts.last_mut().unwrap().reset(self.value, range);
         self.range = *self.range.start() + I::one()..=*self.range.end() + I::one();
     }
 
@@ -172,6 +167,13 @@ where
     #[must_use]
     pub fn last(&self) -> &Front<N, T, I> {
         self.fronts.last().unwrap()
+    }
+
+    #[must_use]
+    pub fn split_at(&mut self, index: I) -> (&Front<N, T, I>, &mut Front<N, T, I>) {
+        let index = (index + self.buffers.0 - self.range.start()).as_();
+        let (begin, end) = self.fronts.split_at_mut(index);
+        (&begin[index - 1], &mut end[0])
     }
 }
 
@@ -212,20 +214,17 @@ where
         }
     }
 
-    /// Resize the current front for the given range, using the given left/right buffer sizes.
-    /// Overwrites existing elements to the given value.
-    pub fn reset(&mut self, value: T, range: RangeInclusive<I>, left_buffer: I, right_buffer: I)
+    /// Resize the current front for the given range, reusing the buffer sizes.
+    pub fn reset(&mut self, value: T, range: RangeInclusive<I>)
     where
         T: Clone,
         for<'l> &'l I: RefNum<I>,
     {
         self.range = range;
-        self.buffers.0 = left_buffer;
-        self.buffers.1 = right_buffer;
         let new_len: I = if self.range.is_empty() {
-            left_buffer + right_buffer
+            self.buffers.0 + self.buffers.1
         } else {
-            left_buffer + (self.range.end() - self.range.start() + I::one()) + right_buffer
+            self.buffers.0 + (self.range.end() - self.range.start() + I::one()) + self.buffers.1
         };
         self.m.clear();
         self.m.resize(new_len.as_(), value);
