@@ -80,7 +80,7 @@ impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
         &mut self,
         _a: super::Seq,
         _b: super::Seq,
-        _s_bound: Option<crate::cost_model::Cost>,
+        _f_max: Option<crate::cost_model::Cost>,
     ) -> Option<crate::cost_model::Cost> {
         unimplemented!("Astar doesn't support it");
     }
@@ -89,7 +89,7 @@ impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
         &mut self,
         _a: super::Seq,
         _b: super::Seq,
-        _s_bound: Option<crate::cost_model::Cost>,
+        _f_max: Option<crate::cost_model::Cost>,
     ) -> Option<(crate::cost_model::Cost, super::cigar::Cigar)> {
         unimplemented!("Astar doesn't support it");
     }

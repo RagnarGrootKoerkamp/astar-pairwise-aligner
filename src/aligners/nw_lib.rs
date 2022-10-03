@@ -44,7 +44,7 @@ impl Aligner for NWLib {
     fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
         unimplemented!()
     }
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Option<Cost>) -> Option<Cost> {
+    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Option<Cost>) -> Option<Cost> {
         unimplemented!();
     }
 
@@ -52,7 +52,7 @@ impl Aligner for NWLib {
         &mut self,
         _a: Seq,
         _b: Seq,
-        _s_bound: Option<Cost>,
+        _f_max: Option<Cost>,
     ) -> Option<(Cost, Cigar)> {
         unimplemented!();
     }

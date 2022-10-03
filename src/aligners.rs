@@ -127,13 +127,13 @@ pub trait Aligner: std::fmt::Debug {
         unimplemented!();
     }
 
-    /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most `s_bound`.
+    /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most `f_max`.
     /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.
     /// The returned cost may be larger than `s` when a path was found, even
     /// though this may not be the optimal cost.
     ///
-    /// When `_s_bound` is `None`, there is no upper bound, and this is the same as simply `cost`.
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _s_bound: Option<Cost>) -> Option<Cost>;
+    /// When `_f_max` is `None`, there is no upper bound, and this is the same as simply `cost`.
+    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Option<Cost>) -> Option<Cost>;
 
     /// Finds an alignments (path/Cigar) of sequences `a` and `b`, assuming the
     /// cost of the alignment is at most s.
@@ -141,11 +141,11 @@ pub trait Aligner: std::fmt::Debug {
     /// The returned cost may be larger than `s` when a path was found, even
     /// though this may not be the optimal cost.
     ///
-    /// When `_s_bound` is `None`, there is no upper bound, and this is the same as simply `align`.
+    /// When `_f_max` is `None`, there is no upper bound, and this is the same as simply `align`.
     fn align_for_bounded_dist(
         &mut self,
         _a: Seq,
         _b: Seq,
-        _s_bound: Option<Cost>,
+        _f_max: Option<Cost>,
     ) -> Option<(Cost, Cigar)>;
 }
