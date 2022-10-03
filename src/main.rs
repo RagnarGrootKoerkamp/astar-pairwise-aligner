@@ -113,7 +113,7 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                     use_gap_cost_heuristic: false,
                     exponential_search: self.args.algorithm.exp_search,
                     local_doubling: self.args.algorithm.local_doubling,
-                    h: NoCost,
+                    h: self.h,
                     v,
                 }
                 .align(self.a, self.b)
@@ -125,7 +125,7 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                 let mut dt = aligners::diagonal_transition::DiagonalTransition::new(
                     LinearCost::new_unit(),
                     GapCostHeuristic::Disable,
-                    NoCost,
+                    self.h,
                     self.args.algorithm.dc,
                     v,
                 );

@@ -21,6 +21,8 @@ pub trait DistanceInstance<'a>: HeuristicInstance<'a> {
 pub struct NoCost;
 impl Heuristic for NoCost {
     type Instance<'a> = NoCostI;
+    const IS_DEFAULT: bool = true;
+
     fn name(&self) -> String {
         "Zero".into()
     }
@@ -54,7 +56,6 @@ impl DistanceInstance<'_> for NoCostI {
 pub struct ZeroCost;
 impl Heuristic for ZeroCost {
     type Instance<'a> = ZeroCostI;
-    const IS_DEFAULT: bool = true;
 
     fn name(&self) -> String {
         "None".into()
