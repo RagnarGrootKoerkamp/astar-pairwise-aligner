@@ -387,23 +387,21 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         false
     }
 
-    /// The range of diagonals to consider for the given cost `s`.
-    /// Computes the minimum and maximum possible diagonal reachable for this `s`.
+    /// The range of diagonals to consider for the given cost `g`.
+    /// Computes the minimum and maximum possible diagonal reachable for this `g`.
     /// TODO: Some of the functions here should move to EditGraph.
     fn d_range(
         &self,
         a: Seq,
         b: Seq,
         h: &H::Instance<'_>,
-        s: Cost,
-        s_bound: Option<Cost>,
-        prev: &[Front<N>],
+        g: Cost,
+        f_max: Option<Cost>,
+        fronts: &Fronts<N>,
     ) -> RangeInclusive<Fr> {
-        fn get_front<const N: usize>(fronts: &[Front<N>], cost: Cost) -> &Front<N> {
-            &fronts[fronts.len() - cost as usize]
-        }
-
-        let mut r = prev.last().unwrap().range().clone();
+        let g = g as Fr;
+        assert!(g > 0);
+        let mut r = fronts[g - 1].range().clone();
 
         EditGraph::iterate_layers(&self.cm, |layer| {
             // Find an initial range.
@@ -414,7 +412,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 layer,
                 |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
                     // Get start and end of parent layer.
-                    let pr = get_front(prev, edge_cost);
+                    let pr = &fronts[g - edge_cost as Fr];
                     let mut start = *pr.range().start();
                     let mut end = *pr.range().end();
                     let d = di - dj;
@@ -438,7 +436,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         });
 
         // If no bound on the cost was specified, return here.
-        let Some(s_bound) = s_bound else {
+        let Some(f_max) = f_max else {
             return r;
         };
 
@@ -452,11 +450,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Enable);
             // Shrink the range by distance to end.
             let d = a.len() as Fr - b.len() as Fr;
-            let s_remaining = s_bound - s;
+            let h_max = f_max - g as Cost;
             // NOTE: Gap open cost was already paid, so we only restrict by extend cost.
             // TODO: Extract this from the EditGraph somehow.
-            let gap_cost_r = d - (s_remaining / self.cm.min_del_extend) as Fr
-                ..=d + (s_remaining / self.cm.min_ins_extend) as Fr;
+            let gap_cost_r = d - (h_max / self.cm.min_del_extend) as Fr
+                ..=d + (h_max / self.cm.min_ins_extend) as Fr;
             r = max(*r.start(), *gap_cost_r.start())..=min(*r.end(), *gap_cost_r.end());
             return r;
         } else {
@@ -473,7 +471,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 // TODO: Fix for affine layers.
                 None,
                 |di, dj, _layer, edge_cost| -> Option<(Fr, Fr)> {
-                    let parent_front = get_front(prev, edge_cost);
+                    let parent_front = &fronts[g - edge_cost as Fr];
                     d_min = min(d_min, *parent_front.range().start() + (di - dj));
                     d_max = max(d_max, *parent_front.range().end() + (di - dj));
                     None
@@ -498,7 +496,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     // TODO: Fix for affine layers.
                     None,
                     |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
-                        let fr = get_front(prev, edge_cost).layer(layer)[d + (di - dj) as Fr]
+                        let fr = fronts[g - edge_cost as Fr].layer(layer)[d + (di - dj) as Fr]
                             - (di + dj) as Fr;
                         if fr >= 0 {
                             Some(fr_to_coords(d, fr))
@@ -513,7 +511,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 let pos = fr_to_pos(d, fr);
                 (pos.0 as usize) <= a.len()
                     && (pos.1 as usize) <= b.len()
-                    && s + h.h(pos) <= s_bound
+                    && g as Cost + h.h(pos) <= f_max
             };
 
             while d_min <= d_max && !test(d_min) {
@@ -527,7 +525,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         }
     }
 
-    /// Computes the next layer from the current one.
+    /// Computes layer g from the previous ones.
     /// `ca` is the `i`th character of sequence `a`.
     ///
     /// NOTE: `next` must already have the right range set.
@@ -537,23 +535,19 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         &mut self,
         a: Seq,
         b: Seq,
-        fronts: &mut [Front<N>],
+        g: Cost,
+        fronts: &mut Fronts<N>,
         offset: Pos,
         start_layer: Layer,
         direction: Direction,
     ) -> bool {
-        // Get the front `cost` before the last one.
-        fn get_front<const N: usize>(fronts: &mut [Front<N>], cost: Cost) -> &mut Front<N> {
-            &mut fronts[fronts.len() - 1 - cost as usize]
-        }
-
         // Loop over the entire dmin..=dmax range.
         // The boundaries are buffered so no boundary checks are needed.
         // TODO: Vectorize this loop, or at least verify the compiler does this.
         // TODO: Loop over a positive range that does not need additional shifting?
         match direction {
             Direction::Forward => {
-                for d in get_front(fronts, 0).range().clone() {
+                for d in fronts[g as Fr].range().clone() {
                     EditGraph::iterate_layers(&self.cm, |layer| {
                         let mut fr = Fr::MIN;
                         EditGraph::iterate_parents_dt(
@@ -562,7 +556,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             &self.cm,
                             layer,
                             |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
-                                let fr = get_front(fronts, edge_cost).layer(layer)
+                                let fr = fronts[g as Fr - edge_cost as Fr].layer(layer)
                                     [d + (di - dj) as Fr]
                                     - (di + dj) as Fr;
                                 if fr >= 0 {
@@ -577,7 +571,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                 }
                             },
                         );
-                        let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
+                        let val = &mut fronts[g as Fr].layer_mut(layer)[d];
                         *val = max(*val, fr);
                     });
                 }
@@ -586,7 +580,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 let mirror = |(i, j)| (a.len() as Fr - i, b.len() as Fr - j);
                 let max_fr = a.len() as Fr + b.len() as Fr;
                 let mirror_fr = |fr| max_fr - fr;
-                for d in get_front(fronts, 0).range().clone() {
+                for d in fronts[g as Fr].range().clone() {
                     EditGraph::iterate_layers(&self.cm, |layer| {
                         let mut fr = Fr::MIN;
                         EditGraph::iterate_children_dt(
@@ -596,7 +590,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             layer,
                             // NOTE: This returns a forward position.
                             |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
-                                let fr = get_front(fronts, edge_cost).layer(layer)
+                                let fr = fronts[g as Fr - edge_cost as Fr].layer(layer)
                                     [d - (di - dj) as Fr]
                                     + (di + dj) as Fr;
                                 if fr >= 0 {
@@ -611,7 +605,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                 }
                             },
                         );
-                        let val = &mut get_front(fronts, 0).layer_mut(layer)[d];
+                        let val = &mut fronts[g as Fr].layer_mut(layer)[d];
                         *val = max(*val, fr);
                     });
                 }
@@ -621,15 +615,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         // We set the fr. point for the 0 diagonal to at least 0.
         // This ensures that fr[d][s] <= fr[d][s'] when s <= s'.
         // That in turn simplifies the overlap condition check, since we only need to check overlap for the two last fronts.
-        let front = get_front(fronts, 0);
+        let front = &mut fronts[g as Fr];
         if front.range().contains(&0) {
             front.layer_mut(start_layer)[0] = max(front.layer(start_layer)[0], 0);
         }
 
         // Extend all points in the m layer and check if we're done.
-        let r = self.extend(get_front(fronts, 0), a, b, offset, direction);
-        self.v.borrow_mut().new_layer();
-        r
+        self.extend(&mut fronts[g as Fr], a, b, offset, direction)
     }
 
     // Returns None when the sequences are equal.
@@ -795,13 +787,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         Forward => &mut forward_fronts,
                         Backward => &mut backward_fronts,
                     };
-                    let range = self.d_range(a, b, h, s, None, &fronts.fronts);
+                    let range = self.d_range(a, b, h, s, None, fronts);
                     assert!(!range.is_empty());
                     fronts.rotate(range);
                     self.next_front(
                         a,
                         b,
-                        &mut fronts.fronts,
+                        s,
+                        fronts,
                         offset,
                         match dir {
                             Forward => start_layer,
@@ -827,6 +820,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         break 'outer;
                     }
                 }
+                self.v.borrow_mut().new_layer();
             }
         }
 
@@ -906,7 +900,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         &mut self,
         a: Seq,
         b: Seq,
-        s_bound: Option<Cost>,
+        f_max: Option<Cost>,
         h: &H::Instance<'_>,
     ) -> Option<(Cost, Cigar)> {
         self.v.borrow_mut().expand(Pos(0, 0));
@@ -915,78 +909,143 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             Err(r) => return Some(r),
         };
 
-        for s in 1.. {
-            if let Some(s_bound) = s_bound && s > s_bound {
+        let mut s = 0;
+        loop {
+            s += 1;
+            if let Some(f_max) = f_max && s > f_max {
                 return None;
             }
 
             // We can not initialize all layers directly at the start, since we do not know the final distance s.
-            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
+            let range = self.d_range(a, b, h, s, f_max, &fronts);
             if range.is_empty() {
                 return None;
             }
             fronts.push(range);
-            if self.next_front(
-                a,
-                b,
-                &mut fronts.fronts,
-                Pos(0, 0),
-                None,
-                Direction::Forward,
-            ) {
-                let cigar = self.trace(
-                    a,
-                    b,
-                    &fronts,
-                    DtState::start(),
-                    DtState::target(a, b, s),
-                    Direction::Forward,
-                );
-
-                self.v.borrow_mut().last_frame_with_h::<H::Instance<'_>>(
-                    Some(&cigar.to_path()),
-                    Some(
-                        &(|st| {
-                            // Determine the cost for the position.
-                            let mut dst = DtState::from_pos(st.pos(), 0);
-                            dst.layer = st.layer;
-                            // println!("pos: {pos}");
-                            // println!("st: {st:?}");
-                            loop {
-                                let front = &fronts[dst.s as Fr];
-                                if front.range().contains(&dst.d)
-                                    && front.layer(dst.layer)[dst.d] >= dst.fr
-                                {
-                                    break;
-                                    // println!(
-                                    //     "st: {st:?} fr {}",
-                                    //     fronts[st.s as Fr].layer(None)[st.d]
-                                    // );
-                                }
-                                dst.s += 1;
-                            }
-
-                            self.parent(a, b, &fronts, dst, Direction::Forward)
-                                .map(|x| {
-                                    let p = x.0.to_pos();
-                                    (
-                                        State {
-                                            i: p.0 as isize,
-                                            j: p.1 as isize,
-                                            layer: x.0.layer,
-                                        },
-                                        x.1,
-                                    )
-                                })
-                        }),
-                    ),
-                    Some(&h),
-                );
-
-                return Some((s, cigar));
+            if self.next_front(a, b, s, &mut fronts, Pos(0, 0), None, Direction::Forward) {
+                break;
             }
+            self.v.borrow_mut().new_layer();
         }
-        unreachable!()
+
+        let cigar = self.trace(
+            a,
+            b,
+            &fronts,
+            DtState::start(),
+            DtState::target(a, b, s),
+            Direction::Forward,
+        );
+        self.visualize_last_frame(a, b, fronts, &cigar, h);
+        Some((s, cigar))
+    }
+
+    pub fn align_local_band_doubling<'a>(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
+        self.v.borrow_mut().expand(Pos(0, 0));
+        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
+            Ok(fronts) => fronts,
+            Err(r) => return r,
+        };
+
+        let ref mut h = self.h.build(a, b);
+
+        // Front g has been computed up to this f.
+        let mut f_max = vec![h.h(Pos(0, 0))];
+        // Each time a front is grown and recomputed, the increment of the f range doubles.
+        let mut f_delta = vec![1];
+
+        // The value of f at the tip. When going to the next front, this is
+        // incremented until the range is non-empty.
+        let mut f_tip = h.h(Pos(0, 0));
+
+        let mut g = 0;
+        'outer: loop {
+            g += 1;
+            // We can not initialize all layers directly at the start, since we do not know the final distance s.
+            let mut range;
+            loop {
+                range = self.d_range(a, b, h, g, Some(f_tip), &fronts);
+                if !range.is_empty() {
+                    break;
+                }
+                f_tip += 1;
+            }
+            f_max.push(f_tip);
+            f_delta.push(1);
+            fronts.push(range);
+
+            // Double previous front sizes as long as their f_max is not large enough.
+            let mut start_g = g as usize;
+            while start_g > 0 && f_max[start_g - 1] < f_max[start_g] {
+                start_g -= 1;
+                f_max[start_g] += f_delta[start_g];
+                assert!(f_max[start_g] >= f_max[start_g+1], "Doubling a front once should always be sufficient to cover the next front. From {} to {} by {} target {}", f_max[start_g]-f_delta[start_g], f_max[start_g], f_delta[start_g], f_max[start_g+1]);
+                f_delta[start_g] *= 2;
+            }
+
+            // Recompute all fronts from start_g upwards.
+            for g in start_g as Cost..=g {
+                let range = self.d_range(a, b, h, g, Some(f_max[g as usize]), &fronts);
+                fronts[g as Fr].reset(0, range);
+                if self.next_front(a, b, g, &mut fronts, Pos(0, 0), None, Direction::Forward) {
+                    break 'outer;
+                }
+            }
+
+            self.v.borrow_mut().new_layer();
+        }
+        let cigar = self.trace(
+            a,
+            b,
+            &fronts,
+            DtState::start(),
+            DtState::target(a, b, g),
+            Direction::Forward,
+        );
+        self.visualize_last_frame(a, b, fronts, &cigar, h);
+        (g, cigar)
+    }
+
+    fn visualize_last_frame(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        fronts: Fronts<N>,
+        cigar: &Cigar,
+        h: &H::Instance<'_>,
+    ) {
+        self.v.borrow_mut().last_frame_with_h::<H::Instance<'_>>(
+            Some(&cigar.to_path()),
+            Some(
+                &(|st| {
+                    // Determine the cost for the position.
+                    let mut dst = DtState::from_pos(st.pos(), 0);
+                    dst.layer = st.layer;
+                    loop {
+                        let front = &fronts[dst.s as Fr];
+                        if front.range().contains(&dst.d) && front.layer(dst.layer)[dst.d] >= dst.fr
+                        {
+                            break;
+                        }
+                        dst.s += 1;
+                    }
+
+                    self.parent(a, b, &fronts, dst, Direction::Forward)
+                        .map(|x| {
+                            let p = x.0.to_pos();
+                            (
+                                State {
+                                    i: p.0 as isize,
+                                    j: p.1 as isize,
+                                    layer: x.0.layer,
+                                },
+                                x.1,
+                            )
+                        })
+                }),
+            ),
+            Some(&h),
+        );
     }
 }
 
@@ -1152,27 +1211,34 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         if self.dc {
             return self.align_dc(a, b);
         }
-        let (cost, cigar) =
-            if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
-                exponential_search(
-                    self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                    2.,
-                    |s| {
-                        self.align_for_bounded_dist(a, b, Some(s))
-                            .map(|x @ (c, _)| (c, x))
-                    },
-                )
-                .1
-            } else {
-                self.align_for_bounded_dist(a, b, None).unwrap()
-            };
-        (cost, cigar)
+        let cc;
+        if self.local_doubling {
+            assert!(
+                !H::IS_DEFAULT,
+                "Local doubling only works with a heuristic."
+            );
+            cc = self.align_local_band_doubling(a, b);
+        } else if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
+            cc = exponential_search(
+                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                2.,
+                |s| {
+                    self.align_for_bounded_dist(a, b, Some(s))
+                        .map(|x @ (c, _)| (c, x))
+                },
+            )
+            .1;
+            self.v.borrow_mut().last_frame(Some(&cc.1.to_path()));
+        } else {
+            cc = self.align_for_bounded_dist(a, b, None).unwrap();
+        };
+        cc
     }
 
     /// The cost-only version uses linear memory.
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
-    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, s_bound: Option<Cost>) -> Option<Cost> {
+    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Option<Cost>) -> Option<Cost> {
         self.v.borrow_mut().expand(Pos(0, 0));
         let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
             Ok(fronts) => fronts,
@@ -1182,24 +1248,19 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         let ref mut h = self.h.build(a, b);
 
         for s in 1.. {
-            if let Some(s_bound) = s_bound && s > s_bound {
+            if let Some(f_max) = f_max && s > f_max {
                 return None;
             }
-            let range = self.d_range(a, b, h, s, s_bound, &fronts.fronts);
+            let range = self.d_range(a, b, h, s, f_max, &fronts);
             if range.is_empty() {
                 return None;
             }
             fronts.rotate(range);
-            if self.next_front(
-                a,
-                b,
-                &mut fronts.fronts,
-                Pos(0, 0),
-                None,
-                Direction::Forward,
-            ) {
+            if self.next_front(a, b, s, &mut fronts, Pos(0, 0), None, Direction::Forward) {
+                self.v.borrow_mut().last_frame(None);
                 return Some(s);
             }
+            self.v.borrow_mut().new_layer();
         }
 
         unreachable!()
@@ -1209,9 +1270,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         &mut self,
         a: Seq,
         b: Seq,
-        s_bound: Option<Cost>,
+        f_max: Option<Cost>,
     ) -> Option<(Cost, Cigar)> {
-        self.align_for_bounded_dist_with_h(a, b, s_bound, &self.h.build(a, b))
+        self.align_for_bounded_dist_with_h(a, b, f_max, &self.h.build(a, b))
     }
 
     /// Finds an alignment in linear memory, by using divide & conquer.
@@ -1221,6 +1282,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         // the fronts meet) is not know.
         assert!(H::IS_DEFAULT);
         assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
+        assert!(!self.local_doubling);
 
         self.v.borrow_mut().expand(Pos(0, 0));
         let (cost, cigar) = self.path_between_dc(a, b, Pos(0, 0), None, None);
