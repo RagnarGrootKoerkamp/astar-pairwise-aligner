@@ -220,8 +220,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
 
         // Front i has been computed up to this f.
         let mut f_max = vec![h.h(Pos(0, 0))];
-        // Each time a front is grown and recomputed, the increment of the f range doubles.
-        let mut f_delta = vec![1];
+        // Each time a front is grown, it grows to the least multiple of delta that is large enough.
+        // Delta doubles after each grow.
+        const DELTA_0: Cost = 2;
+        let mut f_delta = vec![2];
 
         // The value of f at the tip. When going to the next front, this is
         // incremented until the range is non-empty.
@@ -229,33 +231,41 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
 
         let mut i = 0;
         loop {
-            i += 1;
-            // We can not initialize all layers directly at the start, since we do not know the final distance s.
-            let mut range;
-            loop {
-                range = self.j_range(a, b, h, i, Some(f_tip), &fronts[i - 1]);
-                if !range.is_empty() {
-                    break;
+            if i < a.len() as Idx {
+                // Add a new front.
+                i += 1;
+                let mut range;
+                loop {
+                    range = self.j_range(a, b, h, i, Some(f_tip), &fronts[i - 1]);
+                    if !range.is_empty() {
+                        break;
+                    }
+                    f_tip += 1;
                 }
-                f_tip += 1;
+                f_max.push(f_tip);
+                f_delta.push(DELTA_0);
+                fronts.push(range);
+            } else {
+                // Only grow the last front.
+                let delta = &mut f_delta[i as usize];
+                f_max[i as usize] = (f_max[i as usize] + *delta - 1) / *delta * *delta;
+                *delta *= 2;
             }
-            println!("Col {i} f_tip {f_tip} range {range:?}");
-            f_max.push(f_tip);
-            f_delta.push(1);
-            fronts.push(range);
 
             // Double previous front sizes as long as their f_max is not large enough.
             let mut start_i = i as usize;
             while start_i > 1 && f_max[start_i - 1] < f_max[start_i] {
                 start_i -= 1;
-                f_max[start_i] += f_delta[start_i];
-                println!(
-                    "Bump {start_i} from {} to {}",
-                    f_max[start_i] - f_delta[start_i],
-                    f_max[start_i]
+                let before = f_max[start_i];
+                let delta = &mut f_delta[start_i];
+                f_max[start_i] = (f_max[start_i + 1] + *delta - 1) / *delta * *delta;
+                assert!(
+                    f_max[start_i] >= f_max[start_i + 1],
+                    "Doubling not enough!? From {before} to {} by {delta} target {}",
+                    f_max[start_i],
+                    f_max[start_i + 1]
                 );
-                assert!(f_max[start_i] >= f_max[start_i+1], "Doubling a front once should always be sufficient to cover the next front. From {} to {} by {} target {}", f_max[start_i]-f_delta[start_i], f_max[start_i], f_delta[start_i], f_max[start_i+1]);
-                f_delta[start_i] *= 2;
+                *delta *= 2;
             }
 
             // Recompute all fronts from start_g upwards.
@@ -264,8 +274,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 fronts[i as Idx].reset(INF, range);
                 let (prev, next) = fronts.split_at(i);
                 self.next_front(i, a, b, prev, next);
+                self.v.new_layer();
             }
-            self.v.new_layer();
 
             if i == a.len() as Idx && fronts[a.len() as Idx].range().contains(&(b.len() as Idx)) {
                 break;
