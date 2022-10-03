@@ -58,6 +58,24 @@ pub struct AlignResult {
 }
 
 impl AlignResult {
+    pub fn new(a: Seq, b: Seq, cost: u32, total_duration: f32) -> AlignResult {
+        AlignResult {
+            sample_size: 1,
+            input: InputStats {
+                len_a: a.len(),
+                len_b: b.len(),
+                ..Default::default()
+            },
+            edit_distance: cost as Cost,
+            timing: TimingStats {
+                total: total_duration,
+                total_sum_squares: total_duration * total_duration,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
     pub fn add_sample(&mut self, other: &AlignResult) {
         if self.sample_size == 0 {
             *self = (*other).clone();

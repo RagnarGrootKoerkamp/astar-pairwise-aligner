@@ -67,79 +67,74 @@ impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
             self.a,
             self.b,
             <Cli as clap::CommandFactory>::command().get_matches(),
-            AstarViz { aligner: &self, h },
+            AstarViz {
+                a: &self.a,
+                b: &self.b,
+                h,
+                args: &self.args,
+            },
         )
     }
 }
 
 /// Wrapper function to run on each visualizer.
-struct AstarViz<'a, 'b, 'c, H: Heuristic> {
-    aligner: &'c AlignWithHeuristic<'a, 'b>,
+struct AstarViz<'a, 'd, H: Heuristic> {
+    a: Seq<'a>,
+    b: Seq<'a>,
+    args: &'d Cli,
     h: H,
 }
 
-impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, '_, H> {
+impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
     type R = AlignResult;
 
     fn call<V: visualizer::VisualizerT>(&self, mut v: V) -> Self::R {
-        let sequence_stats = InputStats {
-            len_a: self.aligner.a.len(),
-            len_b: self.aligner.b.len(),
-            error_rate: 0.,
-        };
-        align_advanced(
-            self.aligner.a,
-            self.aligner.b,
-            sequence_stats,
-            self.h,
-            !self.aligner.args.algorithm.no_greedy_matching,
-            self.aligner.args.algorithm.dt,
-            &mut v,
-        )
-    }
-}
-
-struct NwViz<'a> {
-    a: Seq<'a>,
-    b: Seq<'a>,
-    exponential_search: bool,
-}
-
-impl VisualizerRunner for NwViz<'_> {
-    type R = Cost;
-
-    fn call<V: visualizer::VisualizerT>(&self, v: V) -> Self::R {
-        aligners::nw::NW {
-            cm: LinearCost::new_unit(),
-            use_gap_cost_heuristic: false,
-            exponential_search: self.exponential_search,
-            h: ZeroCost,
-            v,
+        match self.args.algorithm.algorithm {
+            Algorithm::AStar => {
+                let sequence_stats = InputStats {
+                    len_a: self.a.len(),
+                    len_b: self.b.len(),
+                    error_rate: 0.,
+                };
+                align_advanced(
+                    self.a,
+                    self.b,
+                    sequence_stats,
+                    self.h,
+                    !self.args.algorithm.no_greedy_matching,
+                    self.args.algorithm.dt,
+                    &mut v,
+                )
+            }
+            Algorithm::NW => {
+                let start = Instant::now();
+                let cost = aligners::nw::NW {
+                    cm: LinearCost::new_unit(),
+                    use_gap_cost_heuristic: false,
+                    exponential_search: self.args.algorithm.exp_search,
+                    local_doubling: self.args.algorithm.local_doubling,
+                    h: NoCost,
+                    v,
+                }
+                .align(self.a, self.b)
+                .0;
+                AlignResult::new(self.a, self.b, cost, start.elapsed().as_secs_f32())
+            }
+            Algorithm::DT => {
+                let start = Instant::now();
+                let mut dt = aligners::diagonal_transition::DiagonalTransition::new(
+                    LinearCost::new_unit(),
+                    GapCostHeuristic::Disable,
+                    NoCost,
+                    self.args.algorithm.dc,
+                    v,
+                );
+                dt.local_doubling = self.args.algorithm.local_doubling;
+                let cost = dt.align(self.a, self.b).0;
+                AlignResult::new(self.a, self.b, cost, start.elapsed().as_secs_f32())
+            }
+            _ => panic!(),
         }
-        .align(self.a, self.b)
-        .0
-    }
-}
-
-struct DtViz<'a> {
-    a: Seq<'a>,
-    b: Seq<'a>,
-    dc: bool,
-}
-
-impl VisualizerRunner for DtViz<'_> {
-    type R = Cost;
-
-    fn call<V: visualizer::VisualizerT>(&self, v: V) -> Self::R {
-        aligners::diagonal_transition::DiagonalTransition::new(
-            LinearCost::new_unit(),
-            GapCostHeuristic::Disable,
-            ZeroCost,
-            self.dc,
-            v,
-        )
-        .align(self.a, self.b)
-        .0
     }
 }
 
@@ -152,7 +147,7 @@ fn main() {
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = if args.algorithm.algorithm != Algorithm::AStar {
+        let r = if args.algorithm.algorithm.external() {
             let start = Instant::now();
             let cost = match args.algorithm.algorithm {
                 Algorithm::NwLib => NWLib { simd: false }.cost(a, b),
@@ -183,44 +178,10 @@ fn main() {
                     }
                     .cost(a, b)
                 }
-                Algorithm::NW => args.visualizer.run_on_visualizer(
-                    a,
-                    b,
-                    <Cli as clap::CommandFactory>::command().get_matches(),
-                    NwViz {
-                        a,
-                        b,
-                        exponential_search: args.algorithm.exp_search,
-                    },
-                ),
-                Algorithm::DT => args.visualizer.run_on_visualizer(
-                    a,
-                    b,
-                    <Cli as clap::CommandFactory>::command().get_matches(),
-                    DtViz {
-                        a,
-                        b,
-                        dc: args.algorithm.dc,
-                    },
-                ),
-                Algorithm::AStar => unreachable!(),
+                _ => unreachable!(),
             };
             let total_duration = start.elapsed().as_secs_f32();
-            AlignResult {
-                sample_size: 1,
-                input: InputStats {
-                    len_a: a.len(),
-                    len_b: b.len(),
-                    ..Default::default()
-                },
-                edit_distance: cost as Cost,
-                timing: TimingStats {
-                    total: total_duration,
-                    total_sum_squares: total_duration * total_duration,
-                    ..Default::default()
-                },
-                ..Default::default()
-            }
+            AlignResult::new(a, b, cost, total_duration)
         } else {
             args.heuristic
                 .run_on_heuristic(AlignWithHeuristic { a, b, args: &args })
