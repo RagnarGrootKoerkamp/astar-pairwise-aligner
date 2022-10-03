@@ -10,7 +10,7 @@
 
 use crate::{
     aligners::{cigar::CigarOp, edit_graph::State, Path},
-    heuristic::{HeuristicInstance, ZeroCostI},
+    heuristic::{HeuristicInstance, NoCostI},
     prelude::Pos,
 };
 
@@ -37,13 +37,13 @@ type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>;
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
     fn explore(&mut self, pos: Pos) {
-        self.explore_with_h::<ZeroCostI>(pos, None);
+        self.explore_with_h::<NoCostI>(pos, None);
     }
     fn expand(&mut self, pos: Pos) {
-        self.expand_with_h::<ZeroCostI>(pos, None);
+        self.expand_with_h::<NoCostI>(pos, None);
     }
     fn extend(&mut self, pos: Pos) {
-        self.extend_with_h::<ZeroCostI>(pos, None);
+        self.extend_with_h::<NoCostI>(pos, None);
     }
     fn explore_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&HI>) {}
     fn expand_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&HI>) {}
@@ -51,16 +51,16 @@ pub trait VisualizerT {
 
     /// This function should be called after completing each layer
     fn new_layer(&mut self) {
-        self.new_layer_with_h::<ZeroCostI>(None);
+        self.new_layer_with_h::<NoCostI>(None);
     }
     fn new_layer_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _h: Option<&HI>) {}
 
     /// This function may be called after the main loop to display final image.
     fn last_frame(&mut self, path: Option<&Path>) {
-        self.last_frame_with_h::<ZeroCostI>(path, None, None);
+        self.last_frame_with_h::<NoCostI>(path, None, None);
     }
     fn last_frame_with_tree(&mut self, path: Option<&Path>, parent: ParentFn) {
-        self.last_frame_with_h::<ZeroCostI>(path, parent, None);
+        self.last_frame_with_h::<NoCostI>(path, parent, None);
     }
     fn last_frame_with_h<'a, HI: HeuristicInstance<'a>>(
         &mut self,

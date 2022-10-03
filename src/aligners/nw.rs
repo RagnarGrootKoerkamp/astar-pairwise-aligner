@@ -4,7 +4,7 @@ use super::edit_graph::{CigarOps, EditGraph, State};
 use super::{exponential_search, Aligner};
 use super::{Seq, Sequence};
 use crate::cost_model::*;
-use crate::heuristic::{Heuristic, HeuristicInstance, ZeroCost};
+use crate::heuristic::{Heuristic, HeuristicInstance, NoCost};
 use crate::prelude::Pos;
 use crate::visualizer::{NoVisualizer, VisualizerT};
 use itertools::chain;
@@ -55,13 +55,13 @@ type Fronts<const N: usize> = super::front::Fronts<N, Cost, Idx>;
 const LEFT_BUFFER: Idx = 1;
 const RIGHT_BUFFER: Idx = 1;
 
-impl<const N: usize> NW<AffineCost<N>, NoVisualizer, ZeroCost> {
+impl<const N: usize> NW<AffineCost<N>, NoVisualizer, NoCost> {
     pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
         Self {
             cm,
             use_gap_cost_heuristic,
             exponential_search,
-            h: ZeroCost,
+            h: NoCost,
             v: NoVisualizer,
         }
     }

@@ -13,7 +13,43 @@ pub trait DistanceInstance<'a>: HeuristicInstance<'a> {
     fn distance(&self, from: Pos, to: Pos) -> Cost;
 }
 
-// # ZERO HEURISTIC
+// # NONE HEURISTIC
+// The difference between None and Zero is that None is special cased is NW and
+// DT implementations to fall back to simpler methods, while Zero is considered
+// like any other heuristic.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoCost;
+impl Heuristic for NoCost {
+    type Instance<'a> = NoCostI;
+    fn name(&self) -> String {
+        "Zero".into()
+    }
+
+    fn build<'a>(&self, _a: Seq<'a>, _b: Seq<'a>) -> Self::Instance<'a> {
+        NoCostI
+    }
+}
+impl Distance for NoCost {
+    type DistanceInstance<'a> = NoCostI;
+
+    fn build<'a>(&self, _a: Seq<'a>, _b: Seq<'a>) -> Self::DistanceInstance<'a> {
+        NoCostI
+    }
+}
+
+pub struct NoCostI;
+impl HeuristicInstance<'_> for NoCostI {
+    fn h(&self, _pos: Pos) -> Cost {
+        0
+    }
+}
+impl DistanceInstance<'_> for NoCostI {
+    fn distance(&self, _from: Pos, _to: Pos) -> Cost {
+        0
+    }
+}
+
+// # Zero HEURISTIC
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ZeroCost;
 impl Heuristic for ZeroCost {
@@ -21,7 +57,7 @@ impl Heuristic for ZeroCost {
     const IS_DEFAULT: bool = true;
 
     fn name(&self) -> String {
-        "Zero".into()
+        "None".into()
     }
 
     fn build<'a>(&self, _a: Seq<'a>, _b: Seq<'a>) -> Self::Instance<'a> {

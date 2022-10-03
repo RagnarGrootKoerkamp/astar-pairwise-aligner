@@ -1231,7 +1231,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
 mod tests {
     use sdl2::pixels::Color;
 
-    use crate::{aligners::Aligner, cost_model::LinearCost, heuristic::ZeroCost, visualizer::*};
+    use crate::{aligners::Aligner, cost_model::LinearCost, heuristic::NoCost, visualizer::*};
 
     use super::DiagonalTransition;
 
@@ -1260,7 +1260,7 @@ mod tests {
         let mut dt = DiagonalTransition::new(
             LinearCost::new_linear(1, 3),
             super::GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             true,
             Visualizer::new(config, a, b),
         );

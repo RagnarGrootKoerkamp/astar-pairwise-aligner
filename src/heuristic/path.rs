@@ -9,7 +9,7 @@ use crate::{
     visualizer::NoVisualizer,
 };
 
-use super::{Heuristic, ZeroCost};
+use super::{Heuristic, NoCost};
 
 /// The Path heuristic takes as input a path, and builds a heuristic that
 /// 'simulates' the pruning of the SH/CSH by doing it up-front where possible.
@@ -29,7 +29,7 @@ impl<H: Heuristic> PathHeuristic<H> {
         let mut aligner = DiagonalTransition::new(
             LinearCost::new_unit(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             NoVisualizer,
         );

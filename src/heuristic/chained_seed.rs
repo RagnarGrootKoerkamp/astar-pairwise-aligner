@@ -53,11 +53,11 @@ impl<C: Contours> CSH<C> {
         }
     }
 
-    pub fn to_zero_cost_seed_heuristic(&self) -> BruteForceCSH<ZeroCost> {
+    pub fn to_zero_cost_seed_heuristic(&self) -> BruteForceCSH<NoCost> {
         assert!(!self.use_gap_cost);
         BruteForceCSH {
             match_config: self.match_config,
-            distance_function: ZeroCost,
+            distance_function: NoCost,
             pruning: self.pruning,
         }
     }
@@ -69,9 +69,7 @@ impl<C: Contours> CSH<C> {
         }
     }
 
-    pub fn equal_to_zero_cost_seed_heuristic(
-        &self,
-    ) -> EqualHeuristic<BruteForceCSH<ZeroCost>, Self> {
+    pub fn equal_to_zero_cost_seed_heuristic(&self) -> EqualHeuristic<BruteForceCSH<NoCost>, Self> {
         EqualHeuristic {
             h1: self.to_zero_cost_seed_heuristic(),
             h2: *self,

@@ -48,7 +48,7 @@ fn main() {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: false,
-            h: ZeroCost,
+            h: NoCost,
             v: vis("nw"),
         };
         nw.align(a, b);
@@ -59,7 +59,7 @@ fn main() {
             cm: cm.clone(),
             use_gap_cost_heuristic: true,
             exponential_search: true,
-            h: ZeroCost,
+            h: NoCost,
             v: vis("nw_gapcost"),
         };
         nw.align(a, b);
@@ -105,7 +105,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis("dt"),
         );
@@ -116,7 +116,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             true,
             vis("dt_dc"),
         );
@@ -127,7 +127,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Enable,
-            ZeroCost,
+            NoCost,
             false,
             vis("dt_gapcost"),
         );

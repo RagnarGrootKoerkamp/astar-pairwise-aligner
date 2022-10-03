@@ -49,7 +49,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "affine-repeats-open"),
         );
@@ -59,7 +59,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "affine-simple-open"),
         );

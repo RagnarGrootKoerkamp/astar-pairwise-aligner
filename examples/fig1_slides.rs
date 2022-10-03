@@ -42,7 +42,7 @@ fn main() {
             cm: cm.clone(),
             use_gap_cost_heuristic: true,
             exponential_search: true,
-            h: ZeroCost,
+            h: NoCost,
             v: vis(config.clone(), "1_ukkonen"),
         };
         nw.align(a, b);
@@ -52,7 +52,7 @@ fn main() {
         let mut a_star = AStar {
             diagonal_transition: false,
             greedy_edge_matching: true,
-            h: ZeroCost,
+            h: NoCost,
             v: vis(config.clone(), "2_dijkstra"),
         };
         a_star.align(a, b);
@@ -62,7 +62,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(config.clone(), "3_diagonal-transition"),
         );
@@ -74,7 +74,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             true,
             vis(config.clone(), "4_dt-divide-and-conquer"),
         );

@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     generate::setup_sequences,
-    heuristic::ZeroCost,
+    heuristic::NoCost,
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
     visualizer::NoVisualizer,
 };
@@ -102,7 +102,7 @@ mod astar {
             let astar = AStar {
                 greedy_edge_matching,
                 diagonal_transition: false,
-                h: ZeroCost,
+                h: NoCost,
                 v: NoVisualizer,
             };
             test_aligner_on_cost_model(LinearCost::new_unit(), astar, false);
@@ -569,7 +569,7 @@ mod diagonal_transition_simple {
     fn test<const N: usize>(cm: AffineCost<N>) {
         test_aligner_on_cost_model(
             cm.clone(),
-            DiagonalTransition::new(cm, GapCostHeuristic::Disable, ZeroCost, false, NoVisualizer),
+            DiagonalTransition::new(cm, GapCostHeuristic::Disable, NoCost, false, NoVisualizer),
             true,
         );
     }
@@ -583,7 +583,7 @@ mod diagonal_transition_gap_heuristic {
     fn test<const N: usize>(cm: AffineCost<N>) {
         test_aligner_on_cost_model(
             cm.clone(),
-            DiagonalTransition::new(cm, GapCostHeuristic::Enable, ZeroCost, false, NoVisualizer),
+            DiagonalTransition::new(cm, GapCostHeuristic::Enable, NoCost, false, NoVisualizer),
             true,
         );
     }
@@ -599,7 +599,7 @@ mod diagonal_transition_dc {
     fn test<const N: usize>(cm: AffineCost<N>) {
         test_aligner_on_cost_model(
             cm.clone(),
-            DiagonalTransition::new(cm, GapCostHeuristic::Disable, ZeroCost, true, NoVisualizer),
+            DiagonalTransition::new(cm, GapCostHeuristic::Disable, NoCost, true, NoVisualizer),
             true,
         );
     }
@@ -677,7 +677,7 @@ mod homopolymer {
     use crate::{
         aligners::{cigar::test::verify_cigar, nw::NW, Aligner},
         cost_model::AffineLayerType::{DeleteLayer, InsertLayer},
-        heuristic::ZeroCost,
+        heuristic::NoCost,
         prelude::{
             AffineCost, AffineLayerCosts,
             AffineLayerType::{HomoPolymerDelete, HomoPolymerInsert},
@@ -709,7 +709,7 @@ mod homopolymer {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: false,
-            h: ZeroCost,
+            h: NoCost,
             v: NoVisualizer,
         };
         assert_eq!(nw.cost(b"ABC", b"AC"), 2);
@@ -759,7 +759,7 @@ mod homopolymer {
             use_gap_cost_heuristic: false,
             exponential_search: false,
             v: NoVisualizer,
-            h: ZeroCost,
+            h: NoCost,
         };
         assert_eq!(nw.cost(b"ABC", b"AC"), 4);
         assert_eq!(nw.cost(b"ABC", b""), 8);

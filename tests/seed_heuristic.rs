@@ -67,7 +67,7 @@ fn seed_heuristic_zero_dist_consistent() {
                 let h = BruteForceCSH {
                     match_config: MatchConfig::new(k, m),
                     pruning: Pruning::enabled(),
-                    distance_function: ZeroCost,
+                    distance_function: NoCost,
                 };
 
                 println!("TESTING n {} e {}: {:?}", n, e, h);

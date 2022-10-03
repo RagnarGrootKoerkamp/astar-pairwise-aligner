@@ -10,7 +10,7 @@ use astar_pairwise_aligner::{
     },
     cost_model::LinearCost,
     generate::setup_sequences_with_seed,
-    heuristic::{Pruning, ZeroCost, SH},
+    heuristic::{NoCost, Pruning, SH},
     matches::MatchConfig,
     visualizer::NoVisualizer,
 };
@@ -41,7 +41,7 @@ fn nw_lib_exp(bench: &mut Bencher) {
     bench.iter(|| run_aligner(NWLib { simd: true }, N, E, seed));
 }
 
-fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, ZeroCost> {
+fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, NoCost> {
     NW::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,
@@ -82,11 +82,11 @@ fn nw_sh(bench: &mut Bencher) {
 fn make_dt(
     use_gap_cost_heuristic: GapCostHeuristic,
     dc: bool,
-) -> DiagonalTransition<LinearCost, NoVisualizer, ZeroCost> {
+) -> DiagonalTransition<LinearCost, NoVisualizer, NoCost> {
     DiagonalTransition::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,
-        ZeroCost,
+        NoCost,
         dc,
         NoVisualizer,
     )

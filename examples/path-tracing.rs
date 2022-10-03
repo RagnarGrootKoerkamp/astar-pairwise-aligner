@@ -40,7 +40,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "forward-greedy"),
         );
@@ -50,7 +50,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "backward-greedy"),
         );
@@ -65,7 +65,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "forward-greedy-grey"),
         );
@@ -76,7 +76,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "backward-greedy-grey"),
         );
@@ -90,7 +90,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "forward-greedy-subs"),
         );
@@ -100,7 +100,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "backward-greedy-subs"),
         );
@@ -113,7 +113,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "detail"),
         );
@@ -126,7 +126,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "detail-tricky"),
         );
@@ -141,7 +141,7 @@ fn main() {
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
-                ZeroCost,
+                NoCost,
                 false,
                 vis(a, b, config.clone(), "repeats"),
             );
@@ -153,7 +153,7 @@ fn main() {
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
-                ZeroCost,
+                NoCost,
                 false,
                 vis(a, b, config.clone(), "repeats-no-matches"),
             );
@@ -165,7 +165,7 @@ fn main() {
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
-                ZeroCost,
+                NoCost,
                 false,
                 vis(a, b, config.clone(), "repeats-subs"),
             );
@@ -177,7 +177,7 @@ fn main() {
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
-                ZeroCost,
+                NoCost,
                 false,
                 vis(a, b, config.clone(), "repeats-active"),
             );
@@ -189,7 +189,7 @@ fn main() {
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
-                ZeroCost,
+                NoCost,
                 false,
                 vis(a, b, config.clone(), "repeats-fixed"),
             );
@@ -207,7 +207,7 @@ fn main() {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,
-            ZeroCost,
+            NoCost,
             false,
             vis(a, b, config.clone(), "simple-final"),
         );

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    heuristic::{Heuristic, Pruning, ZeroCost, CSH, SH},
+    heuristic::{Heuristic, NoCost, Pruning, ZeroCost, CSH, SH},
     matches::{LengthConfig, MatchConfig},
     prelude::{BruteForceContour, HintContours, MatchCost, I},
 };
@@ -129,7 +129,8 @@ impl HeuristicArgs {
 
     pub fn run_on_heuristic<F: HeuristicRunner>(&self, f: F) -> F::R {
         match self.heuristic {
-            HeuristicType::Dijkstra => f.call(ZeroCost),
+            HeuristicType::None => f.call(NoCost),
+            HeuristicType::Zero => f.call(ZeroCost),
             HeuristicType::CSH => {
                 let heuristic = CSH {
                     match_config: self.match_config(self.gap_cost),
