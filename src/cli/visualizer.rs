@@ -51,6 +51,10 @@ pub struct VisualizerArgs {
     /// Number of states per cell.
     #[clap(long, display_order = 10, hide_short_help = true)]
     pub downscaler: Option<u32>,
+
+    /// When set, draw older expanded states on top. Useful for exponential search.
+    #[clap(long, display_order = 10, hide_short_help = true)]
+    pub old_on_top: bool,
 }
 
 pub trait VisualizerRunner {
@@ -97,29 +101,30 @@ impl VisualizerArgs {
             When::None
         };
         if draw == When::None && save == When::None {
-            f.call(NoVisualizer)
-        } else {
-            let mut config = Config::new(self.style);
-            config.draw = draw;
-            config.save = save;
-            if config.save != When::None {
-                config.save_last = true;
-                // In this case, the save_last above is sufficient.
-                if config.save == When::Last {
-                    config.save = When::None;
-                }
-                config.filepath = self
-                    .save_path
-                    .clone()
-                    .expect("--save-path must be set when --save is set");
-            }
-            if let Some(cell_size) = self.cell_size {
-                config.cell_size = cell_size;
-            }
-            if let Some(downscaler) = self.downscaler {
-                config.downscaler = downscaler;
-            }
-            f.call(Visualizer::new(config, a, b))
+            return f.call(NoVisualizer);
         }
+
+        let mut config = Config::new(self.style);
+        config.draw = draw;
+        config.save = save;
+        if config.save != When::None {
+            config.save_last = true;
+            // In this case, the save_last above is sufficient.
+            if config.save == When::Last {
+                config.save = When::None;
+            }
+            config.filepath = self
+                .save_path
+                .clone()
+                .expect("--save-path must be set when --save is set");
+        }
+        if let Some(cell_size) = self.cell_size {
+            config.cell_size = cell_size;
+        }
+        if let Some(downscaler) = self.downscaler {
+            config.downscaler = downscaler;
+        }
+        config.draw_old_on_top = self.old_on_top;
+        f.call(Visualizer::new(config, a, b))
     }
 }
