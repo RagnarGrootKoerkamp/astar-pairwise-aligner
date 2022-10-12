@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::{prelude::*, visualizer::VisualizerT};
+use crate::{aligners::cigar::Cigar, prelude::*, visualizer::VisualizerT};
 use astar::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -47,6 +47,7 @@ where
     let mut states = HashMap::<DtPos, State<H::Hint>>::default();
 
     // Initialization with the root state.
+    let mut max_f = 0;
     {
         let start = Pos(0, 0);
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
@@ -56,6 +57,7 @@ where
         });
         stats.explored += 1;
         states.insert(DtPos::from_pos(start, 0), State { fr: 0, hint });
+        v.new_layer_with_h(Some(h));
     }
 
     let mut retry_cnt = 0;
@@ -127,8 +129,13 @@ where
             println!("Expand {pos} {}", queue_g);
         }
 
+        if queue_f > max_f {
+            max_f = queue_f;
+            v.new_layer_with_h(Some(h));
+        }
+
         let mut prune = |pos| {
-            v.expand_with_h(pos, Some(h));
+            v.expand_with_h(pos, queue_g, queue_f, Some(h));
             if !h.is_seed_start_or_end(pos) {
                 return;
             }
@@ -209,11 +216,13 @@ where
     let traceback_start = Instant::now();
     let path = traceback::<H>(&states, DtPos::from_pos(graph.target(), dist));
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
-    if let Some((_, actual_path)) = path.as_ref() {
-        v.last_frame_with_h(Some(actual_path), None, Some(h));
-    } else {
-        v.last_frame_with_h(None, None, Some(h));
-    }
+    v.last_frame_with_h(
+        path.as_ref()
+            .map(|(_, path)| Cigar::from_path(graph.a, graph.b, path))
+            .as_ref(),
+        None,
+        Some(h),
+    );
     (path, stats)
 }
 
@@ -256,24 +265,25 @@ where
                 .dt_back(&cur_dt)
                 .expect("No parent found for position!");
             let next_pos = next_dt.to_pos(parent_fr);
-            // println!(
-            //     "current {cur_dt} pos {cur_pos} parent_fr {parent_fr} edge {edge:?} dt_next {next_dt} pos {next_pos}"
-            // );
             // Add matches while needed.
             // NOTE: We need the > here, since next_pos may actually be larger
             // than cur_pos, resulting in a possible infinite loop.
             while edge.back(&cur_pos).unwrap() > next_pos {
                 cur_pos = Edge::Match.back(&cur_pos).unwrap();
-                // println!(
-                //     "Extra: {current_pos} with potential parent {}",
-                //     e.1.back(&current_pos).unwrap()
-                // );
                 path.push(cur_pos);
             }
             path.push(next_dt.to_pos(parent_fr));
             cur_dt = next_dt;
             cur_pos = next_pos;
         }
+        loop {
+            cur_pos = Edge::Match.back(&cur_pos).unwrap();
+            path.push(cur_pos);
+            if cur_pos == Pos(0, 0) {
+                break;
+            }
+        }
+
         path.reverse();
         assert_eq!(
             cost, g,

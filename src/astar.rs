@@ -1,6 +1,6 @@
 use std::time::{self, Instant};
 
-use crate::{prelude::*, visualizer::VisualizerT};
+use crate::{aligners::cigar::Cigar, prelude::*, visualizer::VisualizerT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Status {
@@ -201,7 +201,7 @@ where
         }
 
         stats.expanded += 1;
-        v.expand_with_h(pos, Some(h));
+        v.expand_with_h(pos, queue_g, queue_f, Some(h));
 
         // Prune is needed
         if h.is_seed_start_or_end(pos) {
@@ -230,8 +230,8 @@ where
                     stats.explored += 1;
                     stats.expanded += 1;
                     stats.greedy_expanded += 1;
-                    v.explore_with_h(next, Some(h));
-                    v.expand_with_h(next, Some(h));
+                    v.explore_with_h(next, queue_g, queue_f, Some(h));
+                    v.expand_with_h(next, queue_g, queue_f, Some(h));
                     if D {
                         println!("Greedy expand {next} {}", state.g);
                     }
@@ -269,7 +269,7 @@ where
 
             h.explore(next);
             stats.explored += 1;
-            v.explore_with_h(next, Some(h));
+            v.explore_with_h(next, next_g, next_f, Some(h));
         });
     }
 
@@ -277,11 +277,13 @@ where
     let traceback_start = time::Instant::now();
     let path = traceback::<H>(&states, graph.target());
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
-    if let Some((_, actual_path)) = path.as_ref() {
-        v.last_frame_with_h(Some(actual_path), None, Some(h));
-    } else {
-        v.last_frame_with_h(None, None, Some(h));
-    }
+    v.last_frame_with_h(
+        path.as_ref()
+            .map(|(_, path)| Cigar::from_path(graph.a, graph.b, path))
+            .as_ref(),
+        None,
+        Some(h),
+    );
     (path, stats)
 }
 
