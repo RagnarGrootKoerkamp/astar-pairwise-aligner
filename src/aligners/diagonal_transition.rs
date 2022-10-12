@@ -336,6 +336,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
     /// Returns true when the end is reached.
     fn extend(
         &mut self,
+        g: Cost,
+        // Only used for visualizing
+        f_max: Cost,
         front: &mut Front<N>,
         a: Seq,
         b: Seq,
@@ -352,9 +355,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 Forward => {
                     *fr += 2 * extend_diagonal(direction, a, b, d, *fr);
                     for fr in (fr_old..*fr).step_by(2) {
-                        self.v.borrow_mut().extend(offset + fr_to_pos(d, fr));
+                        self.v
+                            .borrow_mut()
+                            .extend(offset + fr_to_pos(d, fr), g, f_max);
                     }
-                    self.v.borrow_mut().expand(offset + fr_to_pos(d, *fr));
+                    self.v
+                        .borrow_mut()
+                        .expand(offset + fr_to_pos(d, *fr), g, f_max);
                 }
                 Backward => {
                     *fr += 2 * extend_diagonal(
@@ -371,6 +378,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                     a.len() as Fr - b.len() as Fr - d,
                                     a.len() as Fr + b.len() as Fr - fr,
                                 ),
+                            g,
+                            f_max,
                         );
                     }
                     self.v.borrow_mut().expand(
@@ -379,6 +388,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                 a.len() as Fr - b.len() as Fr - d,
                                 a.len() as Fr + b.len() as Fr - *fr,
                             ),
+                        g,
+                        f_max,
                     );
                 }
             }
@@ -483,6 +494,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 |_di, _dj, _i, _j, _layer, _edge_cost, _cigar_ops| {},
             );
 
+            // println!("Initial range {d_min}..={d_max}");
+
             if d_max < d_min {
                 return d_min..=d_max;
             }
@@ -540,6 +553,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         a: Seq,
         b: Seq,
         g: Cost,
+        f_max: Cost,
         fronts: &mut Fronts<N>,
         offset: Pos,
         start_layer: Layer,
@@ -625,7 +639,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         }
 
         // Extend all points in the m layer and check if we're done.
-        self.extend(&mut fronts[g as Fr], a, b, offset, direction)
+        self.extend(g, f_max, &mut fronts[g as Fr], a, b, offset, direction)
     }
 
     // Returns None when the sequences are equal.
@@ -633,6 +647,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         &mut self,
         a: Seq,
         b: Seq,
+        f_max: Cost,
         offset: Pos,
         start_layer: Layer,
         end_layer: Layer,
@@ -655,7 +670,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
         // NOTE: The order of the && here matters!
         if start_layer == None
-            && self.extend(&mut fronts[0], a, b, offset, direction)
+            && self.extend(0, f_max, &mut fronts[0], a, b, offset, direction)
             && end_layer == None
         {
             let mut cigar = Cigar::default();
@@ -767,12 +782,12 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         end_layer: Layer,
     ) -> (Cost, Cigar) {
         let mut forward_fronts =
-            match self.init_fronts(a, b, offset, start_layer, end_layer, Direction::Forward) {
+            match self.init_fronts(a, b, 0, offset, start_layer, end_layer, Direction::Forward) {
                 Ok(fronts) => fronts,
                 Err(r) => return r,
             };
         let mut backward_fronts =
-            match self.init_fronts(a, b, offset, end_layer, start_layer, Direction::Backward) {
+            match self.init_fronts(a, b, 0, offset, end_layer, start_layer, Direction::Backward) {
                 Ok(fronts) => fronts,
                 Err(r) => return r,
             };
@@ -798,6 +813,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         a,
                         b,
                         s,
+                        0,
                         fronts,
                         offset,
                         match dir {
@@ -907,8 +923,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         f_max: Option<Cost>,
         h: &H::Instance<'_>,
     ) -> Option<(Cost, Cigar)> {
-        self.v.borrow_mut().expand(Pos(0, 0));
-        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
+        self.v.borrow_mut().expand(Pos(0, 0), 0, f_max.unwrap_or(0));
+        let mut fronts = match self.init_fronts(
+            a,
+            b,
+            f_max.unwrap_or(0),
+            Pos(0, 0),
+            None,
+            None,
+            Direction::Forward,
+        ) {
             Ok(fronts) => fronts,
             Err(r) => return Some(r),
         };
@@ -926,7 +950,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 return None;
             }
             fronts.push(range);
-            if self.next_front(a, b, s, &mut fronts, Pos(0, 0), None, Direction::Forward) {
+            if self.next_front(
+                a,
+                b,
+                s,
+                f_max.unwrap_or(0),
+                &mut fronts,
+                Pos(0, 0),
+                None,
+                Direction::Forward,
+            ) {
                 break;
             }
             self.v.borrow_mut().new_layer();
@@ -945,25 +978,31 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
     }
 
     pub fn align_local_band_doubling<'a>(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
-        self.v.borrow_mut().expand(Pos(0, 0));
-        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
-            Ok(fronts) => fronts,
-            Err(r) => return r,
-        };
+        const D: bool = true;
 
         let ref mut h = self.h.build(a, b);
 
         // Front g has been computed up to this f.
         let mut f_max = vec![h.h(Pos(0, 0))];
-        // Each time a front is grown and recomputed, the increment of the f range doubles.
-        let mut f_delta = vec![1];
+
+        self.v.borrow_mut().expand(Pos(0, 0), 0, f_max[0]);
+        let mut fronts =
+            match self.init_fronts(a, b, f_max[0], Pos(0, 0), None, None, Direction::Forward) {
+                Ok(fronts) => fronts,
+                Err(r) => return r,
+            };
+
+        // Each time a front is grown, it grows to the least multiple of delta that is large enough.
+        // Delta doubles after each grow.
+        const GROWTH: Cost = 3;
+        let mut f_delta = vec![GROWTH];
 
         // The value of f at the tip. When going to the next front, this is
         // incremented until the range is non-empty.
         let mut f_tip = h.h(Pos(0, 0));
 
         let mut g = 0;
-        'outer: loop {
+        let distance = 'outer: loop {
             g += 1;
             // We can not initialize all layers directly at the start, since we do not know the final distance s.
             let mut range;
@@ -975,39 +1014,162 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 f_tip += 1;
             }
             f_max.push(f_tip);
-            f_delta.push(1);
+            f_delta.push(GROWTH);
             fronts.push(range);
 
-            // Double previous front sizes as long as their f_max is not large enough.
+            if D {
+                println!("Compute {g} up to {f_tip}");
+            }
+
+            // Grow previous front sizes as long as their f_max is not large enough.
             let mut start_g = g as usize;
-            while start_g > 0 && f_max[start_g - 1] < f_max[start_g] {
+            let mut last_grow = 0;
+            while start_g > 1 && f_max[start_g - 1] < f_max[start_g] {
                 start_g -= 1;
-                f_max[start_g] += f_delta[start_g];
-                assert!(f_max[start_g] >= f_max[start_g+1], "Doubling a front once should always be sufficient to cover the next front. From {} to {} by {} target {}", f_max[start_g]-f_delta[start_g], f_max[start_g], f_delta[start_g], f_max[start_g+1]);
-                f_delta[start_g] *= 2;
+                // Check if (after pruning) the range for start_g needs to grow at all.
+                // TODO: Generalize to multiple layers.
+                {
+                    let front = &fronts[start_g as Fr];
+                    // println!("Check existing front {start_g}: {front:?}");
+                    let ks = *front.range().start();
+                    let s = fr_to_pos(ks, front.m()[ks]);
+
+                    let ke = *front.range().end();
+                    let e = fr_to_pos(ke, front.m()[ke]);
+
+                    if D && false {
+                        println!("{start_g} {ks} {s}");
+                        println!(
+                            "Diagonal {ks}\t g {} + h {} > f_next {} (f_cur {})",
+                            start_g,
+                            h.h(s),
+                            f_max[start_g + 1],
+                            f_max[start_g]
+                        );
+                        println!(
+                            "Diagonal {ke}\t g {} + h {} > f_next {} (f_cur {})",
+                            start_g,
+                            h.h(e),
+                            f_max[start_g + 1],
+                            f_max[start_g]
+                        );
+                    }
+                    // FIXME: Generalize to more layers.
+                    if start_g as Cost + h.h(s) > f_max[start_g + 1]
+                        && start_g as Cost + h.h(e) > f_max[start_g + 1]
+                    {
+                        start_g += 1;
+                        if D && false {
+                            println!(
+                                "Stop. Front {} is last to reuse. Col {start_g} is recomputed",
+                                start_g - 1
+                            );
+                        }
+                        break;
+                    }
+                }
+
+                let before = f_max[start_g];
+                let delta = &mut f_delta[start_g];
+                f_max[start_g] = (f_max[start_g + 1] + *delta - 1) / *delta * *delta;
+                if D && false {
+                    println!(
+                        "Grow {start_g} from {before} by {delta} to {}",
+                        f_max[start_g]
+                    );
+                }
+                if f_max[start_g] > last_grow {
+                    last_grow = f_max[start_g];
+                    if D {
+                        println!(
+                            "Grow {start_g} from {before} by {delta} to {}",
+                            f_max[start_g]
+                        );
+                    }
+                }
+                assert!(
+                    f_max[start_g] >= f_max[start_g + 1],
+                    "Doubling not enough!? From {before} to {} by {delta} target {}",
+                    f_max[start_g],
+                    f_max[start_g + 1]
+                );
+                *delta *= GROWTH;
             }
 
             // Recompute all fronts from start_g upwards.
             for g in start_g as Cost..=g {
                 let range = self.d_range(a, b, h, g, Some(f_max[g as usize]), &fronts);
-                fronts[g as Fr].reset(0, range);
-                if self.next_front(a, b, g, &mut fronts, Pos(0, 0), None, Direction::Forward) {
-                    break 'outer;
+                let prev_range = fronts[g as Fr].range().clone();
+                let new_range =
+                    min(*range.start(), *prev_range.start())..=max(*range.end(), *prev_range.end());
+                fronts[g as Fr].reset(0, new_range);
+                let done = self.next_front(
+                    a,
+                    b,
+                    g,
+                    f_max[g as usize],
+                    &mut fronts,
+                    Pos(0, 0),
+                    None,
+                    Direction::Forward,
+                );
+                if D && false {
+                    println!(
+                        "New front {g} at {}: {:?}",
+                        f_max[g as usize], fronts[g as Fr]
+                    );
+                }
+                // PRUNING
+                // On expanding a state, we prune:
+                // - the state itself if it is the start/end of a seed.
+                // - the preceding seed start/end, if it is between the previous and current fronts.
+                let front = &fronts[g as Fr];
+                let prev_front = &fronts[g as Fr - 1];
+                let h_before = h.h(Pos(0, 0));
+                for k in front.range().clone() {
+                    let mut p = fr_to_pos(k, front.m()[k]);
+                    if p.0 >= a.len() as crate::prelude::I || p.1 >= b.len() as crate::prelude::I {
+                        continue;
+                    }
+                    if h.is_seed_start_or_end(p) {
+                        h.prune(p, Default::default());
+                    }
+                    if let Some(&pfr) = prev_front.m().get(k) {
+                        while p.0 > 0 && p.1 > 0 {
+                            p = p - Pos(1, 1);
+                            if pos_to_fr(p).1 < pfr {
+                                break;
+                            }
+                            //println!("prune? {p}");
+                            if h.is_seed_start_or_end(p) {
+                                h.prune(p, Default::default());
+                                break;
+                            }
+                        }
+                    }
+                }
+                let h_after = h.h(Pos(0, 0));
+                if D && false {
+                    println!("Pruning: {h_before} => {h_after}");
+                }
+
+                if done {
+                    break 'outer g;
                 }
             }
 
             self.v.borrow_mut().new_layer();
-        }
+        };
         let cigar = self.trace(
             a,
             b,
             &fronts,
             DtState::start(),
-            DtState::target(a, b, g),
+            DtState::target(a, b, distance),
             Direction::Forward,
         );
         self.visualize_last_frame(a, b, fronts, &cigar, h);
-        (g, cigar)
+        (distance, cigar)
     }
 
     fn visualize_last_frame(
@@ -1019,7 +1181,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         h: &H::Instance<'_>,
     ) {
         self.v.borrow_mut().last_frame_with_h::<H::Instance<'_>>(
-            Some(&cigar.to_path()),
+            Some(&cigar),
             Some(
                 &(|st| {
                     // Determine the cost for the position.
@@ -1232,7 +1394,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 },
             )
             .1;
-            self.v.borrow_mut().last_frame(Some(&cc.1.to_path()));
+            self.v.borrow_mut().last_frame(Some(&cc.1));
         } else {
             cc = self.align_for_bounded_dist(a, b, None).unwrap();
         };
@@ -1243,8 +1405,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Option<Cost>) -> Option<Cost> {
-        self.v.borrow_mut().expand(Pos(0, 0));
-        let mut fronts = match self.init_fronts(a, b, Pos(0, 0), None, None, Direction::Forward) {
+        self.v.borrow_mut().expand(Pos(0, 0), 0, f_max.unwrap_or(0));
+        let mut fronts = match self.init_fronts(
+            a,
+            b,
+            f_max.unwrap_or(0),
+            Pos(0, 0),
+            None,
+            None,
+            Direction::Forward,
+        ) {
             Ok(fronts) => fronts,
             Err(r) => return Some(r.0),
         };
@@ -1260,7 +1430,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 return None;
             }
             fronts.rotate(range);
-            if self.next_front(a, b, s, &mut fronts, Pos(0, 0), None, Direction::Forward) {
+            if self.next_front(
+                a,
+                b,
+                s,
+                f_max.unwrap_or(0),
+                &mut fronts,
+                Pos(0, 0),
+                None,
+                Direction::Forward,
+            ) {
                 self.v.borrow_mut().last_frame(None);
                 return Some(s);
             }
@@ -1288,9 +1467,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
         assert!(!self.local_doubling);
 
-        self.v.borrow_mut().expand(Pos(0, 0));
+        self.v.borrow_mut().expand(Pos(0, 0), 0, 0);
         let (cost, cigar) = self.path_between_dc(a, b, Pos(0, 0), None, None);
-        self.v.borrow_mut().last_frame(Some(&cigar.to_path()));
+        self.v.borrow_mut().last_frame(Some(&cigar));
         (cost, cigar)
     }
 }

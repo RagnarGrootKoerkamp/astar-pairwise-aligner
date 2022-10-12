@@ -5,7 +5,7 @@ use super::{exponential_search, Aligner};
 use super::{Seq, Sequence};
 use crate::cost_model::*;
 use crate::heuristic::{Heuristic, HeuristicInstance, NoCost};
-use crate::prelude::Pos;
+use crate::prelude::{Pos, I};
 use crate::visualizer::{NoVisualizer, VisualizerT};
 use itertools::chain;
 use std::cmp::{max, min};
@@ -54,8 +54,8 @@ type Front<const N: usize> = super::front::Front<N, Cost, Idx>;
 type Fronts<const N: usize> = super::front::Fronts<N, Cost, Idx>;
 
 /// NW DP only needs the cell just left and above of the current cell.
-const LEFT_BUFFER: Idx = 1;
-const RIGHT_BUFFER: Idx = 1;
+const LEFT_BUFFER: Idx = 2;
+const RIGHT_BUFFER: Idx = 2;
 
 impl<const N: usize> NW<AffineCost<N>, NoVisualizer, NoCost> {
     pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
@@ -75,9 +75,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
     ///
     /// `a` and `b` must be padded at the start by the same character.
     /// `i` and `j` will always be > 0.
-    fn next_front(&mut self, i: Idx, a: Seq, b: Seq, prev: &Front<N>, next: &mut Front<N>) {
+    fn next_front(
+        &mut self,
+        i: Idx,
+        f_max: Cost,
+        a: Seq,
+        b: Seq,
+        prev: &Front<N>,
+        next: &mut Front<N>,
+    ) {
         for j in next.range().clone() {
-            self.v.expand(Pos::from(i - 1, j - 1));
             EditGraph::iterate_layers(&self.cm, |layer| {
                 let mut best = INF;
                 EditGraph::iterate_parents(
@@ -87,29 +94,20 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                     /*greedy_matching=*/ false,
                     State::new(i, j, layer),
                     |di, dj, layer, edge_cost, _cigar_ops| {
-                        if H::IS_DEFAULT {
-                            best = min(
-                                best,
-                                if di == 0 {
-                                    next.layer(layer)[j + dj] + edge_cost
-                                } else {
-                                    prev.layer(layer)[j + dj] + edge_cost
-                                },
-                            );
+                        let parent_cost = if di == 0 {
+                            next.layer(layer).get(j + dj)
                         } else {
-                            let parent_cost = if di == 0 {
-                                next.layer(layer).get(j + dj)
-                            } else {
-                                prev.layer(layer).get(j + dj)
-                            };
-                            if let Some(cost) = parent_cost {
-                                best = min(best, cost + edge_cost);
-                            }
+                            prev.layer(layer).get(j + dj)
+                        };
+                        if let Some(cost) = parent_cost {
+                            best = min(best, cost + edge_cost);
                         }
                     },
                 );
                 next.layer_mut(layer)[j] = best;
             });
+            let pos = Pos::from(i - 1, j - 1);
+            self.v.expand(pos, next.m()[j], f_max);
         }
     }
 
@@ -173,7 +171,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 let mut end = prev_end;
 
                 // Decrease end as needed.
-                while end >= start && prev.m()[end] + h.h(Pos::from(max(i, 1) - 1, end - 1)) > s {
+                while end >= start
+                    && min(prev.m()[end], *prev.m().get(end - 1).unwrap_or(&Cost::MAX))
+                        + h.h(Pos::from(max(i, 1) - 1, end - 1))
+                        > s
+                {
                     end -= 1;
                 }
 
@@ -198,6 +200,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
     }
 
     pub fn align_local_band_doubling<'a>(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
+        assert!(
+            !H::IS_DEFAULT,
+            "Local doubling needs a heuristic. Use -H zero to disable."
+        );
+
         // Pad both sequences.
         let ref a = pad(a);
         let ref b = pad(b);
@@ -236,6 +243,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 i += 1;
                 let mut range;
                 loop {
+                    // println!("{i} => {f_tip} try");
                     range = self.j_range(a, b, h, i, Some(f_tip), &fronts[i - 1]);
                     if !range.is_empty() {
                         break;
@@ -248,17 +256,54 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
             } else {
                 // Only grow the last front.
                 let delta = &mut f_delta[i as usize];
-                f_max[i as usize] = (f_max[i as usize] + *delta - 1) / *delta * *delta;
+                // print!("Double last front from {} by {delta}", f_max[i as usize]);
+                f_max[i as usize] = (f_max[i as usize] / *delta + 1) * *delta;
+                // println!("to {}", f_max[i as usize]);
                 *delta *= 2;
             }
 
             // Double previous front sizes as long as their f_max is not large enough.
             let mut start_i = i as usize;
             while start_i > 1 && f_max[start_i - 1] < f_max[start_i] {
+                // Check if (after pruning) the range for start_i needs to grow at all.
                 start_i -= 1;
+                {
+                    let front = &fronts[start_i as Idx];
+                    let js = *front.range().start();
+                    let je = *front.range().end();
+                    // println!(
+                    //     "Row {js}\t g {} + h {} > f_next {} (f_cur {})",
+                    //     front.m()[js as Idx],
+                    //     h.h(Pos(start_i as I - 1, js as I - 1)),
+                    //     f_max[start_i + 1],
+                    //     f_max[start_i]
+                    // );
+                    // println!(
+                    //     "Row {je}\t g {} + h {} > f_next {} (f_cur {})",
+                    //     front.m()[je as Idx],
+                    //     h.h(Pos(start_i as I - 1, je as I - 1)),
+                    //     f_max[start_i + 1],
+                    //     f_max[start_i]
+                    // );
+                    // FIXME: Generalize to more layers.
+                    if front.m()[js as Idx] + h.h(Pos(start_i as I - 1, js as I - 1))
+                        > f_max[start_i + 1]
+                        && front.m()[je as Idx] + h.h(Pos(start_i as I - 1, je as I - 1))
+                            > f_max[start_i + 1]
+                    {
+                        start_i += 1;
+                        // println!(
+                        //     "Stop. Col {} is last to reuse. Col {start_i} is recomputed",
+                        //     start_i - 1
+                        // );
+                        break;
+                    }
+                }
+
                 let before = f_max[start_i];
                 let delta = &mut f_delta[start_i];
                 f_max[start_i] = (f_max[start_i + 1] + *delta - 1) / *delta * *delta;
+                // println!("{start_i} => {before} -> {} \t ({delta})", f_max[start_i]);
                 assert!(
                     f_max[start_i] >= f_max[start_i + 1],
                     "Doubling not enough!? From {before} to {} by {delta} target {}",
@@ -268,12 +313,60 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 *delta *= 2;
             }
 
-            // Recompute all fronts from start_g upwards.
+            if start_i > 1 {
+                // for j in fronts[start_i as Idx - 1].range().clone() {
+                //     let i = start_i - 1;
+                //     println!(
+                //         "row {j} \t g-prev {:10} \t h-new {}",
+                //         fronts[i as Idx].m().get(j).unwrap_or(&Cost::MAX),
+                //         h.h(Pos(i as I - 1, j as I - 1))
+                //     )
+                // }
+            }
+
+            // Recompute all fronts from start_i upwards.
             for i in start_i as Idx..=i {
                 let range = self.j_range(a, b, h, i, Some(f_max[i as usize]), &fronts[i - 1]);
-                fronts[i as Idx].reset(INF, range);
+                let prev_range = fronts[i as Idx].range().clone();
+                let new_range =
+                    min(*range.start(), *prev_range.start())..=max(*range.end(), *prev_range.end());
+                // println!(
+                //     "Compute {i} for {} => {new_range:?} (prev {prev_range:?})",
+                //     f_max[i as usize],
+                // );
+                // if range.is_empty() || true {
+                //     for j in new_range.clone() {
+                //         println!(
+                //             "row {j} \t g-prev {:10} \t h-new {}",
+                //             fronts[i as Idx].m().get(j).unwrap_or(&Cost::MAX),
+                //             h.h(Pos(i as I - 1, j as I - 1))
+                //         )
+                //     }
+                // }
+                assert!(!new_range.is_empty());
+                fronts[i as Idx].reset(INF, new_range.clone());
                 let (prev, next) = fronts.split_at(i);
-                self.next_front(i, a, b, prev, next);
+                self.next_front(i, f_max[i as usize], a, b, prev, next);
+
+                // for j in new_range.clone() {
+                //     println!(
+                //         "row {j} \t g-prev {:10} \t h-new {}",
+                //         fronts[i as Idx].m().get(j).unwrap_or(&Cost::MAX),
+                //         h.h(Pos(i as I - 1, j as I - 1))
+                //     )
+                // }
+
+                // Prune matches
+                if h.is_seed_start_or_end(Pos(i as I - 1, 0)) {
+                    // println!("Prune col {}\t {new_range:?}", i - 1);
+                    let hint = h
+                        .h_with_hint(Pos(i as I, *new_range.start() as I), Default::default())
+                        .1;
+                    for j in new_range {
+                        h.prune(Pos(i as I - 1, j as I), hint);
+                    }
+                }
+
                 self.v.new_layer();
             }
 
@@ -298,7 +391,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
             },
             Direction::Forward,
         );
-        self.v.last_frame(Some(&cigar.to_path()));
+        self.v.last_frame(Some(&cigar));
         (dist, cigar)
     }
 }
@@ -385,7 +478,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
             cc = self.align_for_bounded_dist(a, b, None).unwrap();
         };
-        self.v.last_frame(Some(&cc.1.to_path()));
+        self.v.last_frame(Some(&cc.1));
         cc
     }
 
@@ -410,7 +503,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             std::mem::swap(prev, next);
             // Update front size.
             next.reset(INF, self.j_range(a, b, h, i, f_max, prev));
-            self.next_front(i, a, b, prev, next);
+            self.next_front(i, f_max.unwrap_or(0), a, b, prev, next);
             if !self.exponential_search {
                 self.v.new_layer();
             }
@@ -461,7 +554,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
                 LEFT_BUFFER,
                 RIGHT_BUFFER,
             );
-            self.next_front(i, a, b, prev, &mut next);
+            self.next_front(i, f_max.unwrap_or(0), a, b, prev, &mut next);
             fronts.fronts.push(next);
             if !self.exponential_search {
                 self.v.new_layer();
