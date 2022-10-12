@@ -14,6 +14,8 @@ pub enum ErrorModel {
     Move,
     /// Takes a region of size e*n and insert it
     Insert,
+    /// Apply e/2 noise and an insertion of e/2.
+    NoisyInsert,
     /// Takes a region of size e*n/2 and inserts it twice in a row next to
     /// each other
     Doubleinsert,
@@ -156,9 +158,19 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
             let piece = b.slice(start..start + num_mutations).to_string();
             b.insert(start, piece.as_str());
         }
+        ErrorModel::NoisyInsert => {
+            for _ in 0..num_mutations / 2 {
+                make_mutation(&mut b, rng);
+            }
+            let start = rng.gen_range(0..b.len_bytes());
+            let piece =
+                String::from_utf8((0..num_mutations / 2).map(|_| rand_char(rng)).collect_vec())
+                    .unwrap();
+            b.insert(start, piece.as_str());
+        }
         ErrorModel::Doubleinsert => {
             let start = rng.gen_range(0..b.len_bytes() - num_mutations);
-            let piece = b.slice(start..(start + num_mutations) / 2).to_string();
+            let piece = b.slice(start..start + num_mutations / 2).to_string();
             b.insert(start, piece.as_str());
             b.insert(start + piece.len(), piece.as_str());
         }
