@@ -15,7 +15,7 @@ pub enum Algorithm {
     DT,
     // See HeuristicArgs for configuration.
     #[default]
-    AStar,
+    Astar,
 
     // External methods
 
@@ -36,7 +36,7 @@ impl Algorithm {
             | Algorithm::Edlib
             | Algorithm::Wfa
             | Algorithm::Biwfa => true,
-            Algorithm::NW | Algorithm::DT | Algorithm::AStar => false,
+            Algorithm::NW | Algorithm::DT | Algorithm::Astar => false,
         }
     }
 }

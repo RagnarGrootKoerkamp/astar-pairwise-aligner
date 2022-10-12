@@ -90,7 +90,7 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
 
     fn call<V: visualizer::VisualizerT>(&self, mut v: V) -> Self::R {
         match self.args.algorithm.algorithm {
-            Algorithm::AStar => {
+            Algorithm::Astar => {
                 let sequence_stats = InputStats {
                     len_a: self.a.len(),
                     len_b: self.b.len(),

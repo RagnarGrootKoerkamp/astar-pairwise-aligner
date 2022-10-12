@@ -75,7 +75,7 @@ INPUT:
         --seed <SEED>                Seed to initialize RNG for reproducability
 
 ALGORITHM:
-    -a, --algorithm <ALGORITHM>    [default: a-star] [possible values: nw, dt, a-star, nw-lib, nw-lib-simd, edlib, wfa, biwfa]
+    -a, --algorithm <ALGORITHM>    [default: astar] [possible values: nw, dt, astar, nw-lib, nw-lib-simd, edlib, wfa, biwfa]
 
 HEURISTIC:
     -H, --heuristic <HEURISTIC>    [default: sh] [possible values: dijkstra, sh, csh]
@@ -156,7 +156,7 @@ Reimplementations of the following algorithms can be visualized:
   - Pass ~--exp-search~ to enable exponential search on band, as in Edlib.
 - Diagonal-Transition (~dt~) ::
   - Pass ~--dc~ to enable divide & conquer, as in BiWFA.
-- A* (~a-star~) ::
+- A* (~astar~) ::
   - Choose heuristic with ~-H {dijkstra,sh,csh}~.
   - Pass parameters with ~-r {1,2} -k <k>~.
   - Pass ~--dt~ to enable diagonal transition based A*.
