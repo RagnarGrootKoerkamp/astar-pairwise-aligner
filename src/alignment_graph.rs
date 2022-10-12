@@ -46,6 +46,10 @@ impl Pos {
         Pos(a.len() as I, b.len() as I)
     }
 
+    pub fn diag(&self) -> i32 {
+        self.0 as i32 - self.1 as i32
+    }
+
     pub fn mirror(&self) -> Pos {
         Pos(self.1, self.0)
     }
@@ -220,9 +224,9 @@ impl Pos {
 /// AlignmentGraph, modelling the position and transitions in a pairwise matching graph.
 #[derive(Clone)]
 pub struct EditGraph<'a> {
-    a: Seq<'a>,
-    b: Seq<'a>,
-    target: Pos,
+    pub a: Seq<'a>,
+    pub b: Seq<'a>,
+    pub target: Pos,
     pub greedy_matching: bool,
 }
 

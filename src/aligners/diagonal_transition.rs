@@ -135,14 +135,14 @@ impl<CostModel, V: VisualizerT, H: Heuristic> std::fmt::Debug
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct DtState {
-    d: Fr,
-    fr: Fr,
-    layer: Layer,
-    s: Cost,
+    pub d: Fr,
+    pub fr: Fr,
+    pub layer: Layer,
+    pub s: Cost,
 }
 
 impl DtState {
-    fn start() -> Self {
+    pub fn start() -> Self {
         DtState {
             d: 0,
             fr: 0,
@@ -150,7 +150,7 @@ impl DtState {
             s: 0,
         }
     }
-    fn target(a: Seq, b: Seq, s: Cost) -> Self {
+    pub fn target(a: Seq, b: Seq, s: Cost) -> Self {
         DtState {
             d: a.len() as Fr - b.len() as Fr,
             fr: a.len() as Fr + b.len() as Fr,
@@ -158,7 +158,7 @@ impl DtState {
             s,
         }
     }
-    fn from_pos(p: Pos, s: Cost) -> Self {
+    pub fn from_pos(p: Pos, s: Cost) -> Self {
         DtState {
             d: p.0 as Fr - p.1 as Fr,
             fr: p.0 as Fr + p.1 as Fr,
@@ -166,7 +166,7 @@ impl DtState {
             s,
         }
     }
-    fn to_pos(&self) -> Pos {
+    pub fn to_pos(&self) -> Pos {
         Pos(
             ((self.fr + self.d) / 2) as crate::prelude::I,
             ((self.fr - self.d) / 2) as crate::prelude::I,
@@ -206,6 +206,10 @@ fn fr_to_pos(d: Fr, fr: Fr) -> Pos {
         ((fr + d) / 2) as crate::prelude::I,
         ((fr - d) / 2) as crate::prelude::I,
     )
+}
+#[inline]
+pub fn pos_to_fr(p: Pos) -> (Fr, Fr) {
+    (p.0 as Fr - p.1 as Fr, p.0 as Fr + p.1 as Fr)
 }
 
 /// Given two sequences, a diagonal and point on it, expand it to a FR point.
