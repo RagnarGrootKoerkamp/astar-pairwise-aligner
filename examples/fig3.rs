@@ -34,7 +34,6 @@ fn main() {
     config.style.draw_contours = true;
     config.style.draw_matches = true;
     config.style.contour = Color::BLACK;
-    config.style.layer_label = Color::BLACK;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
     config.filepath = "imgs/fig3".to_string();

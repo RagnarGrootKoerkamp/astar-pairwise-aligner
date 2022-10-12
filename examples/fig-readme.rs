@@ -39,7 +39,6 @@ fn main() {
     config.style.draw_matches = true;
     config.style.match_width = 2;
     config.style.contour = Color::BLACK;
-    config.style.layer_label = Color::BLACK;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
     config.filepath = "imgs/fig-readme".to_string();
