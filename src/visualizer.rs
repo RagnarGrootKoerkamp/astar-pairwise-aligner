@@ -9,7 +9,8 @@
 //! ```
 
 use crate::{
-    aligners::{cigar::CigarOp, edit_graph::State, Path},
+    aligners::{cigar::Cigar, cigar::CigarOp, edit_graph::State},
+    cost_model::Cost,
     heuristic::{HeuristicInstance, NoCostI},
     prelude::Pos,
 };
@@ -32,22 +33,60 @@ pub enum When {
     Frames(Vec<usize>),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, ValueEnum)]
+pub enum HAlign {
+    Left,
+    Center,
+    Right,
+}
+#[derive(Debug, PartialEq, Eq, Clone, ValueEnum)]
+pub enum VAlign {
+    Top,
+    Center,
+    Bottom,
+}
+
+fn make_label(text: &str, val: impl ToString) -> String {
+    text.to_string() + &val.to_string()
+}
+
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
-    fn explore(&mut self, pos: Pos) {
-        self.explore_with_h::<NoCostI>(pos, None);
+    fn explore(&mut self, pos: Pos, g: Cost, f: Cost) {
+        self.explore_with_h::<NoCostI>(pos, g, f, None);
     }
-    fn expand(&mut self, pos: Pos) {
-        self.expand_with_h::<NoCostI>(pos, None);
+    fn expand(&mut self, pos: Pos, g: Cost, f: Cost) {
+        self.expand_with_h::<NoCostI>(pos, g, f, None);
     }
-    fn extend(&mut self, pos: Pos) {
-        self.extend_with_h::<NoCostI>(pos, None);
+    fn extend(&mut self, pos: Pos, g: Cost, f: Cost) {
+        self.extend_with_h::<NoCostI>(pos, g, f, None);
     }
-    fn explore_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&HI>) {}
-    fn expand_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&HI>) {}
-    fn extend_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos, _h: Option<&HI>) {}
+    fn explore_with_h<'a, HI: HeuristicInstance<'a>>(
+        &mut self,
+        _pos: Pos,
+        _g: Cost,
+        _f: Cost,
+        _h: Option<&HI>,
+    ) {
+    }
+    fn expand_with_h<'a, HI: HeuristicInstance<'a>>(
+        &mut self,
+        _pos: Pos,
+        _g: Cost,
+        _f: Cost,
+        _h: Option<&HI>,
+    ) {
+    }
+    fn extend_with_h<'a, HI: HeuristicInstance<'a>>(
+        &mut self,
+        _pos: Pos,
+        _g: Cost,
+        _f: Cost,
+        _h: Option<&HI>,
+    ) {
+    }
 
     /// This function should be called after completing each layer
     fn new_layer(&mut self) {
@@ -56,15 +95,15 @@ pub trait VisualizerT {
     fn new_layer_with_h<'a, HI: HeuristicInstance<'a>>(&mut self, _h: Option<&HI>) {}
 
     /// This function may be called after the main loop to display final image.
-    fn last_frame(&mut self, path: Option<&Path>) {
-        self.last_frame_with_h::<NoCostI>(path, None, None);
+    fn last_frame(&mut self, cigar: Option<&Cigar>) {
+        self.last_frame_with_h::<NoCostI>(cigar, None, None);
     }
-    fn last_frame_with_tree(&mut self, path: Option<&Path>, parent: ParentFn) {
-        self.last_frame_with_h::<NoCostI>(path, parent, None);
+    fn last_frame_with_tree(&mut self, cigar: Option<&Cigar>, parent: ParentFn) {
+        self.last_frame_with_h::<NoCostI>(cigar, parent, None);
     }
     fn last_frame_with_h<'a, HI: HeuristicInstance<'a>>(
         &mut self,
-        _path: Option<&Path>,
+        _cigar: Option<&Cigar>,
         _parent: ParentFn<'_>,
         _h: Option<&HI>,
     ) {
@@ -83,7 +122,8 @@ pub use with_sdl2::*;
 mod with_sdl2 {
     use super::*;
     use crate::{
-        aligners::{edit_graph::State, StateT},
+        aligners::{cigar::Cigar, edit_graph::State, StateT},
+        cost_model::LinearCost,
         matches::MatchStatus,
         prelude::Seq,
     };
@@ -100,7 +140,8 @@ mod with_sdl2 {
         Sdl,
     };
     use std::{
-        cell::RefCell,
+        cell::{RefCell, RefMut},
+        cmp::{max, min},
         collections::HashMap,
         ops::Range,
         path,
@@ -121,42 +162,74 @@ mod with_sdl2 {
     use Type::*;
 
     pub struct Visualizer {
-        canvas: Option<RefCell<Canvas<Window>>>,
+        config: Config,
+
         sdl_context: Sdl,
         #[cfg(feature = "sdl2_ttf")]
         font: Font<'static, 'static>,
-        config: Config,
-        pub expanded: Vec<(Type, Pos)>,
-        width: u32,
-        height: u32,
+
+        canvas: Option<RefCell<Canvas<Window>>>,
+
+        // The size in pixels of the entire canvas.
+        canvas_size: (u32, u32),
+        // The size in pixels of the NW half of the canvas.
+        nw_size: (u32, u32),
+        // The size in pixels of the DT half of the canvas.
+        dt_size: (u32, u32),
+
+        // The last DP state (a.len(), b.len()).
+        target: Pos,
+
         frame_number: usize,
         file_number: usize,
+
+        // Type, Pos, g, f
+        pub expanded: Vec<(Type, Pos, Cost, Cost)>,
         layer: Option<usize>,
+        // Index in expanded where each layer stars.
         expanded_layers: Vec<usize>,
     }
 
     impl VisualizerT for Visualizer {
-        fn expand_with_h<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, h: Option<&H>) {
-            if !(pos <= Pos(self.width - 1, self.height - 1)) {
+        fn explore_with_h<'a, H: HeuristicInstance<'a>>(
+            &mut self,
+            pos: Pos,
+            g: Cost,
+            f: Cost,
+            h: Option<&H>,
+        ) {
+            if !(pos <= self.target) {
                 return;
             }
-            self.expanded.push((Expanded, pos));
+            self.expanded.push((Explored, pos, g, f));
             self.draw(false, None, false, h, None);
         }
 
-        fn explore_with_h<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, h: Option<&H>) {
-            if !(pos <= Pos(self.width - 1, self.height - 1)) {
+        fn expand_with_h<'a, H: HeuristicInstance<'a>>(
+            &mut self,
+            pos: Pos,
+            g: Cost,
+            f: Cost,
+            h: Option<&H>,
+        ) {
+            if !(pos <= self.target) {
                 return;
             }
-            self.expanded.push((Explored, pos));
+            self.expanded.push((Expanded, pos, g, f));
             self.draw(false, None, false, h, None);
         }
 
-        fn extend_with_h<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, h: Option<&H>) {
-            if !(pos <= Pos(self.width - 1, self.height - 1)) {
+        fn extend_with_h<'a, H: HeuristicInstance<'a>>(
+            &mut self,
+            pos: Pos,
+            g: Cost,
+            f: Cost,
+            h: Option<&H>,
+        ) {
+            if !(pos <= self.target) {
                 return;
             }
-            self.expanded.push((Extended, pos));
+            self.expanded.push((Extended, pos, g, f));
             self.draw(false, None, false, h, None);
         }
 
@@ -170,11 +243,11 @@ mod with_sdl2 {
 
         fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
             &mut self,
-            path: Option<&Path>,
+            cigar: Option<&Cigar>,
             parent: ParentFn<'_>,
             h: Option<&H>,
         ) {
-            self.draw(true, path, false, h, parent);
+            self.draw(true, cigar, false, h, parent);
         }
     }
 
@@ -240,7 +313,6 @@ mod with_sdl2 {
         pub match_shrink: usize,
         pub match_width: usize,
         pub contour: Color,
-        pub layer_label: Color,
     }
 
     impl When {
@@ -255,11 +327,14 @@ mod with_sdl2 {
         }
     }
 
+    const CANVAS_HEIGHT: u32 = 500;
+
     #[derive(Clone)]
     pub struct Config {
-        pub cell_size: usize,
-        pub prescaler: u32,
+        /// 0 to infer automatically.
+        pub cell_size: u32,
         /// Divide all input coordinates by this for large inputs.
+        /// 0 to infer automatically.
         pub downscaler: u32,
         pub filepath: String,
         pub draw: When,
@@ -272,19 +347,20 @@ mod with_sdl2 {
         pub draw_old_on_top: bool,
         pub layer_drawing: bool,
         pub num_layers: Option<usize>,
+        pub show_dt: bool,
+        pub show_fronts: bool,
     }
 
     impl Config {
         pub fn new(style: VisualizerStyle) -> Self {
             let mut config = Self {
                 cell_size: 8,
-                prescaler: 1,
                 downscaler: 1,
                 save: When::None,
                 save_last: false,
                 filepath: String::from(""),
                 draw: When::None,
-                delay: 0.2,
+                delay: 0.1,
                 paused: false,
                 style: Style {
                     expanded: Gradient::TurboGradient(0.2..0.95),
@@ -293,7 +369,7 @@ mod with_sdl2 {
                     bg_color: Color::WHITE,
                     path: Some(Color::BLACK),
                     path_width: Some(2),
-                    tree: Some(Color::GRAY),
+                    tree: None,
                     tree_substitution: None,
                     tree_match: None,
                     tree_width: 1,
@@ -312,12 +388,13 @@ mod with_sdl2 {
                     match_shrink: 2,
                     match_width: 2,
                     contour: Color::GREEN,
-                    layer_label: Color::BLACK,
                 },
-                draw_old_on_top: false,
+                draw_old_on_top: true,
                 layer_drawing: false,
                 num_layers: None,
                 transparent_bmp: true,
+                show_dt: true,
+                show_fronts: true,
             };
 
             if style == VisualizerStyle::Large {
@@ -333,9 +410,10 @@ mod with_sdl2 {
 
             if style == VisualizerStyle::Detailed {
                 config.paused = false;
-                config.delay = 0.0001;
+                config.delay = 0.2;
                 config.cell_size = 6;
                 config.style.bg_color = Color::WHITE;
+                config.style.tree = Some(Color::GRAY);
                 config.style.expanded = Gradient::Fixed(Color::RGB(130, 179, 102));
                 config.style.explored = Some(Color::RGB(0, 102, 204));
                 config.style.max_heuristic = Some(10);
@@ -346,8 +424,7 @@ mod with_sdl2 {
                 config.style.draw_contours = true;
                 config.style.draw_matches = true;
                 config.style.contour = Color::BLACK;
-                config.style.layer_label = Color::BLACK;
-                config.draw_old_on_top = false;
+                config.draw_old_on_top = true;
                 config.layer_drawing = false;
             }
 
@@ -362,7 +439,7 @@ mod with_sdl2 {
     }
 
     impl Visualizer {
-        pub fn new(config: Config, a: Seq, b: Seq) -> Self {
+        pub fn new(mut config: Config, a: Seq, b: Seq) -> Self {
             let sdl_context = sdl2::init().unwrap();
 
             // Draw layer numbers
@@ -371,78 +448,109 @@ mod with_sdl2 {
                 .load_font("/usr/share/fonts/TTF/OpenSans-Regular.ttf", 24)
                 .unwrap();
 
+            fn new_canvas(
+                w: u32,
+                h: u32,
+                sdl_context: &Sdl,
+                title: &str,
+            ) -> RefCell<Canvas<Window>> {
+                let video_subsystem = sdl_context.video().unwrap();
+                video_subsystem.gl_attr().set_double_buffer(true);
+                RefCell::new(
+                    video_subsystem
+                        .window(title, w as u32, h as u32)
+                        //.borderless()
+                        .build()
+                        .unwrap()
+                        .into_canvas()
+                        .build()
+                        .unwrap(),
+                )
+            }
+
+            // layout:
+            //
+            // -------------
+            // |  NW  | DT |
+            // |      |    |
+            // -------------
+            //
+            // NW follows the cell size if given.
+            // Otherwise, the cell size and downscaler are chosen to give a height around 500 pixels.
+            // The DT window is chosen with the same height, but half the width.
+
+            let grid_width = a.len() as u32 + 1;
+            let grid_height = b.len() as u32 + 1;
+
+            if config.cell_size != 0 {
+                if config.downscaler == 0 {
+                    config.downscaler = 1;
+                }
+            } else {
+                if config.downscaler == 0 {
+                    config.downscaler = max(1, grid_height.div_ceil(CANVAS_HEIGHT));
+                }
+                let ds = config.downscaler;
+                config.cell_size = max(1, CANVAS_HEIGHT / (grid_height.div_ceil(ds)));
+            }
+            let cs = config.cell_size;
+            let ds = config.downscaler;
+            let nw_size = (grid_width.div_ceil(ds) * cs, grid_height.div_ceil(ds) * cs);
+            let dt_size = (nw_size.0 / 2, nw_size.1);
+            let canvas_size = (nw_size.0 + dt_size.0, nw_size.1);
+
             Visualizer {
                 canvas: {
-                    let canvas_size_cells = Pos::from(a.len() + 1, b.len() + 1);
-                    let video_subsystem = sdl_context.video().unwrap();
-                    video_subsystem.gl_attr().set_double_buffer(true);
-                    if config.draw != When::None || config.save != When::None || config.save_last {
-                        Some(RefCell::new(
-                            video_subsystem
-                                .window(
-                                    &config.filepath,
-                                    (canvas_size_cells.0 as u32).div_ceil(config.downscaler)
-                                        * config.cell_size as u32
-                                        * config.prescaler as u32,
-                                    (canvas_size_cells.1 as u32).div_ceil(config.downscaler)
-                                        * config.cell_size as u32
-                                        * config.prescaler as u32,
-                                )
-                                //.borderless()
-                                .build()
-                                .unwrap()
-                                .into_canvas()
-                                .build()
-                                .unwrap(),
-                        ))
-                    } else {
-                        None
-                    }
+                    (config.draw != When::None || config.save != When::None || config.save_last)
+                        .then(|| {
+                            new_canvas(canvas_size.0, canvas_size.1, &sdl_context, &config.filepath)
+                        })
                 },
-                sdl_context,
                 #[cfg(feature = "sdl2_ttf")]
                 font,
                 config: config.clone(),
                 expanded: vec![],
-                width: a.len() as u32 + 1,
-                height: b.len() as u32 + 1,
+                target: Pos::from_lengths(a, b),
                 frame_number: 0,
                 file_number: 0,
                 layer: if config.layer_drawing { Some(0) } else { None },
                 expanded_layers: vec![],
+                sdl_context,
+
+                canvas_size,
+                nw_size,
+                dt_size,
             }
         }
 
         fn cell_begin(&self, Pos(i, j): Pos) -> Point {
             Point::new(
-                (i / self.config.downscaler * self.config.prescaler * self.config.cell_size as u32)
-                    as i32,
-                (j / self.config.downscaler * self.config.prescaler * self.config.cell_size as u32)
-                    as i32,
+                (i / self.config.downscaler * self.config.cell_size) as i32,
+                (j / self.config.downscaler * self.config.cell_size) as i32,
             )
         }
+
         fn cell_center(&self, Pos(i, j): Pos) -> Point {
             Point::new(
-                (i / self.config.downscaler * self.config.prescaler * self.config.cell_size as u32
-                    + self.config.cell_size as u32 / 2) as i32,
-                (j / self.config.downscaler * self.config.prescaler * self.config.cell_size as u32
-                    + self.config.cell_size as u32 / 2) as i32,
+                (i / self.config.downscaler * self.config.cell_size + self.config.cell_size / 2)
+                    as i32,
+                (j / self.config.downscaler * self.config.cell_size + self.config.cell_size / 2)
+                    as i32,
             )
         }
 
         fn draw_pixel(&self, canvas: &mut Canvas<Window>, pos: Pos, color: Color) {
             canvas.set_draw_color(color);
-            let mut begin = self.cell_begin(pos);
-            begin *= self.config.prescaler as i32;
-            if self.config.cell_size == 1 && self.config.prescaler == 1 {
+            let begin = self.cell_begin(pos);
+            if self.config.cell_size == 1 {
                 canvas.draw_point(begin).unwrap();
             } else {
                 canvas
                     .fill_rect(Rect::new(
                         begin.x,
                         begin.y,
-                        self.config.cell_size as u32 * self.config.prescaler,
-                        self.config.cell_size as u32 * self.config.prescaler,
+                        self.config.cell_size,
+                        self.config.cell_size,
                     ))
                     .unwrap();
             }
@@ -453,13 +561,12 @@ mod with_sdl2 {
             let rects = pos
                 .iter()
                 .map(|p| {
-                    let mut begin = self.cell_begin(*p);
-                    begin *= self.config.prescaler as i32;
+                    let begin = self.cell_begin(*p);
                     Rect::new(
                         begin.x,
                         begin.y,
-                        self.config.cell_size as u32 * self.config.prescaler,
-                        self.config.cell_size as u32 * self.config.prescaler,
+                        self.config.cell_size,
+                        self.config.cell_size,
                     )
                 })
                 .collect_vec();
@@ -544,19 +651,20 @@ mod with_sdl2 {
         }
 
         //Saves canvas to bmp file
-        fn save_canvas(&self, canvas: &mut Canvas<Window>, last: bool) {
+        fn save_canvas(&self, canvas: &mut Canvas<Window>, last: bool, suffix: Option<&str>) {
+            let extension = suffix.map_or("bmp".to_string(), |s| s.to_string() + ".bmp");
             let path = if last {
                 let file = path::Path::new(&self.config.filepath);
                 if let Some(parent) = file.parent() {
                     std::fs::create_dir_all(parent).unwrap();
                 }
-                file.with_extension("bmp").to_owned()
+                file.with_extension(extension).to_owned()
             } else {
                 // Make sure the directory exists.
                 let mut dir = path::PathBuf::from(&self.config.filepath);
                 std::fs::create_dir_all(&dir).unwrap();
                 dir.push(self.file_number.to_string());
-                dir.set_extension("bmp");
+                dir.set_extension(extension);
                 dir
             };
 
@@ -585,7 +693,7 @@ mod with_sdl2 {
         fn draw<'a, H: HeuristicInstance<'a>>(
             &mut self,
             is_last: bool,
-            path: Option<&Path>,
+            cigar: Option<&Cigar>,
             is_new_layer: bool,
             h: Option<&H>,
             parent: ParentFn,
@@ -605,341 +713,360 @@ mod with_sdl2 {
                 return;
             }
 
-            let cell_size = self.config.cell_size as u32;
-
-            let Some(canvas) = &self.canvas else {return;};
-            let mut canvas = canvas.borrow_mut();
-
             // DRAW
+            {
+                // Draw background.
+                let Some(canvas) = &self.canvas else {return;};
+                let mut canvas = canvas.borrow_mut();
+                canvas.set_draw_color(self.config.style.bg_color);
+                canvas
+                    .fill_rect(Rect::new(0, 0, self.canvas_size.0, self.canvas_size.1))
+                    .unwrap();
 
-            // Draw background.
-            canvas.set_draw_color(self.config.style.bg_color);
-            canvas
-                .fill_rect(Rect::new(
-                    0,
-                    0,
-                    cell_size * self.width,
-                    cell_size * self.height,
-                ))
-                .unwrap();
-
-            // Draw heuristic values.
-            if self.config.style.draw_heuristic && let Some(h) = h {
-                let mut hint = Default::default();
-                let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
-                let mut value_pos_map = HashMap::<u32, Vec<Pos>>::default();
-                for i in 0..self.width {
-                    hint = h.h_with_hint(Pos(i,0), hint).1;
-                    let mut hint = hint;
-                    for j in 0..self.height {
-                        let pos = Pos(i, j);
-                        let (h, new_hint) = h.h_with_hint(pos, hint);
-                        hint = new_hint;
-                        value_pos_map.entry(h).or_default().push(pos);
+                // Draw heuristic values.
+                if self.config.style.draw_heuristic && let Some(h) = h {
+                    let mut hint = Default::default();
+                    let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
+                    let mut value_pos_map = HashMap::<u32, Vec<Pos>>::default();
+                    for i in 0..=self.target.0 {
+                        hint = h.h_with_hint(Pos(i,0), hint).1;
+                        let mut hint = hint;
+                        for j in 0..=self.target.1 {
+                            let pos = Pos(i, j);
+                            let (h, new_hint) = h.h_with_hint(pos, hint);
+                            hint = new_hint;
+                            value_pos_map.entry(h).or_default().push(pos);
+                        }
+                    }
+                    for (h, poss) in value_pos_map {
+                        self.draw_pixels(
+                            &mut canvas,
+                            poss,
+                            self.config.style.heuristic.color(h as f64 / h_max as f64),
+                        );
                     }
                 }
-                for (h, poss) in value_pos_map {
-                    self.draw_pixels(
-                        &mut canvas,
-                        poss,
-                        self.config.style.heuristic.color(h as f64 / h_max as f64),
-                    );
-                }
-            }
 
-            // Draw layers and contours.
-            if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
-                canvas.set_draw_color(self.config.style.contour);
-                let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
-                    canvas
-                        .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)))
-                        .unwrap();
-                };
-                let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
-                    canvas
-                        .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)))
-                        .unwrap();
-                };
+                // Draw layers and contours.
+                if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
+                    canvas.set_draw_color(self.config.style.contour);
+                    let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                        canvas
+                            .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)))
+                            .unwrap();
+                    };
+                    let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                        canvas
+                            .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)))
+                            .unwrap();
+                    };
 
 
-                // Right borders
-                let mut hint = Default::default();
-                let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
-                for i in 0..self.width-1 {
-                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
-                    let mut hint = hint;
-                    for j in 0..self.height {
-                        let pos = Pos(i, j);
-                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
-                        hint = new_hint;
-                        let pos_r = Pos(i + 1, j);
-                        let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
-                        hint = new_hint;
-                        if v_r != v {
-                            draw_right_border(&mut canvas, pos);
+                    // Right borders
+                    let mut hint = Default::default();
+                    let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                    for i in 0..self.target.0 {
+                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                        let mut hint = hint;
+                        for j in 0..=self.target.1 {
+                            let pos = Pos(i, j);
+                            let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                            hint = new_hint;
+                            let pos_r = Pos(i + 1, j);
+                            let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
+                            hint = new_hint;
+                            if v_r != v {
+                                draw_right_border(&mut canvas, pos);
 
-                            if j == 0 {
-                                top_borders.push((i+1, v_r));
+                                if j == 0 {
+                                    top_borders.push((i+1, v_r));
+                                }
                             }
                         }
                     }
-                }
-                top_borders.push((self.width, 0));
+                    top_borders.push((self.target.0+1, 0));
 
-                // Bottom borders
-                let mut hint = Default::default();
-                let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
-                for i in 0..self.width {
-                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
-                    let mut hint = hint;
-                    for j in 0..self.height-1 {
-                        let pos = Pos(i, j);
-                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
-                        hint = new_hint;
-                        let pos_l = Pos(i, j + 1);
-                        let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
-                        hint = new_hint;
-                        if v_l != v {
-                            draw_bottom_border(&mut canvas, pos);
+                    // Bottom borders
+                    let mut hint = Default::default();
+                    let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                    for i in 0..=self.target.0 {
+                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                        let mut hint = hint;
+                        for j in 0..self.target.1 {
+                            let pos = Pos(i, j);
+                            let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                            hint = new_hint;
+                            let pos_l = Pos(i, j + 1);
+                            let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
+                            hint = new_hint;
+                            if v_l != v {
+                                draw_bottom_border(&mut canvas, pos);
 
-                            if i == 0 {
-                                left_borders.push((j+1, v_l));
+                                if i == 0 {
+                                    left_borders.push((j+1, v_l));
+                                }
                             }
                         }
                     }
-                }
-                left_borders.push((self.height, 0));
+                    left_borders.push((self.target.1, 0));
 
-                // Draw numbers at the top and left.
-                #[cfg(feature = "sdl2_ttf")]
-                {
-                    let texture_creator = canvas.texture_creator();
+                    // Draw numbers at the top and left.
                     for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
                         if right < 10 { continue; }
-                        let surface = self.font.render(&layer.to_string()).blended(self.config.style.layer_label).unwrap();
-                        let w = surface.width();
-                        let h = surface.height();
-                        //let x = ((left*self.config.cell_size as u32+right*self.config.cell_size as u32)/2).saturating_sub(w/2);
-                        let x = (right * self.config.cell_size as u32).saturating_sub(w + 1);
-                        let y = -6;
-                        canvas.copy(&surface.as_texture(&texture_creator).unwrap(),
-                                    None, Some(Rect::new(x as i32,y,w,h))).unwrap();
+                        let x = (right * self.config.cell_size -1 ).saturating_sub(1);
+                        self.write_label(x as i32, -6, HAlign::Right, VAlign::Top, &mut canvas, &layer.to_string());
                     }
                     for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
                         if bottom < 10 { continue; }
-                        let surface = self.font.render(&layer.to_string()).blended(self.config.style.layer_label).unwrap();
-                        let w = surface.width();
-                        let h = surface.height();
-                        //let y = ((top*self.config.cell_size as u32+bottom*self.config.cell_size as u32)/2).saturating_sub(h/2);
-                        let x = 3;
-                        let y = (bottom * self.config.cell_size as u32).saturating_sub(h)+5;
-                        canvas.copy(&surface.as_texture(&texture_creator).unwrap(),
-                                    None, Some(Rect::new(x, y as i32,w,h))).unwrap();
+                        let y = bottom * self.config.cell_size +5;
+                        self.write_label(3, y as i32, HAlign::Left, VAlign::Bottom, &mut canvas, &layer.to_string());
                     }
                 }
-            }
 
-            if self.config.draw_old_on_top {
-                // Explored
-                if let Some(color) = self.config.style.explored {
-                    for &(t, pos) in &self.expanded {
-                        if t == Type::Explored {
-                            self.draw_pixel(&mut canvas, pos, color);
+                if self.config.draw_old_on_top {
+                    // Explored
+                    if let Some(color) = self.config.style.explored {
+                        for &(t, pos, _, _) in &self.expanded {
+                            if t == Type::Explored {
+                                self.draw_pixel(&mut canvas, pos, color);
+                            }
                         }
                     }
-                }
-                // Expanded
-                let mut current_layer = self.layer.unwrap_or(0);
-                for (i, &(t, pos)) in self.expanded.iter().enumerate().rev() {
-                    if t == Type::Explored {
-                        continue;
-                    }
-                    if t == Type::Extended && let Some(c) = self.config.style.extended {
-                        self.draw_pixel(&mut canvas, pos, c);
-                        continue;
-                    }
-                    self.draw_pixel(
-                        &mut canvas,
-                        pos,
-                        self.config.style.expanded.color(
-                            if let Some(layer) = self.layer && layer != 0 {
-                                if current_layer > 0
-                                    && i < self.expanded_layers[current_layer - 1]
-                                {
-                                    current_layer -= 1;
-                                }
-                                current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                            } else {
-                                    i as f64 / self.expanded.len() as f64
-                            },
-                        ),
-                    );
-                }
-            } else {
-                // Explored
-                if let Some(color) = self.config.style.explored {
-                    for &(t, pos) in &self.expanded {
+                    // Expanded
+                    let mut current_layer = self.layer.unwrap_or(0);
+                    for (i, &(t, pos, _, _)) in self.expanded.iter().enumerate().rev() {
                         if t == Type::Explored {
-                            self.draw_pixel(&mut canvas, pos, color);
+                            continue;
                         }
-                    }
-                }
-                // Expanded
-                let mut current_layer = 0;
-                for (i, &(t, pos)) in self.expanded.iter().enumerate() {
-                    if t == Type::Explored {
-                        continue;
-                    }
-                    if t == Type::Extended && let Some(c) = self.config.style.extended {
-                        self.draw_pixel(&mut canvas, pos, c);
-                        continue;
-                    }
-                    self.draw_pixel(
-                        &mut canvas,
-                        pos,
-                        self.config.style.expanded.color(
-                            if let Some(layer) = self.layer && layer != 0 {
-                                if current_layer < layer && i >= self.expanded_layers[current_layer] {
-                                    current_layer += 1;
-                                }
-                                current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                            } else {
-                                    i as f64 / self.expanded.len() as f64
-                            },
-                        ),
-                    );
-                }
-            }
-
-            // Draw matches.
-            if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
-                for m in &matches {
-                    if m.match_cost > 0 {
-                        continue;
-                    }
-                    let mut b = self.cell_center(m.start);
-                    b.x += self.config.style.match_shrink as i32;
-                    b.y += self.config.style.match_shrink as i32;
-                    let mut e = self.cell_center(m.end);
-                    e.x -= self.config.style.match_shrink as i32;
-                    e.y -= self.config.style.match_shrink as i32;
-                    Self::draw_diag_line(
-                        &mut canvas,
-                        b, e,
-                        match m.pruned {
-                            MatchStatus::Active => self.config.style.active_match,
-                            MatchStatus::Pruned => self.config.style.pruned_match,
-                        },
-                        self.config.style.match_width,
-                    );
-                }
-            }
-
-            // Draw path.
-            if let Some(path) = path &&
-               let Some(path_color) = self.config.style.path {
-                if let Some(path_width) = self.config.style.path_width {
-                    for (from, to) in path.iter().tuple_windows() {
-                        Self::draw_diag_line(
+                        if t == Type::Extended && let Some(c) = self.config.style.extended {
+                            self.draw_pixel(&mut canvas, pos, c);
+                            continue;
+                        }
+                        self.draw_pixel(
                             &mut canvas,
-                            self.cell_center(*from),
-                            self.cell_center(*to),
-                            path_color,
-                            path_width,
+                            pos,
+                            self.config.style.expanded.color(
+                                if let Some(layer) = self.layer && layer != 0 {
+                                    if current_layer > 0
+                                        && i < self.expanded_layers[current_layer - 1]
+                                    {
+                                        current_layer -= 1;
+                                    }
+                                    current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
+                                } else {
+                                        i as f64 / self.expanded.len() as f64
+                                },
+                            ),
                         );
                     }
                 } else {
-                    for p in path {
-                        self.draw_pixel(&mut canvas, *p, path_color)
-                    }
-                }
-            }
-
-            // Draw tree.
-            if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
-                for &(_t, u) in &self.expanded {
-                    if self.config.style.tree_fr_only {
-                        // Only trace if u is the furthest point on this diagonal.
-                        let mut v = u;
-                        let mut skip = false;
-                        loop {
-                            v = v + Pos(1,1);
-                            if !(v <= Pos(self.width, self.height)) {
-                                break;
-                            }
-                            if self.expanded.iter().filter(|(_, u)| *u == v).count() > 0 {
-                                skip = true;
-                                break;
+                    // Explored
+                    if let Some(color) = self.config.style.explored {
+                        for &(t, pos, _, _) in &self.expanded {
+                            if t == Type::Explored {
+                                self.draw_pixel(&mut canvas, pos, color);
                             }
                         }
-                        if skip {
+                    }
+                    // Expanded
+                    let mut current_layer = 0;
+                    for (i, &(t, pos, _, _)) in self.expanded.iter().enumerate() {
+                        if t == Type::Explored {
                             continue;
                         }
+                        if t == Type::Extended && let Some(c) = self.config.style.extended {
+                            self.draw_pixel(&mut canvas, pos, c);
+                            continue;
+                        }
+                        self.draw_pixel(
+                            &mut canvas,
+                            pos,
+                            self.config.style.expanded.color(
+                                if let Some(layer) = self.layer && layer != 0 {
+                                    if current_layer < layer && i >= self.expanded_layers[current_layer] {
+                                        current_layer += 1;
+                                    }
+                                    current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
+                                } else {
+                                        i as f64 / self.expanded.len() as f64
+                                },
+                            ),
+                        );
                     }
-                    let mut st = State{i: u.0 as isize, j: u.1 as isize, layer: None};
-                    let mut path = vec![];
-                    while let Some((p, op)) = parent(st){
-                        path.push((st, p, op));
-                        let color = if let Some(CigarOp::AffineOpen(_)) = op[1]
-                            && let Some(c) = self.config.style.tree_affine_open {
-                                c
-                            } else {
-                                match op[0].unwrap() {
-                                    CigarOp::Match => self.config.style.tree_match,
-                                    CigarOp::Mismatch => self.config.style.tree_substitution,
-                                    _ => None,
-                                }.unwrap_or(tree_color)
-                            };
+                }
+
+                // Draw matches.
+                if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
+                    for m in &matches {
+                        if m.match_cost > 0 {
+                            continue;
+                        }
+                        let mut b = self.cell_center(m.start);
+                        b.x += self.config.style.match_shrink as i32;
+                        b.y += self.config.style.match_shrink as i32;
+                        let mut e = self.cell_center(m.end);
+                        e.x -= self.config.style.match_shrink as i32;
+                        e.y -= self.config.style.match_shrink as i32;
                         Self::draw_diag_line(
                             &mut canvas,
-                            self.cell_center(p.pos()),
-                            self.cell_center(st.pos()),
-                            color,
-                            self.config.style.tree_width,
+                            b, e,
+                            match m.pruned {
+                                MatchStatus::Active => self.config.style.active_match,
+                                MatchStatus::Pruned => self.config.style.pruned_match,
+                            },
+                            self.config.style.match_width,
                         );
-
-                        st = p;
                     }
-                    if let Some(c) = self.config.style.tree_direction_change {
-                        let mut last = CigarOp::Match;
-                        for &(u, p, op)  in path.iter().rev() {
-                            let op = op[0].unwrap();
-                            match op {
-                                CigarOp::Insertion => {
-                                    if last == CigarOp::Deletion {
-                                        Self::draw_diag_line(
-                                            &mut canvas,
-                                            self.cell_center(p.pos()),
-                                            self.cell_center(u.pos()),
-                                            c,
-                                            self.config.style.tree_width,
-                                        );
+                }
+
+                // Draw path.
+                if let Some(cigar) = cigar &&
+                   let Some(path_color) = self.config.style.path {
+                    if let Some(path_width) = self.config.style.path_width {
+                        for (from, to) in cigar.to_path().iter().tuple_windows() {
+                            Self::draw_diag_line(
+                                &mut canvas,
+                                self.cell_center(*from),
+                                self.cell_center(*to),
+                                path_color,
+                                path_width,
+                            );
+                        }
+                    } else {
+                        for p in cigar.to_path() {
+                            self.draw_pixel(&mut canvas, p, path_color)
+                        }
+                    }
+                }
+
+                // Draw tree.
+                if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
+                    for &(_t, u, _, _) in &self.expanded {
+                        if self.config.style.tree_fr_only {
+                            // Only trace if u is the furthest point on this diagonal.
+                            let mut v = u;
+                            let mut skip = false;
+                            loop {
+                                v = v + Pos(1,1);
+                                if !(v <= self.target) {
+                                    break;
+                                }
+                                if self.expanded.iter().filter(|(_, u, _, _)| *u == v).count() > 0 {
+                                    skip = true;
+                                    break;
+                                }
+                            }
+                            if skip {
+                                continue;
+                            }
+                        }
+                        let mut st = State{i: u.0 as isize, j: u.1 as isize, layer: None};
+                        let mut path = vec![];
+                        while let Some((p, op)) = parent(st){
+                            path.push((st, p, op));
+                            let color = if let Some(CigarOp::AffineOpen(_)) = op[1]
+                                && let Some(c) = self.config.style.tree_affine_open {
+                                    c
+                                } else {
+                                    match op[0].unwrap() {
+                                        CigarOp::Match => self.config.style.tree_match,
+                                        CigarOp::Mismatch => self.config.style.tree_substitution,
+                                        _ => None,
+                                    }.unwrap_or(tree_color)
+                                };
+                            Self::draw_diag_line(
+                                &mut canvas,
+                                self.cell_center(p.pos()),
+                                self.cell_center(st.pos()),
+                                color,
+                                self.config.style.tree_width,
+                            );
+
+                            st = p;
+                        }
+                        if let Some(c) = self.config.style.tree_direction_change {
+                            let mut last = CigarOp::Match;
+                            for &(u, p, op)  in path.iter().rev() {
+                                let op = op[0].unwrap();
+                                match op {
+                                    CigarOp::Insertion => {
+                                        if last == CigarOp::Deletion {
+                                            Self::draw_diag_line(
+                                                &mut canvas,
+                                                self.cell_center(p.pos()),
+                                                self.cell_center(u.pos()),
+                                                c,
+                                                self.config.style.tree_width,
+                                            );
+                                        }
+                                        last = op;
                                     }
-                                    last = op;
-                                }
-                                CigarOp::Deletion => {
-                                    if last == CigarOp::Insertion {
-                                        Self::draw_diag_line(
-                                            &mut canvas,
-                                            self.cell_center(p.pos()),
-                                            self.cell_center(u.pos()),
-                                            c,
-                                            self.config.style.tree_width,
-                                        );
+                                    CigarOp::Deletion => {
+                                        if last == CigarOp::Insertion {
+                                            Self::draw_diag_line(
+                                                &mut canvas,
+                                                self.cell_center(p.pos()),
+                                                self.cell_center(u.pos()),
+                                                c,
+                                                self.config.style.tree_width,
+                                            );
+                                        }
+                                        last = op;
                                     }
-                                    last = op;
-                                }
-                                CigarOp::Mismatch => {
-                                    last = op;
-                                }
-                                _ => {
+                                    CigarOp::Mismatch => {
+                                        last = op;
+                                    }
+                                    _ => {
+                                    }
                                 }
                             }
                         }
                     }
+                } // draw tree
 
-                }
+                // Draw labels
+                canvas.set_draw_color(Color::GRAY);
+                self.write_label(
+                    self.nw_size.0 as i32,
+                    0,
+                    HAlign::Right,
+                    VAlign::Top,
+                    &mut canvas,
+                    &make_label("i = ", self.target.0),
+                );
+                self.write_label(
+                    0,
+                    self.nw_size.1 as i32,
+                    HAlign::Left,
+                    VAlign::Bottom,
+                    &mut canvas,
+                    &make_label("j = ", self.target.1),
+                );
+
+                self.write_label(
+                    self.nw_size.0 as i32 / 2,
+                    0,
+                    HAlign::Center,
+                    VAlign::Top,
+                    &mut canvas,
+                    "DP states (i,j)",
+                );
+                self.write_label(
+                    self.nw_size.0 as i32 / 2,
+                    30,
+                    HAlign::Center,
+                    VAlign::Top,
+                    &mut canvas,
+                    &make_label("expanded: ", self.expanded.len()),
+                );
             }
+
+            // Draw DT states
+            self.draw_dt(cigar);
+            self.draw_f(cigar);
+
+            let Some(canvas) = &self.canvas else {return;};
+            let mut canvas = canvas.borrow_mut();
 
             // SAVE
 
@@ -948,13 +1075,13 @@ mod with_sdl2 {
                 .save
                 .is_active(current_frame, is_last, is_new_layer)
             {
-                self.save_canvas(&mut canvas, false);
+                self.save_canvas(&mut canvas, false, None);
                 self.file_number += 1;
             }
 
             // Save the final frame separately if needed.
             if is_last && self.config.save_last {
-                self.save_canvas(&mut canvas, true);
+                self.save_canvas(&mut canvas, true, None);
             }
 
             // SHOW
@@ -1024,6 +1151,356 @@ mod with_sdl2 {
                     break 'outer;
                 }
             }
+        }
+
+        // Draw DT states to the top-right 1/3rd of the canvas.
+        fn draw_dt(&mut self, cigar: Option<&Cigar>) {
+            if !self.config.show_dt || self.expanded.is_empty() {
+                return;
+            }
+            let Some(canvas) = &self.canvas else {return;};
+            let mut canvas = canvas.borrow_mut();
+
+            let offset = (self.nw_size.0 as i32, self.nw_size.1 as i32 / 4);
+            // Cell_size goes down in powers of 2.
+            let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
+            let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
+            let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
+            let dt_cell_size = min(
+                self.dt_size.0 / (front_max + 1),
+                min(
+                    self.dt_size.1 / 2 / max(-diagonal_min + 1, diagonal_max + 1) as u32,
+                    10,
+                ),
+            );
+
+            // Draw grid
+
+            // Divider
+            canvas.set_draw_color(Color::BLACK);
+            canvas
+                .draw_line(
+                    Point::new(self.nw_size.0 as i32, 0),
+                    Point::new(self.nw_size.0 as i32, self.nw_size.1 as i32),
+                )
+                .unwrap();
+
+            // Horizontal d lines
+            canvas.set_draw_color(Color::GRAY);
+
+            let dy = |d: i32| offset.1 - d * dt_cell_size as i32 - dt_cell_size as i32 / 2;
+
+            let mut draw_d_line = |d: i32, y: i32| {
+                canvas
+                    .draw_line(
+                        Point::new(self.nw_size.0 as i32, y),
+                        Point::new(self.canvas_size.0 as i32, y),
+                    )
+                    .unwrap();
+                self.write_label(
+                    self.nw_size.0 as i32,
+                    y,
+                    HAlign::Right,
+                    VAlign::Center,
+                    &mut canvas,
+                    &make_label("d = ", d),
+                );
+            };
+            // d=0
+            draw_d_line(0, offset.1);
+            // d=min
+            if diagonal_min != 0 {
+                draw_d_line(diagonal_min, dy(diagonal_min - 1));
+            }
+            // d=max
+            if diagonal_max != 0 {
+                draw_d_line(diagonal_max, dy(diagonal_max));
+            }
+
+            // Vertical g lines
+            canvas.set_draw_color(Color::GRAY);
+            let mut draw_g_line = |g: i32| {
+                let line_g = if g == 0 { 0 } else { g + 1 };
+                let x = self.nw_size.0 as i32 + line_g * dt_cell_size as i32;
+                canvas
+                    .draw_line(Point::new(x, 0), Point::new(x, self.canvas_size.1 as i32))
+                    .unwrap();
+                self.write_label(
+                    x,
+                    dy(diagonal_min - 1),
+                    if g == 0 { HAlign::Left } else { HAlign::Right },
+                    VAlign::Top,
+                    &mut canvas,
+                    &make_label("g = ", g),
+                );
+            };
+            // g=0
+            draw_g_line(0);
+            // g=min
+            if front_max > 2 {
+                draw_g_line(front_max as i32);
+            }
+
+            let state_coords = |st: (Pos, Cost)| -> (i32, i32) {
+                (offset.0 + (dt_cell_size * st.1) as i32, dy(st.0.diag()))
+            };
+
+            let draw_state =
+                |canvas: &mut RefMut<Canvas<Window>>, color: Color, st: (Type, Pos, Cost, Cost)| {
+                    canvas.set_draw_color(color);
+                    let (x, y) = state_coords((st.1, st.2));
+                    canvas
+                        .fill_rect(Rect::new(x, y, dt_cell_size, dt_cell_size))
+                        .unwrap();
+                };
+
+            if self.config.draw_old_on_top {
+                // Expanded
+                let mut current_layer = self.layer.unwrap_or(0);
+                for (i, &st) in self.expanded.iter().enumerate().rev() {
+                    let color = self.config.style.expanded.color(
+                            if let Some(layer) = self.layer && layer != 0 {
+                                if current_layer > 0
+                                    && i < self.expanded_layers[current_layer - 1]
+                                {
+                                    current_layer -= 1;
+                                }
+                                current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
+                            } else {
+                                    i as f64 / self.expanded.len() as f64
+                            },
+                        );
+                    draw_state(&mut canvas, color, st);
+                }
+            } else {
+                // Expanded
+                let mut current_layer = 0;
+                for (i, &st) in self.expanded.iter().enumerate() {
+                    let color =
+                        self.config.style.expanded.color(
+                            if let Some(layer) = self.layer && layer != 0 {
+                                if current_layer < layer && i >= self.expanded_layers[current_layer] {
+                                    current_layer += 1;
+                                }
+                                current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
+                            } else {
+                                    i as f64 / self.expanded.len() as f64
+                            },
+                        );
+                    draw_state(&mut canvas, color, st);
+                }
+            }
+
+            // Title
+            canvas.set_draw_color(Color::GRAY);
+            self.write_label(
+                self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2,
+                0,
+                HAlign::Center,
+                VAlign::Top,
+                &mut canvas,
+                "Diagonal Transition states (g, d) = (s, k)",
+            );
+
+            if let Some(cigar) = cigar {
+                if let Some(path_color) = self.config.style.path {
+                    for (from, to) in cigar
+                        .to_path_with_cost(LinearCost::new_unit())
+                        .iter()
+                        .tuple_windows()
+                    {
+                        let from_coords = state_coords(*from);
+                        let to_coords = state_coords(*to);
+                        if from_coords == to_coords {
+                            continue;
+                        }
+                        if let Some(path_width) = self.config.style.path_width {
+                            Self::draw_diag_line(
+                                &mut canvas,
+                                Point::new(
+                                    from_coords.0 + dt_cell_size as i32 / 2,
+                                    from_coords.1 + dt_cell_size as i32 / 2,
+                                ),
+                                Point::new(
+                                    to_coords.0 + dt_cell_size as i32 / 2,
+                                    to_coords.1 + dt_cell_size as i32 / 2,
+                                ),
+                                path_color,
+                                path_width,
+                            );
+                        } else {
+                            draw_state(&mut canvas, path_color, (Expanded, from.0, from.1, 0));
+                        }
+                    }
+                }
+            }
+        }
+
+        fn write_label(
+            &self,
+            x: i32,
+            y: i32,
+            ha: HAlign,
+            va: VAlign,
+            canvas: &mut std::cell::RefMut<Canvas<Window>>,
+            text: &str,
+        ) {
+            // Add labels
+            #[cfg(feature = "sdl2_ttf")]
+            {
+                let surface = self.font.render(text).blended(canvas.draw_color()).unwrap();
+                let w = surface.width();
+                let h = surface.height();
+                let x = match ha {
+                    HAlign::Left => x,
+                    HAlign::Center => x - w as i32 / 2,
+                    HAlign::Right => x - w as i32,
+                };
+                let y = match va {
+                    VAlign::Top => y,
+                    VAlign::Center => y - h as i32 / 2,
+                    VAlign::Bottom => y - h as i32,
+                };
+                let texture_creator = canvas.texture_creator();
+                canvas
+                    .copy(
+                        &surface.as_texture(&texture_creator).unwrap(),
+                        None,
+                        Some(Rect::new(x, y, w, h)),
+                    )
+                    .unwrap();
+            }
+        }
+
+        fn draw_f(&mut self, cigar: Option<&Cigar>) {
+            if !self.config.show_fronts || self.expanded.is_empty() {
+                return;
+            }
+            let Some(canvas) = &self.canvas else {return;};
+            let mut canvas = canvas.borrow_mut();
+
+            // Soft red
+            const SOFT_RED: Color = Color::RGB(244, 113, 116);
+            const _SOFT_GREEN: Color = Color::RGB(111, 194, 118);
+
+            // Cell size from DT
+            // Cell_size goes down in powers of 2.
+            let front_max = self.expanded.iter().map(|st| st.3).max().unwrap();
+            let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
+            let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
+            let dt_cell_size = min(
+                self.dt_size.0 / (front_max + 1),
+                min(
+                    self.dt_size.1 / 2 / max(-diagonal_min + 1, diagonal_max + 1) as u32,
+                    10,
+                ),
+            );
+
+            // f is plotted with f_min at y=height-30, and f_max at y=3/4*height
+            let f_min = self
+                .expanded
+                .iter()
+                .filter(|st| st.0 == Expanded)
+                .map(|st| st.3)
+                .min()
+                .unwrap();
+            let f_max = self
+                .expanded
+                .iter()
+                .filter(|st| st.0 == Expanded)
+                .map(|st| st.3)
+                .max()
+                .unwrap();
+            let f_y = |f| {
+                self.canvas_size.1 as i32
+                    - ((f - f_min) as f32 / (f_max - f_min) as f32 * self.canvas_size.1 as f32 / 4.)
+                        as i32
+                    - 30
+            };
+
+            for (i, &(t, pos, g, f)) in self.expanded.iter().enumerate() {
+                if t == Explored {
+                    continue;
+                }
+                canvas.set_draw_color(
+                    //Gradient::Gradient(SOFT_GREEN..SOFT_RED)
+                    Gradient::TurboGradient(0.2..0.95).color(i as f64 / self.expanded.len() as f64),
+                );
+                canvas
+                    .fill_rect(Rect::new(
+                        (pos.0 * self.config.cell_size) as i32,
+                        f_y(f),
+                        self.config.cell_size,
+                        2,
+                    ))
+                    .unwrap();
+                canvas
+                    .fill_rect(Rect::new(
+                        self.nw_size.0 as i32 + (g * dt_cell_size) as i32,
+                        f_y(f),
+                        dt_cell_size,
+                        2,
+                    ))
+                    .unwrap();
+            }
+
+            // Horizontal line at final cost when path is given.
+            let mut cost = None;
+            if let Some(cigar) = cigar {
+                let c = cigar
+                    .to_path_with_cost(LinearCost::new_unit())
+                    .last()
+                    .unwrap()
+                    .1;
+                cost = Some(c);
+                let y = f_y(c);
+                canvas.set_draw_color(SOFT_RED);
+                canvas
+                    .draw_line(Point::new(0, y), Point::new(self.canvas_size.0 as i32, y))
+                    .unwrap();
+
+                canvas.set_draw_color(SOFT_RED);
+                self.write_label(
+                    self.nw_size.0 as i32,
+                    y,
+                    HAlign::Left,
+                    VAlign::Center,
+                    &mut canvas,
+                    &make_label("g* = ", c),
+                );
+            };
+
+            canvas.set_draw_color(SOFT_RED);
+            self.write_label(
+                self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2,
+                self.dt_size.1 as i32,
+                HAlign::Center,
+                VAlign::Bottom,
+                &mut canvas,
+                "max f per front g",
+            );
+            for f in [f_min, f_max] {
+                if Some(f) == cost {
+                    continue;
+                }
+                self.write_label(
+                    self.nw_size.0 as i32,
+                    f_y(f),
+                    HAlign::Left,
+                    VAlign::Center,
+                    &mut canvas,
+                    &make_label("f = ", f),
+                );
+            }
+
+            self.write_label(
+                self.nw_size.0 as i32 / 2,
+                self.nw_size.1 as i32,
+                HAlign::Center,
+                VAlign::Bottom,
+                &mut canvas,
+                "max f per column i",
+            );
         }
     }
 }
