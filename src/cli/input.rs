@@ -5,7 +5,8 @@ use crate::{
 use bio::io::fasta;
 use clap::{ArgGroup, Parser};
 use itertools::Itertools;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha8Rng;
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -22,7 +23,7 @@ pub struct Input {
         long,
         parse(from_os_str),
         display_order = 1,
-        group = "inputmethod"
+        //group = "inputmethod"
     )]
     input: Option<PathBuf>,
 
@@ -93,11 +94,12 @@ impl Input {
             }
         } else {
             // Generate random input.
-            let ref mut rng = if let Some(seed) = self.generate.seed {
-                rand_chacha::ChaCha8Rng::seed_from_u64(seed)
-            } else {
-                rand_chacha::ChaCha8Rng::from_entropy()
-            };
+            let seed = self.generate.seed.unwrap_or_else(|| {
+                let seed = ChaCha8Rng::from_entropy().gen_range(0..u64::MAX);
+                eprintln!("Seed: {seed}");
+                seed
+            });
+            let ref mut rng = ChaCha8Rng::seed_from_u64(seed);
             let generate_options = GenerateOptions {
                 length: self.generate.length.unwrap(),
                 error_rate: self.generate.error_rate.unwrap(),
