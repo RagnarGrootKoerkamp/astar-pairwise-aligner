@@ -40,21 +40,31 @@ pub struct VisualizerArgs {
     )]
     pub save: Option<When>,
 
-    /// Where to save.
+    /// Where to save. Implies --save [last].
     #[clap(long, display_order = 4, value_name = "PATH")]
     pub save_path: Option<String>,
 
     /// The size in pixels of each cell.
+    /// By default, chosen to give a canvas of height 500.
     #[clap(long, display_order = 10, hide_short_help = true)]
-    pub cell_size: Option<usize>,
+    pub cell_size: Option<u32>,
 
     /// Number of states per cell.
+    /// By default, chosen to give a canvas of height 500.
     #[clap(long, display_order = 10, hide_short_help = true)]
     pub downscaler: Option<u32>,
 
-    /// When set, draw older expanded states on top. Useful for exponential search.
+    /// When set, draw newer expanded states on top. Useful for divide & conquer approaches.
     #[clap(long, display_order = 10, hide_short_help = true)]
-    pub old_on_top: bool,
+    pub new_on_top: bool,
+
+    /// Enable drawing the tree.
+    #[clap(long, display_order = 10, hide_short_help = true)]
+    pub draw_tree: bool,
+
+    /// Disable drawing the tree.
+    #[clap(long, display_order = 10, hide_short_help = true)]
+    pub no_draw_tree: bool,
 }
 
 pub trait VisualizerRunner {
@@ -72,7 +82,10 @@ impl VisualizerArgs {
         matches: ArgMatches,
         f: F,
     ) -> F::R {
-        if matches.contains_id("visualize") || matches.contains_id("save") {
+        if matches.contains_id("visualize")
+            || matches.contains_id("save")
+            || matches.contains_id("save_path")
+        {
             eprintln!("The sdl2 feature must be enabled to use visualizations.");
             panic!("The sdl2 feature must be enabled to use visualizations.");
         }
@@ -88,6 +101,8 @@ impl VisualizerArgs {
         matches: ArgMatches,
         f: F,
     ) -> F::R {
+        use sdl2::pixels::Color;
+
         use crate::visualizer::{Config, Visualizer};
 
         let draw = if matches.contains_id("visualize") {
@@ -97,6 +112,8 @@ impl VisualizerArgs {
         };
         let save = if matches.contains_id("save") {
             self.save.clone().unwrap_or(When::Last)
+        } else if self.save_path.is_some() {
+            When::Last
         } else {
             When::None
         };
@@ -104,6 +121,7 @@ impl VisualizerArgs {
             return f.call(NoVisualizer);
         }
 
+        // Get the default config for the style.
         let mut config = Config::new(self.style);
         config.draw = draw;
         config.save = save;
@@ -118,13 +136,19 @@ impl VisualizerArgs {
                 .clone()
                 .expect("--save-path must be set when --save is set");
         }
-        if let Some(cell_size) = self.cell_size {
-            config.cell_size = cell_size;
+
+        // Apply CLI flag customizations to the style.
+        config.cell_size = self.cell_size.unwrap_or(0);
+        config.downscaler = self.downscaler.unwrap_or(0);
+
+        config.draw_old_on_top = !self.new_on_top;
+        if self.draw_tree {
+            config.style.tree = Some(Color::BLACK);
         }
-        if let Some(downscaler) = self.downscaler {
-            config.downscaler = downscaler;
+        if self.no_draw_tree {
+            config.style.tree = None;
         }
-        config.draw_old_on_top = self.old_on_top;
+
         f.call(Visualizer::new(config, a, b))
     }
 }
