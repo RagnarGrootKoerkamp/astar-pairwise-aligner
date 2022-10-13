@@ -7,7 +7,7 @@ use crate::{
 use itertools::Itertools;
 use std::{
     marker::PhantomData,
-    time::{self, Duration},
+    time::{Duration, Instant},
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -162,7 +162,9 @@ pub struct CSHI<C: Contours> {
     contours: C,
 
     // For debugging
+    prune_count: usize,
     pruning_duration: Duration,
+
     // TODO: Do not use vectors inside a hashmap.
     // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
     arrows: HashMap<Pos, Vec<Arrow>>,
@@ -211,6 +213,7 @@ impl<C: Contours> CSHI<C> {
             // Filled below.
             transform_target: Pos(0, 0),
             contours: C::default(),
+            prune_count: 0,
             pruning_duration: Default::default(),
             arrows: Default::default(),
         };
@@ -354,8 +357,15 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         if !self.params.pruning.enabled {
             return (0, Pos::default());
         }
+        self.prune_count += 1;
 
-        let start = time::Instant::now();
+        // Time the duration of retrying once in this many iterations.
+        const TIME_EACH: usize = 64;
+        let start = if self.prune_count % TIME_EACH == 0 {
+            Some(Instant::now())
+        } else {
+            None
+        };
 
         // Maximum length arrow at given pos.
         let tpos = self.transform(pos);
@@ -403,7 +413,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         let a = if let Some(arrows) = self.arrows.get(&tpos) {
             arrows.iter().max_by_key(|a| a.score).unwrap().clone()
         } else {
-            self.pruning_duration += start.elapsed();
+            if let Some(start) = start {
+                self.pruning_duration += TIME_EACH as u32 * start.elapsed();
+            }
             // FIXME: Fix queue shifting with gapcost.
             return (change, pos);
         };
@@ -492,7 +504,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             };
         }
 
-        self.pruning_duration += start.elapsed();
+        if let Some(start) = start {
+            self.pruning_duration += TIME_EACH as u32 * start.elapsed();
+        }
 
         if self.params.use_gap_cost {
             // FIXME: Return `change`, and `tpos` instead of `pos`.
