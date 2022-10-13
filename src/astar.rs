@@ -110,8 +110,8 @@ where
     }) = queue.pop()
     {
         // Time the duration of retrying once in this many iterations.
-        const RETRY_COUNT_EACH: i32 = 64;
-        let expand_start = if retry_cnt % RETRY_COUNT_EACH == 0 {
+        const TIME_EACH: i32 = 64;
+        let expand_start = if retry_cnt % TIME_EACH == 0 {
             Some(Instant::now())
         } else {
             None
@@ -146,7 +146,7 @@ where
                 retry_cnt += 1;
                 if let Some(expand_start) = expand_start {
                     stats.retries_duration +=
-                        RETRY_COUNT_EACH as f64 * expand_start.elapsed().as_secs_f64();
+                        TIME_EACH as f64 * expand_start.elapsed().as_secs_f64();
                 }
                 continue;
             }

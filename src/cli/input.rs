@@ -23,7 +23,7 @@ pub struct Input {
         long,
         parse(from_os_str),
         display_order = 1,
-        //group = "inputmethod"
+        group = "inputmethod"
     )]
     input: Option<PathBuf>,
 

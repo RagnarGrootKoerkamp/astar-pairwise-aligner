@@ -1004,7 +1004,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
     }
 
     pub fn align_local_band_doubling<'a>(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
-        const D: bool = true;
+        const D: bool = false;
 
         let ref mut h = self.h.build(a, b);
 
@@ -1429,7 +1429,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 },
             )
             .1;
-            self.v.borrow_mut().last_frame(Some(&cc.1));
+            //self.v.borrow_mut().last_frame(Some(&cc.1));
         } else {
             cc = self.align_for_bounded_dist(a, b, None).unwrap();
         };

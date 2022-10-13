@@ -158,11 +158,12 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 // TODO: include the cost needed to transition from column `prev`/`i-1` to the current column.
                 // h.h has (-1, -1) to offset the padding.
                 while start < b.len() as Idx
-                    && start <= prev.range().end() + 1
+                    && start <= *prev.range().end() // FIXME: +1
                     && prev.m()[start] + h.h(Pos::from(max(i, 1) - 1, max(start, 1) - 1)) > s
                 {
                     start += 1;
                 }
+
                 start = max(start, 1);
                 if start > prev.range().end() + 1 {
                     return start..=start - 1;

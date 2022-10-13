@@ -277,12 +277,9 @@ where
             cur_dt = next_dt;
             cur_pos = next_pos;
         }
-        loop {
+        while cur_pos != Pos(0, 0) {
             cur_pos = Edge::Match.back(&cur_pos).unwrap();
             path.push(cur_pos);
-            if cur_pos == Pos(0, 0) {
-                break;
-            }
         }
 
         path.reverse();
