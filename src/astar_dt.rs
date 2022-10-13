@@ -207,6 +207,7 @@ where
 
             h.explore(next);
             stats.explored += 1;
+            v.explore_with_h(next, next_g, next_f, Some(h));
         });
     }
 

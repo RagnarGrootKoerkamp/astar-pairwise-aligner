@@ -75,10 +75,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
     ///
     /// `a` and `b` must be padded at the start by the same character.
     /// `i` and `j` will always be > 0.
-    fn next_front(
+    fn next_front<'a, HI: HeuristicInstance<'a>>(
         &mut self,
         i: Idx,
         f_max: Cost,
+        h: Option<&HI>,
         a: Seq,
         b: Seq,
         prev: &Front<N>,
@@ -107,7 +108,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 next.layer_mut(layer)[j] = best;
             });
             let pos = Pos::from(i - 1, j - 1);
-            self.v.expand(pos, next.m()[j], f_max);
+            self.v.expand_with_h(pos, next.m()[j], f_max, h);
         }
     }
 
@@ -346,7 +347,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 assert!(!new_range.is_empty());
                 fronts[i as Idx].reset(INF, new_range.clone());
                 let (prev, next) = fronts.split_at(i);
-                self.next_front(i, f_max[i as usize], a, b, prev, next);
+                self.next_front(i, f_max[i as usize], Some(h), a, b, prev, next);
 
                 // for j in new_range.clone() {
                 //     println!(
@@ -367,7 +368,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                     }
                 }
 
-                self.v.new_layer();
+                self.v.new_layer_with_h(Some(h));
             }
 
             if i == a.len() as Idx && fronts[a.len() as Idx].range().contains(&(b.len() as Idx)) {
@@ -391,7 +392,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
             },
             Direction::Forward,
         );
-        self.v.last_frame(Some(&cigar));
+        self.v.last_frame_with_h(Some(&cigar), None, Some(h));
         (dist, cigar)
     }
 }
@@ -503,13 +504,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             std::mem::swap(prev, next);
             // Update front size.
             next.reset(INF, self.j_range(a, b, h, i, f_max, prev));
-            self.next_front(i, f_max.unwrap_or(0), a, b, prev, next);
+            self.next_front(i, f_max.unwrap_or(0), Some(h), a, b, prev, next);
             if !self.exponential_search {
-                self.v.new_layer();
+                self.v.new_layer_with_h(Some(h));
             }
         }
         if self.exponential_search {
-            self.v.new_layer();
+            self.v.new_layer_with_h(Some(h));
         }
         if let Some(&dist) = next.m().get(b.len() as Idx) {
             Some(dist)
@@ -554,10 +555,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
                 LEFT_BUFFER,
                 RIGHT_BUFFER,
             );
-            self.next_front(i, f_max.unwrap_or(0), a, b, prev, &mut next);
+            self.next_front(i, f_max.unwrap_or(0), Some(h), a, b, prev, &mut next);
             fronts.fronts.push(next);
             if !self.exponential_search {
-                self.v.new_layer();
+                self.v.new_layer_with_h(Some(h));
             }
         }
 
@@ -585,7 +586,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         }
 
         if self.exponential_search {
-            self.v.new_layer();
+            self.v.new_layer_with_h(Some(h));
         }
         None
     }

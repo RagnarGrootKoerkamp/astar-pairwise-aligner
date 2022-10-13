@@ -339,6 +339,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         g: Cost,
         // Only used for visualizing
         f_max: Cost,
+        h: Option<&H::Instance<'_>>,
         front: &mut Front<N>,
         a: Seq,
         b: Seq,
@@ -357,11 +358,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     for fr in (fr_old..*fr).step_by(2) {
                         self.v
                             .borrow_mut()
-                            .extend(offset + fr_to_pos(d, fr), g, f_max);
+                            .extend_with_h(offset + fr_to_pos(d, fr), g, f_max, h);
                     }
                     self.v
                         .borrow_mut()
-                        .expand(offset + fr_to_pos(d, *fr), g, f_max);
+                        .expand_with_h(offset + fr_to_pos(d, *fr), g, f_max, h);
                 }
                 Backward => {
                     *fr += 2 * extend_diagonal(
@@ -372,7 +373,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         a.len() as Fr + b.len() as Fr - *fr,
                     );
                     for fr in (fr_old..*fr).step_by(2) {
-                        self.v.borrow_mut().extend(
+                        self.v.borrow_mut().extend_with_h(
                             offset
                                 + fr_to_pos(
                                     a.len() as Fr - b.len() as Fr - d,
@@ -380,9 +381,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                                 ),
                             g,
                             f_max,
+                            h,
                         );
                     }
-                    self.v.borrow_mut().expand(
+                    self.v.borrow_mut().expand_with_h(
                         offset
                             + fr_to_pos(
                                 a.len() as Fr - b.len() as Fr - d,
@@ -390,6 +392,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                             ),
                         g,
                         f_max,
+                        h,
                     );
                 }
             }
@@ -554,6 +557,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         b: Seq,
         g: Cost,
         f_max: Cost,
+        h: Option<&H::Instance<'_>>,
         fronts: &mut Fronts<N>,
         offset: Pos,
         start_layer: Layer,
@@ -639,7 +643,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         }
 
         // Extend all points in the m layer and check if we're done.
-        self.extend(g, f_max, &mut fronts[g as Fr], a, b, offset, direction)
+        self.extend(g, f_max, h, &mut fronts[g as Fr], a, b, offset, direction)
     }
 
     // Returns None when the sequences are equal.
@@ -648,6 +652,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         a: Seq,
         b: Seq,
         f_max: Cost,
+        h: Option<&H::Instance<'_>>,
         offset: Pos,
         start_layer: Layer,
         end_layer: Layer,
@@ -670,7 +675,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 
         // NOTE: The order of the && here matters!
         if start_layer == None
-            && self.extend(0, f_max, &mut fronts[0], a, b, offset, direction)
+            && self.extend(0, f_max, h, &mut fronts[0], a, b, offset, direction)
             && end_layer == None
         {
             let mut cigar = Cigar::default();
@@ -781,16 +786,32 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         start_layer: Layer,
         end_layer: Layer,
     ) -> (Cost, Cigar) {
-        let mut forward_fronts =
-            match self.init_fronts(a, b, 0, offset, start_layer, end_layer, Direction::Forward) {
-                Ok(fronts) => fronts,
-                Err(r) => return r,
-            };
-        let mut backward_fronts =
-            match self.init_fronts(a, b, 0, offset, end_layer, start_layer, Direction::Backward) {
-                Ok(fronts) => fronts,
-                Err(r) => return r,
-            };
+        let mut forward_fronts = match self.init_fronts(
+            a,
+            b,
+            0,
+            None,
+            offset,
+            start_layer,
+            end_layer,
+            Direction::Forward,
+        ) {
+            Ok(fronts) => fronts,
+            Err(r) => return r,
+        };
+        let mut backward_fronts = match self.init_fronts(
+            a,
+            b,
+            0,
+            None,
+            offset,
+            end_layer,
+            start_layer,
+            Direction::Backward,
+        ) {
+            Ok(fronts) => fronts,
+            Err(r) => return r,
+        };
 
         assert!(H::IS_DEFAULT);
         let ref mut h = self.h.build(a, b);
@@ -814,6 +835,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         b,
                         s,
                         0,
+                        Some(h),
                         fronts,
                         offset,
                         match dir {
@@ -840,7 +862,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                         break 'outer;
                     }
                 }
-                self.v.borrow_mut().new_layer();
+                self.v.borrow_mut().new_layer_with_h(Some(h));
             }
         }
 
@@ -923,11 +945,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         f_max: Option<Cost>,
         h: &H::Instance<'_>,
     ) -> Option<(Cost, Cigar)> {
-        self.v.borrow_mut().expand(Pos(0, 0), 0, f_max.unwrap_or(0));
+        self.v
+            .borrow_mut()
+            .expand_with_h(Pos(0, 0), 0, f_max.unwrap_or(0), Some(h));
         let mut fronts = match self.init_fronts(
             a,
             b,
             f_max.unwrap_or(0),
+            Some(h),
             Pos(0, 0),
             None,
             None,
@@ -955,6 +980,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 b,
                 s,
                 f_max.unwrap_or(0),
+                Some(h),
                 &mut fronts,
                 Pos(0, 0),
                 None,
@@ -962,7 +988,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             ) {
                 break;
             }
-            self.v.borrow_mut().new_layer();
+            self.v.borrow_mut().new_layer_with_h(Some(h));
         }
 
         let cigar = self.trace(
@@ -986,11 +1012,19 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         let mut f_max = vec![h.h(Pos(0, 0))];
 
         self.v.borrow_mut().expand(Pos(0, 0), 0, f_max[0]);
-        let mut fronts =
-            match self.init_fronts(a, b, f_max[0], Pos(0, 0), None, None, Direction::Forward) {
-                Ok(fronts) => fronts,
-                Err(r) => return r,
-            };
+        let mut fronts = match self.init_fronts(
+            a,
+            b,
+            f_max[0],
+            Some(h),
+            Pos(0, 0),
+            None,
+            None,
+            Direction::Forward,
+        ) {
+            Ok(fronts) => fronts,
+            Err(r) => return r,
+        };
 
         // Each time a front is grown, it grows to the least multiple of delta that is large enough.
         // Delta doubles after each grow.
@@ -1108,6 +1142,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                     b,
                     g,
                     f_max[g as usize],
+                    Some(h),
                     &mut fronts,
                     Pos(0, 0),
                     None,
@@ -1158,7 +1193,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 }
             }
 
-            self.v.borrow_mut().new_layer();
+            self.v.borrow_mut().new_layer_with_h(Some(h));
         };
         let cigar = self.trace(
             a,
@@ -1410,6 +1445,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             a,
             b,
             f_max.unwrap_or(0),
+            None,
             Pos(0, 0),
             None,
             None,
@@ -1435,15 +1471,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                 b,
                 s,
                 f_max.unwrap_or(0),
+                None,
                 &mut fronts,
                 Pos(0, 0),
                 None,
                 Direction::Forward,
             ) {
-                self.v.borrow_mut().last_frame(None);
+                self.v.borrow_mut().last_frame_with_h(None, None, Some(h));
                 return Some(s);
             }
-            self.v.borrow_mut().new_layer();
+            self.v.borrow_mut().new_layer_with_h(Some(h));
         }
 
         unreachable!()

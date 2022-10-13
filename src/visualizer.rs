@@ -1063,7 +1063,7 @@ mod with_sdl2 {
 
             // Draw DT states
             self.draw_dt(cigar);
-            self.draw_f(cigar);
+            self.draw_f(cigar, h);
 
             let Some(canvas) = &self.canvas else {return;};
             let mut canvas = canvas.borrow_mut();
@@ -1372,7 +1372,7 @@ mod with_sdl2 {
             }
         }
 
-        fn draw_f(&mut self, cigar: Option<&Cigar>) {
+        fn draw_f<'a, H: HeuristicInstance<'a>>(&mut self, cigar: Option<&Cigar>, h: Option<&H>) {
             if !self.config.show_fronts || self.expanded.is_empty() {
                 return;
             }
@@ -1385,7 +1385,7 @@ mod with_sdl2 {
 
             // Cell size from DT
             // Cell_size goes down in powers of 2.
-            let front_max = self.expanded.iter().map(|st| st.3).max().unwrap();
+            let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
             let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
             let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
             let dt_cell_size = min(
@@ -1417,6 +1417,41 @@ mod with_sdl2 {
                         as i32
                     - 30
             };
+
+            // Draw shifted states after pruning.
+            if let Some(h) = h {
+                for &(t, pos, g, _) in self.expanded.iter() {
+                    if t == Explored {
+                        continue;
+                    }
+                    let f = g + h.h(pos);
+                    let rel_f = (f - f_min) as f64 / max(f_max - f_min, 1) as f64;
+                    if rel_f > 1.5 {
+                        continue;
+                    }
+                    canvas.set_draw_color(
+                        Gradient::Gradient(Color::GRAY..Color::WHITE)
+                            .color(f64::max(0., 2. * rel_f - 2.)),
+                    );
+                    let y = f_y(f);
+                    canvas
+                        .fill_rect(Rect::new(
+                            (pos.0 * self.config.cell_size) as i32,
+                            y,
+                            self.config.cell_size,
+                            1,
+                        ))
+                        .unwrap();
+                    canvas
+                        .fill_rect(Rect::new(
+                            self.nw_size.0 as i32 + (g * dt_cell_size) as i32,
+                            y,
+                            dt_cell_size,
+                            1,
+                        ))
+                        .unwrap();
+                }
+            }
 
             for (i, &(t, pos, g, f)) in self.expanded.iter().enumerate() {
                 if t == Explored {
