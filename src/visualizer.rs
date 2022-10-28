@@ -129,6 +129,7 @@ mod with_sdl2 {
     use super::*;
     use crate::{
         aligners::{cigar::Cigar, edit_graph::State, StateT},
+        cli::heuristic_params::{comment, AlgorithmArgs, HeuristicArgs},
         cost_model::LinearCost,
         matches::MatchStatus,
         prelude::Seq,
@@ -1065,6 +1066,42 @@ mod with_sdl2 {
                 } // draw tree
 
                 // Draw labels
+                canvas.set_draw_color(Color::BLACK);
+                let mut row = 0;
+                if let Some(title) = &self.title {
+                    self.write_label(
+                        self.nw_size.0 as i32 / 2,
+                        30 * row,
+                        HAlign::Center,
+                        VAlign::Top,
+                        &mut canvas,
+                        title,
+                    );
+                    row += 1;
+                }
+                canvas.set_draw_color(Color::RGB(50, 50, 50));
+                if let Some(params) = &self.params && !params.is_empty(){
+                    self.write_label(
+                        self.nw_size.0 as i32 / 2,
+                        30 * row,
+                        HAlign::Center,
+                        VAlign::Top,
+                        &mut canvas,
+                        params,
+                    );
+                    row += 1;
+                }
+                if let Some(comment) = &self.comment && !comment.is_empty(){
+                    self.write_label(
+                        self.nw_size.0 as i32 / 2,
+                        30 * row,
+                        HAlign::Center,
+                        VAlign::Top,
+                        &mut canvas,
+                        comment,
+                    );
+                    row += 1;
+                }
                 canvas.set_draw_color(Color::GRAY);
                 self.write_label(
                     self.nw_size.0 as i32,
@@ -1085,7 +1122,7 @@ mod with_sdl2 {
 
                 self.write_label(
                     self.nw_size.0 as i32 / 2,
-                    0,
+                    30 * row,
                     HAlign::Center,
                     VAlign::Top,
                     &mut canvas,
@@ -1093,11 +1130,17 @@ mod with_sdl2 {
                 );
                 self.write_label(
                     self.nw_size.0 as i32 / 2,
-                    30,
+                    30 * (row + 1),
                     HAlign::Center,
                     VAlign::Top,
                     &mut canvas,
-                    &make_label("expanded: ", self.expanded.len()),
+                    &make_label(
+                        "expanded: ",
+                        self.expanded
+                            .iter()
+                            .filter(|&(t, ..)| *t == Expanded)
+                            .count(),
+                    ),
                 );
             }
 
