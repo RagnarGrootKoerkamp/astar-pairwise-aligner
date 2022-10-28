@@ -215,6 +215,11 @@ impl Pos {
     }
 
     #[inline]
+    pub fn remove_diagonal(&self, step: I) -> Self {
+        Pos(self.0 - step, self.1 - step)
+    }
+
+    #[inline]
     pub fn max_with(&mut self, other: &Self) {
         self.0 = max(self.0, other.0);
         self.1 = max(self.1, other.1);
