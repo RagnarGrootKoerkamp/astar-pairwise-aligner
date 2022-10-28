@@ -29,6 +29,12 @@ pub enum When {
     Last,
     All,
     Layers,
+    // Show/save each Nth frame.
+    #[clap(skip)]
+    StepBy(usize),
+    // Show/save each Nth layer.
+    #[clap(skip)]
+    LayersStepBy(usize),
     #[clap(skip)]
     Frames(Vec<usize>),
 }
@@ -181,6 +187,7 @@ mod with_sdl2 {
         target: Pos,
 
         frame_number: usize,
+        layer_number: usize,
         file_number: usize,
 
         // Type, Pos, g, f
@@ -316,13 +323,15 @@ mod with_sdl2 {
     }
 
     impl When {
-        fn is_active(&self, frame: usize, is_last: bool, new_layer: bool) -> bool {
+        fn is_active(&self, frame: usize, layer: usize, is_last: bool, new_layer: bool) -> bool {
             match &self {
                 When::None => false,
                 When::Last => is_last,
                 When::All => is_last || !new_layer,
                 When::Layers => is_last || new_layer,
                 When::Frames(v) => v.contains(&frame) || (is_last && v.contains(&usize::MAX)),
+                When::StepBy(step) => is_last || frame % step == 0,
+                When::LayersStepBy(step) => is_last || (new_layer && layer % step == 0),
             }
         }
     }
@@ -512,6 +521,7 @@ mod with_sdl2 {
                 expanded: vec![],
                 target: Pos::from_lengths(a, b),
                 frame_number: 0,
+                layer_number: 0,
                 file_number: 0,
                 layer: if config.layer_drawing { Some(0) } else { None },
                 expanded_layers: vec![],
@@ -698,17 +708,21 @@ mod with_sdl2 {
             h: Option<&H>,
             parent: ParentFn,
         ) {
-            let current_frame = self.frame_number;
             self.frame_number += 1;
-            if !self
-                .config
-                .draw
-                .is_active(current_frame, is_last, is_new_layer)
-                && !self
-                    .config
-                    .save
-                    .is_active(current_frame, is_last, is_new_layer)
-                && !(is_last && self.config.save_last)
+            if is_new_layer {
+                self.layer_number += 1;
+            }
+            if !self.config.draw.is_active(
+                self.frame_number,
+                self.layer_number,
+                is_last,
+                is_new_layer,
+            ) && !self.config.save.is_active(
+                self.frame_number,
+                self.layer_number,
+                is_last,
+                is_new_layer,
+            ) && !(is_last && self.config.save_last)
             {
                 return;
             }
@@ -1070,11 +1084,12 @@ mod with_sdl2 {
 
             // SAVE
 
-            if self
-                .config
-                .save
-                .is_active(current_frame, is_last, is_new_layer)
-            {
+            if self.config.save.is_active(
+                self.frame_number,
+                self.layer_number,
+                is_last,
+                is_new_layer,
+            ) {
                 self.save_canvas(&mut canvas, false, None);
                 self.file_number += 1;
             }
@@ -1086,11 +1101,12 @@ mod with_sdl2 {
 
             // SHOW
 
-            if !self
-                .config
-                .draw
-                .is_active(current_frame, is_last, is_new_layer)
-            {
+            if !self.config.draw.is_active(
+                self.frame_number,
+                self.layer_number,
+                is_last,
+                is_new_layer,
+            ) {
                 return;
             }
 
