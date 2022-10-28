@@ -1162,24 +1162,20 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
                 let prev_front = &fronts[g as Fr - 1];
                 let h_before = h.h(Pos(0, 0));
                 for k in front.range().clone() {
-                    let mut p = fr_to_pos(k, front.m()[k]);
+                    let p = fr_to_pos(k, front.m()[k]);
                     if p.0 >= a.len() as crate::prelude::I || p.1 >= b.len() as crate::prelude::I {
                         continue;
                     }
                     if h.is_seed_start_or_end(p) {
                         h.prune(p, Default::default());
                     }
-                    if let Some(&pfr) = prev_front.m().get(k) {
-                        while p.0 > 0 && p.1 > 0 {
-                            p = p - Pos(1, 1);
-                            if pos_to_fr(p).1 < pfr {
-                                break;
-                            }
-                            //println!("prune? {p}");
-                            if h.is_seed_start_or_end(p) {
-                                h.prune(p, Default::default());
-                                break;
-                            }
+                    // Try pruning the previous start-of-seed position on this diagonal.
+                    if let Some(matches) = h.seed_matches() &&
+                       let Some(&prev_fr) = prev_front.m().get(k) &&
+                       let Some(prev_seed) = matches.seed_ending_at(p) {
+                        let prev_p = p.remove_diagonal(p.0 - prev_seed.start);
+                        if pos_to_fr(prev_p).1 >= prev_fr {
+                            h.prune(prev_p, Default::default());
                         }
                     }
                 }
