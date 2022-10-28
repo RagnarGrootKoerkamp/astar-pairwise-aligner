@@ -30,6 +30,10 @@ pub struct VisualizerArgs {
     #[clap(long, default_value_t, value_enum, display_order = 2)]
     pub style: VisualizerStyle,
 
+    /// Start paused.
+    #[clap(short, long, display_order = 3)]
+    pub pause: bool,
+
     /// Which frames to save.
     #[clap(
         long,
@@ -39,6 +43,10 @@ pub struct VisualizerArgs {
         value_name = "WHEN"
     )]
     pub save: Option<When>,
+
+    /// Show or save only each Nth frame.
+    #[clap(long, display_order = 3)]
+    pub each: Option<usize>,
 
     /// Where to save. Implies --save [last].
     #[clap(long, display_order = 4, value_name = "PATH")]
@@ -136,6 +144,20 @@ impl VisualizerArgs {
                 .clone()
                 .expect("--save-path must be set when --save is set");
         }
+        let update = |when: &mut When| {
+            if let Some(step) = self.each {
+                if *when == When::All {
+                    *when = When::StepBy(step);
+                }
+                if *when == When::Layers {
+                    *when = When::LayersStepBy(step);
+                }
+            }
+        };
+        update(&mut config.draw);
+        update(&mut config.save);
+
+        config.paused = self.pause;
 
         // Apply CLI flag customizations to the style.
         config.cell_size = self.cell_size.unwrap_or(0);
