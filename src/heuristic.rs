@@ -163,9 +163,15 @@ pub trait HeuristicInstance<'a> {
         0
     }
 
+    /// The seed matches used by the heuristic.
+    fn seed_matches(&self) -> Option<&SeedMatches> {
+        None
+    }
+
     /// A* will checked for consistency whenever this returns true.
-    fn is_seed_start_or_end(&self, _pos: Pos) -> bool {
-        false
+    fn is_seed_start_or_end(&self, pos: Pos) -> bool {
+        self.seed_matches()
+            .map_or(false, |sm| sm.is_seed_start_or_end(pos))
     }
 
     type Order: PosOrderT = ();

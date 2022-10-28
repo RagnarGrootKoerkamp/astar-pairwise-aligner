@@ -42,6 +42,10 @@ where
 
     type Hint = <<H as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint;
 
+    fn seed_matches(&self) -> Option<&SeedMatches> {
+        unimplemented!("MirrorHeuristic cannot mirror SeedMatches");
+    }
+
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         self.h.is_seed_start_or_end(pos.mirror())
     }

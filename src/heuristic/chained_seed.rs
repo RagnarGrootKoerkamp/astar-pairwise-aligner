@@ -345,8 +345,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         self.seeds.potential(Pos(0, 0))
     }
 
-    fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.seeds.is_seed_start_or_end(pos)
+    fn seed_matches(&self) -> Option<&SeedMatches> {
+        Some(&self.seeds)
     }
 
     /// `seed_cost` can be used to filter out lookups for states that won't have a match ending there.

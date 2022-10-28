@@ -64,6 +64,10 @@ where
         <<H2 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint,
     );
 
+    fn seed_matches(&self) -> Option<&SeedMatches> {
+        unimplemented!("Can't choose which seed matches to use");
+    }
+
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         let s1 = self.h1.is_seed_start_or_end(pos);
         let s2 = self.h2.is_seed_start_or_end(pos);

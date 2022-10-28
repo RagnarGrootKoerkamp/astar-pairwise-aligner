@@ -257,8 +257,8 @@ impl<'a> HeuristicInstance<'a> for SHI {
         self.matches.potential[0]
     }
 
-    fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.matches.is_seed_start_or_end(pos)
+    fn seed_matches(&self) -> Option<&SeedMatches> {
+        Some(&self.matches)
     }
 
     type Order = I;

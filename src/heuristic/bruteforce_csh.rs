@@ -187,8 +187,8 @@ where
             .unwrap()
     }
 
-    fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.seeds.is_seed_start_or_end(pos)
+    fn seed_matches(&self) -> Option<&SeedMatches> {
+        Some(&self.seeds)
     }
 
     /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
