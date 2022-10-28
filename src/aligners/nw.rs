@@ -159,7 +159,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
                 // h.h has (-1, -1) to offset the padding.
                 while start < b.len() as Idx
                     && start <= *prev.range().end() // FIXME: +1
-                    && prev.m()[start] + h.h(Pos::from(max(i, 1) - 1, max(start, 1) - 1)) > s
+                    // FIXME: the -1 at the end may not be needed with more precise analysis.
+                    && prev.m()[start] + h.h(Pos::from(max(i, 1) - 1, max(start, 1) - 1))-1 > s
                 {
                     start += 1;
                 }
@@ -468,6 +469,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             return self.align_local_band_doubling(a, b);
         } else if self.exponential_search {
             cc = exponential_search(
+                // TODO: Take a max with h(0,0) here.
                 self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
                 2.,
                 |s| {
@@ -504,7 +506,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
         for i in 1..=a.len() as Idx {
             std::mem::swap(prev, next);
             // Update front size.
-            next.reset(INF, self.j_range(a, b, h, i, f_max, prev));
+            let range = self.j_range(a, b, h, i, f_max, prev);
+            if range.is_empty() {
+                return None;
+            }
+            next.reset(INF, range);
             self.next_front(i, f_max.unwrap_or(0), Some(h), a, b, prev, next);
             if !self.exponential_search {
                 self.v.new_layer_with_h(Some(h));
@@ -522,6 +528,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
 
     /// Tries to find a path with cost <= s.
     /// Returns None if cost > s, or the actual cost otherwise.
+    // TODO: Pass `h` into tihs function, instead of re-initializing it repeatedly for exponential search.
     fn align_for_bounded_dist(
         &mut self,
         a: Seq,
@@ -550,12 +557,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
 
         for i in 1..=a.len() as Idx {
             let prev = &fronts[i - 1];
-            let mut next = Front::new(
-                INF,
-                self.j_range(a, b, h, i, f_max, prev),
-                LEFT_BUFFER,
-                RIGHT_BUFFER,
-            );
+            let range = self.j_range(a, b, h, i, f_max, prev);
+            if range.is_empty() {
+                return None;
+            }
+            let mut next = Front::new(INF, range, LEFT_BUFFER, RIGHT_BUFFER);
             self.next_front(i, f_max.unwrap_or(0), Some(h), a, b, prev, &mut next);
             fronts.fronts.push(next);
             if !self.exponential_search {
