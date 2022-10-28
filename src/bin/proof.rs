@@ -69,6 +69,8 @@ impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
             self.b,
             <Cli as clap::CommandFactory>::command().get_matches(),
             VisRunner { aligner: &self, h },
+            Some(&self.args.algorithm),
+            Some(&self.args.heuristic),
         )
     }
 }

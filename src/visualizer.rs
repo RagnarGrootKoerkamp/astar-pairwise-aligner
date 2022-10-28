@@ -170,6 +170,13 @@ mod with_sdl2 {
     pub struct Visualizer {
         config: Config,
 
+        // Name of the algorithm
+        title: Option<String>,
+        // Heuristic / algorithm parameters. List of (key, value).
+        params: Option<String>,
+        // An optional comment explaining the algorithm.
+        comment: Option<String>,
+
         sdl_context: Sdl,
         #[cfg(feature = "sdl2_ttf")]
         font: Font<'static, 'static>,
@@ -448,7 +455,18 @@ mod with_sdl2 {
     }
 
     impl Visualizer {
-        pub fn new(mut config: Config, a: Seq, b: Seq) -> Self {
+        pub fn new(config: Config, a: Seq, b: Seq) -> Self {
+            Self::new_with_cli_params(config, a, b, None, None)
+        }
+
+        /// This sets the title and parameters based on the CLI arguments.
+        pub fn new_with_cli_params(
+            mut config: Config,
+            a: Seq,
+            b: Seq,
+            alg: Option<&AlgorithmArgs>,
+            heuristic: Option<&HeuristicArgs>,
+        ) -> Self {
             let sdl_context = sdl2::init().unwrap();
 
             // Draw layer numbers
@@ -508,7 +526,15 @@ mod with_sdl2 {
             let dt_size = (nw_size.0 / 2, nw_size.1);
             let canvas_size = (nw_size.0 + dt_size.0, nw_size.1);
 
+            let (params, comment) = if let (Some(alg), Some(h)) = (alg, heuristic) && alg.algorithm.internal(){
+                        (Some(h.to_string()), comment(alg, h))
+                    } else {
+                        (None, None)
+                    };
             Visualizer {
+                title: alg.map(|alg| alg.to_string()),
+                params,
+                comment,
                 canvas: {
                     (config.draw != When::None || config.save != When::None || config.save_last)
                         .then(|| {

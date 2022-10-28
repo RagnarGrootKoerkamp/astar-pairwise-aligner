@@ -73,6 +73,8 @@ impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
                 h,
                 args: &self.args,
             },
+            Some(&self.args.algorithm),
+            Some(&self.args.heuristic),
         )
     }
 }
@@ -110,7 +112,7 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                 let start = Instant::now();
                 let cost = aligners::nw::NW {
                     cm: LinearCost::new_unit(),
-                    use_gap_cost_heuristic: false,
+                    use_gap_cost_heuristic: self.args.heuristic.gap_cost,
                     exponential_search: self.args.algorithm.exp_search,
                     local_doubling: self.args.algorithm.local_doubling,
                     h: self.h,

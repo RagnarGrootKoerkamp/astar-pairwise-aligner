@@ -5,6 +5,8 @@ use crate::{
     visualizer::{NoVisualizer, VisualizerStyle, VisualizerT, When},
 };
 
+use super::heuristic_params::{AlgorithmArgs, HeuristicArgs};
+
 #[derive(Parser)]
 #[clap(help_heading = "VISUALIZER")]
 pub struct VisualizerArgs {
@@ -89,6 +91,8 @@ impl VisualizerArgs {
         _b: Seq,
         matches: ArgMatches,
         f: F,
+        alg: Option<&AlgorithmArgs>,
+        h: Option<&HeuristicArgs>,
     ) -> F::R {
         if matches.contains_id("visualize")
             || matches.contains_id("save")
@@ -108,6 +112,8 @@ impl VisualizerArgs {
         b: Seq,
         matches: ArgMatches,
         f: F,
+        alg: Option<&AlgorithmArgs>,
+        h: Option<&HeuristicArgs>,
     ) -> F::R {
         use sdl2::pixels::Color;
 
@@ -171,6 +177,6 @@ impl VisualizerArgs {
             config.style.tree = None;
         }
 
-        f.call(Visualizer::new(config, a, b))
+        f.call(Visualizer::new_with_cli_params(config, a, b, alg, h))
     }
 }
