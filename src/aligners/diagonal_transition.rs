@@ -1510,8 +1510,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
 #[cfg(feature = "sdl2")]
 #[cfg(test)]
 mod tests {
-    use sdl2::pixels::Color;
-
     use crate::{aligners::Aligner, cost_model::LinearCost, heuristic::NoCost, visualizer::*};
 
     use super::DiagonalTransition;
@@ -1529,7 +1527,7 @@ mod tests {
         config.delay = 1.;
         config.paused = true;
         config.cell_size = 40;
-        config.style.bg_color = Color::RGBA(255, 255, 255, 128);
+        config.style.bg_color = (255, 255, 255, 128);
         config.style.expanded = Gradient::TurboGradient(0.25..0.90);
         config.style.path_width = Some(4);
         config.draw_old_on_top = false;

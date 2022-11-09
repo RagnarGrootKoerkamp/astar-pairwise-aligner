@@ -5,13 +5,13 @@ fn main() {}
 
 #[cfg(feature = "sdl2")]
 fn main() {
+    use astar_pairwise_aligner::canvas::*;
     use astar_pairwise_aligner::{
         aligners::{astar::AStar, Aligner},
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };
     use itertools::Itertools;
-    use sdl2::pixels::Color;
 
     let n = 500;
     let e = 0.20;
@@ -24,21 +24,20 @@ fn main() {
     config.paused = false;
     config.delay = 0.0001;
     config.cell_size = 2;
-    config.style.bg_color = Color::WHITE;
-    //config.style.expanded = Gradient::Fixed(Color::RGB(130, 179, 102));
+    config.style.bg_color = WHITE;
+    //config.style.expanded = Gradient::Fixed((130, 179, 102, 0));
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
-    config.style.explored = Some(Color::RGB(0, 102, 204));
-    config.style.heuristic =
-        Gradient::Gradient(Color::RGB(250, 250, 250)..Color::RGB(180, 180, 180));
+    config.style.explored = Some((0, 102, 204, 0));
+    config.style.heuristic = Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0));
     config.style.max_heuristic = Some(35);
-    config.style.pruned_match = Color::GREEN;
-    config.style.path = Some(Color::BLACK);
+    config.style.pruned_match = GREEN;
+    config.style.path = Some(BLACK);
     config.style.match_width = 3;
     config.style.draw_heuristic = true;
     config.style.draw_contours = true;
     config.style.draw_matches = true;
     config.style.match_width = 2;
-    config.style.contour = Color::BLACK;
+    config.style.contour = BLACK;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
     config.filepath = "imgs/fig-readme".to_string();

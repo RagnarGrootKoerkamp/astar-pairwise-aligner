@@ -15,7 +15,6 @@ fn main() {
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };
-    use sdl2::pixels::Color;
     let n = 500;
     let e = 0.20;
     let (ref a, ref b) = setup_sequences(n, e);
@@ -27,7 +26,7 @@ fn main() {
     config.save_last = true;
     config.delay = 0.0001;
     config.cell_size = 4;
-    config.style.bg_color = Color::RGBA(255, 255, 255, 128);
+    config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
     config.style.path_width = Some(4);
     config.draw_old_on_top = false;

@@ -39,23 +39,6 @@ pub enum When {
     Frames(Vec<usize>),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, ValueEnum)]
-pub enum HAlign {
-    Left,
-    Center,
-    Right,
-}
-#[derive(Debug, PartialEq, Eq, Clone, ValueEnum)]
-pub enum VAlign {
-    Top,
-    Center,
-    Bottom,
-}
-
-fn make_label(text: &str, val: impl ToString) -> String {
-    text.to_string() + &val.to_string()
-}
-
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
 /// A visualizer can be used to visualize progress of an implementation.
@@ -127,6 +110,7 @@ pub use with_sdl2::*;
 #[cfg(feature = "sdl2")]
 mod with_sdl2 {
     use super::*;
+    use crate::canvas::*;
     use crate::{
         aligners::{cigar::Cigar, edit_graph::State, StateT},
         cli::heuristic_params::{comment, AlgorithmArgs, HeuristicArgs},
@@ -140,7 +124,6 @@ mod with_sdl2 {
     use sdl2::{
         event::Event,
         keyboard::Keycode,
-        pixels::Color,
         rect::{Point, Rect},
         render::Canvas,
         video::Window,
@@ -282,16 +265,17 @@ mod with_sdl2 {
                     let frac = |a: u8, b: u8| -> u8 {
                         (a as f64 + f * (b as f64 - a as f64)).ceil() as u8
                     };
-                    Color::RGB(
-                        frac(range.start.r, range.end.r),
-                        frac(range.start.g, range.end.g),
-                        frac(range.start.b, range.end.b),
+                    (
+                        frac(range.start.0, range.end.0),
+                        frac(range.start.1, range.end.1),
+                        frac(range.start.2, range.end.2),
+                        frac(range.start.3, range.end.3),
                     )
                 }
                 Gradient::TurboGradient(range) => {
                     let f = range.start + f * (range.end - range.start);
                     let c = colorgrad::turbo().at(f).to_rgba8();
-                    Color::RGBA(c[0], c[1], c[2], c[3])
+                    (c[0], c[1], c[2], c[3])
                 }
             }
         }
@@ -383,8 +367,8 @@ mod with_sdl2 {
                     expanded: Gradient::TurboGradient(0.2..0.95),
                     explored: None,
                     extended: None,
-                    bg_color: Color::WHITE,
-                    path: Some(Color::BLACK),
+                    bg_color: WHITE,
+                    path: Some(BLACK),
                     path_width: Some(2),
                     tree: None,
                     tree_substitution: None,
@@ -396,15 +380,13 @@ mod with_sdl2 {
                     draw_heuristic: false,
                     draw_contours: false,
                     draw_matches: false,
-                    heuristic: Gradient::Gradient(
-                        Color::RGB(250, 250, 250)..Color::RGB(180, 180, 180),
-                    ),
+                    heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
                     max_heuristic: None,
-                    active_match: Color::BLACK,
-                    pruned_match: Color::RED,
+                    active_match: BLACK,
+                    pruned_match: RED,
                     match_shrink: 2,
                     match_width: 2,
-                    contour: Color::GREEN,
+                    contour: GREEN,
                 },
                 draw_old_on_top: true,
                 layer_drawing: false,
@@ -429,18 +411,18 @@ mod with_sdl2 {
                 config.paused = false;
                 config.delay = 0.2;
                 config.cell_size = 6;
-                config.style.bg_color = Color::WHITE;
-                config.style.tree = Some(Color::GRAY);
-                config.style.expanded = Gradient::Fixed(Color::RGB(130, 179, 102));
-                config.style.explored = Some(Color::RGB(0, 102, 204));
+                config.style.bg_color = WHITE;
+                config.style.tree = Some(GRAY);
+                config.style.expanded = Gradient::Fixed((130, 179, 102, 0));
+                config.style.explored = Some((0, 102, 204, 0));
                 config.style.max_heuristic = Some(10);
-                config.style.pruned_match = Color::RED;
+                config.style.pruned_match = RED;
                 config.style.path = None;
                 config.style.match_width = 3;
                 config.style.draw_heuristic = true;
                 config.style.draw_contours = true;
                 config.style.draw_matches = true;
-                config.style.contour = Color::BLACK;
+                config.style.contour = BLACK;
                 config.draw_old_on_top = true;
                 config.layer_drawing = false;
             }
@@ -718,7 +700,7 @@ mod with_sdl2 {
             )
             .unwrap();
             if self.config.transparent_bmp {
-                surf.set_color_key(true, self.config.style.bg_color)
+                surf.set_color_key(true, self.config.style.bg_color.into())
                     .unwrap();
             }
 
@@ -1066,7 +1048,7 @@ mod with_sdl2 {
                 } // draw tree
 
                 // Draw labels
-                canvas.set_draw_color(Color::BLACK);
+                canvas.set_draw_color(BLACK);
                 let mut row = 0;
                 if let Some(title) = &self.title {
                     self.write_label(
@@ -1079,7 +1061,7 @@ mod with_sdl2 {
                     );
                     row += 1;
                 }
-                canvas.set_draw_color(Color::RGB(50, 50, 50));
+                canvas.set_draw_color((50, 50, 50, 0));
                 if let Some(params) = &self.params && !params.is_empty(){
                     self.write_label(
                         self.nw_size.0 as i32 / 2,
@@ -1102,7 +1084,7 @@ mod with_sdl2 {
                     );
                     row += 1;
                 }
-                canvas.set_draw_color(Color::GRAY);
+                canvas.set_draw_color(GRAY);
                 self.write_label(
                     self.nw_size.0 as i32,
                     0,
@@ -1262,7 +1244,7 @@ mod with_sdl2 {
             // Draw grid
 
             // Divider
-            canvas.set_draw_color(Color::BLACK);
+            canvas.set_draw_color(BLACK);
             canvas
                 .draw_line(
                     Point::new(self.nw_size.0 as i32, 0),
@@ -1271,7 +1253,7 @@ mod with_sdl2 {
                 .unwrap();
 
             // Horizontal d lines
-            canvas.set_draw_color(Color::GRAY);
+            canvas.set_draw_color(GRAY);
 
             let dy = |d: i32| offset.1 - d * dt_cell_size as i32 - dt_cell_size as i32 / 2;
 
@@ -1303,7 +1285,7 @@ mod with_sdl2 {
             }
 
             // Vertical g lines
-            canvas.set_draw_color(Color::GRAY);
+            canvas.set_draw_color(GRAY);
             let mut draw_g_line = |g: i32| {
                 let line_g = if g == 0 { 0 } else { g + 1 };
                 let x = self.nw_size.0 as i32 + line_g * dt_cell_size as i32;
@@ -1377,7 +1359,7 @@ mod with_sdl2 {
             }
 
             // Title
-            canvas.set_draw_color(Color::GRAY);
+            canvas.set_draw_color(GRAY);
             self.write_label(
                 self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2,
                 0,
@@ -1465,8 +1447,8 @@ mod with_sdl2 {
             let mut canvas = canvas.borrow_mut();
 
             // Soft red
-            const SOFT_RED: Color = Color::RGB(244, 113, 116);
-            const _SOFT_GREEN: Color = Color::RGB(111, 194, 118);
+            const SOFT_RED: Color = (244, 113, 116, 0);
+            const _SOFT_GREEN: Color = (111, 194, 118, 0);
 
             // Cell size from DT
             // Cell_size goes down in powers of 2.
@@ -1515,8 +1497,7 @@ mod with_sdl2 {
                         continue;
                     }
                     canvas.set_draw_color(
-                        Gradient::Gradient(Color::GRAY..Color::WHITE)
-                            .color(f64::max(0., 2. * rel_f - 2.)),
+                        Gradient::Gradient(GRAY..WHITE).color(f64::max(0., 2. * rel_f - 2.)),
                     );
                     let y = f_y(f);
                     canvas

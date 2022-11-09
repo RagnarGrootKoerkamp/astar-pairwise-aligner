@@ -25,6 +25,7 @@ pub mod aligners;
 pub mod alignment_graph;
 pub mod astar;
 pub mod astar_dt;
+pub mod canvas;
 pub mod cli;
 pub mod config;
 pub mod contour;

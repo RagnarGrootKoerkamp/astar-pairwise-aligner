@@ -115,7 +115,7 @@ impl VisualizerArgs {
         alg: Option<&AlgorithmArgs>,
         h: Option<&HeuristicArgs>,
     ) -> F::R {
-        use sdl2::pixels::Color;
+        use crate::canvas::BLACK;
 
         use crate::visualizer::{Config, Visualizer};
 
@@ -171,7 +171,7 @@ impl VisualizerArgs {
 
         config.draw_old_on_top = !self.new_on_top;
         if self.draw_tree {
-            config.style.tree = Some(Color::BLACK);
+            config.style.tree = Some(BLACK);
         }
         if self.no_draw_tree {
             config.style.tree = None;

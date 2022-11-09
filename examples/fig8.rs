@@ -6,18 +6,18 @@ fn main() {}
 fn main() {
     use astar_pairwise_aligner::{
         aligners::{astar::AStar, Aligner},
+        canvas::BLACK,
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };
     use rand::SeedableRng;
-    use sdl2::pixels::Color;
 
     let mut config = visualizer::Config::default();
     config.draw = When::None;
     config.save = When::None;
     config.save_last = true;
     config.delay = 0.0001;
-    config.style.bg_color = Color::RGBA(255, 255, 255, 128);
+    config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.9);
     config.style.path_width = None;
     config.draw_old_on_top = false;
@@ -31,7 +31,7 @@ fn main() {
     config.style.draw_matches = true;
     config.style.match_width = 4;
     config.style.match_shrink = 0;
-    config.style.pruned_match = Color::BLACK;
+    config.style.pruned_match = BLACK;
 
     {
         let (mut a, mut b) = setup_sequences_with_seed(6, 250 * scale, 0.08);

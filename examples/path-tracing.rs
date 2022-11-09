@@ -10,10 +10,10 @@ fn main() {
             diagonal_transition::{DiagonalTransition, GapCostHeuristic, PathTracingMethod},
             Aligner,
         },
+        canvas::{BLUE, RED},
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };
-    use sdl2::pixels::Color;
     let a = b"CACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACGCCGATACATGCTACGATCGA";
     let b = b"CATCTGCTCTCTGAGTCAGTGCAGTAACAGCGTACG";
 
@@ -24,10 +24,10 @@ fn main() {
     config.save_last = true;
     config.delay = 0.0001;
     config.cell_size = 16;
-    config.style.bg_color = Color::RGBA(255, 255, 255, 128);
+    config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
     config.style.path_width = Some(7);
-    config.style.tree = Some(Color::RGB(64, 64, 64));
+    config.style.tree = Some((64, 64, 64, 0));
     config.style.tree_width = 3;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
@@ -58,8 +58,8 @@ fn main() {
         dt.align(a, b);
     }
 
-    config.style.expanded = Gradient::Fixed(Color::RGB(200, 200, 200));
-    config.style.extended = Some(Color::RGB(230, 230, 230));
+    config.style.expanded = Gradient::Fixed((200, 200, 200, 0));
+    config.style.extended = Some((230, 230, 230, 0));
 
     {
         let mut dt = DiagonalTransition::new(
@@ -84,7 +84,7 @@ fn main() {
         dt.align(a, b);
     }
 
-    config.style.tree_substitution = Some(Color::RED);
+    config.style.tree_substitution = Some(RED);
 
     {
         let mut dt = DiagonalTransition::new(
@@ -148,7 +148,7 @@ fn main() {
             dt.align(a, b);
         }
 
-        config.style.tree_match = Some(Color::RGB(160, 160, 160));
+        config.style.tree_match = Some((160, 160, 160, 0));
         {
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
@@ -160,7 +160,7 @@ fn main() {
             dt.align(a, b);
         }
 
-        config.style.tree = Some(Color::RGB(160, 160, 160));
+        config.style.tree = Some((160, 160, 160, 0));
         {
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
@@ -185,7 +185,7 @@ fn main() {
         }
 
         {
-            config.style.tree_direction_change = Some(Color::BLUE);
+            config.style.tree_direction_change = Some(BLUE);
             let mut dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
@@ -196,12 +196,12 @@ fn main() {
             dt.align(a, b);
         }
     }
-    config.style.expanded = Gradient::Fixed(Color::RGB(200, 200, 200));
-    config.style.extended = Some(Color::RGB(230, 230, 230));
-    config.style.tree_substitution = Some(Color::RED);
-    config.style.tree = Some(Color::RGB(160, 160, 160));
+    config.style.expanded = Gradient::Fixed((200, 200, 200, 0));
+    config.style.extended = Some((230, 230, 230, 0));
+    config.style.tree_substitution = Some(RED);
+    config.style.tree = Some((160, 160, 160, 0));
     config.style.tree_fr_only = true;
-    config.style.tree_direction_change = Some(Color::BLUE);
+    config.style.tree_direction_change = Some(BLUE);
 
     {
         let mut dt = DiagonalTransition::new(
