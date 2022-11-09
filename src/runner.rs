@@ -60,7 +60,11 @@ impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
         self.args.visualizer.run_on_visualizer(
             self.a,
             self.b,
-            <Cli as clap::CommandFactory>::command().get_matches(),
+            if cfg!(feature = "wasm") {
+                ArgMatches::default()
+            } else {
+                <Cli as clap::CommandFactory>::command().get_matches()
+            },
             AstarViz {
                 a: &self.a,
                 b: &self.b,

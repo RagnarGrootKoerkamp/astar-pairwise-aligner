@@ -55,6 +55,8 @@ pub fn fixed_seeds(
         .collect_vec()
 }
 
+// FIXME: Just hardcode T to u64 here.
+// For T=u32, k can be at most 15 (or 14 with r=2).
 pub fn key_for_sized_qgram<
     T: num_traits::Bounded
         + num_traits::Zero

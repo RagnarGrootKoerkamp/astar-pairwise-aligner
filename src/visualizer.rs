@@ -104,12 +104,12 @@ pub struct NoVisualizer;
 impl VisualizerT for NoVisualizer {}
 
 use clap::ValueEnum;
-#[cfg(feature = "sdl2")]
-pub use with_sdl2::*;
 use serde::{Deserialize, Serialize};
+#[cfg(any(feature = "sdl2", feature = "wasm"))]
+pub use visualizer::*;
 
-#[cfg(feature = "sdl2")]
-mod with_sdl2 {
+#[cfg(any(feature = "sdl2", feature = "wasm"))]
+mod visualizer {
     use super::*;
     use crate::canvas::*;
     use crate::{
@@ -1323,10 +1323,11 @@ mod with_sdl2 {
                 .max()
                 .unwrap();
             let f_y = |f| {
-                self.canvas_size.1 as i32
-                    - ((f - f_min) as f32 / (f_max - f_min) as f32 * self.canvas_size.1 as f32 / 4.)
-                        as i32
-                    - 30
+                (self.canvas_size.1 as i32).saturating_sub(
+                    ((f - f_min) as f32 / max(f_max - f_min, 1) as f32 * self.canvas_size.1 as f32
+                        / 4.) as i32
+                        + 30,
+                )
             };
 
             // Draw shifted states after pruning.
