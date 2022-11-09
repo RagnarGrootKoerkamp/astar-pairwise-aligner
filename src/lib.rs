@@ -34,6 +34,7 @@ pub mod datastructures;
 pub mod generate;
 pub mod heuristic;
 pub mod matches;
+pub mod runner;
 pub mod visualizer;
 
 pub mod prelude {
