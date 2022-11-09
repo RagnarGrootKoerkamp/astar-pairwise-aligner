@@ -1,7 +1,4 @@
-use std::{
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::{path::PathBuf, time::Duration};
 
 use crate::{
     aligners::{diagonal_transition::GapCostHeuristic, Aligner},
@@ -106,7 +103,7 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                 )
             }
             Algorithm::NW => {
-                let start = Instant::now();
+                let start = instant::Instant::now();
                 let cost = aligners::nw::NW {
                     cm: LinearCost::new_unit(),
                     use_gap_cost_heuristic: self.args.heuristic.gap_cost,
@@ -120,7 +117,7 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                 AlignResult::new(self.a, self.b, cost, start.elapsed().as_secs_f32())
             }
             Algorithm::DT => {
-                let start = Instant::now();
+                let start = instant::Instant::now();
                 let mut dt = aligners::diagonal_transition::DiagonalTransition::new(
                     LinearCost::new_unit(),
                     GapCostHeuristic::Disable,

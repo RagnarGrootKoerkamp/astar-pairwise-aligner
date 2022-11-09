@@ -13,11 +13,7 @@ use astar_pairwise_aligner::{
 use clap::Parser;
 use cli::heuristic_params::HeuristicArgs;
 use itertools::Itertools;
-use std::{
-    ops::ControlFlow,
-    path::PathBuf,
-    time::{self, Duration},
-};
+use std::{ops::ControlFlow, path::PathBuf, time::Duration};
 
 #[derive(Parser)]
 #[clap(author, about)]
@@ -86,11 +82,11 @@ impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
 
     fn call<V: visualizer::VisualizerT>(&self, v: V) -> Self::R {
         let h = PathHeuristic { h: self.h };
-        let start_time = time::Instant::now();
+        let start_time = instant::Instant::now();
         let (cost, ref mut hi) = h.build_with_cost(self.aligner.a, self.aligner.b);
         let precomputation = start_time.elapsed().as_secs_f32();
 
-        let start_time = time::Instant::now();
+        let start_time = instant::Instant::now();
         let mut dt = DiagonalTransition::new(
             LinearCost::new_unit(),
             GapCostHeuristic::Disable,
@@ -127,7 +123,7 @@ fn main() {
 
     // Read the input
     let mut avg_result = AlignResult::default();
-    let start = time::Instant::now();
+    let start = instant::Instant::now();
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.

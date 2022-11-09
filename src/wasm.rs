@@ -4,8 +4,8 @@ use crate::{
     prelude::*,
     runner::{AlignWithHeuristic, Cli},
 };
-use std::{ops::ControlFlow, time::Instant};
 use wasm_bindgen::prelude::*;
+use std::ops::ControlFlow;
 
 #[wasm_bindgen]
 pub fn run() {
@@ -14,7 +14,7 @@ pub fn run() {
         // Run the pair.
         // TODO: Show the result somewhere.
         let _r = if args.algorithm.algorithm.external() {
-            let start = Instant::now();
+            let start = instant::Instant::now();
             let cost = match args.algorithm.algorithm {
                 Algorithm::NwLib => NWLib { simd: false }.cost(a, b),
                 Algorithm::NwLibSimd => NWLib { simd: true }.cost(a, b),

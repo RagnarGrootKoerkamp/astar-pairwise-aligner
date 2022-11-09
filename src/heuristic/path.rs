@@ -1,4 +1,4 @@
-use std::{fmt::Debug, time::Instant};
+use std::fmt::Debug;
 
 use crate::{
     aligners::{
@@ -33,7 +33,7 @@ impl<H: Heuristic> PathHeuristic<H> {
             false,
             NoVisualizer,
         );
-        let start = Instant::now();
+        let start = instant::Instant::now();
         let (path_cost, cigar) = aligner.align_dc(a, b);
         println!("Inner alignment: {}", start.elapsed().as_secs_f32());
         let path = cigar.to_path_with_cost(LinearCost::new_unit());

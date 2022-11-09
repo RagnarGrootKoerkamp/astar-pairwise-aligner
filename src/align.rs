@@ -4,7 +4,6 @@ use crate::{astar::astar, astar_dt::astar_dt, prelude::*};
 use std::{
     fmt,
     io::{stdout, Write},
-    time,
 };
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -327,13 +326,13 @@ where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
     // Instantiate the heuristic.
-    let start_time = time::Instant::now();
+    let start_time = instant::Instant::now();
     let ref mut h = heuristic.build(a, b);
     let precomputation = start_time.elapsed().as_secs_f32();
     let start_val = h.h(Pos(0, 0));
 
     // Run A* with heuristic.
-    let astar_time = time::Instant::now();
+    let astar_time = instant::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = EditGraph::new(a, b, greedy_edge_matching);
     let (distance_and_path, astar_stats) = if diagonal_transition {

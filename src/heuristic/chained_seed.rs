@@ -5,10 +5,7 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
-use std::{
-    marker::PhantomData,
-    time::{Duration, Instant},
-};
+use std::{marker::PhantomData, time::Duration};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Pruning {
@@ -362,7 +359,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         // Time the duration of retrying once in this many iterations.
         const TIME_EACH: usize = 64;
         let start = if self.prune_count % TIME_EACH == 0 {
-            Some(Instant::now())
+            Some(instant::Instant::now())
         } else {
             None
         };

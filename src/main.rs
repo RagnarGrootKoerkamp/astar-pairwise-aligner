@@ -8,17 +8,15 @@ use astar_pairwise_aligner::{
 };
 use clap::Parser;
 use itertools::Itertools;
-use std::{
-    ops::ControlFlow,
-    time::{self, Instant},
-};
+use std::{ops::ControlFlow, time::Instant};
 
 fn main() {
     let args = Cli::parse();
+    //println!("{}", serde_json::to_string_pretty(&args).unwrap());
 
     // Read the input
     let mut avg_result = AlignResult::default();
-    let start = time::Instant::now();
+    let start = instant::Instant::now();
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.

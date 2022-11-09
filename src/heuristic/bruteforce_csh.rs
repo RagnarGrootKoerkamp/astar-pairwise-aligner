@@ -1,7 +1,4 @@
-use std::{
-    cmp::Reverse,
-    time::{self, Duration},
-};
+use std::{cmp::Reverse, time::Duration};
 
 use itertools::Itertools;
 
@@ -198,7 +195,7 @@ where
             return (0, ());
         }
 
-        let start = time::Instant::now();
+        let start = instant::Instant::now();
 
         // Maximum length arrow at given pos.
         let tpos = pos;

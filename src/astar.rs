@@ -1,5 +1,3 @@
-use std::time::{self, Instant};
-
 use crate::{aligners::cigar::Cigar, prelude::*, visualizer::VisualizerT};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -112,7 +110,7 @@ where
         // Time the duration of retrying once in this many iterations.
         const TIME_EACH: i32 = 64;
         let expand_start = if retry_cnt % TIME_EACH == 0 {
-            Some(Instant::now())
+            Some(instant::Instant::now())
         } else {
             None
         };
@@ -274,7 +272,7 @@ where
     }
 
     stats.diagonalmap_capacity = states.dm_capacity();
-    let traceback_start = time::Instant::now();
+    let traceback_start = instant::Instant::now();
     let path = traceback::<H>(&states, graph.target());
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
     v.last_frame_with_h(
