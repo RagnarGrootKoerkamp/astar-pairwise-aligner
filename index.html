@@ -1,0 +1,66 @@
+<html>
+  <head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+  <script defer src="index.js" type="module"></script></head>
+  <body>
+    <main>
+      <div class="controls">
+        <label for="args">Command line args (json)</label><br/>
+        <textarea name="args" id="args" rows="50" cols="50"/>
+{
+  "input": {
+    "input": null,
+    "generate": {
+      "cnt": 1,
+      "length": 100,
+      "m": null,
+      "error_rate": 0.05,
+      "error_model": "Uniform",
+      "seed": null,
+      "pattern_length": 0
+    }
+  },
+  "output": null,
+  "algorithm": {
+    "algorithm": "Astar",
+    "no_greedy_matching": false,
+    "dt": false,
+    "exp_search": false,
+    "local_doubling": false,
+    "dc": false
+  },
+  "heuristic": {
+    "heuristic": "SH",
+    "r": 2,
+    "k": 14,
+    "kmin": null,
+    "kmax": null,
+    "max_matches": null,
+    "no_prune": false,
+    "skip_prune": 0,
+    "gap_cost": false
+  },
+  "visualizer": {
+    "visualize": null,
+    "style": "Default",
+    "pause": false,
+    "save": null,
+    "each": null,
+    "save_path": null,
+    "cell_size": null,
+    "downscaler": null,
+    "new_on_top": false,
+    "draw_tree": false,
+    "no_draw_tree": false
+  },
+  "silent": 0,
+  "timeout": null
+}
+        </textarea>
+        <br/>
+        <button class="button-primary" id="run">Run</button>
+      </div>
+      <canvas id="canvas" tabindex="1" width="1200" height="800"></canvas>
+    </main>
+  </body>
+</html>

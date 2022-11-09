@@ -14,6 +14,15 @@ videos: fig1-video fig3-video fig-readme-video
 # Remove generated images for videos
 videos-clean: fig1-video-clean fig3-video-clean fig-readme-video-clean
 
+# ========== WASM =========
+wasm:
+	wasm-pack build --debug --target web --no-default-features --features wasm
+wasm_prod:
+	wasm-pack build --release --target web --no-default-features --features wasm
+
+run: wasm
+	python3 -m http.server
+
 # ========== WFA & EDLIB SETUP ==========
 
 # Clone WFA2-lib and build using makefile

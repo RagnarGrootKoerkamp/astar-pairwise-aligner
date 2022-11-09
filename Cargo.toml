@@ -27,6 +27,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 colorgrad = "*"
+instant = "*"
 bio = "*"
 rand = "*"
 rand_chacha = "*"

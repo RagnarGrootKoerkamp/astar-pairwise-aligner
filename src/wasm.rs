@@ -4,12 +4,34 @@ use crate::{
     prelude::*,
     runner::{AlignWithHeuristic, Cli},
 };
-use wasm_bindgen::prelude::*;
 use std::ops::ControlFlow;
+use wasm_bindgen::{prelude::*, JsCast};
+use web_sys::HtmlTextAreaElement;
+
+fn document() -> web_sys::Document {
+    let window = web_sys::window().expect("no global `window` exists");
+    window.document().expect("should have a document on window")
+}
+
+fn get<T: wasm_bindgen::JsCast>(id: &str) -> T {
+    document()
+        .get_element_by_id(id)
+        .unwrap()
+        .dyn_into::<T>()
+        .unwrap()
+}
+fn jsstr(s: &str) -> JsValue {
+    JsValue::from_str(s)
+}
+#[allow(unused)]
+pub fn log(s: &str) {
+    web_sys::console::log_1(&jsstr(s));
+}
 
 #[wasm_bindgen]
 pub fn run() {
-    let args: Cli = serde_json::from_str("abc").unwrap();
+    let args_json = get::<HtmlTextAreaElement>("args").value();
+    let args: Cli = serde_json::from_str(&args_json).unwrap();
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
         // TODO: Show the result somewhere.
