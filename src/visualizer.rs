@@ -15,7 +15,7 @@ use crate::{
     prelude::Pos,
 };
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Deserialize)]
 pub enum VisualizerStyle {
     #[default]
     Default,
@@ -23,7 +23,7 @@ pub enum VisualizerStyle {
     Detailed,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, ValueEnum)]
+#[derive(Debug, PartialEq, Eq, Clone, ValueEnum, Deserialize)]
 pub enum When {
     None,
     Last,
@@ -104,6 +104,7 @@ pub struct NoVisualizer;
 impl VisualizerT for NoVisualizer {}
 
 use clap::ValueEnum;
+use serde::Deserialize;
 #[cfg(feature = "sdl2")]
 pub use with_sdl2::*;
 
@@ -119,29 +120,14 @@ mod with_sdl2 {
         prelude::Seq,
     };
     use itertools::Itertools;
-    #[cfg(feature = "sdl2_ttf")]
-    use sdl2::ttf::{Font, Sdl2TtfContext};
-    use sdl2::{
-        event::Event,
-        keyboard::Keycode,
-        rect::{Point, Rect},
-        render::Canvas,
-        video::Window,
-        Sdl,
-    };
     use std::{
         cell::{RefCell, RefMut},
         cmp::{max, min},
         collections::HashMap,
         ops::Range,
         path,
-        time::{Duration, Instant},
+        time::Duration,
     };
-
-    #[cfg(feature = "sdl2_ttf")]
-    lazy_static! {
-        static ref TTF_CONTEXT: Sdl2TtfContext = sdl2::ttf::init().unwrap();
-    }
 
     #[derive(PartialEq, Eq, Clone, Copy)]
     pub enum Type {
@@ -150,6 +136,8 @@ mod with_sdl2 {
         Extended,
     }
     use Type::*;
+
+    type CanvasRC = RefCell<CanvasBox>;
 
     pub struct Visualizer {
         config: Config,
@@ -161,11 +149,7 @@ mod with_sdl2 {
         // An optional comment explaining the algorithm.
         comment: Option<String>,
 
-        sdl_context: Sdl,
-        #[cfg(feature = "sdl2_ttf")]
-        font: Font<'static, 'static>,
-
-        canvas: Option<RefCell<Canvas<Window>>>,
+        canvas: Option<CanvasRC>,
 
         // The size in pixels of the entire canvas.
         canvas_size: (u32, u32),
@@ -339,7 +323,7 @@ mod with_sdl2 {
         pub downscaler: u32,
         pub filepath: String,
         pub draw: When,
-        pub delay: f32,
+        pub delay: Duration,
         pub paused: bool,
         pub save: When,
         pub save_last: bool,
@@ -361,7 +345,7 @@ mod with_sdl2 {
                 save_last: false,
                 filepath: String::from(""),
                 draw: When::None,
-                delay: 0.1,
+                delay: Duration::from_secs_f32(0.1),
                 paused: false,
                 style: Style {
                     expanded: Gradient::TurboGradient(0.2..0.95),
@@ -409,7 +393,7 @@ mod with_sdl2 {
 
             if style == VisualizerStyle::Detailed {
                 config.paused = false;
-                config.delay = 0.2;
+                config.delay = Duration::from_secs_f32(0.2);
                 config.cell_size = 6;
                 config.style.bg_color = WHITE;
                 config.style.tree = Some(GRAY);
@@ -450,34 +434,6 @@ mod with_sdl2 {
             alg: Option<&AlgorithmArgs>,
             heuristic: Option<&HeuristicArgs>,
         ) -> Self {
-            let sdl_context = sdl2::init().unwrap();
-
-            // Draw layer numbers
-            #[cfg(feature = "sdl2_ttf")]
-            let font = TTF_CONTEXT
-                .load_font("/usr/share/fonts/TTF/OpenSans-Regular.ttf", 24)
-                .unwrap();
-
-            fn new_canvas(
-                w: u32,
-                h: u32,
-                sdl_context: &Sdl,
-                title: &str,
-            ) -> RefCell<Canvas<Window>> {
-                let video_subsystem = sdl_context.video().unwrap();
-                video_subsystem.gl_attr().set_double_buffer(true);
-                RefCell::new(
-                    video_subsystem
-                        .window(title, w as u32, h as u32)
-                        //.borderless()
-                        .build()
-                        .unwrap()
-                        .into_canvas()
-                        .build()
-                        .unwrap(),
-                )
-            }
-
             // layout:
             //
             // -------------
@@ -521,11 +477,15 @@ mod with_sdl2 {
                 canvas: {
                     (config.draw != When::None || config.save != When::None || config.save_last)
                         .then(|| {
-                            new_canvas(canvas_size.0, canvas_size.1, &sdl_context, &config.filepath)
+                            RefCell::new(Box::new({
+                                new_canvas(
+                                    canvas_size.0 as usize,
+                                    canvas_size.1 as usize,
+                                    &config.filepath,
+                                )
+                            }) as CanvasBox)
                         })
                 },
-                #[cfg(feature = "sdl2_ttf")]
-                font,
                 config: config.clone(),
                 expanded: vec![],
                 target: Pos::from_lengths(a, b),
@@ -534,7 +494,6 @@ mod with_sdl2 {
                 file_number: 0,
                 layer: if config.layer_drawing { Some(0) } else { None },
                 expanded_layers: vec![],
-                sdl_context,
 
                 canvas_size,
                 nw_size,
@@ -542,15 +501,15 @@ mod with_sdl2 {
             }
         }
 
-        fn cell_begin(&self, Pos(i, j): Pos) -> Point {
-            Point::new(
+        fn cell_begin(&self, Pos(i, j): Pos) -> CPos {
+            CPos(
                 (i / self.config.downscaler * self.config.cell_size) as i32,
                 (j / self.config.downscaler * self.config.cell_size) as i32,
             )
         }
 
-        fn cell_center(&self, Pos(i, j): Pos) -> Point {
-            Point::new(
+        fn cell_center(&self, Pos(i, j): Pos) -> CPos {
+            CPos(
                 (i / self.config.downscaler * self.config.cell_size + self.config.cell_size / 2)
                     as i32,
                 (j / self.config.downscaler * self.config.cell_size + self.config.cell_size / 2)
@@ -558,119 +517,106 @@ mod with_sdl2 {
             )
         }
 
-        fn draw_pixel(&self, canvas: &mut Canvas<Window>, pos: Pos, color: Color) {
-            canvas.set_draw_color(color);
-            let begin = self.cell_begin(pos);
+        fn draw_pixel(&self, canvas: &mut CanvasBox, pos: Pos, color: Color) {
             if self.config.cell_size == 1 {
-                canvas.draw_point(begin).unwrap();
+                canvas.draw_point(self.cell_begin(pos), color);
             } else {
-                canvas
-                    .fill_rect(Rect::new(
-                        begin.x,
-                        begin.y,
-                        self.config.cell_size,
-                        self.config.cell_size,
-                    ))
-                    .unwrap();
+                canvas.fill_rect(
+                    self.cell_begin(pos),
+                    self.config.cell_size,
+                    self.config.cell_size,
+                    color,
+                );
             }
         }
 
-        fn draw_pixels(&self, canvas: &mut Canvas<Window>, pos: Vec<Pos>, color: Color) {
-            canvas.set_draw_color(color);
+        fn draw_pixels(&self, canvas: &mut CanvasBox, pos: Vec<Pos>, color: Color) {
             let rects = pos
                 .iter()
                 .map(|p| {
-                    let begin = self.cell_begin(*p);
-                    Rect::new(
-                        begin.x,
-                        begin.y,
+                    (
+                        self.cell_begin(*p),
                         self.config.cell_size,
                         self.config.cell_size,
                     )
                 })
                 .collect_vec();
-            canvas.fill_rects(&rects).unwrap();
+            canvas.fill_rects(&rects, color);
         }
 
+        // TODO: Does this work with html canvas? maybe there is a simpler API there.
         fn draw_diag_line(
-            canvas: &mut Canvas<Window>,
-            from: Point,
-            to: Point,
+            canvas: &mut CanvasBox,
+            from: CPos,
+            to: CPos,
             color: Color,
             width: usize,
         ) {
-            canvas.set_draw_color(color);
             if from == to {
                 // NOTE: We skip the line width in this case.
-                canvas.draw_point(from).unwrap();
+                canvas.draw_point(from, color);
                 return;
             }
-            canvas.draw_line(from, to).unwrap();
+            canvas.draw_line(from, to, color);
             for mut w in 1..width as i32 {
                 if w % 2 == 1 {
                     w = (w + 1) / 2;
-                    canvas
-                        .draw_line(
-                            Point::new(from.x + w, from.y - w + 1),
-                            Point::new(to.x + w - 1, to.y - w),
-                        )
-                        .unwrap();
-                    canvas
-                        .draw_line(
-                            Point::new(from.x - w, from.y + w - 1),
-                            Point::new(to.x - w + 1, to.y + w),
-                        )
-                        .unwrap();
-                    canvas
-                        .draw_line(
-                            Point::new(from.x + w - 1, from.y - w),
-                            Point::new(to.x + w, to.y - w + 1),
-                        )
-                        .unwrap();
-                    canvas
-                        .draw_line(
-                            Point::new(from.x - w + 1, from.y + w),
-                            Point::new(to.x - w, to.y + w - 1),
-                        )
-                        .unwrap();
+                    canvas.draw_line(
+                        CPos(from.0 + w, from.1 - w + 1),
+                        CPos(to.0 + w - 1, to.1 - w),
+                        color,
+                    );
+                    canvas.draw_line(
+                        CPos(from.0 - w, from.1 + w - 1),
+                        CPos(to.0 - w + 1, to.1 + w),
+                        color,
+                    );
+                    canvas.draw_line(
+                        CPos(from.0 + w - 1, from.1 - w),
+                        CPos(to.0 + w, to.1 - w + 1),
+                        color,
+                    );
+                    canvas.draw_line(
+                        CPos(from.0 - w + 1, from.1 + w),
+                        CPos(to.0 - w, to.1 + w - 1),
+                        color,
+                    );
                 } else {
                     w /= 2;
-                    canvas
-                        .draw_line(
-                            Point::new(from.x + w, from.y - w),
-                            Point::new(to.x + w, to.y - w),
-                        )
-                        .unwrap();
-                    canvas
-                        .draw_line(
-                            Point::new(from.x - w, from.y + w),
-                            Point::new(to.x - w, to.y + w),
-                        )
-                        .unwrap();
+                    canvas.draw_line(
+                        CPos(from.0 + w, from.1 - w),
+                        CPos(to.0 + w, to.1 - w),
+                        color,
+                    );
+                    canvas.draw_line(
+                        CPos(from.0 - w, from.1 + w),
+                        CPos(to.0 - w, to.1 + w),
+                        color,
+                    );
                 }
             }
         }
 
         #[allow(unused)]
         fn draw_thick_line_horizontal(
-            canvas: &mut Canvas<Window>,
-            from: Point,
-            to: Point,
+            canvas: &mut CanvasBox,
+            from: CPos,
+            to: CPos,
             width: i32,
             margin: i32,
+            color: Color,
         ) {
             for w in -width / 2..width - width / 2 {
-                canvas
-                    .draw_line(
-                        Point::new(from.x + margin, from.y + w),
-                        Point::new(to.x - margin, to.y + w),
-                    )
-                    .unwrap();
+                canvas.draw_line(
+                    CPos(from.0 + margin, from.1 + w),
+                    CPos(to.0 - margin, to.1 + w),
+                    color,
+                );
             }
         }
 
         //Saves canvas to bmp file
-        fn save_canvas(&self, canvas: &mut Canvas<Window>, last: bool, suffix: Option<&str>) {
+        fn save_canvas(&self, canvas: &mut CanvasBox, last: bool, suffix: Option<&str>) {
             let extension = suffix.map_or("bmp".to_string(), |s| s.to_string() + ".bmp");
             let path = if last {
                 let file = path::Path::new(&self.config.filepath);
@@ -686,27 +632,7 @@ mod with_sdl2 {
                 dir.set_extension(extension);
                 dir
             };
-
-            let pixel_format = canvas.default_pixel_format();
-            let mut pixels = canvas.read_pixels(canvas.viewport(), pixel_format).unwrap();
-            let (width, height) = canvas.output_size().unwrap();
-            let pitch = pixel_format.byte_size_of_pixels(width as usize);
-            let mut surf = sdl2::surface::Surface::from_data(
-                pixels.as_mut_slice(),
-                width,
-                height,
-                pitch as u32,
-                pixel_format,
-            )
-            .unwrap();
-            if self.config.transparent_bmp {
-                surf.set_color_key(true, self.config.style.bg_color.into())
-                    .unwrap();
-            }
-
-            surf.save_bmp(path).unwrap_or_else(|error| {
-                print!("Problem saving the file: {:?}", error);
-            });
+            canvas.save(&path);
         }
 
         fn draw<'a, H: HeuristicInstance<'a>>(
@@ -741,10 +667,12 @@ mod with_sdl2 {
                 // Draw background.
                 let Some(canvas) = &self.canvas else {return;};
                 let mut canvas = canvas.borrow_mut();
-                canvas.set_draw_color(self.config.style.bg_color);
-                canvas
-                    .fill_rect(Rect::new(0, 0, self.canvas_size.0, self.canvas_size.1))
-                    .unwrap();
+                canvas.fill_rect(
+                    CPos(0, 0),
+                    self.canvas_size.0,
+                    self.canvas_size.1,
+                    self.config.style.bg_color,
+                );
 
                 // Draw heuristic values.
                 if self.config.style.draw_heuristic && let Some(h) = h {
@@ -772,16 +700,13 @@ mod with_sdl2 {
 
                 // Draw layers and contours.
                 if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
-                    canvas.set_draw_color(self.config.style.contour);
-                    let draw_right_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                    let draw_right_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
                         canvas
-                            .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)))
-                            .unwrap();
+                            .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
                     };
-                    let draw_bottom_border = |canvas: &mut Canvas<Window>, Pos(i, j): Pos| {
+                    let draw_bottom_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
                         canvas
-                            .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)))
-                            .unwrap();
+                            .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
                     };
 
 
@@ -837,12 +762,12 @@ mod with_sdl2 {
                     for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
                         if right < 10 { continue; }
                         let x = (right * self.config.cell_size -1 ).saturating_sub(1);
-                        self.write_label(x as i32, -6, HAlign::Right, VAlign::Top, &mut canvas, &layer.to_string());
+                        canvas.write_text(CPos(x as i32, -6), HAlign::Right, VAlign::Top, &layer.to_string(), BLACK);
                     }
                     for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
                         if bottom < 10 { continue; }
                         let y = bottom * self.config.cell_size +5;
-                        self.write_label(3, y as i32, HAlign::Left, VAlign::Bottom, &mut canvas, &layer.to_string());
+                        canvas.write_text(CPos(3, y as i32), HAlign::Left, VAlign::Bottom, &layer.to_string(), BLACK);
                     }
                 }
 
@@ -925,11 +850,11 @@ mod with_sdl2 {
                             continue;
                         }
                         let mut b = self.cell_center(m.start);
-                        b.x += self.config.style.match_shrink as i32;
-                        b.y += self.config.style.match_shrink as i32;
+                        b.0 += self.config.style.match_shrink as i32;
+                        b.1 += self.config.style.match_shrink as i32;
                         let mut e = self.cell_center(m.end);
-                        e.x -= self.config.style.match_shrink as i32;
-                        e.y -= self.config.style.match_shrink as i32;
+                        e.0 -= self.config.style.match_shrink as i32;
+                        e.1 -= self.config.style.match_shrink as i32;
                         Self::draw_diag_line(
                             &mut canvas,
                             b, e,
@@ -1048,74 +973,63 @@ mod with_sdl2 {
                 } // draw tree
 
                 // Draw labels
-                canvas.set_draw_color(BLACK);
                 let mut row = 0;
                 if let Some(title) = &self.title {
-                    self.write_label(
-                        self.nw_size.0 as i32 / 2,
-                        30 * row,
+                    canvas.write_text(
+                        CPos(self.nw_size.0 as i32 / 2, 30 * row),
                         HAlign::Center,
                         VAlign::Top,
-                        &mut canvas,
                         title,
+                        BLACK,
                     );
                     row += 1;
                 }
-                canvas.set_draw_color((50, 50, 50, 0));
                 if let Some(params) = &self.params && !params.is_empty(){
-                    self.write_label(
+                    canvas.write_text(CPos(
                         self.nw_size.0 as i32 / 2,
-                        30 * row,
+                        30 * row),
                         HAlign::Center,
                         VAlign::Top,
-                        &mut canvas,
-                        params,
+                        params,(50, 50, 50, 0)
                     );
                     row += 1;
                 }
                 if let Some(comment) = &self.comment && !comment.is_empty(){
-                    self.write_label(
+                    canvas.write_text(CPos(
                         self.nw_size.0 as i32 / 2,
-                        30 * row,
+                        30 * row),
                         HAlign::Center,
                         VAlign::Top,
-                        &mut canvas,
-                        comment,
+                        comment,(50, 50, 50, 0)
                     );
                     row += 1;
                 }
-                canvas.set_draw_color(GRAY);
-                self.write_label(
-                    self.nw_size.0 as i32,
-                    0,
+                canvas.write_text(
+                    CPos(self.nw_size.0 as i32, 0),
                     HAlign::Right,
                     VAlign::Top,
-                    &mut canvas,
                     &make_label("i = ", self.target.0),
+                    GRAY,
                 );
-                self.write_label(
-                    0,
-                    self.nw_size.1 as i32,
+                canvas.write_text(
+                    CPos(0, self.nw_size.1 as i32),
                     HAlign::Left,
                     VAlign::Bottom,
-                    &mut canvas,
                     &make_label("j = ", self.target.1),
+                    GRAY,
                 );
 
-                self.write_label(
-                    self.nw_size.0 as i32 / 2,
-                    30 * row,
+                canvas.write_text(
+                    CPos(self.nw_size.0 as i32 / 2, 30 * row),
                     HAlign::Center,
                     VAlign::Top,
-                    &mut canvas,
                     "DP states (i,j)",
+                    GRAY,
                 );
-                self.write_label(
-                    self.nw_size.0 as i32 / 2,
-                    30 * (row + 1),
+                canvas.write_text(
+                    CPos(self.nw_size.0 as i32 / 2, 30 * (row + 1)),
                     HAlign::Center,
                     VAlign::Top,
-                    &mut canvas,
                     &make_label(
                         "expanded: ",
                         self.expanded
@@ -1123,6 +1037,7 @@ mod with_sdl2 {
                             .filter(|&(t, ..)| *t == Expanded)
                             .count(),
                     ),
+                    GRAY,
                 );
             }
 
@@ -1162,61 +1077,33 @@ mod with_sdl2 {
             }
 
             //Keyboard events
-
-            let sleep_duration = 0.001;
             canvas.present();
-            let mut start_time = Instant::now();
-            'outer: loop {
-                for event in self.sdl_context.event_pump().unwrap().poll_iter() {
-                    match event {
-                        Event::Quit { .. }
-                        | Event::KeyDown {
-                            keycode: Some(Keycode::X),
-                            ..
-                        } => {
-                            panic!("Running aborted by user!");
-                        }
-                        Event::KeyDown {
-                            keycode: Some(key), ..
-                        } => match key {
-                            Keycode::P => {
-                                //pause
-                                if self.config.paused {
-                                    self.config.paused = false;
-                                    start_time = Instant::now();
-                                } else {
-                                    self.config.paused = true;
-                                }
-                            }
-                            Keycode::Escape | Keycode::Space => {
-                                //next frame
-                                break 'outer;
-                            }
-                            Keycode::F => {
-                                //faster
-                                self.config.delay *= 0.8;
-                            }
-                            Keycode::S => {
-                                //slower
-                                self.config.delay /= 0.8;
-                            }
-                            Keycode::Q => {
-                                self.config.draw = When::Last;
-                                break 'outer;
-                            }
-                            _ => {}
-                        },
-                        _ => {}
-                    }
+            let key = canvas.wait(if self.config.paused || is_last {
+                Duration::MAX
+            } else {
+                self.config.delay
+            });
+            match key {
+                KeyboardAction::Next => {}
+                KeyboardAction::Prev => {
+                    unimplemented!()
                 }
-                ::std::thread::sleep(Duration::from_secs_f32(sleep_duration));
-
-                if !self.config.paused
-                    && !is_last
-                    && start_time.elapsed().as_secs_f32() >= self.config.delay
-                {
-                    break 'outer;
+                KeyboardAction::PausePlay => {
+                    self.config.paused = !self.config.paused;
                 }
+                KeyboardAction::Faster => {
+                    self.config.delay = self.config.delay.mul_f32(0.8);
+                }
+                KeyboardAction::Slower => {
+                    self.config.delay = self.config.delay.div_f32(0.8);
+                }
+                KeyboardAction::ToEnd => {
+                    self.config.draw = When::Last;
+                }
+                KeyboardAction::Exit => {
+                    panic!("Running aborted by user!");
+                }
+                KeyboardAction::None => {}
             }
         }
 
@@ -1244,33 +1131,27 @@ mod with_sdl2 {
             // Draw grid
 
             // Divider
-            canvas.set_draw_color(BLACK);
-            canvas
-                .draw_line(
-                    Point::new(self.nw_size.0 as i32, 0),
-                    Point::new(self.nw_size.0 as i32, self.nw_size.1 as i32),
-                )
-                .unwrap();
+            canvas.draw_line(
+                CPos(self.nw_size.0 as i32, 0),
+                CPos(self.nw_size.0 as i32, self.nw_size.1 as i32),
+                BLACK,
+            );
 
             // Horizontal d lines
-            canvas.set_draw_color(GRAY);
-
             let dy = |d: i32| offset.1 - d * dt_cell_size as i32 - dt_cell_size as i32 / 2;
 
             let mut draw_d_line = |d: i32, y: i32| {
-                canvas
-                    .draw_line(
-                        Point::new(self.nw_size.0 as i32, y),
-                        Point::new(self.canvas_size.0 as i32, y),
-                    )
-                    .unwrap();
-                self.write_label(
-                    self.nw_size.0 as i32,
-                    y,
+                canvas.draw_line(
+                    CPos(self.nw_size.0 as i32, y),
+                    CPos(self.canvas_size.0 as i32, y),
+                    GRAY,
+                );
+                canvas.write_text(
+                    CPos(self.nw_size.0 as i32, y),
                     HAlign::Right,
                     VAlign::Center,
-                    &mut canvas,
                     &make_label("d = ", d),
+                    GRAY,
                 );
             };
             // d=0
@@ -1285,20 +1166,16 @@ mod with_sdl2 {
             }
 
             // Vertical g lines
-            canvas.set_draw_color(GRAY);
             let mut draw_g_line = |g: i32| {
                 let line_g = if g == 0 { 0 } else { g + 1 };
                 let x = self.nw_size.0 as i32 + line_g * dt_cell_size as i32;
-                canvas
-                    .draw_line(Point::new(x, 0), Point::new(x, self.canvas_size.1 as i32))
-                    .unwrap();
-                self.write_label(
-                    x,
-                    dy(diagonal_min - 1),
+                canvas.draw_line(CPos(x, 0), CPos(x, self.canvas_size.1 as i32), GRAY);
+                canvas.write_text(
+                    CPos(x, dy(diagonal_min - 1)),
                     if g == 0 { HAlign::Left } else { HAlign::Right },
                     VAlign::Top,
-                    &mut canvas,
                     &make_label("g = ", g),
+                    GRAY,
                 );
             };
             // g=0
@@ -1308,17 +1185,18 @@ mod with_sdl2 {
                 draw_g_line(front_max as i32);
             }
 
-            let state_coords = |st: (Pos, Cost)| -> (i32, i32) {
-                (offset.0 + (dt_cell_size * st.1) as i32, dy(st.0.diag()))
+            let state_coords = |st: (Pos, Cost)| -> CPos {
+                CPos(offset.0 + (dt_cell_size * st.1) as i32, dy(st.0.diag()))
             };
 
             let draw_state =
-                |canvas: &mut RefMut<Canvas<Window>>, color: Color, st: (Type, Pos, Cost, Cost)| {
-                    canvas.set_draw_color(color);
-                    let (x, y) = state_coords((st.1, st.2));
-                    canvas
-                        .fill_rect(Rect::new(x, y, dt_cell_size, dt_cell_size))
-                        .unwrap();
+                |canvas: &mut RefMut<CanvasBox>, st: (Type, Pos, Cost, Cost), color: Color| {
+                    canvas.fill_rect(
+                        state_coords((st.1, st.2)),
+                        dt_cell_size,
+                        dt_cell_size,
+                        color,
+                    );
                 };
 
             if self.config.draw_old_on_top {
@@ -1337,7 +1215,7 @@ mod with_sdl2 {
                                     i as f64 / self.expanded.len() as f64
                             },
                         );
-                    draw_state(&mut canvas, color, st);
+                    draw_state(&mut canvas, st, color);
                 }
             } else {
                 // Expanded
@@ -1354,19 +1232,17 @@ mod with_sdl2 {
                                     i as f64 / self.expanded.len() as f64
                             },
                         );
-                    draw_state(&mut canvas, color, st);
+                    draw_state(&mut canvas, st, color);
                 }
             }
 
             // Title
-            canvas.set_draw_color(GRAY);
-            self.write_label(
-                self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2,
-                0,
+            canvas.write_text(
+                CPos(self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2, 0),
                 HAlign::Center,
                 VAlign::Top,
-                &mut canvas,
                 "Diagonal Transition states (g, d) = (s, k)",
+                GRAY,
             );
 
             if let Some(cigar) = cigar {
@@ -1384,11 +1260,11 @@ mod with_sdl2 {
                         if let Some(path_width) = self.config.style.path_width {
                             Self::draw_diag_line(
                                 &mut canvas,
-                                Point::new(
+                                CPos(
                                     from_coords.0 + dt_cell_size as i32 / 2,
                                     from_coords.1 + dt_cell_size as i32 / 2,
                                 ),
-                                Point::new(
+                                CPos(
                                     to_coords.0 + dt_cell_size as i32 / 2,
                                     to_coords.1 + dt_cell_size as i32 / 2,
                                 ),
@@ -1396,46 +1272,14 @@ mod with_sdl2 {
                                 path_width,
                             );
                         } else {
-                            draw_state(&mut canvas, path_color, (Expanded, from.0, from.1, 0));
+                            draw_state(
+                                &mut canvas,
+                                (Type::Expanded, from.0, from.1, 0),
+                                path_color,
+                            );
                         }
                     }
                 }
-            }
-        }
-
-        fn write_label(
-            &self,
-            x: i32,
-            y: i32,
-            ha: HAlign,
-            va: VAlign,
-            canvas: &mut std::cell::RefMut<Canvas<Window>>,
-            text: &str,
-        ) {
-            // Add labels
-            #[cfg(feature = "sdl2_ttf")]
-            {
-                let surface = self.font.render(text).blended(canvas.draw_color()).unwrap();
-                let w = surface.width();
-                let h = surface.height();
-                let x = match ha {
-                    HAlign::Left => x,
-                    HAlign::Center => x - w as i32 / 2,
-                    HAlign::Right => x - w as i32,
-                };
-                let y = match va {
-                    VAlign::Top => y,
-                    VAlign::Center => y - h as i32 / 2,
-                    VAlign::Bottom => y - h as i32,
-                };
-                let texture_creator = canvas.texture_creator();
-                canvas
-                    .copy(
-                        &surface.as_texture(&texture_creator).unwrap(),
-                        None,
-                        Some(Rect::new(x, y, w, h)),
-                    )
-                    .unwrap();
             }
         }
 
@@ -1496,26 +1340,21 @@ mod with_sdl2 {
                     if rel_f > 1.5 {
                         continue;
                     }
-                    canvas.set_draw_color(
-                        Gradient::Gradient(GRAY..WHITE).color(f64::max(0., 2. * rel_f - 2.)),
-                    );
+                    let color =
+                        Gradient::Gradient(GRAY..WHITE).color(f64::max(0., 2. * rel_f - 2.));
                     let y = f_y(f);
-                    canvas
-                        .fill_rect(Rect::new(
-                            (pos.0 * self.config.cell_size) as i32,
-                            y,
-                            self.config.cell_size,
-                            1,
-                        ))
-                        .unwrap();
-                    canvas
-                        .fill_rect(Rect::new(
-                            self.nw_size.0 as i32 + (g * dt_cell_size) as i32,
-                            y,
-                            dt_cell_size,
-                            1,
-                        ))
-                        .unwrap();
+                    canvas.fill_rect(
+                        CPos((pos.0 * self.config.cell_size) as i32, y),
+                        self.config.cell_size,
+                        1,
+                        color,
+                    );
+                    canvas.fill_rect(
+                        CPos(self.nw_size.0 as i32 + (g * dt_cell_size) as i32, y),
+                        dt_cell_size,
+                        1,
+                        color,
+                    );
                 }
             }
 
@@ -1523,26 +1362,20 @@ mod with_sdl2 {
                 if t == Explored {
                     continue;
                 }
-                canvas.set_draw_color(
-                    //Gradient::Gradient(SOFT_GREEN..SOFT_RED)
-                    Gradient::TurboGradient(0.2..0.95).color(i as f64 / self.expanded.len() as f64),
+                let color =
+                    Gradient::TurboGradient(0.2..0.95).color(i as f64 / self.expanded.len() as f64);
+                canvas.fill_rect(
+                    CPos((pos.0 * self.config.cell_size) as i32, f_y(f)),
+                    self.config.cell_size,
+                    2,
+                    color,
                 );
-                canvas
-                    .fill_rect(Rect::new(
-                        (pos.0 * self.config.cell_size) as i32,
-                        f_y(f),
-                        self.config.cell_size,
-                        2,
-                    ))
-                    .unwrap();
-                canvas
-                    .fill_rect(Rect::new(
-                        self.nw_size.0 as i32 + (g * dt_cell_size) as i32,
-                        f_y(f),
-                        dt_cell_size,
-                        2,
-                    ))
-                    .unwrap();
+                canvas.fill_rect(
+                    CPos(self.nw_size.0 as i32 + (g * dt_cell_size) as i32, f_y(f)),
+                    dt_cell_size,
+                    2,
+                    color,
+                );
             }
 
             // Horizontal line at final cost when path is given.
@@ -1555,52 +1388,46 @@ mod with_sdl2 {
                     .1;
                 cost = Some(c);
                 let y = f_y(c);
-                canvas.set_draw_color(SOFT_RED);
-                canvas
-                    .draw_line(Point::new(0, y), Point::new(self.canvas_size.0 as i32, y))
-                    .unwrap();
+                canvas.draw_line(CPos(0, y), CPos(self.canvas_size.0 as i32, y), SOFT_RED);
 
-                canvas.set_draw_color(SOFT_RED);
-                self.write_label(
-                    self.nw_size.0 as i32,
-                    y,
+                canvas.write_text(
+                    CPos(self.nw_size.0 as i32, y),
                     HAlign::Left,
                     VAlign::Center,
-                    &mut canvas,
                     &make_label("g* = ", c),
+                    SOFT_RED,
                 );
             };
 
-            canvas.set_draw_color(SOFT_RED);
-            self.write_label(
-                self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2,
-                self.dt_size.1 as i32,
+            canvas.write_text(
+                CPos(
+                    self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2,
+                    self.dt_size.1 as i32,
+                ),
                 HAlign::Center,
                 VAlign::Bottom,
-                &mut canvas,
                 "max f per front g",
+                SOFT_RED,
             );
             for f in [f_min, f_max] {
                 if Some(f) == cost {
                     continue;
                 }
-                self.write_label(
-                    self.nw_size.0 as i32,
-                    f_y(f),
+                canvas.write_text(
+                    CPos(self.nw_size.0 as i32, f_y(f)),
                     HAlign::Left,
                     VAlign::Center,
-                    &mut canvas,
                     &make_label("f = ", f),
+                    SOFT_RED,
                 );
             }
 
-            self.write_label(
-                self.nw_size.0 as i32 / 2,
-                self.nw_size.1 as i32,
+            canvas.write_text(
+                CPos(self.nw_size.0 as i32 / 2, self.nw_size.1 as i32),
                 HAlign::Center,
                 VAlign::Bottom,
-                &mut canvas,
                 "max f per column i",
+                SOFT_RED,
             );
         }
     }
