@@ -31,19 +31,21 @@ instant = "*"
 bio = "*"
 rand = "*"
 rand_chacha = "*"
+getrandom = "*"
 itertools = "*"
 rustc-hash = "*"
-clap = {version="3.*", features=["derive", "wrap_help"]}
+clap = {version="3.*", features=["derive"]}
 lazy_static = "*"
 smallvec = {version="*", features=["union"]}
 ropey = "*"
 num-traits = "*"
-sdl2 = {version="*", optional=true, default_features=false}
+sdl2 = {version="*", optional=true, features=["ttf"]}
 parse_duration = "*"
 serde = "*"
 serde_json = "*"
 
 wasm-bindgen = {version="*", optional=true}
+console_error_panic_hook = {version="*", optional=true}
 web-sys = { version = "*", optional=true, features = [
 "ImageData",
 "CanvasRenderingContext2d",
@@ -51,7 +53,7 @@ web-sys = { version = "*", optional=true, features = [
 "console",
 "BinaryType", "Blob", "ErrorEvent", "MessageEvent", "ProgressEvent", "WebSocket",
 "Document", "Element", "HtmlElement", "Node", "Window", "HtmlInputElement",
-"HtmlSelectElement",
+"HtmlSelectElement", "HtmlTextAreaElement"
 ]}
 
 
@@ -62,11 +64,11 @@ suffix = "*"
 
 [features]
 default = ["wasm"]
-#default = ["bin", "sdl2_ttf"]
 
 wfa = []
 edlib = []
+# TODO: Remove this and use dep:sdl2 instead
+sdl2 = []
 
-sdl2_ttf = ["sdl2/ttf"]
-bin = []
-wasm = ["dep:wasm-bindgen", "dep:web-sys"]
+bin = ["clap/wrap_help", "dep:sdl2", "sdl2"]
+wasm = ["dep:wasm-bindgen", "dep:web-sys", "getrandom/js", "instant/wasm-bindgen", "dep:console_error_panic_hook"]
