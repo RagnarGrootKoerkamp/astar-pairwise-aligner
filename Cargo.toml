@@ -13,11 +13,14 @@ default-run = "astar-pairwise-aligner"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
-#lto = true
+# 2x smaller file size when 'true', but that takes longer
 lto = "thin"
 incremental = true
-debug = true
 opt-level = 3
+debug = true
+# 10x smaller file size without debug symbols.
+# Breaks backtrace printing.
+strip = true
 
 [build-dependencies]
 bindgen = "0.60.1"
