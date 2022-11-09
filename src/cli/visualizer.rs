@@ -1,4 +1,5 @@
 use clap::{ArgMatches, Parser};
+use serde::Deserialize;
 
 use crate::{
     prelude::Seq,
@@ -7,7 +8,7 @@ use crate::{
 
 use super::heuristic_params::{AlgorithmArgs, HeuristicArgs};
 
-#[derive(Parser)]
+#[derive(Parser, Deserialize)]
 #[clap(help_heading = "VISUALIZER")]
 pub struct VisualizerArgs {
     /// Run the interactive visualizer. See --help for controls. [default: all]
@@ -91,8 +92,8 @@ impl VisualizerArgs {
         _b: Seq,
         matches: ArgMatches,
         f: F,
-        alg: Option<&AlgorithmArgs>,
-        h: Option<&HeuristicArgs>,
+        _alg: Option<&AlgorithmArgs>,
+        _h: Option<&HeuristicArgs>,
     ) -> F::R {
         if matches.contains_id("visualize")
             || matches.contains_id("save")

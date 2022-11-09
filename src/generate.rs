@@ -1,10 +1,11 @@
 use clap::{Parser, ValueEnum};
 use itertools::Itertools;
 use rand::{Rng, SeedableRng};
+use serde::Deserialize;
 
 use crate::{aligners::Sequence, prelude::*};
 
-#[derive(ValueEnum, Default, Debug, Clone, Copy)]
+#[derive(ValueEnum, Default, Debug, Clone, Copy, Deserialize)]
 pub enum ErrorModel {
     #[default]
     Uniform,
@@ -31,7 +32,7 @@ pub enum ErrorModel {
     DoubleMutatedRepeat,
 }
 
-#[derive(Parser, Clone)]
+#[derive(Parser, Clone, Deserialize)]
 pub struct GenerateArgs {
     /// The number of sequence pairs to generate
     #[clap(short = 'x', long, default_value_t = 1, display_order = 2)]

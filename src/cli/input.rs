@@ -7,6 +7,7 @@ use clap::{ArgGroup, Parser};
 use itertools::Itertools;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use serde::Deserialize;
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -14,7 +15,7 @@ use std::{
     path::PathBuf,
 };
 
-#[derive(Parser)]
+#[derive(Parser, Deserialize)]
 #[clap(help_heading = "INPUT", group = ArgGroup::new("inputmethod").required(true))]
 pub struct Input {
     /// The .seq, .txt, or Fasta file with sequence pairs to align.

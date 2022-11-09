@@ -6,9 +6,10 @@ use crate::{
     prelude::{BruteForceContour, HintContours, MatchCost, I},
 };
 use clap::{Parser, ValueEnum};
+use serde::Deserialize;
 
 /// TODO: Add other aligners here as well.
-#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Deserialize)]
 pub enum Algorithm {
     // Internal methods
     NW,
@@ -44,7 +45,7 @@ impl Algorithm {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Deserialize)]
 pub enum HeuristicType {
     None,
     Zero,
@@ -54,7 +55,7 @@ pub enum HeuristicType {
     CSH,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Deserialize)]
 #[clap(help_heading = "ALGORITHM")]
 pub struct AlgorithmArgs {
     #[clap(short, long, default_value_t, value_enum, display_order = 10)]
@@ -125,7 +126,7 @@ impl ToString for AlgorithmArgs {
 }
 
 /// TODO: Add separate --dt and --gap-cost flags.
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Deserialize)]
 #[clap(help_heading = "HEURISTIC")]
 pub struct HeuristicArgs {
     #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]
