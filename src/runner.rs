@@ -12,10 +12,10 @@ use crate::{
     },
     prelude::*,
 };
-use clap::Parser;
-use serde::Deserialize;
+use clap::{ArgMatches, Parser};
+use serde::{Deserialize, Serialize};
 
-#[derive(Parser, Deserialize)]
+#[derive(Parser, Serialize, Deserialize)]
 #[clap(author, about)]
 pub struct Cli {
     #[clap(flatten)]

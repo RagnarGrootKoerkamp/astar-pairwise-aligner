@@ -1,5 +1,5 @@
 use clap::{ArgMatches, Parser};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     prelude::Seq,
@@ -8,7 +8,7 @@ use crate::{
 
 use super::heuristic_params::{AlgorithmArgs, HeuristicArgs};
 
-#[derive(Parser, Deserialize)]
+#[derive(Parser, Serialize, Deserialize)]
 #[clap(help_heading = "VISUALIZER")]
 pub struct VisualizerArgs {
     /// Run the interactive visualizer. See --help for controls. [default: all]
@@ -85,7 +85,7 @@ pub trait VisualizerRunner {
 
 impl VisualizerArgs {
     // pass matches as <Cli as clap::CommandFactory>::command().get_matches()
-    #[cfg(not(feature = "sdl2"))]
+    #[cfg(not(any(feature = "sdl2", feature = "wasm")))]
     pub fn run_on_visualizer<F: VisualizerRunner>(
         &self,
         _a: Seq,
@@ -106,7 +106,7 @@ impl VisualizerArgs {
         f.call(NoVisualizer)
     }
 
-    #[cfg(feature = "sdl2")]
+    #[cfg(any(feature = "sdl2", feature = "wasm"))]
     pub fn run_on_visualizer<F: VisualizerRunner>(
         &self,
         a: Seq,
@@ -120,17 +120,25 @@ impl VisualizerArgs {
 
         use crate::visualizer::{Config, Visualizer};
 
-        let draw = if matches.contains_id("visualize") {
-            self.visualize.clone().unwrap_or(When::All)
+        let draw = if cfg!(feature = "wasm") {
+            When::All
         } else {
-            When::None
+            if matches.contains_id("visualize") {
+                self.visualize.clone().unwrap_or(When::All)
+            } else {
+                When::None
+            }
         };
-        let save = if matches.contains_id("save") {
-            self.save.clone().unwrap_or(When::Last)
-        } else if self.save_path.is_some() {
-            When::Last
-        } else {
+        let save = if cfg!(feature = "wasm") {
             When::None
+        } else {
+            if matches.contains_id("save") {
+                self.save.clone().unwrap_or(When::Last)
+            } else if self.save_path.is_some() {
+                When::Last
+            } else {
+                When::None
+            }
         };
         if draw == When::None && save == When::None {
             return f.call(NoVisualizer);

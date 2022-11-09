@@ -15,7 +15,7 @@ use crate::{
     prelude::Pos,
 };
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Deserialize)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
 pub enum VisualizerStyle {
     #[default]
     Default,
@@ -23,7 +23,7 @@ pub enum VisualizerStyle {
     Detailed,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, ValueEnum, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, ValueEnum, Serialize, Deserialize)]
 pub enum When {
     None,
     Last,
@@ -104,9 +104,9 @@ pub struct NoVisualizer;
 impl VisualizerT for NoVisualizer {}
 
 use clap::ValueEnum;
-use serde::Deserialize;
 #[cfg(feature = "sdl2")]
 pub use with_sdl2::*;
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "sdl2")]
 mod with_sdl2 {
