@@ -7,7 +7,11 @@ use web_sys::HtmlCanvasElement;
 
 use super::CPos;
 
+/// A canvas element and context.
+/// Note that these are used for double-buffered drawing calls only.
+/// present() copies the contents to the on-screen canvas.
 pub struct HtmlCanvas {
+    element: HtmlCanvasElement,
     context: CanvasRenderingContext2d,
 }
 
@@ -68,7 +72,7 @@ impl Canvas for HtmlCanvas {
         color: Color,
     ) {
         self.context.set_fill_style(&jscol(color));
-        self.context.set_font("20px Arial");
+        self.context.set_font("14px Arial");
         self.context.set_text_baseline("middle");
         self.context.set_text_align(match ha {
             crate::canvas::HAlign::Left => "left",
@@ -78,27 +82,52 @@ impl Canvas for HtmlCanvas {
         self.context.fill_text(text, x as f64, y as f64).unwrap();
     }
 
-    // no-op
-    fn save(&mut self, _path: &std::path::Path) {}
+    fn present(&mut self) {
+        // Copy the internal image to the on-screen canvas.
+        let element = get::<HtmlCanvasElement>("canvas");
+        element.set_width(1200 as u32);
+        element.set_height(800 as u32);
+        let context = element
+            .get_context("2d")
+            .unwrap()
+            .unwrap()
+            .dyn_into::<CanvasRenderingContext2d>()
+            .unwrap();
+        log("Present");
+        context
+            .draw_image_with_html_canvas_element(&self.element, 0., 0.)
+            .unwrap();
+    }
 
-    fn draw_line(&mut self, _p: CPos, _q: CPos, _color: Color) {
-        todo!();
+    fn draw_line(&mut self, p: CPos, q: CPos, color: Color) {
+        self.context.begin_path();
+        self.context.set_stroke_style(&jscol(color));
+        self.context.set_line_width(0.0);
+        self.context.move_to(p.0 as f64, p.1 as f64);
+        self.context.line_to(q.0 as f64, q.1 as f64);
+        self.context.stroke();
     }
 
     fn wait(&mut self, _timeout: std::time::Duration) -> super::KeyboardAction {
-        todo!()
+        super::KeyboardAction::Next
+        //todo!()
     }
 }
 
-pub fn new_canvas() -> HtmlCanvas {
-    let element = get::<HtmlCanvasElement>("canvas");
-    element.set_height(1200 as u32);
-    element.set_width(800 as u32);
+pub fn new_canvas(_w: usize, _h: usize, _title: &str) -> HtmlCanvas {
+    console_error_panic_hook::set_once();
+    let element = document()
+        .create_element("canvas")
+        .unwrap()
+        .dyn_into::<HtmlCanvasElement>()
+        .unwrap();
+    element.set_width(1200 as u32);
+    element.set_height(800 as u32);
     let context = element
         .get_context("2d")
         .unwrap()
         .unwrap()
         .dyn_into::<CanvasRenderingContext2d>()
         .unwrap();
-    HtmlCanvas { context }
+    HtmlCanvas { element, context }
 }
