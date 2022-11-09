@@ -1324,7 +1324,8 @@ mod visualizer {
                 .unwrap();
             let f_y = |f| {
                 (self.canvas_size.1 as i32).saturating_sub(
-                    ((f - f_min) as f32 / max(f_max - f_min, 1) as f32 * self.canvas_size.1 as f32
+                    ((f as f32 - f_min as f32) / max(f_max - f_min, 1) as f32
+                        * self.canvas_size.1 as f32
                         / 4.) as i32
                         + 30,
                 )
@@ -1337,7 +1338,7 @@ mod visualizer {
                         continue;
                     }
                     let f = g + h.h(pos);
-                    let rel_f = (f - f_min) as f64 / max(f_max - f_min, 1) as f64;
+                    let rel_f = (f as f64 - f_min as f64) / max(f_max - f_min, 1) as f64;
                     if rel_f > 1.5 {
                         continue;
                     }
