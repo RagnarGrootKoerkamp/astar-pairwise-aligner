@@ -1510,6 +1510,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
 #[cfg(feature = "sdl2")]
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::{aligners::Aligner, cost_model::LinearCost, heuristic::NoCost, visualizer::*};
 
     use super::DiagonalTransition;
@@ -1524,7 +1526,7 @@ mod tests {
         let mut config = Config::default();
         config.draw = When::Layers;
         config.save = When::Layers;
-        config.delay = 1.;
+        config.delay = Duration::from_secs_f32(1.);
         config.paused = true;
         config.cell_size = 40;
         config.style.bg_color = (255, 255, 255, 128);

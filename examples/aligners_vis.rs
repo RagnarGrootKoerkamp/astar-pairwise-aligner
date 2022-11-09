@@ -3,6 +3,8 @@ fn main() {}
 
 #[cfg(feature = "sdl2")]
 fn main() {
+    use std::time::Duration;
+
     use astar_pairwise_aligner::{
         aligners::{
             diagonal_transition::{DiagonalTransition, GapCostHeuristic},
@@ -21,7 +23,7 @@ fn main() {
     let mut config = visualizer::Config::default();
     config.draw = When::All;
     config.save = When::Last;
-    config.delay = 0.0001;
+    config.delay = Duration::from_secs_f32(0.0001);
     config.cell_size = 2;
     config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);

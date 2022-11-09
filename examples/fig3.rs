@@ -5,6 +5,8 @@ fn main() {}
 
 #[cfg(feature = "sdl2")]
 fn main() {
+    use std::time::Duration;
+
     use astar_pairwise_aligner::canvas::*;
     use astar_pairwise_aligner::{
         aligners::{astar::AStar, Aligner},
@@ -19,7 +21,7 @@ fn main() {
     config.draw = When::None;
     config.save = When::Frames(vec![0, usize::MAX]);
     config.paused = false;
-    config.delay = 0.0001;
+    config.delay = Duration::from_secs_f32(0.0001);
     config.cell_size = 6;
     config.style.bg_color = WHITE;
     config.style.expanded = Gradient::Fixed((130, 179, 102, 0));
