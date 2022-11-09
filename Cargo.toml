@@ -22,6 +22,9 @@ opt-level = 3
 [build-dependencies]
 bindgen = "0.60.1"
 
+[lib]
+crate-type = ["cdylib", "lib"]
+
 [dependencies]
 colorgrad = "*"
 bio = "*"
@@ -36,6 +39,20 @@ ropey = "*"
 num-traits = "*"
 sdl2 = {version="*", optional=true, default_features=false}
 parse_duration = "*"
+serde = "*"
+serde_json = "*"
+
+wasm-bindgen = {version="*", optional=true}
+web-sys = { version = "*", optional=true, features = [
+"ImageData",
+"CanvasRenderingContext2d",
+"HtmlCanvasElement",
+"console",
+"BinaryType", "Blob", "ErrorEvent", "MessageEvent", "ProgressEvent", "WebSocket",
+"Document", "Element", "HtmlElement", "Node", "Window", "HtmlInputElement",
+"HtmlSelectElement",
+]}
+
 
 [dev-dependencies]
 # For benchmarking only.
@@ -43,7 +60,12 @@ aho-corasick = "*"
 suffix = "*"
 
 [features]
+default = ["wasm"]
+#default = ["bin", "sdl2_ttf"]
+
 wfa = []
 edlib = []
+
 sdl2_ttf = ["sdl2/ttf"]
-default = []
+bin = []
+wasm = ["dep:wasm-bindgen", "dep:web-sys"]
