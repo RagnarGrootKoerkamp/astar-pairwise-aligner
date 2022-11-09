@@ -1,19 +1,17 @@
-use std::{sync::atomic::AtomicUsize, time::Duration};
+use std::{path::Path, time::Duration};
 
-use crate::{
-    canvas::{Canvas, Color, HAlign, VAlign, BLACK},
-    cli::ARGS,
-    interaction::KeyboardAction,
-};
+use crate::canvas::{Canvas, Color, HAlign, VAlign};
 
 use sdl2::{
     event::Event,
     keyboard::Keycode,
-    rect::Rect,
+    rect::{Point, Rect},
     ttf::{Font, Sdl2TtfContext},
     video::Window,
     Sdl,
 };
+
+use super::{CPos, KeyboardAction};
 pub type SdlCanvas = sdl2::render::Canvas<Window>;
 
 lazy_static! {
@@ -27,12 +25,16 @@ thread_local! {
         .unwrap();
 }
 
-pub fn new_canvas(w: u32, h: u32) -> SdlCanvas {
+fn to_point(CPos(x, y): CPos) -> Point {
+    Point::new(x as i32, y as i32)
+}
+
+pub fn new_canvas(w: usize, h: usize, title: &str) -> SdlCanvas {
     let video_subsystem = SDL_CONTEXT.with(|sdl| sdl.video().unwrap());
     video_subsystem.gl_attr().set_double_buffer(true);
 
     video_subsystem
-        .window("Suffix array extension", w, h)
+        .window(title, w as u32, h as u32)
         //.borderless()
         .build()
         .unwrap()
@@ -53,18 +55,37 @@ impl Canvas for SdlCanvas {
         .unwrap();
     }
 
-    fn fill_rect(&mut self, x: i32, y: i32, w: u32, h: u32, color: Color) {
+    fn fill_rect(&mut self, CPos(x, y): CPos, w: u32, h: u32, color: Color) {
         self.set_draw_color(color);
-        self.fill_rect(Rect::new(x, y, w, h)).unwrap();
+        self.fill_rect(Rect::new(x as i32, y as i32, w, h)).unwrap();
     }
 
-    fn draw_rect(&mut self, x: i32, y: i32, w: u32, h: u32, color: Color) {
+    fn fill_rects(&mut self, rects: &[(CPos, u32, u32)], color: Color) {
         self.set_draw_color(color);
-        self.draw_rect(Rect::new(x, y, w, h)).unwrap();
+        let rects: Vec<_> = rects
+            .iter()
+            .map(|&(CPos(x, y), w, h)| Rect::new(x as i32, y as i32, w, h))
+            .collect();
+        self.fill_rects(&rects).unwrap();
     }
 
-    fn write_text(&mut self, x: i32, y: i32, ha: HAlign, va: VAlign, text: &str) {
-        self.set_draw_color(BLACK);
+    fn draw_rect(&mut self, CPos(x, y): CPos, w: u32, h: u32, color: Color) {
+        self.set_draw_color(color);
+        self.draw_rect(Rect::new(x as i32, y as i32, w, h)).unwrap();
+    }
+
+    fn draw_point(&mut self, p: CPos, color: Color) {
+        self.set_draw_color(color);
+        self.draw_point(to_point(p)).unwrap();
+    }
+
+    fn draw_line(&mut self, p: CPos, q: CPos, color: Color) {
+        self.set_draw_color(color);
+        self.draw_line(to_point(p), to_point(q)).unwrap();
+    }
+
+    fn write_text(&mut self, CPos(x, y): CPos, ha: HAlign, va: VAlign, text: &str, color: Color) {
+        self.set_draw_color(color);
         let surface = FONT.with(|front| front.render(text).blended(self.draw_color()).unwrap());
 
         let w = surface.width();
@@ -88,67 +109,60 @@ impl Canvas for SdlCanvas {
         .unwrap();
     }
 
-    fn save(&mut self) {
-        if let Some(mut path) = ARGS.save.clone() {
-            static FRAME: AtomicUsize = AtomicUsize::new(0);
+    fn save(&mut self, path: &Path) {
+        let pixel_format = self.default_pixel_format();
+        let mut pixels = self.read_pixels(self.viewport(), pixel_format).unwrap();
+        let (width, height) = self.output_size().unwrap();
+        let pitch = pixel_format.byte_size_of_pixels(width as usize);
+        let surf = sdl2::surface::Surface::from_data(
+            pixels.as_mut_slice(),
+            width,
+            height,
+            pitch as u32,
+            pixel_format,
+        )
+        .unwrap();
 
-            let pixel_format = self.default_pixel_format();
-            let mut pixels = self.read_pixels(self.viewport(), pixel_format).unwrap();
-            let (width, height) = self.output_size().unwrap();
-            let pitch = pixel_format.byte_size_of_pixels(width as usize);
-            let surf = sdl2::surface::Surface::from_data(
-                pixels.as_mut_slice(),
-                width,
-                height,
-                pitch as u32,
-                pixel_format,
-            )
-            .unwrap();
-
-            std::fs::create_dir_all(&path).unwrap();
-            let frame = FRAME.load(std::sync::atomic::Ordering::Acquire);
-            // NOTE: We can not use zero-padded ints since ffmpeg can't handle it.
-            path.push(format!("{frame}"));
-            path.set_extension("bmp");
-            surf.save_bmp(path).unwrap();
-            FRAME.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
-        }
+        std::fs::create_dir_all(&path).unwrap();
+        surf.save_bmp(path).unwrap();
     }
 
     fn present(&mut self) {
         self.present()
     }
-}
 
-pub fn wait_for_key(timeout: Duration) -> KeyboardAction {
-    let step = Duration::from_secs_f32(0.01);
-    SDL_CONTEXT.with(|sdl| {
-        for _ in 0..=timeout.as_nanos() / step.as_nanos() {
-            for event in sdl.event_pump().unwrap().poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::X),
-                        ..
-                    } => return KeyboardAction::Exit,
-                    Event::KeyDown {
-                        keycode: Some(key), ..
-                    } => match key {
-                        Keycode::Space | Keycode::Right => return KeyboardAction::Next,
-                        Keycode::Backspace | Keycode::Left => return KeyboardAction::Prev,
-                        Keycode::P | Keycode::Return => return KeyboardAction::PausePlay,
-                        Keycode::Plus | Keycode::Up | Keycode::F => return KeyboardAction::Faster,
-                        Keycode::Minus | Keycode::Down | Keycode::S => {
-                            return KeyboardAction::Slower
-                        }
-                        Keycode::Escape | Keycode::Q => return KeyboardAction::ToEnd,
+    fn wait(&mut self, timeout: Duration) -> KeyboardAction {
+        let step = Duration::from_secs_f32(0.01);
+        SDL_CONTEXT.with(|sdl| {
+            for _ in 0..=timeout.as_nanos() / step.as_nanos() {
+                for event in sdl.event_pump().unwrap().poll_iter() {
+                    match event {
+                        Event::Quit { .. }
+                        | Event::KeyDown {
+                            keycode: Some(Keycode::X),
+                            ..
+                        } => return KeyboardAction::Exit,
+                        Event::KeyDown {
+                            keycode: Some(key), ..
+                        } => match key {
+                            Keycode::Space | Keycode::Right => return KeyboardAction::Next,
+                            //Keycode::Backspace | Keycode::Left => return KeyboardAction::Prev,
+                            Keycode::P | Keycode::Return => return KeyboardAction::PausePlay,
+                            Keycode::Plus | Keycode::Up | Keycode::F => {
+                                return KeyboardAction::Faster
+                            }
+                            Keycode::Minus | Keycode::Down | Keycode::S => {
+                                return KeyboardAction::Slower
+                            }
+                            Keycode::Escape | Keycode::Q => return KeyboardAction::ToEnd,
+                            _ => {}
+                        },
                         _ => {}
-                    },
-                    _ => {}
+                    }
                 }
+                ::std::thread::sleep(step);
             }
-            ::std::thread::sleep(step);
-        }
-        return KeyboardAction::None;
-    })
+            return KeyboardAction::None;
+        })
+    }
 }
