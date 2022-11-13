@@ -186,6 +186,11 @@ impl VisualizerArgs {
             config.style.tree = None;
         }
 
+        #[cfg(feature = "wasm")]
+        {
+            config.draw_single_frame = Some(unsafe { crate::wasm::INTERACTION.get() });
+        }
+
         f.call(Visualizer::new_with_cli_params(config, a, b, alg, h))
     }
 }

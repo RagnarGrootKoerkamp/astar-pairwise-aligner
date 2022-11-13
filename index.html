@@ -58,7 +58,15 @@
 }
         </textarea>
         <br/>
-        <button class="button-primary" id="run">Run</button>
+        <button class="button-primary" id="run">run (r)</button>
+        <br/>
+        <button class="button-primary" id="prev">prev (←/backspace)</button>
+        <button class="button-primary" id="next">next (→/space)</button>
+        <br/>
+        <label for="delay">Delay (s)</label> <input type="number" name="delay" id="delay" value="0.1"/><br/>
+        <button class="button-primary" id="faster">faster (↑/+/f)</button>
+        <button class="button-primary" id="slower">slower (↓/-/s)</button>
+        <button class="button-primary" id="pauseplay">pause/play (p/return)</button>
       </div>
       <canvas id="canvas" tabindex="1" width="1200" height="800"></canvas>
     </main>

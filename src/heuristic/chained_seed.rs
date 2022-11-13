@@ -192,6 +192,8 @@ impl<C: Contours> Drop for CSHI<C> {
 }
 
 impl<C: Contours> CSHI<C> {
+    /// `filter` is currently only used for pre-pruning when an optimal path is guessed and all matches on it are pruned directly.
+    /// This is not in the paper yet.
     fn new(a: Seq, b: Seq, mut filter: impl FnMut(&Match, Cost) -> bool, params: CSH<C>) -> Self {
         let matches = find_matches(a, b, params.match_config, params.use_gap_cost);
         //println!("\nfind matches.. done: {}", matches.matches.len());
@@ -250,7 +252,7 @@ impl<C: Contours> CSHI<C> {
             .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
             .collect();
 
-        // Sort revered by start (the order needed to construct contours).
+        // Sort reversed by start (the order needed to construct contours).
         // TODO: Can we get away without sorting? It's probably possible if seeds
         // TODO: Fix the units here -- unclear whether it should be I or cost.
         // FIXME: Allow passing a match filter even when using gap cost.
@@ -291,7 +293,7 @@ impl<C: Contours> CSHI<C> {
             let b = self.target.1;
             let pot = |pos| self.seeds.potential(pos);
             Pos(
-                // This is a lie. All should be converted to cost, instead of position really.
+                // Units here are a lie. All should be converted to cost, instead of position really.
                 i + b - j + pot(Pos(0, 0)) as I - pot(pos) as I,
                 j + a - i + pot(Pos(0, 0)) as I - pot(pos) as I,
             )
@@ -312,6 +314,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     fn h(&self, pos: Pos) -> Cost {
         let p = self.seeds.potential(pos);
         let val = self.contours.score(self.transform(pos));
+        // FIXME: Why not max(self.distance, p-val)?
         if val == 0 {
             self.distance(pos, self.target)
         } else {

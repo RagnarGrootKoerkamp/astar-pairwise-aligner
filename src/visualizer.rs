@@ -161,9 +161,14 @@ mod visualizer {
         // The last DP state (a.len(), b.len()).
         target: Pos,
 
+        // Number of calls to draw().
         frame_number: usize,
+        // Number of calls to draw() for a new layer.
         layer_number: usize,
+        // Number of saved frames.
         file_number: usize,
+        // Number of times config.draw triggers.
+        drawn_frame_number: usize,
 
         // Type, Pos, g, f
         pub expanded: Vec<(Type, Pos, Cost, Cost)>,
@@ -184,7 +189,10 @@ mod visualizer {
                 return;
             }
             self.expanded.push((Explored, pos, g, f));
-            self.draw(false, None, false, h, None);
+            // Only draw a new frame if explored states are actually shown.
+            if self.config.style.explored.is_some() {
+                self.draw(false, None, false, h, None);
+            }
         }
 
         fn expand_with_h<'a, H: HeuristicInstance<'a>>(
@@ -312,7 +320,7 @@ mod visualizer {
         }
     }
 
-    const CANVAS_HEIGHT: u32 = 500;
+    const CANVAS_HEIGHT: u32 = 800;
 
     #[derive(Clone)]
     pub struct Config {
@@ -323,6 +331,9 @@ mod visualizer {
         pub downscaler: u32,
         pub filepath: String,
         pub draw: When,
+        /// Used in wasm rendering: the entire alignment is run and only this
+        /// single frame is drawn.
+        pub draw_single_frame: Option<usize>,
         pub delay: Duration,
         pub paused: bool,
         pub save: When,
@@ -345,6 +356,7 @@ mod visualizer {
                 save_last: false,
                 filepath: String::from(""),
                 draw: When::None,
+                draw_single_frame: None,
                 delay: Duration::from_secs_f32(0.1),
                 paused: false,
                 style: Style {
@@ -492,6 +504,7 @@ mod visualizer {
                 frame_number: 0,
                 layer_number: 0,
                 file_number: 0,
+                drawn_frame_number: 0,
                 layer: if config.layer_drawing { Some(0) } else { None },
                 expanded_layers: vec![],
 
@@ -661,6 +674,14 @@ mod visualizer {
             {
                 return;
             }
+
+            // Filter out non-target frames if only drawing a single frame.
+            if let Some(target_frame) = self.config.draw_single_frame
+                && self.drawn_frame_number != target_frame {
+                self.drawn_frame_number += 1;
+                return;
+            }
+            self.drawn_frame_number += 1;
 
             // DRAW
             {

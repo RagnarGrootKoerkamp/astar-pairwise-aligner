@@ -1,9 +1,11 @@
 use crate::{
-    aligners::{nw_lib::NWLib, Aligner},
-    cli::heuristic_params::Algorithm,
+    canvas::html::FRAMES_PRESENTED,
+    interaction::Interaction,
     prelude::*,
     runner::{AlignWithHeuristic, Cli},
 };
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha8Rng;
 use std::ops::ControlFlow;
 use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::HtmlTextAreaElement;
@@ -28,52 +30,63 @@ pub fn log(s: &str) {
     web_sys::console::log_1(&jsstr(s));
 }
 
-#[wasm_bindgen]
+pub static mut INTERACTION: Interaction = Interaction::default();
+static mut CLI: Option<Cli> = None;
+
 pub fn run() {
-    let args_json = get::<HtmlTextAreaElement>("args").value();
-    let args: Cli = serde_json::from_str(&args_json).unwrap();
-    args.input.process_input_pairs(|a: Seq, b: Seq| {
-        // Run the pair.
-        // TODO: Show the result somewhere.
-        let _r = if args.algorithm.algorithm.external() {
-            let start = instant::Instant::now();
-            let cost = match args.algorithm.algorithm {
-                Algorithm::NwLib => NWLib { simd: false }.cost(a, b),
-                Algorithm::NwLibSimd => NWLib { simd: true }.cost(a, b),
-                Algorithm::Edlib => {
-                    #[cfg(not(feature = "edlib"))]
-                    panic!("Enable the edlib feature flag to use edlib.");
-                    #[cfg(feature = "edlib")]
-                    aligners::edlib::Edlib.cost(a, b)
-                }
-                Algorithm::Wfa => {
-                    #[cfg(not(feature = "wfa"))]
-                    panic!("Enable the wfa feature flag to use WFA.");
-                    #[cfg(feature = "wfa")]
-                    aligners::wfa::WFA {
-                        cm: LinearCost::new_unit(),
-                        biwfa: false,
-                    }
-                    .cost(a, b)
-                }
-                Algorithm::Biwfa => {
-                    #[cfg(not(feature = "wfa"))]
-                    panic!("Enable the wfa feature flag to use BiWFA.");
-                    #[cfg(feature = "wfa")]
-                    aligners::wfa::WFA {
-                        cm: LinearCost::new_unit(),
-                        biwfa: true,
-                    }
-                    .cost(a, b)
-                }
-                _ => unreachable!(),
+    if unsafe { INTERACTION.is_done() } {
+        return;
+    }
+    if let Some(args) = unsafe { &CLI } {
+        let before = unsafe { FRAMES_PRESENTED };
+        args.input.process_input_pairs(|a: Seq, b: Seq| {
+            // Run the pair.
+            // TODO: Show the result somewhere.
+            let _r = if args.algorithm.algorithm.external() {
+                unimplemented!();
+            } else {
+                args.heuristic
+                    .run_on_heuristic(AlignWithHeuristic { a, b, args: &args })
             };
-            let total_duration = start.elapsed().as_secs_f32();
-            AlignResult::new(a, b, cost, total_duration)
-        } else {
-            args.heuristic
-                .run_on_heuristic(AlignWithHeuristic { a, b, args: &args })
-        };
-        ControlFlow::Break(())
-    });
+            ControlFlow::Break(())
+        });
+        unsafe {
+            let after = FRAMES_PRESENTED;
+            if before == after {
+                INTERACTION.done();
+            }
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn reset() {
+    let args_json = get::<HtmlTextAreaElement>("args").value();
+    unsafe {
+        INTERACTION.reset(usize::MAX);
+        CLI = Some(serde_json::from_str(&args_json).unwrap());
+        if let Some(cli) = &mut CLI {
+            // Fix the seed so that reruns for consecutive draws don't change it.
+            cli.input
+                .generate
+                .seed
+                .get_or_insert(ChaCha8Rng::from_entropy().gen_range(0..u64::MAX));
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn prev() {
+    unsafe {
+        INTERACTION.prev();
+        run();
+    };
+}
+
+#[wasm_bindgen]
+pub fn next() {
+    unsafe {
+        INTERACTION.next();
+        run();
+    }
 }

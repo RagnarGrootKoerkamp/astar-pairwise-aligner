@@ -30,7 +30,7 @@ pub struct Input {
 
     /// Options to generate an input pair.
     #[clap(flatten)]
-    generate: GenerateArgs,
+    pub generate: GenerateArgs,
 }
 
 impl Input {

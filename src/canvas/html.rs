@@ -39,6 +39,8 @@ fn get<T: wasm_bindgen::JsCast>(id: &str) -> T {
         .unwrap()
 }
 
+pub static mut FRAMES_PRESENTED: usize = 0;
+
 impl Canvas for HtmlCanvas {
     fn fill_background(&mut self, _color: crate::canvas::Color) {
         //self.context.set_fill_style(&jscol(color));
@@ -63,21 +65,35 @@ impl Canvas for HtmlCanvas {
             .stroke_rect(x as f64, y as f64, w as f64, h as f64);
     }
 
+    fn draw_line(&mut self, p: CPos, q: CPos, color: Color) {
+        self.context.begin_path();
+        self.context.set_stroke_style(&jscol(color));
+        self.context.set_line_width(0.0);
+        self.context.move_to(p.0 as f64 + 0.5, p.1 as f64 + 0.5);
+        self.context.line_to(q.0 as f64 + 0.5, q.1 as f64 + 0.5);
+        self.context.stroke();
+    }
+
     fn write_text(
         &mut self,
         CPos(x, y): CPos,
         ha: crate::canvas::HAlign,
-        _va: crate::canvas::VAlign,
+        va: crate::canvas::VAlign,
         text: &str,
         color: Color,
     ) {
         self.context.set_fill_style(&jscol(color));
-        self.context.set_font("14px Arial");
+        self.context.set_font("24px Arial");
         self.context.set_text_baseline("middle");
         self.context.set_text_align(match ha {
             crate::canvas::HAlign::Left => "left",
             crate::canvas::HAlign::Center => "center",
             crate::canvas::HAlign::Right => "right",
+        });
+        self.context.set_text_baseline(match va {
+            super::VAlign::Top => "top",
+            super::VAlign::Center => "middle",
+            super::VAlign::Bottom => "bottom",
         });
         self.context.fill_text(text, x as f64, y as f64).unwrap();
     }
@@ -97,20 +113,13 @@ impl Canvas for HtmlCanvas {
         context
             .draw_image_with_html_canvas_element(&self.element, 0., 0.)
             .unwrap();
-    }
-
-    fn draw_line(&mut self, p: CPos, q: CPos, color: Color) {
-        self.context.begin_path();
-        self.context.set_stroke_style(&jscol(color));
-        self.context.set_line_width(0.0);
-        self.context.move_to(p.0 as f64, p.1 as f64);
-        self.context.line_to(q.0 as f64, q.1 as f64);
-        self.context.stroke();
+        unsafe {
+            FRAMES_PRESENTED += 1;
+        }
     }
 
     fn wait(&mut self, _timeout: std::time::Duration) -> super::KeyboardAction {
-        super::KeyboardAction::Next
-        //todo!()
+        super::KeyboardAction::None
     }
 }
 

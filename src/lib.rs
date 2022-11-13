@@ -1,6 +1,7 @@
 #![feature(
     test,
     array_methods,
+    duration_constants,
     step_trait,
     int_roundings,
     iter_intersperse,
@@ -33,6 +34,7 @@ pub mod cost_model;
 pub mod datastructures;
 pub mod generate;
 pub mod heuristic;
+pub mod interaction;
 pub mod matches;
 pub mod runner;
 pub mod visualizer;
