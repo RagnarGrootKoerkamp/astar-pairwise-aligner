@@ -81,8 +81,6 @@ where
         let state = &mut states[dt_pos];
         let mut pos = dt_pos.to_pos(state.fr);
 
-        //println!("Pop g={queue_g:3} f={queue_f:3} queue_fr={queue_fr:3} state_fr={:3} pos={pos} {dt_pos}", state.fr);
-
         // Skip non-furthest reaching states.
         if queue_fr < state.fr {
             continue;
@@ -113,9 +111,9 @@ where
                 continue;
             }
             assert!(current_f == queue_f);
-            if D {
-                println!(
-                    "Expand {pos} at \tg={queue_g} \tf={queue_f} \th={current_h}\tqueue_h={}",
+            if D && false {
+                eprintln!(
+                    "Expand {dt_pos} [{pos}] at \tg={queue_g} \tf={queue_f} \th={current_h}\tqueue_h={}",
                     queue_f - queue_g
                 );
             }
@@ -124,7 +122,7 @@ where
         stats.expanded += 1;
 
         if D {
-            println!("Expand {pos} {}", queue_g);
+            eprintln!("Expand {dt_pos} {queue_fr} => {pos}");
         }
 
         if queue_f > max_f {
@@ -152,7 +150,7 @@ where
             stats.expanded += 1;
             stats.greedy_expanded += 1;
             if D {
-                println!("Greedy expand {n} {}", queue_g);
+                eprintln!("Greedy expand {dt_pos} {queue_fr} => {n}");
             }
 
             // Move to the pos state.
@@ -170,7 +168,7 @@ where
         if pos == graph.target() {
             DiagonalMapTrait::insert(&mut states, dt_pos, state);
             if D {
-                println!("Reached target {pos} with state {state:?}");
+                eprintln!("Reached target {pos} with state {state:?}");
             }
             dist = Some(queue_g);
             break 'outer;
@@ -181,12 +179,17 @@ where
             let next_g = queue_g + edge.cost() as Cost;
             let dt_next = DtPos::from_pos(next, next_g);
             let cur_next = DiagonalMapTrait::get_mut(&mut states, dt_next);
+            let next_fr = DtPos::fr(next);
+            if D {
+                eprintln!("Explore? {dt_next} at {next_fr}. currently at {cur_next:?}");
+            }
             // If the next state was already visited with larger FR point, skip exploring again.
-            if cur_next.fr >= DtPos::fr(next) {
+            if cur_next.fr >= next_fr {
+                if D {
+                    eprintln!("Skip");
+                }
                 return;
             };
-
-            let next_fr = DtPos::fr(next);
 
             cur_next.fr = next_fr;
 
@@ -194,14 +197,14 @@ where
             cur_next.hint = next_hint;
             let next_f = next_g + next_h;
 
-            //println!("Push g={next_g:3} f={next_f:3} fr={next_fr:3} pos={next} {dt_next}");
+            if D {
+                eprintln!("Explore {dt_next} {next_fr} => {next} at f={next_f}");
+            }
+
             queue.push(QueueElement {
                 f: next_f,
                 data: (dt_next, next_fr),
             });
-            if D {
-                println!("Explore {next} from {pos} g {next_g}");
-            }
 
             h.explore(next);
             stats.explored += 1;
@@ -210,6 +213,9 @@ where
     }
 
     let Some(dist) = dist else {  return (None, stats); };
+    if D {
+        eprintln!("DIST: {dist}");
+    }
 
     stats.diagonalmap_capacity = states.dm_capacity();
     let traceback_start = instant::Instant::now();
