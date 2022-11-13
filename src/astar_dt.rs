@@ -270,16 +270,16 @@ where
                 .dt_back(&cur_dt)
                 .expect("No parent found for position!");
             let next_pos = next_dt.to_pos(parent_fr);
-            // Add matches while needed.
-            // NOTE: We need the > here, since next_pos may actually be larger
+            // Add as many matches as needed to end exactly in next_pos.
+            // NOTE: We need the > here (!= won't do), since next_pos may actually be larger
             // than cur_pos, resulting in a possible infinite loop.
             while edge.back(&cur_pos).unwrap() > next_pos {
                 cur_pos = Edge::Match.back(&cur_pos).unwrap();
                 path.push(cur_pos);
             }
-            path.push(next_dt.to_pos(parent_fr));
+            cur_pos = edge.back(&cur_pos).unwrap();
+            path.push(cur_pos);
             cur_dt = next_dt;
-            cur_pos = next_pos;
         }
         while cur_pos != Pos(0, 0) {
             cur_pos = Edge::Match.back(&cur_pos).unwrap();
