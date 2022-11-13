@@ -24,6 +24,12 @@ impl Default for Pruning {
 }
 
 impl Pruning {
+    pub fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            skip_prune: 0,
+        }
+    }
     pub fn enabled() -> Self {
         Pruning {
             enabled: true,

@@ -280,14 +280,21 @@ pub fn setup_with_seed(n: usize, e: f32, seed: u64) -> (Sequence, Sequence, Inpu
 pub fn setup_sequences(n: usize, e: f32) -> (Sequence, Sequence) {
     setup_sequences_with_seed(31415, n, e)
 }
-
 pub fn setup_sequences_with_seed(seed: u64, n: usize, e: f32) -> (Sequence, Sequence) {
+    setup_sequences_with_seed_and_model(seed, n, e, ErrorModel::Uniform)
+}
+pub fn setup_sequences_with_seed_and_model(
+    seed: u64,
+    n: usize,
+    e: f32,
+    error_model: ErrorModel,
+) -> (Sequence, Sequence) {
     let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed as u64);
     generate_pair(
         &GenerateOptions {
             length: n,
             error_rate: e,
-            error_model: ErrorModel::Uniform,
+            error_model,
             pattern_length: 0,
             m: None,
         },
