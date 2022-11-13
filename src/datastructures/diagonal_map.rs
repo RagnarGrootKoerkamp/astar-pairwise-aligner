@@ -285,11 +285,14 @@ impl DtPos {
         }
     }
     pub fn to_pos(self, fr: I) -> Pos {
-        Pos(fr, (fr as i32 - self.diagonal) as I)
+        Pos(
+            (fr as i32 + self.diagonal) as I / 2,
+            (fr as i32 - self.diagonal) as I / 2,
+        )
     }
 
-    pub fn fr(Pos(i, _j): Pos) -> I {
-        i
+    pub fn fr(Pos(i, j): Pos) -> I {
+        i + j
     }
 }
 
