@@ -20,7 +20,7 @@ opt-level = 3
 debug = true
 # 10x smaller file size without debug symbols.
 # Breaks backtrace printing.
-strip = true
+strip = false
 
 [build-dependencies]
 bindgen = "0.60.1"

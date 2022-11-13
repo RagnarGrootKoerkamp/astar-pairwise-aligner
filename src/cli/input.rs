@@ -16,7 +16,7 @@ use std::{
 };
 
 #[derive(Parser, Serialize, Deserialize)]
-#[clap(help_heading = "INPUT", group = ArgGroup::new("inputmethod").required(true))]
+#[clap(help_heading = "INPUT", group = ArgGroup::new("inputmethod"))]
 pub struct Input {
     /// The .seq, .txt, or Fasta file with sequence pairs to align.
     #[clap(

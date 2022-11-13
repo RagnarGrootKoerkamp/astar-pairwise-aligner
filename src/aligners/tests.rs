@@ -26,6 +26,7 @@ fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
     let models = [
         ErrorModel::Uniform,
         ErrorModel::NoisyInsert,
+        ErrorModel::NoisyDelete,
         ErrorModel::DoubleMutatedRepeat,
     ];
     let seeds = [31415, thread_rng().gen_range(0..u64::MAX)];

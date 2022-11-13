@@ -1,3 +1,5 @@
+use std::mem::swap;
+
 use clap::{Parser, ValueEnum};
 use itertools::Itertools;
 use rand::{Rng, SeedableRng};
@@ -5,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{aligners::Sequence, prelude::*};
 
-#[derive(ValueEnum, Default, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(ValueEnum, Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ErrorModel {
     #[default]
     Uniform,
@@ -17,6 +19,8 @@ pub enum ErrorModel {
     Insert,
     /// Apply e/2 noise and an insertion of e/2.
     NoisyInsert,
+    /// Apply e/2 noise and a deletion of e/2.
+    NoisyDelete,
     /// Takes a region of size e*n/2 and inserts it twice in a row next to
     /// each other
     Doubleinsert,
@@ -160,7 +164,7 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
                 let piece = b.slice(start..start + num_mutations).to_string();
                 b.insert(start, piece.as_str());
             }
-            ErrorModel::NoisyInsert => {
+            ErrorModel::NoisyInsert | ErrorModel::NoisyDelete => {
                 for _ in 0..num_mutations / 2 {
                     make_mutation(&mut b, rng);
                 }
@@ -259,7 +263,11 @@ pub fn generate_pair(opt: &GenerateOptions, rng: &mut impl Rng) -> (Sequence, Se
             }
         }
     }
-    (a, b.to_string().into_bytes())
+    let mut b = b.to_string().into_bytes();
+    if opt.error_model == ErrorModel::NoisyDelete {
+        swap(&mut a, &mut b);
+    }
+    (a, b)
 }
 
 fn make_mutation(b: &mut ropey::Rope, rng: &mut impl Rng) {
