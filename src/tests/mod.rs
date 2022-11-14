@@ -18,8 +18,8 @@ fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
         greedy_edge_matching: true,
         diagonal_transition: dt,
         h,
-        //v: NoVisualizer,
-        v: Visualizer::new(Config::new(VisualizerStyle::Test), a, b),
+        v: NoVisualizer,
+        //v: Visualizer::new(Config::new(VisualizerStyle::Test), a, b),
     };
     let (d, cigar) = aligner.align(a, b);
     verify_cigar(&LinearCost::new_unit(), a, b, &cigar);
@@ -31,8 +31,8 @@ fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
 /// This tests that hint contours only remove contours when at least `max_len + shift - 1` layers have shifted down by `shift`.
 /// Before it only checked for at least `max_len` layers, which is wrong.
 #[test]
-fn hint_contours_overly_greedy_shift_1() {
-    let h = CSH {
+fn hint_contours_overly_greedy_shift() {
+    let mut h = CSH {
         match_config: MatchConfig::new(3, 1),
         pruning: Pruning::new(true),
         use_gap_cost: true,
@@ -42,34 +42,15 @@ fn hint_contours_overly_greedy_shift_1() {
     let a = "CCCGTCGTCCCTCAAACTTGGAACCCCATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTACGGTACCCCTTCTGCGATAGAGATGGTAGTAGCCGATAGGCCACCCTGGGAACACTATGTCACCCTGGTGGTAACCGTCGGGTCAGAAATAGGAGAACATACGGTGGACCGCTAA".as_bytes();
     let b = "CCCGTCGTACCTCTAAACTTGGAACCCACATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTTCGGGTACCCCTTCGTGCGATAGAGATGGTAGTAGCCGATAGGCCACCCTGGGAACACTATGTCACCCTGGTGGTAACCGTCGGGTCAGAAATAGGAGTACATACGGTGGACCG".as_bytes();
     test_input(a, b, false, h);
-}
-
-#[test]
-fn hint_contours_overly_greedy_shift_2() {
-    let h = CSH {
-        match_config: MatchConfig::new(4, 1),
-        pruning: Pruning::new(true),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>::default(),
-    };
-
-    let a = "ATATATATTAGCGGGCATTCGCCGACCTGGAAGTGCCAGGCCATTTCGTAGCAGTAGGTCCTCACCAAGGCCAGGCAAGTCGGTAGTAAAAT".as_bytes();
-    let b = "ATATATATTAAGCTGGCCTATTCGCGACCTGCGAAGGGGCCAGGCATTTCCTATCAGTAGGTCCCTCACCAAAGCCAGGT"
-        .as_bytes();
-    test_input(a, b, false, h);
-}
-
-#[test]
-fn hint_contours_overly_greedy_shift_3() {
-    let h = CSH {
-        match_config: MatchConfig::new(3, 1),
-        pruning: Pruning::new(true),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>::default(),
-    };
 
     let a = "TTCCGACACTAGCTGTCAGCCTTATAACTCATGCCCTAGTATCAACAGGCC".as_bytes();
     let b = "TTTCCGACCACTAGCTAACTCATGTCCCAGTTCAACAGGCCGTGGGAC".as_bytes();
+    test_input(a, b, false, h);
+
+    h.match_config = MatchConfig::new(4, 1);
+    let a = "ATATATATTAGCGGGCATTCGCCGACCTGGAAGTGCCAGGCCATTTCGTAGCAGTAGGTCCTCACCAAGGCCAGGCAAGTCGGTAGTAAAAT".as_bytes();
+    let b = "ATATATATTAAGCTGGCCTATTCGCGACCTGCGAAGGGGCCAGGCATTTCCTATCAGTAGGTCCCTCACCAAAGCCAGGT"
+        .as_bytes();
     test_input(a, b, false, h);
 }
 
@@ -80,7 +61,7 @@ fn hint_contours_overly_greedy_shift_3() {
 /// - We now store normal Pos in the priority queue instead of DtPos.
 /// - Like normal A*, extending is done before pushing a state onto the priority queue.
 #[test]
-fn csh_dt_inconsistent_greedy_1() {
+fn csh_dt_inconsistent_greedy() {
     let h = CSH {
         match_config: MatchConfig::new(3, 1),
         pruning: Pruning::new(true),
@@ -91,16 +72,6 @@ fn csh_dt_inconsistent_greedy_1() {
     let a = "GCCGCGCGCGCAGCCGCGCGCGCGCGCGCGCCGG".as_bytes();
     let b = "GCGCCAGCGCGCGCGGGCCGCCGGCGCGCGCGCT".as_bytes();
     test_input(a, b, true, h);
-}
-
-#[test]
-fn csh_dt_greedy_inconsistent_2() {
-    let h = CSH {
-        match_config: MatchConfig::new(3, 1),
-        pruning: Pruning::new(true),
-        use_gap_cost: false,
-        c: PhantomData::<HintContours<BruteForceContour>>::default(),
-    };
 
     let a = "TCTCTCTCTCTG".as_bytes();
     let b = "GTCTCTCTTCTG".as_bytes();
