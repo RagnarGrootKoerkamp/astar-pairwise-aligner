@@ -89,7 +89,6 @@ impl AlignResult {
         self.heuristic_stats.num_prunes += other.heuristic_stats.num_prunes;
         self.astar.expanded += other.astar.expanded;
         self.astar.explored += other.astar.explored;
-        self.astar.double_expanded += other.astar.double_expanded;
         self.astar.greedy_expanded += other.astar.greedy_expanded;
         self.astar.retries += other.astar.retries;
         self.astar.pq_shifts += other.astar.pq_shifts;
@@ -178,9 +177,6 @@ impl AlignResult {
             (format!("{:>9}", "greedy"), |this: &AlignResult| {
                 format!("{:>9}", this.astar.greedy_expanded / this.sample_size)
             }),
-            // (format!("{:>7}", "dbl"), |this: &AlignResult| {
-            //     format!("{:>7}", this.astar.double_expanded / this.sample_size)
-            // }),
             (format!("{:>7}", "ret"), |this: &AlignResult| {
                 format!("{:>7}", this.astar.retries / this.sample_size)
             }),

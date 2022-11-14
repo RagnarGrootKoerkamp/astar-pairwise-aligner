@@ -1,18 +1,9 @@
 use crate::{aligners::cigar::Cigar, prelude::*, visualizer::VisualizerT};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Status {
-    Unvisited,
-    Explored,
-    Expanded,
-}
-use Status::*;
+const D: bool = false;
 
 #[derive(Clone, Copy, Debug)]
 struct State<Hint> {
-    /// TODO: `status` is only used for double-expand checks.
-    /// The field should be removed at some point or only used in debug mode.
-    status: Status,
     g: Cost,
     /// NOTE: `hint` could also be passed via the priority queue.
     hint: Hint,
@@ -21,7 +12,6 @@ struct State<Hint> {
 impl<Hint: Default> Default for State<Hint> {
     fn default() -> Self {
         Self {
-            status: Unvisited,
             g: Cost::MAX,
             hint: Hint::default(),
         }
@@ -39,8 +29,6 @@ pub struct AStarStats {
     pub expanded: usize,
     pub explored: usize,
     pub greedy_expanded: usize,
-    /// Number of times an already expanded node was expanded again with a lower value of f.
-    pub double_expanded: usize,
     /// Number of times a node was popped and found to have an outdated value of h after pruning.
     pub retries: usize,
     /// Total priority queue shift after pruning.
@@ -64,8 +52,6 @@ pub fn astar<'a, H>(
 where
     H: HeuristicInstance<'a>,
 {
-    const D: bool = false;
-
     let mut stats = AStarStats::default();
 
     // f -> (pos, g)
@@ -90,23 +76,16 @@ where
             data: (start, 0),
         });
         stats.explored += 1;
-        states.insert(
-            start,
-            State {
-                status: Explored,
-                g: 0,
-                hint,
-            },
-        );
+        states.insert(start, State { g: 0, hint });
     }
 
     let mut retry_cnt = 0;
 
-    'outer: while let Some(QueueElement {
-        f: queue_f,
-        data: (pos, queue_g),
-    }) = queue.pop()
-    {
+    let _dist = loop {
+        let Some(QueueElement {f: queue_f, data: (pos, queue_g),}) = queue.pop() else {
+            panic!("priority queue is empty before the end is reached.");
+        };
+
         // Time the duration of retrying once in this many iterations.
         const TIME_EACH: i32 = 64;
         let expand_start = if retry_cnt % TIME_EACH == 0 {
@@ -114,9 +93,7 @@ where
         } else {
             None
         };
-        // This lookup can be unwrapped without fear of panic since the node was necessarily scored
-        // before adding it to `visit_next`.
-        //let g = gs[pos];
+
         let state = &mut states[pos];
 
         if queue_g > state.g {
@@ -157,42 +134,6 @@ where
             }
         }
 
-        if queue_f > max_f {
-            max_f = queue_f;
-            v.new_layer_with_h(Some(h));
-        }
-
-        // Expand the state.
-        match state.status {
-            Unvisited => {
-                unreachable!("Cannot explore an unvisited node")
-            }
-            // Expand the currently explored state.
-            Explored => {
-                state.status = Expanded;
-            }
-            Expanded => {
-                stats.double_expanded += 1;
-                assert!(
-                    !h.is_seed_start_or_end(pos),
-                    "Double expanded start of seed {:?}",
-                    pos
-                );
-            }
-        };
-
-        // Copy for local usage.
-        let state = *state;
-
-        // Retrace path to root and return.
-        if pos == graph.target() {
-            DiagonalMapTrait::insert(&mut states, pos, state);
-            if D {
-                println!("Reached target {pos} with state {state:?}");
-            }
-            break 'outer;
-        }
-
         // Expand u
         if D {
             println!("Expand {pos} {}", state.g);
@@ -200,6 +141,22 @@ where
 
         stats.expanded += 1;
         v.expand_with_h(pos, queue_g, queue_f, Some(h));
+
+        if queue_f > max_f {
+            max_f = queue_f;
+            v.new_layer_with_h(Some(h));
+        }
+
+        // Copy for local usage.
+        let state = *state;
+
+        // Retrace path to root and return.
+        if pos == graph.target() {
+            if D {
+                println!("Reached target {pos} with state {state:?}");
+            }
+            break state.g;
+        }
 
         // Prune is needed
         if h.is_seed_start_or_end(pos) {
@@ -252,9 +209,6 @@ where
             }
 
             cur_next.g = next_g;
-            if cur_next.status == Unvisited {
-                cur_next.status = Explored;
-            }
 
             let (next_h, next_hint) = h.h_with_hint(next, state.hint);
             cur_next.hint = next_hint;
@@ -269,7 +223,7 @@ where
             stats.explored += 1;
             v.explore_with_h(next, next_g, next_f, Some(h));
         });
-    }
+    };
 
     stats.diagonalmap_capacity = states.dm_capacity();
     let traceback_start = instant::Instant::now();
@@ -307,7 +261,6 @@ where
 {
     if let Some(state) = DiagonalMapTrait::get(states, target) {
         let g = state.g;
-        assert_eq!(state.status, Expanded);
         let mut path = vec![target];
         let mut cost = 0;
         let mut current = target;
