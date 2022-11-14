@@ -89,23 +89,28 @@ impl Shift {
 
 impl<C: Contour> HintContours<C> {
     fn debug(&self, pos: Pos, v: Cost, arrows: &HashMap<Pos, Vec<Arrow>>) {
-        println!("BEFORE PRUNE of {pos} layer {v}");
+        eprintln!("BEFORE PRUNE of {pos} layer {v}");
         let radius = 4;
-        for i in max(v.saturating_sub(radius), 1)..min(v + radius, self.contours.len() as Cost) {
-            println!("{}: {:?}", i, self.contours[i]);
-            self.contours[i].iterate_points(|p: Pos| {
-                let l = arrows.get(&p).map_or(0, |arrows| {
+        // For each layer around the current one, print:
+        for layer in max(v.saturating_sub(radius), 1)..min(v + radius, self.contours.len() as Cost)
+        {
+            // - the positions in the layer
+            eprintln!("{}: {:?}", layer, self.contours[layer]);
+            self.contours[layer].iterate_points(|p: Pos| {
+                let max_len = arrows.get(&p).map_or(0, |arrows| {
                     arrows.iter().map(|a| a.score).max().expect("Empty arrows")
                 });
-                println!("{i} {p}: {l}");
+                // - the maximum length at each position.
+                eprintln!("{layer} {p}: {max_len}");
+                // - the arrows starting at each position.
                 arrows.get(&p).map(|arrows| {
                     for a in arrows {
-                        println!("{a}");
+                        eprintln!("{a}");
                     }
                 });
                 assert!(
-                    l > 0 || p == pos,
-                    "No arrows found for position {p} at layer {i}"
+                    max_len > 0 || p == pos,
+                    "No arrows found for position {p} at layer {layer}"
                 );
             })
         }
