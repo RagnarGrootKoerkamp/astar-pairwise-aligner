@@ -151,7 +151,12 @@ def human_data_sorted(dir):
     df = read_benchmarks(f"table/human_{dir}.tsv")
     df = df[df.k.isin([0, 15])]
     df = df[df.s < 100]
-    df = df[((df.r == 0) | (df.r == 2)) & df.alg.isin(["biwfa", "edlib", "sh", "csh"])]
+    df = df[
+        ((df.r == 0) | (df.r == 2))
+        & df.alg.isin(
+            ["biwfa", "edlib", "sh", "csh", "gcsh", "sh-dt", "csh-dt", "gcsh-dt"]
+        )
+    ]
     # For each algorithm, sort datapoints by runtime.
     df["ord"] = 0
 

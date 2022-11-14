@@ -113,7 +113,9 @@ def plot_scaling(
         "csh-dt",
         "sh-dt",
         "csh-gap-cost",
+        "gcsh",
         "csh-gap-cost-dt",
+        "gcsh-dt",
     ]
 
     def key_order(key):
@@ -410,8 +412,8 @@ def algo2color(algo):
         "biwfa": "#625AFF",
         "sh-dt": "lime",
         "csh-dt": "blue",
-        "csh-gap-cost": "pink",
-        "csh-gap-cost-dt": "red",
+        "gcsh": "pink",
+        "gcsh-dt": "red",
         "biwfa-affine": "black",
         # 'astar-seeds': '#EB2D12',
         #'astarix-seeds-illumina': '#EB2D12',
