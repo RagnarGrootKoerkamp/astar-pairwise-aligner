@@ -393,7 +393,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // If this was the last arrow in its layer and all arrows in the next
         // max_len layers depend on the pruned match, all of them will shift.
-        let shift = 'shift: {
+        let initial_shift = 'shift: {
             if self.contours[v].len() > 0 {
                 break 'shift 0;
             }
@@ -431,7 +431,7 @@ impl<C: Contour> Contours for HintContours<C> {
             }
             break 'shift removed;
         };
-        if shift > 0 {
+        if initial_shift > 0 {
             if D {
                 eprintln!("THIS WAS LAST ARROW IN LAYER {v}. SHIFT DOWN BY {initial_shift}");
             }
@@ -441,8 +441,8 @@ impl<C: Contour> Contours for HintContours<C> {
         // Loop over the matches in the next layer, and repeatedly prune while needed.
         let mut last_change = v;
         v = first_to_check - 1;
-        let mut num_emptied = 0;
-        let mut previous_shift = Shift::None;
+        let mut fully_shifted_layers = 0;
+        let mut rolling_shift = Shift::None;
         loop {
             v += 1;
             if v >= self.contours.len() as Cost {
@@ -514,18 +514,21 @@ impl<C: Contour> Contours for HintContours<C> {
             }
 
             if self.contours[v].len() == 0 && current_shift != Shift::Inconsistent {
-                if previous_shift == Shift::None
+                if rolling_shift == Shift::None
                     || current_shift == Shift::None
-                    || previous_shift == current_shift
+                    || rolling_shift == current_shift
                 {
-                    num_emptied += 1;
-                    if previous_shift == Shift::None {
-                        previous_shift = current_shift;
+                    if D {
+                        eprintln!("EMPTIED LAYER {v}");
+                    }
+                    fully_shifted_layers += 1;
+                    if rolling_shift == Shift::None {
+                        rolling_shift = current_shift;
                     }
                 }
             } else {
-                num_emptied = 0;
-                previous_shift = Shift::None;
+                fully_shifted_layers = 0;
+                rolling_shift = Shift::None;
             }
             assert!(
                 // 0 happens when the layer was already empty.
@@ -538,12 +541,21 @@ impl<C: Contour> Contours for HintContours<C> {
                 last_change, current_shift, self.contours[v ].len()
             );
 
-            if num_emptied >= self.max_len {
-                // Shift all other contours one down.
-                if let Shift::Layers(previous_shift) = previous_shift {
+            if let Shift::Layers(shift) = rolling_shift {
+                assert!(fully_shifted_layers > 0);
+                // NOTE: this used to be `>= self.max_len`, but that does not work for arrows of length >= 2:
+                // There are some tests that cover this.
+                if fully_shifted_layers >= self.max_len + shift - 1 {
+                    if D {
+                        eprintln!("REMOVE {shift} CONTOURS, since {fully_shifted_layers} >= {}+{shift}-1 have shifted by {shift}", self.max_len);
+                    }
+                    // Shift all other contours one down.
                     self.stats.borrow_mut().shift_layers += 1;
 
-                    for _ in 0..previous_shift {
+                    for _ in 0..shift {
+                        if D {
+                            eprintln!("REMOVE CONTOUR {v}");
+                        }
                         assert!(self.contours[v].len() == 0);
                         self.contours.remove(v as usize);
                         self.layers_removed += 1;
