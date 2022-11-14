@@ -10,7 +10,7 @@ pub mod sdl;
 pub use sdl::new_canvas;
 
 use std::{
-    ops::{Add, Sub},
+    ops::{Add, Div, Sub},
     path::Path,
     time::Duration,
 };
@@ -37,6 +37,13 @@ impl Sub<CPos> for CPos {
 
     fn sub(self, rhs: CPos) -> Self::Output {
         CPos(self.0 - rhs.0, self.1 - rhs.1)
+    }
+}
+impl Div<i32> for CPos {
+    type Output = CPos;
+
+    fn div(self, rhs: i32) -> Self::Output {
+        CPos(self.0 / rhs, self.1 / rhs)
     }
 }
 impl CPos {

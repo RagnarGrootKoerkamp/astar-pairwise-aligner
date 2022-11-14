@@ -153,11 +153,13 @@ mod visualizer {
         canvas: Option<CanvasRC>,
 
         // The size in pixels of the entire canvas.
-        canvas_size: (u32, u32),
-        // The size in pixels of the NW half of the canvas.
-        nw_size: (u32, u32),
-        // The size in pixels of the DT half of the canvas.
-        dt_size: (u32, u32),
+        canvas_size: (i32, i32),
+        // The region of the NW states.
+        nw: Region,
+        // The region of the DT states.
+        dt: Region,
+        // The region of the transformed states.
+        tr: Region,
 
         // The last DP state (a.len(), b.len()).
         target: Pos,
@@ -428,6 +430,15 @@ mod visualizer {
                     config.draw = When::All;
                     config.paused = true;
                     config.cell_size = 0;
+                    config.style.draw_matches = true;
+                    config.style.explored = Some((0, 102, 204, 0));
+                    config.style.max_heuristic = Some(100);
+                    config.style.pruned_match = RED;
+                    config.style.match_width = 3;
+                    config.style.draw_heuristic = true;
+                    config.style.draw_contours = true;
+                    config.style.draw_matches = true;
+                    config.style.contour = BLACK;
                 }
             }
 
@@ -439,6 +450,17 @@ mod visualizer {
         fn default() -> Self {
             Config::new(VisualizerStyle::Default)
         }
+    }
+
+    struct Region {
+        /// Start position on canvas
+        start: CPos,
+        /// Size on canvas
+        size: CPos,
+        /// Cell size: state is cs by cs pixels.
+        cs: u32,
+        /// Downscaler: each state on the canvas represents ds by ds actual states.
+        ds: u32,
     }
 
     impl Visualizer {
@@ -456,10 +478,13 @@ mod visualizer {
         ) -> Self {
             // layout:
             //
-            // -------------
-            // |  NW  | DT |
-            // |      |    |
-            // -------------
+            // ---------------
+            // |      |  DT  |
+            // |  NW  |------|
+            // |      |  T   |
+            // ---------------
+            // | fmax | fmax |
+            // ---------------
             //
             // NW follows the cell size if given.
             // Otherwise, the cell size and downscaler are chosen to give a height around 500 pixels.
@@ -479,11 +504,28 @@ mod visualizer {
                 let ds = config.downscaler;
                 config.cell_size = max(1, CANVAS_HEIGHT / (grid_height.div_ceil(ds)));
             }
-            let cs = config.cell_size;
-            let ds = config.downscaler;
-            let nw_size = (grid_width.div_ceil(ds) * cs, grid_height.div_ceil(ds) * cs);
-            let dt_size = (nw_size.0 / 2, nw_size.1);
-            let canvas_size = (nw_size.0 + dt_size.0, nw_size.1);
+            let nw = Region {
+                start: CPos(0, 0),
+                cs: config.cell_size,
+                ds: config.downscaler,
+                size: CPos(
+                    (grid_width.div_ceil(config.downscaler) * config.cell_size) as i32,
+                    (grid_height.div_ceil(config.downscaler) * config.cell_size) as i32,
+                ),
+            };
+            let dt = Region {
+                start: nw.start.right(nw.size.0),
+                size: nw.size / 2,
+                cs: 0,
+                ds: 0,
+            };
+            let tr = Region {
+                start: dt.start.down(dt.size.1),
+                size: nw.size / 2,
+                cs: 0,
+                ds: 0,
+            };
+            let canvas_size = (nw.size.0 + dt.size.0, nw.size.1);
 
             let (params, comment) = if let (Some(alg), Some(h)) = (alg, heuristic) && alg.algorithm.internal(){
                         (Some(h.to_string()), comment(alg, h))
@@ -517,8 +559,9 @@ mod visualizer {
                 expanded_layers: vec![],
 
                 canvas_size,
-                nw_size,
-                dt_size,
+                nw,
+                dt,
+                tr,
             }
         }
 
@@ -698,8 +741,8 @@ mod visualizer {
                 let mut canvas = canvas.borrow_mut();
                 canvas.fill_rect(
                     CPos(0, 0),
-                    self.canvas_size.0,
-                    self.canvas_size.1,
+                    self.canvas_size.0 as u32,
+                    self.canvas_size.1 as u32,
                     self.config.style.bg_color,
                 );
 
@@ -1005,7 +1048,7 @@ mod visualizer {
                 let mut row = 0;
                 if let Some(title) = &self.title {
                     canvas.write_text(
-                        CPos(self.nw_size.0 as i32 / 2, 30 * row),
+                        self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
                         VAlign::Top,
                         title,
@@ -1014,9 +1057,8 @@ mod visualizer {
                     row += 1;
                 }
                 if let Some(params) = &self.params && !params.is_empty(){
-                    canvas.write_text(CPos(
-                        self.nw_size.0 as i32 / 2,
-                        30 * row),
+                    canvas.write_text(
+                        self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
                         VAlign::Top,
                         params,(50, 50, 50, 0)
@@ -1024,9 +1066,8 @@ mod visualizer {
                     row += 1;
                 }
                 if let Some(comment) = &self.comment && !comment.is_empty(){
-                    canvas.write_text(CPos(
-                        self.nw_size.0 as i32 / 2,
-                        30 * row),
+                    canvas.write_text(
+                        self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
                         VAlign::Top,
                         comment,(50, 50, 50, 0)
@@ -1034,14 +1075,14 @@ mod visualizer {
                     row += 1;
                 }
                 canvas.write_text(
-                    CPos(self.nw_size.0 as i32, 0),
+                    self.nw.start.right(self.nw.size.0),
                     HAlign::Right,
                     VAlign::Top,
                     &make_label("i = ", self.target.0),
                     GRAY,
                 );
                 canvas.write_text(
-                    CPos(0, self.nw_size.1 as i32),
+                    self.nw.start.down(self.nw.size.1),
                     HAlign::Left,
                     VAlign::Bottom,
                     &make_label("j = ", self.target.1),
@@ -1049,14 +1090,14 @@ mod visualizer {
                 );
 
                 canvas.write_text(
-                    CPos(self.nw_size.0 as i32 / 2, 30 * row),
+                    self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                     HAlign::Center,
                     VAlign::Top,
                     "DP states (i,j)",
                     GRAY,
                 );
                 canvas.write_text(
-                    CPos(self.nw_size.0 as i32 / 2, 30 * (row + 1)),
+                    self.nw.start.right(self.nw.size.0 / 2).down(30 * (row + 1)),
                     HAlign::Center,
                     VAlign::Top,
                     &make_label(
@@ -1144,15 +1185,15 @@ mod visualizer {
             let Some(canvas) = &self.canvas else {return;};
             let mut canvas = canvas.borrow_mut();
 
-            let offset = (self.nw_size.0 as i32, self.nw_size.1 as i32 / 4);
+            let offset = self.dt.start.down(self.dt.size.0 / 2);
             // Cell_size goes down in powers of 2.
             let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
             let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
             let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
             let dt_cell_size = min(
-                self.dt_size.0 / (front_max + 1),
+                self.dt.size.0 as u32 / (front_max + 1),
                 min(
-                    self.dt_size.1 / 2 / max(-diagonal_min + 1, diagonal_max + 1) as u32,
+                    self.dt.size.1 as u32 / 2 / max(-diagonal_min + 1, diagonal_max + 1) as u32,
                     10,
                 ),
             );
@@ -1161,8 +1202,8 @@ mod visualizer {
 
             // Divider
             canvas.draw_line(
-                CPos(self.nw_size.0 as i32, 0),
-                CPos(self.nw_size.0 as i32, self.nw_size.1 as i32),
+                self.nw.start.right(self.nw.size.0),
+                self.nw.start + self.nw.size,
                 BLACK,
             );
 
@@ -1171,12 +1212,12 @@ mod visualizer {
 
             let mut draw_d_line = |d: i32, y: i32| {
                 canvas.draw_line(
-                    CPos(self.nw_size.0 as i32, y),
-                    CPos(self.canvas_size.0 as i32, y),
+                    self.dt.start.down(y),
+                    self.dt.start.down(y).right(self.dt.size.0),
                     GRAY,
                 );
                 canvas.write_text(
-                    CPos(self.nw_size.0 as i32, y),
+                    self.dt.start.down(y),
                     HAlign::Right,
                     VAlign::Center,
                     &make_label("d = ", d),
@@ -1197,7 +1238,7 @@ mod visualizer {
             // Vertical g lines
             let mut draw_g_line = |g: i32| {
                 let line_g = if g == 0 { 0 } else { g + 1 };
-                let x = self.nw_size.0 as i32 + line_g * dt_cell_size as i32;
+                let x = self.nw.size.0 as i32 + line_g * dt_cell_size as i32;
                 canvas.draw_line(CPos(x, 0), CPos(x, self.canvas_size.1 as i32), GRAY);
                 canvas.write_text(
                     CPos(x, dy(diagonal_min - 1)),
@@ -1267,7 +1308,7 @@ mod visualizer {
 
             // Title
             canvas.write_text(
-                CPos(self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2, 0),
+                CPos(self.nw.size.0 as i32 + self.dt.size.0 as i32 / 2, 0),
                 HAlign::Center,
                 VAlign::Top,
                 "Diagonal Transition states (g, d) = (s, k)",
@@ -1329,9 +1370,9 @@ mod visualizer {
             let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
             let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
             let dt_cell_size = min(
-                self.dt_size.0 / (front_max + 1),
+                self.dt.size.0 as u32 / (front_max + 1),
                 min(
-                    self.dt_size.1 / 2 / max(-diagonal_min + 1, diagonal_max + 1) as u32,
+                    self.dt.size.1 as u32 / 2 / max(-diagonal_min + 1, diagonal_max + 1) as u32,
                     10,
                 ),
             );
@@ -1381,7 +1422,7 @@ mod visualizer {
                         color,
                     );
                     canvas.fill_rect(
-                        CPos(self.nw_size.0 as i32 + (g * dt_cell_size) as i32, y),
+                        CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, y),
                         dt_cell_size,
                         1,
                         color,
@@ -1402,7 +1443,7 @@ mod visualizer {
                     color,
                 );
                 canvas.fill_rect(
-                    CPos(self.nw_size.0 as i32 + (g * dt_cell_size) as i32, f_y(f)),
+                    CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, f_y(f)),
                     dt_cell_size,
                     2,
                     color,
@@ -1422,7 +1463,7 @@ mod visualizer {
                 canvas.draw_line(CPos(0, y), CPos(self.canvas_size.0 as i32, y), SOFT_RED);
 
                 canvas.write_text(
-                    CPos(self.nw_size.0 as i32, y),
+                    CPos(self.nw.size.0 as i32, y),
                     HAlign::Left,
                     VAlign::Center,
                     &make_label("g* = ", c),
@@ -1432,8 +1473,8 @@ mod visualizer {
 
             canvas.write_text(
                 CPos(
-                    self.nw_size.0 as i32 + self.dt_size.0 as i32 / 2,
-                    self.dt_size.1 as i32,
+                    self.nw.size.0 as i32 + self.dt.size.0 as i32 / 2,
+                    self.dt.size.1 as i32,
                 ),
                 HAlign::Center,
                 VAlign::Bottom,
@@ -1445,7 +1486,7 @@ mod visualizer {
                     continue;
                 }
                 canvas.write_text(
-                    CPos(self.nw_size.0 as i32, f_y(f)),
+                    CPos(self.nw.size.0 as i32, f_y(f)),
                     HAlign::Left,
                     VAlign::Center,
                     &make_label("f = ", f),
@@ -1454,7 +1495,7 @@ mod visualizer {
             }
 
             canvas.write_text(
-                CPos(self.nw_size.0 as i32 / 2, self.nw_size.1 as i32),
+                CPos(self.nw.size.0 as i32 / 2, self.nw.size.1 as i32),
                 HAlign::Center,
                 VAlign::Bottom,
                 "max f per column i",
