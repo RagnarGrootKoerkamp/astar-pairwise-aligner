@@ -1,10 +1,13 @@
+#![feature(let_chains)]
+use std::panic::AssertUnwindSafe;
+
 use astar_pairwise_aligner::prelude::*;
 
 fn main() {
-    for n in (40..).step_by(10) {
-        for r in 0..100 {
+    for n in (48..).step_by(1) {
+        for r in 0..10000 {
             for e in [0.1, 0.2, 0.4] {
-                let (k, m, n, e, pruning) = (3, 1, n, e, true);
+                let (k, m, n, e, pruning) = (4, 1, n, e, true);
                 let h = CSH {
                     match_config: MatchConfig::new(k, m),
                     pruning: Pruning {
@@ -23,11 +26,17 @@ fn main() {
                     len_b: b.len(),
                     error_rate: e,
                 };
-                //println!("{}\n{}", to_string(&a), to_string(&b));
-                let result = align(&a, &b, stats, h);
+
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(result.edit_distance, dist);
-                //result.print();
+                let result = std::panic::catch_unwind(AssertUnwindSafe(|| align(&a, &b, stats, h)));
+                if let Ok(result) = result && result.edit_distance == dist {
+                    continue;
+                }
+                panic!(
+                    "\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n",
+                    to_string(a),
+                    to_string(b)
+                );
             }
         }
     }

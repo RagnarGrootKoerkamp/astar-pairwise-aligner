@@ -3,15 +3,9 @@ use std::panic::AssertUnwindSafe;
 use astar_pairwise_aligner::prelude::*;
 
 fn main() {
-    PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
-
-    let n = 290;
-    let e = 0.1;
-    let seed = 48;
     let k = 3;
     let max_match_cost = 1;
     let pruning = true;
-    let error_model = ErrorModel::NoisyDelete;
 
     let h = CSH {
         match_config: MatchConfig::new(k, max_match_cost),
@@ -20,13 +14,8 @@ fn main() {
         c: PhantomData::<HintContours<BruteForceContour>>::default(),
     };
 
-    let (ref a, ref b) = setup_sequences_with_seed_and_model(seed, n, e, error_model);
-    let stats = InputStats {
-        len_a: a.len(),
-        len_b: b.len(),
-        error_rate: e,
-    };
-    println!("Heuristic:\n{:?}", h);
+    let a = "TTCCGACACTAGCTGTCAGCCTTATAACTCATGCCCTAGTATCAACAGGCCGTCGGAC".as_bytes();
+    let b = "TTTCCGACCACTAGCTAACTCATGTCCCAGTTCAACAGGCCGTGGGAC".as_bytes();
 
     // True on success.
     let test = |start: I, end: I| {
@@ -36,7 +25,7 @@ fn main() {
             align(
                 &a[start as usize..min(n, end) as usize],
                 &b[start as usize..min(m, end) as usize],
-                stats,
+                Default::default(),
                 h,
             )
             .print()
@@ -69,7 +58,7 @@ fn main() {
                     left = mid;
                 }
             }
-            new_start = left;
+            new_start = max(start, left);
         }
         // Binary search the end of the sequence.
         {
@@ -83,7 +72,7 @@ fn main() {
                     right = mid;
                 }
             }
-            new_end = left;
+            new_end = min(end, left);
         }
 
         if new_start == start && new_end == end {
@@ -94,6 +83,7 @@ fn main() {
         change = true;
         start = new_start;
         end = new_end;
+        println!("START {start} END {end}");
     }
     if !change {
         assert!(
@@ -106,9 +96,9 @@ fn main() {
     let a = &a[start as usize..min(n, end) as usize].to_vec();
     let b = &b[start as usize..min(m, end) as usize].to_vec();
 
-    println!("Result\n{}\n{}", to_string(&a), to_string(&b));
-
-    PRINT.store(true, std::sync::atomic::Ordering::Relaxed);
-    test(start, end);
-    println!("Result\n{}\n{}", to_string(&a), to_string(&b));
+    println!(
+        "Result of shrinking:\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n",
+        to_string(a),
+        to_string(b)
+    );
 }
