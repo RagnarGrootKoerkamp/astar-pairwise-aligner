@@ -98,6 +98,7 @@ impl<C: Contours> std::fmt::Debug for CSH<C> {
         f.debug_struct("ChainedSeedsHeuristic")
             .field("match_config", &self.match_config)
             .field("pruning", &self.pruning)
+            .field("use_gap_cost", &self.use_gap_cost)
             .field("contours", &std::any::type_name::<C>())
             .finish()
     }
@@ -277,7 +278,7 @@ impl<C: Contours> CSHI<C> {
                         &Match {
                             start: arrow.start,
                             end: arrow.end,
-                            match_cost: 1 - arrow.score,
+                            match_cost: h.params.match_config.max_match_cost - arrow.score,
                             seed_potential: 0,
                             pruned: MatchStatus::Active,
                         },
