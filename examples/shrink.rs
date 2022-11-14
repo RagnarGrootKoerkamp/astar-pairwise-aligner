@@ -5,22 +5,27 @@ use astar_pairwise_aligner::prelude::*;
 fn main() {
     PRINT.store(false, std::sync::atomic::Ordering::Relaxed);
 
-    let n = 500;
-    let e = 0.3;
-    let seed = 31415;
-    let k = 6;
+    let n = 290;
+    let e = 0.1;
+    let seed = 48;
+    let k = 3;
     let max_match_cost = 1;
-    let pruning = Pruning {
-        enabled: true,
-        skip_prune: 0,
-    };
+    let pruning = true;
+    let error_model = ErrorModel::NoisyDelete;
 
-    let h = SH {
+    let h = CSH {
         match_config: MatchConfig::new(k, max_match_cost),
-        pruning,
+        pruning: Pruning::new(pruning),
+        use_gap_cost: true,
+        c: PhantomData::<HintContours<BruteForceContour>>::default(),
     };
 
-    let (a, b, stats) = setup_with_seed(n, e, seed);
+    let (ref a, ref b) = setup_sequences_with_seed_and_model(seed, n, e, error_model);
+    let stats = InputStats {
+        len_a: a.len(),
+        len_b: b.len(),
+        error_rate: e,
+    };
     println!("Heuristic:\n{:?}", h);
 
     // True on success.
