@@ -430,7 +430,6 @@ mod visualizer {
                     config.draw = When::All;
                     config.paused = true;
                     config.cell_size = 0;
-                    config.style.draw_matches = true;
                     config.style.explored = Some((0, 102, 204, 0));
                     config.style.max_heuristic = Some(100);
                     config.style.pruned_match = RED;
@@ -918,23 +917,28 @@ mod visualizer {
                 // Draw matches.
                 if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
                     for m in &matches {
-                        if m.match_cost > 0 {
-                            continue;
-                        }
                         let mut b = self.cell_center(m.start);
                         b.0 += self.config.style.match_shrink as i32;
                         b.1 += self.config.style.match_shrink as i32;
                         let mut e = self.cell_center(m.end);
                         e.0 -= self.config.style.match_shrink as i32;
                         e.1 -= self.config.style.match_shrink as i32;
+                        let mut color = match m.pruned {
+                                MatchStatus::Active => self.config.style.active_match,
+                                MatchStatus::Pruned => self.config.style.pruned_match,
+                            };
+                        let mut width = self.config.style.match_width;
+                        if m.match_cost > 0 {
+                            if m.pruned == MatchStatus::Active {
+                                color = GRAY;
+                            }
+                            width = max(1, width-1);
+                        }
                         Self::draw_diag_line(
                             &mut canvas,
                             b, e,
-                            match m.pruned {
-                                MatchStatus::Active => self.config.style.active_match,
-                                MatchStatus::Pruned => self.config.style.pruned_match,
-                            },
-                            self.config.style.match_width,
+                            color,
+                            width,
                         );
                     }
                 }
