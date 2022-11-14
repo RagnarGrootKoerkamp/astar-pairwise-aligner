@@ -5,7 +5,7 @@ use crate::{
     heuristic::{Heuristic, Pruning, CSH},
     matches::MatchConfig,
     prelude::{BruteForceContour, HintContours},
-    visualizer::{Config, NoVisualizer, Visualizer, VisualizerStyle},
+    visualizer::NoVisualizer,
 };
 
 mod contours;
