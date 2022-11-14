@@ -39,6 +39,9 @@ pub mod matches;
 pub mod runner;
 pub mod visualizer;
 
+#[cfg(test)]
+mod tests;
+
 pub mod prelude {
     pub use super::*;
     pub use crate::align::*;

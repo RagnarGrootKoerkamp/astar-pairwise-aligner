@@ -1,4 +1,4 @@
-use astar_pairwise_aligner::prelude::{SH, *};
+use crate::prelude::{SH, *};
 
 #[test]
 fn exact_no_pruning_gap() {
