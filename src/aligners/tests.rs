@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use rand::{thread_rng, Rng};
+use rand::{seq::IteratorRandom, thread_rng, Rng};
 
 use super::{
     cigar::test::verify_cigar,
@@ -15,21 +15,26 @@ use crate::{
 };
 
 fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
+    let rng = &mut thread_rng();
+    // Each run picks a random sample of the numbers below to speed things up.
     let ns = [
         0usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50,
         60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240,
         250, 260, 270, 280, 290, 300, 500,
     ];
+    let ns = ns.into_iter().choose_multiple(rng, ns.len() / 2);
     let es = [
         0.0f32, 0.01, 0.02, 0.03, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 1.0,
     ];
+    let es = es.into_iter().choose_multiple(rng, es.len() / 2);
     let models = [
         ErrorModel::Uniform,
         ErrorModel::NoisyInsert,
         ErrorModel::NoisyDelete,
         ErrorModel::DoubleMutatedRepeat,
     ];
-    let seeds = [31415, thread_rng().gen_range(0..u64::MAX)];
+    // Run each test on a new random seed for increased coverage over time.
+    let seeds = [rng.gen_range(0..u64::MAX)];
     ns.into_iter()
         .cartesian_product(es)
         .cartesian_product(models)
@@ -65,7 +70,7 @@ fn test_aligner_on_input<const N: usize, A: Aligner>(
     assert_eq!(
         nw_cost,
         cost,
-        "\n{params}\na == {}\nb == {}\nNW cigar: {}\nAligner\n{aligner:?}",
+        "\n{params}\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\nNW cigar: {}\nAligner\n{aligner:?}",
         to_string(&a),
         to_string(&b),
         nw.align(a, b).1.to_string()
@@ -75,7 +80,7 @@ fn test_aligner_on_input<const N: usize, A: Aligner>(
         if cost != nw_cost {
             eprintln!("\n================= TEST CIGAR ======================\n");
             eprintln!(
-                "{params}\na {}\nb {}\ncigar: {}\nnwcig: {}",
+                "{params}\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\ncigar: {}\nnwcig: {}",
                 to_string(a),
                 to_string(b),
                 cigar.to_string(),
@@ -153,34 +158,35 @@ mod astar {
     use super::*;
 
     fn test_heuristic<H: Heuristic>(h: H, dt: bool) {
-        for greedy_edge_matching in [false, true] {
-            test_aligner_on_cost_model_with_viz(
-                LinearCost::new_unit(),
-                AStar {
-                    greedy_edge_matching,
-                    diagonal_transition: dt,
-                    h,
-                    v: NoVisualizer,
+        // Greedy matching doesn't really matter much.
+        // To speed up tests, we choose it randomly.
+        let greedy_edge_matching = thread_rng().gen_bool(0.5);
+        test_aligner_on_cost_model_with_viz(
+            LinearCost::new_unit(),
+            AStar {
+                greedy_edge_matching,
+                diagonal_transition: dt,
+                h,
+                v: NoVisualizer,
+            },
+            Some(&mut |a, b| AStar {
+                greedy_edge_matching,
+                diagonal_transition: dt,
+                h,
+                v: {
+                    #[cfg(feature = "sdl2")]
+                    {
+                        use crate::visualizer::{Config, Visualizer, VisualizerStyle};
+                        Visualizer::new(Config::new(VisualizerStyle::Test), a, b)
+                    }
+                    #[cfg(not(feature = "sdl2"))]
+                    {
+                        NoVisualizer
+                    }
                 },
-                Some(&mut |a, b| AStar {
-                    greedy_edge_matching,
-                    diagonal_transition: dt,
-                    h,
-                    v: {
-                        #[cfg(feature = "sdl2")]
-                        {
-                            use crate::visualizer::{Config, Visualizer, VisualizerStyle};
-                            Visualizer::new(Config::new(VisualizerStyle::Test), a, b)
-                        }
-                        #[cfg(not(feature = "sdl2"))]
-                        {
-                            NoVisualizer
-                        }
-                    },
-                }),
-                true,
-            );
-        }
+            }),
+            true,
+        );
     }
 
     macro_rules! make_test {
