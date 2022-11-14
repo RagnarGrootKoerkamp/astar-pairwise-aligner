@@ -97,13 +97,11 @@ impl<C: Contour> HintContours<C> {
         for layer in max(v.saturating_sub(radius), 1)..min(v + radius, self.contours.len() as Cost)
         {
             // - the positions in the layer
-            eprintln!("{}: {:?}", layer, self.contours[layer]);
+            eprintln!("LAYER {layer}");
             self.contours[layer].iterate_points(|p: Pos| {
                 let max_len = arrows.get(&p).map_or(0, |arrows| {
                     arrows.iter().map(|a| a.score).max().expect("Empty arrows")
                 });
-                // - the maximum length at each position.
-                eprintln!("{layer} {p}: {max_len}");
                 // - the arrows starting at each position.
                 arrows.get(&p).map(|arrows| {
                     for a in arrows {
@@ -356,7 +354,7 @@ impl<C: Contour> Contours for HintContours<C> {
             panic!("Did not find point {p} in contours around {v}!");
         };
         if D {
-            println!("Pruning {p} in layer {v}");
+            eprintln!("Pruning {p} in layer {v}");
             self.debug(p, v, arrows);
         }
 
@@ -399,7 +397,7 @@ impl<C: Contour> Contours for HintContours<C> {
             if self.contours[v].len() > 0 {
                 break 'shift 0;
             }
-            //println!("Removed {p} last in layer {v}");
+            //eprintln!("Removed {p} last in layer {v}");
             let mut all_depend_on_pos = true;
             let rng = v + 1..min(v + self.max_len, self.contours.len() as Cost);
             for w in rng.clone() {
@@ -415,7 +413,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             }
 
-            // println!(
+            // eprintln!(
             //     "\n\n\n\nThe next layer only depended on this v! Removing empty layers from here on down!"
             // );
             // self.debug(p, v, arrows);
@@ -434,6 +432,9 @@ impl<C: Contour> Contours for HintContours<C> {
             break 'shift removed;
         };
         if shift > 0 {
+            if D {
+                eprintln!("THIS WAS LAST ARROW IN LAYER {v}. SHIFT DOWN BY {initial_shift}");
+            }
             self.stats.borrow_mut().shifts += 1;
         }
 
@@ -461,7 +462,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 // of its value.
                 self.stats.borrow_mut().checked += 1;
                 let new_layer = chain_score(&self.contours, pos, v);
-                assert!(new_layer <= v);
+                assert!(new_layer <= v, "New layer {new_layer} should never be larger than current layer v={v}! Error at {pos}");
                 assert!(
                     v.saturating_sub(self.max_len) <= new_layer,
                     "Point {pos} drops by more than max_len={} from current={v} to new_layer={new_layer}",
@@ -471,8 +472,8 @@ impl<C: Contour> Contours for HintContours<C> {
                 max_new_layer = max(max_new_layer, new_layer);
                 // Value v is still up to date. No need to loop over the remaining arrows starting here.
                 if new_layer == v {
-                    if D{
-                        println!("f: {pos} from {v} to at least {new_layer}");
+                    if D {
+                        eprintln!("f: Push {pos} from {v} to at least {new_layer}");
                     }
                     self.stats.borrow_mut().checked_false += 1;
                     current_shift = Shift::Inconsistent;
@@ -483,7 +484,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
                 // Either no arrows left (position already pruned), or none of its arrows yields value v.
                 if D{
-                    println!("f: Push {} to {} shift {:?}", pos, new_layer, current_shift);
+                    eprintln!("f: Push {pos} from {v} to {new_layer} shift {current_shift:?}");
                 }
                 self.contours[new_layer].push(pos);
 
@@ -497,12 +498,14 @@ impl<C: Contour> Contours for HintContours<C> {
                 );
                 true
             });
-            if changes {
-                last_change = v;
-            }
-
             // Put current layer back in place
             self.contours[v] = current;
+
+            if changes {
+                last_change = v;
+            } else {
+                assert!(current_shift == Shift::None || current_shift == Shift::Inconsistent);
+            }
 
             if v >= last_change + self.max_len as Cost {
                 // No further changes can happen.
@@ -550,15 +553,15 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             }
         }
-        (true, shift)
         self.check_consistency(arrows);
+        (true, initial_shift)
     }
 
     #[allow(unreachable_code)]
     fn print_stats(&self) {
         // TODO: MAKE A FLAG FOR THIS.
         return;
-        println!("----------------------------");
+        eprintln!("----------------------------");
         let num = self.contours.len();
         let mut total_len = 0;
         let mut total_dom = 0;
@@ -566,9 +569,9 @@ impl<C: Contour> Contours for HintContours<C> {
             total_len += c.len();
             total_dom += c.num_dominant();
         }
-        println!("#contours             {}", num);
-        println!("avg size              {}", total_len as f32 / num as f32);
-        println!("avg domn              {}", total_dom as f32 / num as f32);
+        eprintln!("#contours             {}", num);
+        eprintln!("avg size              {}", total_len as f32 / num as f32);
+        eprintln!("avg domn              {}", total_dom as f32 / num as f32);
 
         let HintContourStats {
             prunes,
@@ -591,43 +594,43 @@ impl<C: Contour> Contours for HintContours<C> {
             return;
         }
 
-        println!("#prunes               {}", prunes);
-        println!("contours per prune    {}", contours as f32 / prunes as f32);
-        println!("#checks               {}", checked);
-        println!("checked per prune     {}", checked as f32 / prunes as f32);
-        println!(
+        eprintln!("#prunes               {}", prunes);
+        eprintln!("contours per prune    {}", contours as f32 / prunes as f32);
+        eprintln!("#checks               {}", checked);
+        eprintln!("checked per prune     {}", checked as f32 / prunes as f32);
+        eprintln!(
             "checked true per p    {}",
             checked_true as f32 / prunes as f32
         );
-        println!(
+        eprintln!(
             "checked false per p   {}",
             checked_false as f32 / prunes as f32
         );
-        println!(
+        eprintln!(
             "shift per check true  {}",
             sum_prune_shifts as f32 / num_prune_shifts as f32
         );
-        println!("max shift             {}", max_prune_shift);
-        println!("Stop count: no change    {}", no_change);
-        println!("Stop count: shift layers {}", shift_layers);
-        println!("layers removed total     {}", self.layers_removed);
-        println!(
+        eprintln!("max shift             {}", max_prune_shift);
+        eprintln!("Stop count: no change    {}", no_change);
+        eprintln!("Stop count: shift layers {}", shift_layers);
+        eprintln!("layers removed total     {}", self.layers_removed);
+        eprintln!(
             "layers removed change    {}",
             self.layers_removed as usize - shift_layers
         );
 
-        println!("#shifts                  {}", shifts);
-        println!("");
-        println!("score_hint calls         {}", score_with_hint_calls);
-        println!(
+        eprintln!("#shifts                  {}", shifts);
+        eprintln!("");
+        eprintln!("score_hint calls         {}", score_with_hint_calls);
+        eprintln!(
             "%binary search fallback  {}",
             binary_search_fallback as f32 / score_with_hint_calls as f32
         );
-        println!(
+        eprintln!(
             "avg contains calls       {}",
             contains_calls as f32 / score_with_hint_calls as f32
         );
 
-        println!("----------------------------");
+        eprintln!("----------------------------");
     }
 }
