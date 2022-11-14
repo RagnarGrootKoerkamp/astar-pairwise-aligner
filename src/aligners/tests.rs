@@ -36,6 +36,57 @@ fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
         .cartesian_product(seeds)
 }
 
+fn test_aligner_on_input<const N: usize, A: Aligner>(
+    a: Seq,
+    b: Seq,
+    aligner: &mut impl Aligner,
+    viz_aligner: &mut Option<&mut dyn FnMut(&[u8], &[u8]) -> A>,
+    test_path: bool,
+    cm: &AffineCost<N>,
+    params: &str,
+) {
+    // Set to true for local debugging.
+    const D: bool = false;
+
+    // useful in case of panics inside the alignment code.
+    eprintln!("{params}");
+    if D {
+        eprintln!("a {}\nb {}", to_string(a), to_string(b));
+    }
+    let mut nw = NW::new(cm.clone(), false, false);
+    let nw_cost = nw.cost(a, b);
+    let cost = aligner.cost(a, b);
+    // Rerun the alignment with the visualizer enabled.
+    if D && nw_cost != cost && let Some(viz_aligner) = viz_aligner {
+        eprintln!("{params}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", to_string(a), to_string(b));
+        viz_aligner(a, b).align(a, b);
+    }
+    // Test the cost reported by all aligners.
+    assert_eq!(
+        nw_cost,
+        cost,
+        "\n{params}\na == {}\nb == {}\nNW cigar: {}\nAligner\n{aligner:?}",
+        to_string(&a),
+        to_string(&b),
+        nw.align(a, b).1.to_string()
+    );
+    if test_path {
+        let (cost, cigar) = aligner.align(a, b);
+        if cost != nw_cost {
+            eprintln!("\n================= TEST CIGAR ======================\n");
+            eprintln!(
+                "{params}\na {}\nb {}\ncigar: {}\nnwcig: {}",
+                to_string(a),
+                to_string(b),
+                cigar.to_string(),
+                nw.align(a, b).1.to_string()
+            );
+        }
+        assert_eq!(cost, nw_cost);
+        verify_cigar(cm, a, b, &cigar);
+    }
+}
+
 /// Test that:
 /// - the aligner gives the same cost as NW, both for `cost` and `align` members.
 /// - the `Cigar` is valid and of the correct cost.
@@ -45,51 +96,17 @@ fn test_aligner_on_cost_model_with_viz<const N: usize, A: Aligner>(
     mut viz_aligner: Option<&mut dyn FnMut(Seq, Seq) -> A>,
     test_path: bool,
 ) {
-    // Set to true for local debugging.
-    const D: bool = false;
-
-    let mut nw = NW::new(cm.clone(), false, false);
     for (((n, e), error_model), seed) in test_sequences() {
         let (ref a, ref b) = setup_sequences_with_seed_and_model(seed, n, e, error_model);
-        // useful in case of panics inside the alignment code.
-        eprintln!("seed {seed} n {n} e {e} error_model {error_model:?}");
-        if D {
-            eprintln!("a {}\nb {}", to_string(a), to_string(b));
-        }
-        let nw_cost = nw.cost(a, b);
-        let cost = aligner.cost(a, b);
-
-        // Rerun the alignment with the visualizer enabled.
-        if D && nw_cost != cost && let Some(viz_aligner) = &mut viz_aligner {
-            eprintln!("seed: {seed}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", to_string(a), to_string(b));
-            viz_aligner(a, b).align(a, b);
-        }
-
-        // Test the cost reported by all aligners.
-        assert_eq!(
-            nw_cost,
-            cost,
-            "\nseed={seed} n={n} e={e}\na == {}\nb == {}\nNW cigar: {}\nAligner\n{aligner:?}",
-            to_string(&a),
-            to_string(&b),
-            nw.align(a, b).1.to_string()
+        test_aligner_on_input(
+            a,
+            b,
+            &mut aligner,
+            &mut viz_aligner,
+            test_path,
+            &cm,
+            &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
         );
-
-        if test_path {
-            let (cost, cigar) = aligner.align(a, b);
-            if cost != nw_cost {
-                eprintln!("\n================= TEST CIGAR ======================\n");
-                eprintln!(
-                    "seed {seed} n {n} e {e}\na {}\nb {}\ncigar: {}\nnwcig: {}",
-                    to_string(a),
-                    to_string(b),
-                    cigar.to_string(),
-                    nw.align(a, b).1.to_string()
-                );
-            }
-            assert_eq!(cost, nw_cost);
-            verify_cigar(&cm, a, b, &cigar);
-        }
     }
 }
 
