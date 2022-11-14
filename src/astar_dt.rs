@@ -1,10 +1,11 @@
-use crate::{aligners::cigar::Cigar, prelude::*, visualizer::VisualizerT};
-use astar::*;
+use crate::{aligners::cigar::Cigar, astar::*, prelude::*, visualizer::VisualizerT};
+
+const D: bool = false;
 
 #[derive(Clone, Copy, Debug)]
-struct State<Hint> {
-    fr: I,
-    hint: Hint,
+pub struct State<Hint> {
+    pub fr: I,
+    pub hint: Hint,
 }
 
 impl<Hint: Default> Default for State<Hint> {
@@ -30,8 +31,6 @@ pub fn astar_dt<'a, H>(
 where
     H: HeuristicInstance<'a>,
 {
-    const D: bool = false;
-
     let mut stats = AStarStats::default();
 
     // f -> (DtPos(diagonal, g), fr)
@@ -46,6 +45,8 @@ where
 
     // Initialization with the root state.
     let mut max_f = 0;
+    v.new_layer_with_h(Some(h));
+
     {
         let start = Pos(0, 0);
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
@@ -55,17 +56,14 @@ where
         });
         stats.explored += 1;
         states.insert(DtPos::from_pos(start, 0), State { fr: 0, hint });
-        v.new_layer_with_h(Some(h));
     }
 
     let mut retry_cnt = 0;
 
-    let mut dist = None;
-    'outer: while let Some(QueueElement {
-        f: queue_f,
-        data: (dt_pos, queue_fr),
-    }) = queue.pop()
-    {
+    let dist = loop {
+        let Some(QueueElement {f: queue_f, data: (dt_pos, queue_fr),}) = queue.pop() else {
+            panic!("priority queue is empty before the end is reached.");
+        };
         const RETRY_COUNT_EACH: i32 = 64;
         let expand_start = if retry_cnt % RETRY_COUNT_EACH == 0 {
             Some(instant::Instant::now())
@@ -75,9 +73,6 @@ where
 
         let queue_g = dt_pos.g;
         let queue_f = queue_f;
-        // This lookup can be unwrapped without fear of panic since the node was necessarily scored
-        // before adding it to `visit_next`.
-        //let g = gs[pos];
         let state = &mut states[dt_pos];
         let mut pos = dt_pos.to_pos(state.fr);
 
@@ -121,10 +116,6 @@ where
 
         stats.expanded += 1;
 
-        if D {
-            eprintln!("Expand {dt_pos} {queue_fr} => {pos}");
-        }
-
         if queue_f > max_f {
             max_f = queue_f;
             v.new_layer_with_h(Some(h));
@@ -150,7 +141,7 @@ where
             stats.expanded += 1;
             stats.greedy_expanded += 1;
             if D {
-                eprintln!("Greedy expand {dt_pos} {queue_fr} => {n}");
+                eprintln!("Greedy   {n} g={queue_g} f={queue_f} @ fr={queue_fr} {dt_pos}");
             }
 
             // Move to the pos state.
@@ -166,12 +157,10 @@ where
 
         // Retrace path to root and return.
         if pos == graph.target() {
-            DiagonalMapTrait::insert(&mut states, dt_pos, state);
             if D {
                 eprintln!("Reached target {pos} with state {state:?}");
             }
-            dist = Some(queue_g);
-            break 'outer;
+            break queue_g;
         }
 
         graph.iterate_outgoing_edges(pos, |next, edge| {
@@ -180,14 +169,11 @@ where
             let dt_next = DtPos::from_pos(next, next_g);
             let cur_next = DiagonalMapTrait::get_mut(&mut states, dt_next);
             let next_fr = DtPos::fr(next);
-            if D {
-                eprintln!("Explore? {dt_next} at {next_fr}. currently at {cur_next:?}");
-            }
+            // if D {
+            //     eprintln!("Explore? {next} = {dt_next} at {next_fr} >=? {cur_next:?}");
+            // }
             // If the next state was already visited with larger FR point, skip exploring again.
             if cur_next.fr >= next_fr {
-                if D {
-                    eprintln!("Skip");
-                }
                 return;
             };
 
@@ -198,7 +184,7 @@ where
             let next_f = next_g + next_h;
 
             if D {
-                eprintln!("Explore {dt_next} {next_fr} => {next} at f={next_f}");
+                eprintln!("Explore! {next} g={next_g} f={next_f} @ fr={next_fr} {dt_next}");
             }
 
             queue.push(QueueElement {
@@ -210,16 +196,15 @@ where
             stats.explored += 1;
             v.explore_with_h(next, next_g, next_f, Some(h));
         });
-    }
+    };
 
-    let Some(dist) = dist else {  return (None, stats); };
     if D {
         eprintln!("DIST: {dist}");
     }
 
     stats.diagonalmap_capacity = states.dm_capacity();
     let traceback_start = instant::Instant::now();
-    let path = traceback::<H>(&states, DtPos::from_pos(graph.target(), dist));
+    let path = traceback::<H>(&states, graph.target(), dist);
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
     v.last_frame_with_h(
         path.as_ref()
@@ -231,7 +216,7 @@ where
     (path, stats)
 }
 
-fn dt_parent<'a, H>(states: &HashMap<DtPos, State<H::Hint>>, dt_pos: DtPos) -> (I, Edge)
+pub fn dt_parent<'a, H>(states: &HashMap<DtPos, State<H::Hint>>, dt_pos: DtPos) -> (I, Edge)
 where
     H: HeuristicInstance<'a>,
 {
@@ -248,51 +233,65 @@ where
     max_fr
 }
 
-fn traceback<'a, H>(
+pub fn traceback<'a, H>(
     states: &HashMap<DtPos, State<H::Hint>>,
-    target_dt: DtPos,
+    target: Pos,
+    g: Cost,
 ) -> Option<(u32, Vec<Pos>)>
 where
     H: HeuristicInstance<'a>,
 {
+    let target_dt = DtPos::from_pos(target, g);
     // Traceback algorithm from Ukkonen'85.
-    if let Some(state) = DiagonalMapTrait::get(states, target_dt) {
-        let g = target_dt.g;
-        let mut cost = 0;
-        let mut cur_pos = target_dt.to_pos(state.fr);
-        let mut path = vec![cur_pos];
-        let mut cur_dt = target_dt;
-        // If the state is not in the map, it was found via a match.
-        while cur_dt != (DtPos { diagonal: 0, g: 0 }) {
-            let (parent_fr, edge) = dt_parent::<H>(states, cur_dt);
-            cost += edge.cost();
-            let next_dt = edge
-                .dt_back(&cur_dt)
-                .expect("No parent found for position!");
-            let next_pos = next_dt.to_pos(parent_fr);
-            // Add as many matches as needed to end exactly in next_pos.
-            // NOTE: We need the > here (!= won't do), since next_pos may actually be larger
-            // than cur_pos, resulting in a possible infinite loop.
-            while edge.back(&cur_pos).unwrap() > next_pos {
-                cur_pos = Edge::Match.back(&cur_pos).unwrap();
-                path.push(cur_pos);
-            }
-            cur_pos = edge.back(&cur_pos).unwrap();
-            path.push(cur_pos);
-            cur_dt = next_dt;
+    let mut cost = 0;
+    let mut cost_from_start = g;
+    let mut cur_pos = target;
+    let mut path = vec![cur_pos];
+    let mut cur_dt = target_dt;
+    // If the state is not in the map, it was found via a match.
+    while cur_dt != (DtPos { diagonal: 0, g: 0 }) {
+        let (parent_fr, edge) = dt_parent::<H>(states, cur_dt);
+        cost += edge.cost();
+        let next_dt = edge
+            .dt_back(&cur_dt)
+            .expect("No parent found for position!");
+        let next_pos = next_dt.to_pos(parent_fr);
+        if D {
+            eprintln!("Current pos {cost_from_start}\t / {cur_pos}\t at cost {cost} edge {edge:?}");
+            eprintln!("Target  pos {cost_from_start}\t / {next_pos} at fr {parent_fr}");
         }
-        while cur_pos != Pos(0, 0) {
+        // Add as many matches as needed to end exactly in next_pos.
+        // NOTE: We need the > here (!= won't do), since next_pos may actually be larger
+        // than cur_pos, resulting in a possible infinite loop.
+        while edge.back(&cur_pos).unwrap() > next_pos {
+            if D {
+                eprintln!(
+                    "Push {} @ {cost_from_start}, since {} > {next_pos}",
+                    Edge::Match.back(&cur_pos).unwrap(),
+                    edge.back(&cur_pos).unwrap()
+                );
+            }
             cur_pos = Edge::Match.back(&cur_pos).unwrap();
             path.push(cur_pos);
         }
-
-        path.reverse();
-        assert_eq!(
-            cost, g,
-            "Traceback cost {cost} does not equal distance to end {g}!"
-        );
-        Some((g, path))
-    } else {
-        None
+        cur_pos = edge.back(&cur_pos).unwrap();
+        cost_from_start -= edge.cost();
+        if D {
+            eprintln!("Push {cur_pos} @ {cost_from_start}");
+        }
+        path.push(cur_pos);
+        cur_dt = next_dt;
     }
+    while cur_pos != Pos(0, 0) {
+        cur_pos = Edge::Match.back(&cur_pos).unwrap();
+        path.push(cur_pos);
+    }
+
+    path.reverse();
+    assert_eq!(
+        cost, g,
+        "Traceback cost {cost} does not equal distance to end {g}!"
+    );
+    assert_eq!(cost_from_start, 0);
+    Some((g, path))
 }
