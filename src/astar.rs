@@ -40,10 +40,6 @@ pub struct AStarStats {
     pub retries_duration: f64,
 }
 
-// h: heuristic = lower bound on cost from node to end
-// g: computed cost to reach node from the start
-// f: g+h
-// TODO: Inline on_expand and on_explore functions by direct calls to h.
 pub fn astar<'a, H>(
     graph: &EditGraph,
     h: &mut H,

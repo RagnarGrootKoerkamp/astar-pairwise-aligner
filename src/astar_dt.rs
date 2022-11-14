@@ -33,8 +33,8 @@ where
 {
     let mut stats = AStarStats::default();
 
-    // f -> (DtPos(diagonal, g), fr)
-    let mut queue = ShiftQueue::<(DtPos, I), H::Order>::new(if REDUCE_RETRIES {
+    // f -> (pos, g)
+    let mut queue = ShiftQueue::<(Pos, Cost), H::Order>::new(if REDUCE_RETRIES {
         h.root_potential()
     } else {
         0
@@ -43,16 +43,16 @@ where
     //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
     let mut states = HashMap::<DtPos, State<H::Hint>>::default();
 
-    // Initialization with the root state.
     let mut max_f = 0;
     v.new_layer_with_h(Some(h));
 
+    // Initialization with the root state.
     {
         let start = Pos(0, 0);
         let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
         queue.push(QueueElement {
             f: hroot,
-            data: (DtPos::from_pos(start, 0), DtPos::fr(start)),
+            data: (start, 0),
         });
         stats.explored += 1;
         states.insert(DtPos::from_pos(start, 0), State { fr: 0, hint });
@@ -61,22 +61,25 @@ where
     let mut retry_cnt = 0;
 
     let dist = loop {
-        let Some(QueueElement {f: queue_f, data: (dt_pos, queue_fr),}) = queue.pop() else {
+        let Some(QueueElement {f: queue_f, data: (pos, queue_g),}) = queue.pop() else {
             panic!("priority queue is empty before the end is reached.");
         };
-        const RETRY_COUNT_EACH: i32 = 64;
-        let expand_start = if retry_cnt % RETRY_COUNT_EACH == 0 {
+
+        // Time the duration of retrying once in this many iterations.
+        const TIME_EACH: i32 = 64;
+        let expand_start = if retry_cnt % TIME_EACH == 0 {
             Some(instant::Instant::now())
         } else {
             None
         };
 
+        let dt_pos = DtPos::from_pos(pos, queue_g);
         let queue_g = dt_pos.g;
         let queue_f = queue_f;
-        let state = &mut states[dt_pos];
-        let mut pos = dt_pos.to_pos(state.fr);
+        let queue_fr = DtPos::fr(pos);
 
-        // Skip non-furthest reaching states.
+        let state = &mut states[dt_pos];
+
         if queue_fr < state.fr {
             continue;
         }
@@ -84,73 +87,49 @@ where
         assert!(queue_fr == state.fr);
 
         // Whenever A* pops a position, if the value of h and f is outdated, the point is pushed and not expanded.
+        // Must be true for correctness.
         {
             let (current_h, new_hint) = h.h_with_hint(pos, state.hint);
             state.hint = new_hint;
             let current_f = queue_g + current_h;
             assert!(
-                current_f >= queue_f,
-                "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! queue_g={} queue_h={} current_h={}", queue_g, queue_f-queue_g, current_h
+                current_f >= queue_f && current_h >= queue_f - queue_g,
+                "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.fr={} queue_fr={} queue_h={} current_h={}", state.fr, queue_fr, queue_f-queue_g, current_h
             );
             if current_f > queue_f {
                 stats.retries += 1;
                 queue.push(QueueElement {
                     f: current_f,
-                    data: (dt_pos, queue_fr),
+                    data: (pos, queue_g),
                 });
                 retry_cnt += 1;
                 if let Some(expand_start) = expand_start {
                     stats.retries_duration +=
-                        RETRY_COUNT_EACH as f64 * expand_start.elapsed().as_secs_f64();
+                        TIME_EACH as f64 * expand_start.elapsed().as_secs_f64();
                 }
                 continue;
             }
             assert!(current_f == queue_f);
-            if D && false {
-                eprintln!(
-                    "Expand {dt_pos} [{pos}] at \tg={queue_g} \tf={queue_f} \th={current_h}\tqueue_h={}",
+            if D {
+                println!(
+                    "Expand {pos} at \tg={queue_g} \tf={queue_f} \th={current_h}\tqueue_h={}",
                     queue_f - queue_g
                 );
             }
         }
 
+        // Expand u
+        if D {
+            println!("Expand {pos} {}", queue_g);
+        }
+
         stats.expanded += 1;
+        v.expand_with_h(pos, queue_g, queue_f, Some(h));
 
         if queue_f > max_f {
             max_f = queue_f;
             v.new_layer_with_h(Some(h));
         }
-
-        let mut prune = |pos| {
-            v.expand_with_h(pos, queue_g, queue_f, Some(h));
-            if !h.is_seed_start_or_end(pos) {
-                return;
-            }
-
-            let (shift, pos) = h.prune(pos, state.hint);
-            if REDUCE_RETRIES {
-                stats.pq_shifts += queue.shift(shift, pos) as usize;
-            }
-        };
-
-        while let Some(n) = graph.is_match(pos) {
-            prune(pos);
-
-            // Explore & expand `n`
-            stats.explored += 1;
-            stats.expanded += 1;
-            stats.greedy_expanded += 1;
-            if D {
-                eprintln!("Greedy   {n} g={queue_g} f={queue_f} @ fr={queue_fr} {dt_pos}");
-            }
-
-            // Move to the pos state.
-            pos = n;
-            state.fr += 1;
-        }
-
-        // Check if prune is needed for the final pos.
-        prune(pos);
 
         // Copy for local usage.
         let state = *state;
@@ -158,24 +137,62 @@ where
         // Retrace path to root and return.
         if pos == graph.target() {
             if D {
-                eprintln!("Reached target {pos} with state {state:?}");
+                println!("Reached target {pos} with state {state:?}");
             }
             break queue_g;
         }
 
-        graph.iterate_outgoing_edges(pos, |next, edge| {
+        // Prune is needed
+        if h.is_seed_start_or_end(pos) {
+            let (shift, pos) = h.prune(pos, state.hint);
+            if REDUCE_RETRIES {
+                stats.pq_shifts += queue.shift(shift, pos) as usize;
+            }
+        }
+
+        graph.iterate_outgoing_edges(pos, |mut next, edge| {
             // Explore next
             let next_g = queue_g + edge.cost() as Cost;
             let dt_next = DtPos::from_pos(next, next_g);
-            let cur_next = DiagonalMapTrait::get_mut(&mut states, dt_next);
+
+            // Do greedy matching within the current seed.
+            if graph.greedy_matching {
+                while let Some(n) = graph.is_match(next) {
+                    // Never greedy expand the start of a seed.
+                    // Doing so may cause problems when h is not consistent and is
+                    // larger at the start of seed than at the position where the
+                    // greedy run started.
+                    if h.is_seed_start_or_end(next) {
+                        break;
+                    }
+
+                    // Explore & expand `next`
+                    stats.explored += 1;
+                    stats.expanded += 1;
+                    stats.greedy_expanded += 1;
+                    v.explore_with_h(next, queue_g, queue_f, Some(h));
+                    v.expand_with_h(next, queue_g, queue_f, Some(h));
+                    if D {
+                        println!("Greedy expand {next} {queue_g}");
+                    }
+
+                    // Move to the next state.
+                    next = n;
+                }
+            }
+
             let next_fr = DtPos::fr(next);
-            // if D {
-            //     eprintln!("Explore? {next} = {dt_next} at {next_fr} >=? {cur_next:?}");
-            // }
-            // If the next state was already visited with larger FR point, skip exploring again.
+            let cur_next = DiagonalMapTrait::get_mut(&mut states, dt_next);
+
+            // If the next state was already visited with smaller g, skip exploring again.
             if cur_next.fr >= next_fr {
                 return;
             };
+
+            // Open next
+            if D {
+                println!("Open {next} from {pos} g {next_g}");
+            }
 
             cur_next.fr = next_fr;
 
@@ -183,13 +200,9 @@ where
             cur_next.hint = next_hint;
             let next_f = next_g + next_h;
 
-            if D {
-                eprintln!("Explore! {next} g={next_g} f={next_f} @ fr={next_fr} {dt_next}");
-            }
-
             queue.push(QueueElement {
                 f: next_f,
-                data: (dt_next, next_fr),
+                data: (next, next_g),
             });
 
             h.explore(next);
@@ -197,10 +210,6 @@ where
             v.explore_with_h(next, next_g, next_f, Some(h));
         });
     };
-
-    if D {
-        eprintln!("DIST: {dist}");
-    }
 
     stats.diagonalmap_capacity = states.dm_capacity();
     let traceback_start = instant::Instant::now();
