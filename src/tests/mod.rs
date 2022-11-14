@@ -1,26 +1,30 @@
 use std::marker::PhantomData;
 
+use bio::alignment::distance::simd::levenshtein;
+
 use crate::{
-    align::align_advanced,
+    aligners::{astar::AStar, cigar::test::verify_cigar, Aligner},
+    cost_model::LinearCost,
     heuristic::{Heuristic, Pruning, CSH},
     matches::MatchConfig,
     prelude::{BruteForceContour, HintContours},
-    visualizer::NoVisualizer,
+    visualizer::*,
 };
 
 mod contours;
 
-fn test_input(a: &[u8], b: &[u8], h: impl Heuristic) {
-    align_advanced(
-        &a,
-        &b,
-        Default::default(),
+fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
+    let mut aligner = AStar {
+        greedy_edge_matching: true,
+        diagonal_transition: dt,
         h,
-        true,
-        false,
-        &mut NoVisualizer,
-        //&mut Visualizer::new(Config::new(VisualizerStyle::Test), a, b),
-    );
+        //v: NoVisualizer,
+        v: Visualizer::new(Config::new(VisualizerStyle::Test), a, b),
+    };
+    let (d, cigar) = aligner.align(a, b);
+    verify_cigar(&LinearCost::new_unit(), a, b, &cigar);
+    let dist = levenshtein(a, b);
+    assert_eq!(d, dist);
 }
 
 /// thread 'tests::bug_in_csh_contours' panicked at 'assertion failed: new_layer <= v', src/contour/hint_contours.rs:413:17
@@ -37,7 +41,7 @@ fn hint_contours_overly_greedy_shift_1() {
 
     let a = "CCCGTCGTCCCTCAAACTTGGAACCCCATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTACGGTACCCCTTCTGCGATAGAGATGGTAGTAGCCGATAGGCCACCCTGGGAACACTATGTCACCCTGGTGGTAACCGTCGGGTCAGAAATAGGAGAACATACGGTGGACCGCTAA".as_bytes();
     let b = "CCCGTCGTACCTCTAAACTTGGAACCCACATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTTCGGGTACCCCTTCGTGCGATAGAGATGGTAGTAGCCGATAGGCCACCCTGGGAACACTATGTCACCCTGGTGGTAACCGTCGGGTCAGAAATAGGAGTACATACGGTGGACCG".as_bytes();
-    test_input(a, b, h);
+    test_input(a, b, false, h);
 }
 
 #[test]
@@ -52,7 +56,7 @@ fn hint_contours_overly_greedy_shift_2() {
     let a = "ATATATATTAGCGGGCATTCGCCGACCTGGAAGTGCCAGGCCATTTCGTAGCAGTAGGTCCTCACCAAGGCCAGGCAAGTCGGTAGTAAAAT".as_bytes();
     let b = "ATATATATTAAGCTGGCCTATTCGCGACCTGCGAAGGGGCCAGGCATTTCCTATCAGTAGGTCCCTCACCAAAGCCAGGT"
         .as_bytes();
-    test_input(a, b, h);
+    test_input(a, b, false, h);
 }
 
 #[test]
@@ -66,5 +70,6 @@ fn hint_contours_overly_greedy_shift_3() {
 
     let a = "TTCCGACACTAGCTGTCAGCCTTATAACTCATGCCCTAGTATCAACAGGCC".as_bytes();
     let b = "TTTCCGACCACTAGCTAACTCATGTCCCAGTTCAACAGGCCGTGGGAC".as_bytes();
-    test_input(a, b, h);
+    test_input(a, b, false, h);
+}
 }
