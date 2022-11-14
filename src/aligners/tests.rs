@@ -145,7 +145,7 @@ mod astar {
     use crate::{
         aligners::astar::AStar,
         cost_model::LinearCost,
-        heuristic::{Heuristic, NoCost, Pruning, CSH, SH},
+        heuristic::{Heuristic, Pruning, CSH, SH},
         matches::MatchConfig,
         prelude::{BruteForceContour, HintContours},
     };
@@ -188,67 +188,112 @@ mod astar {
         ($name:ident, $h:expr) => {
             mod $name {
                 use super::*;
+                // large k variants with mostly linear matches
                 #[test]
                 fn exact_noprune() {
-                    super::test_heuristic($h(false, false), false);
+                    super::test_heuristic($h(true, false, false), false);
                 }
                 #[test]
                 fn exact_prune() {
-                    super::test_heuristic($h(false, true), false);
+                    super::test_heuristic($h(true, true, false), false);
                 }
                 #[test]
                 fn inexact_noprune() {
-                    super::test_heuristic($h(true, false), false);
+                    super::test_heuristic($h(false, false, false), false);
                 }
                 #[test]
                 fn inexact_prune() {
-                    super::test_heuristic($h(true, true), false);
+                    super::test_heuristic($h(false, true, false), false);
                 }
                 #[test]
                 fn exact_noprune_dt() {
-                    super::test_heuristic($h(false, false), true);
+                    super::test_heuristic($h(true, false, false), true);
                 }
                 #[test]
                 fn exact_prune_dt() {
-                    super::test_heuristic($h(false, true), true);
+                    super::test_heuristic($h(true, true, false), true);
                 }
                 #[test]
                 fn inexact_noprune_dt() {
-                    super::test_heuristic($h(true, false), true);
+                    super::test_heuristic($h(false, false, false), true);
                 }
                 #[test]
                 fn inexact_prune_dt() {
-                    super::test_heuristic($h(true, true), true);
+                    super::test_heuristic($h(false, true, false), true);
+                }
+
+                // small k variants with many matches, to stress the contours
+                #[test]
+                fn exact_noprune_smallk() {
+                    super::test_heuristic($h(true, false, true), false);
+                }
+                #[test]
+                fn exact_prune_smallk() {
+                    super::test_heuristic($h(true, true, true), false);
+                }
+                #[test]
+                fn inexact_noprune_smallk() {
+                    super::test_heuristic($h(false, false, true), false);
+                }
+                #[test]
+                fn inexact_prune_smallk() {
+                    super::test_heuristic($h(false, true, true), false);
+                }
+                #[test]
+                fn exact_noprune_dt_smallk() {
+                    super::test_heuristic($h(true, false, true), true);
+                }
+                #[test]
+                fn exact_prune_dt_smallk() {
+                    super::test_heuristic($h(true, true, true), true);
+                }
+                #[test]
+                fn inexact_noprune_dt_smallk() {
+                    super::test_heuristic($h(false, false, true), true);
+                }
+                #[test]
+                fn inexact_prune_dt_smallk() {
+                    super::test_heuristic($h(false, true, true), true);
                 }
             }
         };
     }
 
-    make_test!(dijkstra, |_, _| NoCost);
-    make_test!(sh, |exact, prune| SH {
-        match_config: if exact {
-            MatchConfig::exact(5)
-        } else {
-            MatchConfig::inexact(9)
-        },
+    mod dijkstra {
+        use crate::heuristic::NoCost;
+
+        #[test]
+        fn exact_noprune() {
+            super::test_heuristic(NoCost, false);
+        }
+        #[test]
+        fn exact_noprune_dt() {
+            super::test_heuristic(NoCost, true);
+        }
+    }
+
+    fn match_config(exact: bool, small_k: bool) -> MatchConfig {
+        match (exact, small_k) {
+            (true, false) => MatchConfig::exact(5),
+            (true, true) => MatchConfig::exact(2),
+            (false, false) => MatchConfig::inexact(9),
+            (false, true) => MatchConfig::inexact(3),
+        }
+    }
+
+    // normal k with few matches
+    make_test!(sh, |exact, prune, small_k| SH {
+        match_config: match_config(exact, small_k),
         pruning: Pruning::new(prune)
     });
-    make_test!(csh, |exact, prune| CSH {
-        match_config: if exact {
-            MatchConfig::exact(5)
-        } else {
-            MatchConfig::inexact(9)
-        },
+    make_test!(csh, |exact, prune, small_k| CSH {
+        match_config: match_config(exact, small_k),
         pruning: Pruning::new(prune),
         use_gap_cost: false,
         c: PhantomData::<HintContours<BruteForceContour>>,
     });
-    make_test!(gch, |exact, prune| CSH {
-        match_config: if exact {
-            MatchConfig::exact(5)
-        } else {
-            MatchConfig::inexact(9)
-        },
+    make_test!(gch, |exact, prune, small_k| CSH {
+        match_config: match_config(exact, small_k),
         pruning: Pruning::new(prune),
         use_gap_cost: true,
         c: PhantomData::<HintContours<BruteForceContour>>,
