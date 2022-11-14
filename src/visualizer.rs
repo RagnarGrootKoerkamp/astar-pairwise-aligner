@@ -307,6 +307,8 @@ mod visualizer {
         pub match_shrink: usize,
         pub match_width: usize,
         pub contour: Color,
+
+        pub draw_f: bool,
     }
 
     impl When {
@@ -386,6 +388,7 @@ mod visualizer {
                     match_shrink: 2,
                     match_width: 2,
                     contour: GREEN,
+                    draw_f: false,
                 },
                 draw_old_on_top: true,
                 layer_drawing: false,
@@ -434,9 +437,11 @@ mod visualizer {
                     config.style.max_heuristic = Some(100);
                     config.style.pruned_match = RED;
                     config.style.match_width = 3;
+                    config.style.path_width = Some(4);
                     config.style.draw_heuristic = true;
                     config.style.draw_contours = true;
                     config.style.draw_matches = true;
+                    config.style.draw_f = true;
                     config.style.contour = BLACK;
                 }
             }
@@ -916,30 +921,36 @@ mod visualizer {
 
                 // Draw matches.
                 if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
-                    for m in &matches {
-                        let mut b = self.cell_center(m.start);
-                        b.0 += self.config.style.match_shrink as i32;
-                        b.1 += self.config.style.match_shrink as i32;
-                        let mut e = self.cell_center(m.end);
-                        e.0 -= self.config.style.match_shrink as i32;
-                        e.1 -= self.config.style.match_shrink as i32;
-                        let mut color = match m.pruned {
-                                MatchStatus::Active => self.config.style.active_match,
-                                MatchStatus::Pruned => self.config.style.pruned_match,
-                            };
-                        let mut width = self.config.style.match_width;
-                        if m.match_cost > 0 {
-                            if m.pruned == MatchStatus::Active {
-                                color = GRAY;
+                    // first draw inexact matches, then exact ones on top.
+                    for exact in [false, true] {
+                        for m in &matches {
+                            if (m.match_cost == 0) != exact {
+                                continue;
                             }
-                            width = max(1, width-1);
+                            let mut b = self.cell_center(m.start);
+                            b.0 += self.config.style.match_shrink as i32;
+                            b.1 += self.config.style.match_shrink as i32;
+                            let mut e = self.cell_center(m.end);
+                            e.0 -= self.config.style.match_shrink as i32;
+                            e.1 -= self.config.style.match_shrink as i32;
+                            let mut color = match m.pruned {
+                                    MatchStatus::Active => self.config.style.active_match,
+                                    MatchStatus::Pruned => self.config.style.pruned_match,
+                                };
+                            let mut width = self.config.style.match_width;
+                            if m.match_cost > 0 {
+                                if m.pruned == MatchStatus::Active {
+                                    color = GRAY;
+                                }
+                                width = max(1, width-1);
+                            }
+                            Self::draw_diag_line(
+                                &mut canvas,
+                                b, e,
+                                color,
+                                width,
+                            );
                         }
-                        Self::draw_diag_line(
-                            &mut canvas,
-                            b, e,
-                            color,
-                            width,
-                        );
                     }
                 }
 
@@ -1117,7 +1128,9 @@ mod visualizer {
 
             // Draw DT states
             self.draw_dt(cigar);
-            self.draw_f(cigar, h);
+            if self.config.style.draw_f {
+                self.draw_f(cigar, h);
+            }
 
             let Some(canvas) = &self.canvas else {return;};
             let mut canvas = canvas.borrow_mut();
