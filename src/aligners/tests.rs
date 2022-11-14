@@ -131,7 +131,7 @@ mod astar {
         heuristic::{Heuristic, NoCost, Pruning, CSH, SH},
         matches::MatchConfig,
         prelude::{BruteForceContour, HintContours, Seq},
-        visualizer::{Config, Visualizer, VisualizerStyle, When},
+        visualizer::{Config, Visualizer, VisualizerStyle},
     };
 
     use super::*;
@@ -145,15 +145,11 @@ mod astar {
                 v: NoVisualizer,
             };
             let mut viz_astar = |a: Seq, b: Seq| -> AStar<Visualizer, H> {
-                let mut config = Config::new(VisualizerStyle::Default);
-                config.draw = When::All;
-                config.paused = true;
-                config.cell_size = 0;
                 AStar {
                     greedy_edge_matching,
                     diagonal_transition: dt,
                     h,
-                    v: Visualizer::new(config, a, b),
+                    v: Visualizer::new(Config::new(VisualizerStyle::Test), a, b),
                 }
             };
             test_aligner_on_cost_model_with_viz(

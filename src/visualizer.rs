@@ -21,6 +21,7 @@ pub enum VisualizerStyle {
     Default,
     Large,
     Detailed,
+    Test,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, ValueEnum, Serialize, Deserialize)]
@@ -392,35 +393,42 @@ mod visualizer {
                 show_fronts: true,
             };
 
-            if style == VisualizerStyle::Large {
-                config.transparent_bmp = false;
-                config.downscaler = 100;
-                config.cell_size = 1;
-                config.style.path = None;
-                config.style.draw_matches = true;
-                config.style.match_width = 1;
-                config.style.match_shrink = 0;
-                config.style.expanded = Gradient::TurboGradient(0.25..0.90)
-            }
-
-            if style == VisualizerStyle::Detailed {
-                config.paused = false;
-                config.delay = Duration::from_secs_f32(0.2);
-                config.cell_size = 6;
-                config.style.bg_color = WHITE;
-                config.style.tree = Some(GRAY);
-                config.style.expanded = Gradient::Fixed((130, 179, 102, 0));
-                config.style.explored = Some((0, 102, 204, 0));
-                config.style.max_heuristic = Some(10);
-                config.style.pruned_match = RED;
-                config.style.path = None;
-                config.style.match_width = 3;
-                config.style.draw_heuristic = true;
-                config.style.draw_contours = true;
-                config.style.draw_matches = true;
-                config.style.contour = BLACK;
-                config.draw_old_on_top = true;
-                config.layer_drawing = false;
+            match style {
+                VisualizerStyle::Default => {}
+                VisualizerStyle::Large => {
+                    config.transparent_bmp = false;
+                    config.downscaler = 100;
+                    config.cell_size = 1;
+                    config.style.path = None;
+                    config.style.draw_matches = true;
+                    config.style.match_width = 1;
+                    config.style.match_shrink = 0;
+                    config.style.expanded = Gradient::TurboGradient(0.25..0.90)
+                }
+                VisualizerStyle::Detailed => {
+                    config.paused = false;
+                    config.delay = Duration::from_secs_f32(0.2);
+                    config.cell_size = 6;
+                    config.style.bg_color = WHITE;
+                    config.style.tree = Some(GRAY);
+                    config.style.expanded = Gradient::Fixed((130, 179, 102, 0));
+                    config.style.explored = Some((0, 102, 204, 0));
+                    config.style.max_heuristic = Some(10);
+                    config.style.pruned_match = RED;
+                    config.style.path = None;
+                    config.style.match_width = 3;
+                    config.style.draw_heuristic = true;
+                    config.style.draw_contours = true;
+                    config.style.draw_matches = true;
+                    config.style.contour = BLACK;
+                    config.draw_old_on_top = true;
+                    config.layer_drawing = false;
+                }
+                VisualizerStyle::Test => {
+                    config.draw = When::All;
+                    config.paused = true;
+                    config.cell_size = 0;
+                }
             }
 
             config
