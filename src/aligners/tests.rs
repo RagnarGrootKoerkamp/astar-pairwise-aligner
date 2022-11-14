@@ -147,32 +147,37 @@ mod astar {
         cost_model::LinearCost,
         heuristic::{Heuristic, NoCost, Pruning, CSH, SH},
         matches::MatchConfig,
-        prelude::{BruteForceContour, HintContours, Seq},
-        visualizer::{Config, Visualizer, VisualizerStyle},
+        prelude::{BruteForceContour, HintContours},
     };
 
     use super::*;
 
     fn test_heuristic<H: Heuristic>(h: H, dt: bool) {
         for greedy_edge_matching in [false, true] {
-            let astar = AStar {
-                greedy_edge_matching,
-                diagonal_transition: dt,
-                h,
-                v: NoVisualizer,
-            };
-            let mut viz_astar = |a: Seq, b: Seq| -> AStar<Visualizer, H> {
+            test_aligner_on_cost_model_with_viz(
+                LinearCost::new_unit(),
                 AStar {
                     greedy_edge_matching,
                     diagonal_transition: dt,
                     h,
-                    v: Visualizer::new(Config::new(VisualizerStyle::Test), a, b),
-                }
-            };
-            test_aligner_on_cost_model_with_viz(
-                LinearCost::new_unit(),
-                astar,
-                Some(&mut viz_astar),
+                    v: NoVisualizer,
+                },
+                Some(&mut |a, b| AStar {
+                    greedy_edge_matching,
+                    diagonal_transition: dt,
+                    h,
+                    v: {
+                        #[cfg(feature = "sdl2")]
+                        {
+                            use crate::visualizer::{Config, Visualizer, VisualizerStyle};
+                            Visualizer::new(Config::new(VisualizerStyle::Test), a, b)
+                        }
+                        #[cfg(not(feature = "sdl2"))]
+                        {
+                            NoVisualizer
+                        }
+                    },
+                }),
                 true,
             );
         }
