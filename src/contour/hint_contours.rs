@@ -4,6 +4,8 @@ use itertools::Itertools;
 
 use crate::prelude::*;
 
+const D: bool = false;
+
 /// A Contours implementation based on Contour layers with queries in O(log(r)^2).
 #[derive(Default, Debug)]
 pub struct HintContours<C: Contour> {
@@ -126,6 +128,77 @@ impl<C: Contour> HintContours<C> {
         }
         None
     }
+
+    /// Check that each arrow is in the correct layer.
+    fn check_consistency(&mut self, arrows: &HashMap<Pos, Vec<Arrow>>) {
+        if !D {
+            return;
+        }
+        for layer in 1..self.contours.len() as u32 {
+            self.contours[layer].iterate_points(|p: Pos| {
+                let max_len = arrows.get(&p).map_or(0, |arrows| {
+                    arrows.iter().map(|a| a.score).max().expect("Empty arrows")
+                });
+                assert!(max_len > 0);
+                let target_layer = chain_score(arrows, p, layer, &self.contours);
+                assert!(
+                    target_layer == layer,
+                    "BAD CONSISTENCY: {p} in layer {layer} should be in layer {target_layer}"
+                );
+            })
+        }
+    }
+}
+
+fn chain_score<C: Contour>(
+    arrows: &std::collections::HashMap<
+        Pos,
+        Vec<Arrow>,
+        std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
+    >,
+    pos: Pos,
+    v: u32,
+    contours: &SplitVec<C>,
+) -> u32 {
+    let Some(pos_arrows) = arrows.get(&pos) else {
+            panic!("No arrows found for position {pos} around layer {v}.");
+        };
+    assert!(!pos_arrows.is_empty());
+    let mut max_score = 0;
+    'fr: for arrow in pos_arrows {
+        // Find the value at end_val via a linear search.
+        let mut end_layer = v as Cost - 1;
+        // Commented out because `contains` is not free.
+        // FIXME: comment this again
+        // assert!(
+        //     !contours[v].contains(arrow.end),
+        //     "Hint of {v} is no good! Contains {} for arrow {arrow}",
+        //     arrow.end
+        // );
+        while !contours[end_layer].contains(arrow.end) {
+            end_layer -= 1;
+
+            // No need to continue when this value isn't going to be optimal anyway.
+            if (end_layer + arrow.score as Cost) <= max_score {
+                continue 'fr;
+            }
+        }
+
+        let start_layer = end_layer + arrow.score as Cost;
+        if D {
+            let mut witness = None;
+            assert!(contours[end_layer].contains(arrow.end));
+            contours[end_layer].iterate_points(|p| {
+                if arrow.end <= p {
+                    witness = Some(p)
+                }
+            });
+            let witness = witness.unwrap();
+            println!("Arrow {arrow}: {end_layer}=>{start_layer} by {witness:?}");
+        }
+        max_score = max(max_score, start_layer);
+    }
+    max_score
 }
 
 impl<C: Contour> Contours for HintContours<C> {
@@ -269,7 +342,6 @@ impl<C: Contour> Contours for HintContours<C> {
         hint: Hint,
         arrows: &HashMap<Pos, Vec<Arrow>>,
     ) -> (bool, Cost) {
-        const D: bool = false;
         // Work contour by contour.
         let v = self.score_with_hint(p, hint).0;
         // NOTE: The chain score of the point can actually be anywhere in v-max_len+1..=v.
@@ -295,33 +367,7 @@ impl<C: Contour> Contours for HintContours<C> {
         // Returns the max score of any arrow starting in the giving
         // position, and the maximum length of these arrows.
         let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Cost| -> Cost {
-            let Some(pos_arrows) = arrows.get(&pos) else {
-                panic!("No arrows found for position {pos} around layer {v}.");
-            };
-            assert!(!pos_arrows.is_empty());
-            let mut max_score = 0;
-            for arrow in pos_arrows {
-                // Find the value at end_val via a linear search.
-                let mut end_layer = v as Cost - 1;
-                // Commented out because `contains` is not free.
-                // assert!(
-                //     !contours[v].contains(arrow.end),
-                //     "Hint of {v} is no good! Contains {} for arrow {arrow}",
-                //     arrow.end
-                // );
-                while !contours[end_layer].contains(arrow.end) {
-                    end_layer -= 1;
-
-                    // No need to continue when this value isn't going to be optimal anyway.
-                    if (end_layer + arrow.score as Cost) <= max_score {
-                        break;
-                    }
-                }
-
-                let start_layer = end_layer + arrow.score as Cost;
-                max_score = max(max_score, start_layer);
-            }
-            max_score
+            chain_score(arrows, pos, v, contours)
         };
 
         let (new_p_score, mut first_to_check) = if arrows.contains_key(&p) {
@@ -505,6 +551,7 @@ impl<C: Contour> Contours for HintContours<C> {
             }
         }
         (true, shift)
+        self.check_consistency(arrows);
     }
 
     #[allow(unreachable_code)]
