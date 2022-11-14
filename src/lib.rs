@@ -9,7 +9,6 @@
     let_else,
     let_chains,
     label_break_value,
-    min_specialization,
     is_sorted,
     exclusive_range_pattern,
     associated_type_defaults,

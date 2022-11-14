@@ -69,7 +69,7 @@ impl<'a, DH: Distance> DistanceInstance<'a> for BruteForceCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
-    default fn distance(&self, from: Pos, to: Pos) -> Cost {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.distance_function.distance(from, to),
             self.seeds.potential_distance(from, to),
