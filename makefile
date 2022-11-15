@@ -3,16 +3,16 @@ all:
 # ========== SHORTHANDS ==========
 
 # Generate figures 1 and 3.
-figures: fig1 fig3 fig8 results
+figures: fig1 fig_layers fig8 results
 
 # Shorthands below are mostly for private use.
 
 # Copy generated images and results to the paper.
-export: fig1-export fig3-export results-export
+export: fig1-export fig_layers-export results-export
 # Generate videos for the figures above, for the readme.
-videos: fig1-video fig3-video fig-readme-video
+videos: fig1-video fig_layers-video fig-readme-video
 # Remove generated images for videos
-videos-clean: fig1-video-clean fig3-video-clean fig-readme-video-clean
+videos-clean: fig1-video-clean fig_layers-video-clean fig-readme-video-clean
 
 # ========== WASM =========
 wasm:
@@ -126,15 +126,15 @@ fig1-export: fig1
 	cp imgs/fig1/*.png \
       ../pairwise-aligner-paper/imgs/fig1/
 
-fig3:
-	cargo run --features sdl2_ttf --release --example fig3
-	mogrify -format png imgs/fig3/*bmp
+fig_layers:
+	cargo run --features example --release --example fig_layers
+	mogrify -format png imgs/fig_layers/*/*bmp
 
-fig3-export: fig3
-	rm -rf ../pairwise-aligner-paper/imgs/fig3/*
-	mkdir -p ../pairwise-aligner-paper/imgs/fig3/
-	cp imgs/fig3/0.png ../pairwise-aligner-paper/imgs/fig3/start.png
-	cp imgs/fig3/1.png ../pairwise-aligner-paper/imgs/fig3/end.png
+fig_layers-export: fig_layers
+	rm -rf ../pairwise-aligner-paper/imgs/fig_layers/*
+	mkdir -p ../pairwise-aligner-paper/imgs/fig_layers/
+	cp imgs/fig_layers/0.png ../pairwise-aligner-paper/imgs/fig_layers/start.png
+	cp imgs/fig_layers/1.png ../pairwise-aligner-paper/imgs/fig_layers/end.png
 
 fig8:
 	cargo run --features sdl2 --release --example fig8
@@ -172,15 +172,15 @@ fig1-video:
 fig1-video-clean:
 	rm -rf imgs/fig1/*/
 
-fig3-video:
-	ffmpeg -y -framerate 20 -i imgs/fig3-video/%d.bmp imgs/fig3.mp4
-	ffmpeg -y -framerate 20 -i imgs/fig3-video/%d.bmp $(FILTER) imgs/fig3.gif
+fig_layers-video:
+	ffmpeg -y -framerate 20 -i imgs/fig_layers-video/%d.bmp imgs/fig_layers.mp4
+	ffmpeg -y -framerate 20 -i imgs/fig_layers-video/%d.bmp $(FILTER) imgs/fig_layers.gif
 
-fig3-video-clean:
-	rm -rf imgs/fig3-video
+fig_layers-video-clean:
+	rm -rf imgs/fig_layers-video
 
 fig-readme-video:
-	cargo run --features sdl2_ttf --release --example fig-readme
+	cargo run --features sdl2 --release --example fig-readme
 	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp -vf fps=50 imgs/fig-readme.mp4
 	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp $(FILTER),fps=50 imgs/fig-readme.gif
 
