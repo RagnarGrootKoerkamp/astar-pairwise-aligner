@@ -52,3 +52,7 @@ pub const SKIP_INEXACT_INSERT_START_END: bool = false;
 /// separately for shifting purposes.
 /// This seems helpful for CSH with high error rate, but causes significant slowdown for SH.
 pub const USE_TIP_BUFFER: bool = false;
+
+/// Explicitly mark matches as pruned in SH.
+/// Used for fig3 viz.
+pub const SH_MARK_MATCH_AS_PRUNED: bool = true;

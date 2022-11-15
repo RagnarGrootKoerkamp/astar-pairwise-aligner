@@ -79,14 +79,6 @@ impl SHI {
             }
         }
 
-        // Transform to Arrows.
-        // For arrows with length > 1, also make arrows for length down to 1.
-        let match_to_arrow = |m: &Match| Arrow {
-            start: m.start,
-            end: m.end,
-            score: m.seed_potential - m.match_cost,
-        };
-
         let arrows: HashMap<Pos, Vec<Arrow>> = matches
             .matches
             .iter()
@@ -192,6 +184,13 @@ impl SHI {
     /// Returns the number of layers removed.
     fn update_layers_on_pruning_arrow(&mut self, a: Arrow, hint: Hint) -> Cost {
         let seed_idx = self.matches.seed_at[a.start.0 as usize].unwrap() as usize;
+        if SH_MARK_MATCH_AS_PRUNED {
+            for m in &mut self.matches.matches {
+                if match_to_arrow(m) == a {
+                    m.pruned = MatchStatus::Pruned;
+                }
+            }
+        }
         self.num_arrows_per_length[a.score as usize][seed_idx] -= 1;
         if self.num_arrows_per_length[a.score as usize][seed_idx] != 0 {
             // Remaining matches; nothing to prune.
@@ -218,6 +217,14 @@ impl SHI {
         }
 
         removed
+    }
+}
+
+fn match_to_arrow(m: &Match) -> Arrow {
+    Arrow {
+        start: m.start,
+        end: m.end,
+        score: m.seed_potential - m.match_cost,
     }
 }
 
