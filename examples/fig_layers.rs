@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 fn main() {
     use std::time::Duration;
 
@@ -13,7 +15,8 @@ fn main() {
 
     let mut config = visualizer::Config::default();
     config.draw = When::None;
-    config.save = When::Frames(vec![1, usize::MAX]);
+    config.save = When::None;
+    config.save_last = true;
     config.paused = false;
     config.delay = Duration::from_secs_f32(0.0001);
     config.cell_size = 12;
@@ -37,67 +40,68 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
 
-    let dir = "imgs/fig_layers/";
+    let dir = PathBuf::from("imgs/layers/");
 
     let k = 3;
-    // SH
-    {
-        config.filepath = "imgs/fig3/sh/".to_string();
-        let h = SH {
-            match_config: MatchConfig::exact(k),
-            pruning: Pruning::enabled(),
-        };
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: Visualizer::new(config.clone(), a, b),
-        };
-        let cost = a_star.align(a, b).0;
-        println!("Distance: {cost}");
-    }
+    for pruning in [false, true] {
+        let suf = if pruning { "-pruning" } else { "" };
+        // SH
+        {
+            config.filepath = dir.join("sh".to_string() + suf);
+            let h = SH {
+                match_config: MatchConfig::exact(k),
+                pruning: Pruning::new(pruning),
+            };
+            let mut a_star = AStar {
+                diagonal_transition: false,
+                greedy_edge_matching: true,
+                h,
+                v: Visualizer::new(config.clone(), a, b),
+            };
+            let cost = a_star.align(a, b).0;
+            println!("Distance: {cost}");
+        }
 
-    // CSH
-    {
-        config.filepath = "imgs/fig3/csh/".to_string();
-        let h = CSH {
-            match_config: MatchConfig::exact(k),
-            pruning: Pruning::enabled(),
-            use_gap_cost: false,
-            c: PhantomData::<BruteForceContours>::default(),
-        };
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: Visualizer::new(config.clone(), a, b),
-        };
-        let cost = a_star.align(a, b).0;
-        println!("Distance: {cost}");
-    }
+        // CSH
+        {
+            config.filepath = dir.join("csh".to_string() + suf);
+            let h = CSH {
+                match_config: MatchConfig::exact(k),
+                pruning: Pruning::new(pruning),
+                use_gap_cost: false,
+                c: PhantomData::<BruteForceContours>::default(),
+            };
+            let mut a_star = AStar {
+                diagonal_transition: false,
+                greedy_edge_matching: true,
+                h,
+                v: Visualizer::new(config.clone(), a, b),
+            };
+            let cost = a_star.align(a, b).0;
+        }
 
-    // GCH
-    {
-        config.filepath = "imgs/fig3/gch/".to_string();
-        let h = CSH {
-            match_config: MatchConfig::exact(k),
-            pruning: Pruning::enabled(),
-            use_gap_cost: true,
-            c: PhantomData::<BruteForceContours>::default(),
-        };
-        let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
-            h,
-            v: Visualizer::new(config.clone(), a, b),
-        };
-        let cost = a_star.align(a, b).0;
-        println!("Distance: {cost}");
+        // GCH
+        {
+            config.filepath = dir.join("gch".to_string() + suf);
+            let h = CSH {
+                match_config: MatchConfig::exact(k),
+                pruning: Pruning::new(pruning),
+                use_gap_cost: true,
+                c: PhantomData::<BruteForceContours>::default(),
+            };
+            let mut a_star = AStar {
+                diagonal_transition: false,
+                greedy_edge_matching: true,
+                h,
+                v: Visualizer::new(config.clone(), a, b),
+            };
+            let cost = a_star.align(a, b).0;
+        }
     }
 
     // // All frames, for video
     // config.save = When::All;
-    // config.filepath = "imgs/fig3-video/".to_string();
+    // config.filepath = "imgs/layers-video/".to_string();
     // {
     //     let k = 3;
     //     let h = CSH {
