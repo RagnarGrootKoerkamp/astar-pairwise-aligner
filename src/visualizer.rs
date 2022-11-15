@@ -299,16 +299,20 @@ mod visualizer {
         // Options to draw heuristics
         pub draw_heuristic: bool,
         pub draw_contours: bool,
+        pub draw_layers: bool,
         pub draw_matches: bool,
+        pub draw_dt: bool,
+        pub draw_f: bool,
+        pub draw_labels: bool,
         pub heuristic: Gradient,
+        pub layer: Gradient,
         pub max_heuristic: Option<u32>,
+        pub max_layer: Option<u32>,
         pub active_match: Color,
         pub pruned_match: Color,
         pub match_shrink: usize,
         pub match_width: usize,
         pub contour: Color,
-
-        pub draw_f: bool,
     }
 
     impl When {
@@ -334,7 +338,7 @@ mod visualizer {
         /// Divide all input coordinates by this for large inputs.
         /// 0 to infer automatically.
         pub downscaler: u32,
-        pub filepath: String,
+        pub filepath: PathBuf,
         pub draw: When,
         /// Used in wasm rendering: the entire alignment is run and only this
         /// single frame is drawn.
@@ -348,8 +352,6 @@ mod visualizer {
         pub draw_old_on_top: bool,
         pub layer_drawing: bool,
         pub num_layers: Option<usize>,
-        pub show_dt: bool,
-        pub show_fronts: bool,
     }
 
     impl Config {
@@ -380,22 +382,25 @@ mod visualizer {
                     tree_affine_open: None,
                     draw_heuristic: false,
                     draw_contours: false,
+                    draw_layers: false,
                     draw_matches: false,
+                    draw_dt: true,
+                    draw_f: true,
+                    draw_labels: true,
                     heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
+                    layer: Gradient::Gradient((250, 250, 250, 0)..(100, 100, 100, 0)),
                     max_heuristic: None,
+                    max_layer: None,
                     active_match: BLACK,
                     pruned_match: RED,
                     match_shrink: 2,
                     match_width: 2,
                     contour: GREEN,
-                    draw_f: false,
                 },
                 draw_old_on_top: true,
                 layer_drawing: false,
                 num_layers: None,
                 transparent_bmp: true,
-                show_dt: true,
-                show_fronts: true,
             };
 
             match style {
@@ -442,6 +447,7 @@ mod visualizer {
                     config.style.draw_contours = true;
                     config.style.draw_matches = true;
                     config.style.draw_f = true;
+                    config.style.draw_dt = true;
                     config.style.contour = BLACK;
                 }
             }
@@ -529,7 +535,10 @@ mod visualizer {
                 cs: 0,
                 ds: 0,
             };
-            let canvas_size = (nw.size.0 + dt.size.0, nw.size.1);
+            let canvas_size = (
+                nw.size.0 + if config.style.draw_dt { dt.size.0 } else { 0 },
+                nw.size.1,
+            );
 
             let (params, comment) = if let (Some(alg), Some(h)) = (alg, heuristic) && alg.algorithm.internal(){
                         (Some(h.to_string()), comment(alg, h))
@@ -862,12 +871,12 @@ mod visualizer {
 
                     // Draw numbers at the top and left.
                     for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
-                        if right < 10 { continue; }
+                        if right < 3 { continue; }
                         let x = (right * self.config.cell_size -1 ).saturating_sub(1);
                         canvas.write_text(CPos(x as i32, -6), HAlign::Right, VAlign::Top, &layer.to_string(), BLACK);
                     }
                     for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
-                        if bottom < 10 { continue; }
+                        if bottom < 3 || bottom == self.target.1 { continue; }
                         let y = bottom * self.config.cell_size +5;
                         canvas.write_text(CPos(3, y as i32), HAlign::Left, VAlign::Bottom, &layer.to_string(), BLACK);
                     }
@@ -1086,18 +1095,19 @@ mod visualizer {
                 } // draw tree
 
                 // Draw labels
-                let mut row = 0;
-                if let Some(title) = &self.title {
-                    canvas.write_text(
-                        self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
-                        HAlign::Center,
-                        VAlign::Top,
-                        title,
-                        BLACK,
-                    );
-                    row += 1;
-                }
-                if let Some(params) = &self.params && !params.is_empty(){
+                if self.config.style.draw_labels {
+                    let mut row = 0;
+                    if let Some(title) = &self.title {
+                        canvas.write_text(
+                            self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
+                            HAlign::Center,
+                            VAlign::Top,
+                            title,
+                            BLACK,
+                        );
+                        row += 1;
+                    }
+                    if let Some(params) = &self.params && !params.is_empty(){
                     canvas.write_text(
                         self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
@@ -1106,7 +1116,7 @@ mod visualizer {
                     );
                     row += 1;
                 }
-                if let Some(comment) = &self.comment && !comment.is_empty(){
+                    if let Some(comment) = &self.comment && !comment.is_empty(){
                     canvas.write_text(
                         self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
@@ -1115,48 +1125,46 @@ mod visualizer {
                     );
                     row += 1;
                 }
-                canvas.write_text(
-                    self.nw.start.right(self.nw.size.0),
-                    HAlign::Right,
-                    VAlign::Top,
-                    &make_label("i = ", self.target.0),
-                    GRAY,
-                );
-                canvas.write_text(
-                    self.nw.start.down(self.nw.size.1),
-                    HAlign::Left,
-                    VAlign::Bottom,
-                    &make_label("j = ", self.target.1),
-                    GRAY,
-                );
+                    canvas.write_text(
+                        self.nw.start.right(self.nw.size.0),
+                        HAlign::Right,
+                        VAlign::Top,
+                        &make_label("i = ", self.target.0),
+                        GRAY,
+                    );
+                    canvas.write_text(
+                        self.nw.start.down(self.nw.size.1),
+                        HAlign::Left,
+                        VAlign::Bottom,
+                        &make_label("j = ", self.target.1),
+                        GRAY,
+                    );
 
-                canvas.write_text(
-                    self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
-                    HAlign::Center,
-                    VAlign::Top,
-                    "DP states (i,j)",
-                    GRAY,
-                );
-                canvas.write_text(
-                    self.nw.start.right(self.nw.size.0 / 2).down(30 * (row + 1)),
-                    HAlign::Center,
-                    VAlign::Top,
-                    &make_label(
-                        "expanded: ",
-                        self.expanded
-                            .iter()
-                            .filter(|&(t, ..)| *t == Expanded)
-                            .count(),
-                    ),
-                    GRAY,
-                );
+                    canvas.write_text(
+                        self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
+                        HAlign::Center,
+                        VAlign::Top,
+                        "DP states (i,j)",
+                        GRAY,
+                    );
+                    canvas.write_text(
+                        self.nw.start.right(self.nw.size.0 / 2).down(30 * (row + 1)),
+                        HAlign::Center,
+                        VAlign::Top,
+                        &make_label(
+                            "expanded: ",
+                            self.expanded
+                                .iter()
+                                .filter(|&(t, ..)| *t == Expanded)
+                                .count(),
+                        ),
+                        GRAY,
+                    );
+                }
             }
 
-            // Draw DT states
             self.draw_dt(cigar);
-            if self.config.style.draw_f {
-                self.draw_f(cigar, h);
-            }
+            self.draw_f(cigar, h);
 
             let Some(canvas) = &self.canvas else {return;};
             let mut canvas = canvas.borrow_mut();
@@ -1222,7 +1230,7 @@ mod visualizer {
 
         // Draw DT states to the top-right 1/3rd of the canvas.
         fn draw_dt(&mut self, cigar: Option<&Cigar>) {
-            if !self.config.show_dt || self.expanded.is_empty() {
+            if !self.config.style.draw_dt || self.expanded.is_empty() {
                 return;
             }
             let Some(canvas) = &self.canvas else {return;};
@@ -1397,7 +1405,7 @@ mod visualizer {
         }
 
         fn draw_f<'a, H: HeuristicInstance<'a>>(&mut self, cigar: Option<&Cigar>, h: Option<&H>) {
-            if !self.config.show_fronts || self.expanded.is_empty() {
+            if !self.config.style.draw_f || self.expanded.is_empty() {
                 return;
             }
             let Some(canvas) = &self.canvas else {return;};
@@ -1485,12 +1493,14 @@ mod visualizer {
                     2,
                     color,
                 );
-                canvas.fill_rect(
-                    CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, f_y(f)),
-                    dt_cell_size,
-                    2,
-                    color,
-                );
+                if self.config.style.draw_dt {
+                    canvas.fill_rect(
+                        CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, f_y(f)),
+                        dt_cell_size,
+                        2,
+                        color,
+                    );
+                }
             }
 
             // Horizontal line at final cost when path is given.
