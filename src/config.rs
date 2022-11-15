@@ -55,4 +55,4 @@ pub const USE_TIP_BUFFER: bool = false;
 
 /// Explicitly mark matches as pruned in SH.
 /// Used for fig3 viz.
-pub const SH_MARK_MATCH_AS_PRUNED: bool = true;
+pub const SH_MARK_MATCH_AS_PRUNED: bool = cfg!(feature = "example");

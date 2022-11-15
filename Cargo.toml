@@ -60,6 +60,11 @@ web-sys = { version = "*", optional=true, features = [
 ]}
 
 
+[[example]]
+name = "fig_layers"
+required-features = ["example"]
+
+
 [dev-dependencies]
 # For benchmarking only.
 aho-corasick = "*"
@@ -68,10 +73,16 @@ suffix = "*"
 [features]
 default = ["bin"]
 
-wfa = []
-edlib = []
+# Make some changes for example visualizations.
+example = ["dep:sdl2", "sdl2"]
+
+# Enable the visualizer using sdl2.
 # TODO: Remove this and use dep:sdl2 instead
 sdl2 = []
+
+# Link third party libraries
+wfa = []
+edlib = []
 
 bin = ["clap/wrap_help", "dep:sdl2", "sdl2"]
 wasm = ["dep:wasm-bindgen", "dep:web-sys", "getrandom/js", "instant/wasm-bindgen", "dep:console_error_panic_hook"]
