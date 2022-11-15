@@ -101,22 +101,6 @@ def plot_scaling(
     groups = df.groupby(split)
 
     # PLOT DATA
-    alg_order = [
-        "edlib",
-        "biwfa",
-        "biwfa-affine",
-        "dijkstra",
-        "csh-noprune",
-        "sh-noprune",
-        "csh",
-        "sh",
-        "csh-dt",
-        "sh-dt",
-        "csh-gap-cost",
-        "gcsh",
-        "csh-gap-cost-dt",
-        "gcsh-dt",
-    ]
 
     def key_order(key):
         if isinstance(key, tuple):
@@ -384,7 +368,36 @@ def plot_scaling(
 # mono orange: #FFC545, FF913D, FF6047
 # mono red: E8841A, FF6D29, EB2D12
 
+alg_order = [
+    "edlib",
+    "biwfa",
+    "biwfa-affine",
+    "dijkstra",
+    "csh-noprune",
+    "sh-noprune",
+    "csh",
+    "sh",
+    "csh-dt",
+    "sh-dt",
+    "csh-gap-cost",
+    "gcsh",
+    "csh-gap-cost-dt",
+    "gcsh-dt",
+]
 
+color_dict = {
+        "dijkstra": "#5F2001",
+        "sh": "#E8480C",
+        "csh": "#317D32",
+        "edlib": "#DE4AFF",
+        "wfa": "#625AFF",
+        "biwfa": "#625AFF",
+        "sh-dt": "lime",
+        "csh-dt": "blue",
+        "gcsh": "pink",
+        "gcsh-dt": "red",
+        "biwfa-affine": "black",
+    }
 def algo2color(algo):
     if isinstance(algo, tuple):
         if len(algo) == 2:
@@ -400,32 +413,12 @@ def algo2color(algo):
             if k == 20 and algo == "csh":
                 return "#193D1A"
     palette = sns.color_palette("tab10", 10)
-    d = {
-        # mono red: , , EB2D12
-        "dijkstra": "#5F2001",
-        #'sh-noprune': '#E27121',
-        #'csh-noprune': '#FF6D29',
-        "sh": "#E8480C",
-        "csh": "#317D32",  #'#0D7E4A',
-        "edlib": "#DE4AFF",
-        "wfa": "#625AFF",
-        "biwfa": "#625AFF",
-        "sh-dt": "lime",
-        "csh-dt": "blue",
-        "gcsh": "pink",
-        "gcsh-dt": "red",
-        "biwfa-affine": "black",
-        # 'astar-seeds': '#EB2D12',
-        #'astarix-seeds-illumina': '#EB2D12',
-        #'graphaligner': '#8C8CFF',
-        #'pasgal': '#AC68FF',
-        #'vargas': '#F387FF',
-    }
+ 
     algo = algo.removesuffix("-noprune")
     algo = algo.removesuffix("-s_per_pair")
     algo = algo.removesuffix("-s_per_pair_no_retry")
-    if algo in d:
-        return d[algo]
+    if algo in color_dict:
+        return color_dict[algo]
     return np.random.rand(3)
     return "black"
 
@@ -448,7 +441,19 @@ def algo2beautiful(algo):
         return d[algo]
     return algo
 
-
+marker_dict = {
+        "dijkstra": "o",
+        "sh": "v",
+        "csh": "v",
+        "edlib": "o",
+        "wfa": "o",
+        "biwfa": "o",
+        "sh-dt": "v",
+        "csh-dt": "v",
+        "gcsh": "v",
+        "gcsh-dt": "v",
+        "biwfa-affine": "o",
+    }
 def r2marker(algo, r):
     if algo == "dijkstra":
         return "o"
