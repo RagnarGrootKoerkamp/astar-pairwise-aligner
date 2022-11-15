@@ -1,12 +1,11 @@
-use clap::{ArgMatches, Parser};
-use serde::{Deserialize, Serialize};
-
+use super::heuristic_params::{AlgorithmArgs, HeuristicArgs};
 use crate::{
     prelude::Seq,
     visualizer::{NoVisualizer, VisualizerStyle, VisualizerT, When},
 };
-
-use super::heuristic_params::{AlgorithmArgs, HeuristicArgs};
+use clap::{ArgMatches, Parser};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Parser, Serialize, Deserialize)]
 #[clap(help_heading = "VISUALIZER")]
@@ -52,8 +51,8 @@ pub struct VisualizerArgs {
     pub each: Option<usize>,
 
     /// Where to save. Implies --save [last].
-    #[clap(long, display_order = 4, value_name = "PATH")]
-    pub save_path: Option<String>,
+    #[clap(long, display_order = 4, value_name = "PATH", parse(from_os_str))]
+    pub save_path: Option<PathBuf>,
 
     /// The size in pixels of each cell.
     /// By default, chosen to give a canvas of height 500.

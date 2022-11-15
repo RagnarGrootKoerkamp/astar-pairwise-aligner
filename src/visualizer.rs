@@ -121,12 +121,12 @@ mod visualizer {
         prelude::Seq,
     };
     use itertools::Itertools;
+    use std::path::PathBuf;
     use std::{
         cell::{RefCell, RefMut},
         cmp::{max, min},
         collections::HashMap,
         ops::Range,
-        path,
         time::Duration,
     };
 
@@ -359,7 +359,7 @@ mod visualizer {
                 downscaler: 1,
                 save: When::None,
                 save_last: false,
-                filepath: String::from(""),
+                filepath: PathBuf::default(),
                 draw: When::None,
                 draw_single_frame: None,
                 delay: Duration::from_secs_f32(0.1),
@@ -547,7 +547,7 @@ mod visualizer {
                                 new_canvas(
                                     canvas_size.0 as usize,
                                     canvas_size.1 as usize,
-                                    &config.filepath,
+                                    &config.filepath.to_str().unwrap(),
                                 )
                             }) as CanvasBox)
                         })
@@ -687,14 +687,13 @@ mod visualizer {
         fn save_canvas(&self, canvas: &mut CanvasBox, last: bool, suffix: Option<&str>) {
             let extension = suffix.map_or("bmp".to_string(), |s| s.to_string() + ".bmp");
             let path = if last {
-                let file = path::Path::new(&self.config.filepath);
-                if let Some(parent) = file.parent() {
+                if let Some(parent) = self.config.filepath.parent() {
                     std::fs::create_dir_all(parent).unwrap();
                 }
-                file.with_extension(extension).to_owned()
+                self.config.filepath.with_extension(extension).to_owned()
             } else {
                 // Make sure the directory exists.
-                let mut dir = path::PathBuf::from(&self.config.filepath);
+                let mut dir = self.config.filepath.clone();
                 std::fs::create_dir_all(&dir).unwrap();
                 dir.push(self.file_number.to_string());
                 dir.set_extension(extension);
@@ -771,6 +770,33 @@ mod visualizer {
                             poss,
                             self.config.style.heuristic.color(h as f64 / h_max as f64),
                         );
+                    }
+                }
+
+                // Draw layer values.
+                if self.config.style.draw_layers && let Some(h) = h {
+                    if let Some((mut l_max, mut hint)) = h.layer_with_hint(Pos(0,0), Default::default()) {
+                        if let Some(m) = self.config.style.max_layer {
+                            l_max = m;
+                        }
+                        let mut value_pos_map = HashMap::<u32, Vec<Pos>>::default();
+                        for i in 0..=self.target.0 {
+                            hint = h.layer_with_hint(Pos(i,0), hint).unwrap().1;
+                            let mut hint = hint;
+                            for j in 0..=self.target.1 {
+                                let pos = Pos(i, j);
+                                let (l, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                                hint = new_hint;
+                                value_pos_map.entry(l).or_default().push(pos);
+                            }
+                        }
+                        for (l, poss) in value_pos_map {
+                            self.draw_pixels(
+                                &mut canvas,
+                                poss,
+                                self.config.style.layer.color(l as f64 / max(l_max, 1) as f64),
+                            );
+                        }
                     }
                 }
 

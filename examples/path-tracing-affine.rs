@@ -34,7 +34,7 @@ fn main() {
     config.draw_old_on_top = false;
     config.layer_drawing = false;
     let vis = |a, b, mut config: visualizer::Config, name: &str| {
-        config.filepath = "imgs/path-tracing/".to_string() + name;
+        config.filepath = std::path::PathBuf::from("imgs/path-tracing/").join(name);
         Visualizer::new(config, a, b)
     };
 

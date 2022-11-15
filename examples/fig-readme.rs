@@ -42,7 +42,7 @@ fn main() {
     config.style.contour = BLACK;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
-    config.filepath = "imgs/fig-readme".to_string();
+    config.filepath = "imgs/fig-readme".into();
     {
         let k = 5;
         let h = CSH {

@@ -3,7 +3,7 @@ fn main() {}
 
 #[cfg(feature = "sdl2")]
 fn main() {
-    use std::time::Duration;
+    use std::{path::PathBuf, time::Duration};
 
     use astar_pairwise_aligner::{
         aligners::{
@@ -29,7 +29,7 @@ fn main() {
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
     config.draw_old_on_top = true;
     let mut vis = |name: &str| {
-        config.filepath = "imgs/".to_string() + name;
+        config.filepath = PathBuf::from("imgs/").join(name);
         Visualizer::new(config.clone(), a, b)
     };
 

@@ -46,7 +46,7 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8/high-error-rate".to_string();
+        config.filepath = "imgs/fig8/high-error-rate".into();
         let mut a_star = AStar {
             diagonal_transition: false,
             greedy_edge_matching: true,
@@ -73,7 +73,7 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8/deletion".to_string();
+        config.filepath = "imgs/fig8/deletion".into();
         let mut a_star = AStar {
             diagonal_transition: false,
             greedy_edge_matching: true,
@@ -110,7 +110,7 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8/repeats".to_string();
+        config.filepath = "imgs/fig8/repeats".into();
         let mut a_star = AStar {
             diagonal_transition: false,
             greedy_edge_matching: true,

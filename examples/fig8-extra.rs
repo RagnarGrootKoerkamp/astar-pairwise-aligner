@@ -46,7 +46,7 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8-extra/high-error-rate-dt".to_string();
+        config.filepath = std::path::PathBuf::from("imgs/fig8-extra/high-error-rate-dt/");
         let mut a_star = AStar {
             // NOTE: TRUE HERE
             diagonal_transition: true,
@@ -74,7 +74,7 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8-extra/deletion-dt".to_string();
+        config.filepath = "imgs/fig8-extra/deletion-dt".into();
         let mut a_star = AStar {
             // NOTE: TRUE
             diagonal_transition: true,
@@ -102,7 +102,7 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8-extra/deletion-dt-gapcost".to_string();
+        config.filepath = "imgs/fig8-extra/deletion-dt-gapcost".into();
         let mut a_star = AStar {
             // NOTE: TRUE
             diagonal_transition: true,
@@ -141,7 +141,7 @@ fn main() {
         let ref a = a;
         let ref b = b;
 
-        config.filepath = "imgs/fig8-extra/repeats-variable-k".to_string();
+        config.filepath = "imgs/fig8-extra/repeats-variable-k".into();
         let mut a_star = AStar {
             // NOTE: TRUE
             diagonal_transition: true,

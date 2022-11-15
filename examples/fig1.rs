@@ -5,7 +5,7 @@ fn main() {}
 
 #[cfg(feature = "sdl2")]
 fn main() {
-    use std::time::Duration;
+    use std::{path::PathBuf, time::Duration};
 
     use astar_pairwise_aligner::{
         aligners::{
@@ -34,7 +34,7 @@ fn main() {
     config.draw_old_on_top = false;
     config.layer_drawing = false;
     let vis = |mut config: visualizer::Config, name: &str| {
-        config.filepath = "imgs/fig1/".to_string() + name;
+        config.filepath = PathBuf::from("imgs/fig1/").join(name);
         Visualizer::new(config, a, b)
     };
 

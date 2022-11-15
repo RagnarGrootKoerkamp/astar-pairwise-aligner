@@ -1536,7 +1536,7 @@ mod tests {
         config.num_layers = Some(6);
         config.layer_drawing = true;
 
-        config.filepath = "imgs/biwfa_bug_fixed/".to_string();
+        config.filepath = "imgs/biwfa_bug_fixed/".into();
 
         let mut dt = DiagonalTransition::new(
             LinearCost::new_linear(1, 3),
