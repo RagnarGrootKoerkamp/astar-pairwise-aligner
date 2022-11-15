@@ -123,7 +123,7 @@ impl Canvas for SdlCanvas {
         )
         .unwrap();
 
-        std::fs::create_dir_all(&path).unwrap();
+        std::fs::create_dir_all(&path.parent().unwrap()).unwrap();
         surf.save_bmp(path).unwrap();
     }
 
