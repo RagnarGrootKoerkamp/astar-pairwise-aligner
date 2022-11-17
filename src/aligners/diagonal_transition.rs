@@ -237,6 +237,9 @@ fn extend_diagonal(direction: Direction, a: Seq, b: Seq, d: Fr, fr: Fr) -> Fr {
 /// This version compares one usize at a time.
 /// NOTE: `d` and `fr` must be in Forward domain here.
 /// FIXME: This needs sentinels at the starts/ends of the sequences to finish correctly.
+/// FIXME: Dereferencing unaligned pointers is not good. Use this instead:
+/// https://doc.rust-lang.org/std/ptr/fn.read_unaligned.html
+/// Thanks @Daniel Liu!
 #[allow(unused)]
 fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: Fr) -> Fr {
     let i = (fr + d) / 2;
