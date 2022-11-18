@@ -59,7 +59,7 @@ fn edlib() {
     // Edlib depends on c++ libraries.
     println!("cargo:rustc-link-lib=stdc++");
     // Rebuild when the edlib library changes.
-    println!("cargo:rerun-if-changed=../edlib/meson-build/edlib");
+    println!("cargo:rerun-if-changed=../edlib/meson-build/libedlib.a");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
