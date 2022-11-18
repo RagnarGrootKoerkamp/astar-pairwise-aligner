@@ -77,7 +77,7 @@ pub trait Aligner: std::fmt::Debug {
     /// though this may not be the optimal cost.
     ///
     /// When `_f_max` is `None`, there is no upper bound, and this is the same as simply `cost`.
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Option<Cost>) -> Option<Cost> {
+    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Cost) -> Option<Cost> {
         unimplemented!("This aligner does not support aligning with a bounded distance.");
     }
 
@@ -88,12 +88,7 @@ pub trait Aligner: std::fmt::Debug {
     /// though this may not be the optimal cost.
     ///
     /// When `_f_max` is `None`, there is no upper bound, and this is the same as simply `align`.
-    fn align_for_bounded_dist(
-        &mut self,
-        _a: Seq,
-        _b: Seq,
-        _f_max: Option<Cost>,
-    ) -> Option<(Cost, Cigar)> {
+    fn align_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Cost) -> Option<(Cost, Cigar)> {
         unimplemented!("This aligner does not support aligning with a bounded distance.");
     }
 }

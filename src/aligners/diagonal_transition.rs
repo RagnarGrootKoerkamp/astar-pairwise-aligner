@@ -1248,6 +1248,56 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         );
     }
 
+    /// The cost-only version uses linear memory.
+    ///
+    /// In particular, the number of fronts is max(sub, ins, del)+1.
+    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Option<Cost>) -> Option<Cost> {
+        self.v.borrow_mut().expand(Pos(0, 0), 0, f_max.unwrap_or(0));
+        let mut fronts = match self.init_fronts(
+            a,
+            b,
+            f_max.unwrap_or(0),
+            None,
+            Pos(0, 0),
+            None,
+            None,
+            Direction::Forward,
+        ) {
+            Ok(fronts) => fronts,
+            Err(r) => return Some(r.0),
+        };
+
+        let ref mut h = self.h.build(a, b);
+
+        for s in 1.. {
+            if let Some(f_max) = f_max && s > f_max {
+                return None;
+            }
+            let range = self.d_range(a, b, h, s, f_max, &fronts);
+            if range.is_empty() {
+                return None;
+            }
+            fronts.rotate(range);
+            if self.next_front(
+                a,
+                b,
+                s,
+                f_max.unwrap_or(0),
+                None,
+                &mut fronts,
+                Pos(0, 0),
+                None,
+                Direction::Forward,
+            ) {
+                self.v.borrow_mut().last_frame_with_h(None, None, Some(h));
+                return Some(s);
+            }
+            self.v.borrow_mut().new_layer_with_h(Some(h));
+        }
+
+        unreachable!()
+    }
+
     fn parent(
         &self,
         a: Seq,
@@ -1452,76 +1502,27 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
                     self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
                     2.,
                     |s| {
-                        self.align_for_bounded_dist(a, b, Some(s))
+                        self.align_for_bounded_dist_with_h(a, b, Some(s), &self.h.build(a, b))
                             .map(|x @ (c, _)| (c, x))
                     },
                 )
                 .1;
                 //self.v.borrow_mut().last_frame(Some(&cc.1));
             } else {
-                cc = self.align_for_bounded_dist(a, b, None).unwrap();
+                cc = self
+                    .align_for_bounded_dist_with_h(a, b, None, &self.h.build(a, b))
+                    .unwrap();
             };
             cc
         }
     }
 
-    /// The cost-only version uses linear memory.
-    ///
-    /// In particular, the number of fronts is max(sub, ins, del)+1.
-    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Option<Cost>) -> Option<Cost> {
-        self.v.borrow_mut().expand(Pos(0, 0), 0, f_max.unwrap_or(0));
-        let mut fronts = match self.init_fronts(
-            a,
-            b,
-            f_max.unwrap_or(0),
-            None,
-            Pos(0, 0),
-            None,
-            None,
-            Direction::Forward,
-        ) {
-            Ok(fronts) => fronts,
-            Err(r) => return Some(r.0),
-        };
-
-        let ref mut h = self.h.build(a, b);
-
-        for s in 1.. {
-            if let Some(f_max) = f_max && s > f_max {
-                return None;
-            }
-            let range = self.d_range(a, b, h, s, f_max, &fronts);
-            if range.is_empty() {
-                return None;
-            }
-            fronts.rotate(range);
-            if self.next_front(
-                a,
-                b,
-                s,
-                f_max.unwrap_or(0),
-                None,
-                &mut fronts,
-                Pos(0, 0),
-                None,
-                Direction::Forward,
-            ) {
-                self.v.borrow_mut().last_frame_with_h(None, None, Some(h));
-                return Some(s);
-            }
-            self.v.borrow_mut().new_layer_with_h(Some(h));
-        }
-
-        unreachable!()
+    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
+        self.cost_for_bounded_dist(a, b, Some(f_max))
     }
 
-    fn align_for_bounded_dist(
-        &mut self,
-        a: Seq,
-        b: Seq,
-        f_max: Option<Cost>,
-    ) -> Option<(Cost, Cigar)> {
-        self.align_for_bounded_dist_with_h(a, b, f_max, &self.h.build(a, b))
+    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, Cigar)> {
+        self.align_for_bounded_dist_with_h(a, b, Some(f_max), &self.h.build(a, b))
     }
 }
 

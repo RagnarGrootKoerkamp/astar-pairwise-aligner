@@ -454,57 +454,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
         cigar.reverse();
         cigar
     }
-}
-
-fn pad(a: Seq) -> Sequence {
-    chain!(b"^", a).copied().collect()
-}
-
-impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>, V, H> {
-    type CostModel = AffineCost<N>;
-
-    fn cost_model(&self) -> &Self::CostModel {
-        &self.cm
-    }
-
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        let cost = if self.exponential_search {
-            exponential_search(
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                2.,
-                |s| self.cost_for_bounded_dist(a, b, Some(s)).map(|c| (c, c)),
-            )
-            .1
-        } else {
-            assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
-            self.cost_for_bounded_dist(a, b, None).unwrap()
-        };
-        self.v.last_frame(None);
-        cost
-    }
-
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
-        let cc;
-        if self.local_doubling {
-            return self.align_local_band_doubling(a, b);
-        } else if self.exponential_search {
-            cc = exponential_search(
-                // TODO: Take a max with h(0,0) here.
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                2.,
-                |s| {
-                    self.align_for_bounded_dist(a, b, Some(s))
-                        .map(|x @ (c, _)| (c, x))
-                },
-            )
-            .1;
-        } else {
-            assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
-            cc = self.align_for_bounded_dist(a, b, None).unwrap();
-        };
-        self.v.last_frame(Some(&cc.1));
-        cc
-    }
 
     /// Test whether the cost is at most s.
     /// Returns None if cost > s, or the actual cost otherwise.
@@ -616,5 +565,64 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>,
             self.v.new_layer_with_h(Some(h));
         }
         None
+    }
+}
+
+fn pad(a: Seq) -> Sequence {
+    chain!(b"^", a).copied().collect()
+}
+
+impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>, V, H> {
+    type CostModel = AffineCost<N>;
+
+    fn cost_model(&self) -> &Self::CostModel {
+        &self.cm
+    }
+
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+        let cost = if self.exponential_search {
+            exponential_search(
+                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                2.,
+                |s| self.cost_for_bounded_dist(a, b, Some(s)).map(|c| (c, c)),
+            )
+            .1
+        } else {
+            assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
+            self.cost_for_bounded_dist(a, b, None).unwrap()
+        };
+        self.v.last_frame(None);
+        cost
+    }
+
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
+        let cc;
+        if self.local_doubling {
+            return self.align_local_band_doubling(a, b);
+        } else if self.exponential_search {
+            cc = exponential_search(
+                // TODO: Take a max with h(0,0) here.
+                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                2.,
+                |s| {
+                    self.align_for_bounded_dist(a, b, Some(s))
+                        .map(|x @ (c, _)| (c, x))
+                },
+            )
+            .1;
+        } else {
+            assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
+            cc = self.align_for_bounded_dist(a, b, None).unwrap();
+        };
+        self.v.last_frame(Some(&cc.1));
+        cc
+    }
+
+    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
+        self.cost_for_bounded_dist(a, b, Some(f_max))
+    }
+
+    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, Cigar)> {
+        self.align_for_bounded_dist(a, b, Some(f_max))
     }
 }

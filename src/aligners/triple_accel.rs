@@ -50,20 +50,15 @@ impl Aligner for TripleAccel<UnitCost> {
         (cost, Cigar::from_edits(&edits.unwrap()))
     }
 
-    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Option<Cost>) -> Option<Cost> {
-        triple_accel::levenshtein::levenshtein_simd_k(a, b, f_max.unwrap())
+    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
+        triple_accel::levenshtein::levenshtein_simd_k(a, b, f_max)
     }
 
-    fn align_for_bounded_dist(
-        &mut self,
-        a: Seq,
-        b: Seq,
-        f_max: Option<Cost>,
-    ) -> Option<(Cost, Cigar)> {
+    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, Cigar)> {
         triple_accel::levenshtein::levenshtein_simd_k_with_opts(
             a,
             b,
-            f_max.unwrap(),
+            f_max,
             true,
             EditCosts::new(1, 0, 1, None),
         )
