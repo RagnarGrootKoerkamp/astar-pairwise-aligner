@@ -96,7 +96,10 @@ impl Input {
             });
             let ref mut rng = ChaCha8Rng::seed_from_u64(seed);
             let generate_options = GenerateOptions {
-                length: self.generate.length.unwrap(),
+                length: self
+                    .generate
+                    .length
+                    .expect("Input file or length argument must be given."),
                 error_rate: self.generate.error_rate.unwrap(),
                 error_model: self.generate.error_model,
                 pattern_length: self.generate.pattern_length,
