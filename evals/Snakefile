@@ -38,7 +38,7 @@ tool_command = {
     'edlib':         binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
     'biwfa':         binaries["wfa" ]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow -o {input}.score',
     'biwfa-affine':  binaries["wfa" ]    + ' -i {input} -a gap-affine-wfa --affine-penalties 0,1,1,1 --wfa-memory-mode ultralow',
-    'triple-accel':  binaries["pa"]      + ' -i {input} -ss -a triple-accel',
+    'triple-accel':  binaries["pa"]      + ' -i {input} -o {stats_path} -ss -a triple-accel --exp-search',
 }
 
 # Command to generate testcases.
