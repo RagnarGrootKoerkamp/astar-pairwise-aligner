@@ -120,6 +120,20 @@ pub struct AffineCost<const N: usize> {
     _private: (),
 }
 
+#[derive(Debug)]
+pub struct UnitCost;
+
+impl CostModel for UnitCost {
+    fn gap_cost(&self, s: Pos, t: Pos) -> Cost {
+        let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
+        delta.abs() as Cost
+    }
+
+    fn extend_cost(&self, s: Pos, t: Pos) -> Cost {
+        self.gap_cost(s, t)
+    }
+}
+
 /// A linear cost model is simply an affine cost model without any affine layers.
 pub type LinearCost = AffineCost<0>;
 
