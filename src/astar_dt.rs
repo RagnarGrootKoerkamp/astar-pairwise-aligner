@@ -158,6 +158,13 @@ where
             // Explore next
             let next_g = queue_g + edge.cost() as Cost;
             let dt_next = DtPos::from_pos(next, next_g);
+            let next_fr = DtPos::fr(next);
+            let cur_next = DiagonalMapTrait::get_mut(&mut states, dt_next);
+
+            // If there is already a farther reaching state on this diagonal, no need for greedy matching.
+            if cur_next.fr >= next_fr {
+                return;
+            };
 
             // Do greedy matching within the current seed.
             if graph.greedy_matching {
@@ -184,14 +191,8 @@ where
                     next = n;
                 }
             }
-
+            // Update the value after greedy extension.
             let next_fr = DtPos::fr(next);
-            let cur_next = DiagonalMapTrait::get_mut(&mut states, dt_next);
-
-            // If the next state was already visited with smaller g, skip exploring again.
-            if cur_next.fr >= next_fr {
-                return;
-            };
 
             cur_next.fr = next_fr;
 
