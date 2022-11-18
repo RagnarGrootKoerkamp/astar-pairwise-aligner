@@ -1409,30 +1409,40 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
 
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
         if self.dc {
-            return self.align_dc(a, b);
-        }
-        let cc;
-        if self.local_doubling {
-            assert!(
-                !H::IS_DEFAULT,
-                "Local doubling only works with a heuristic."
-            );
-            cc = self.align_local_band_doubling(a, b);
-        } else if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
-            cc = exponential_search(
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                2.,
-                |s| {
-                    self.align_for_bounded_dist(a, b, Some(s))
-                        .map(|x @ (c, _)| (c, x))
-                },
-            )
-            .1;
-            //self.v.borrow_mut().last_frame(Some(&cc.1));
+            // D&C does not work with a heuristic yet, since the target state (where
+            // the fronts meet) is not know.
+            assert!(H::IS_DEFAULT);
+            assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
+            assert!(!self.local_doubling);
+
+            self.v.borrow_mut().expand(Pos(0, 0), 0, 0);
+            let (cost, cigar) = self.path_between_dc(a, b, Pos(0, 0), None, None);
+            self.v.borrow_mut().last_frame(Some(&cigar));
+            (cost, cigar)
         } else {
-            cc = self.align_for_bounded_dist(a, b, None).unwrap();
-        };
-        cc
+            let cc;
+            if self.local_doubling {
+                assert!(
+                    !H::IS_DEFAULT,
+                    "Local doubling only works with a heuristic."
+                );
+                cc = self.align_local_band_doubling(a, b);
+            } else if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
+                cc = exponential_search(
+                    self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                    2.,
+                    |s| {
+                        self.align_for_bounded_dist(a, b, Some(s))
+                            .map(|x @ (c, _)| (c, x))
+                    },
+                )
+                .1;
+                //self.v.borrow_mut().last_frame(Some(&cc.1));
+            } else {
+                cc = self.align_for_bounded_dist(a, b, None).unwrap();
+            };
+            cc
+        }
     }
 
     /// The cost-only version uses linear memory.
@@ -1492,21 +1502,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
         f_max: Option<Cost>,
     ) -> Option<(Cost, Cigar)> {
         self.align_for_bounded_dist_with_h(a, b, f_max, &self.h.build(a, b))
-    }
-
-    /// Finds an alignment in linear memory, by using divide & conquer.
-    /// TODO: Add a bounded distance option here?
-    fn align_dc(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
-        // D&C does not work with a heuristic yet, since the target state (where
-        // the fronts meet) is not know.
-        assert!(H::IS_DEFAULT);
-        assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
-        assert!(!self.local_doubling);
-
-        self.v.borrow_mut().expand(Pos(0, 0), 0, 0);
-        let (cost, cigar) = self.path_between_dc(a, b, Pos(0, 0), None, None);
-        self.v.borrow_mut().last_frame(Some(&cigar));
-        (cost, cigar)
     }
 }
 

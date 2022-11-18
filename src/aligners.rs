@@ -122,11 +122,6 @@ pub trait Aligner: std::fmt::Debug {
     /// Uses the visualizer to record progress.
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar);
 
-    /// Finds an alignment in linear memory, by using divide & conquer.
-    fn align_dc(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
-        unimplemented!();
-    }
-
     /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most `f_max`.
     /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.
     /// The returned cost may be larger than `s` when a path was found, even

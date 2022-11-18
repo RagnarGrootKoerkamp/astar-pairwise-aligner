@@ -30,11 +30,11 @@ impl<H: Heuristic> PathHeuristic<H> {
             LinearCost::new_unit(),
             GapCostHeuristic::Disable,
             NoCost,
-            false,
+            true,
             NoVisualizer,
         );
         let start = instant::Instant::now();
-        let (path_cost, cigar) = aligner.align_dc(a, b);
+        let (path_cost, cigar) = aligner.align(a, b);
         println!("Inner alignment: {}", start.elapsed().as_secs_f32());
         let path = cigar.to_path_with_cost(LinearCost::new_unit());
         assert_eq!(path.last().unwrap().1, path_cost);
