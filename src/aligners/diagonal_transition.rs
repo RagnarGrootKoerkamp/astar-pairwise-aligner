@@ -1247,6 +1247,30 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
             Some(&h),
         );
     }
+
+    fn trace(
+        &self,
+        a: Seq,
+        b: Seq,
+        fronts: &Fronts<N>,
+        from: DtState,
+        mut to: DtState,
+        direction: Direction,
+    ) -> Cigar {
+        let mut cigar = Cigar::default();
+
+        while to != from {
+            let (parent, cigar_ops) = self.parent(a, b, fronts, to, direction).unwrap();
+            to = parent;
+            for op in cigar_ops {
+                if let Some(op) = op {
+                    cigar.push(op);
+                }
+            }
+        }
+        cigar.reverse();
+        cigar
+    }
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner

@@ -73,12 +73,12 @@ impl StateT for () {
 pub trait Aligner: std::fmt::Debug {
     type CostModel: CostModel;
 
+    /// Returns the cost model used by the aligner.
+    fn cost_model(&self) -> &Self::CostModel;
+
     type Fronts;
 
     type State: StateT + Eq;
-
-    /// Returns the cost model used by the aligner.
-    fn cost_model(&self) -> &Self::CostModel;
 
     /// Returns the parent state of the given state, or none from the root.
     fn parent(
@@ -89,30 +89,6 @@ pub trait Aligner: std::fmt::Debug {
         st: Self::State,
         direction: Direction,
     ) -> Option<(Self::State, CigarOps)>;
-
-    fn trace(
-        &self,
-        a: Seq,
-        b: Seq,
-        fronts: &Self::Fronts,
-        from: Self::State,
-        mut to: Self::State,
-        direction: Direction,
-    ) -> Cigar {
-        let mut cigar = Cigar::default();
-
-        while to != from {
-            let (parent, cigar_ops) = self.parent(a, b, fronts, to, direction).unwrap();
-            to = parent;
-            for op in cigar_ops {
-                if let Some(op) = op {
-                    cigar.push(op);
-                }
-            }
-        }
-        cigar.reverse();
-        cigar
-    }
 
     /// Finds the cost of aligning `a` and `b`.
     /// Uses the visualizer to record progress.

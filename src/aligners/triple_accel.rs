@@ -1,6 +1,6 @@
 use crate::{
     cost_model::{CostModel, UnitCost},
-    prelude::{Cost, LinearCost},
+    prelude::Cost,
 };
 
 use super::{cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps, Aligner, Seq};

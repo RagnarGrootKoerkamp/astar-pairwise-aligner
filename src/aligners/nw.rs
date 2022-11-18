@@ -397,6 +397,30 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
         self.v.last_frame_with_h(Some(&cigar), None, Some(h));
         (dist, cigar)
     }
+
+    fn trace(
+        &self,
+        a: Seq,
+        b: Seq,
+        fronts: &Fronts<N>,
+        from: State,
+        mut to: State,
+        direction: Direction,
+    ) -> Cigar {
+        let mut cigar = Cigar::default();
+
+        while to != from {
+            let (parent, cigar_ops) = self.parent(a, b, fronts, to, direction).unwrap();
+            to = parent;
+            for op in cigar_ops {
+                if let Some(op) = op {
+                    cigar.push(op);
+                }
+            }
+        }
+        cigar.reverse();
+        cigar
+    }
 }
 
 fn pad(a: Seq) -> Sequence {
