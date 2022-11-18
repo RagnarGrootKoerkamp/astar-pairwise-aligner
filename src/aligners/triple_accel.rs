@@ -47,7 +47,7 @@ impl Aligner for TripleAccel<UnitCost> {
             )
             .unwrap()
         };
-        (cost, Cigar::from_edits(&edits.unwrap()))
+        (cost, Cigar::from_triple_accel_edits(&edits.unwrap()))
     }
 
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
@@ -62,6 +62,6 @@ impl Aligner for TripleAccel<UnitCost> {
             true,
             EditCosts::new(1, 0, 1, None),
         )
-        .map(|(cost, edits)| (cost, Cigar::from_edits(&edits.unwrap())))
+        .map(|(cost, edits)| (cost, Cigar::from_triple_accel_edits(&edits.unwrap())))
     }
 }

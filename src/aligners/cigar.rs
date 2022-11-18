@@ -100,7 +100,7 @@ pub fn append_paths(left: &mut Path, offset: Pos, mut right: Path) {
 }
 
 impl Cigar {
-    pub fn from_edits(edits: &Vec<Edit>) -> Self {
+    pub fn from_triple_accel_edits(edits: &Vec<Edit>) -> Self {
         Self {
             ops: edits
                 .iter()
@@ -116,6 +116,19 @@ impl Cigar {
                 })
                 .collect(),
         }
+    }
+    pub fn from_edlib_alignment(alignment: &[u8]) -> Self {
+        let mut cigar = Cigar::default();
+        for op in alignment {
+            cigar.push(match op {
+                0 => CigarOp::Match,
+                1 => CigarOp::Deletion,
+                2 => CigarOp::Insertion,
+                3 => CigarOp::Mismatch,
+                _ => panic!(),
+            });
+        }
+        cigar
     }
 
     fn match_pos(delta: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOp {

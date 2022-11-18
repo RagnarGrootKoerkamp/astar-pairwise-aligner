@@ -1,4 +1,4 @@
-use super::{cigar::Cigar, diagonal_transition::Direction, Aligner, Seq};
+use super::{Aligner, Seq};
 use crate::cost_model::{AffineCost, AffineLayerType, Cost};
 use std::intrinsics::transmute;
 
@@ -293,6 +293,7 @@ mod tests {
             cm: cm.clone(),
             use_gap_cost_heuristic: false,
             exponential_search: false,
+            local_doubling: false,
             h: ZeroCost,
             v: NoVisualizer,
         };
