@@ -22,6 +22,7 @@ pub enum VisualizerStyle {
     Large,
     Detailed,
     Test,
+    Debug,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, ValueEnum, Serialize, Deserialize)]
@@ -329,7 +330,7 @@ mod visualizer {
         }
     }
 
-    const CANVAS_HEIGHT: u32 = 800;
+    const CANVAS_HEIGHT: u32 = 1200;
 
     #[derive(Clone)]
     pub struct Config {
@@ -385,7 +386,7 @@ mod visualizer {
                     draw_layers: false,
                     draw_matches: false,
                     draw_dt: true,
-                    draw_f: true,
+                    draw_f: false,
                     draw_labels: true,
                     heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
                     layer: Gradient::Gradient((250, 250, 250, 0)..(100, 100, 100, 0)),
@@ -395,7 +396,7 @@ mod visualizer {
                     pruned_match: RED,
                     match_shrink: 2,
                     match_width: 2,
-                    contour: GREEN,
+                    contour: BLACK,
                 },
                 draw_old_on_top: true,
                 layer_drawing: false,
@@ -430,7 +431,6 @@ mod visualizer {
                     config.style.draw_heuristic = true;
                     config.style.draw_contours = true;
                     config.style.draw_matches = true;
-                    config.style.contour = BLACK;
                     config.draw_old_on_top = true;
                     config.layer_drawing = false;
                 }
@@ -448,7 +448,20 @@ mod visualizer {
                     config.style.draw_matches = true;
                     config.style.draw_f = true;
                     config.style.draw_dt = true;
-                    config.style.contour = BLACK;
+                }
+                VisualizerStyle::Debug => {
+                    config.paused = true;
+                    config.cell_size = 0;
+                    config.style.explored = Some((0, 102, 204, 0));
+                    config.style.pruned_match = RED;
+                    config.style.match_width = 3;
+                    config.style.path_width = Some(4);
+                    config.style.draw_heuristic = true;
+                    config.style.draw_contours = true;
+                    config.style.draw_layers = false;
+                    config.style.draw_matches = true;
+                    config.style.draw_f = false;
+                    config.style.draw_dt = true;
                 }
             }
 
