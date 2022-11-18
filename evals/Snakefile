@@ -27,8 +27,8 @@ tool_command = {
     'csh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh',
     'sh-dt':         binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic sh --dt',
     'csh-dt':        binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --dt',
-    'gcsh':           binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --gap-cost',
-    'gcsh-dt':        binaries["pa"]    + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --gap-cost --dt',
+    'gcsh':          binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --gap-cost',
+    'gcsh-dt':       binaries["pa"]    + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --gap-cost --dt',
     # Slower variants for comparison
     'sh-noprune':    binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic sh  --no-prune',
     'csh-noprune':   binaries["pa"]      + ' -i {input} -o {stats_path} -ss -k {wildcards.k} -r {wildcards.r} --heuristic csh --no-prune',
@@ -38,6 +38,7 @@ tool_command = {
     'edlib':         binaries["edlib"]   + ' -p -s {input}', # -p: compute the path, -s: no output
     'biwfa':         binaries["wfa" ]    + ' -i {input} -a edit-wfa --wfa-memory-mode ultralow -o {input}.score',
     'biwfa-affine':  binaries["wfa" ]    + ' -i {input} -a gap-affine-wfa --affine-penalties 0,1,1,1 --wfa-memory-mode ultralow',
+    'triple-accel':  binaries["pa"]      + ' -i {input} -ss -a triple-accel',
 }
 
 # Command to generate testcases.
@@ -355,7 +356,7 @@ rule scaling_e_table:
 
 # Returns the list of runs for the tool comparison table.
 def human_runs(dir):
-    tools = ['edlib', 'biwfa', 'sh', 'csh', 'gcsh', 'sh-dt', 'csh-dt', 'gcsh-dt']
+    tools = ['edlib', 'biwfa', 'triple-accel', 'sh', 'csh', 'gcsh', 'sh-dt', 'csh-dt', 'gcsh-dt']
     paths = sorted(pathlib.Path('human').glob(f'{dir}/seq*.seq'))
     inputs = [HumanInput(path=path) for path in paths]
     rks = [(2, 15)]
