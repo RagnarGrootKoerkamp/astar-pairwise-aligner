@@ -1,7 +1,7 @@
 //! This module contains implementations of other alignment algorithms.
 
 use self::cigar::Cigar;
-use crate::prelude::{Cost, CostModel, Pos};
+use crate::prelude::{Cost, Pos};
 use std::cmp::max;
 
 pub mod astar;
@@ -55,11 +55,6 @@ pub trait StateT: std::fmt::Debug {
 ///
 /// Note that insertions are when `b` has more characters than `a`, and deletions are when `b` has less characters than `a`.
 pub trait Aligner: std::fmt::Debug {
-    type CostModel: CostModel;
-
-    /// Returns the cost model used by the aligner.
-    fn cost_model(&self) -> &Self::CostModel;
-
     /// Return the cost of aligning `a` and `b`.
     /// This may use less memory than `align` for some aligners.
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {

@@ -188,12 +188,6 @@ fn double_affine_cost(
 }
 
 impl<const N: usize> Aligner for WFA<AffineCost<N>> {
-    type CostModel = AffineCost<N>;
-
-    fn cost_model(&self) -> &Self::CostModel {
-        &self.cm
-    }
-
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut cost = (|| {
             if N == 0 {

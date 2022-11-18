@@ -1456,12 +1456,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
 impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
     for DiagonalTransition<AffineCost<N>, V, H>
 {
-    type CostModel = AffineCost<N>;
-
-    fn cost_model(&self) -> &Self::CostModel {
-        &self.cm
-    }
-
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let cost = if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
             exponential_search(

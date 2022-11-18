@@ -4,7 +4,7 @@ use crate::{
         edlibAlign, edlibDefaultAlignConfig, edlibFreeAlignResult, EdlibAlignTask_EDLIB_TASK_PATH,
         EDLIB_STATUS_OK,
     },
-    cost_model::{Cost, UnitCost},
+    cost_model::Cost,
 };
 use std::{intrinsics::transmute, ptr::slice_from_raw_parts};
 
@@ -55,12 +55,6 @@ fn edlib_align(a: Seq, b: Seq, trace: bool, f_max: Option<Cost>) -> Option<(u32,
 }
 
 impl Aligner for Edlib {
-    type CostModel = UnitCost;
-
-    fn cost_model(&self) -> &Self::CostModel {
-        &UnitCost
-    }
-
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         edlib_align(a, b, false, None).unwrap().0
     }

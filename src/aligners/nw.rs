@@ -573,12 +573,6 @@ fn pad(a: Seq) -> Sequence {
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>, V, H> {
-    type CostModel = AffineCost<N>;
-
-    fn cost_model(&self) -> &Self::CostModel {
-        &self.cm
-    }
-
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let cost = if self.exponential_search {
             exponential_search(

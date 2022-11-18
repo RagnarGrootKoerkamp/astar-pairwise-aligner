@@ -1,10 +1,7 @@
 use crate::{alignment_graph, astar::astar};
 
 use super::cigar::Cigar;
-use crate::{
-    astar_dt::astar_dt, cost_model::UnitCost, heuristic::Heuristic, prelude::Pos,
-    visualizer::VisualizerT,
-};
+use crate::{astar_dt::astar_dt, heuristic::Heuristic, prelude::Pos, visualizer::VisualizerT};
 
 use super::Aligner;
 
@@ -30,12 +27,6 @@ impl<V: VisualizerT, H: Heuristic> std::fmt::Debug for AStar<V, H> {
 }
 
 impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
-    type CostModel = UnitCost;
-
-    fn cost_model(&self) -> &Self::CostModel {
-        &UnitCost
-    }
-
     fn align(
         &mut self,
         a: super::Seq,

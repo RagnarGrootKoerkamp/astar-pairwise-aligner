@@ -15,12 +15,6 @@ pub struct TripleAccel<C: CostModel> {
 }
 
 impl Aligner for TripleAccel<UnitCost> {
-    type CostModel = UnitCost;
-
-    fn cost_model(&self) -> &Self::CostModel {
-        &UnitCost
-    }
-
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         if self.exp_search {
             triple_accel::levenshtein_exp(a, b)
