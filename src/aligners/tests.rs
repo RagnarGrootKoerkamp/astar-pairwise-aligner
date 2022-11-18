@@ -125,22 +125,34 @@ fn test_aligner_on_cost_model<const N: usize, A: Aligner>(
 }
 
 mod triple_accel {
-    use crate::aligners::triple_accel::TripleAccel;
+    use crate::{aligners::triple_accel::TripleAccel, cost_model::UnitCost};
 
     use super::*;
 
     #[test]
-    fn unit_cost_simple() {
-        // sub=indel=1
+    fn unit_cost() {
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), TripleAccel { exp_search: false }, false);
+        test_aligner_on_cost_model(
+            cm.clone(),
+            TripleAccel {
+                exp_search: false,
+                cost_model: UnitCost,
+            },
+            false,
+        );
     }
 
     #[test]
-    fn unit_cost_simd_exponential_search() {
-        // sub=indel=1
+    fn unit_cost_exp() {
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), TripleAccel { exp_search: true }, false);
+        test_aligner_on_cost_model(
+            cm.clone(),
+            TripleAccel {
+                exp_search: true,
+                cost_model: UnitCost,
+            },
+            false,
+        );
     }
 }
 

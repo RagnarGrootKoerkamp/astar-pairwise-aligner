@@ -1,27 +1,27 @@
-use crate::prelude::{Cost, LinearCost};
+use crate::{
+    cost_model::{CostModel, UnitCost},
+    prelude::{Cost, LinearCost},
+};
 
 use super::{cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps, Aligner, Seq};
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
 #[derive(Debug)]
-pub struct TripleAccel {
+pub struct TripleAccel<C: CostModel> {
     pub exp_search: bool,
-}
-
-lazy_static! {
-    static ref COST_MODEL: LinearCost = LinearCost::new_unit();
+    pub cost_model: C,
 }
 
 /// TripleAccel only implements `cost()`.
-impl Aligner for TripleAccel {
-    type CostModel = LinearCost;
+impl Aligner for TripleAccel<UnitCost> {
+    type CostModel = UnitCost;
 
     type Fronts = ();
 
     type State = ();
 
     fn cost_model(&self) -> &Self::CostModel {
-        &COST_MODEL
+        &UnitCost
     }
 
     fn parent(

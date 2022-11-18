@@ -25,6 +25,7 @@ fn main() {
             let cost = match args.algorithm.algorithm {
                 Algorithm::TripleAccel => TripleAccel {
                     exp_search: args.algorithm.exp_search,
+                    cost_model: UnitCost,
                 }
                 .cost(a, b),
                 Algorithm::Edlib => {

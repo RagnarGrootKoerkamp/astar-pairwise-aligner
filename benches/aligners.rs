@@ -12,6 +12,7 @@ use astar_pairwise_aligner::{
     generate::setup_sequences_with_seed,
     heuristic::{NoCost, Pruning, SH},
     matches::MatchConfig,
+    prelude::UnitCost,
     visualizer::NoVisualizer,
 };
 use test::Bencher;
@@ -33,12 +34,32 @@ fn run_aligner(
 #[bench]
 fn triple_accel(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(TripleAccel { exp_search: false }, N, E, seed));
+    bench.iter(|| {
+        run_aligner(
+            TripleAccel {
+                exp_search: false,
+                cost_model: UnitCost,
+            },
+            N,
+            E,
+            seed,
+        )
+    });
 }
 #[bench]
 fn triple_accel_exp(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(TripleAccel { exp_search: true }, N, E, seed));
+    bench.iter(|| {
+        run_aligner(
+            TripleAccel {
+                exp_search: true,
+                cost_model: UnitCost,
+            },
+            N,
+            E,
+            seed,
+        )
+    });
 }
 
 fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, NoCost> {

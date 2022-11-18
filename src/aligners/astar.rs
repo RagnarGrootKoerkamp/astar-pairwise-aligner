@@ -2,7 +2,7 @@ use crate::{alignment_graph, astar::astar};
 
 use super::{cigar::Cigar, edit_graph::State};
 use crate::{
-    astar_dt::astar_dt, cost_model::LinearCost, heuristic::Heuristic, prelude::Pos,
+    astar_dt::astar_dt, cost_model::UnitCost, heuristic::Heuristic, prelude::Pos,
     visualizer::VisualizerT,
 };
 
@@ -30,7 +30,7 @@ impl<V: VisualizerT, H: Heuristic> std::fmt::Debug for AStar<V, H> {
 }
 
 impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
-    type CostModel = LinearCost;
+    type CostModel = UnitCost;
     type Fronts = usize;
 
     type State = State;
