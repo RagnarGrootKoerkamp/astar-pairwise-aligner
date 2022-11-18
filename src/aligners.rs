@@ -47,27 +47,11 @@ pub trait StateT: std::fmt::Debug {
     fn pos(&self) -> Pos;
 }
 
-impl StateT for () {
-    fn is_root(&self) -> bool {
-        true
-    }
-    fn pos(&self) -> Pos {
-        Pos(0, 0)
-    }
-}
-
 /// An aligner is a type that supports aligning sequences using some algorithm.
-/// It should implement the most general of the methods below.
-/// The cost-only variant can sometimes be implemented using less memory.
-///
-/// There is one function for each cost model:
-/// - LinearCost
-/// - AffineCost
 ///
 /// The output can be:
 /// - cost only
 /// - cost and alignment
-/// - cost, alignment, and a visualization.
 ///
 /// Note that insertions are when `b` has more characters than `a`, and deletions are when `b` has less characters than `a`.
 pub trait Aligner: std::fmt::Debug {
@@ -76,13 +60,16 @@ pub trait Aligner: std::fmt::Debug {
     /// Returns the cost model used by the aligner.
     fn cost_model(&self) -> &Self::CostModel;
 
-    /// Finds the cost of aligning `a` and `b`.
-    /// Uses the visualizer to record progress.
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost;
+    /// Return the cost of aligning `a` and `b`.
+    /// This may use less memory than `align` for some aligners.
+    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+        self.align(a, b).0
+    }
 
-    /// Finds an alignments (path/Cigar) of sequences `a` and `b`.
-    /// Uses the visualizer to record progress.
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar);
+    /// Return the cost and an alignment of `a` and `b`.
+    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
+        unimplemented!("This aligner does not support returning an alignment.");
+    }
 
     /// Finds the cost of aligning `a` and `b`, assuming the cost of the alignment is at most `f_max`.
     /// The returned cost may be `None` in case aligning with cost at most `s` is not possible.
@@ -90,7 +77,9 @@ pub trait Aligner: std::fmt::Debug {
     /// though this may not be the optimal cost.
     ///
     /// When `_f_max` is `None`, there is no upper bound, and this is the same as simply `cost`.
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Option<Cost>) -> Option<Cost>;
+    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Option<Cost>) -> Option<Cost> {
+        unimplemented!("This aligner does not support aligning with a bounded distance.");
+    }
 
     /// Finds an alignments (path/Cigar) of sequences `a` and `b`, assuming the
     /// cost of the alignment is at most s.
@@ -104,5 +93,7 @@ pub trait Aligner: std::fmt::Debug {
         _a: Seq,
         _b: Seq,
         _f_max: Option<Cost>,
-    ) -> Option<(Cost, Cigar)>;
+    ) -> Option<(Cost, Cigar)> {
+        unimplemented!("This aligner does not support aligning with a bounded distance.");
+    }
 }
