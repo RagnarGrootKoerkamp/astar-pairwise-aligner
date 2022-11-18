@@ -4,16 +4,16 @@ use super::{cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps, 
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
 #[derive(Debug)]
-pub struct NWLib {
-    pub simd: bool,
+pub struct TripleAccel {
+    pub exp_search: bool,
 }
 
 lazy_static! {
     static ref COST_MODEL: LinearCost = LinearCost::new_unit();
 }
 
-/// NWLib aligner only implements `cost()`.
-impl Aligner for NWLib {
+/// TripleAccel only implements `cost()`.
+impl Aligner for TripleAccel {
     type CostModel = LinearCost;
 
     type Fronts = ();
@@ -35,10 +35,10 @@ impl Aligner for NWLib {
         unimplemented!()
     }
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        if self.simd {
-            bio::alignment::distance::simd::levenshtein(a, b)
+        if self.exp_search {
+            triple_accel::levenshtein_exp(a, b)
         } else {
-            bio::alignment::distance::levenshtein(a, b)
+            triple_accel::levenshtein(a, b)
         }
     }
     fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {

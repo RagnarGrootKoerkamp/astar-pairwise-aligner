@@ -11,19 +11,16 @@ use serde::{Deserialize, Serialize};
 /// TODO: Add other aligners here as well.
 #[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
 pub enum Algorithm {
-    // Internal methods
-    NW,
-    DT,
     // See HeuristicArgs for configuration.
     #[default]
     Astar,
 
-    // External methods
+    // Internal reimplementations
+    NW,
+    DT,
 
-    // The basic n^2 DP.
-    NwLib,
-    // SIMD and O(ns) band-doubling.
-    NwLibSimd,
+    // External methods
+    TripleAccel,
     Edlib,
     Wfa,
     Biwfa,
@@ -32,11 +29,7 @@ pub enum Algorithm {
 impl Algorithm {
     pub fn external(&self) -> bool {
         match self {
-            Algorithm::NwLib
-            | Algorithm::NwLibSimd
-            | Algorithm::Edlib
-            | Algorithm::Wfa
-            | Algorithm::Biwfa => true,
+            Algorithm::TripleAccel | Algorithm::Edlib | Algorithm::Wfa | Algorithm::Biwfa => true,
             Algorithm::NW | Algorithm::DT | Algorithm::Astar => false,
         }
     }
@@ -116,8 +109,13 @@ impl ToString for AlgorithmArgs {
                 }
                 s
             }
-            Algorithm::NwLib => "Needleman-Wunsch (rust-bio)".into(),
-            Algorithm::NwLibSimd => "Needleman-Wunsch + doubling + SIMD (triple-accel)".into(),
+            Algorithm::TripleAccel => {
+                if self.exp_search {
+                    "Needleman-Wunsch + Doubling (triple-accel)".into()
+                } else {
+                    "Needleman-Wunsch (triple-accel)".into()
+                }
+            }
             Algorithm::Edlib => "Edlib".into(),
             Algorithm::Wfa => "WFA".into(),
             Algorithm::Biwfa => "BiWFA".into(),

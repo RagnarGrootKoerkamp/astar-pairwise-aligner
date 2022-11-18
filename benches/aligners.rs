@@ -6,7 +6,7 @@ use astar_pairwise_aligner::{
     aligners::{
         diagonal_transition::{DiagonalTransition, GapCostHeuristic},
         nw::NW,
-        nw_lib::NWLib,
+        triple_accel::TripleAccel,
     },
     cost_model::LinearCost,
     generate::setup_sequences_with_seed,
@@ -31,14 +31,14 @@ fn run_aligner(
 }
 
 #[bench]
-fn nw_lib(bench: &mut Bencher) {
+fn triple_accel(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(NWLib { simd: false }, N, E, seed));
+    bench.iter(|| run_aligner(TripleAccel { exp_search: false }, N, E, seed));
 }
 #[bench]
-fn nw_lib_exp(bench: &mut Bencher) {
+fn triple_accel_exp(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| run_aligner(NWLib { simd: true }, N, E, seed));
+    bench.iter(|| run_aligner(TripleAccel { exp_search: true }, N, E, seed));
 }
 
 fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, NoCost> {

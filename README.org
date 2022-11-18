@@ -75,7 +75,7 @@ INPUT:
         --seed <SEED>                Seed to initialize RNG for reproducability
 
 ALGORITHM:
-    -a, --algorithm <ALGORITHM>    [default: astar] [possible values: nw, dt, astar, nw-lib, nw-lib-simd, edlib, wfa, biwfa]
+    -a, --algorithm <ALGORITHM>    [default: astar] [possible values: nw, dt, astar, triple-accel, edlib, wfa, biwfa]
 
 HEURISTIC:
     -H, --heuristic <HEURISTIC>    [default: sh] [possible values: dijkstra, sh, csh]

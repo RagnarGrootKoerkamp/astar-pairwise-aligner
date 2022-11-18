@@ -46,6 +46,7 @@ sdl2 = {version="*", optional=true, features=["ttf"]}
 parse_duration = "*"
 serde = "*"
 serde_json = "*"
+triple_accel = "*"
 
 wasm-bindgen = {version="*", optional=true}
 console_error_panic_hook = {version="*", optional=true}

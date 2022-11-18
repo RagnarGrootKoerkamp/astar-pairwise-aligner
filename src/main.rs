@@ -1,7 +1,7 @@
 #![feature(let_chains)]
 
 use astar_pairwise_aligner::{
-    aligners::{nw_lib::NWLib, Aligner},
+    aligners::{triple_accel::TripleAccel, Aligner},
     cli::heuristic_params::Algorithm,
     prelude::*,
     runner::{AlignWithHeuristic, Cli},
@@ -23,8 +23,10 @@ fn main() {
         let r = if args.algorithm.algorithm.external() {
             let start = Instant::now();
             let cost = match args.algorithm.algorithm {
-                Algorithm::NwLib => NWLib { simd: false }.cost(a, b),
-                Algorithm::NwLibSimd => NWLib { simd: true }.cost(a, b),
+                Algorithm::TripleAccel => TripleAccel {
+                    exp_search: args.algorithm.exp_search,
+                }
+                .cost(a, b),
                 Algorithm::Edlib => {
                     #[cfg(not(feature = "edlib"))]
                     panic!("Enable the edlib feature flag to use edlib.");

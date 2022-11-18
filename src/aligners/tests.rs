@@ -124,8 +124,8 @@ fn test_aligner_on_cost_model<const N: usize, A: Aligner>(
     test_aligner_on_cost_model_with_viz(cm, aligner, a, test_path);
 }
 
-mod nw_lib {
-    use crate::aligners::nw_lib::NWLib;
+mod triple_accel {
+    use crate::aligners::triple_accel::TripleAccel;
 
     use super::*;
 
@@ -133,14 +133,14 @@ mod nw_lib {
     fn unit_cost_simple() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), NWLib { simd: false }, false);
+        test_aligner_on_cost_model(cm.clone(), TripleAccel { exp_search: false }, false);
     }
 
     #[test]
     fn unit_cost_simd_exponential_search() {
         // sub=indel=1
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), NWLib { simd: true }, false);
+        test_aligner_on_cost_model(cm.clone(), TripleAccel { exp_search: true }, false);
     }
 }
 

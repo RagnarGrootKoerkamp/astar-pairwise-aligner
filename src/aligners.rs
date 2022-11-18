@@ -11,7 +11,7 @@ pub mod diagonal_transition;
 pub mod edlib;
 pub mod front;
 pub mod nw;
-pub mod nw_lib;
+pub mod triple_accel;
 #[cfg(feature = "wfa")]
 pub mod wfa;
 
