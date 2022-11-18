@@ -36,10 +36,6 @@ impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
         &UnitCost
     }
 
-    fn cost(&mut self, a: super::Seq, b: super::Seq) -> crate::cost_model::Cost {
-        return self.align(a, b).0;
-    }
-
     fn align(
         &mut self,
         a: super::Seq,
@@ -60,23 +56,5 @@ impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
 
         let path: Vec<Pos> = path.into_iter().collect();
         return (distance, Cigar::from_path(a, b, &path));
-    }
-
-    fn cost_for_bounded_dist(
-        &mut self,
-        _a: super::Seq,
-        _b: super::Seq,
-        _f_max: Option<crate::cost_model::Cost>,
-    ) -> Option<crate::cost_model::Cost> {
-        unimplemented!("Astar doesn't support it");
-    }
-
-    fn align_for_bounded_dist(
-        &mut self,
-        _a: super::Seq,
-        _b: super::Seq,
-        _f_max: Option<crate::cost_model::Cost>,
-    ) -> Option<(crate::cost_model::Cost, super::cigar::Cigar)> {
-        unimplemented!("Astar doesn't support it");
     }
 }

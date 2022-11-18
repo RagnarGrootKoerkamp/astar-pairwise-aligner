@@ -264,38 +264,6 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
         }
         cost
     }
-
-    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
-        unimplemented!();
-    }
-
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Option<Cost>) -> Option<Cost> {
-        unimplemented!();
-    }
-
-    fn align_for_bounded_dist(
-        &mut self,
-        _a: Seq,
-        _b: Seq,
-        _f_max: Option<Cost>,
-    ) -> Option<(Cost, Cigar)> {
-        unimplemented!();
-    }
-
-    type Fronts = ();
-
-    type State = ();
-
-    fn parent(
-        &self,
-        _a: Seq,
-        _b: Seq,
-        _fronts: &Self::Fronts,
-        _st: Self::State,
-        _direction: Direction,
-    ) -> Option<(Self::State, super::edit_graph::CigarOps)> {
-        unimplemented!()
-    }
 }
 
 #[cfg(test)]

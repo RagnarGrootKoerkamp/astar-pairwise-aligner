@@ -3,7 +3,7 @@ use crate::{
     aligners::edlib::edlib::{
         edlibAlign, edlibDefaultAlignConfig, edlibFreeAlignResult, EDLIB_STATUS_OK,
     },
-    cost_model::{Cost, LinearCost},
+    cost_model::{Cost, UnitCost},
 };
 use std::intrinsics::transmute;
 
@@ -15,72 +15,31 @@ mod edlib {
     include!(concat!(env!("OUT_DIR"), "/bindings_edlib.rs"));
 }
 
+#[derive(Debug)]
 pub struct Edlib;
 
-impl std::fmt::Debug for Edlib {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("edlib").finish()
-    }
-}
-
-fn unit_cost(a: Seq, b: Seq) -> Cost {
-    unsafe {
-        let a: &[i8] = transmute(a);
-        let b: &[i8] = transmute(b);
-        let result = edlibAlign(
-            a.as_ptr(),
-            a.len() as i32,
-            b.as_ptr(),
-            b.len() as i32,
-            edlibDefaultAlignConfig(),
-        );
-        let distance = result.editDistance as Cost;
-        assert!(result.status == EDLIB_STATUS_OK as i32);
-        edlibFreeAlignResult(result);
-        distance
-    }
-}
-
 impl Aligner for Edlib {
-    type CostModel = LinearCost;
+    type CostModel = UnitCost;
 
     fn cost_model(&self) -> &Self::CostModel {
-        unimplemented!()
+        &UnitCost
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        unit_cost(a, b)
-    }
-
-    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
-        unimplemented!()
-    }
-
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Option<Cost>) -> Option<Cost> {
-        unimplemented!();
-    }
-
-    fn align_for_bounded_dist(
-        &mut self,
-        _a: Seq,
-        _b: Seq,
-        _f_max: Option<Cost>,
-    ) -> Option<(Cost, Cigar)> {
-        unimplemented!();
-    }
-
-    type Fronts = ();
-
-    type State = ();
-
-    fn parent(
-        &self,
-        _a: Seq,
-        _b: Seq,
-        _fronts: &Self::Fronts,
-        _st: Self::State,
-        _direction: Direction,
-    ) -> Option<(Self::State, super::edit_graph::CigarOps)> {
-        unimplemented!()
+        unsafe {
+            let a: &[i8] = transmute(a);
+            let b: &[i8] = transmute(b);
+            let result = edlibAlign(
+                a.as_ptr(),
+                a.len() as i32,
+                b.as_ptr(),
+                b.len() as i32,
+                edlibDefaultAlignConfig(),
+            );
+            let distance = result.editDistance as Cost;
+            assert!(result.status == EDLIB_STATUS_OK as i32);
+            edlibFreeAlignResult(result);
+            distance
+        }
     }
 }

@@ -3,7 +3,7 @@ use crate::{
     prelude::Cost,
 };
 
-use super::{cigar::Cigar, Aligner, Seq};
+use super::{Aligner, Seq};
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
 #[derive(Debug)]
@@ -26,20 +26,5 @@ impl Aligner for TripleAccel<UnitCost> {
         } else {
             triple_accel::levenshtein(a, b)
         }
-    }
-    fn align(&mut self, _a: Seq, _b: Seq) -> (Cost, Cigar) {
-        unimplemented!()
-    }
-    fn cost_for_bounded_dist(&mut self, _a: Seq, _b: Seq, _f_max: Option<Cost>) -> Option<Cost> {
-        unimplemented!();
-    }
-
-    fn align_for_bounded_dist(
-        &mut self,
-        _a: Seq,
-        _b: Seq,
-        _f_max: Option<Cost>,
-    ) -> Option<(Cost, Cigar)> {
-        unimplemented!();
     }
 }
