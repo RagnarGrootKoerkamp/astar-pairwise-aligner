@@ -84,7 +84,11 @@ where
             continue;
         }
 
-        assert!(queue_fr == state.fr);
+        assert!(
+            queue_fr == state.fr,
+            "\nBad FR value in queue when popping {pos}. Queue: {queue_fr}, map: {}\n",
+            state.fr
+        );
 
         // Whenever A* pops a position, if the value of h and f is outdated, the point is pushed and not expanded.
         // Must be true for correctness.
@@ -120,7 +124,7 @@ where
 
         // Expand u
         if D {
-            println!("Expand {pos} {}", queue_g);
+            println!("Expand {queue_f}: {pos} g={queue_g}");
         }
 
         stats.expanded += 1;
@@ -173,7 +177,7 @@ where
                     v.explore_with_h(next, queue_g, queue_f, Some(h));
                     v.expand_with_h(next, queue_g, queue_f, Some(h));
                     if D {
-                        println!("Greedy expand {next} {queue_g}");
+                        println!("Greedy {queue_f}: {next} g={queue_g} from {pos}");
                     }
 
                     // Move to the next state.
@@ -189,16 +193,19 @@ where
                 return;
             };
 
-            // Open next
-            if D {
-                println!("Open {next} from {pos} g {next_g}");
-            }
-
             cur_next.fr = next_fr;
 
             let (next_h, next_hint) = h.h_with_hint(next, state.hint);
             cur_next.hint = next_hint;
             let next_f = next_g + next_h;
+
+            // Open next
+            if D {
+                println!(
+                    "Open   {next_f}: {next} g={next_g} fr={next_fr} cur_fr={} from {pos}",
+                    cur_next.fr
+                );
+            }
 
             queue.push(QueueElement {
                 f: next_f,
