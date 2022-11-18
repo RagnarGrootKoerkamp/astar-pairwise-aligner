@@ -1,6 +1,7 @@
 use std::{fmt::Write, slice};
 
 use itertools::Itertools;
+use triple_accel::Edit;
 
 use crate::{
     cost_model::{AffineCost, AffineLayerType, Cost},
@@ -99,6 +100,24 @@ pub fn append_paths(left: &mut Path, offset: Pos, mut right: Path) {
 }
 
 impl Cigar {
+    pub fn from_edits(edits: &Vec<Edit>) -> Self {
+        Self {
+            ops: edits
+                .iter()
+                .map(|edit| CigarElement {
+                    command: match edit.edit {
+                        triple_accel::EditType::Match => CigarOp::Match,
+                        triple_accel::EditType::Mismatch => CigarOp::Mismatch,
+                        triple_accel::EditType::AGap => CigarOp::Insertion,
+                        triple_accel::EditType::BGap => CigarOp::Deletion,
+                        triple_accel::EditType::Transpose => todo!(),
+                    },
+                    length: edit.count,
+                })
+                .collect(),
+        }
+    }
+
     fn match_pos(delta: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOp {
         match delta {
             Pos(1, 1) => {
