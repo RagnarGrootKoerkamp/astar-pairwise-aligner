@@ -127,14 +127,14 @@ fig1-export: fig1
       ../pairwise-aligner-paper/imgs/fig1/
 
 fig_layers:
+	rm imgs/layers/*
 	cargo run --features example --release --example fig_layers
-	mogrify -format png imgs/fig_layers/*/*bmp
+	mogrify -format png imgs/layers/*bmp
+	rm imgs/layers/*bmp
 
 fig_layers-export: fig_layers
-	rm -rf ../pairwise-aligner-paper/imgs/fig_layers/*
-	mkdir -p ../pairwise-aligner-paper/imgs/fig_layers/
-	cp imgs/fig_layers/0.png ../pairwise-aligner-paper/imgs/fig_layers/start.png
-	cp imgs/fig_layers/1.png ../pairwise-aligner-paper/imgs/fig_layers/end.png
+	rm -rf ../pairwise-aligner-paper/imgs/layers
+	cp -r imgs/layers  ../pairwise-aligner-paper/imgs/layers
 
 fig8:
 	cargo run --features sdl2 --release --example fig8
