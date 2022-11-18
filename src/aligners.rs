@@ -1,6 +1,6 @@
 //! This module contains implementations of other alignment algorithms.
 
-use self::{cigar::Cigar, diagonal_transition::Direction, edit_graph::CigarOps};
+use self::cigar::Cigar;
 use crate::prelude::{Cost, CostModel, Pos};
 use std::cmp::max;
 
@@ -75,20 +75,6 @@ pub trait Aligner: std::fmt::Debug {
 
     /// Returns the cost model used by the aligner.
     fn cost_model(&self) -> &Self::CostModel;
-
-    type Fronts;
-
-    type State: StateT + Eq;
-
-    /// Returns the parent state of the given state, or none from the root.
-    fn parent(
-        &self,
-        a: Seq,
-        b: Seq,
-        fronts: &Self::Fronts,
-        st: Self::State,
-        direction: Direction,
-    ) -> Option<(Self::State, CigarOps)>;
 
     /// Finds the cost of aligning `a` and `b`.
     /// Uses the visualizer to record progress.

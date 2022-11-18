@@ -1,6 +1,6 @@
 use crate::{alignment_graph, astar::astar};
 
-use super::{cigar::Cigar, edit_graph::State};
+use super::cigar::Cigar;
 use crate::{
     astar_dt::astar_dt, cost_model::UnitCost, heuristic::Heuristic, prelude::Pos,
     visualizer::VisualizerT,
@@ -31,23 +31,9 @@ impl<V: VisualizerT, H: Heuristic> std::fmt::Debug for AStar<V, H> {
 
 impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
     type CostModel = UnitCost;
-    type Fronts = usize;
-
-    type State = State;
 
     fn cost_model(&self) -> &Self::CostModel {
-        todo!()
-    }
-
-    fn parent(
-        &self,
-        _a: super::Seq,
-        _b: super::Seq,
-        _fronts: &Self::Fronts,
-        _st: Self::State,
-        _direction: super::diagonal_transition::Direction,
-    ) -> Option<(Self::State, super::edit_graph::CigarOps)> {
-        unimplemented!("Sorry, I have no idea what this function does. My only task is to make this thing work at any cost.");
+        &UnitCost
     }
 
     fn cost(&mut self, a: super::Seq, b: super::Seq) -> crate::cost_model::Cost {

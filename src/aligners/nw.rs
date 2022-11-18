@@ -398,6 +398,39 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<AffineCost<N>, V, H> {
         (dist, cigar)
     }
 
+    fn parent(
+        &self,
+        a: Seq,
+        b: Seq,
+        fronts: &Fronts<N>,
+        st: State,
+        direction: Direction,
+    ) -> Option<(State, CigarOps)> {
+        assert!(direction == Direction::Forward);
+        let cur_cost = fronts[st.i].layer(st.layer)[st.j];
+        let mut parent = None;
+        let mut cigar_ops: CigarOps = [None, None];
+        EditGraph::iterate_parents(
+            a,
+            b,
+            &self.cm,
+            /*greedy_matching=*/ false,
+            st,
+            |di, dj, new_layer, cost, ops| {
+                if parent.is_none()
+                        // We use `get` to handle possible out-of-bound lookups.
+                        && let Some(parent_cost) =
+                            fronts[st.i + di].layer(new_layer).get(st.j + dj)
+                        && cur_cost == parent_cost + cost
+                    {
+                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
+                        cigar_ops = ops;
+                    }
+            },
+        );
+        Some((parent?, cigar_ops))
+    }
+
     fn trace(
         &self,
         a: Seq,
@@ -430,45 +463,8 @@ fn pad(a: Seq) -> Sequence {
 impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for NW<AffineCost<N>, V, H> {
     type CostModel = AffineCost<N>;
 
-    type Fronts = Fronts<N>;
-
-    type State = State;
-
     fn cost_model(&self) -> &Self::CostModel {
         &self.cm
-    }
-
-    fn parent(
-        &self,
-        a: Seq,
-        b: Seq,
-        fronts: &Self::Fronts,
-        st: State,
-        direction: Direction,
-    ) -> Option<(State, CigarOps)> {
-        assert!(direction == Direction::Forward);
-        let cur_cost = fronts[st.i].layer(st.layer)[st.j];
-        let mut parent = None;
-        let mut cigar_ops: CigarOps = [None, None];
-        EditGraph::iterate_parents(
-            a,
-            b,
-            &self.cm,
-            /*greedy_matching=*/ false,
-            st,
-            |di, dj, new_layer, cost, ops| {
-                if parent.is_none()
-                        // We use `get` to handle possible out-of-bound lookups.
-                        && let Some(parent_cost) =
-                            fronts[st.i + di].layer(new_layer).get(st.j + dj)
-                        && cur_cost == parent_cost + cost
-                    {
-                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
-                        cigar_ops = ops;
-                    }
-            },
-        );
-        Some((parent?, cigar_ops))
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {

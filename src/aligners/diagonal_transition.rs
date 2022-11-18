@@ -1248,52 +1248,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<AffineCost
         );
     }
 
-    fn trace(
-        &self,
-        a: Seq,
-        b: Seq,
-        fronts: &Fronts<N>,
-        from: DtState,
-        mut to: DtState,
-        direction: Direction,
-    ) -> Cigar {
-        let mut cigar = Cigar::default();
-
-        while to != from {
-            let (parent, cigar_ops) = self.parent(a, b, fronts, to, direction).unwrap();
-            to = parent;
-            for op in cigar_ops {
-                if let Some(op) = op {
-                    cigar.push(op);
-                }
-            }
-        }
-        cigar.reverse();
-        cigar
-    }
-}
-
-impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
-    for DiagonalTransition<AffineCost<N>, V, H>
-{
-    type CostModel = AffineCost<N>;
-
-    type Fronts = Fronts<N>;
-
-    type State = DtState;
-
-    fn cost_model(&self) -> &Self::CostModel {
-        &self.cm
-    }
-
     fn parent(
         &self,
         a: Seq,
         b: Seq,
-        fronts: &Self::Fronts,
-        st: Self::State,
+        fronts: &Fronts<N>,
+        st: DtState,
         direction: Direction,
-    ) -> Option<(Self::State, CigarOps)> {
+    ) -> Option<(DtState, CigarOps)> {
         if st.is_root() {
             return None;
         }
@@ -1414,6 +1376,40 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
             }
         }
         Some((parent?, cigar_ops))
+    }
+
+    fn trace(
+        &self,
+        a: Seq,
+        b: Seq,
+        fronts: &Fronts<N>,
+        from: DtState,
+        mut to: DtState,
+        direction: Direction,
+    ) -> Cigar {
+        let mut cigar = Cigar::default();
+
+        while to != from {
+            let (parent, cigar_ops) = self.parent(a, b, fronts, to, direction).unwrap();
+            to = parent;
+            for op in cigar_ops {
+                if let Some(op) = op {
+                    cigar.push(op);
+                }
+            }
+        }
+        cigar.reverse();
+        cigar
+    }
+}
+
+impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner
+    for DiagonalTransition<AffineCost<N>, V, H>
+{
+    type CostModel = AffineCost<N>;
+
+    fn cost_model(&self) -> &Self::CostModel {
+        &self.cm
     }
 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
