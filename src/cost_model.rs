@@ -437,8 +437,8 @@ impl<const N: usize> AffineCost<N> {
 
     pub fn to_cigar(&self, layer: usize) -> CigarOp {
         match self.affine[layer].affine_type {
-            InsertLayer | HomoPolymerInsert => CigarOp::AffineInsertion(layer),
-            DeleteLayer | HomoPolymerDelete => CigarOp::AffineDeletion(layer),
+            InsertLayer | HomoPolymerInsert => CigarOp::AffineIns(layer),
+            DeleteLayer | HomoPolymerDelete => CigarOp::AffineDel(layer),
         }
     }
 
@@ -520,32 +520,32 @@ pub enum CostModel {
     Levenshtein,
     LCS,
     Linear {
-        mismatch: Cost,
+        sub: Cost,
         indel: Cost,
     },
     Affine {
-        mismatch: Cost,
+        sub: Cost,
         open: Cost,
         extend: Cost,
     },
     DoubleAffine {
-        mismatch: Cost,
+        sub: Cost,
         open1: Cost,
         extend1: Cost,
         open2: Cost,
         extend2: Cost,
     },
     AsymmetricLinear {
-        mismatch: Cost,
-        insertion: Cost,
-        deletion: Cost,
+        sub: Cost,
+        ins: Cost,
+        del: Cost,
     },
     AsymmetricAffine {
-        mismatch: Cost,
-        insertion_open: Cost,
-        insertion_extend: Cost,
-        deletion_open: Cost,
-        deletion_extend: Cost,
+        sub: Cost,
+        ins_open: Cost,
+        ins_extend: Cost,
+        del_open: Cost,
+        del_extend: Cost,
     },
 }
 
@@ -556,47 +556,47 @@ pub enum AffineCostModel {
 }
 
 impl CostModel {
+    pub fn is_linear(&self) -> bool {
+        match self {
+            CostModel::DoubleAffine { .. } => false,
+            _ => true,
+        }
+    }
+    pub fn is_symmetric(&self) -> bool {
+        match self {
+            CostModel::AsymmetricLinear { .. } | CostModel::AsymmetricAffine { .. } => false,
+            _ => true,
+        }
+    }
     pub fn to_affine_cost(&self) -> AffineCostModel {
         use AffineCostModel::*;
         match *self {
             CostModel::Levenshtein => Linear(AffineCost::new_unit()),
             CostModel::LCS => Linear(AffineCost::new_lcs()),
-            CostModel::Linear { mismatch, indel } => {
-                Linear(AffineCost::new_linear(mismatch, indel))
+            CostModel::Linear { sub, indel } => Linear(AffineCost::new_linear(sub, indel)),
+            CostModel::Affine { sub, open, extend } => {
+                Affine(AffineCost::new_affine(sub, open, extend))
             }
-            CostModel::Affine {
-                mismatch,
-                open,
-                extend,
-            } => Affine(AffineCost::new_affine(mismatch, open, extend)),
             CostModel::DoubleAffine {
-                mismatch,
+                sub,
                 open1,
                 extend1,
                 open2,
                 extend2,
             } => DoubleAffine(AffineCost::new_double_affine(
-                mismatch, open1, extend1, open2, extend2,
+                sub, open1, extend1, open2, extend2,
             )),
-            CostModel::AsymmetricLinear {
-                mismatch,
-                insertion,
-                deletion,
-            } => Linear(AffineCost::new_linear_asymmetric(
-                mismatch, insertion, deletion,
-            )),
+            CostModel::AsymmetricLinear { sub, ins, del } => {
+                Linear(AffineCost::new_linear_asymmetric(sub, ins, del))
+            }
             CostModel::AsymmetricAffine {
-                mismatch,
-                insertion_open,
-                insertion_extend,
-                deletion_open,
-                deletion_extend,
+                sub,
+                ins_open,
+                ins_extend,
+                del_open,
+                del_extend,
             } => Affine(AffineCost::new_affine_asymmetric(
-                mismatch,
-                insertion_open,
-                insertion_extend,
-                deletion_open,
-                deletion_extend,
+                sub, ins_open, ins_extend, del_open, del_extend,
             )),
         }
     }

@@ -121,12 +121,12 @@ impl EditGraph {
             None => {
                 // In the main layer, there are many possible edges:
                 // - match
-                // - mismatch / substitution
+                // -  substitution
                 // - insertion
                 // - deletion
                 // - affine close (insertion or deletion)
 
-                // match / mismatch
+                // match / substitution
                 let is_match = a[i as usize - 1] == b[j as usize - 1];
                 if is_match {
                     f(-1, -1, None, 0, [Some(CigarOp::Match), None]);
@@ -134,17 +134,17 @@ impl EditGraph {
                         return;
                     }
                 } else if let Some(cost) = cm.sub {
-                    f(-1, -1, None, cost, [Some(CigarOp::Mismatch), None]);
+                    f(-1, -1, None, cost, [Some(CigarOp::Sub), None]);
                 }
 
                 // insertion
                 if let Some(cost) = cm.ins {
-                    f(0, -1, None, cost, [Some(CigarOp::Insertion), None]);
+                    f(0, -1, None, cost, [Some(CigarOp::Ins), None]);
                 }
 
                 // deletion
                 if let Some(cost) = cm.del {
-                    f(-1, 0, None, cost, [Some(CigarOp::Deletion), None]);
+                    f(-1, 0, None, cost, [Some(CigarOp::Del), None]);
                 }
 
                 // affine close
@@ -169,10 +169,10 @@ impl EditGraph {
                 let cml = &cm.affine[layer];
                 let (i, j, di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (i, j - 1, 0, -1, CigarOp::AffineInsertion(layer))
+                        (i, j - 1, 0, -1, CigarOp::AffineIns(layer))
                     }
                     AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (i - 1, j, -1, 0, CigarOp::AffineDeletion(layer))
+                        (i - 1, j, -1, 0, CigarOp::AffineDel(layer))
                     }
                 };
                 f(
@@ -225,28 +225,28 @@ impl EditGraph {
             None => {
                 // In the main layer, there are many possible edges:
                 // - ~match~
-                // - mismatch / substitution
+                // -  substitution
                 // - insertion
                 // - deletion
                 // - affine close (insertion or deletion)
 
                 if let Some(cost) = cm.sub {
                     if let Some((i, j)) = f(-1, -1, None, cost) {
-                        g(-1, -1, i, j, None, cost, [Some(CigarOp::Mismatch), None]);
+                        g(-1, -1, i, j, None, cost, [Some(CigarOp::Sub), None]);
                     }
                 }
 
                 // insertion
                 if let Some(cost) = cm.ins {
                     if let Some((i, j)) = f(0, -1, None, cost) {
-                        g(0, -1, i, j, None, cost, [Some(CigarOp::Insertion), None]);
+                        g(0, -1, i, j, None, cost, [Some(CigarOp::Ins), None]);
                     }
                 }
 
                 // deletion
                 if let Some(cost) = cm.del {
                     if let Some((i, j)) = f(-1, 0, None, cost) {
-                        g(-1, 0, i, j, None, cost, [Some(CigarOp::Deletion), None]);
+                        g(-1, 0, i, j, None, cost, [Some(CigarOp::Del), None]);
                     }
                 }
 
@@ -276,10 +276,10 @@ impl EditGraph {
                 let cml = &cm.affine[layer];
                 let (di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (0, -1, CigarOp::AffineInsertion(layer))
+                        (0, -1, CigarOp::AffineIns(layer))
                     }
                     AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (-1, 0, CigarOp::AffineDeletion(layer))
+                        (-1, 0, CigarOp::AffineDel(layer))
                     }
                 };
                 if let Some((i, j)) = f(di, dj, None, cml.open) {
@@ -333,28 +333,28 @@ impl EditGraph {
             None => {
                 // In the main layer, there are many possible edges:
                 // - ~match~
-                // - mismatch / substitution
+                // -  substitution
                 // - insertion
                 // - deletion
                 // - affine close (insertion or deletion)
 
                 if let Some(cost) = cm.sub {
                     if let Some((i, j)) = f(1, 1, None, cost) {
-                        g(1, 1, i, j, None, cost, [Some(CigarOp::Mismatch), None]);
+                        g(1, 1, i, j, None, cost, [Some(CigarOp::Sub), None]);
                     }
                 }
 
                 // insertion
                 if let Some(cost) = cm.ins {
                     if let Some((i, j)) = f(0, 1, None, cost) {
-                        g(0, 1, i, j, None, cost, [Some(CigarOp::Insertion), None]);
+                        g(0, 1, i, j, None, cost, [Some(CigarOp::Ins), None]);
                     }
                 }
 
                 // deletion
                 if let Some(cost) = cm.del {
                     if let Some((i, j)) = f(1, 0, None, cost) {
-                        g(1, 0, i, j, None, cost, [Some(CigarOp::Deletion), None]);
+                        g(1, 0, i, j, None, cost, [Some(CigarOp::Del), None]);
                     }
                 }
 
@@ -362,10 +362,10 @@ impl EditGraph {
                 for (layer, cml) in cm.affine.iter().enumerate() {
                     let (di, dj, op) = match cml.affine_type {
                         AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                            (0, 1, CigarOp::AffineInsertion(layer))
+                            (0, 1, CigarOp::AffineIns(layer))
                         }
                         AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                            (1, 0, CigarOp::AffineDeletion(layer))
+                            (1, 0, CigarOp::AffineDel(layer))
                         }
                     };
                     if let Some((i, j)) = f(di, dj, Some(layer), cml.open) {
@@ -393,10 +393,10 @@ impl EditGraph {
                 let cml = &cm.affine[layer];
                 let (di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (0, 1, CigarOp::AffineInsertion(layer))
+                        (0, 1, CigarOp::AffineIns(layer))
                     }
                     AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (1, 0, CigarOp::AffineDeletion(layer))
+                        (1, 0, CigarOp::AffineDel(layer))
                     }
                 };
                 if let Some((i, j)) = f(di, dj, Some(layer), cml.extend) {

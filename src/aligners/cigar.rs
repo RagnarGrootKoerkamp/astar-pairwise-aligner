@@ -13,15 +13,15 @@ use super::{Path, Seq};
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum CigarOp {
     Match,
-    Mismatch,
+    Sub,
     /// Linear cost insertion.
-    Insertion,
+    Ins,
     /// Linear cost deletion.
-    Deletion,
+    Del,
     /// Affine cost insertion in given layer.
-    AffineInsertion(usize),
+    AffineIns(usize),
     /// Affine cost deletion in given layer.
-    AffineDeletion(usize),
+    AffineDel(usize),
     // Extra markers that do not translate to commands.
     /// Set when entering an affine layer.
     AffineOpen(usize),
@@ -34,11 +34,11 @@ impl CigarOp {
     fn get_char(&self) -> Option<char> {
         match self {
             CigarOp::Match => Some('M'),
-            CigarOp::Mismatch => Some('X'),
-            CigarOp::Insertion => Some('I'),
-            CigarOp::Deletion => Some('D'),
-            CigarOp::AffineInsertion(_) => Some('I'),
-            CigarOp::AffineDeletion(_) => Some('D'),
+            CigarOp::Sub => Some('X'),
+            CigarOp::Ins => Some('I'),
+            CigarOp::Del => Some('D'),
+            CigarOp::AffineIns(_) => Some('I'),
+            CigarOp::AffineDel(_) => Some('D'),
             _ => None,
         }
     }
@@ -46,9 +46,9 @@ impl CigarOp {
     fn delta(&self) -> Option<Pos> {
         match self {
             CigarOp::Match => Some(Pos(1, 1)),
-            CigarOp::Mismatch => Some(Pos(1, 1)),
-            CigarOp::Insertion | CigarOp::AffineInsertion(_) => Some(Pos(0, 1)),
-            CigarOp::Deletion | CigarOp::AffineDeletion(_) => Some(Pos(1, 0)),
+            CigarOp::Sub => Some(Pos(1, 1)),
+            CigarOp::Ins | CigarOp::AffineIns(_) => Some(Pos(0, 1)),
+            CigarOp::Del | CigarOp::AffineDel(_) => Some(Pos(1, 0)),
             _ => None,
         }
     }
@@ -107,9 +107,9 @@ impl Cigar {
                 .map(|edit| CigarElement {
                     command: match edit.edit {
                         triple_accel::EditType::Match => CigarOp::Match,
-                        triple_accel::EditType::Mismatch => CigarOp::Mismatch,
-                        triple_accel::EditType::AGap => CigarOp::Insertion,
-                        triple_accel::EditType::BGap => CigarOp::Deletion,
+                        triple_accel::EditType::Mismatch => CigarOp::Sub,
+                        triple_accel::EditType::AGap => CigarOp::Ins,
+                        triple_accel::EditType::BGap => CigarOp::Del,
                         triple_accel::EditType::Transpose => todo!(),
                     },
                     length: edit.count,
@@ -122,9 +122,9 @@ impl Cigar {
         for op in alignment {
             cigar.push(match op {
                 0 => CigarOp::Match,
-                1 => CigarOp::Deletion,
-                2 => CigarOp::Insertion,
-                3 => CigarOp::Mismatch,
+                1 => CigarOp::Del,
+                2 => CigarOp::Ins,
+                3 => CigarOp::Sub,
                 _ => panic!(),
             });
         }
@@ -138,11 +138,11 @@ impl Cigar {
                 if a[(pos.0 - 1) as usize] == b[(pos.1 - 1) as usize] {
                     CigarOp::Match
                 } else {
-                    CigarOp::Mismatch
+                    CigarOp::Sub
                 }
             }
-            Pos(0, 1) => CigarOp::Insertion,
-            Pos(1, 0) => CigarOp::Deletion,
+            Pos(0, 1) => CigarOp::Ins,
+            Pos(1, 0) => CigarOp::Del,
             _ => panic!("Offset is not correct"),
         }
     }
@@ -228,7 +228,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::Mismatch => {
+                CigarOp::Sub => {
                     assert!(layer == None);
                     for _ in 0..length {
                         pos.0 += 1;
@@ -237,7 +237,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::Insertion => {
+                CigarOp::Ins => {
                     assert!(layer == None);
                     for _ in 0..length {
                         pos.1 += 1;
@@ -245,7 +245,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::Deletion => {
+                CigarOp::Del => {
                     assert!(layer == None);
                     for _ in 0..length {
                         pos.0 += 1;
@@ -253,7 +253,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::AffineInsertion(l) => {
+                CigarOp::AffineIns(l) => {
                     assert_eq!(layer, Some(l));
                     assert_eq!(
                         cm.affine[l].affine_type.base(),
@@ -265,7 +265,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::AffineDeletion(l) => {
+                CigarOp::AffineDel(l) => {
                     assert_eq!(layer, Some(l));
                     assert_eq!(
                         cm.affine[l].affine_type.base(),
@@ -325,7 +325,7 @@ pub mod test {
                         pos.1 += 1;
                     }
                 }
-                CigarOp::Mismatch => {
+                CigarOp::Sub => {
                     assert!(layer == None);
                     for _ in 0..length {
                         assert_ne!(a.get(pos.0), b.get(pos.1));
@@ -334,17 +334,17 @@ pub mod test {
                         cost += cm.sub.unwrap();
                     }
                 }
-                CigarOp::Insertion => {
+                CigarOp::Ins => {
                     assert!(layer == None);
                     pos.1 += length;
                     cost += cm.ins.unwrap() * length as Cost;
                 }
-                CigarOp::Deletion => {
+                CigarOp::Del => {
                     assert!(layer == None);
                     pos.0 += length;
                     cost += cm.del.unwrap() * length as Cost;
                 }
-                CigarOp::AffineInsertion(l) => {
+                CigarOp::AffineIns(l) => {
                     assert_eq!(layer, Some(l));
                     assert_eq!(
                         cm.affine[l].affine_type.base(),
@@ -353,7 +353,7 @@ pub mod test {
                     pos.1 += length;
                     cost += cm.affine[l].extend * length as Cost;
                 }
-                CigarOp::AffineDeletion(l) => {
+                CigarOp::AffineDel(l) => {
                     assert_eq!(layer, Some(l));
                     assert_eq!(
                         cm.affine[l].affine_type.base(),

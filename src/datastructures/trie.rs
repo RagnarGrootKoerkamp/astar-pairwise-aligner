@@ -135,20 +135,20 @@ impl Trie {
                     if *state == State::MAX {
                         continue;
                     }
-                    let mismatch_cost = if ci == matching_index {
+                    let sub_cost = if ci == matching_index {
                         0
                     } else {
                         let Some(x) = cm.sub else {continue;};
                         x
                     };
-                    if cost + mismatch_cost as MatchCost > max_cost {
+                    if cost + sub_cost as MatchCost > max_cost {
                         continue;
                     }
                     queue.push(QueueElement {
                         state: *state,
                         i: i + 1,
                         j: j + 1,
-                        cost: cost + mismatch_cost as MatchCost,
+                        cost: cost + sub_cost as MatchCost,
                         last_is_insert: false,
                     });
                 }

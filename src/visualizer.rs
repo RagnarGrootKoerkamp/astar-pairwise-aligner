@@ -1,3 +1,5 @@
+// FIXME
+#![allow(unused_variables, dead_code)]
 //! To turn images into a video, use this:
 //!
 //! ```sh
@@ -1053,7 +1055,7 @@ mod visualizer {
                                 } else {
                                     match op[0].unwrap() {
                                         CigarOp::Match => self.config.style.tree_match,
-                                        CigarOp::Mismatch => self.config.style.tree_substitution,
+                                        CigarOp::Sub => self.config.style.tree_substitution,
                                         _ => None,
                                     }.unwrap_or(tree_color)
                                 };
@@ -1072,8 +1074,8 @@ mod visualizer {
                             for &(u, p, op)  in path.iter().rev() {
                                 let op = op[0].unwrap();
                                 match op {
-                                    CigarOp::Insertion => {
-                                        if last == CigarOp::Deletion {
+                                    CigarOp::Ins => {
+                                        if last == CigarOp::Del {
                                             Self::draw_diag_line(
                                                 &mut canvas,
                                                 self.cell_center(p.pos()),
@@ -1084,8 +1086,8 @@ mod visualizer {
                                         }
                                         last = op;
                                     }
-                                    CigarOp::Deletion => {
-                                        if last == CigarOp::Insertion {
+                                    CigarOp::Del => {
+                                        if last == CigarOp::Ins {
                                             Self::draw_diag_line(
                                                 &mut canvas,
                                                 self.cell_center(p.pos()),
@@ -1096,7 +1098,7 @@ mod visualizer {
                                         }
                                         last = op;
                                     }
-                                    CigarOp::Mismatch => {
+                                    CigarOp::Sub => {
                                         last = op;
                                     }
                                     _ => {

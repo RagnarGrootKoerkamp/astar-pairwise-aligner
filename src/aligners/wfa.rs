@@ -109,22 +109,15 @@ fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost, biwfa: bool) -> Cost {
     }
 }
 
-fn affine_cost(
-    a: Seq,
-    b: Seq,
-    mismatch: Cost,
-    gap_open: Cost,
-    gap_extend: Cost,
-    biwfa: bool,
-) -> Cost {
+fn affine_cost(a: Seq, b: Seq, sub: Cost, open: Cost, extend: Cost, biwfa: bool) -> Cost {
     // Configure alignment attributes
     unsafe {
         let mut attributes = wfa::wavefront_aligner_attr_default;
         attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
         attributes.distance_metric = wfa::distance_metric_t_gap_affine;
-        attributes.affine_penalties.mismatch = mismatch as i32;
-        attributes.affine_penalties.gap_opening = gap_open as i32;
-        attributes.affine_penalties.gap_extension = gap_extend as i32;
+        attributes.affine_penalties.mismatch = sub as i32;
+        attributes.affine_penalties.gap_opening = open as i32;
+        attributes.affine_penalties.gap_extension = extend as i32;
         attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         if biwfa {
             attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
@@ -149,11 +142,11 @@ fn affine_cost(
 fn double_affine_cost(
     a: Seq,
     b: Seq,
-    mismatch: Cost,
-    gap_open1: Cost,
-    gap_extend1: Cost,
-    gap_open2: Cost,
-    gap_extend2: Cost,
+    sub: Cost,
+    open1: Cost,
+    extend1: Cost,
+    open2: Cost,
+    extend2: Cost,
     biwfa: bool,
 ) -> Cost {
     // Configure alignment attributes
@@ -161,11 +154,11 @@ fn double_affine_cost(
         let mut attributes = wfa::wavefront_aligner_attr_default;
         attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
         attributes.distance_metric = wfa::distance_metric_t_gap_affine_2p;
-        attributes.affine2p_penalties.mismatch = mismatch as i32;
-        attributes.affine2p_penalties.gap_opening1 = gap_open1 as i32;
-        attributes.affine2p_penalties.gap_extension1 = gap_extend1 as i32;
-        attributes.affine2p_penalties.gap_opening2 = gap_open2 as i32;
-        attributes.affine2p_penalties.gap_extension2 = gap_extend2 as i32;
+        attributes.affine2p_penalties.mismatch = sub as i32;
+        attributes.affine2p_penalties.gap_opening1 = open1 as i32;
+        attributes.affine2p_penalties.gap_extension1 = extend1 as i32;
+        attributes.affine2p_penalties.gap_opening2 = open2 as i32;
+        attributes.affine2p_penalties.gap_extension2 = extend2 as i32;
         attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
         if biwfa {
             attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;

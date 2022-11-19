@@ -250,7 +250,7 @@ impl<'s> CompressedHistory<'s> {
                 cur.fr -= 2;
                 assert!(cur == *parent);
                 if let Some(cigar) = cigar {
-                    cigar.push(CigarOp::Mismatch);
+                    cigar.push(CigarOp::Sub);
                 }
                 return (cur, self.parent(parent_id));
             }
