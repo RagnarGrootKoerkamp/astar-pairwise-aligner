@@ -118,7 +118,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> DiagonalTransition<N, V,
             path_tracing_method: PathTracingMethod::ForwardGreedy,
         }
     }
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> DTInstance<'a, N, V, H> {
+    pub fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> DTInstance<'a, N, V, H> {
         // The maximum cost we look back:
         let top_buffer = EditGraph::max_edge_cost(&self.cm) as Fr;
 
@@ -156,7 +156,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> DiagonalTransition<N, V,
     }
 }
 
-struct DTInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
+pub struct DTInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
     pub a: Seq<'a>,
     pub b: Seq<'a>,

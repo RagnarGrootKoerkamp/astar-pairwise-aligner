@@ -1,7 +1,10 @@
 #![feature(let_chains)]
 
 use astar_pairwise_aligner::{
-    aligners::diagonal_transition::{DiagonalTransition, GapCostHeuristic},
+    aligners::{
+        astar::Astar,
+        diagonal_transition::{DiagonalTransition, GapCostHeuristic},
+    },
     cli::{
         heuristic_params::{AlgorithmArgs, HeuristicRunner},
         input::Input,
@@ -49,57 +52,6 @@ struct Cli {
     timeout: Option<Duration>,
 }
 
-/// Wrapper function to run on each heuristic.
-struct AlignWithHeuristic<'a, 'b> {
-    a: Seq<'a>,
-    b: Seq<'a>,
-    args: &'b Cli,
-}
-
-impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
-    type R = AstarStats;
-
-    fn call<H: Heuristic>(&self, h: H) -> Self::R {
-        self.args.visualizer.run_on_visualizer(
-            self.a,
-            self.b,
-            VisRunner { aligner: &self, h },
-            Some(&self.args.algorithm),
-            Some(&self.args.heuristic),
-        )
-    }
-}
-
-/// Wrapper function to run on each visualizer.
-struct VisRunner<'a, 'b, 'c, H: Heuristic> {
-    aligner: &'c AlignWithHeuristic<'a, 'b>,
-    h: H,
-}
-
-impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
-    type R = AstarStats;
-
-    fn call<V: visualizer::VisualizerConfig>(&self, v: V) -> Self::R {
-        let h = PathHeuristic { h: self.h };
-        let start_time = instant::Instant::now();
-        let (cost, ref mut hi) = h.build_with_cost(self.aligner.a, self.aligner.b);
-        let precomputation = start_time.elapsed().as_secs_f32();
-
-        let start_time = instant::Instant::now();
-        let mut dt = DiagonalTransition::new(
-            LinearCost::new_unit(),
-            GapCostHeuristic::Disable,
-            h,
-            false,
-            v,
-        );
-        let (cost, _) = dt.align_for_bounded_dist_with_h(Some(cost)).unwrap();
-        let total = start_time.elapsed().as_secs_f32();
-
-        AstarStats::new(&self.aligner.a, &self.aligner.b, cost, 0.)
-    }
-}
-
 fn main() {
     let args = Cli::parse();
 
@@ -108,18 +60,21 @@ fn main() {
     let start = instant::Instant::now();
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
-        // Run the pair.
-        let r = args
-            .heuristic
-            .run_on_heuristic(AlignWithHeuristic { a, b, args: &args });
+        // let h = PathHeuristic { h: self.h };
+        // FIXME: WRAP IN PATH_HEURISTIC.
+        let r = Astar::from_args(args.algorithm.dt, &args.heuristic, &args.visualizer)
+            .align_with_stats(a, b)
+            .1;
 
         // Record and print stats.
-        avg_result += r;
         if args.silent <= 1 {
             print!("\r");
             if args.silent == 0 {
                 r.print();
             }
+        }
+        avg_result += r;
+        if args.silent <= 1 {
             avg_result.print_no_newline();
         }
 

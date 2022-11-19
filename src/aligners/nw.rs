@@ -48,7 +48,7 @@ impl<const N: usize> NW<N, NoVisualizer, NoCost> {
 }
 
 impl<const N: usize, V: VisualizerConfig, H: Heuristic> NW<N, V, H> {
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H> {
+    pub fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H> {
         NWInstance {
             a: pad(a),
             b: pad(b),
@@ -68,7 +68,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> std::fmt::Debug for NW<N
     }
 }
 
-struct NWInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
+pub struct NWInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
     pub a: Sequence,
     pub b: Sequence,
@@ -492,7 +492,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V,
     /// Tries to find a path with cost <= s.
     /// Returns None if cost > s, or the actual cost otherwise.
     // TODO: Pass `h` into this function, instead of re-initializing it repeatedly for exponential search.
-    fn align_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<(Cost, Cigar)> {
+    pub fn align_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<(Cost, Cigar)> {
         let mut fronts = Fronts::new(
             INF,
             // The fronts to create.

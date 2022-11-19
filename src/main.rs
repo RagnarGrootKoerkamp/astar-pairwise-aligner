@@ -1,10 +1,10 @@
 #![feature(let_chains)]
 
 use astar_pairwise_aligner::{
-    aligners::{triple_accel::TripleAccel, Aligner},
+    aligners::{astar::Astar, triple_accel::TripleAccel, Aligner},
     cli::heuristic_params::Algorithm,
     prelude::*,
-    runner::{AlignWithHeuristic, Cli},
+    runner::Cli,
 };
 use clap::Parser;
 use itertools::Itertools;
@@ -57,17 +57,20 @@ fn main() {
             let total_duration = start.elapsed().as_secs_f32();
             AstarStats::new(a, b, cost, total_duration)
         } else {
-            args.heuristic
-                .run_on_heuristic(AlignWithHeuristic { a, b, args: &args })
+            Astar::from_args(args.algorithm.dt, &args.heuristic, &args.visualizer)
+                .align_with_stats(a, b)
+                .1
         };
 
         // Record and print stats.
-        avg_result.add_sample(&r);
         if args.silent <= 1 {
             print!("\r");
             if args.silent == 0 {
                 r.print();
             }
+        }
+        avg_result += r;
+        if args.silent <= 1 {
             avg_result.print_no_newline();
         }
 
