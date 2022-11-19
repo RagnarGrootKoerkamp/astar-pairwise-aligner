@@ -282,7 +282,7 @@ pub trait HeuristicRunner {
 }
 
 impl HeuristicArgs {
-    fn match_config(&self, window_filter: bool) -> MatchConfig {
+    pub fn match_config(&self, window_filter: bool) -> MatchConfig {
         let r = self.r;
         let k = self.k;
         MatchConfig {

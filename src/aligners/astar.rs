@@ -1,7 +1,17 @@
-use crate::{alignment_graph, astar::astar};
+use std::marker::PhantomData;
 
-use super::cigar::Cigar;
-use crate::{astar_dt::astar_dt, heuristic::Heuristic, prelude::Pos, visualizer::VisualizerT};
+use crate::heuristic::Heuristic;
+use crate::{
+    astar::astar_wrap,
+    astar_dt::astar_dt_wrap,
+    cli::{
+        heuristic_params::{HeuristicArgs, HeuristicType},
+        visualizer::{VisualizerArgs, VisualizerType},
+    },
+    heuristic::{GapCost, NoCost, Pruning, ZeroCost, CSH, SH},
+    prelude::{BruteForceContour, HintContours},
+    visualizer::{NoVisualizer, VisualizerConfig},
+};
 
 use super::Aligner;
 
@@ -15,7 +25,25 @@ pub struct AStar<V: VisualizerConfig, H: Heuristic> {
     pub v: V,
 }
 
-impl<V: VisualizerT, H: Heuristic> std::fmt::Debug for AStar<V, H> {
+impl<V: VisualizerConfig, H: Heuristic> AStar<V, H> {
+    fn new(dt: bool, h: H, v: V) -> Self {
+        AStar { dt, h, v }
+    }
+
+    fn align_with_stats(
+        &mut self,
+        a: super::Seq,
+        b: super::Seq,
+    ) -> ((crate::cost_model::Cost, super::cigar::Cigar), A {
+        if self.dt {
+            astar_dt_wrap(a, b, &self.h, &self.v).0
+        } else {
+            astar_wrap(a, b, &self.h, &self.v).0
+        }
+    }
+}
+
+impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for AStar<V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AStar")
             .field("diagonal_transition", &self.dt)
@@ -24,26 +52,65 @@ impl<V: VisualizerT, H: Heuristic> std::fmt::Debug for AStar<V, H> {
     }
 }
 
-impl<V: VisualizerT, H: Heuristic> Aligner for AStar<V, H> {
+impl AStar<NoVisualizer, ZeroCost> {
+    fn from_args_with_v<'a, V: VisualizerConfig + 'a>(
+        dt: bool,
+        h: &HeuristicArgs,
+        v: V,
+    ) -> Box<dyn Aligner + 'a> {
+        match h.heuristic {
+            HeuristicType::None => Box::new(AStar::new(dt, NoCost, v)),
+            HeuristicType::Zero => Box::new(AStar::new(dt, ZeroCost, v)),
+            HeuristicType::Gap => Box::new(AStar::new(dt, GapCost, v)),
+            HeuristicType::SH => Box::new(AStar::new(
+                dt,
+                SH {
+                    match_config: h.match_config(false),
+                    pruning: Pruning {
+                        enabled: !h.no_prune,
+                        skip_prune: h.skip_prune,
+                    },
+                },
+                v,
+            )),
+            HeuristicType::CSH => Box::new(AStar::new(
+                dt,
+                CSH {
+                    match_config: h.match_config(h.gap_cost),
+                    pruning: Pruning {
+                        enabled: !h.no_prune,
+                        skip_prune: h.skip_prune,
+                    },
+                    use_gap_cost: h.gap_cost,
+                    c: PhantomData::<HintContours<BruteForceContour>>,
+                },
+                v,
+            )),
+        }
+    }
+
+    pub fn from_args(
+        dt: bool,
+        h_args: &HeuristicArgs,
+        v_args: &VisualizerArgs,
+    ) -> Box<dyn Aligner> {
+        match v_args.make_visualizer() {
+            VisualizerType::NoVizualizer => Self::from_args_with_v(dt, h_args, NoVisualizer),
+            VisualizerType::Visualizer(config) => Self::from_args_with_v(dt, h_args, config),
+        }
+    }
+}
+
+impl<V: VisualizerConfig, H: Heuristic> Aligner for AStar<V, H> {
     fn align(
         &mut self,
         a: super::Seq,
         b: super::Seq,
     ) -> (crate::cost_model::Cost, super::cigar::Cigar) {
-        // Instantiate the heuristic.
-        let ref mut h = self.h.build(a, b);
-
-        // Run A* with heuristic.
-        // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
-        let graph = alignment_graph::EditGraph::new(a, b, self.greedy_edge_matching);
-        let (distance_and_path, _) = if self.diagonal_transition {
-            astar_dt(&graph, h, &mut self.v)
+        if self.dt {
+            astar_dt_wrap(a, b, &self.h, &self.v).0
         } else {
-            astar(&graph, h, &mut self.v)
-        };
-        let (distance, path) = distance_and_path.unwrap_or_default();
-
-        let path: Vec<Pos> = path.into_iter().collect();
-        return (distance, Cigar::from_path(a, b, &path));
+            astar_wrap(a, b, &self.h, &self.v).0
+        }
     }
 }
