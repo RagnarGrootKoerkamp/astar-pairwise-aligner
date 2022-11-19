@@ -33,7 +33,7 @@ pub fn astar_dt_wrap(
     b: Seq,
     h: &impl Heuristic,
     v: &impl VisualizerConfig,
-) -> ((Cost, Cigar), AStarStats) {
+) -> ((Cost, Cigar), AstarStats) {
     let ref graph = EditGraph::new(a, b, true);
     // TODO: Time the construction of h.
     let ref mut h = h.build(a, b);
@@ -46,11 +46,11 @@ pub fn astar_dt<'a, H>(
     graph: &EditGraph,
     h: &mut H,
     v: &mut impl VisualizerT,
-) -> ((Cost, Vec<Pos>), AStarStats)
+) -> ((Cost, Vec<Pos>), AstarStats)
 where
     H: HeuristicInstance<'a>,
 {
-    let mut stats = AStarStats::default();
+    let mut stats = AstarStats::default();
 
     // f -> (pos, g)
     let mut queue = ShiftQueue::<(Pos, Cost), H::Order>::new(if REDUCE_RETRIES {

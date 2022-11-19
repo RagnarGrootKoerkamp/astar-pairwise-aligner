@@ -44,7 +44,7 @@ pub struct AlignResult {
     pub input: InputStats,
     pub heuristic_params: HeuristicParams,
     pub timing: TimingStats,
-    pub astar: astar::AStarStats,
+    pub astar: astar::AstarStats,
     pub heuristic_stats2: HeuristicStats2,
     pub heuristic_stats: HeuristicStats,
 

@@ -30,7 +30,7 @@ impl<P: PosOrderT> ShiftOrderT<(Pos, Cost)> for P {
 }
 
 #[derive(Default, Clone)]
-pub struct AStarStats {
+pub struct AstarStats {
     pub expanded: usize,
     pub explored: usize,
     pub greedy_expanded: usize,
@@ -50,7 +50,7 @@ pub fn astar_wrap(
     b: Seq,
     h: &impl Heuristic,
     v: &impl VisualizerConfig,
-) -> ((Cost, Cigar), AStarStats) {
+) -> ((Cost, Cigar), AstarStats) {
     let ref graph = EditGraph::new(a, b, true);
     let ref mut h = h.build(a, b);
     let ref mut v = v.build(a, b);
@@ -62,11 +62,11 @@ pub fn astar<'a, H>(
     graph: &EditGraph,
     h: &mut H,
     v: &mut impl VisualizerT,
-) -> ((Cost, Vec<Pos>), AStarStats)
+) -> ((Cost, Vec<Pos>), AstarStats)
 where
     H: HeuristicInstance<'a>,
 {
-    let mut stats = AStarStats::default();
+    let mut stats = AstarStats::default();
 
     // f -> (pos, g)
     let mut queue = ShiftQueue::<(Pos, Cost), H::Order>::new(if REDUCE_RETRIES {
