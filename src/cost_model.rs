@@ -12,19 +12,6 @@ use std::cmp::{max, min};
 /// is explicit.
 pub type Cost = u32;
 
-/// A trait describing a cost model.
-///
-/// This is currently only implemented for `AffineCost<N>`, but may be
-/// specialized for e.g. `UnitCost` to allow better compile time optimizations.
-pub trait CostModelT {
-    /// The minimal cost according tho this cost model to go from one position to another.
-    fn gap_cost(&self, s: Pos, t: Pos) -> Cost;
-
-    /// Like `gap_cost`, but gap-open cost is not included. I.e: the path may
-    /// start and end in any layer.
-    fn extend_cost(&self, s: Pos, t: Pos) -> Cost;
-}
-
 /// An affine layer can either correspond to an insertion or deletion.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AffineLayerType {
@@ -118,23 +105,6 @@ pub struct AffineCost<const N: usize> {
 
     // Make the constructor private.
     _private: (),
-}
-
-#[derive(Debug)]
-pub struct UnitCost;
-
-#[derive(Debug)]
-pub struct LcsCost;
-
-impl CostModelT for UnitCost {
-    fn gap_cost(&self, s: Pos, t: Pos) -> Cost {
-        let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
-        delta.abs() as Cost
-    }
-
-    fn extend_cost(&self, s: Pos, t: Pos) -> Cost {
-        self.gap_cost(s, t)
-    }
 }
 
 /// A linear cost model is simply an affine cost model without any affine layers.
@@ -471,10 +441,8 @@ impl<const N: usize> AffineCost<N> {
             DeleteLayer | HomoPolymerDelete => CigarOp::AffineDeletion(layer),
         }
     }
-}
 
-impl<const N: usize> CostModelT for AffineCost<N> {
-    fn gap_cost(&self, s: Pos, t: Pos) -> Cost {
+    pub fn gap_cost(&self, s: Pos, t: Pos) -> Cost {
         let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
         match delta {
             0 => 0,
@@ -510,7 +478,7 @@ impl<const N: usize> CostModelT for AffineCost<N> {
         }
     }
 
-    fn extend_cost(&self, s: Pos, t: Pos) -> Cost {
+    pub fn extend_cost(&self, s: Pos, t: Pos) -> Cost {
         let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
         match delta {
             0 => 0,
@@ -547,7 +515,7 @@ impl<const N: usize> CostModelT for AffineCost<N> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum CostModel {
     Levenshtein,
     LCS,
@@ -579,15 +547,57 @@ pub enum CostModel {
         deletion_open: Cost,
         deletion_extend: Cost,
     },
-    AsymmetricDoubleAffine {
-        mismatch: Cost,
-        insertion1_open: Cost,
-        insertion1_extend: Cost,
-        deletion1_open: Cost,
-        deletion1_extend: Cost,
-        insertion2_open: Cost,
-        insertion2_extend: Cost,
-        deletion2_open: Cost,
-        deletion2_extend: Cost,
-    },
+}
+
+pub enum AffineCostModel {
+    Linear(AffineCost<0>),
+    Affine(AffineCost<2>),
+    DoubleAffine(AffineCost<4>),
+}
+
+impl CostModel {
+    pub fn to_affine_cost(&self) -> AffineCostModel {
+        use AffineCostModel::*;
+        match *self {
+            CostModel::Levenshtein => Linear(AffineCost::new_unit()),
+            CostModel::LCS => Linear(AffineCost::new_lcs()),
+            CostModel::Linear { mismatch, indel } => {
+                Linear(AffineCost::new_linear(mismatch, indel))
+            }
+            CostModel::Affine {
+                mismatch,
+                open,
+                extend,
+            } => Affine(AffineCost::new_affine(mismatch, open, extend)),
+            CostModel::DoubleAffine {
+                mismatch,
+                open1,
+                extend1,
+                open2,
+                extend2,
+            } => DoubleAffine(AffineCost::new_double_affine(
+                mismatch, open1, extend1, open2, extend2,
+            )),
+            CostModel::AsymmetricLinear {
+                mismatch,
+                insertion,
+                deletion,
+            } => Linear(AffineCost::new_linear_asymmetric(
+                mismatch, insertion, deletion,
+            )),
+            CostModel::AsymmetricAffine {
+                mismatch,
+                insertion_open,
+                insertion_extend,
+                deletion_open,
+                deletion_extend,
+            } => Affine(AffineCost::new_affine_asymmetric(
+                mismatch,
+                insertion_open,
+                insertion_extend,
+                deletion_open,
+                deletion_extend,
+            )),
+        }
+    }
 }
