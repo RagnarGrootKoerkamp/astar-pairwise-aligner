@@ -78,6 +78,19 @@ pub struct AstarStats {
 }
 
 impl AstarStats {
+    pub fn new(a: Seq, b: Seq, cost: u32, total_duration: f32) -> Self {
+        Self {
+            len_a: a.len(),
+            len_b: b.len(),
+            distance: cost as Cost,
+            sample_size: 1,
+            timing: Timing {
+                total: total_duration,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
     pub fn print(&self) {
         self.print_internal(true);
     }

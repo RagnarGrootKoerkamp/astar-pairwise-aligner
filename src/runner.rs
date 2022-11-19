@@ -83,29 +83,17 @@ struct AstarViz<'a, 'd, H: Heuristic> {
 }
 
 impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
-    type R = AlignResult;
+    type R = AstarStats;
 
     fn call<V: visualizer::VisualizerConfig>(&self, mut v: V) -> Self::R {
         match self.args.algorithm.algorithm {
             Algorithm::Astar => {
-                let sequence_stats = InputStats {
-                    len_a: self.a.len(),
-                    len_b: self.b.len(),
-                    error_rate: 0.,
-                };
-                let ((d, path), astar_stats) = if self.args.algorithm.dt {
+                if self.args.algorithm.dt {
                     astar_dt(self.a, self.b, &self.h, &v)
                 } else {
                     astar(self.a, self.b, &self.h, &v)
-                };
-
-                AlignResult {
-                    heuristic_params: self.h.params(),
-                    input: sequence_stats,
-                    astar: astar_stats,
-                    edit_distance: d,
-                    sample_size: 1,
                 }
+                .1
             }
             Algorithm::NW => {
                 let start = instant::Instant::now();
@@ -119,7 +107,7 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                 }
                 .align(self.a, self.b)
                 .0;
-                AlignResult::new(self.a, self.b, cost, start.elapsed().as_secs_f32())
+                AstarStats::new(self.a, self.b, cost, start.elapsed().as_secs_f32())
             }
             Algorithm::DT => {
                 let start = instant::Instant::now();
@@ -132,7 +120,7 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                 );
                 dt.local_doubling = self.args.algorithm.local_doubling;
                 let cost = dt.align(self.a, self.b).0;
-                AlignResult::new(self.a, self.b, cost, start.elapsed().as_secs_f32())
+                AstarStats::new(self.a, self.b, cost, start.elapsed().as_secs_f32())
             }
             _ => panic!(),
         }
