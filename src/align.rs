@@ -29,7 +29,6 @@ pub struct InputStats {
 #[derive(Default, Clone)]
 pub struct TimingStats {
     pub total: f32,
-    pub total_sum_squares: f32,
     pub precomputation: f32,
     pub astar: f32,
 }
@@ -68,7 +67,6 @@ impl AlignResult {
             edit_distance: cost as Cost,
             timing: TimingStats {
                 total: total_duration,
-                total_sum_squares: total_duration * total_duration,
                 ..Default::default()
             },
             ..Default::default()
@@ -96,7 +94,6 @@ impl AlignResult {
         self.timing.precomputation += other.timing.precomputation;
         self.timing.astar += other.timing.astar;
         self.timing.total += other.timing.total;
-        self.timing.total_sum_squares += other.timing.total_sum_squares;
         self.astar.traceback_duration += other.astar.traceback_duration;
         self.astar.retries_duration += other.astar.retries_duration;
         self.heuristic_stats.pruning_duration += other.heuristic_stats.pruning_duration;
@@ -198,13 +195,6 @@ impl AlignResult {
                     1000. * this.timing.total / this.sample_size as f32
                 )
             }),
-            // (format!("{:>8}", "t_std"), |this: &AlignResult| {
-            //     let n = this.sample_size as f32;
-            //     let avg = this.timing.total / n;
-            //     let sum_squares = this.timing.total_sum_squares;
-            //     let stddev = (1. / n * (sum_squares - n * avg * avg)).sqrt();
-            //     format!("{:>8.2}", 1000. * stddev)
-            // }),
             (format!("{:>8}", "precom"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
@@ -346,7 +336,6 @@ where
         input: sequence_stats,
         timing: TimingStats {
             total: total_duration.as_secs_f32(),
-            total_sum_squares: total_duration.as_secs_f32() * total_duration.as_secs_f32(),
             precomputation,
             astar: astar_duration.as_secs_f32() - astar_stats.traceback_duration,
         },
