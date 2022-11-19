@@ -34,6 +34,19 @@ pub struct NW<const N: usize, V: VisualizerConfig, H: Heuristic> {
     pub v: V,
 }
 
+impl<const N: usize> NW<N, NoVisualizer, NoCost> {
+    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
+        Self {
+            cm,
+            use_gap_cost_heuristic,
+            exponential_search,
+            local_doubling: false,
+            h: NoCost,
+            v: NoVisualizer,
+        }
+    }
+}
+
 impl<const N: usize, V: VisualizerConfig, H: Heuristic> NW<N, V, H> {
     fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H> {
         NWInstance {
@@ -43,6 +56,15 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> NW<N, V, H> {
             h: self.h.build(a, b),
             v: self.v.build(a, b),
         }
+    }
+}
+
+impl<const N: usize, V: VisualizerConfig, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NW")
+            .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
+            .field("h", &self.h)
+            .finish()
     }
 }
 
@@ -60,15 +82,6 @@ struct NWInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
     pub v: V::Visualizer,
 }
 
-impl<const N: usize, V: VisualizerConfig, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NW")
-            .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
-            .field("h", &self.h)
-            .finish()
-    }
-}
-
 /// Type used for indexing sequences.
 type Idx = isize;
 
@@ -83,19 +96,6 @@ type Fronts<const N: usize> = super::front::Fronts<N, Cost, Idx>;
 /// NW DP only needs the cell just left and above of the current cell.
 const LEFT_BUFFER: Idx = 2;
 const RIGHT_BUFFER: Idx = 2;
-
-impl<const N: usize> NW<N, NoVisualizer, NoCost> {
-    pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
-        Self {
-            cm,
-            use_gap_cost_heuristic,
-            exponential_search,
-            local_doubling: false,
-            h: NoCost,
-            v: NoVisualizer,
-        }
-    }
-}
 
 impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V, H> {
     /// Computes the next front (front `i`) from the current one.
@@ -554,7 +554,7 @@ fn pad(a: Seq) -> Sequence {
 
 impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> {
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        let nw = self.build(a, b);
+        let mut nw = self.build(a, b);
         let cost = if self.exponential_search {
             exponential_search(
                 self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
@@ -571,7 +571,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> 
     }
 
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
-        let nw = self.build(a, b);
+        let mut nw = self.build(a, b);
         let cc;
         if self.local_doubling {
             return nw.align_local_band_doubling();
