@@ -47,6 +47,7 @@ parse_duration = "*"
 serde = "*"
 serde_json = "*"
 triple_accel = "*"
+derive_more = "*"
 
 wasm-bindgen = {version="*", optional=true}
 console_error_panic_hook = {version="*", optional=true}
