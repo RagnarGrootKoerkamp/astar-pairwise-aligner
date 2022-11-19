@@ -35,7 +35,7 @@ fn main() {
     config.layer_drawing = false;
     let vis = |mut config: visualizer::Config, name: &str| {
         config.filepath = PathBuf::from("imgs/fig1-slides/").join(name);
-        Visualizer::new(config, a, b)
+        config
     };
 
     {

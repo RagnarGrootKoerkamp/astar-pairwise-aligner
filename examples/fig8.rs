@@ -55,7 +55,7 @@ fn main() {
                 use_gap_cost: false,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),
             },
-            v: Visualizer::new(config.clone(), a, b),
+            v: config.clone(),
         };
         let cost = a_star.align(a, b).0;
         println!("cost {cost}");
@@ -81,7 +81,7 @@ fn main() {
                 use_gap_cost: false,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),
             },
-            v: Visualizer::new(config.clone(), a, b),
+            v: config.clone(),
         };
         let cost = a_star.align(a, b).0;
         println!("cost {cost}");
@@ -117,7 +117,7 @@ fn main() {
                 use_gap_cost: false,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),
             },
-            v: Visualizer::new(config.clone(), a, b),
+            v: config.clone(),
         };
         let cost = a_star.align(a, b).0;
         println!("cost {cost}");

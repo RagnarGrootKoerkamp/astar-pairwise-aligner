@@ -18,7 +18,7 @@ fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
         dt,
         h,
         v: NoVisualizer,
-        //v: Visualizer::new(Config::new(VisualizerStyle::Test), a, b),
+        //v: Config::new(VisualizerStyle::Test),
     };
     let (d, cigar) = aligner.align(a, b);
     verify_cigar(&LinearCost::new_unit(), a, b, &cigar);

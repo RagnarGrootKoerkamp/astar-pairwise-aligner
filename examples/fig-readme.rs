@@ -54,7 +54,7 @@ fn main() {
         let mut a_star = Astar {
             dt: false,
             h,
-            v: Visualizer::new(config.clone(), a, b),
+            v: config.clone(),
         };
         a_star.align(a, b);
     }

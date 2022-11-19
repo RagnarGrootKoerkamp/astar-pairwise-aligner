@@ -55,7 +55,7 @@ fn main() {
             let mut a_star = Astar {
                 dt: false,
                 h,
-                v: Visualizer::new(config.clone(), a, b),
+                v: config.clone(),
             };
             let cost = a_star.align(a, b).0;
             println!("Distance: {cost}");
@@ -73,7 +73,7 @@ fn main() {
             let mut a_star = Astar {
                 dt: false,
                 h,
-                v: Visualizer::new(config.clone(), a, b),
+                v: config.clone(),
             };
             let cost = a_star.align(a, b).0;
         }
@@ -90,7 +90,7 @@ fn main() {
             let mut a_star = Astar {
                 dt: false,
                 h,
-                v: Visualizer::new(config.clone(), a, b),
+                v: config.clone(),
             };
             let cost = a_star.align(a, b).0;
         }
@@ -110,7 +110,7 @@ fn main() {
     //     let mut a_star = Astar {
     //         dt: false,
     //         h,
-    //         v: Visualizer::new(config.clone(), a, b),
+    // v: config.clone()
     //     };
     //     a_star.align(a, b);
     // }
