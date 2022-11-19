@@ -56,21 +56,22 @@ pub struct AlignWithHeuristic<'a, 'b> {
 }
 
 impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
-    type R = AlignResult;
+    type R = AstarStats;
 
     fn call<H: Heuristic>(&self, h: H) -> Self::R {
-        self.args.visualizer.run_on_visualizer(
-            self.a,
-            self.b,
-            AstarViz {
-                a: &self.a,
-                b: &self.b,
-                h,
-                args: &self.args,
-            },
-            Some(&self.args.algorithm),
-            Some(&self.args.heuristic),
-        )
+        todo!();
+        // self.args.visualizer.run_on_visualizer(
+        //     self.a,
+        //     self.b,
+        //     AstarViz {
+        //         a: &self.a,
+        //         b: &self.b,
+        //         h,
+        //         args: &self.args,
+        //     },
+        //     Some(&self.args.algorithm),
+        //     Some(&self.args.heuristic),
+        // )
     }
 }
 

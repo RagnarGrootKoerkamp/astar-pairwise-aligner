@@ -138,7 +138,7 @@ impl AstarStats {
             self.format_scl('>', 10, "|a|", self.len_a),
             self.format_scl('>', 10, "|b|", self.len_b),
             self.format_scl('>', 4, "e", self.error_rate),
-            self.format_raw('<', 7, "H", self.h_params.name),
+            self.format_raw('<', 7, "H", self.h_params.name.clone()),
             self.format_raw('>', 2, "k", self.h_params.k),
             self.format_raw('>', 2, "m", self.h_params.max_match_cost),
             self.format_scl('>', 7, "seeds", self.h.num_seeds),

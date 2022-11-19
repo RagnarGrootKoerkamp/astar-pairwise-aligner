@@ -57,7 +57,7 @@ struct AlignWithHeuristic<'a, 'b> {
 }
 
 impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
-    type R = AlignResult;
+    type R = AstarStats;
 
     fn call<H: Heuristic>(&self, h: H) -> Self::R {
         self.args.visualizer.run_on_visualizer(
@@ -77,9 +77,9 @@ struct VisRunner<'a, 'b, 'c, H: Heuristic> {
 }
 
 impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
-    type R = AlignResult;
+    type R = AstarStats;
 
-    fn call<V: visualizer::VisualizerT>(&self, v: V) -> Self::R {
+    fn call<V: visualizer::VisualizerConfig>(&self, v: V) -> Self::R {
         let h = PathHeuristic { h: self.h };
         let start_time = instant::Instant::now();
         let (cost, ref mut hi) = h.build_with_cost(self.aligner.a, self.aligner.b);
@@ -93,21 +93,10 @@ impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
             false,
             v,
         );
-        let (cost, _) = dt
-            .align_for_bounded_dist_with_h(self.aligner.a, self.aligner.b, Some(cost), hi)
-            .unwrap();
+        let (cost, _) = dt.align_for_bounded_dist_with_h(Some(cost)).unwrap();
         let total = start_time.elapsed().as_secs_f32();
 
-        AlignResult {
-            input: InputStats {
-                len_a: self.aligner.a.len(),
-                len_b: self.aligner.b.len(),
-                error_rate: 0.,
-            },
-            edit_distance: cost,
-            sample_size: 1,
-            ..Default::default()
-        }
+        AstarStats::new(&self.aligner.a, &self.aligner.b, cost, 0.)
     }
 }
 
@@ -115,7 +104,7 @@ fn main() {
     let args = Cli::parse();
 
     // Read the input
-    let mut avg_result = AlignResult::default();
+    let mut avg_result = AstarStats::default();
     let start = instant::Instant::now();
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
@@ -125,7 +114,7 @@ fn main() {
             .run_on_heuristic(AlignWithHeuristic { a, b, args: &args });
 
         // Record and print stats.
-        avg_result.add_sample(&r);
+        avg_result += r;
         if args.silent <= 1 {
             print!("\r");
             if args.silent == 0 {

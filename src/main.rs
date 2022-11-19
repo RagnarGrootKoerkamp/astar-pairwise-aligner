@@ -15,7 +15,7 @@ fn main() {
     //println!("{}", serde_json::to_string_pretty(&args).unwrap());
 
     // Read the input
-    let mut avg_result = AlignResult::default();
+    let mut avg_result = AstarStats::default();
     let start = instant::Instant::now();
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
@@ -55,7 +55,7 @@ fn main() {
                 _ => unreachable!(),
             };
             let total_duration = start.elapsed().as_secs_f32();
-            AlignResult::new(a, b, cost, total_duration)
+            AstarStats::new(a, b, cost, total_duration)
         } else {
             args.heuristic
                 .run_on_heuristic(AlignWithHeuristic { a, b, args: &args })

@@ -62,7 +62,7 @@ pub struct VisualizerArgs {
 
 pub trait VisualizerRunner {
     type R;
-    fn call<V: VisualizerT>(&self, v: V) -> Self::R;
+    fn call<V: VisualizerConfig>(&self, v: V) -> Self::R;
 }
 
 pub enum VisualizerType {
