@@ -71,7 +71,7 @@ fn main() {
                 c: PhantomData::<BruteForceContours>::default(),
             };
             let mut a_star = AStar {
-                diagonal_transition: false,
+                dt: false,
                 h,
                 v: Visualizer::new(config.clone(), a, b),
             };
@@ -88,7 +88,7 @@ fn main() {
                 c: PhantomData::<BruteForceContours>::default(),
             };
             let mut a_star = AStar {
-                diagonal_transition: false,
+                dt: false,
                 h,
                 v: Visualizer::new(config.clone(), a, b),
             };
@@ -108,7 +108,7 @@ fn main() {
     //         c: PhantomData::<HintContours<BruteForceContour>>::default(),
     //     };
     //     let mut a_star = AStar {
-    //         diagonal_transition: false,
+    //         dt: false,
     //         h,
     //         v: Visualizer::new(config.clone(), a, b),
     //     };

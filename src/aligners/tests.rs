@@ -146,7 +146,7 @@ mod astar {
     use std::marker::PhantomData;
 
     use crate::{
-        aligners::astar::AStar,
+        aligners::astar::Astar,
         cost_model::LinearCost,
         heuristic::{Heuristic, Pruning, CSH, SH},
         matches::MatchConfig,
@@ -160,12 +160,12 @@ mod astar {
         // To speed up tests, we choose it randomly.
         test_aligner_on_cost_model_with_viz(
             LinearCost::new_unit(),
-            AStar {
+            Astar {
                 dt,
                 h,
                 v: NoVisualizer,
             },
-            Some(&mut |a, b| AStar {
+            Some(&mut |a, b| Astar {
                 dt,
                 h,
                 v: {
