@@ -1,4 +1,9 @@
-use crate::{aligners::cigar::Cigar, prelude::*, visualizer::VisualizerT};
+use crate::{
+    aligners::cigar::Cigar,
+    alignment_graph::EditGraph,
+    prelude::*,
+    visualizer::{VisualizerConfig, VisualizerT},
+};
 
 const D: bool = false;
 
@@ -40,11 +45,24 @@ pub struct AStarStats {
     pub retries_duration: f64,
 }
 
+pub fn astar_wrap(
+    a: Seq,
+    b: Seq,
+    h: &impl Heuristic,
+    v: &impl VisualizerConfig,
+) -> ((Cost, Cigar), AStarStats) {
+    let ref graph = EditGraph::new(a, b, true);
+    let ref mut h = h.build(a, b);
+    let ref mut v = v.build(a, b);
+    let ((d, path), stats) = astar(graph, h, v);
+    ((d, Cigar::from_path(a, b, &path)), stats)
+}
+
 pub fn astar<'a, H>(
     graph: &EditGraph,
     h: &mut H,
     v: &mut impl VisualizerT,
-) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
+) -> ((Cost, Vec<Pos>), AStarStats)
 where
     H: HeuristicInstance<'a>,
 {
@@ -226,9 +244,7 @@ where
     let path = traceback::<H>(&states, graph.target());
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
     v.last_frame_with_h(
-        path.as_ref()
-            .map(|(_, path)| Cigar::from_path(graph.a, graph.b, path))
-            .as_ref(),
+        Some(&Cigar::from_path(graph.a, graph.b, &path.1)),
         None,
         Some(h),
     );
@@ -251,29 +267,29 @@ where
     Edge::Match
 }
 
-fn traceback<'a, H>(states: &HashMap<Pos, State<H::Hint>>, target: Pos) -> Option<(u32, Vec<Pos>)>
+// TODO: Make this return Cigar instead.
+fn traceback<'a, H>(states: &HashMap<Pos, State<H::Hint>>, target: Pos) -> (u32, Vec<Pos>)
 where
     H: HeuristicInstance<'a>,
 {
-    if let Some(state) = DiagonalMapTrait::get(states, target) {
-        let g = state.g;
-        let mut path = vec![target];
-        let mut cost = 0;
-        let mut current = target;
-        // If the state is not in the map, it was found via a match.
-        while current != Pos(0, 0) {
-            let e = parent::<H>(states, current, g - cost);
-            cost += e.cost();
-            current = e.back(&current).expect("No parent found for position!");
-            path.push(current);
-        }
-        path.reverse();
-        assert_eq!(
-            cost, g,
-            "Traceback cost {cost} does not equal distance to end {g}!"
-        );
-        Some((g, path))
-    } else {
-        None
+    let Some(state) = DiagonalMapTrait::get(states, target) else {
+        panic!();
+    };
+    let g = state.g;
+    let mut path = vec![target];
+    let mut cost = 0;
+    let mut current = target;
+    // If the state is not in the map, it was found via a match.
+    while current != Pos(0, 0) {
+        let e = parent::<H>(states, current, g - cost);
+        cost += e.cost();
+        current = e.back(&current).expect("No parent found for position!");
+        path.push(current);
     }
+    path.reverse();
+    assert_eq!(
+        cost, g,
+        "Traceback cost {cost} does not equal distance to end {g}!"
+    );
+    (g, path)
 }

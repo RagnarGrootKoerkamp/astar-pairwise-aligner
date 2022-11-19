@@ -1,4 +1,9 @@
-use crate::{aligners::cigar::Cigar, astar::*, prelude::*, visualizer::VisualizerT};
+use crate::{
+    aligners::cigar::Cigar,
+    astar::*,
+    prelude::*,
+    visualizer::{VisualizerConfig, VisualizerT},
+};
 
 const D: bool = false;
 
@@ -23,11 +28,25 @@ impl<P: PosOrderT> ShiftOrderT<(DtPos, I)> for P {
     }
 }
 
+pub fn astar_dt_wrap(
+    a: Seq,
+    b: Seq,
+    h: &impl Heuristic,
+    v: &impl VisualizerConfig,
+) -> ((Cost, Cigar), AStarStats) {
+    let ref graph = EditGraph::new(a, b, true);
+    // TODO: Time the construction of h.
+    let ref mut h = h.build(a, b);
+    let ref mut v = v.build(a, b);
+    let ((d, path), stats) = astar_dt(graph, h, v);
+    ((d, Cigar::from_path(a, b, &path)), stats)
+}
+
 pub fn astar_dt<'a, H>(
     graph: &EditGraph,
     h: &mut H,
     v: &mut impl VisualizerT,
-) -> (Option<(Cost, Vec<Pos>)>, AStarStats)
+) -> ((Cost, Vec<Pos>), AStarStats)
 where
     H: HeuristicInstance<'a>,
 {
@@ -224,9 +243,7 @@ where
     let path = traceback::<H>(&states, graph.target(), dist);
     stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
     v.last_frame_with_h(
-        path.as_ref()
-            .map(|(_, path)| Cigar::from_path(graph.a, graph.b, path))
-            .as_ref(),
+        Some(&Cigar::from_path(graph.a, graph.b, &path.1)),
         None,
         Some(h),
     );
@@ -254,7 +271,7 @@ pub fn traceback<'a, H>(
     states: &HashMap<DtPos, State<H::Hint>>,
     target: Pos,
     g: Cost,
-) -> Option<(u32, Vec<Pos>)>
+) -> (u32, Vec<Pos>)
 where
     H: HeuristicInstance<'a>,
 {
@@ -310,5 +327,5 @@ where
         "Traceback cost {cost} does not equal distance to end {g}!"
     );
     assert_eq!(cost_from_start, 0);
-    Some((g, path))
+    (g, path)
 }

@@ -327,7 +327,7 @@ where
     } else {
         astar(&graph, h, vis)
     };
-    let (distance, _) = distance_and_path.unwrap_or_default();
+    let (distance, _) = distance_and_path;
     let astar_duration = astar_time.elapsed();
     let total_duration = start_time.elapsed();
     let end_val = h.h(Pos(0, 0));
