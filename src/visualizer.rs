@@ -14,7 +14,7 @@ use crate::{
     aligners::{cigar::Cigar, cigar::CigarOp, edit_graph::State},
     cost_model::Cost,
     heuristic::{HeuristicInstance, NoCostI},
-    prelude::Pos,
+    prelude::{Pos, Seq},
 };
 
 #[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
@@ -44,6 +44,11 @@ pub enum When {
 }
 
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
+
+pub trait VisualizerConfig {
+    type Visualizer: VisualizerT;
+    fn build(&self, a: Seq, b: Seq) -> Self::Visualizer;
+}
 
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
@@ -104,7 +109,15 @@ pub trait VisualizerT {
 }
 
 /// A trivial visualizer that does not do anything.
+#[derive(Debug)]
 pub struct NoVisualizer;
+impl VisualizerConfig for NoVisualizer {
+    type Visualizer = NoVisualizer;
+
+    fn build(&self, _a: Seq, _b: Seq) -> Self::Visualizer {
+        NoVisualizer
+    }
+}
 impl VisualizerT for NoVisualizer {}
 
 use clap::ValueEnum;
@@ -474,6 +487,14 @@ mod visualizer {
     impl Default for Config {
         fn default() -> Self {
             Config::new(VisualizerStyle::Default)
+        }
+    }
+
+    impl VisualizerConfig for Config {
+        type Visualizer = Visualizer;
+
+        fn build(&self, a: Seq, b: Seq) -> Self::Visualizer {
+            Visualizer::new_with_cli_params(self.clone(), a, b, None, None)
         }
     }
 
