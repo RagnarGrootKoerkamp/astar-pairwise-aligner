@@ -30,22 +30,22 @@ impl<V: VisualizerConfig, H: Heuristic> Astar<V, H> {
         Astar { dt, h, v }
     }
 
-    fn align_with_stats(
-        &mut self,
-        a: super::Seq,
-        b: super::Seq,
-    ) -> ((crate::cost_model::Cost, super::cigar::Cigar), A {
-        if self.dt {
-            astar_dt_wrap(a, b, &self.h, &self.v).0
-        } else {
-            astar_wrap(a, b, &self.h, &self.v).0
-        }
-    }
+    // fn align_with_stats(
+    //     &mut self,
+    //     a: super::Seq,
+    //     b: super::Seq,
+    // ) -> ((crate::cost_model::Cost, super::cigar::Cigar), AlignResult) {
+    //     if self.dt {
+    //         astar_dt_wrap(a, b, &self.h, &self.v).0
+    //     } else {
+    //         astar_wrap(a, b, &self.h, &self.v).0
+    //     }
+    // }
 }
 
 impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for Astar<V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AStar")
+        f.debug_struct("Astar")
             .field("dt", &self.dt)
             .field("h", &self.h)
             .finish()

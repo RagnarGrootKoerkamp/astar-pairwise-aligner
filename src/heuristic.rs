@@ -13,6 +13,7 @@ use crate::{matches::Match, prelude::*};
 
 pub use bruteforce_csh::*;
 pub use chained_seed::*;
+use derive_more::AddAssign;
 pub use distance::*;
 pub use equal::*;
 pub use max::*;
@@ -30,25 +31,16 @@ pub struct HeuristicParams {
     pub pruning: Pruning,
 }
 
-#[derive(Clone)]
+#[derive(Clone, AddAssign, Default, Copy)]
 pub struct HeuristicStats {
     pub num_seeds: I,
     pub num_matches: usize,
     pub num_filtered_matches: usize,
     pub pruning_duration: f32,
-    pub num_prunes: usize,
-}
-
-impl Default for HeuristicStats {
-    fn default() -> Self {
-        Self {
-            num_seeds: 0,
-            num_matches: 0,
-            num_filtered_matches: 0,
-            pruning_duration: 0.,
-            num_prunes: 0,
-        }
-    }
+    pub num_pruned: usize,
+    pub h0: Cost,
+    pub h0_end: Cost,
+    pub prune_count: usize,
 }
 
 /// An object containing the settings for a heuristic.
@@ -188,7 +180,7 @@ pub trait HeuristicInstance<'a> {
     /// priority queue.
     fn explore(&mut self, _pos: Pos) {}
 
-    fn stats(&self) -> HeuristicStats {
+    fn stats(&mut self) -> HeuristicStats {
         Default::default()
     }
 

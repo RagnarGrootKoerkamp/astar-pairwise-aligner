@@ -63,7 +63,7 @@ where
         self.h.root_state(root_pos.mirror())
     }
 
-    fn stats(&self) -> HeuristicStats {
+    fn stats(&mut self) -> HeuristicStats {
         self.h.stats()
     }
 

@@ -57,8 +57,7 @@ pub struct SHI {
     /// The maximum position explored so far.
     max_explored_pos: Pos,
 
-    // TODO: Put statistics into a separate struct.
-    num_pruned: usize,
+    stats: HeuristicStats,
 }
 
 type Hint = Cost;
@@ -105,16 +104,26 @@ impl SHI {
             println!("Starts: {layer_starts:?}");
         }
 
-        let h = SHI {
+        let mut h = SHI {
             params,
             _target: Pos::from_lengths(a, b),
-            matches,
             arrows,
             num_arrows_per_length,
             layer_starts,
             max_explored_pos: Pos(0, 0),
-            num_pruned: 0,
+            stats: HeuristicStats {
+                num_seeds: matches.seeds.len() as I,
+                num_matches: matches.matches.len(),
+                num_filtered_matches: matches.matches.len(),
+                pruning_duration: 0.0,
+                num_pruned: 0,
+                h0: 0,
+                h0_end: 0,
+                prune_count: 0,
+            },
+            matches,
         };
+        h.stats.h0 = h.h(Pos(0, 0));
         h
     }
 
@@ -303,7 +312,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
                             *self.arrows.get_mut(&startpos).unwrap() = matches;
                             return;
                         }
-                        self.num_pruned += 1;
+                        self.stats.num_pruned += 1;
                         if matches.is_empty() {
                             self.arrows.remove(&startpos).unwrap();
                         } else {
@@ -368,7 +377,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
                 let mut check = |pos: Pos| {
                     if let Some(arrows) = self.arrows.get(&pos) {
                         if arrows.iter().all(|a2| a2.end == a.end) {
-                            self.num_pruned += 1;
+                            self.stats.num_pruned += 1;
                             for a in self.arrows.remove(&pos).unwrap() {
                                 // TODO: Increment change here?
                                 self.update_layers_on_pruning_arrow(a, hint);
@@ -408,7 +417,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
             };
         }
 
-        self.num_pruned += 1;
+        self.stats.num_pruned += 1;
         return if pos >= self.max_explored_pos {
             (change, pos.0)
         } else {
@@ -421,20 +430,9 @@ impl<'a> HeuristicInstance<'a> for SHI {
         self.max_explored_pos.1 = max(self.max_explored_pos.1, pos.1);
     }
 
-    fn stats(&self) -> HeuristicStats {
-        let num_matches = self
-            .matches
-            .seeds
-            .iter()
-            .filter(|seed| seed.seed_cost < seed.seed_potential)
-            .count();
-        HeuristicStats {
-            num_seeds: self.matches.seeds.len() as I,
-            num_matches,
-            num_filtered_matches: num_matches,
-            pruning_duration: Default::default(),
-            num_prunes: self.num_pruned,
-        }
+    fn stats(&mut self) -> HeuristicStats {
+        self.stats.h0 = self.h(Pos(0, 0));
+        self.stats
     }
 
     fn matches(&self) -> Option<Vec<Match>> {

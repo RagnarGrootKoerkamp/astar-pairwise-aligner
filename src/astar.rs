@@ -1,3 +1,5 @@
+use derive_more::AddAssign;
+
 use crate::{
     aligners::cigar::Cigar,
     alignment_graph::EditGraph,
@@ -29,7 +31,20 @@ impl<P: PosOrderT> ShiftOrderT<(Pos, Cost)> for P {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Copy, AddAssign)]
+pub struct Timing {
+    /// precomp + astar
+    pub total: f32,
+    /// building the heuristic
+    pub precomp: f32,
+    /// running A*
+    pub astar: f32,
+
+    pub traceback: f32,
+    pub retries: f32,
+}
+
+#[derive(Default, Clone, Copy, AddAssign)]
 pub struct AstarStats {
     pub expanded: usize,
     pub explored: usize,
@@ -41,8 +56,9 @@ pub struct AstarStats {
     /// Number of states allocated in the DiagonalMap
     pub diagonalmap_capacity: usize,
 
-    pub traceback_duration: f32,
-    pub retries_duration: f64,
+    pub h: HeuristicStats,
+
+    pub timing: Timing,
 }
 
 pub fn astar_wrap(
@@ -51,10 +67,16 @@ pub fn astar_wrap(
     h: &impl Heuristic,
     v: &impl VisualizerConfig,
 ) -> ((Cost, Cigar), AstarStats) {
+    let start = instant::Instant::now();
     let ref graph = EditGraph::new(a, b, true);
     let ref mut h = h.build(a, b);
+    let precomp = start.elapsed().as_secs_f32();
     let ref mut v = v.build(a, b);
-    let ((d, path), stats) = astar(graph, h, v);
+    let ((d, path), mut stats) = astar(graph, h, v);
+    let total = start.elapsed().as_secs_f32();
+    stats.timing.total = total;
+    stats.timing.precomp = precomp;
+    stats.timing.astar = total - precomp;
     ((d, Cigar::from_path(a, b, &path)), stats)
 }
 
@@ -134,8 +156,7 @@ where
                 });
                 retry_cnt += 1;
                 if let Some(expand_start) = expand_start {
-                    stats.retries_duration +=
-                        TIME_EACH as f64 * expand_start.elapsed().as_secs_f64();
+                    stats.timing.retries += TIME_EACH as f32 * expand_start.elapsed().as_secs_f32();
                 }
                 continue;
             }
@@ -242,12 +263,15 @@ where
     stats.diagonalmap_capacity = states.dm_capacity();
     let traceback_start = instant::Instant::now();
     let path = traceback::<H>(&states, graph.target());
-    stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
+    stats.timing.traceback = traceback_start.elapsed().as_secs_f32();
     v.last_frame_with_h(
         Some(&Cigar::from_path(graph.a, graph.b, &path.1)),
         None,
         Some(h),
     );
+    stats.h = h.stats();
+    assert!(stats.h.h0 <= path.0);
+
     (path, stats)
 }
 

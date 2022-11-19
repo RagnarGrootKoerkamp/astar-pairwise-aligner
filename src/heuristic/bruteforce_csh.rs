@@ -55,10 +55,8 @@ pub struct BruteForceCSHI<'a, DH: Distance> {
     h_at_seeds: HashMap<Pos, Cost>,
     // Remaining arrows/matches
     arrows: HashMap<Pos, Vec<Arrow>>,
-    num_pruned: usize,
 
-    // Statistics
-    pub pruning_duration: Duration,
+    stats: HeuristicStats,
 }
 
 /// The seed heuristic implies a distance function as the maximum of the
@@ -94,8 +92,7 @@ where
             ),
             h_at_seeds: Default::default(),
             arrows: Default::default(),
-            pruning_duration: Default::default(),
-            num_pruned: 0,
+            stats: Default::default(),
         };
         assert!(h
             .seeds
@@ -121,6 +118,13 @@ where
             .collect();
 
         h.build();
+        h.stats = HeuristicStats {
+            num_seeds: h.seeds.seeds.len() as I,
+            num_matches: h.seeds.matches.len(),
+            num_filtered_matches: h.seeds.matches.len(),
+            h0_end: h.h(Pos(0, 0)),
+            ..Default::default()
+        };
         h
     }
 
@@ -233,7 +237,7 @@ where
                             self.arrows.remove(&tp).unwrap();
                             //println!("B: empty {tp}");
                         }
-                        self.num_pruned += 1;
+                        self.stats.num_pruned += 1;
                     };
                     // First try pruning neighbouring start states, and prune the diagonal start state last.
                     for d in 1..=max_match_cost {
@@ -249,7 +253,7 @@ where
         let a = if let Some(arrows) = self.arrows.get(&tpos) {
             arrows.iter().max_by_key(|a| a.score).unwrap().clone()
         } else {
-            self.pruning_duration += start.elapsed();
+            self.stats.pruning_duration += start.elapsed().as_secs_f32();
             self.build();
             return (0, ());
         };
@@ -295,7 +299,7 @@ where
                     let tp = pos;
                     if let Some(arrows) = self.arrows.get(&tp) {
                         if arrows.iter().all(|a2| a2.end == a.end) {
-                            self.num_pruned += 1;
+                            self.stats.num_pruned += 1;
                             self.arrows.remove(&tp);
                         }
                     } else {
@@ -326,21 +330,16 @@ where
             };
         }
 
-        self.pruning_duration += start.elapsed();
+        self.stats.pruning_duration += start.elapsed().as_secs_f32();
 
-        self.num_pruned += 1;
+        self.stats.num_pruned += 1;
         self.build();
         return (0, ());
     }
 
-    fn stats(&self) -> HeuristicStats {
-        HeuristicStats {
-            num_seeds: self.seeds.seeds.len() as I,
-            num_matches: self.seeds.matches.len(),
-            num_filtered_matches: self.seeds.matches.len(),
-            pruning_duration: self.pruning_duration.as_secs_f32(),
-            num_prunes: self.num_pruned,
-        }
+    fn stats(&mut self) -> HeuristicStats {
+        self.stats.h0_end = self.h(Pos(0, 0));
+        self.stats
     }
 
     fn matches(&self) -> Option<Vec<Match>> {

@@ -570,7 +570,7 @@ impl<C: Contour> Contours for HintContours<C> {
     }
 
     #[allow(unreachable_code)]
-    fn print_stats(&self) {
+    fn print_stats(&mut self) {
         // TODO: MAKE A FLAG FOR THIS.
         return;
         eprintln!("----------------------------");

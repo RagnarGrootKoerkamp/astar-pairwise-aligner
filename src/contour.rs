@@ -124,5 +124,5 @@ pub trait Contours: Default + Debug {
     ) -> (bool, Cost);
 
     /// Returns some statistics.
-    fn print_stats(&self) {}
+    fn print_stats(&mut self) {}
 }

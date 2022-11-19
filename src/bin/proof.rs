@@ -104,12 +104,6 @@ impl<H: Heuristic> VisualizerRunner for VisRunner<'_, '_, '_, H> {
                 len_b: self.aligner.b.len(),
                 error_rate: 0.,
             },
-            timing: TimingStats {
-                total,
-                total_sum_squares: total * total,
-                precomputation,
-                ..Default::default()
-            },
             edit_distance: cost,
             sample_size: 1,
             ..Default::default()

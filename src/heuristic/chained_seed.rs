@@ -5,7 +5,7 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
-use std::{marker::PhantomData, time::Duration};
+use std::marker::PhantomData;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Pruning {
@@ -153,21 +153,13 @@ pub struct CSHI<C: Contours> {
     gap_distance: GapCostI,
     target: Pos,
 
+    stats: HeuristicStats,
     seeds: SeedMatches,
-    num_matches: usize,
-    num_filtered_matches: usize,
-
-    // TODO: Put statistics into a separate struct.
-    num_pruned: usize,
 
     /// The max transformed position.
     max_transformed_pos: Pos,
     transform_target: Pos,
     contours: C,
-
-    // For debugging
-    prune_count: usize,
-    pruning_duration: Duration,
 
     // TODO: Do not use vectors inside a hashmap.
     // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
@@ -209,9 +201,7 @@ impl<C: Contours> CSHI<C> {
             gap_distance: Distance::build(&GapCost, a, b),
             target: Pos::from_lengths(a, b),
             seeds: matches,
-            num_matches: 0,
-            num_filtered_matches: 0,
-            num_pruned: 0,
+            stats: HeuristicStats::default(),
 
             // For pruning propagation
             max_transformed_pos: Pos(0, 0),
@@ -219,8 +209,6 @@ impl<C: Contours> CSHI<C> {
             // Filled below.
             transform_target: Pos(0, 0),
             contours: C::default(),
-            prune_count: 0,
-            pruning_duration: Default::default(),
             arrows: Default::default(),
         };
         h.transform_target = h.transform(h.target);
@@ -232,14 +220,14 @@ impl<C: Contours> CSHI<C> {
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
-        h.num_matches = h.seeds.matches.len();
+        h.stats.num_matches = h.seeds.matches.len();
         if params.use_gap_cost {
             // Need to take it out of h.seeds because transform also uses this.
             let mut matches = std::mem::take(&mut h.seeds.matches);
             matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);
             h.seeds.matches = matches;
         }
-        h.num_filtered_matches = h.seeds.matches.len();
+        h.stats.num_filtered_matches = h.seeds.matches.len();
 
         // Transform to Arrows.
         // For arrows with length > 1, also make arrows for length down to 1.
@@ -289,6 +277,7 @@ impl<C: Contours> CSHI<C> {
         }
         h.arrows = arrows;
         h.contours.print_stats();
+        h.stats.h0 = h.h(Pos(0, 0));
         h
     }
 
@@ -312,8 +301,9 @@ impl<C: Contours> CSHI<C> {
     /// True when the next position should be pruned.
     /// Returns false once every `params.pruning.skip_prune` steps.
     fn add_prune(&mut self) -> bool {
-        self.num_pruned += 1;
-        self.params.pruning.skip_prune == 0 || self.num_pruned % self.params.pruning.skip_prune != 0
+        self.stats.num_pruned += 1;
+        self.params.pruning.skip_prune == 0
+            || self.stats.num_pruned % self.params.pruning.skip_prune != 0
     }
 }
 
@@ -364,11 +354,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         if !self.params.pruning.enabled {
             return (0, Pos::default());
         }
-        self.prune_count += 1;
+        self.stats.prune_count += 1;
 
         // Time the duration of retrying once in this many iterations.
         const TIME_EACH: usize = 64;
-        let start = if self.prune_count % TIME_EACH == 0 {
+        let start = if self.stats.prune_count % TIME_EACH == 0 {
             Some(instant::Instant::now())
         } else {
             None
@@ -402,7 +392,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                         if arrows.is_empty() {
                             self.arrows.remove(&tp).unwrap();
                         }
-                        self.num_pruned += 1;
+                        self.stats.num_pruned += 1;
                         // FIXME: Propagate this change.
                         self.contours.prune_with_hint(tp, hint, &self.arrows).1;
                     };
@@ -421,7 +411,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             arrows.iter().max_by_key(|a| a.score).unwrap().clone()
         } else {
             if let Some(start) = start {
-                self.pruning_duration += TIME_EACH as u32 * start.elapsed();
+                self.stats.pruning_duration += TIME_EACH as f32 * start.elapsed().as_secs_f32();
             }
             // FIXME: Fix queue shifting with gapcost.
             return (change, pos);
@@ -512,7 +502,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         }
 
         if let Some(start) = start {
-            self.pruning_duration += TIME_EACH as u32 * start.elapsed();
+            self.stats.pruning_duration += TIME_EACH as f32 * start.elapsed().as_secs_f32();
         }
 
         if self.params.use_gap_cost {
@@ -529,14 +519,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         self.max_transformed_pos.1 = max(self.max_transformed_pos.1, tpos.1);
     }
 
-    fn stats(&self) -> HeuristicStats {
-        HeuristicStats {
-            num_seeds: self.seeds.seeds.len() as I,
-            num_matches: self.num_matches,
-            num_filtered_matches: self.num_filtered_matches,
-            pruning_duration: self.pruning_duration.as_secs_f32(),
-            num_prunes: self.num_pruned,
-        }
+    fn stats(&mut self) -> HeuristicStats {
+        self.stats.h0_end = self.h(Pos(0, 0));
+        self.stats
     }
 
     fn matches(&self) -> Option<Vec<Match>> {

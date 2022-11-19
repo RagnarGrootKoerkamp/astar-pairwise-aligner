@@ -76,7 +76,7 @@ where
         (self.h1.root_state(root_pos), self.h2.root_state(root_pos))
     }
 
-    fn stats(&self) -> HeuristicStats {
+    fn stats(&mut self) -> HeuristicStats {
         self.h2.stats()
     }
 

@@ -1,6 +1,8 @@
+use crate::astar::{AstarStats, Timing};
 use crate::visualizer::{NoVisualizer, VisualizerT};
 use crate::{astar::astar, astar_dt::astar_dt, prelude::*};
 
+use std::default;
 use std::{
     fmt,
     io::{stdout, Write},
@@ -27,26 +29,10 @@ pub struct InputStats {
 }
 
 #[derive(Default, Clone)]
-pub struct TimingStats {
-    pub total: f32,
-    pub precomputation: f32,
-    pub astar: f32,
-}
-
-#[derive(Default, Clone)]
-pub struct HeuristicStats2 {
-    pub root_h: Cost,
-    pub root_h_end: Cost,
-}
-
-#[derive(Default, Clone)]
 pub struct AlignResult {
     pub input: InputStats,
     pub heuristic_params: HeuristicParams,
-    pub timing: TimingStats,
     pub astar: astar::AstarStats,
-    pub heuristic_stats2: HeuristicStats2,
-    pub heuristic_stats: HeuristicStats,
 
     // Output
     pub edit_distance: Cost,
@@ -65,8 +51,11 @@ impl AlignResult {
                 ..Default::default()
             },
             edit_distance: cost as Cost,
-            timing: TimingStats {
-                total: total_duration,
+            astar: AstarStats {
+                timing: Timing {
+                    total: total_duration,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -81,25 +70,8 @@ impl AlignResult {
 
         self.input.len_a += other.input.len_a;
         self.input.len_b += other.input.len_b;
-        self.heuristic_stats.num_seeds += other.heuristic_stats.num_seeds;
-        self.heuristic_stats.num_matches += other.heuristic_stats.num_matches;
-        self.heuristic_stats.num_filtered_matches += other.heuristic_stats.num_filtered_matches;
-        self.heuristic_stats.num_prunes += other.heuristic_stats.num_prunes;
-        self.astar.expanded += other.astar.expanded;
-        self.astar.explored += other.astar.explored;
-        self.astar.greedy_expanded += other.astar.greedy_expanded;
-        self.astar.retries += other.astar.retries;
-        self.astar.pq_shifts += other.astar.pq_shifts;
-        self.astar.diagonalmap_capacity += other.astar.diagonalmap_capacity;
-        self.timing.precomputation += other.timing.precomputation;
-        self.timing.astar += other.timing.astar;
-        self.timing.total += other.timing.total;
-        self.astar.traceback_duration += other.astar.traceback_duration;
-        self.astar.retries_duration += other.astar.retries_duration;
-        self.heuristic_stats.pruning_duration += other.heuristic_stats.pruning_duration;
+        self.astar += other.astar;
         self.edit_distance += other.edit_distance;
-        self.heuristic_stats2.root_h += other.heuristic_stats2.root_h;
-        self.heuristic_stats2.root_h_end += other.heuristic_stats2.root_h_end;
         self.sample_size += other.sample_size;
     }
 
@@ -148,15 +120,12 @@ impl AlignResult {
             //     format!("{:<5}", this.heuristic_params.distance_function)
             // }),
             (format!("{:>7}", "seeds"), |this: &AlignResult| {
-                format!(
-                    "{:>7}",
-                    this.heuristic_stats.num_seeds as usize / this.sample_size
-                )
+                format!("{:>7}", this.astar.h.num_seeds as usize / this.sample_size)
             }),
             (format!("{:>7}", "match/s"), |this: &AlignResult| {
                 format!(
                     "{:>7.1}",
-                    this.heuristic_stats.num_matches as f32 / this.heuristic_stats.num_seeds as f32
+                    this.astar.h.num_matches as f32 / this.astar.h.num_seeds as f32
                 )
             }),
             // (format!("{:>7}", "f-match"), |this: &AlignResult| {
@@ -178,7 +147,7 @@ impl AlignResult {
                 format!("{:>7}", this.astar.retries / this.sample_size)
             }),
             (format!("{:>7}", "prunes"), |this: &AlignResult| {
-                format!("{:>7}", this.heuristic_stats.num_prunes / this.sample_size)
+                format!("{:>7}", this.astar.h.num_pruned / this.sample_size)
             }),
             (format!("{:>7}", "shift"), |this: &AlignResult| {
                 format!("{:>7}", this.astar.pq_shifts / this.sample_size)
@@ -192,31 +161,31 @@ impl AlignResult {
             (format!("{:>8}", "t"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
-                    1000. * this.timing.total / this.sample_size as f32
+                    1000. * this.astar.timing.total / this.sample_size as f32
                 )
             }),
             (format!("{:>8}", "precom"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
-                    1000. * this.timing.precomputation / this.sample_size as f32
+                    1000. * this.astar.timing.precomp / this.sample_size as f32
                 )
             }),
             (format!("{:>8}", "align"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
-                    1000. * this.timing.astar / this.sample_size as f32
+                    1000. * this.astar.timing.total / this.sample_size as f32
                 )
             }),
             (format!("{:>8}", "prune"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
-                    1000. * this.heuristic_stats.pruning_duration / this.sample_size as f32
+                    1000. * this.astar.h.pruning_duration / this.sample_size as f32
                 )
             }),
             (format!("{:>8}", "retries"), |this: &AlignResult| {
                 format!(
                     "{:>8.2}",
-                    1000. * this.astar.retries_duration / this.sample_size as f64
+                    1000. * this.astar.timing.retries / this.sample_size as f32
                 )
             }),
             // (format!("{:>8}", "trace"), |this: &AlignResult| {
@@ -238,15 +207,12 @@ impl AlignResult {
                 )
             }),
             (format!("{:>6}", "h0"), |this: &AlignResult| {
-                format!(
-                    "{:>6.0}",
-                    this.heuristic_stats2.root_h as f32 / this.sample_size as f32
-                )
+                format!("{:>6.0}", this.astar.h.h0 as f32 / this.sample_size as f32)
             }),
             (format!("{:>6}", "h0end"), |this: &AlignResult| {
                 format!(
                     "{:>6.0}",
-                    this.heuristic_stats2.root_h_end as f32 / this.sample_size as f32
+                    this.astar.h.h0_end as f32 / this.sample_size as f32
                 )
             }),
         ];
@@ -303,13 +269,9 @@ where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
     // Instantiate the heuristic.
-    let start_time = instant::Instant::now();
     let ref mut h = heuristic.build(a, b);
-    let precomputation = start_time.elapsed().as_secs_f32();
-    let start_val = h.h(Pos(0, 0));
 
     // Run A* with heuristic.
-    let astar_time = instant::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
     let graph = EditGraph::new(a, b, true);
     let (distance_and_path, astar_stats) = if diagonal_transition {
@@ -318,33 +280,11 @@ where
         astar(&graph, h, vis)
     };
     let (distance, _) = distance_and_path;
-    let astar_duration = astar_time.elapsed();
-    let total_duration = start_time.elapsed();
-    let end_val = h.h(Pos(0, 0));
-
-    assert!(
-        start_val <= distance,
-        "Distance {} H0 {}",
-        distance,
-        start_val
-    );
-
-    let h_stats = h.stats();
 
     AlignResult {
         heuristic_params: heuristic.params(),
         input: sequence_stats,
-        timing: TimingStats {
-            total: total_duration.as_secs_f32(),
-            precomputation,
-            astar: astar_duration.as_secs_f32() - astar_stats.traceback_duration,
-        },
         astar: astar_stats,
-        heuristic_stats: h_stats,
-        heuristic_stats2: HeuristicStats2 {
-            root_h: start_val,
-            root_h_end: end_val,
-        },
         edit_distance: distance,
         sample_size: 1,
     }

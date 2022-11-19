@@ -34,11 +34,16 @@ pub fn astar_dt_wrap(
     h: &impl Heuristic,
     v: &impl VisualizerConfig,
 ) -> ((Cost, Cigar), AstarStats) {
+    let start = instant::Instant::now();
     let ref graph = EditGraph::new(a, b, true);
-    // TODO: Time the construction of h.
     let ref mut h = h.build(a, b);
+    let precomp = start.elapsed().as_secs_f32();
     let ref mut v = v.build(a, b);
-    let ((d, path), stats) = astar_dt(graph, h, v);
+    let ((d, path), mut stats) = astar_dt(graph, h, v);
+    let total = start.elapsed().as_secs_f32();
+    stats.timing.total = total;
+    stats.timing.precomp = precomp;
+    stats.timing.astar = total - precomp;
     ((d, Cigar::from_path(a, b, &path)), stats)
 }
 
@@ -127,8 +132,7 @@ where
                 });
                 retry_cnt += 1;
                 if let Some(expand_start) = expand_start {
-                    stats.retries_duration +=
-                        TIME_EACH as f64 * expand_start.elapsed().as_secs_f64();
+                    stats.timing.retries += TIME_EACH as f32 * expand_start.elapsed().as_secs_f32();
                 }
                 continue;
             }
@@ -241,12 +245,13 @@ where
     stats.diagonalmap_capacity = states.dm_capacity();
     let traceback_start = instant::Instant::now();
     let path = traceback::<H>(&states, graph.target(), dist);
-    stats.traceback_duration = traceback_start.elapsed().as_secs_f32();
+    stats.timing.traceback = traceback_start.elapsed().as_secs_f32();
     v.last_frame_with_h(
         Some(&Cigar::from_path(graph.a, graph.b, &path.1)),
         None,
         Some(h),
     );
+    assert!(stats.h.h0 <= path.0);
     (path, stats)
 }
 
