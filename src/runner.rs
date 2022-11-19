@@ -9,7 +9,7 @@ use crate::{
     },
     prelude::*,
 };
-use clap::{ArgMatches, Parser};
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Serialize, Deserialize)]
@@ -60,11 +60,6 @@ impl HeuristicRunner for AlignWithHeuristic<'_, '_> {
         self.args.visualizer.run_on_visualizer(
             self.a,
             self.b,
-            if cfg!(feature = "wasm") {
-                ArgMatches::default()
-            } else {
-                <Cli as clap::CommandFactory>::command().get_matches()
-            },
             AstarViz {
                 a: &self.a,
                 b: &self.b,

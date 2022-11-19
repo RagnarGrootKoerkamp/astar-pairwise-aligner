@@ -1,9 +1,5 @@
-use super::heuristic_params::{AlgorithmArgs, HeuristicArgs};
-use crate::{
-    prelude::Seq,
-    visualizer::{NoVisualizer, VisualizerStyle, VisualizerT, When},
-};
-use clap::{ArgMatches, Parser};
+use crate::visualizer::*;
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -18,15 +14,8 @@ pub struct VisualizerArgs {
     /// f: faster
     /// s: slower
     /// q: jump to last frame, or exit when already on last frame
-    #[clap(
-        short = 'v',
-        long,
-        display_order = 1,
-        min_values = 0,
-        value_enum,
-        value_name = "WHEN"
-    )]
-    pub visualize: Option<When>,
+    #[clap(short = 'v', long, display_order = 1, value_enum, value_name = "WHEN", default_value_t = When::None)]
+    pub visualize: When,
 
     /// Visualizer style.
     #[clap(long, default_value_t, value_enum, display_order = 2)]
@@ -37,14 +26,8 @@ pub struct VisualizerArgs {
     pub pause: bool,
 
     /// Which frames to save.
-    #[clap(
-        long,
-        display_order = 3,
-        min_values = 0,
-        value_enum,
-        value_name = "WHEN"
-    )]
-    pub save: Option<When>,
+    #[clap(long, display_order = 3, value_enum, value_name = "WHEN", default_value_t = When::None)]
+    pub save: When,
 
     /// Show or save only each Nth frame.
     #[clap(long, display_order = 3)]
@@ -82,114 +65,73 @@ pub trait VisualizerRunner {
     fn call<V: VisualizerT>(&self, v: V) -> Self::R;
 }
 
-impl VisualizerArgs {
-    // pass matches as <Cli as clap::CommandFactory>::command().get_matches()
-    #[cfg(not(any(feature = "sdl2", feature = "wasm")))]
-    pub fn run_on_visualizer<F: VisualizerRunner>(
-        &self,
-        _a: Seq,
-        _b: Seq,
-        matches: ArgMatches,
-        f: F,
-        _alg: Option<&AlgorithmArgs>,
-        _h: Option<&HeuristicArgs>,
-    ) -> F::R {
-        if matches.contains_id("visualize")
-            || matches.contains_id("save")
-            || matches.contains_id("save_path")
-        {
-            eprintln!("The sdl2 feature must be enabled to use visualizations.");
-            panic!("The sdl2 feature must be enabled to use visualizations.");
-        }
-
-        f.call(NoVisualizer)
-    }
-
+pub enum VisualizerType {
+    NoVizualizer,
     #[cfg(any(feature = "sdl2", feature = "wasm"))]
-    pub fn run_on_visualizer<F: VisualizerRunner>(
-        &self,
-        a: Seq,
-        b: Seq,
-        matches: ArgMatches,
-        f: F,
-        alg: Option<&AlgorithmArgs>,
-        h: Option<&HeuristicArgs>,
-    ) -> F::R {
-        use crate::canvas::BLACK;
+    Visualizer(Config),
+}
 
-        use crate::visualizer::{Config, Visualizer};
+impl VisualizerArgs {
+    pub fn make_visualizer(&self) -> VisualizerType {
+        #[cfg(not(any(feature = "sdl2", feature = "wasm")))]
+        return VisualizerType::NoVizualizer(NoVisualizer);
 
-        let draw = if cfg!(feature = "wasm") {
-            When::All
-        } else {
-            if matches.contains_id("visualize") {
-                self.visualize.clone().unwrap_or(When::All)
-            } else {
-                When::None
-            }
-        };
-        let save = if cfg!(feature = "wasm") {
-            When::None
-        } else {
-            if matches.contains_id("save") {
-                self.save.clone().unwrap_or(When::Last)
-            } else if self.save_path.is_some() {
-                When::Last
-            } else {
-                When::None
-            }
-        };
-        if draw == When::None && save == When::None {
-            return f.call(NoVisualizer);
-        }
-
-        // Get the default config for the style.
-        let mut config = Config::new(self.style);
-        config.draw = draw;
-        config.save = save;
-        if config.save != When::None {
-            config.save_last = true;
-            // In this case, the save_last above is sufficient.
-            if config.save == When::Last {
-                config.save = When::None;
-            }
-            config.filepath = self
-                .save_path
-                .clone()
-                .expect("--save-path must be set when --save is set");
-        }
-        let update = |when: &mut When| {
-            if let Some(step) = self.each {
-                if *when == When::All {
-                    *when = When::StepBy(step);
-                }
-                if *when == When::Layers {
-                    *when = When::LayersStepBy(step);
-                }
-            }
-        };
-        update(&mut config.draw);
-        update(&mut config.save);
-
-        config.paused = self.pause;
-
-        // Apply CLI flag customizations to the style.
-        config.cell_size = self.cell_size.unwrap_or(0);
-        config.downscaler = self.downscaler.unwrap_or(0);
-
-        config.draw_old_on_top = !self.new_on_top;
-        if self.draw_tree {
-            config.style.tree = Some(BLACK);
-        }
-        if self.no_draw_tree {
-            config.style.tree = None;
-        }
-
-        #[cfg(feature = "wasm")]
+        #[cfg(any(feature = "sdl2", feature = "wasm"))]
         {
-            config.draw_single_frame = Some(unsafe { crate::wasm::INTERACTION.get() });
-        }
+            use crate::canvas::BLACK;
 
-        f.call(Visualizer::new_with_cli_params(config, a, b, alg, h))
+            if self.visualize == When::None && self.save == When::None {
+                return VisualizerType::NoVizualizer;
+            }
+
+            // Get the default config for the style.
+            let mut config = Config::new(self.style);
+            config.draw = self.visualize.clone();
+            config.save = self.save.clone();
+            if config.save != When::None {
+                config.save_last = true;
+                // In this case, the save_last above is sufficient.
+                if config.save == When::Last {
+                    config.save = When::None;
+                }
+                config.filepath = self
+                    .save_path
+                    .clone()
+                    .expect("--save-path must be set when --save is set");
+            }
+            let update = |when: &mut When| {
+                if let Some(step) = self.each {
+                    if *when == When::All {
+                        *when = When::StepBy(step);
+                    }
+                    if *when == When::Layers {
+                        *when = When::LayersStepBy(step);
+                    }
+                }
+            };
+            update(&mut config.draw);
+            update(&mut config.save);
+
+            config.paused = self.pause;
+
+            // Apply CLI flag customizations to the style.
+            config.cell_size = self.cell_size.unwrap_or(0);
+            config.downscaler = self.downscaler.unwrap_or(0);
+
+            config.draw_old_on_top = !self.new_on_top;
+            if self.draw_tree {
+                config.style.tree = Some(BLACK);
+            }
+            if self.no_draw_tree {
+                config.style.tree = None;
+            }
+
+            #[cfg(feature = "wasm")]
+            {
+                config.draw_single_frame = Some(unsafe { crate::wasm::INTERACTION.get() });
+            }
+
+            VisualizerType::Visualizer(config)
+        }
     }
 }
