@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use crate::astar::AstarStats;
 use crate::heuristic::Heuristic;
 use crate::{
     astar::astar,
@@ -29,18 +30,28 @@ impl<V: VisualizerConfig, H: Heuristic> Astar<V, H> {
     fn new(dt: bool, h: H, v: V) -> Self {
         Astar { dt, h, v }
     }
+}
 
-    // fn align_with_stats(
-    //     &mut self,
-    //     a: super::Seq,
-    //     b: super::Seq,
-    // ) -> ((crate::cost_model::Cost, super::cigar::Cigar), AlignResult) {
-    //     if self.dt {
-    //         astar_dt_wrap(a, b, &self.h, &self.v).0
-    //     } else {
-    //         astar_wrap(a, b, &self.h, &self.v).0
-    //     }
-    // }
+pub trait AstarAligner: Aligner {
+    fn align_with_stats(
+        &mut self,
+        a: super::Seq,
+        b: super::Seq,
+    ) -> ((crate::cost_model::Cost, super::cigar::Cigar), AstarStats);
+}
+
+impl<V: VisualizerConfig, H: Heuristic> AstarAligner for Astar<V, H> {
+    fn align_with_stats(
+        &mut self,
+        a: super::Seq,
+        b: super::Seq,
+    ) -> ((crate::cost_model::Cost, super::cigar::Cigar), AstarStats) {
+        if self.dt {
+            astar_dt(a, b, &self.h, &self.v)
+        } else {
+            astar(a, b, &self.h, &self.v)
+        }
+    }
 }
 
 impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for Astar<V, H> {
@@ -53,11 +64,12 @@ impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for Astar<V, H> {
 }
 
 impl Astar<NoVisualizer, ZeroCost> {
-    fn from_args_with_v<'a, V: VisualizerConfig + 'a>(
+    /// FIXME: FIGURE OUT WHY +'static IS NEEDED HERE??
+    fn from_args_with_v<'a, V: VisualizerConfig + 'a + 'static>(
         dt: bool,
         h: &HeuristicArgs,
         v: V,
-    ) -> Box<dyn Aligner + 'a> {
+    ) -> Box<dyn AstarAligner> {
         match h.heuristic {
             HeuristicType::None => Box::new(Astar::new(dt, NoCost, v)),
             HeuristicType::Zero => Box::new(Astar::new(dt, ZeroCost, v)),
@@ -93,7 +105,7 @@ impl Astar<NoVisualizer, ZeroCost> {
         dt: bool,
         h_args: &HeuristicArgs,
         v_args: &VisualizerArgs,
-    ) -> Box<dyn Aligner> {
+    ) -> Box<dyn AstarAligner> {
         match v_args.make_visualizer() {
             VisualizerType::NoVizualizer => Self::from_args_with_v(dt, h_args, NoVisualizer),
             VisualizerType::Visualizer(config) => Self::from_args_with_v(dt, h_args, config),
