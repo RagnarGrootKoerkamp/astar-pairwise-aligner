@@ -568,6 +568,27 @@ impl CostModel {
             _ => true,
         }
     }
+    pub fn to_affine(&self) -> Self {
+        match *self {
+            CostModel::Levenshtein => CostModel::Affine {
+                sub: 1,
+                open: 0,
+                extend: 1,
+            },
+            CostModel::LCS => CostModel::Affine {
+                sub: Cost::MAX,
+                open: 0,
+                extend: 1,
+            },
+            CostModel::Linear { sub, indel } => CostModel::Affine {
+                sub,
+                open: 0,
+                extend: indel,
+            },
+            cm => cm,
+        }
+    }
+
     pub fn to_affine_cost(&self) -> AffineCostModel {
         use AffineCostModel::*;
         match *self {

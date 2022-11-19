@@ -23,11 +23,9 @@ fn main() {
         let r = if args.algorithm.algorithm.external() {
             let start = Instant::now();
             let cost = match args.algorithm.algorithm {
-                Algorithm::TripleAccel => TripleAccel {
-                    exp_search: args.algorithm.exp_search,
-                    cost_model: CostModel::Levenshtein,
+                Algorithm::TripleAccel => {
+                    TripleAccel::new(false, CostModel::Levenshtein).cost(a, b)
                 }
-                .cost(a, b),
                 Algorithm::Edlib => {
                     #[cfg(not(feature = "edlib"))]
                     panic!("Enable the edlib feature flag to use edlib.");

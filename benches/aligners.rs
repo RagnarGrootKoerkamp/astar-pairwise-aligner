@@ -34,32 +34,12 @@ fn run_aligner(
 #[bench]
 fn triple_accel(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| {
-        run_aligner(
-            TripleAccel {
-                exp_search: false,
-                cost_model: CostModel::Levenshtein,
-            },
-            N,
-            E,
-            seed,
-        )
-    });
+    bench.iter(|| run_aligner(TripleAccel::new(false, CostModel::Levenshtein), N, E, seed));
 }
 #[bench]
 fn triple_accel_exp(bench: &mut Bencher) {
     let ref mut seed = 0;
-    bench.iter(|| {
-        run_aligner(
-            TripleAccel {
-                exp_search: true,
-                cost_model: CostModel::Levenshtein,
-            },
-            N,
-            E,
-            seed,
-        )
-    });
+    bench.iter(|| run_aligner(TripleAccel::new(false, CostModel::Levenshtein), N, E, seed));
 }
 
 fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, NoCost> {

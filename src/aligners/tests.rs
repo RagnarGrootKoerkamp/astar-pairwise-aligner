@@ -132,27 +132,13 @@ mod triple_accel {
     #[test]
     fn unit_cost() {
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(
-            cm.clone(),
-            TripleAccel {
-                exp_search: false,
-                cost_model: Levenshtein,
-            },
-            false,
-        );
+        test_aligner_on_cost_model(cm.clone(), TripleAccel::new(false, Levenshtein), false);
     }
 
     #[test]
     fn unit_cost_exp() {
         let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(
-            cm.clone(),
-            TripleAccel {
-                exp_search: true,
-                cost_model: Levenshtein,
-            },
-            false,
-        );
+        test_aligner_on_cost_model(cm.clone(), TripleAccel::new(false, Levenshtein), false);
     }
 }
 
