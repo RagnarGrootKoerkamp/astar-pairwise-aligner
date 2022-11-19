@@ -298,15 +298,7 @@ pub fn align<'a, H: Heuristic>(
 where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
-    align_advanced(
-        a,
-        b,
-        sequence_stats,
-        heuristic,
-        true,
-        false,
-        &mut NoVisualizer,
-    )
+    align_advanced(a, b, sequence_stats, heuristic, false, &mut NoVisualizer)
 }
 
 pub fn align_advanced<'a, H: Heuristic>(
@@ -314,7 +306,6 @@ pub fn align_advanced<'a, H: Heuristic>(
     b: Seq<'a>,
     sequence_stats: InputStats,
     heuristic: H,
-    greedy_edge_matching: bool,
     diagonal_transition: bool,
     vis: &mut impl VisualizerT,
 ) -> AlignResult
@@ -330,7 +321,7 @@ where
     // Run A* with heuristic.
     let astar_time = instant::Instant::now();
     // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
-    let graph = EditGraph::new(a, b, greedy_edge_matching);
+    let graph = EditGraph::new(a, b, true);
     let (distance_and_path, astar_stats) = if diagonal_transition {
         astar_dt(&graph, h, vis)
     } else {

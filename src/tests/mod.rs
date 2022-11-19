@@ -15,8 +15,7 @@ mod contours;
 
 fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
     let mut aligner = AStar {
-        greedy_edge_matching: true,
-        diagonal_transition: dt,
+        dt,
         h,
         v: NoVisualizer,
         //v: Visualizer::new(Config::new(VisualizerStyle::Test), a, b),

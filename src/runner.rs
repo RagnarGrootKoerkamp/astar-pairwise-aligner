@@ -101,7 +101,6 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                     self.b,
                     sequence_stats,
                     self.h,
-                    !self.args.algorithm.no_greedy_matching,
                     self.args.algorithm.dt,
                     &mut v,
                 )

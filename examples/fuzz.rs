@@ -35,7 +35,6 @@ fn fuzz(aligner: &mut impl Aligner) -> (Sequence, Sequence) {
 }
 
 fn main() {
-    let greedy = true;
     let dt = true;
     let k = 3;
     let max_match_cost = 1;
@@ -45,8 +44,7 @@ fn main() {
     let check_dist = true;
 
     let ref mut aligner = AStar {
-        greedy_edge_matching: greedy,
-        diagonal_transition: dt,
+        dt,
         h: CSH {
             match_config: MatchConfig::new(k, max_match_cost),
             pruning: Pruning::new(pruning),

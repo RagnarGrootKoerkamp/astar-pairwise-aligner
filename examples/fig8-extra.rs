@@ -49,8 +49,7 @@ fn main() {
         config.filepath = std::path::PathBuf::from("imgs/fig8-extra/high-error-rate-dt/");
         let mut a_star = AStar {
             // NOTE: TRUE HERE
-            diagonal_transition: true,
-            greedy_edge_matching: true,
+            dt: true,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
                 pruning: Pruning::enabled(),
@@ -77,8 +76,7 @@ fn main() {
         config.filepath = "imgs/fig8-extra/deletion-dt".into();
         let mut a_star = AStar {
             // NOTE: TRUE
-            diagonal_transition: true,
-            greedy_edge_matching: true,
+            dt: true,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
                 pruning: Pruning::enabled(),
@@ -105,8 +103,7 @@ fn main() {
         config.filepath = "imgs/fig8-extra/deletion-dt-gapcost".into();
         let mut a_star = AStar {
             // NOTE: TRUE
-            diagonal_transition: true,
-            greedy_edge_matching: true,
+            dt: true,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
                 pruning: Pruning::enabled(),
@@ -144,8 +141,7 @@ fn main() {
         config.filepath = "imgs/fig8-extra/repeats-variable-k".into();
         let mut a_star = AStar {
             // NOTE: TRUE
-            diagonal_transition: true,
-            greedy_edge_matching: true,
+            dt: true,
             h: CSH {
                 // NOTE: At most 2 matches
                 match_config: MatchConfig {

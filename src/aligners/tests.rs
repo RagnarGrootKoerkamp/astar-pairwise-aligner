@@ -158,18 +158,15 @@ mod astar {
     fn test_heuristic<H: Heuristic>(h: H, dt: bool) {
         // Greedy matching doesn't really matter much.
         // To speed up tests, we choose it randomly.
-        let greedy_edge_matching = thread_rng().gen_bool(0.5);
         test_aligner_on_cost_model_with_viz(
             LinearCost::new_unit(),
             AStar {
-                greedy_edge_matching,
-                diagonal_transition: dt,
+                dt,
                 h,
                 v: NoVisualizer,
             },
             Some(&mut |a, b| AStar {
-                greedy_edge_matching,
-                diagonal_transition: dt,
+                dt,
                 h,
                 v: {
                     #[cfg(feature = "sdl2")]

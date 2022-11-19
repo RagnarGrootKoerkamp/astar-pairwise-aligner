@@ -52,8 +52,7 @@ fn main() {
             c: PhantomData::<HintContours<BruteForceContour>>::default(),
         };
         let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
+            dt: false,
             h,
             v: Visualizer::new(config.clone(), a, b),
         };

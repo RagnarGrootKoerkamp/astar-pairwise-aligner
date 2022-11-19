@@ -54,10 +54,6 @@ pub struct AlgorithmArgs {
     #[clap(short, long, default_value_t, value_enum, display_order = 10)]
     pub algorithm: Algorithm,
 
-    /// Disable greedy matching
-    #[clap(long, hide_short_help = true)]
-    pub no_greedy_matching: bool,
-
     /// Use diagonal-transition based A*.
     #[clap(long, hide_short_help = true)]
     pub dt: bool,
@@ -103,9 +99,6 @@ impl ToString for AlgorithmArgs {
                 let mut s = "A*".to_string();
                 if self.dt {
                     s += " + Diagonal Transition";
-                }
-                if self.no_greedy_matching {
-                    s += " (no greedy)";
                 }
                 s
             }

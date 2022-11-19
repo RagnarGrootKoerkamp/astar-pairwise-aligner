@@ -53,8 +53,7 @@ fn main() {
                 pruning: Pruning::new(pruning),
             };
             let mut a_star = AStar {
-                diagonal_transition: false,
-                greedy_edge_matching: true,
+                dt: false,
                 h,
                 v: Visualizer::new(config.clone(), a, b),
             };
@@ -73,7 +72,6 @@ fn main() {
             };
             let mut a_star = AStar {
                 diagonal_transition: false,
-                greedy_edge_matching: true,
                 h,
                 v: Visualizer::new(config.clone(), a, b),
             };
@@ -91,7 +89,6 @@ fn main() {
             };
             let mut a_star = AStar {
                 diagonal_transition: false,
-                greedy_edge_matching: true,
                 h,
                 v: Visualizer::new(config.clone(), a, b),
             };
@@ -112,7 +109,6 @@ fn main() {
     //     };
     //     let mut a_star = AStar {
     //         diagonal_transition: false,
-    //         greedy_edge_matching: true,
     //         h,
     //         v: Visualizer::new(config.clone(), a, b),
     //     };

@@ -48,8 +48,7 @@ fn main() {
 
         config.filepath = "imgs/fig8/high-error-rate".into();
         let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
+            dt: false,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
                 pruning: Pruning::enabled(),
@@ -75,8 +74,7 @@ fn main() {
 
         config.filepath = "imgs/fig8/deletion".into();
         let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
+            dt: false,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
                 pruning: Pruning::enabled(),
@@ -112,8 +110,7 @@ fn main() {
 
         config.filepath = "imgs/fig8/repeats".into();
         let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
+            dt: false,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
                 pruning: Pruning::enabled(),

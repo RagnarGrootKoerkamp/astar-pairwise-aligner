@@ -53,8 +53,7 @@ fn main() {
 
     {
         let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
+            dt: false,
             h: NoCost,
             v: vis(config.clone(), "2_dijkstra"),
         };
@@ -93,8 +92,7 @@ fn main() {
             c: PhantomData::<BruteForceContours>::default(),
         };
         let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
+            dt: false,
             h,
             v: vis(config.clone(), "5_astar-csh"),
         };
@@ -110,8 +108,7 @@ fn main() {
             c: PhantomData::<BruteForceContours>::default(),
         };
         let mut a_star = AStar {
-            diagonal_transition: false,
-            greedy_edge_matching: true,
+            dt: false,
             h,
             v: vis(config.clone(), "6_astar-csh-pruning"),
         };

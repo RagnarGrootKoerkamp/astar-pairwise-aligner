@@ -5,9 +5,8 @@ use crate::{astar_dt::astar_dt, heuristic::Heuristic, prelude::Pos, visualizer::
 
 use super::Aligner;
 
-pub struct AStar<V: VisualizerT, H: Heuristic> {
-    pub greedy_edge_matching: bool,
-    pub diagonal_transition: bool,
+pub struct AStar<V: VisualizerConfig, H: Heuristic> {
+    pub dt: bool,
 
     /// The heuristic to use.
     pub h: H,
@@ -19,8 +18,7 @@ pub struct AStar<V: VisualizerT, H: Heuristic> {
 impl<V: VisualizerT, H: Heuristic> std::fmt::Debug for AStar<V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AStar")
-            .field("greedy_edge_matching", &self.greedy_edge_matching)
-            .field("diagonal_transition", &self.diagonal_transition)
+            .field("diagonal_transition", &self.dt)
             .field("h", &self.h)
             .finish()
     }
