@@ -34,8 +34,8 @@ fn base_1000(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b, stats) = setup(n, e);
-    bench.iter(|| align(&a, &b, stats, h));
+    let (a, b) = setup(n, e);
+    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
 #[bench]
@@ -49,8 +49,8 @@ fn base_10000(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b, stats) = setup(n, e);
-    bench.iter(|| align(&a, &b, stats, h));
+    let (a, b) = setup(n, e);
+    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
 #[bench]
@@ -64,8 +64,8 @@ fn base_50000_similar(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b, stats) = setup(n, e);
-    bench.iter(|| align(&a, &b, stats, h));
+    let (a, b) = setup(n, e);
+    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
 #[bench]
@@ -79,8 +79,8 @@ fn fast_100(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b, stats) = setup(n, e);
-    bench.iter(|| align(&a, &b, stats, h));
+    let (a, b) = setup(n, e);
+    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
 #[bench]
@@ -94,8 +94,8 @@ fn fast_1000(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b, stats) = setup(n, e);
-    bench.iter(|| align(&a, &b, stats, h));
+    let (a, b) = setup(n, e);
+    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
 #[bench]
@@ -109,8 +109,8 @@ fn fast_10000(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b, stats) = setup(n, e);
-    bench.iter(|| align(&a, &b, stats, h));
+    let (a, b) = setup(n, e);
+    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
 #[bench]
@@ -124,6 +124,6 @@ fn fast_50000_similar(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b, stats) = setup(n, e);
-    bench.iter(|| align(&a, &b, stats, h));
+    let (a, b) = setup(n, e);
+    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }

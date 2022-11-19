@@ -173,14 +173,14 @@ mod matches {
 #[bench]
 fn n100_exact_qgramindex(bench: &mut Bencher) {
     let n = 100;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| find_matches_qgramindex(&a, &b, MatchConfig::exact(K), false));
 }
 
 // #[bench]
 // fn n100_inexact_qgramindex(bench: &mut Bencher) {
 //     let n = 100;
-//     let (a, b, _) = setup(n, E);
+//     let (a, b) = setup(n, E);
 //     bench.iter(|| {
 //         find_matches_qgramindex(
 //             &a,
@@ -197,7 +197,7 @@ fn n100_exact_qgramindex(bench: &mut Bencher) {
 #[bench]
 fn n10000_exact_qgramindex(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| find_matches_qgramindex(&a, &b, MatchConfig::exact(K), false));
 }
 
@@ -205,7 +205,7 @@ fn n10000_exact_qgramindex(bench: &mut Bencher) {
 // fn n10000_inexact_qgramindex(bench: &mut Bencher) {
 //     let n = 10000;
 //     let e = 0.20;
-//     let (a, b, _) = setup(n, e);
+//     let (a, b) = setup(n, e);
 //     bench.iter(|| {
 //         find_matches_qgramindex(
 //             &a,
@@ -222,7 +222,7 @@ fn n10000_exact_qgramindex(bench: &mut Bencher) {
 #[bench]
 fn n100_exact_trie(bench: &mut Bencher) {
     let n = 100;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| find_matches_trie(&a, &b, MatchConfig::exact(K)));
 }
 
@@ -230,7 +230,7 @@ fn n100_exact_trie(bench: &mut Bencher) {
 // fn n100_inexact_trie(bench: &mut Bencher) {
 //     let n = 100;
 //     let e = 0.10;
-//     let (a, b, _) = setup(n, e);
+//     let (a, b) = setup(n, e);
 //     bench.iter(|| {
 //         find_matches_trie(
 //             &a,
@@ -247,7 +247,7 @@ fn n100_exact_trie(bench: &mut Bencher) {
 #[bench]
 fn n10000_exact_trie(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| find_matches_trie(&a, &b, MatchConfig::exact(K)));
 }
 
@@ -255,7 +255,7 @@ fn n10000_exact_trie(bench: &mut Bencher) {
 // fn n10000_inexact_trie(bench: &mut Bencher) {
 //     let n = 10000;
 //     let e = 0.20;
-//     let (a, b, _) = setup(n, e);
+//     let (a, b) = setup(n, e);
 //     bench.iter(|| {
 //         find_matches_trie(
 //             &a,
@@ -272,21 +272,21 @@ fn n10000_exact_trie(bench: &mut Bencher) {
 #[bench]
 fn n100_exact_hash(bench: &mut Bencher) {
     let n = 100;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K)));
 }
 
 #[bench]
 fn n10000_exact_hash(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K)));
 }
 
 #[bench]
 fn n100_aho_corasick(bench: &mut Bencher) {
     let n = 100;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| {
         matches::aho_corasick(&a, &b, K);
     });
@@ -294,7 +294,7 @@ fn n100_aho_corasick(bench: &mut Bencher) {
 #[bench]
 fn n10000_aho_corasick(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| {
         matches::aho_corasick(&a, &b, K);
     });
@@ -303,7 +303,7 @@ fn n10000_aho_corasick(bench: &mut Bencher) {
 #[bench]
 fn n100_lookup_seeds_in_qgram_hashmap(bench: &mut Bencher) {
     let n = 100;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| {
         matches::lookup_seeds_in_qgram_hashmap(&a, &b, K);
     });
@@ -311,7 +311,7 @@ fn n100_lookup_seeds_in_qgram_hashmap(bench: &mut Bencher) {
 #[bench]
 fn n10000_lookup_seeds_in_qgram_hashmap(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| {
         matches::lookup_seeds_in_qgram_hashmap(&a, &b, K);
     });
@@ -320,7 +320,7 @@ fn n10000_lookup_seeds_in_qgram_hashmap(bench: &mut Bencher) {
 #[bench]
 fn n100_lookup_suffixes_in_qgram_hashmap(bench: &mut Bencher) {
     let n = 100;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| {
         matches::lookup_suffixes_in_qgram_hashmap(&a, &b, K);
     });
@@ -328,7 +328,7 @@ fn n100_lookup_suffixes_in_qgram_hashmap(bench: &mut Bencher) {
 #[bench]
 fn n10000_lookup_suffixes_in_qgram_hashmap(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b, _) = setup(n, E);
+    let (a, b) = setup(n, E);
     bench.iter(|| {
         matches::lookup_suffixes_in_qgram_hashmap(&a, &b, K);
     });
@@ -337,7 +337,7 @@ fn n10000_lookup_suffixes_in_qgram_hashmap(bench: &mut Bencher) {
 #[bench]
 fn n100_b_suffix_array(bench: &mut Bencher) {
     let n = 100;
-    let (a, b, _) = setup(n, 0.0);
+    let (a, b) = setup(n, 0.0);
     bench.iter(|| {
         matches::suffix_array_bio(&a, &b, 0);
     });
@@ -346,7 +346,7 @@ fn n100_b_suffix_array(bench: &mut Bencher) {
 #[bench]
 fn n10000_b_suffix_array(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b, _) = setup(n, 0.0);
+    let (a, b) = setup(n, 0.0);
     bench.iter(|| {
         matches::suffix_array_bio(&a, &b, 0);
     });
@@ -355,7 +355,7 @@ fn n10000_b_suffix_array(bench: &mut Bencher) {
 #[bench]
 fn n100_b_suffix_array_2(bench: &mut Bencher) {
     let n = 100;
-    let (a, b, _) = setup(n, 0.0);
+    let (a, b) = setup(n, 0.0);
     bench.iter(|| {
         matches::suffix_array_suffixtable(&a, &b, 0);
     });
@@ -364,7 +364,7 @@ fn n100_b_suffix_array_2(bench: &mut Bencher) {
 #[bench]
 fn n10000_b_suffix_array_2(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b, _) = setup(n, 0.0);
+    let (a, b) = setup(n, 0.0);
     bench.iter(|| {
         matches::suffix_array_suffixtable(&a, &b, 0);
     });
@@ -374,7 +374,7 @@ fn n10000_b_suffix_array_2(bench: &mut Bencher) {
 fn n100_b_suffix_array_sort(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::suffix_array_sort(&a, &b, K);
     });
@@ -383,7 +383,7 @@ fn n100_b_suffix_array_sort(bench: &mut Bencher) {
 fn n10000_b_suffix_array_sort(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::suffix_array_sort(&a, &b, K);
     });
@@ -393,7 +393,7 @@ fn n10000_b_suffix_array_sort(bench: &mut Bencher) {
 fn n100_a_sort_seeds(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::sort_seeds(&a, &b, K);
     });
@@ -402,7 +402,7 @@ fn n100_a_sort_seeds(bench: &mut Bencher) {
 fn n10000_a_sort_seeds(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::sort_seeds(&a, &b, K);
     });
@@ -412,7 +412,7 @@ fn n10000_a_sort_seeds(bench: &mut Bencher) {
 fn n100_b_build_trie(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::build_trie(&a, &b, K);
     });
@@ -421,7 +421,7 @@ fn n100_b_build_trie(bench: &mut Bencher) {
 fn n10000_b_build_trie(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::build_trie(&a, &b, K);
     });
@@ -431,7 +431,7 @@ fn n10000_b_build_trie(bench: &mut Bencher) {
 fn n100_a_build_trie_on_seeds(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::build_trie_on_seeds(&a, &b, K);
     });
@@ -440,7 +440,7 @@ fn n100_a_build_trie_on_seeds(bench: &mut Bencher) {
 fn n10000_a_build_trie_on_seeds(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::build_trie_on_seeds(&a, &b, K);
     });
@@ -450,7 +450,7 @@ fn n10000_a_build_trie_on_seeds(bench: &mut Bencher) {
 fn n100_b_qgramindex(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::suffix_qgrams(&a, &b, K);
     });
@@ -459,7 +459,7 @@ fn n100_b_qgramindex(bench: &mut Bencher) {
 fn n10000_b_qgramindex(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::suffix_qgrams(&a, &b, K);
     });
@@ -469,7 +469,7 @@ fn n10000_b_qgramindex(bench: &mut Bencher) {
 fn n100_b_hashmap(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::suffix_hashmap(&a, &b, K);
     });
@@ -478,7 +478,7 @@ fn n100_b_hashmap(bench: &mut Bencher) {
 fn n10000_b_hashmap(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::suffix_hashmap(&a, &b, K);
     });
@@ -488,7 +488,7 @@ fn n10000_b_hashmap(bench: &mut Bencher) {
 fn n100_a_hashmap(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::seed_hashmap(&a, &b, K);
     });
@@ -497,7 +497,7 @@ fn n100_a_hashmap(bench: &mut Bencher) {
 fn n10000_a_hashmap(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::seed_hashmap(&a, &b, K);
     });
@@ -507,7 +507,7 @@ fn n10000_a_hashmap(bench: &mut Bencher) {
 fn n100_b_hashmap_qgrams(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::suffix_hashmap_qgrams(&a, &b, K);
     });
@@ -516,7 +516,7 @@ fn n100_b_hashmap_qgrams(bench: &mut Bencher) {
 fn n10000_b_hashmap_qgrams(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::suffix_hashmap_qgrams(&a, &b, K);
     });
@@ -526,7 +526,7 @@ fn n10000_b_hashmap_qgrams(bench: &mut Bencher) {
 fn n100_a_hashmap_qgrams(bench: &mut Bencher) {
     let n = 100;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::seed_hashmap_qgrams(&a, &b, K);
     });
@@ -535,7 +535,7 @@ fn n100_a_hashmap_qgrams(bench: &mut Bencher) {
 fn n10000_a_hashmap_qgrams(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.01;
-    let (a, b, _) = setup(n, e);
+    let (a, b) = setup(n, e);
     bench.iter(|| {
         matches::seed_hashmap_qgrams(&a, &b, K);
     });
