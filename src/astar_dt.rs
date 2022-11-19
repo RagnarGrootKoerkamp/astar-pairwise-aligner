@@ -194,7 +194,7 @@ pub fn astar_dt<'a, H: Heuristic>(
                     // Explore & expand `next`
                     stats.explored += 1;
                     stats.expanded += 1;
-                    stats.greedy_expanded += 1;
+                    stats.extended += 1;
                     v.explore_with_h(next, queue_g, queue_f, Some(h));
                     v.expand_with_h(next, queue_g, queue_f, Some(h));
                     if D {

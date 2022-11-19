@@ -31,6 +31,11 @@ pub struct HeuristicParams {
     pub pruning: Pruning,
 }
 
+impl std::ops::AddAssign<HeuristicParams> for HeuristicParams {
+    /// This does nothing; parameters can't be added.
+    fn add_assign(&mut self, rhs: HeuristicParams) {}
+}
+
 #[derive(Clone, AddAssign, Default, Copy)]
 pub struct HeuristicStats {
     pub num_seeds: I,
