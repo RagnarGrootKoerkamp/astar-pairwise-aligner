@@ -30,7 +30,7 @@ fn main() {
     config.draw_old_on_top = true;
     let mut vis = |name: &str| {
         config.filepath = PathBuf::from("imgs/").join(name);
-        Visualizer::new(config.clone(), a, b)
+        config.clone()
     };
 
     let sh = SH {

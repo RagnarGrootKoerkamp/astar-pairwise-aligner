@@ -14,7 +14,7 @@ fn main() {
         },
         canvas::BLUE,
         prelude::*,
-        visualizer::{Gradient, Visualizer, When},
+        visualizer::{Gradient, When},
     };
     let a = b"CACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACGCCGATACATGCTACGATCGA";
     let b = b"CATCTGCTCTCTGAGTCAGTGCAGTAACAGCGTACG";
@@ -33,9 +33,9 @@ fn main() {
     config.style.tree_width = 3;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
-    let vis = |a, b, mut config: visualizer::Config, name: &str| {
+    let vis = |mut config: visualizer::Config, name: &str| {
         config.filepath = std::path::PathBuf::from("imgs/path-tracing/").join(name);
-        Visualizer::new(config, a, b)
+        config.clone()
     };
 
     config.style.expanded = Gradient::Fixed((200, 200, 200, 0));
@@ -53,7 +53,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "affine-repeats-open"),
+            vis(config.clone(), "affine-repeats-open"),
         );
         dt.align(a, b);
     }
@@ -63,7 +63,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "affine-simple-open"),
+            vis(config.clone(), "affine-simple-open"),
         );
         dt.align(a, b);
     }

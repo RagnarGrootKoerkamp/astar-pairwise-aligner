@@ -42,7 +42,7 @@ fn triple_accel_exp(bench: &mut Bencher) {
     bench.iter(|| run_aligner(TripleAccel::new(false, CostModel::Levenshtein), N, E, seed));
 }
 
-fn make_nw(use_gap_cost_heuristic: bool) -> NW<LinearCost, NoVisualizer, NoCost> {
+fn make_nw(use_gap_cost_heuristic: bool) -> NW<0, NoVisualizer, NoCost> {
     NW::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,
@@ -61,7 +61,7 @@ fn nw_gapcost(bench: &mut Bencher) {
     bench.iter(|| run_aligner(make_nw(true), N, E, seed));
 }
 
-fn make_nw_sh() -> NW<LinearCost, NoVisualizer, SH> {
+fn make_nw_sh() -> NW<0, NoVisualizer, SH> {
     NW {
         cm: LinearCost::new_unit(),
         use_gap_cost_heuristic: false,
@@ -84,7 +84,7 @@ fn nw_sh(bench: &mut Bencher) {
 fn make_dt(
     use_gap_cost_heuristic: GapCostHeuristic,
     dc: bool,
-) -> DiagonalTransition<LinearCost, NoVisualizer, NoCost> {
+) -> DiagonalTransition<0, NoVisualizer, NoCost> {
     DiagonalTransition::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,
@@ -110,9 +110,7 @@ fn dt_dc(bench: &mut Bencher) {
     bench.iter(|| run_aligner(make_dt(GapCostHeuristic::Disable, true), N, E, seed));
 }
 
-fn make_dt_sh(
-    use_gap_cost_heuristic: GapCostHeuristic,
-) -> DiagonalTransition<LinearCost, NoVisualizer, SH> {
+fn make_dt_sh(use_gap_cost_heuristic: GapCostHeuristic) -> DiagonalTransition<0, NoVisualizer, SH> {
     DiagonalTransition::new(
         LinearCost::new_unit(),
         use_gap_cost_heuristic,

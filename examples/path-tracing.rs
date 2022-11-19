@@ -33,9 +33,9 @@ fn main() {
     config.style.tree_width = 3;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
-    let vis = |a, b, mut config: visualizer::Config, name: &str| {
+    let vis = |mut config: visualizer::Config, name: &str| {
         config.filepath = PathBuf::from("imgs/path-tracing/").join(name);
-        Visualizer::new(config, a, b)
+        config
     };
 
     {
@@ -44,7 +44,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "forward-greedy"),
+            vis(config.clone(), "forward-greedy"),
         );
         dt.align(a, b);
     }
@@ -54,7 +54,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "backward-greedy"),
+            vis(config.clone(), "backward-greedy"),
         );
         dt.path_tracing_method = PathTracingMethod::ReverseGreedy;
         dt.align(a, b);
@@ -69,7 +69,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "forward-greedy-grey"),
+            vis(config.clone(), "forward-greedy-grey"),
         );
         dt.align(a, b);
     }
@@ -80,7 +80,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "backward-greedy-grey"),
+            vis(config.clone(), "backward-greedy-grey"),
         );
         dt.path_tracing_method = PathTracingMethod::ReverseGreedy;
         dt.align(a, b);
@@ -94,7 +94,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "forward-greedy-subs"),
+            vis(config.clone(), "forward-greedy-subs"),
         );
         dt.align(a, b);
     }
@@ -104,7 +104,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "backward-greedy-subs"),
+            vis(config.clone(), "backward-greedy-subs"),
         );
         dt.path_tracing_method = PathTracingMethod::ReverseGreedy;
         dt.align(a, b);
@@ -117,7 +117,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "detail"),
+            vis(config.clone(), "detail"),
         );
         dt.path_tracing_method = PathTracingMethod::ReverseGreedy;
         dt.align(a, b);
@@ -130,7 +130,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "detail-tricky"),
+            vis(config.clone(), "detail-tricky"),
         );
         dt.align(a, b);
     }
@@ -145,7 +145,7 @@ fn main() {
                 GapCostHeuristic::Disable,
                 NoCost,
                 false,
-                vis(a, b, config.clone(), "repeats"),
+                vis(config.clone(), "repeats"),
             );
             dt.align(a, b);
         }
@@ -157,7 +157,7 @@ fn main() {
                 GapCostHeuristic::Disable,
                 NoCost,
                 false,
-                vis(a, b, config.clone(), "repeats-no-matches"),
+                vis(config.clone(), "repeats-no-matches"),
             );
             dt.align(a, b);
         }
@@ -169,7 +169,7 @@ fn main() {
                 GapCostHeuristic::Disable,
                 NoCost,
                 false,
-                vis(a, b, config.clone(), "repeats-subs"),
+                vis(config.clone(), "repeats-subs"),
             );
             dt.align(a, b);
         }
@@ -181,7 +181,7 @@ fn main() {
                 GapCostHeuristic::Disable,
                 NoCost,
                 false,
-                vis(a, b, config.clone(), "repeats-active"),
+                vis(config.clone(), "repeats-active"),
             );
             dt.align(a, b);
         }
@@ -193,7 +193,7 @@ fn main() {
                 GapCostHeuristic::Disable,
                 NoCost,
                 false,
-                vis(a, b, config.clone(), "repeats-fixed"),
+                vis(config.clone(), "repeats-fixed"),
             );
             dt.align(a, b);
         }
@@ -211,7 +211,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             false,
-            vis(a, b, config.clone(), "simple-final"),
+            vis(config.clone(), "simple-final"),
         );
         dt.align(a, b);
     }
