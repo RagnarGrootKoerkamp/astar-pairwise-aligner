@@ -9,7 +9,7 @@ fn main() {
 
     use astar_pairwise_aligner::{
         aligners::{
-            astar::Astar,
+            astar::{Astar, AstarAligner},
             diagonal_transition::{DiagonalTransition, GapCostHeuristic},
             nw::NW,
             Aligner,
@@ -41,7 +41,7 @@ fn main() {
     let run_all = |config: &mut visualizer::Config, video_mode| {
         {
             config.draw_old_on_top = true;
-            let mut nw = NW {
+            let nw = NW {
                 cm: cm.clone(),
                 use_gap_cost_heuristic: true,
                 exponential_search: true,
@@ -49,42 +49,40 @@ fn main() {
                 h: NoCost,
                 v: vis(config.clone(), "1_ukkonen"),
             };
-            nw.align(a, b);
+            let mut nw = nw.build(a, b);
+            nw.align_for_bounded_dist(None).unwrap();
             println!("{}", nw.v.expanded.len() as f32 / a.len() as f32);
         }
 
         {
-            let mut a_star = Astar {
-                dt: false,
-                h: NoCost,
-                v: vis(config.clone(), "2_dijkstra"),
-            };
-            a_star.align(a, b);
-            println!("{}", a_star.v.expanded.len() as f32 / a.len() as f32);
+            let stats = astar(a, b, &NoCost, &vis(config.clone(), "2_dijkstra")).1;
+            println!("{}", stats.expanded as f32 / a.len() as f32);
         }
 
         {
-            let mut dt = DiagonalTransition::new(
+            let dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
                 NoCost,
                 false,
                 vis(config.clone(), "3_diagonal-transition"),
             );
-            dt.align(a, b);
+            let mut dt = dt.build(a, b);
+            dt.align_for_bounded_dist_with_h(None).unwrap();
             println!("{}", dt.v.borrow().expanded.len() as f32 / a.len() as f32);
         }
 
         {
             config.draw_old_on_top = false;
-            let mut dt = DiagonalTransition::new(
+            let dt = DiagonalTransition::new(
                 cm.clone(),
                 GapCostHeuristic::Disable,
                 NoCost,
                 true,
                 vis(config.clone(), "4_dt-divide-and-conquer"),
             );
-            dt.align(a, b);
+            let mut dt = dt.build(a, b);
+            dt.align_for_bounded_dist_with_h(None).unwrap();
             println!("{}", dt.v.borrow().expanded.len() as f32 / a.len() as f32);
         }
 
@@ -104,8 +102,8 @@ fn main() {
                 h,
                 v: vis(config.clone(), "5_astar-csh-pruning"),
             };
-            a_star.align(a, b);
-            println!("{}", a_star.v.expanded.len() as f32 / a.len() as f32);
+            let r = a_star.align_with_stats(a, b).1;
+            println!("{}", r.expanded as f32 / a.len() as f32);
         }
     };
 
