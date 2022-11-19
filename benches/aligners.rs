@@ -12,7 +12,7 @@ use astar_pairwise_aligner::{
     generate::setup_sequences_with_seed,
     heuristic::{NoCost, Pruning, SH},
     matches::MatchConfig,
-    prelude::UnitCost,
+    prelude::CostModel,
     visualizer::NoVisualizer,
 };
 use test::Bencher;
@@ -38,7 +38,7 @@ fn triple_accel(bench: &mut Bencher) {
         run_aligner(
             TripleAccel {
                 exp_search: false,
-                cost_model: UnitCost,
+                cost_model: CostModel::Levenshtein,
             },
             N,
             E,
@@ -53,7 +53,7 @@ fn triple_accel_exp(bench: &mut Bencher) {
         run_aligner(
             TripleAccel {
                 exp_search: true,
-                cost_model: UnitCost,
+                cost_model: CostModel::Levenshtein,
             },
             N,
             E,

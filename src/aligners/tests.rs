@@ -125,7 +125,7 @@ fn test_aligner_on_cost_model<const N: usize, A: Aligner>(
 }
 
 mod triple_accel {
-    use crate::{aligners::triple_accel::TripleAccel, cost_model::UnitCost};
+    use crate::{aligners::triple_accel::TripleAccel, cost_model::CostModel::Levenshtein};
 
     use super::*;
 
@@ -136,7 +136,7 @@ mod triple_accel {
             cm.clone(),
             TripleAccel {
                 exp_search: false,
-                cost_model: UnitCost,
+                cost_model: Levenshtein,
             },
             false,
         );
@@ -149,7 +149,7 @@ mod triple_accel {
             cm.clone(),
             TripleAccel {
                 exp_search: true,
-                cost_model: UnitCost,
+                cost_model: Levenshtein,
             },
             false,
         );

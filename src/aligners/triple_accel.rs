@@ -1,20 +1,17 @@
 use triple_accel::levenshtein::EditCosts;
 
-use crate::{
-    cost_model::{CostModel, UnitCost},
-    prelude::Cost,
-};
+use crate::{cost_model::CostModel, prelude::Cost};
 
 use super::{cigar::Cigar, Aligner, Seq};
 
 /// NW aligner for unit costs (Levenshtein distance) only, using library functions.
 #[derive(Debug)]
-pub struct TripleAccel<C: CostModel> {
+pub struct TripleAccel {
     pub exp_search: bool,
-    pub cost_model: C,
+    pub cost_model: CostModel,
 }
 
-impl Aligner for TripleAccel<UnitCost> {
+impl Aligner for TripleAccel {
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         if self.exp_search {
             triple_accel::levenshtein_exp(a, b)

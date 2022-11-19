@@ -16,7 +16,7 @@ pub type Cost = u32;
 ///
 /// This is currently only implemented for `AffineCost<N>`, but may be
 /// specialized for e.g. `UnitCost` to allow better compile time optimizations.
-pub trait CostModel {
+pub trait CostModelT {
     /// The minimal cost according tho this cost model to go from one position to another.
     fn gap_cost(&self, s: Pos, t: Pos) -> Cost;
 
@@ -123,7 +123,10 @@ pub struct AffineCost<const N: usize> {
 #[derive(Debug)]
 pub struct UnitCost;
 
-impl CostModel for UnitCost {
+#[derive(Debug)]
+pub struct LcsCost;
+
+impl CostModelT for UnitCost {
     fn gap_cost(&self, s: Pos, t: Pos) -> Cost {
         let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
         delta.abs() as Cost
@@ -470,7 +473,7 @@ impl<const N: usize> AffineCost<N> {
     }
 }
 
-impl<const N: usize> CostModel for AffineCost<N> {
+impl<const N: usize> CostModelT for AffineCost<N> {
     fn gap_cost(&self, s: Pos, t: Pos) -> Cost {
         let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
         match delta {
@@ -542,4 +545,49 @@ impl<const N: usize> CostModel for AffineCost<N> {
             _ => unreachable!(),
         }
     }
+}
+
+#[derive(Debug)]
+pub enum CostModel {
+    Levenshtein,
+    LCS,
+    Linear {
+        mismatch: Cost,
+        indel: Cost,
+    },
+    Affine {
+        mismatch: Cost,
+        open: Cost,
+        extend: Cost,
+    },
+    DoubleAffine {
+        mismatch: Cost,
+        open1: Cost,
+        extend1: Cost,
+        open2: Cost,
+        extend2: Cost,
+    },
+    AsymmetricLinear {
+        mismatch: Cost,
+        insertion: Cost,
+        deletion: Cost,
+    },
+    AsymmetricAffine {
+        mismatch: Cost,
+        insertion_open: Cost,
+        insertion_extend: Cost,
+        deletion_open: Cost,
+        deletion_extend: Cost,
+    },
+    AsymmetricDoubleAffine {
+        mismatch: Cost,
+        insertion1_open: Cost,
+        insertion1_extend: Cost,
+        deletion1_open: Cost,
+        deletion1_extend: Cost,
+        insertion2_open: Cost,
+        insertion2_extend: Cost,
+        deletion2_open: Cost,
+        deletion2_extend: Cost,
+    },
 }
