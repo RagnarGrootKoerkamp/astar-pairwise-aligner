@@ -61,10 +61,10 @@ pub struct AstarStats {
     pub timing: Timing,
 }
 
-pub fn astar_wrap(
-    a: Seq,
-    b: Seq,
-    h: &impl Heuristic,
+pub fn astar<'a, H: Heuristic>(
+    a: Seq<'a>,
+    b: Seq<'a>,
+    h: &H,
     v: &impl VisualizerConfig,
 ) -> ((Cost, Cigar), AstarStats) {
     let start = instant::Instant::now();
@@ -72,33 +72,21 @@ pub fn astar_wrap(
     let ref mut h = h.build(a, b);
     let precomp = start.elapsed().as_secs_f32();
     let ref mut v = v.build(a, b);
-    let ((d, path), mut stats) = astar(graph, h, v);
-    let total = start.elapsed().as_secs_f32();
-    stats.timing.total = total;
-    stats.timing.precomp = precomp;
-    stats.timing.astar = total - precomp;
-    ((d, Cigar::from_path(a, b, &path)), stats)
-}
 
-pub fn astar<'a, H>(
-    graph: &EditGraph,
-    h: &mut H,
-    v: &mut impl VisualizerT,
-) -> ((Cost, Vec<Pos>), AstarStats)
-where
-    H: HeuristicInstance<'a>,
-{
     let mut stats = AstarStats::default();
 
     // f -> (pos, g)
-    let mut queue = ShiftQueue::<(Pos, Cost), H::Order>::new(if REDUCE_RETRIES {
-        h.root_potential()
-    } else {
-        0
-    });
+    let mut queue = ShiftQueue::<(Pos, Cost), <H::Instance<'a> as HeuristicInstance>::Order>::new(
+        if REDUCE_RETRIES {
+            h.root_potential()
+        } else {
+            0
+        },
+    );
 
     //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
-    let mut states = HashMap::<Pos, State<H::Hint>>::default();
+    let mut states =
+        HashMap::<Pos, State<<H::Instance<'a> as HeuristicInstance<'a>>::Hint>>::default();
 
     let mut max_f = 0;
     v.new_layer_with_h(Some(h));
@@ -106,7 +94,7 @@ where
     // Initialization with the root state.
     {
         let start = Pos(0, 0);
-        let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
+        let (hroot, hint) = h.h_with_hint(start, Default::default());
         queue.push(QueueElement {
             f: hroot,
             data: (start, 0),
@@ -119,8 +107,8 @@ where
 
     let _dist = loop {
         let Some(QueueElement {f: queue_f, data: (pos, queue_g),}) = queue.pop() else {
-            panic!("priority queue is empty before the end is reached.");
-        };
+                panic!("priority queue is empty before the end is reached.");
+            };
 
         // Time the duration of retrying once in this many iterations.
         const TIME_EACH: i32 = 64;
@@ -145,9 +133,9 @@ where
             state.hint = new_hint;
             let current_f = state.g + current_h;
             assert!(
-                current_f >= queue_f && current_h >= queue_f - queue_g,
-                "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.g={} queue_g={} queue_h={} current_h={}", state.g, queue_g, queue_f-queue_g, current_h
-            );
+                    current_f >= queue_f && current_h >= queue_f - queue_g,
+                    "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.g={} queue_g={} queue_h={} current_h={}", state.g, queue_g, queue_f-queue_g, current_h
+                );
             if current_f > queue_f {
                 stats.retries += 1;
                 queue.push(QueueElement {
@@ -262,23 +250,21 @@ where
 
     stats.diagonalmap_capacity = states.dm_capacity();
     let traceback_start = instant::Instant::now();
-    let path = traceback::<H>(&states, graph.target());
+    let (d, path) = traceback(&states, graph.target());
+    let cigar = Cigar::from_path(graph.a, graph.b, &path);
     stats.timing.traceback = traceback_start.elapsed().as_secs_f32();
-    v.last_frame_with_h(
-        Some(&Cigar::from_path(graph.a, graph.b, &path.1)),
-        None,
-        Some(h),
-    );
+    v.last_frame_with_h(Some(&cigar), None, Some(h));
     stats.h = h.stats();
-    assert!(stats.h.h0 <= path.0);
+    assert!(stats.h.h0 <= d);
 
-    (path, stats)
+    let total = start.elapsed().as_secs_f32();
+    stats.timing.total = total;
+    stats.timing.precomp = precomp;
+    stats.timing.astar = total - precomp;
+    ((d, cigar), stats)
 }
 
-fn parent<'a, H>(states: &HashMap<Pos, State<H::Hint>>, pos: Pos, g: Cost) -> Edge
-where
-    H: HeuristicInstance<'a>,
-{
+fn parent<'a, Hint: Default>(states: &HashMap<Pos, State<Hint>>, pos: Pos, g: Cost) -> Edge {
     for edge in [Edge::Substitution, Edge::Right, Edge::Down] {
         if let Some(p) = edge.back(&pos) {
             if let Some(state) = DiagonalMapTrait::get(states, p) {
@@ -292,10 +278,10 @@ where
 }
 
 // TODO: Make this return Cigar instead.
-fn traceback<'a, H>(states: &HashMap<Pos, State<H::Hint>>, target: Pos) -> (u32, Vec<Pos>)
-where
-    H: HeuristicInstance<'a>,
-{
+fn traceback<'a, Hint: Default>(
+    states: &HashMap<Pos, State<Hint>>,
+    target: Pos,
+) -> (u32, Vec<Pos>) {
     let Some(state) = DiagonalMapTrait::get(states, target) else {
         panic!();
     };
@@ -305,7 +291,7 @@ where
     let mut current = target;
     // If the state is not in the map, it was found via a match.
     while current != Pos(0, 0) {
-        let e = parent::<H>(states, current, g - cost);
+        let e = parent(states, current, g - cost);
         cost += e.cost();
         current = e.back(&current).expect("No parent found for position!");
         path.push(current);

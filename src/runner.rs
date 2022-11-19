@@ -2,8 +2,8 @@ use std::{path::PathBuf, time::Duration};
 
 use crate::{
     aligners::{diagonal_transition::GapCostHeuristic, Aligner},
-    astar::astar_wrap,
-    astar_dt::astar_dt_wrap,
+    astar::astar,
+    astar_dt::astar_dt,
     cli::{
         heuristic_params::{Algorithm, AlgorithmArgs, HeuristicArgs, HeuristicRunner},
         input::Input,
@@ -94,9 +94,9 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                     error_rate: 0.,
                 };
                 let ((d, path), astar_stats) = if self.args.algorithm.dt {
-                    astar_dt_wrap(self.a, self.b, &self.h, &v)
+                    astar_dt(self.a, self.b, &self.h, &v)
                 } else {
-                    astar_wrap(self.a, self.b, &self.h, &v)
+                    astar(self.a, self.b, &self.h, &v)
                 };
 
                 AlignResult {

@@ -2,8 +2,8 @@ use std::marker::PhantomData;
 
 use crate::heuristic::Heuristic;
 use crate::{
-    astar::astar_wrap,
-    astar_dt::astar_dt_wrap,
+    astar::astar,
+    astar_dt::astar_dt,
     cli::{
         heuristic_params::{HeuristicArgs, HeuristicType},
         visualizer::{VisualizerArgs, VisualizerType},
@@ -108,9 +108,9 @@ impl<V: VisualizerConfig, H: Heuristic> Aligner for Astar<V, H> {
         b: super::Seq,
     ) -> (crate::cost_model::Cost, super::cigar::Cigar) {
         if self.dt {
-            astar_dt_wrap(a, b, &self.h, &self.v).0
+            astar_dt(a, b, &self.h, &self.v).0
         } else {
-            astar_wrap(a, b, &self.h, &self.v).0
+            astar(a, b, &self.h, &self.v).0
         }
     }
 }

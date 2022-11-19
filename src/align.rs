@@ -1,7 +1,7 @@
-use crate::astar::{astar_wrap, AstarStats, Timing};
-use crate::astar_dt::astar_dt_wrap;
+use crate::astar::{astar, AstarStats, Timing};
+use crate::astar_dt::astar_dt;
 use crate::prelude::*;
-use crate::visualizer::{NoVisualizer, VisualizerConfig, VisualizerT};
+use crate::visualizer::{NoVisualizer, VisualizerConfig};
 use std::{
     fmt,
     io::{stdout, Write},
@@ -268,9 +268,9 @@ where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
     let ((d, path), astar_stats) = if dt {
-        astar_dt_wrap(a, b, &h, v)
+        astar_dt(a, b, &h, v)
     } else {
-        astar_wrap(a, b, &h, v)
+        astar(a, b, &h, v)
     };
 
     AlignResult {

@@ -28,10 +28,10 @@ impl<P: PosOrderT> ShiftOrderT<(DtPos, I)> for P {
     }
 }
 
-pub fn astar_dt_wrap(
-    a: Seq,
-    b: Seq,
-    h: &impl Heuristic,
+pub fn astar_dt<'a, H: Heuristic>(
+    a: Seq<'a>,
+    b: Seq<'a>,
+    h: &H,
     v: &impl VisualizerConfig,
 ) -> ((Cost, Cigar), AstarStats) {
     let start = instant::Instant::now();
@@ -39,33 +39,21 @@ pub fn astar_dt_wrap(
     let ref mut h = h.build(a, b);
     let precomp = start.elapsed().as_secs_f32();
     let ref mut v = v.build(a, b);
-    let ((d, path), mut stats) = astar_dt(graph, h, v);
-    let total = start.elapsed().as_secs_f32();
-    stats.timing.total = total;
-    stats.timing.precomp = precomp;
-    stats.timing.astar = total - precomp;
-    ((d, Cigar::from_path(a, b, &path)), stats)
-}
 
-pub fn astar_dt<'a, H>(
-    graph: &EditGraph,
-    h: &mut H,
-    v: &mut impl VisualizerT,
-) -> ((Cost, Vec<Pos>), AstarStats)
-where
-    H: HeuristicInstance<'a>,
-{
     let mut stats = AstarStats::default();
 
     // f -> (pos, g)
-    let mut queue = ShiftQueue::<(Pos, Cost), H::Order>::new(if REDUCE_RETRIES {
-        h.root_potential()
-    } else {
-        0
-    });
+    let mut queue = ShiftQueue::<(Pos, Cost), <H::Instance<'a> as HeuristicInstance>::Order>::new(
+        if REDUCE_RETRIES {
+            h.root_potential()
+        } else {
+            0
+        },
+    );
 
     //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
-    let mut states = HashMap::<DtPos, State<H::Hint>>::default();
+    let mut states =
+        HashMap::<DtPos, State<<H::Instance<'a> as HeuristicInstance>::Hint>>::default();
 
     let mut max_f = 0;
     v.new_layer_with_h(Some(h));
@@ -73,7 +61,10 @@ where
     // Initialization with the root state.
     {
         let start = Pos(0, 0);
-        let (hroot, hint) = h.h_with_hint(start, H::Hint::default());
+        let (hroot, hint) = h.h_with_hint(
+            start,
+            <H::Instance<'a> as HeuristicInstance>::Hint::default(),
+        );
         queue.push(QueueElement {
             f: hroot,
             data: (start, 0),
@@ -244,21 +235,24 @@ where
 
     stats.diagonalmap_capacity = states.dm_capacity();
     let traceback_start = instant::Instant::now();
-    let path = traceback::<H>(&states, graph.target(), dist);
+    let (d, path) = traceback(&states, graph.target(), dist);
+    let cigar = Cigar::from_path(graph.a, graph.b, &path);
     stats.timing.traceback = traceback_start.elapsed().as_secs_f32();
-    v.last_frame_with_h(
-        Some(&Cigar::from_path(graph.a, graph.b, &path.1)),
-        None,
-        Some(h),
-    );
-    assert!(stats.h.h0 <= path.0);
-    (path, stats)
+    v.last_frame_with_h(Some(&cigar), None, Some(h));
+    stats.h = h.stats();
+    assert!(stats.h.h0 <= d);
+
+    let total = start.elapsed().as_secs_f32();
+    stats.timing.total = total;
+    stats.timing.precomp = precomp;
+    stats.timing.astar = total - precomp;
+    ((d, cigar), stats)
 }
 
-pub fn dt_parent<'a, H>(states: &HashMap<DtPos, State<H::Hint>>, dt_pos: DtPos) -> (I, Edge)
-where
-    H: HeuristicInstance<'a>,
-{
+pub fn dt_parent<'a, Hint: Default>(
+    states: &HashMap<DtPos, State<Hint>>,
+    dt_pos: DtPos,
+) -> (I, Edge) {
     let mut max_fr = (0, Edge::None);
     for edge in [Edge::Right, Edge::Down, Edge::Substitution] {
         if let Some(p) = edge.dt_back(&dt_pos) {
@@ -272,14 +266,11 @@ where
     max_fr
 }
 
-pub fn traceback<'a, H>(
-    states: &HashMap<DtPos, State<H::Hint>>,
+pub fn traceback<'a, Hint: Default>(
+    states: &HashMap<DtPos, State<Hint>>,
     target: Pos,
     g: Cost,
-) -> (u32, Vec<Pos>)
-where
-    H: HeuristicInstance<'a>,
-{
+) -> (u32, Vec<Pos>) {
     let target_dt = DtPos::from_pos(target, g);
     // Traceback algorithm from Ukkonen'85.
     let mut cost = 0;
@@ -289,7 +280,7 @@ where
     let mut cur_dt = target_dt;
     // If the state is not in the map, it was found via a match.
     while cur_dt != (DtPos { diagonal: 0, g: 0 }) {
-        let (parent_fr, edge) = dt_parent::<H>(states, cur_dt);
+        let (parent_fr, edge) = dt_parent(states, cur_dt);
         cost += edge.cost();
         let next_dt = edge
             .dt_back(&cur_dt)
