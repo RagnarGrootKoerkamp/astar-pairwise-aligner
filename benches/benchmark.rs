@@ -2,7 +2,7 @@
 
 #![feature(test)]
 #![cfg(test)]
-use astar_pairwise_aligner::prelude::*;
+use astar_pairwise_aligner::{prelude::*, visualizer::NoVisualizer};
 
 extern crate test;
 
@@ -19,8 +19,8 @@ fn base_100(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b, stats) = setup(n, e);
-    bench.iter(|| align(&a, &b, stats, h));
+    let (a, b) = setup(n, e);
+    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
 #[bench]

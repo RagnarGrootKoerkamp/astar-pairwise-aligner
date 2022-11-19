@@ -1,4 +1,7 @@
-use crate::prelude::{SH, *};
+use crate::{
+    prelude::{SH, *},
+    visualizer::NoVisualizer,
+};
 
 #[test]
 fn exact_no_pruning_gap() {
@@ -11,11 +14,11 @@ fn exact_no_pruning_gap() {
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h.equal_to_seed_heuristic());
+                let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }
@@ -32,12 +35,12 @@ fn inexact_no_pruning_gap() {
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 //print(h, &a, &b);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h.equal_to_seed_heuristic());
+                let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }
@@ -54,11 +57,11 @@ fn pruning_bruteforce_gap() {
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h.equal_to_seed_heuristic());
+                let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }
@@ -75,11 +78,11 @@ fn pruning_hint_bruteforce_gap() {
                     use_gap_cost: true,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h.equal_to_bruteforce_contours());
+                let r = astar(&a, &b, &h.equal_to_bruteforce_contours(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }
@@ -96,11 +99,16 @@ fn exact_no_pruning() {
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h.equal_to_zero_cost_seed_heuristic());
+                let r = astar(
+                    &a,
+                    &b,
+                    &h.equal_to_zero_cost_seed_heuristic(),
+                    &NoVisualizer,
+                );
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }
@@ -117,12 +125,17 @@ fn inexact_no_pruning() {
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 //print(h, &a, &b);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h.equal_to_zero_cost_seed_heuristic());
+                let r = astar(
+                    &a,
+                    &b,
+                    &h.equal_to_zero_cost_seed_heuristic(),
+                    &NoVisualizer,
+                );
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }
@@ -139,11 +152,16 @@ fn pruning_bruteforce() {
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h.equal_to_zero_cost_seed_heuristic());
+                let r = astar(
+                    &a,
+                    &b,
+                    &h.equal_to_zero_cost_seed_heuristic(),
+                    &NoVisualizer,
+                );
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }
@@ -160,11 +178,11 @@ fn pruning_hint_bruteforce_no_gap() {
                     use_gap_cost: false,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h.equal_to_bruteforce_contours());
+                let r = astar(&a, &b, &h.equal_to_bruteforce_contours(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }
@@ -179,11 +197,11 @@ fn unordered() {
                     match_config: MatchConfig::new(k, max_match_cost),
                     pruning: Pruning::enabled(),
                 };
-                let (a, b, stats) = setup(n, e);
+                let (a, b) = setup(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = align(&a, &b, stats, h);
+                let r = astar(&a, &b, &h, &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
-                assert_eq!(r.edit_distance, dist);
+                assert_eq!(r.0 .0, dist);
             }
         }
     }

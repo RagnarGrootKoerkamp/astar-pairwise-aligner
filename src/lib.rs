@@ -20,7 +20,6 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub mod align;
 pub mod aligners;
 pub mod alignment_graph;
 pub mod astar;
@@ -43,9 +42,9 @@ mod tests;
 
 pub mod prelude {
     pub use super::*;
-    pub use crate::align::*;
     pub use crate::aligners::Seq;
     pub use crate::alignment_graph::*;
+    pub use crate::astar::*;
     pub use crate::config::*;
     pub use crate::contour::*;
     pub use crate::cost_model::*;

@@ -5,7 +5,7 @@ use itertools::Itertools;
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
-use crate::{aligners::Sequence, prelude::*};
+use crate::aligners::Sequence;
 
 #[derive(ValueEnum, Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ErrorModel {
@@ -285,15 +285,8 @@ fn make_mutation(b: &mut ropey::Rope, rng: &mut impl Rng) {
 }
 
 // For quick testing
-pub fn setup_with_seed(n: usize, e: f32, seed: u64) -> (Sequence, Sequence, InputStats) {
-    let (a, b) = setup_sequences_with_seed(seed, n, e);
-
-    let sequence_stats = InputStats {
-        len_a: a.len(),
-        len_b: b.len(),
-        error_rate: e,
-    };
-    (a, b, sequence_stats)
+pub fn setup_with_seed(n: usize, e: f32, seed: u64) -> (Sequence, Sequence) {
+    setup_sequences_with_seed(seed, n, e)
 }
 
 pub fn setup_sequences(n: usize, e: f32) -> (Sequence, Sequence) {
@@ -321,7 +314,7 @@ pub fn setup_sequences_with_seed_and_model(
     )
 }
 
-pub fn setup(n: usize, e: f32) -> (Sequence, Sequence, InputStats) {
+pub fn setup(n: usize, e: f32) -> (Sequence, Sequence) {
     setup_with_seed(n, e, 31415)
 }
 
