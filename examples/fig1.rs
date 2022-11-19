@@ -9,7 +9,7 @@ fn main() {
 
     use astar_pairwise_aligner::{
         aligners::{
-            astar::AStar,
+            astar::Astar,
             diagonal_transition::{DiagonalTransition, GapCostHeuristic},
             nw::NW,
             Aligner,
@@ -54,7 +54,7 @@ fn main() {
         }
 
         {
-            let mut a_star = AStar {
+            let mut a_star = Astar {
                 dt: false,
                 h: NoCost,
                 v: vis(config.clone(), "2_dijkstra"),
@@ -99,7 +99,7 @@ fn main() {
                 use_gap_cost: false,
                 c: PhantomData::<HintContours<BruteForceContour>>::default(),
             };
-            let mut a_star = AStar {
+            let mut a_star = Astar {
                 dt: false,
                 h,
                 v: vis(config.clone(), "5_astar-csh-pruning"),

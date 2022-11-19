@@ -9,7 +9,7 @@ fn main() {
 
     use astar_pairwise_aligner::canvas::*;
     use astar_pairwise_aligner::{
-        aligners::{astar::AStar, Aligner},
+        aligners::{astar::Astar, Aligner},
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };
@@ -51,7 +51,7 @@ fn main() {
             use_gap_cost: false,
             c: PhantomData::<HintContours<BruteForceContour>>::default(),
         };
-        let mut a_star = AStar {
+        let mut a_star = Astar {
             dt: false,
             h,
             v: Visualizer::new(config.clone(), a, b),

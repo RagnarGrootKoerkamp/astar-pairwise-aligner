@@ -7,7 +7,8 @@ fn main() {
     use std::time::Duration;
 
     use astar_pairwise_aligner::{
-        aligners::{astar::AStar, Aligner},
+        aligners::{astar::Astar, Aligner},
+
         canvas::BLACK,
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
@@ -47,7 +48,7 @@ fn main() {
         let ref b = b;
 
         config.filepath = std::path::PathBuf::from("imgs/fig8-extra/high-error-rate-dt/");
-        let mut a_star = AStar {
+        let mut a_star = Astar {
             // NOTE: TRUE HERE
             dt: true,
             h: CSH {
@@ -74,7 +75,7 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8-extra/deletion-dt".into();
-        let mut a_star = AStar {
+        let mut a_star = Astar {
             // NOTE: TRUE
             dt: true,
             h: CSH {
@@ -101,7 +102,7 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8-extra/deletion-dt-gapcost".into();
-        let mut a_star = AStar {
+        let mut a_star = Astar {
             // NOTE: TRUE
             dt: true,
             h: CSH {
@@ -139,7 +140,7 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8-extra/repeats-variable-k".into();
-        let mut a_star = AStar {
+        let mut a_star = Astar {
             // NOTE: TRUE
             dt: true,
             h: CSH {

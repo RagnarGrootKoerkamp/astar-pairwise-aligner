@@ -7,7 +7,7 @@ fn main() {
     use std::time::Duration;
 
     use astar_pairwise_aligner::{
-        aligners::{astar::AStar, Aligner},
+        aligners::{astar::Astar, Aligner},
         canvas::BLACK,
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
@@ -47,7 +47,7 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8/high-error-rate".into();
-        let mut a_star = AStar {
+        let mut a_star = Astar {
             dt: false,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
@@ -73,7 +73,7 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8/deletion".into();
-        let mut a_star = AStar {
+        let mut a_star = Astar {
             dt: false,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
@@ -109,7 +109,7 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8/repeats".into();
-        let mut a_star = AStar {
+        let mut a_star = Astar {
             dt: false,
             h: CSH {
                 match_config: MatchConfig::inexact(10),
