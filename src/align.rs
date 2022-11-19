@@ -1,8 +1,7 @@
-use crate::astar::{AstarStats, Timing};
-use crate::visualizer::{NoVisualizer, VisualizerT};
-use crate::{astar::astar, astar_dt::astar_dt, prelude::*};
-
-use std::default;
+use crate::astar::{astar_wrap, AstarStats, Timing};
+use crate::astar_dt::astar_dt_wrap;
+use crate::prelude::*;
+use crate::visualizer::{NoVisualizer, VisualizerConfig, VisualizerT};
 use std::{
     fmt,
     io::{stdout, Write},
@@ -261,31 +260,24 @@ pub fn align_advanced<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,
     sequence_stats: InputStats,
-    heuristic: H,
-    diagonal_transition: bool,
-    vis: &mut impl VisualizerT,
+    h: H,
+    dt: bool,
+    v: &impl VisualizerConfig,
 ) -> AlignResult
 where
     H::Instance<'a>: HeuristicInstance<'a>,
 {
-    // Instantiate the heuristic.
-    let ref mut h = heuristic.build(a, b);
-
-    // Run A* with heuristic.
-    // TODO: Make the greedy_matching bool a parameter in a struct with A* options.
-    let graph = EditGraph::new(a, b, true);
-    let (distance_and_path, astar_stats) = if diagonal_transition {
-        astar_dt(&graph, h, vis)
+    let ((d, path), astar_stats) = if dt {
+        astar_dt_wrap(a, b, &h, v)
     } else {
-        astar(&graph, h, vis)
+        astar_wrap(a, b, &h, v)
     };
-    let (distance, _) = distance_and_path;
 
     AlignResult {
-        heuristic_params: heuristic.params(),
+        heuristic_params: h.params(),
         input: sequence_stats,
         astar: astar_stats,
-        edit_distance: distance,
+        edit_distance: d,
         sample_size: 1,
     }
 }

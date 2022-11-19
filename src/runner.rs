@@ -2,6 +2,8 @@ use std::{path::PathBuf, time::Duration};
 
 use crate::{
     aligners::{diagonal_transition::GapCostHeuristic, Aligner},
+    astar::astar_wrap,
+    astar_dt::astar_dt_wrap,
     cli::{
         heuristic_params::{Algorithm, AlgorithmArgs, HeuristicArgs, HeuristicRunner},
         input::Input,
@@ -83,7 +85,7 @@ struct AstarViz<'a, 'd, H: Heuristic> {
 impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
     type R = AlignResult;
 
-    fn call<V: visualizer::VisualizerT>(&self, mut v: V) -> Self::R {
+    fn call<V: visualizer::VisualizerConfig>(&self, mut v: V) -> Self::R {
         match self.args.algorithm.algorithm {
             Algorithm::Astar => {
                 let sequence_stats = InputStats {
@@ -91,14 +93,19 @@ impl<H: Heuristic> VisualizerRunner for AstarViz<'_, '_, H> {
                     len_b: self.b.len(),
                     error_rate: 0.,
                 };
-                align_advanced(
-                    self.a,
-                    self.b,
-                    sequence_stats,
-                    self.h,
-                    self.args.algorithm.dt,
-                    &mut v,
-                )
+                let ((d, path), astar_stats) = if self.args.algorithm.dt {
+                    astar_dt_wrap(self.a, self.b, &self.h, &v)
+                } else {
+                    astar_wrap(self.a, self.b, &self.h, &v)
+                };
+
+                AlignResult {
+                    heuristic_params: self.h.params(),
+                    input: sequence_stats,
+                    astar: astar_stats,
+                    edit_distance: d,
+                    sample_size: 1,
+                }
             }
             Algorithm::NW => {
                 let start = instant::Instant::now();

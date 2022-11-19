@@ -45,7 +45,7 @@ pub enum When {
 
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
-pub trait VisualizerConfig {
+pub trait VisualizerConfig: Clone {
     type Visualizer: VisualizerT;
     fn build(&self, a: Seq, b: Seq) -> Self::Visualizer;
 }
@@ -109,7 +109,7 @@ pub trait VisualizerT {
 }
 
 /// A trivial visualizer that does not do anything.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NoVisualizer;
 impl VisualizerConfig for NoVisualizer {
     type Visualizer = NoVisualizer;
