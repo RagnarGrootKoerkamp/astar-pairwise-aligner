@@ -108,6 +108,7 @@ impl Astar<NoVisualizer, ZeroCost> {
     ) -> Box<dyn AstarAligner> {
         match v_args.make_visualizer() {
             VisualizerType::NoVizualizer => Self::from_args_with_v(dt, h_args, NoVisualizer),
+            #[cfg(any(feature = "sdl2", feature = "wasm"))]
             VisualizerType::Visualizer(config) => Self::from_args_with_v(dt, h_args, config),
         }
     }

@@ -74,7 +74,7 @@ pub enum VisualizerType {
 impl VisualizerArgs {
     pub fn make_visualizer(&self) -> VisualizerType {
         #[cfg(not(any(feature = "sdl2", feature = "wasm")))]
-        return VisualizerType::NoVizualizer(NoVisualizer);
+        return VisualizerType::NoVizualizer;
 
         #[cfg(any(feature = "sdl2", feature = "wasm"))]
         {
