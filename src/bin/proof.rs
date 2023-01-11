@@ -53,7 +53,7 @@ fn main() {
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // let h = PathHeuristic { h: self.h };
         // FIXME: WRAP IN PATH_HEURISTIC.
-        let r = aligners::astar::AstarParams {
+        let r = aligners::astar::AstarPAParams {
             diagonal_transition: args.algorithm.dt,
             heuristic: args.heuristic.clone(),
         }

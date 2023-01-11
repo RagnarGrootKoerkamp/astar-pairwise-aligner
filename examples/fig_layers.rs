@@ -5,7 +5,7 @@ fn main() {
 
     use astar_pairwise_aligner::canvas::*;
     use astar_pairwise_aligner::{
-        aligners::{astar::Astar, Aligner},
+        aligners::{astar::Astaras, Aligner},
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };
@@ -52,7 +52,7 @@ fn main() {
                 match_config: MatchConfig::exact(k),
                 pruning: Pruning::new(pruning),
             };
-            let mut a_star = Astar {
+            let mut a_star = Astaras {
                 dt: false,
                 h,
                 v: config.clone(),
@@ -70,7 +70,7 @@ fn main() {
                 use_gap_cost: false,
                 c: PhantomData::<BruteForceContours>::default(),
             };
-            let mut a_star = Astar {
+            let mut a_star = Astaras {
                 dt: false,
                 h,
                 v: config.clone(),
@@ -87,7 +87,7 @@ fn main() {
                 use_gap_cost: true,
                 c: PhantomData::<BruteForceContours>::default(),
             };
-            let mut a_star = Astar {
+            let mut a_star = Astaras {
                 dt: false,
                 h,
                 v: config.clone(),

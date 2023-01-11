@@ -9,7 +9,7 @@ fn main() {
 
     use astar_pairwise_aligner::{
         aligners::{
-            astar::{Astar, AstarAligner},
+            astar::{AstarAligner, Astaras},
             diagonal_transition::{DiagonalTransition, GapCostHeuristic},
             nw::NW,
             Aligner,

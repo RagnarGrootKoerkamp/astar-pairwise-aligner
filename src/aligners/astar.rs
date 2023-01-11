@@ -20,13 +20,13 @@ use super::Aligner;
 
 /// The main entrypoint for running A* with some parameters.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AstarParams {
+pub struct AstarPAParams {
     pub diagonal_transition: bool,
     pub heuristic: HeuristicArgs,
 }
 
 /// Generic A* instance for the chosen heuristic and visualizer.
-pub struct Astar<V: VisualizerConfig, H: Heuristic> {
+pub struct AstarPA<V: VisualizerConfig, H: Heuristic> {
     pub dt: bool,
     /// The heuristic to use.
     pub h: H,
@@ -34,7 +34,7 @@ pub struct Astar<V: VisualizerConfig, H: Heuristic> {
     pub v: V,
 }
 
-impl AstarParams {
+impl AstarPAParams {
     pub fn aligner_with_visualizer(&self, v_args: &VisualizerArgs) -> Box<dyn AstarAligner> {
         match v_args.make_visualizer() {
             VisualizerType::NoVizualizer => self.generic_algner(NoVisualizer),
@@ -51,15 +51,15 @@ impl AstarParams {
         &self,
         v: V,
     ) -> Box<dyn AstarAligner> {
-        let AstarParams {
+        let AstarPAParams {
             diagonal_transition: dt,
             heuristic: h,
         } = *self;
         match h.heuristic {
-            HeuristicType::None => Box::new(Astar::new(dt, NoCost, v)),
-            HeuristicType::Zero => Box::new(Astar::new(dt, ZeroCost, v)),
-            HeuristicType::Gap => Box::new(Astar::new(dt, GapCost, v)),
-            HeuristicType::SH => Box::new(Astar::new(
+            HeuristicType::None => Box::new(AstarPA::new(dt, NoCost, v)),
+            HeuristicType::Zero => Box::new(AstarPA::new(dt, ZeroCost, v)),
+            HeuristicType::Gap => Box::new(AstarPA::new(dt, GapCost, v)),
+            HeuristicType::SH => Box::new(AstarPA::new(
                 dt,
                 SH {
                     match_config: h.match_config(false),
@@ -70,7 +70,7 @@ impl AstarParams {
                 },
                 v,
             )),
-            HeuristicType::CSH => Box::new(Astar::new(
+            HeuristicType::CSH => Box::new(AstarPA::new(
                 dt,
                 CSH {
                     match_config: h.match_config(h.gap_cost),
@@ -87,9 +87,9 @@ impl AstarParams {
     }
 }
 
-impl<V: VisualizerConfig, H: Heuristic> Astar<V, H> {
+impl<V: VisualizerConfig, H: Heuristic> AstarPA<V, H> {
     fn new(dt: bool, h: H, v: V) -> Self {
-        Astar { dt, h, v }
+        AstarPA { dt, h, v }
     }
 }
 
@@ -101,7 +101,7 @@ pub trait AstarAligner: Aligner {
     ) -> ((crate::cost_model::Cost, super::cigar::Cigar), AstarStats);
 }
 
-impl<V: VisualizerConfig, H: Heuristic> AstarAligner for Astar<V, H> {
+impl<V: VisualizerConfig, H: Heuristic> AstarAligner for AstarPA<V, H> {
     fn align_with_stats(
         &mut self,
         a: super::Seq,
@@ -115,7 +115,7 @@ impl<V: VisualizerConfig, H: Heuristic> AstarAligner for Astar<V, H> {
     }
 }
 
-impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for Astar<V, H> {
+impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for AstarPA<V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Astar")
             .field("dt", &self.dt)
@@ -124,7 +124,7 @@ impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for Astar<V, H> {
     }
 }
 
-impl<V: VisualizerConfig, H: Heuristic> Aligner for Astar<V, H> {
+impl<V: VisualizerConfig, H: Heuristic> Aligner for AstarPA<V, H> {
     fn align(
         &mut self,
         a: super::Seq,

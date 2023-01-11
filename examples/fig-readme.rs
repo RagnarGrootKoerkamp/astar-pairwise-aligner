@@ -9,7 +9,7 @@ fn main() {
 
     use astar_pairwise_aligner::canvas::*;
     use astar_pairwise_aligner::{
-        aligners::{astar::Astar, Aligner},
+        aligners::{astar::Astaras, Aligner},
         prelude::*,
         visualizer::{Gradient, Visualizer, When},
     };

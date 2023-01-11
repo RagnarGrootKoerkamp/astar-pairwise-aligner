@@ -36,7 +36,7 @@ fn main() {
             let total_duration = start.elapsed().as_secs_f32();
             AstarStats::new(a, b, cost, total_duration)
         } else {
-            aligners::astar::AstarParams {
+            aligners::astar::AstarPAParams {
                 diagonal_transition: args.algorithm.dt,
                 heuristic: args.heuristic.clone(),
             }

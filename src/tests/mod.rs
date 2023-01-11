@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use bio::alignment::distance::simd::levenshtein;
 
 use crate::{
-    aligners::{astar::Astar, cigar::test::verify_cigar, Aligner},
+    aligners::{astar::AstarPA, cigar::test::verify_cigar, Aligner},
     cost_model::LinearCost,
     heuristic::{Heuristic, Pruning, CSH},
     matches::MatchConfig,
@@ -14,7 +14,7 @@ use crate::{
 mod contours;
 
 fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
-    let mut aligner = Astar {
+    let mut aligner = AstarPA {
         dt,
         h,
         v: NoVisualizer,

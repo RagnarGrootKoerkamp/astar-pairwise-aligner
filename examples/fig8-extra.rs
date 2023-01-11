@@ -7,7 +7,7 @@ fn main() {
     use std::time::Duration;
 
     use astar_pairwise_aligner::{
-        aligners::{astar::Astar, Aligner},
+        aligners::{astar::Astaras, Aligner},
         canvas::BLACK,
         prelude::*,
         visualizer::{Gradient, Visualizer, When},

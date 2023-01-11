@@ -2,7 +2,7 @@
 use std::panic::AssertUnwindSafe;
 
 use astar_pairwise_aligner::{
-    aligners::{astar::Astar, Aligner, Sequence},
+    aligners::{astar::AstarPA, Aligner, Sequence},
     prelude::*,
     visualizer::NoVisualizer,
 };
@@ -43,7 +43,7 @@ fn main() {
 
     let check_dist = true;
 
-    let ref mut aligner = Astar {
+    let ref mut aligner = AstarPA {
         dt,
         h: CSH {
             match_config: MatchConfig::new(k, max_match_cost),
