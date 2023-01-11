@@ -22,14 +22,13 @@ pub enum Algorithm {
     // External methods
     TripleAccel,
     Edlib,
-    Wfa,
     Biwfa,
 }
 
 impl Algorithm {
     pub fn external(&self) -> bool {
         match self {
-            Algorithm::TripleAccel | Algorithm::Edlib | Algorithm::Wfa | Algorithm::Biwfa => true,
+            Algorithm::TripleAccel | Algorithm::Edlib | Algorithm::Biwfa => true,
             Algorithm::NW | Algorithm::DT | Algorithm::Astar => false,
         }
     }
@@ -110,7 +109,6 @@ impl ToString for AlgorithmArgs {
                 }
             }
             Algorithm::Edlib => "Edlib".into(),
-            Algorithm::Wfa => "WFA".into(),
             Algorithm::Biwfa => "BiWFA".into(),
         }
     }
