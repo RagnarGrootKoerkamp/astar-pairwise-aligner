@@ -37,7 +37,7 @@ pub struct AstarPA<V: VisualizerConfig, H: Heuristic> {
 impl AstarPAParams {
     pub fn aligner_with_visualizer(&self, v_args: &VisualizerArgs) -> Box<dyn AstarAligner> {
         match v_args.make_visualizer() {
-            VisualizerType::NoVizualizer => self.generic_algner(NoVisualizer),
+            VisualizerType::NoVisualizer => self.generic_algner(NoVisualizer),
             #[cfg(any(feature = "vis", feature = "wasm"))]
             VisualizerType::Visualizer(config) => self.generic_aligner(config),
         }

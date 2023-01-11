@@ -66,7 +66,7 @@ pub trait VisualizerRunner {
 }
 
 pub enum VisualizerType {
-    NoVizualizer,
+    NoVisualizer,
     #[cfg(any(feature = "vis", feature = "wasm"))]
     Visualizer(Config),
 }
@@ -74,14 +74,14 @@ pub enum VisualizerType {
 impl VisualizerArgs {
     pub fn make_visualizer(&self) -> VisualizerType {
         #[cfg(not(any(feature = "vis", feature = "wasm")))]
-        return VisualizerType::NoVizualizer;
+        return VisualizerType::NoVisualizer;
 
         #[cfg(any(feature = "vis", feature = "wasm"))]
         {
             use crate::canvas::BLACK;
 
             if self.visualize == When::None && self.save == When::None {
-                return VisualizerType::NoVizualizer;
+                return VisualizerType::NoVisualizer;
             }
 
             // Get the default config for the style.
