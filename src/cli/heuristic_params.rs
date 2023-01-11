@@ -115,7 +115,7 @@ impl ToString for AlgorithmArgs {
 }
 
 /// TODO: Add separate --dt and --gap-cost flags.
-#[derive(Parser, Debug, Serialize, Deserialize)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[clap(help_heading = "HEURISTIC")]
 pub struct HeuristicArgs {
     #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]

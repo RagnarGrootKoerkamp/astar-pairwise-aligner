@@ -1,7 +1,6 @@
 #![feature(let_chains)]
 
 use astar_pairwise_aligner::{
-    aligners::astar::Astar,
     cli::{heuristic_params::AlgorithmArgs, input::Input, visualizer::VisualizerArgs},
     prelude::*,
 };
@@ -54,9 +53,13 @@ fn main() {
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // let h = PathHeuristic { h: self.h };
         // FIXME: WRAP IN PATH_HEURISTIC.
-        let r = Astar::from_args(args.algorithm.dt, &args.heuristic, &args.visualizer)
-            .align_with_stats(a, b)
-            .1;
+        let r = aligners::astar::AstarParams {
+            diagonal_transition: args.algorithm.dt,
+            heuristic: args.heuristic.clone(),
+        }
+        .aligner_with_visualizer(&args.visualizer)
+        .align_with_stats(a, b)
+        .1;
 
         // Record and print stats.
         if args.silent <= 1 {

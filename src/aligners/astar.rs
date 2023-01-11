@@ -16,14 +16,72 @@ use crate::{
 
 use super::Aligner;
 
+/// The main entrypoint for running A* with some parameters.
+pub struct AstarParams {
+    pub diagonal_transition: bool,
+    pub heuristic: HeuristicArgs,
+}
+
+/// Generic A* instance for the chosen heuristic and visualizer.
 pub struct Astar<V: VisualizerConfig, H: Heuristic> {
     pub dt: bool,
-
     /// The heuristic to use.
     pub h: H,
-
     /// The visualizer to use.
     pub v: V,
+}
+
+impl AstarParams {
+    pub fn aligner_with_visualizer(&self, v_args: &VisualizerArgs) -> Box<dyn AstarAligner> {
+        match v_args.make_visualizer() {
+            VisualizerType::NoVizualizer => self.generic_algner(NoVisualizer),
+            #[cfg(any(feature = "vis", feature = "wasm"))]
+            VisualizerType::Visualizer(config) => self.generic_aligner(config),
+        }
+    }
+
+    pub fn aligner(&self) -> Box<dyn AstarAligner> {
+        self.generic_algner(NoVisualizer)
+    }
+
+    fn generic_algner<'a, V: VisualizerConfig + 'a + 'static>(
+        &self,
+        v: V,
+    ) -> Box<dyn AstarAligner> {
+        let &AstarParams {
+            diagonal_transition: dt,
+            heuristic: ref h,
+        } = self;
+        match h.heuristic {
+            HeuristicType::None => Box::new(Astar::new(dt, NoCost, v)),
+            HeuristicType::Zero => Box::new(Astar::new(dt, ZeroCost, v)),
+            HeuristicType::Gap => Box::new(Astar::new(dt, GapCost, v)),
+            HeuristicType::SH => Box::new(Astar::new(
+                dt,
+                SH {
+                    match_config: h.match_config(false),
+                    pruning: Pruning {
+                        enabled: !h.no_prune,
+                        skip_prune: h.skip_prune,
+                    },
+                },
+                v,
+            )),
+            HeuristicType::CSH => Box::new(Astar::new(
+                dt,
+                CSH {
+                    match_config: h.match_config(h.gap_cost),
+                    pruning: Pruning {
+                        enabled: !h.no_prune,
+                        skip_prune: h.skip_prune,
+                    },
+                    use_gap_cost: h.gap_cost,
+                    c: PhantomData::<HintContours<BruteForceContour>>,
+                },
+                v,
+            )),
+        }
+    }
 }
 
 impl<V: VisualizerConfig, H: Heuristic> Astar<V, H> {
@@ -60,57 +118,6 @@ impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for Astar<V, H> {
             .field("dt", &self.dt)
             .field("h", &self.h)
             .finish()
-    }
-}
-
-impl Astar<NoVisualizer, ZeroCost> {
-    /// FIXME: FIGURE OUT WHY +'static IS NEEDED HERE??
-    fn from_args_with_v<'a, V: VisualizerConfig + 'a + 'static>(
-        dt: bool,
-        h: &HeuristicArgs,
-        v: V,
-    ) -> Box<dyn AstarAligner> {
-        match h.heuristic {
-            HeuristicType::None => Box::new(Astar::new(dt, NoCost, v)),
-            HeuristicType::Zero => Box::new(Astar::new(dt, ZeroCost, v)),
-            HeuristicType::Gap => Box::new(Astar::new(dt, GapCost, v)),
-            HeuristicType::SH => Box::new(Astar::new(
-                dt,
-                SH {
-                    match_config: h.match_config(false),
-                    pruning: Pruning {
-                        enabled: !h.no_prune,
-                        skip_prune: h.skip_prune,
-                    },
-                },
-                v,
-            )),
-            HeuristicType::CSH => Box::new(Astar::new(
-                dt,
-                CSH {
-                    match_config: h.match_config(h.gap_cost),
-                    pruning: Pruning {
-                        enabled: !h.no_prune,
-                        skip_prune: h.skip_prune,
-                    },
-                    use_gap_cost: h.gap_cost,
-                    c: PhantomData::<HintContours<BruteForceContour>>,
-                },
-                v,
-            )),
-        }
-    }
-
-    pub fn from_args(
-        dt: bool,
-        h_args: &HeuristicArgs,
-        v_args: &VisualizerArgs,
-    ) -> Box<dyn AstarAligner> {
-        match v_args.make_visualizer() {
-            VisualizerType::NoVizualizer => Self::from_args_with_v(dt, h_args, NoVisualizer),
-            #[cfg(any(feature = "vis", feature = "wasm"))]
-            VisualizerType::Visualizer(config) => Self::from_args_with_v(dt, h_args, config),
-        }
     }
 }
 

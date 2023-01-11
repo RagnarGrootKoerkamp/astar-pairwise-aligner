@@ -1,7 +1,7 @@
 #![feature(let_chains)]
 
 use astar_pairwise_aligner::{
-    aligners::{astar::Astar, triple_accel::TripleAccel, Aligner},
+    aligners::{triple_accel::TripleAccel, Aligner},
     cli::heuristic_params::Algorithm,
     prelude::*,
     runner::Cli,
@@ -36,9 +36,13 @@ fn main() {
             let total_duration = start.elapsed().as_secs_f32();
             AstarStats::new(a, b, cost, total_duration)
         } else {
-            Astar::from_args(args.algorithm.dt, &args.heuristic, &args.visualizer)
-                .align_with_stats(a, b)
-                .1
+            aligners::astar::AstarParams {
+                diagonal_transition: args.algorithm.dt,
+                heuristic: args.heuristic.clone(),
+            }
+            .aligner_with_visualizer(&args.visualizer)
+            .align_with_stats(a, b)
+            .1
         };
 
         // Record and print stats.
