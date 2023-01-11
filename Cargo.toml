@@ -26,25 +26,33 @@ strip = false
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-colorgrad = "*"
-instant = "*"
-bio = "*"
-rand = "*"
-rand_chacha = "*"
-getrandom = "*"
-itertools = "*"
-rustc-hash = "*"
-clap = {version="3.*", features=["derive"]}
-lazy_static = "*"
-smallvec = {version="*", features=["union"]}
-ropey = "*"
-num-traits = "*"
-sdl2 = {version="*", optional=true, features=["ttf"]}
-parse_duration = "*"
-serde = "*"
-serde_json = "*"
-derive_more = "*"
+# aligners to compare against
+triple_accel = { git="https://github.com/Daniel-Liu-c0deb0t/triple_accel", features=[] }
+edlib_rs = { git="https://github.com/pairwise-alignment/edlib-rs" }
+rust-wfa2 = { git = "https://github.com/pairwise-alignment/rust-wfa2" }
 
+# Libs
+colorgrad = "0.6.2"
+instant = "0.1.12"
+bio = "1.1.0"
+rand = "0.8.5"
+rand_chacha = "0.3.1"
+getrandom = "0.2.8"
+itertools = "0.10.5"
+rustc-hash = "1.1.0"
+clap = { version = "3.0", features = ["derive"] }
+lazy_static = "1.4.0"
+ropey = { version = "1.5.1", default-features = false, features = ["simd"] }
+num-traits = "0.2.15"
+parse_duration = "2.1.1"
+serde = "1.0.152"
+serde_json = "1.0.91"
+derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
+smallvec = { version = "1.10.0", features = ["union"] }
+sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
+
+
+# Optional deps
 wasm-bindgen = {version="*", optional=true}
 console_error_panic_hook = {version="*", optional=true}
 web-sys = { version = "*", optional=true, features = [
@@ -57,10 +65,6 @@ web-sys = { version = "*", optional=true, features = [
 "HtmlSelectElement", "HtmlTextAreaElement"
 ]}
 
-# aligners to compare against
-triple_accel = { git="https://github.com/Daniel-Liu-c0deb0t/triple_accel", features=[] }
-edlib_rs = { git="https://github.com/pairwise-alignment/edlib-rs" }
-rust-wfa2 = { git = "https://github.com/pairwise-alignment/rust-wfa2" }
 
 [[example]]
 name = "fig_layers"
