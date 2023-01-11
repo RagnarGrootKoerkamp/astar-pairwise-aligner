@@ -37,7 +37,7 @@ impl Algorithm {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
 pub enum HeuristicType {
     None,
     Zero,
@@ -122,7 +122,7 @@ fn default_seed_length() -> I {
 }
 
 /// TODO: Add separate --dt and --gap-cost flags.
-#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[clap(help_heading = "HEURISTIC")]
 pub struct HeuristicArgs {
     #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]

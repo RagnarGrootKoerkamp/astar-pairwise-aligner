@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use serde::{Deserialize, Serialize};
+
 use crate::astar::AstarStats;
 use crate::heuristic::Heuristic;
 use crate::{
@@ -17,6 +19,7 @@ use crate::{
 use super::Aligner;
 
 /// The main entrypoint for running A* with some parameters.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AstarParams {
     pub diagonal_transition: bool,
     pub heuristic: HeuristicArgs,
@@ -48,10 +51,10 @@ impl AstarParams {
         &self,
         v: V,
     ) -> Box<dyn AstarAligner> {
-        let &AstarParams {
+        let AstarParams {
             diagonal_transition: dt,
-            heuristic: ref h,
-        } = self;
+            heuristic: h,
+        } = *self;
         match h.heuristic {
             HeuristicType::None => Box::new(Astar::new(dt, NoCost, v)),
             HeuristicType::Zero => Box::new(Astar::new(dt, ZeroCost, v)),
