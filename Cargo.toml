@@ -46,7 +46,6 @@ sdl2 = {version="*", optional=true, features=["ttf"]}
 parse_duration = "*"
 serde = "*"
 serde_json = "*"
-triple_accel = "*"
 derive_more = "*"
 
 wasm-bindgen = {version="*", optional=true}
@@ -61,6 +60,7 @@ web-sys = { version = "*", optional=true, features = [
 "HtmlSelectElement", "HtmlTextAreaElement"
 ]}
 
+triple_accel = { git="https://github.com/Daniel-Liu-c0deb0t/triple_accel", features=[] }
 
 [[example]]
 name = "fig_layers"
