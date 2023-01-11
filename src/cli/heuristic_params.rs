@@ -114,6 +114,13 @@ impl ToString for AlgorithmArgs {
     }
 }
 
+fn default_match_cost() -> MatchCost {
+    2
+}
+fn default_seed_length() -> I {
+    15
+}
+
 /// TODO: Add separate --dt and --gap-cost flags.
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[clap(help_heading = "HEURISTIC")]
@@ -125,36 +132,44 @@ pub struct HeuristicArgs {
     ///
     /// 2 for inexact matches.
     #[clap(short = 'r', default_value_t = 2, value_name = "r", display_order = 10)]
+    #[serde(default = "default_match_cost")]
     pub r: MatchCost,
 
     /// Seed length
     #[clap(short, value_name = "k", display_order = 10, default_value_t = 15)]
+    #[serde(default = "default_seed_length")]
     pub k: I,
 
     /// Minimal seed length
     #[clap(long, hide_short_help = true)]
+    #[serde(default)]
     pub kmin: Option<I>,
 
     /// Maximal seed length
     #[clap(long, hide_short_help = true)]
+    #[serde(default)]
     pub kmax: Option<I>,
 
     /// The maximal number of matches per seed
     #[clap(long, hide_short_help = true)]
+    #[serde(default)]
     pub max_matches: Option<usize>,
 
     /// Disable pruning
     #[clap(long, hide_short_help = true)]
+    #[serde(default)]
     pub no_prune: bool,
 
     /// Skip pruning every Nth match. 0 to disable
     ///
     /// This is only used for CSH, not for SH.
     #[clap(long, hide_short_help = true, default_value_t = 0)]
+    #[serde(default)]
     pub skip_prune: usize,
 
     /// Use gap-cost for CSH.
     #[clap(long, hide_short_help = true)]
+    #[serde(default)]
     pub gap_cost: bool,
 }
 
