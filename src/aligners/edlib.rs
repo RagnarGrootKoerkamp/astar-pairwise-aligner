@@ -1,57 +1,41 @@
 use super::{cigar::Cigar, Aligner, Seq};
-use crate::{
-    aligners::edlib::edlib::{
-        edlibAlign, edlibDefaultAlignConfig, edlibFreeAlignResult, EdlibAlignTask_EDLIB_TASK_PATH,
-        EDLIB_STATUS_OK,
-    },
-    cost_model::Cost,
-};
-use std::{intrinsics::transmute, ptr::slice_from_raw_parts};
 
-#[allow(non_upper_case_globals)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-#[allow(unused)]
-mod edlib {
-    include!(concat!(env!("OUT_DIR"), "/bindings_edlib.rs"));
-}
+use crate::{aligners::cigar::CigarOp, cost_model::Cost};
+use edlib_rs::{edlibAlignRs, EdlibAlignConfigRs, EdlibAlignTaskRs, EDLIB_RS_STATUS_OK};
 
 #[derive(Debug)]
 pub struct Edlib;
 
 fn edlib_align(a: Seq, b: Seq, trace: bool, f_max: Option<Cost>) -> Option<(u32, Option<Cigar>)> {
-    unsafe {
-        let a: &[i8] = transmute(a);
-        let b: &[i8] = transmute(b);
-        let mut config = edlibDefaultAlignConfig();
-        if trace {
-            config.task = EdlibAlignTask_EDLIB_TASK_PATH;
-        }
-        if let Some(f_max) = f_max {
-            config.k = f_max as i32;
-        }
-        let result = edlibAlign(
-            a.as_ptr(),
-            a.len() as i32,
-            b.as_ptr(),
-            b.len() as i32,
-            config,
-        );
-        assert!(result.status == EDLIB_STATUS_OK as i32);
-        if result.editDistance == -1 {
-            return None;
-        }
-        let distance = result.editDistance as Cost;
-
-        let cigar = trace.then(|| {
-            Cigar::from_edlib_alignment(&*slice_from_raw_parts(
-                result.alignment,
-                result.alignmentLength as usize,
-            ))
-        });
-        edlibFreeAlignResult(result);
-        Some((distance, cigar))
+    let mut config = EdlibAlignConfigRs::default();
+    if trace {
+        config.task = EdlibAlignTaskRs::EDLIB_TASK_PATH;
     }
+    if let Some(f_max) = f_max {
+        config.k = f_max as i32;
+    }
+    let result = edlibAlignRs(a, b, &config);
+    assert!(result.status == EDLIB_RS_STATUS_OK);
+
+    if result.editDistance == -1 {
+        return None;
+    }
+
+    let distance = result.editDistance as Cost;
+    let cigar = result.alignment.map(|alignment| {
+        let mut cigar = Cigar::default();
+        for op in alignment {
+            cigar.push(match op {
+                0 => CigarOp::Match,
+                1 => CigarOp::Del,
+                2 => CigarOp::Ins,
+                3 => CigarOp::Sub,
+                _ => panic!(),
+            });
+        }
+        cigar
+    });
+    Some((distance, cigar))
 }
 
 impl Aligner for Edlib {

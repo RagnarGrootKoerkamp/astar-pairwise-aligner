@@ -30,11 +30,6 @@ wfa:
 	cd .. && git clone https://github.com/smarco/WFA2-lib.git wfa2
 	cd ../wfa2 && make
 
-# Clone fork of Edlib and build using meson
-edlib:
-	cd .. && git clone https://github.com/RagnarGrootKoerkamp/edlib.git
-	cd ../edlib && make
-
 # ========== EVALS ==========
 
 cpu-freq:

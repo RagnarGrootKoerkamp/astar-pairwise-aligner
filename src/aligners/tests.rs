@@ -301,7 +301,6 @@ mod astar {
     });
 }
 
-#[cfg(feature = "edlib")]
 mod edlib {
     use crate::{aligners::edlib::Edlib, cost_model::LinearCost};
 

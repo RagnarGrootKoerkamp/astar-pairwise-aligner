@@ -26,12 +26,7 @@ fn main() {
                 Algorithm::TripleAccel => {
                     TripleAccel::new(false, CostModel::Levenshtein).cost(a, b)
                 }
-                Algorithm::Edlib => {
-                    #[cfg(not(feature = "edlib"))]
-                    panic!("Enable the edlib feature flag to use edlib.");
-                    #[cfg(feature = "edlib")]
-                    aligners::edlib::Edlib.cost(a, b)
-                }
+                Algorithm::Edlib => aligners::edlib::Edlib.cost(a, b),
                 Algorithm::Wfa => {
                     #[cfg(not(feature = "wfa"))]
                     panic!("Enable the wfa feature flag to use WFA.");

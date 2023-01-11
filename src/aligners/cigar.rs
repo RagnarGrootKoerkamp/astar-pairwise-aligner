@@ -117,19 +117,6 @@ impl Cigar {
                 .collect(),
         }
     }
-    pub fn from_edlib_alignment(alignment: &[u8]) -> Self {
-        let mut cigar = Cigar::default();
-        for op in alignment {
-            cigar.push(match op {
-                0 => CigarOp::Match,
-                1 => CigarOp::Del,
-                2 => CigarOp::Ins,
-                3 => CigarOp::Sub,
-                _ => panic!(),
-            });
-        }
-        cigar
-    }
 
     fn match_pos(delta: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOp {
         match delta {
