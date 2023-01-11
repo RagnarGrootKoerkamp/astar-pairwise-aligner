@@ -6,19 +6,13 @@
     int_roundings,
     iter_intersperse,
     slice_as_chunks,
-    let_else,
     let_chains,
-    label_break_value,
     is_sorted,
     exclusive_range_pattern,
     associated_type_defaults,
-    generic_associated_types,
     hash_drain_filter,
     drain_filter
 )]
-
-#[macro_use]
-extern crate lazy_static;
 
 pub mod aligners;
 pub mod alignment_graph;

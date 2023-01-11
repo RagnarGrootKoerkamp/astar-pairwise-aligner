@@ -1134,7 +1134,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
                         continue;
                     }
                     if self.h.is_seed_start_or_end(p) {
-                        &self.h.prune(p, Default::default());
+                        self.h.prune(p, Default::default());
                     }
                     // Try pruning the previous start-of-seed position on this diagonal.
                     if let Some(matches) = &self.h.seed_matches() &&
@@ -1142,7 +1142,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
                        let Some(prev_seed) = matches.seed_ending_at(p) {
                         let prev_p = p.remove_diagonal(p.0 - prev_seed.start);
                         if pos_to_fr(prev_p).1 >= prev_fr {
-                            &self.h.prune(prev_p, Default::default());
+                            self.h.prune(prev_p, Default::default());
                         }
                     }
                 }

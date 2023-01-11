@@ -1,4 +1,4 @@
-#![feature(test, bench_black_box)]
+#![feature(test)]
 #![cfg(test)]
 
 use std::hint::black_box;

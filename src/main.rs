@@ -27,13 +27,7 @@ fn main() {
                     TripleAccel::new(false, CostModel::Levenshtein).cost(a, b)
                 }
                 Algorithm::Edlib => aligners::edlib::Edlib.cost(a, b),
-                Algorithm::Wfa => {
-                    unimplemented!("Only BiWFA is currently supported.");
-                    aligners::wfa::WFA {
-                        cm: LinearCost::new_unit(),
-                    }
-                    .cost(a, b)
-                }
+                Algorithm::Wfa => unimplemented!("Only BiWFA is currently supported."),
                 Algorithm::Biwfa => aligners::wfa::WFA {
                     cm: LinearCost::new_unit(),
                 }

@@ -165,7 +165,7 @@ mod astar {
                 h,
                 v: NoVisualizer,
             },
-            Some(&mut |a, b| Astar {
+            Some(&mut |_a, _b| Astar {
                 dt,
                 h,
                 v: {

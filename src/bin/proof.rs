@@ -1,16 +1,8 @@
 #![feature(let_chains)]
 
 use astar_pairwise_aligner::{
-    aligners::{
-        astar::Astar,
-        diagonal_transition::{DiagonalTransition, GapCostHeuristic},
-    },
-    cli::{
-        heuristic_params::{AlgorithmArgs, HeuristicRunner},
-        input::Input,
-        visualizer::{VisualizerArgs, VisualizerRunner},
-    },
-    heuristic::path::PathHeuristic,
+    aligners::astar::Astar,
+    cli::{heuristic_params::AlgorithmArgs, input::Input, visualizer::VisualizerArgs},
     prelude::*,
 };
 use clap::Parser;

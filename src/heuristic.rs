@@ -33,7 +33,7 @@ pub struct HeuristicParams {
 
 impl std::ops::AddAssign<HeuristicParams> for HeuristicParams {
     /// This does nothing; parameters can't be added.
-    fn add_assign(&mut self, rhs: HeuristicParams) {}
+    fn add_assign(&mut self, _rhs: HeuristicParams) {}
 }
 
 #[derive(Clone, AddAssign, Default, Copy)]
