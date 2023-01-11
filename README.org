@@ -132,10 +132,9 @@ cargo run --release --bin generate_dataset -- -x 1000 -n 10000 -e 0.05 /tmp/rand
 The results in our preprint are entirely reproducible using the [[./makefile][makefile]]:
 
 - Synthetic data (~#evals-sythetic~ tag) ::
-  1. Clone WFA and Edlib repos using ~make wfa~ and ~make edlib~ from this directory.
-  2. Run the synthetic evals ([[evals/Snakefile]], ~5h~) using ~make evals~ to write data tables to
+  1. Run the synthetic evals ([[evals/Snakefile]], ~5h~) using ~make evals~ to write data tables to
      [[evals/table/]]. Data used in the paper is already committed.
-  3. Write plots to [[evals/results/]] using ~make results~ or [[evals/results.py]]
+  2. Write plots to [[evals/results/]] using ~make results~ or [[evals/results.py]]
      directly. An interactive notebook is at [[evals/evals.ipynb]].
 
 - Human data (~#evals-human~ tag) ::
@@ -191,8 +190,7 @@ And here is a video of figure 3 of our preprint:
 
 - Tests ::
   Code is tested for correctness in various tests ([[tests/]], [[src/aligners/tests/]])
-  against library implementation of edit distance, and against Edlib and WFA
-  when the ~edlib~ and ~wfa~ feature flags are set.
+  against library implementation of edit distance, and against Edlib and WFA.
 
 - Benchmarks ::
   All code is benchmarked on GitHub Actions CI. Performance history of

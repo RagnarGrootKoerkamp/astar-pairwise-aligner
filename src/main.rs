@@ -28,25 +28,16 @@ fn main() {
                 }
                 Algorithm::Edlib => aligners::edlib::Edlib.cost(a, b),
                 Algorithm::Wfa => {
-                    #[cfg(not(feature = "wfa"))]
-                    panic!("Enable the wfa feature flag to use WFA.");
-                    #[cfg(feature = "wfa")]
+                    unimplemented!("Only BiWFA is currently supported.");
                     aligners::wfa::WFA {
                         cm: LinearCost::new_unit(),
-                        biwfa: false,
                     }
                     .cost(a, b)
                 }
-                Algorithm::Biwfa => {
-                    #[cfg(not(feature = "wfa"))]
-                    panic!("Enable the wfa feature flag to use BiWFA.");
-                    #[cfg(feature = "wfa")]
-                    aligners::wfa::WFA {
-                        cm: LinearCost::new_unit(),
-                        biwfa: true,
-                    }
-                    .cost(a, b)
+                Algorithm::Biwfa => aligners::wfa::WFA {
+                    cm: LinearCost::new_unit(),
                 }
+                .cost(a, b),
                 _ => unreachable!(),
             };
             let total_duration = start.elapsed().as_secs_f32();

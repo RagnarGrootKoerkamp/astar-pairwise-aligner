@@ -1,18 +1,12 @@
 use super::{Aligner, Seq};
 use crate::cost_model::{AffineCost, AffineLayerType, Cost};
-use std::intrinsics::transmute;
-
-#[allow(non_upper_case_globals)]
-#[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
-#[allow(unused)]
-mod wfa {
-    include!(concat!(env!("OUT_DIR"), "/bindings_wfa.rs"));
-}
+use rust_wfa2::aligner::{
+    AlignmentScope, AlignmentStatus, Heuristic, MemoryModel, WFAligner, WFAlignerEdit,
+    WFAlignerGapAffine, WFAlignerGapAffine2Pieces, WFAlignerGapLinear, WFAlignerIndel,
+};
 
 pub struct WFA<CostModel> {
     pub cm: CostModel,
-    pub biwfa: bool,
 }
 
 impl<CostModel> std::fmt::Debug for WFA<CostModel> {
@@ -21,122 +15,44 @@ impl<CostModel> std::fmt::Debug for WFA<CostModel> {
     }
 }
 
-fn lcs_cost(a: Seq, b: Seq, biwfa: bool) -> Cost {
-    unsafe {
-        // Configure alignment attributes
-        let mut attributes = wfa::wavefront_aligner_attr_default;
-        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
-        attributes.distance_metric = wfa::distance_metric_t_indel;
-        attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
-        if biwfa {
-            attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
-        }
-        // Initialize Wavefront Aligner
-        let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
-        let a: &[i8] = transmute(a);
-        let b: &[i8] = transmute(b);
-        let status = wfa::wavefront_align(
-            wf_aligner,
-            a.as_ptr(),
-            a.len() as i32,
-            b.as_ptr(),
-            b.len() as i32,
-        );
-        assert_eq!(status, 0);
-        let cost = (*wf_aligner).cigar.score as Cost;
-        wfa::wavefront_aligner_delete(wf_aligner);
-        cost
-    }
+// NOTE: All of the functions below internally compute the full alignment, but only return the score.
+
+fn align(a: Seq, b: Seq, mut aligner: WFAligner) -> i32 {
+    aligner.set_heuristic(Heuristic::None);
+    let status = aligner.align_end_to_end(a, b);
+    assert_eq!(status, AlignmentStatus::StatusSuccessful);
+    aligner.score()
 }
 
-fn unit_cost(a: Seq, b: Seq, biwfa: bool) -> Cost {
-    unsafe {
-        // Configure alignment attributes
-        let mut attributes = wfa::wavefront_aligner_attr_default;
-        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
-        attributes.distance_metric = wfa::distance_metric_t_edit;
-        attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
-        if biwfa {
-            attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
-        }
-        // Initialize Wavefront Aligner
-        let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
-        let a: &[i8] = transmute(a);
-        let b: &[i8] = transmute(b);
-        let status = wfa::wavefront_align(
-            wf_aligner,
-            a.as_ptr(),
-            a.len() as i32,
-            b.as_ptr(),
-            b.len() as i32,
-        );
-        assert_eq!(status, 0);
-        let cost = (*wf_aligner).cigar.score as Cost;
-        wfa::wavefront_aligner_delete(wf_aligner);
-        cost
-    }
+fn lcs_cost(a: Seq, b: Seq) -> Cost {
+    let aligner = WFAlignerIndel::new(AlignmentScope::Alignment, MemoryModel::MemoryUltraLow);
+    align(a, b, aligner) as _
 }
 
-fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost, biwfa: bool) -> Cost {
-    unsafe {
-        // Configure alignment attributes
-        let mut attributes = wfa::wavefront_aligner_attr_default;
-        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
-        attributes.distance_metric = wfa::distance_metric_t_gap_linear;
-        attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
-        attributes.linear_penalties.mismatch = sub as i32;
-        attributes.linear_penalties.indel = indel as i32;
-
-        if biwfa {
-            attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
-        }
-
-        // Initialize Wavefront Aligner
-        let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
-        let a: &[i8] = transmute(a);
-        let b: &[i8] = transmute(b);
-        let status = wfa::wavefront_align(
-            wf_aligner,
-            a.as_ptr(),
-            a.len() as i32,
-            b.as_ptr(),
-            b.len() as i32,
-        );
-        assert_eq!(status, 0);
-        let cost = (-(*wf_aligner).cigar.score) as Cost;
-        wfa::wavefront_aligner_delete(wf_aligner);
-        cost
-    }
+fn unit_cost(a: Seq, b: Seq) -> Cost {
+    let aligner = WFAlignerEdit::new(AlignmentScope::Alignment, MemoryModel::MemoryUltraLow);
+    align(a, b, aligner) as _
 }
 
-fn affine_cost(a: Seq, b: Seq, sub: Cost, open: Cost, extend: Cost, biwfa: bool) -> Cost {
-    // Configure alignment attributes
-    unsafe {
-        let mut attributes = wfa::wavefront_aligner_attr_default;
-        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
-        attributes.distance_metric = wfa::distance_metric_t_gap_affine;
-        attributes.affine_penalties.mismatch = sub as i32;
-        attributes.affine_penalties.gap_opening = open as i32;
-        attributes.affine_penalties.gap_extension = extend as i32;
-        attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
-        if biwfa {
-            attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
-        }
-        let a: &[i8] = transmute(a);
-        let b: &[i8] = transmute(b);
-        let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
-        let status = wfa::wavefront_align(
-            wf_aligner,
-            a.as_ptr(),
-            a.len() as i32,
-            b.as_ptr(),
-            b.len() as i32,
-        );
-        assert_eq!(status, 0);
-        let cost = (-(*wf_aligner).cigar.score) as Cost;
-        wfa::wavefront_aligner_delete(wf_aligner);
-        cost
-    }
+fn linear_cost(a: Seq, b: Seq, sub: Cost, indel: Cost) -> Cost {
+    let aligner = WFAlignerGapLinear::new(
+        sub as _,
+        indel as _,
+        AlignmentScope::Alignment,
+        MemoryModel::MemoryUltraLow,
+    );
+    -align(a, b, aligner) as Cost
+}
+
+fn affine_cost(a: Seq, b: Seq, sub: Cost, open: Cost, extend: Cost) -> Cost {
+    let aligner = WFAlignerGapAffine::new(
+        sub as _,
+        open as _,
+        extend as _,
+        AlignmentScope::Alignment,
+        MemoryModel::MemoryUltraLow,
+    );
+    -align(a, b, aligner) as Cost
 }
 
 fn double_affine_cost(
@@ -147,37 +63,17 @@ fn double_affine_cost(
     extend1: Cost,
     open2: Cost,
     extend2: Cost,
-    biwfa: bool,
 ) -> Cost {
-    // Configure alignment attributes
-    unsafe {
-        let mut attributes = wfa::wavefront_aligner_attr_default;
-        attributes.heuristic.strategy = wfa::wf_heuristic_strategy_wf_heuristic_none;
-        attributes.distance_metric = wfa::distance_metric_t_gap_affine_2p;
-        attributes.affine2p_penalties.mismatch = sub as i32;
-        attributes.affine2p_penalties.gap_opening1 = open1 as i32;
-        attributes.affine2p_penalties.gap_extension1 = extend1 as i32;
-        attributes.affine2p_penalties.gap_opening2 = open2 as i32;
-        attributes.affine2p_penalties.gap_extension2 = extend2 as i32;
-        attributes.alignment_scope = wfa::alignment_scope_t_compute_score;
-        if biwfa {
-            attributes.memory_mode = wfa::wavefront_memory_t_wavefront_memory_ultralow;
-        }
-        let a: &[i8] = transmute(a);
-        let b: &[i8] = transmute(b);
-        let wf_aligner = wfa::wavefront_aligner_new(&mut attributes);
-        let status = wfa::wavefront_align(
-            wf_aligner,
-            a.as_ptr(),
-            a.len() as i32,
-            b.as_ptr(),
-            b.len() as i32,
-        );
-        assert_eq!(status, 0);
-        let cost = (-(*wf_aligner).cigar.score) as Cost;
-        wfa::wavefront_aligner_delete(wf_aligner);
-        cost
-    }
+    let aligner = WFAlignerGapAffine2Pieces::new(
+        sub as _,
+        open1 as _,
+        extend1 as _,
+        open2 as _,
+        extend2 as _,
+        AlignmentScope::Alignment,
+        MemoryModel::MemoryUltraLow,
+    );
+    -align(a, b, aligner) as Cost
 }
 
 impl<const N: usize> Aligner for WFA<AffineCost<N>> {
@@ -186,16 +82,16 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
             if N == 0 {
                 //lcs cost
                 if self.cm.sub == None && self.cm.ins == self.cm.del{
-                return lcs_cost(a, b, self.biwfa);
+                return lcs_cost(a, b);
                 //unit cost
             } else if self.cm.sub == Some(1) && self.cm.ins == Some(1) && self.cm.del == Some(1){
-                return unit_cost(a, b, self.biwfa);
+                return unit_cost(a, b);
                 //linear cost
             } else if let Some(sub) = self.cm.sub
             && let Some(ins) = self.cm.ins
             && let Some(del) = self.cm.del
             && ins == del {
-                return linear_cost(a, b, sub, ins, self.biwfa);
+                return linear_cost(a, b, sub, ins);
             }
                 //affine cost
             } else if N == 2 {
@@ -210,8 +106,7 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
                         b,
                         sub,
                         self.cm.affine[0].open,
-                        self.cm.affine[0].extend,
-                        self.biwfa
+                        self.cm.affine[0].extend
                     );
                 }
             }
@@ -237,8 +132,7 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
                         self.cm.affine[0].open,
                         self.cm.affine[0].extend,
                         self.cm.affine[2].open,
-                        self.cm.affine[2].extend,
-                        self.biwfa
+                        self.cm.affine[2].extend
                     );
                 }
             }
@@ -284,10 +178,7 @@ mod tests {
             h: ZeroCost,
             v: NoVisualizer,
         };
-        let mut biwfa = WFA {
-            cm: cm.clone(),
-            biwfa: true,
-        };
+        let mut biwfa = WFA { cm: cm.clone() };
         let mut dt = DiagonalTransition::new(
             cm.clone(),
             GapCostHeuristic::Disable,

@@ -23,13 +23,6 @@ wasm_prod:
 run: wasm
 	python3 -m http.server
 
-# ========== WFA & EDLIB SETUP ==========
-
-# Clone WFA2-lib and build using makefile
-wfa:
-	cd .. && git clone https://github.com/smarco/WFA2-lib.git wfa2
-	cd ../wfa2 && make
-
 # ========== EVALS ==========
 
 cpu-freq:
@@ -49,12 +42,6 @@ evals: cpu-freq
 	git diff-index --quiet HEAD
 	echo A*PA > evals/commit-ids
 	git rev-parse --short HEAD >> evals/commit-ids
-	echo Edlib >> evals/commit-ids
-	git -C ../edlib diff-index --quiet HEAD
-	git -C ../edlib rev-parse --short HEAD >> evals/commit-ids
-	echo WFA2 >> evals/commit-ids
-	git -C ../wfa2 diff-index --quiet HEAD
-	git -C ../wfa2 rev-parse --short HEAD >> evals/commit-ids
 	# Build tools
 	cargo build --no-default-features --release
 	cargo build --no-default-features --release --bin generate_dataset
@@ -73,12 +60,6 @@ evals-human: cpu-freq
 	git diff-index --quiet HEAD
 	echo A*PA > evals/commit-ids-human
 	git rev-parse --short HEAD >> evals/commit-ids-human
-	echo Edlib >> evals/commit-ids-human
-	git -C ../edlib diff-index --quiet HEAD
-	git -C ../edlib rev-parse --short HEAD >> evals/commit-ids-human
-	echo WFA2 >> evals/commit-ids-human
-	git -C ../wfa2 diff-index --quiet HEAD
-	git -C ../wfa2 rev-parse --short HEAD >> evals/commit-ids-human
 	# Build tools
 	cargo build --no-default-features --release
 	# Run snakemake on 3 threads, with 3 jobs in parallel.

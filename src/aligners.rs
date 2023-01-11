@@ -11,7 +11,6 @@ pub mod edlib;
 pub mod front;
 pub mod nw;
 pub mod triple_accel;
-#[cfg(feature = "wfa")]
 pub mod wfa;
 
 pub mod edit_graph;

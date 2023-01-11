@@ -22,9 +22,6 @@ debug = true
 # Breaks backtrace printing.
 strip = false
 
-[build-dependencies]
-bindgen = "0.60.1"
-
 [lib]
 crate-type = ["cdylib", "lib"]
 
@@ -62,7 +59,8 @@ web-sys = { version = "*", optional=true, features = [
 
 # aligners to compare against
 triple_accel = { git="https://github.com/Daniel-Liu-c0deb0t/triple_accel", features=[] }
-edlib_rs = { git="https://github.com/pairwise-alignment/edlib-rs", features=[] }
+edlib_rs = { git="https://github.com/pairwise-alignment/edlib-rs" }
+rust-wfa2 = { git = "https://github.com/pairwise-alignment/rust-wfa2" }
 
 [[example]]
 name = "fig_layers"
@@ -83,9 +81,6 @@ example = ["dep:sdl2", "sdl2"]
 # Enable the visualizer using sdl2.
 # TODO: Remove this and use dep:sdl2 instead
 sdl2 = []
-
-# Link third party libraries
-wfa = []
 
 bin = ["clap/wrap_help", "dep:sdl2", "sdl2"]
 wasm = ["dep:wasm-bindgen", "dep:web-sys", "getrandom/js", "instant/wasm-bindgen", "dep:console_error_panic_hook"]
