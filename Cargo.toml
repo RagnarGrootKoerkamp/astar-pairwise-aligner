@@ -27,7 +27,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 # aligners to compare against
-triple_accel = { git="https://github.com/Daniel-Liu-c0deb0t/triple_accel", features=[] }
+triple_accel = { git="https://github.com/Daniel-Liu-c0deb0t/triple_accel" }
 edlib_rs = { git="https://github.com/pairwise-alignment/edlib-rs" }
 rust-wfa2 = { git = "https://github.com/pairwise-alignment/rust-wfa2" }
 
@@ -52,7 +52,7 @@ smallvec = { version = "1.10.0", features = ["union"] }
 sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
 
 
-# Optional deps
+# Optional deps for wasm rendering
 wasm-bindgen = {version="*", optional=true}
 console_error_panic_hook = {version="*", optional=true}
 web-sys = { version = "*", optional=true, features = [
