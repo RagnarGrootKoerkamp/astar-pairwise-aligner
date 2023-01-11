@@ -1,9 +1,9 @@
 //! This generates the visualizations used in the blogpost on linear memory WFA.
 
-#[cfg(not(feature = "sdl2"))]
+#[cfg(not(feature = "vis"))]
 fn main() {}
 
-#[cfg(feature = "sdl2")]
+#[cfg(feature = "vis")]
 fn main() {
     use std::{path::PathBuf, time::Duration};
 

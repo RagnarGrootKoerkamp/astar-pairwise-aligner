@@ -1462,7 +1462,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTran
     }
 }
 
-#[cfg(feature = "sdl2")]
+#[cfg(feature = "vis")]
 #[cfg(test)]
 mod tests {
     use std::time::Duration;

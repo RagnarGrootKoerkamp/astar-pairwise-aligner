@@ -19,11 +19,11 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
 - Visualizations ::
   Show a video of a small alignment:
   #+begin_src sh
-  cargo run --release --features sdl2 -- -i <input> -v [--style detailed]
+  cargo run --release --features vis -- -i <input> -v [--style detailed]
   #+end_src
   Save a large alignment to disk:
   #+begin_src sh
-  cargo run --release --features sdl2 -- -i <input> --save --save-path <filename>.bmp --style large
+  cargo run --release --features vis -- -i <input> --save --save-path <filename>.bmp --style large
   #+end_src
 - Rust/C library usage ::
   This is TODO (#14).
@@ -147,8 +147,8 @@ The results in our preprint are entirely reproducible using the [[./makefile][ma
 
 * Visualizations
 
-Visualizations require the =sdl2= feature flag to be enabled, either via
-~cargo run --features sdl2~ or by enabling then as default in [[Cargo.toml]].
+Visualizations require the =vis= feature flag to be enabled, either via
+~cargo run --features vis~ or by enabling then as default in [[Cargo.toml]].
 
 Reimplementations of the following algorithms can be visualized:
 - Needleman-Wunsch (~nw~) ::

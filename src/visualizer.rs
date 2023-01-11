@@ -122,10 +122,10 @@ impl VisualizerT for NoVisualizer {}
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
-#[cfg(any(feature = "sdl2", feature = "wasm"))]
+#[cfg(any(feature = "vis", feature = "wasm"))]
 pub use visualizer::*;
 
-#[cfg(any(feature = "sdl2", feature = "wasm"))]
+#[cfg(any(feature = "vis", feature = "wasm"))]
 mod visualizer {
     use super::*;
     use crate::canvas::*;

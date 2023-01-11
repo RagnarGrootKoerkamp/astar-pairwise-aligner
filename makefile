@@ -57,7 +57,7 @@ evals: cpu-freq
 
 evals-human: cpu-freq
 	# Make sure there are no uncommited changes, and log commit ids.
-	git diff-index --quiet HEAD
+	#git diff-index --quiet HEAD
 	echo A*PA > evals/commit-ids-human
 	git rev-parse --short HEAD >> evals/commit-ids-human
 	# Build tools
@@ -66,8 +66,8 @@ evals-human: cpu-freq
 	# The first rule `all` is executed automatically.
 	cd evals && \
 	  nice -n -20 \
-	  taskset -c 0,2,4 \
-	    snakemake -j 3 -f --rerun-incomplete \
+	  taskset -c 0,1,2,3,4,5 \
+	    snakemake -j 6 -f --rerun-incomplete \
 	      table/human_na12878.tsv \
 	      table/human_chm13.tsv
 
@@ -93,7 +93,7 @@ results-export:
 # ========== IMAGES ==========
 
 fig1:
-	cargo run --features sdl2 --release --example fig1
+	cargo run --features vis --release --example fig1
 	mogrify -format png imgs/fig1/*bmp
 
 fig1-export: fig1
@@ -104,7 +104,7 @@ fig1-export: fig1
 
 fig_layers:
 	rm imgs/layers/*
-	cargo run --features example --release --example fig_layers
+	cargo run --features vis --release --example fig_layers
 	mogrify -format png imgs/layers/*bmp
 	rm imgs/layers/*bmp
 
@@ -113,11 +113,11 @@ fig_layers-export: fig_layers
 	cp -r imgs/layers  ../pairwise-aligner-paper/imgs/layers
 
 fig8:
-	cargo run --features sdl2 --release --example fig8
+	cargo run --features vis --release --example fig8
 	mogrify -format png imgs/fig8/*bmp
 
 fig8-exptra:
-	cargo run --features sdl2 --release --example fig8-extra
+	cargo run --features vis --release --example fig8-extra
 	mogrify -format png imgs/fig8-extra/*bmp
 
 fig8-export: fig8
@@ -156,7 +156,7 @@ fig_layers-video-clean:
 	rm -rf imgs/fig_layers-video
 
 fig-readme-video:
-	cargo run --features sdl2 --release --example fig-readme
+	cargo run --features vis --release --example fig-readme
 	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp -vf fps=50 imgs/fig-readme.mp4
 	ffmpeg -y -framerate 50 -i imgs/fig-readme/%d.bmp $(FILTER),fps=50 imgs/fig-readme.gif
 
@@ -166,8 +166,8 @@ fig-readme-video-clean:
 # ========== BLOGSPOSTS IMAGES ==========
 path-tracing:
 	rm imgs/path-tracing/*
-	cargo run --features sdl2 --release --example path-tracing
-	cargo run --features sdl2 --release --example path-tracing-affine
+	cargo run --features vis --release --example path-tracing
+	cargo run --features vis --release --example path-tracing-affine
 path-tracing-export:
 	mogrify -format png imgs/path-tracing/*bmp
 	cp imgs/path-tracing/*png ../../research/posts/linear-memory-wfa/

@@ -1,8 +1,8 @@
 //! This generates the visualizations used in the limitations section of the paper.
-#[cfg(not(feature = "sdl2"))]
+#[cfg(not(feature = "vis"))]
 fn main() {}
 
-#[cfg(feature = "sdl2")]
+#[cfg(feature = "vis")]
 fn main() {
     use std::time::Duration;
 

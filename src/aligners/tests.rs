@@ -169,12 +169,12 @@ mod astar {
                 dt,
                 h,
                 v: {
-                    #[cfg(feature = "sdl2")]
+                    #[cfg(feature = "vis")]
                     {
                         use crate::visualizer::{Config, VisualizerStyle};
                         Config::new(VisualizerStyle::Test)
                     }
-                    #[cfg(not(feature = "sdl2"))]
+                    #[cfg(not(feature = "vis"))]
                     {
                         NoVisualizer
                     }

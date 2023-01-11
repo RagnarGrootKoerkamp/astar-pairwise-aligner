@@ -67,16 +67,16 @@ pub trait VisualizerRunner {
 
 pub enum VisualizerType {
     NoVizualizer,
-    #[cfg(any(feature = "sdl2", feature = "wasm"))]
+    #[cfg(any(feature = "vis", feature = "wasm"))]
     Visualizer(Config),
 }
 
 impl VisualizerArgs {
     pub fn make_visualizer(&self) -> VisualizerType {
-        #[cfg(not(any(feature = "sdl2", feature = "wasm")))]
+        #[cfg(not(any(feature = "vis", feature = "wasm")))]
         return VisualizerType::NoVizualizer;
 
-        #[cfg(any(feature = "sdl2", feature = "wasm"))]
+        #[cfg(any(feature = "vis", feature = "wasm"))]
         {
             use crate::canvas::BLACK;
 
