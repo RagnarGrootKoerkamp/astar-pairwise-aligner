@@ -301,6 +301,7 @@ mod astar {
     });
 }
 
+#[cfg(feature = "edlib")]
 mod edlib {
     use crate::{aligners::edlib::Edlib, cost_model::LinearCost};
 
@@ -313,6 +314,7 @@ mod edlib {
     }
 }
 
+#[cfg(feature = "biwfa")]
 mod biwfa {
     use crate::aligners::wfa::WFA;
 
