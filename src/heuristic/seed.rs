@@ -431,7 +431,6 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn stats(&mut self) -> HeuristicStats {
-        self.stats.h0 = self.h(Pos(0, 0));
         self.stats
     }
 
