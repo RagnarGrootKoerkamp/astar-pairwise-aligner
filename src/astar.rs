@@ -383,7 +383,11 @@ pub fn astar<'a, H: Heuristic>(
     stats.timing.traceback = traceback_start.elapsed().as_secs_f32();
     v.last_frame_with_h(Some(&cigar), None, Some(h));
     stats.h = h.stats();
-    assert!(stats.h.h0 <= d);
+    assert!(
+        stats.h.h0 <= d,
+        "Heuristic at start is {} but the distance is only {d}!",
+        stats.h.h0
+    );
 
     let total = start.elapsed().as_secs_f32();
     stats.timing.total = total;
