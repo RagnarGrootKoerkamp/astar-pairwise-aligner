@@ -127,6 +127,7 @@ fn default_seed_length() -> I {
 #[serde(deny_unknown_fields)]
 pub struct HeuristicArgs {
     #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]
+    #[serde(rename = "type")]
     pub heuristic: HeuristicType,
 
     /// Seed potential
