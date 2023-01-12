@@ -20,6 +20,7 @@ use super::Aligner;
 
 /// The main entrypoint for running A* with some parameters.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct AstarPAParams {
     pub diagonal_transition: bool,
     pub heuristic: HeuristicArgs,
