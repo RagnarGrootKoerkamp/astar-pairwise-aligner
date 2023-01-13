@@ -4,10 +4,8 @@ use self::cigar::Cigar;
 use crate::prelude::{Cost, Pos};
 use pa_types::*;
 
-
 pub mod astar;
 pub mod cigar;
-pub mod triple_accel;
 
 #[cfg(test)]
 mod tests;
