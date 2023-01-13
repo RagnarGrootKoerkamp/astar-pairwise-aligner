@@ -2,10 +2,9 @@
 
 use self::cigar::Cigar;
 use crate::prelude::{Cost, Pos};
-use pa_types::*;
+pub use pa_types::*;
 
 pub mod astar;
-pub mod cigar;
 
 #[cfg(test)]
 mod tests;

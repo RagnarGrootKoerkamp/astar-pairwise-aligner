@@ -437,8 +437,10 @@ impl<const N: usize> AffineCost<N> {
 
     pub fn to_cigar(&self, layer: usize) -> CigarOp {
         match self.affine[layer].affine_type {
-            InsertLayer | HomoPolymerInsert => CigarOp::AffineIns(layer),
-            DeleteLayer | HomoPolymerDelete => CigarOp::AffineDel(layer),
+            InsertLayer | HomoPolymerInsert => CigarOp::Ins,
+            DeleteLayer | HomoPolymerDelete => CigarOp::Del,
+            // InsertLayer | HomoPolymerInsert => CigarOp::AffineIns(layer),
+            // DeleteLayer | HomoPolymerDelete => CigarOp::AffineDel(layer),
         }
     }
 

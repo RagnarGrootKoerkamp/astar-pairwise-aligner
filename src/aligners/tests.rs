@@ -1,11 +1,12 @@
 use ::triple_accel::levenshtein;
 use itertools::Itertools;
+use pa_types::CostModel;
 use rand::{seq::IteratorRandom, thread_rng, Rng};
 
-use super::{cigar::test::verify_cigar, Aligner, Seq};
+use super::{Aligner, Seq};
 use crate::{
     generate::{generate_model, ErrorModel},
-    prelude::{to_string, AffineCost},
+    prelude::to_string,
     visualizer::NoVisualizer,
 };
 
@@ -36,13 +37,12 @@ fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
         .cartesian_product(seeds)
 }
 
-fn test_aligner_on_input<const N: usize, A: Aligner>(
+fn test_aligner_on_input<A: Aligner>(
     a: Seq,
     b: Seq,
     aligner: &mut impl Aligner,
     viz_aligner: &mut Option<&mut dyn FnMut(&[u8], &[u8]) -> A>,
     test_path: bool,
-    cm: &AffineCost<N>,
     params: &str,
 ) {
     // Set to true for local debugging.
@@ -81,15 +81,14 @@ fn test_aligner_on_input<const N: usize, A: Aligner>(
             );
         }
         assert_eq!(cost, nw_cost);
-        verify_cigar(cm, a, b, &cigar);
+        cigar.verify(&CostModel::unit(), a, b);
     }
 }
 
 /// Test that:
 /// - the aligner gives the same cost as NW, both for `cost` and `align` members.
 /// - the `Cigar` is valid and of the correct cost.
-fn test_aligner_on_cost_model_with_viz<const N: usize, A: Aligner>(
-    cm: AffineCost<N>,
+fn test_aligner_on_cost_model_with_viz<A: Aligner>(
     mut aligner: impl Aligner,
     mut viz_aligner: Option<&mut dyn FnMut(Seq, Seq) -> A>,
     test_path: bool,
@@ -102,7 +101,6 @@ fn test_aligner_on_cost_model_with_viz<const N: usize, A: Aligner>(
             &mut aligner,
             &mut viz_aligner,
             test_path,
-            &cm,
             &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
         );
     }
@@ -113,7 +111,6 @@ mod astar {
 
     use crate::{
         aligners::astar::AstarPA,
-        cost_model::LinearCost,
         heuristic::{Heuristic, Pruning, CSH, SH},
         matches::MatchConfig,
         prelude::{BruteForceContour, HintContours},
@@ -125,7 +122,6 @@ mod astar {
         // Greedy matching doesn't really matter much.
         // To speed up tests, we choose it randomly.
         test_aligner_on_cost_model_with_viz(
-            LinearCost::new_unit(),
             AstarPA {
                 dt,
                 h,

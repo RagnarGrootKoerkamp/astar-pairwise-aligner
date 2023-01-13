@@ -1,6 +1,8 @@
 #![allow(unused)]
 use std::fmt::Debug;
 
+use pa_types::CostModel;
+
 use crate::{
     aligners::cigar::Cigar,
     prelude::{Cost, LinearCost, Seq},
@@ -33,7 +35,7 @@ impl<H: Heuristic> PathHeuristic<H> {
         let start = instant::Instant::now();
         let (path_cost, cigar): (Cost, Cigar) = todo!();
         println!("Inner alignment: {}", start.elapsed().as_secs_f32());
-        let path = cigar.to_path_with_cost(LinearCost::new_unit());
+        let path = cigar.to_path_with_costs(CostModel::unit());
         assert_eq!(path.last().unwrap().1, path_cost);
         let mut p = path.iter().rev().peekable();
 
