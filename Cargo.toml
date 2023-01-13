@@ -32,6 +32,7 @@ edlib_rs = { git="https://github.com/pairwise-alignment/edlib-rs" }
 rust-wfa2 = { git = "https://github.com/pairwise-alignment/rust-wfa2" }
 
 pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
+pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
 
 # Libs
 colorgrad = "0.6.2"
