@@ -37,11 +37,11 @@ fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
         .cartesian_product(seeds)
 }
 
-fn test_aligner_on_input<A: Aligner>(
+fn test_aligner_on_input(
     a: Seq,
     b: Seq,
-    aligner: &mut impl Aligner,
-    viz_aligner: &mut Option<&mut dyn FnMut(&[u8], &[u8]) -> A>,
+    mut aligner: Box<dyn Aligner>,
+    viz_aligner: Option<impl FnMut() -> Box<dyn Aligner>>,
     test_path: bool,
     params: &str,
 ) {
@@ -57,9 +57,9 @@ fn test_aligner_on_input<A: Aligner>(
     let nw_cost = levenshtein(a, b) as _;
     let cost = aligner.cost(a, b);
     // Rerun the alignment with the visualizer enabled.
-    if D && nw_cost != cost && let Some(viz_aligner) = viz_aligner {
+    if D && nw_cost != cost && let Some(mut viz_aligner) = viz_aligner {
         eprintln!("{params}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", to_string(a), to_string(b));
-        viz_aligner(a, b).align(a, b);
+        viz_aligner().align(a, b);
     }
     // Test the cost reported by all aligners.
     assert_eq!(
@@ -85,27 +85,6 @@ fn test_aligner_on_input<A: Aligner>(
     }
 }
 
-/// Test that:
-/// - the aligner gives the same cost as NW, both for `cost` and `align` members.
-/// - the `Cigar` is valid and of the correct cost.
-fn test_aligner_on_cost_model_with_viz<A: Aligner>(
-    mut aligner: impl Aligner,
-    mut viz_aligner: Option<&mut dyn FnMut(Seq, Seq) -> A>,
-    test_path: bool,
-) {
-    for (((n, e), error_model), seed) in test_sequences() {
-        let (ref a, ref b) = generate_model(n, e, error_model, seed);
-        test_aligner_on_input(
-            a,
-            b,
-            &mut aligner,
-            &mut viz_aligner,
-            test_path,
-            &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
-        );
-    }
-}
-
 mod astar {
     use std::marker::PhantomData;
 
@@ -118,32 +97,42 @@ mod astar {
 
     use super::*;
 
-    fn test_heuristic<H: Heuristic>(h: H, dt: bool) {
+    fn test_heuristic<H: Heuristic + 'static>(h: H, dt: bool) {
         // Greedy matching doesn't really matter much.
         // To speed up tests, we choose it randomly.
-        test_aligner_on_cost_model_with_viz(
-            AstarPA {
-                dt,
-                h,
-                v: NoVisualizer,
-            },
-            Some(&mut |_a, _b| AstarPA {
-                dt,
-                h,
-                v: {
-                    #[cfg(feature = "vis")]
-                    {
-                        use crate::visualizer::{Config, VisualizerStyle};
-                        Config::new(VisualizerStyle::Test)
-                    }
-                    #[cfg(not(feature = "vis"))]
-                    {
-                        NoVisualizer
-                    }
-                },
-            }),
-            true,
-        );
+        {
+            for (((n, e), error_model), seed) in test_sequences() {
+                let (ref a, ref b) = generate_model(n, e, error_model, seed);
+                test_aligner_on_input(
+                    a,
+                    b,
+                    Box::new(AstarPA {
+                        dt,
+                        h,
+                        v: NoVisualizer,
+                    }),
+                    Some(|| -> Box<dyn Aligner> {
+                        Box::new(AstarPA {
+                            dt,
+                            h,
+                            v: {
+                                #[cfg(feature = "vis")]
+                                {
+                                    use crate::visualizer::{Config, VisualizerStyle};
+                                    Config::new(VisualizerStyle::Test)
+                                }
+                                #[cfg(not(feature = "vis"))]
+                                {
+                                    NoVisualizer
+                                }
+                            },
+                        })
+                    }),
+                    true,
+                    &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
+                );
+            }
+        };
     }
 
     macro_rules! make_test {
