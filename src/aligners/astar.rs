@@ -8,13 +8,9 @@ use crate::heuristic::Heuristic;
 use crate::{
     astar::astar,
     astar_dt::astar_dt,
-    cli::{
-        heuristic_params::{HeuristicArgs, HeuristicType},
-        visualizer::{VisualizerArgs, VisualizerType},
-    },
+    cli::heuristic_params::{HeuristicArgs, HeuristicType},
     heuristic::{GapCost, NoCost, Pruning, ZeroCost, CSH, SH},
     prelude::{BruteForceContour, HintContours},
-    visualizer::{NoVisualizer, VisualizerConfig},
 };
 
 use super::Aligner;
@@ -41,7 +37,7 @@ impl AstarPAParams {
         match v_args.make_visualizer() {
             VisualizerType::NoVisualizer => self.generic_algner(NoVisualizer),
             #[cfg(any(feature = "vis", feature = "wasm"))]
-            VisualizerType::Visualizer(config) => self.generic_aligner(config),
+            VisualizerType::Visualizer(config) => self.generic_algner(config),
         }
     }
 

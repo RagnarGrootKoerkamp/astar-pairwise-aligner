@@ -1,10 +1,9 @@
 pub mod heuristic_params;
 pub mod input;
-pub mod visualizer;
 
 use std::{path::PathBuf, time::Duration};
 
-use crate::cli::{input::Input, visualizer::VisualizerArgs};
+use crate::cli::input::Input;
 use clap::{value_parser, Parser};
 use heuristic_params::{AlgorithmArgs, HeuristicArgs};
 use serde::{Deserialize, Serialize};
@@ -26,10 +25,6 @@ pub struct Cli {
     /// Parameters and settings for the heuristic.
     #[clap(flatten)]
     pub heuristic: HeuristicArgs,
-
-    /// Parameters and settings for the visualizer.
-    #[clap(flatten)]
-    pub visualizer: VisualizerArgs,
 
     /// Print less. Pass twice for summary line only.
     ///

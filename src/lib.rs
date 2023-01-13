@@ -18,16 +18,14 @@ pub mod aligners;
 pub mod alignment_graph;
 pub mod astar;
 pub mod astar_dt;
-pub mod canvas;
 pub mod cli;
 pub mod config;
 pub mod contour;
 pub mod datastructures;
 pub mod generate;
 pub mod heuristic;
-pub mod interaction;
 pub mod matches;
-pub mod visualizer;
+pub mod visualizer_trait;
 
 #[cfg(test)]
 mod tests;

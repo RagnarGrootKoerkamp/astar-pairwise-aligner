@@ -50,11 +50,6 @@ pub struct State {
 }
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
-pub trait VisualizerConfig: Clone {
-    type Visualizer: VisualizerT;
-    fn build(&self, a: Seq, b: Seq) -> Self::Visualizer;
-}
-
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerT {
     fn explore(&mut self, pos: Pos, g: Cost, f: Cost) {
@@ -111,6 +106,11 @@ pub trait VisualizerT {
         _h: Option<&HI>,
     ) {
     }
+}
+
+pub trait VisualizerConfig: Clone {
+    type Visualizer: VisualizerT;
+    fn build(&self, a: Seq, b: Seq) -> Self::Visualizer;
 }
 
 /// A trivial visualizer that does not do anything.

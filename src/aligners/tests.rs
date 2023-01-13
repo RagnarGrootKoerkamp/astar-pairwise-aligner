@@ -1,6 +1,6 @@
 use ::triple_accel::levenshtein;
 use itertools::Itertools;
-use pa_types::CostModel;
+use pa_types::{Cost, CostModel};
 use rand::{seq::IteratorRandom, thread_rng, Rng};
 
 use super::{Aligner, Seq};
@@ -54,7 +54,7 @@ fn test_aligner_on_input(
         eprintln!("a {}\nb {}", to_string(a), to_string(b));
     }
     //let mut nw = NW::new(cm.clone(), false, false);
-    let nw_cost = levenshtein(a, b) as _;
+    let nw_cost = levenshtein(a, b) as Cost;
     let cost = aligner.cost(a, b);
     // Rerun the alignment with the visualizer enabled.
     if D && nw_cost != cost && let Some(mut viz_aligner) = viz_aligner {

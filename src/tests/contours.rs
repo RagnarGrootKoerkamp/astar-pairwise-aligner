@@ -1,6 +1,6 @@
 use crate::{
     prelude::{SH, *},
-    visualizer::NoVisualizer,
+    visualizer_trait::NoVisualizer,
 };
 
 #[test]

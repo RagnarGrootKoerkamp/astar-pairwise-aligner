@@ -9,7 +9,7 @@ use crate::{
     aligners::cigar::Cigar,
     alignment_graph::EditGraph,
     prelude::*,
-    visualizer::{VisualizerConfig, VisualizerT},
+    visualizer_trait::{VisualizerConfig, VisualizerT},
 };
 
 const D: bool = false;

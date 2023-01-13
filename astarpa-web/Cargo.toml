@@ -6,3 +6,19 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+wasm-bindgen = {version="*", optional=true}
+console_error_panic_hook = {version="*", optional=true}
+web-sys = { version = "*", optional=true, features = [
+"ImageData",
+"CanvasRenderingContext2d",
+"HtmlCanvasElement",
+"console",
+"BinaryType", "Blob", "ErrorEvent", "MessageEvent", "ProgressEvent", "WebSocket",
+"Document", "Element", "HtmlElement", "Node", "Window", "HtmlInputElement",
+"HtmlSelectElement", "HtmlTextAreaElement"
+]}
+
+
+# Enable dependencies for compiling to wasm.
+wasm = ["dep:wasm-bindgen", "dep:web-sys", "dep:console_error_panic_hook"]

@@ -50,21 +50,7 @@ serde = "1.0.152"
 serde_json = "1.0.91"
 derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
 smallvec = { version = "1.10.0", features = ["union"] }
-sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
 
-
-# Optional deps for wasm rendering
-wasm-bindgen = {version="*", optional=true}
-console_error_panic_hook = {version="*", optional=true}
-web-sys = { version = "*", optional=true, features = [
-"ImageData",
-"CanvasRenderingContext2d",
-"HtmlCanvasElement",
-"console",
-"BinaryType", "Blob", "ErrorEvent", "MessageEvent", "ProgressEvent", "WebSocket",
-"Document", "Element", "HtmlElement", "Node", "Window", "HtmlInputElement",
-"HtmlSelectElement", "HtmlTextAreaElement"
-]}
 
 
 [[example]]
@@ -78,13 +64,4 @@ aho-corasick = "*"
 suffix = "*"
 
 [features]
-default = []
-#default = ["bin"]
-
-bin = ["vis", "clap/wrap_help"]
-
-# Enable visualizations using sdl2.
-vis = ["dep:sdl2"]
-
-# Enable dependencies for compiling to wasm.
-wasm = ["dep:wasm-bindgen", "dep:web-sys", "dep:console_error_panic_hook"]
+bin = ["clap/wrap_help"]
