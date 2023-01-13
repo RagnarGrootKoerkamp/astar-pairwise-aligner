@@ -27,7 +27,6 @@ pub mod generate;
 pub mod heuristic;
 pub mod interaction;
 pub mod matches;
-pub mod runner;
 pub mod visualizer;
 
 #[cfg(test)]
