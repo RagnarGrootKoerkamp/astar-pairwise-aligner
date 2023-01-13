@@ -33,7 +33,7 @@ impl CigarOp {
     /// Not all operations have an actual cigar character.
     fn get_char(&self) -> Option<char> {
         match self {
-            CigarOp::Match => Some('M'),
+            CigarOp::Match => Some('='),
             CigarOp::Sub => Some('X'),
             CigarOp::Ins => Some('I'),
             CigarOp::Del => Some('D'),
