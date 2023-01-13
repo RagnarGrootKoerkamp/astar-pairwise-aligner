@@ -1,10 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    aligners::{
-        diagonal_transition::{DiagonalTransition, GapCostHeuristic},
-        Aligner,
-    },
+    aligners::{cigar::Cigar, Aligner},
     prelude::{Cost, LinearCost, Seq},
     visualizer::NoVisualizer,
 };
@@ -26,15 +23,15 @@ pub struct PathHeuristic<H: Heuristic> {
 impl<H: Heuristic> PathHeuristic<H> {
     pub fn build_with_cost<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> (Cost, H::Instance<'a>) {
         // Find a candidate path
-        let mut aligner = DiagonalTransition::new(
-            LinearCost::new_unit(),
-            GapCostHeuristic::Disable,
-            NoCost,
-            true,
-            NoVisualizer,
-        );
+        // let mut aligner = DiagonalTransition::new(
+        //     LinearCost::new_unit(),
+        //     GapCostHeuristic::Disable,
+        //     NoCost,
+        //     true,
+        //     NoVisualizer,
+        // );
         let start = instant::Instant::now();
-        let (path_cost, cigar) = aligner.align(a, b);
+        let (path_cost, cigar): (Cost, Cigar) = todo!();
         println!("Inner alignment: {}", start.elapsed().as_secs_f32());
         let path = cigar.to_path_with_cost(LinearCost::new_unit());
         assert_eq!(path.last().unwrap().1, path_cost);

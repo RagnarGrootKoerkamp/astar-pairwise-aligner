@@ -7,30 +7,10 @@ use std::cmp::max;
 
 pub mod astar;
 pub mod cigar;
-pub mod diagonal_transition;
-pub mod front;
-pub mod nw;
 pub mod triple_accel;
 
-pub mod edit_graph;
 #[cfg(test)]
 mod tests;
-
-/// Find the cost using exponential search based on `cost_assuming_bounded_dist`.
-fn exponential_search<T>(
-    s0: Cost,
-    factor: f32,
-    mut f: impl FnMut(Cost) -> Option<(Cost, T)>,
-) -> (Cost, T) {
-    let mut s = s0;
-    // TODO: Fix the potential infinite loop here.
-    loop {
-        if let Some((cost,t)) = f(s) && cost <= s{
-            return (cost, t);
-        }
-        s = max((factor * s as f32).ceil() as Cost, 1);
-    }
-}
 
 pub trait StateT: std::fmt::Debug {
     fn is_root(&self) -> bool;

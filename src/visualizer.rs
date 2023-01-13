@@ -11,7 +11,7 @@
 //! ```
 
 use crate::{
-    aligners::{cigar::Cigar, cigar::CigarOp, edit_graph::State},
+    aligners::{cigar::Cigar, cigar::CigarOp},
     cost_model::Cost,
     heuristic::{HeuristicInstance, NoCostI},
     prelude::{Pos, Seq},
@@ -43,6 +43,12 @@ pub enum When {
     Frames(Vec<usize>),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct State {
+    pub i: I,
+    pub j: I,
+    pub layer: Option<usize>,
+}
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
 pub trait VisualizerConfig: Clone {
@@ -121,6 +127,7 @@ impl VisualizerConfig for NoVisualizer {
 impl VisualizerT for NoVisualizer {}
 
 use clap::ValueEnum;
+use pa_types::I;
 use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "vis", feature = "wasm"))]
 pub use visualizer::*;
