@@ -14,7 +14,7 @@ struct Cli {
 }
 
 fn main() {
-    let args = Cli::from_args();
+    let args = Cli::parse();
     let (a, b) = setup_with_seed(args.n, args.e, 31415);
     let k = args.k;
     let max_match_cost = 0;

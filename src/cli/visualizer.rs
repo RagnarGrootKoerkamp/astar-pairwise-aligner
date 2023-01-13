@@ -1,10 +1,10 @@
 use crate::visualizer::*;
-use clap::Parser;
+use clap::{value_parser, Parser};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Parser, Serialize, Deserialize)]
-#[clap(help_heading = "VISUALIZER")]
+#[clap(next_help_heading = "Visualizer")]
 pub struct VisualizerArgs {
     /// Run the interactive visualizer. See --help for controls. [default: all]
     ///
@@ -34,7 +34,7 @@ pub struct VisualizerArgs {
     pub each: Option<usize>,
 
     /// Where to save. Implies --save [last].
-    #[clap(long, display_order = 4, value_name = "PATH", parse(from_os_str))]
+    #[clap(long, display_order = 4, value_name = "PATH", value_parser = value_parser!(PathBuf))]
     pub save_path: Option<PathBuf>,
 
     /// The size in pixels of each cell.

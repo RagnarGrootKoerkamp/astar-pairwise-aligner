@@ -48,7 +48,7 @@ pub enum HeuristicType {
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize)]
-#[clap(help_heading = "ALGORITHM")]
+#[clap(next_help_heading = "Algorithm")]
 pub struct AlgorithmArgs {
     #[clap(short, long, default_value_t, value_enum, display_order = 10)]
     pub algorithm: Algorithm,
@@ -123,7 +123,7 @@ fn default_seed_length() -> I {
 
 /// TODO: Add separate --dt and --gap-cost flags.
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-#[clap(help_heading = "HEURISTIC")]
+#[clap(next_help_heading = "Heuristic")]
 #[serde(deny_unknown_fields)]
 pub struct HeuristicArgs {
     #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]

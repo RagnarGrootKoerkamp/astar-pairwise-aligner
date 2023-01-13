@@ -3,7 +3,7 @@ use crate::{
     prelude::Seq,
 };
 use bio::io::fasta;
-use clap::Parser;
+use clap::{value_parser, Parser};
 use itertools::Itertools;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -16,10 +16,10 @@ use std::{
 };
 
 #[derive(Parser, Serialize, Deserialize)]
-#[clap(help_heading = "INPUT")]
+#[clap(next_help_heading = "Input")]
 pub struct Input {
     /// The .seq, .txt, or Fasta file with sequence pairs to align.
-    #[clap(short, long, parse(from_os_str), display_order = 1)]
+    #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
     input: Option<PathBuf>,
 
     /// Options to generate an input pair.

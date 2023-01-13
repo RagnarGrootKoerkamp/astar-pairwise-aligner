@@ -11,15 +11,15 @@ use std::{io::Write, path::PathBuf};
 )]
 struct Cli {
     // Where to write the output .seq.
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long, value_parser = clap::value_parser!(PathBuf))]
     output: PathBuf,
 
     // The reference.
-    #[clap(long, parse(from_os_str))]
+    #[clap(long, value_parser = clap::value_parser!(PathBuf))]
     reference: PathBuf,
 
     // The NanoSim samples.
-    #[clap(long, parse(from_os_str))]
+    #[clap(long, value_parser = clap::value_parser!(PathBuf))]
     reads: PathBuf,
 
     // The number of reads to keep.
@@ -32,7 +32,7 @@ struct Cli {
 }
 
 fn main() {
-    let args = Cli::from_args();
+    let args = Cli::parse();
 
     assert_eq!(args.output.extension().unwrap_or_default(), "seq");
 

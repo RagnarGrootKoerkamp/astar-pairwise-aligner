@@ -1,6 +1,6 @@
+use clap::Parser;
 use itertools::Itertools;
 use std::{io::Write, path::PathBuf};
-use clap::Parser;
 
 #[derive(Parser)]
 #[clap(
@@ -9,12 +9,12 @@ use clap::Parser;
     author = "Ragnar Groot Koerkamp, Pesho Ivanov"
 )]
 struct Cli {
-    #[clap(parse(from_os_str))]
+    #[clap(value_parser = clap::value_parser!(PathBuf))]
     file: PathBuf,
 }
 
 fn main() {
-    let args = Cli::from_args();
+    let args = Cli::parse();
 
     assert_eq!(args.file.extension().unwrap_or_default(), "txt");
     let mut out_path = args.file.clone();

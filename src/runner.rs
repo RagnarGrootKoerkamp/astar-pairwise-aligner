@@ -5,7 +5,7 @@ use crate::cli::{
     input::Input,
     visualizer::VisualizerArgs,
 };
-use clap::Parser;
+use clap::{value_parser, Parser};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Serialize, Deserialize)]
@@ -15,7 +15,7 @@ pub struct Cli {
     pub input: Input,
 
     /// Where to write optional statistics.
-    #[clap(short, long, parse(from_os_str))]
+    #[arg(short, long, value_parser = value_parser!(PathBuf))]
     pub output: Option<PathBuf>,
 
     /// Parameters and settings for the algorithm.
@@ -34,10 +34,10 @@ pub struct Cli {
     ///
     /// Do not print a new line per alignment, but instead overwrite the previous one.
     /// Pass twice to only print a summary line and avoid all terminal clutter, e.g. for benchmarking.
-    #[clap(short, long, parse(from_occurrences))]
+    #[arg(short, long, action = clap::ArgAction::Count)]
     pub silent: u8,
 
     /// Stop aligning new pairs after this timeout.
-    #[clap(long, parse(try_from_str = parse_duration::parse), hide_short_help = true)]
+    #[arg(long, value_parser = parse_duration::parse , hide_short_help = true)]
     pub timeout: Option<Duration>,
 }

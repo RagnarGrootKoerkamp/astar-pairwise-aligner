@@ -40,7 +40,7 @@ rand_chacha = "0.3.1"
 getrandom = "0.2.8"
 itertools = "0.10.5"
 rustc-hash = "1.1.0"
-clap = { version = "3.0", features = ["derive"] }
+clap = { version = "4.0", features = ["derive"] }
 lazy_static = "1.4.0"
 ropey = { version = "1.5.1", default-features = false, features = ["simd"] }
 num-traits = "0.2.15"

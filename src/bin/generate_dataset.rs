@@ -9,7 +9,7 @@ use std::{
 #[clap(next_line_help = false)]
 struct Cli {
     /// Location of the output file
-    #[clap(parse(from_os_str))]
+    #[clap(value_parser = clap::value_parser!(PathBuf))]
     output: PathBuf,
 
     #[clap(flatten)]
@@ -17,7 +17,7 @@ struct Cli {
 }
 
 fn main() {
-    let args = Cli::from_args();
+    let args = Cli::parse();
 
     assert_eq!(args.output.extension().unwrap_or_default(), "seq");
 

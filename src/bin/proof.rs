@@ -16,7 +16,7 @@ struct Cli {
     input: Input,
 
     /// Where to write optional statistics.
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long, value_parser = clap::value_parser!(PathBuf))]
     output: Option<PathBuf>,
 
     /// Parameters and settings for the algorithm.
@@ -35,11 +35,11 @@ struct Cli {
     ///
     /// Do not print a new line per alignment, but instead overwrite the previous one.
     /// Pass twice to only print a summary line and avoid all terminal clutter, e.g. for benchmarking.
-    #[clap(short, long, parse(from_occurrences))]
+    #[clap(short, long, action = clap::ArgAction::Count )]
     silent: u8,
 
     /// Stop aligning new pairs after this timeout.
-    #[clap(long, parse(try_from_str = parse_duration::parse))]
+    #[clap(long, value_parser =  parse_duration::parse)]
     timeout: Option<Duration>,
 }
 
