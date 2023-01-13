@@ -17,7 +17,7 @@ fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
     let mut aligner = AstarPA {
         dt,
         h,
-        v: NoVisualizer,
+        v: NoVis,
         //v: Config::new(VisualizerStyle::Test),
     };
     let (d, cigar) = aligner.align(a, b);

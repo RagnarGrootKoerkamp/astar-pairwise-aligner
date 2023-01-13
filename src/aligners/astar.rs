@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::heuristic::Heuristic;
 use crate::stats::AstarStats;
-use crate::visualizer_trait::Instance;
+use crate::visualizer_trait::*;
 use crate::{
     astar::astar,
     astar_dt::astar_dt,
@@ -36,17 +36,17 @@ pub struct AstarPA<V: Visualizer, H: Heuristic> {
 impl AstarPAParams {
     pub fn aligner_with_visualizer(&self, v_args: &VisualizerArgs) -> Box<dyn AstarAligner> {
         match v_args.make_visualizer() {
-            VisualizerType::NoVisualizer => self.generic_algner(NoVisualizer),
+            VisualizerType::NoVis => self.generic_aligner(NoVis),
             #[cfg(any(feature = "vis", feature = "wasm"))]
             VisualizerType::Visualizer(config) => self.generic_algner(config),
         }
     }
 
     pub fn aligner(&self) -> Box<dyn AstarAligner> {
-        self.generic_algner(NoVisualizer)
+        self.generic_aligner(NoVis)
     }
 
-    fn generic_algner<'a, V: Visualizer + 'a + 'static>(&self, v: V) -> Box<dyn AstarAligner> {
+    fn generic_aligner<'a, V: Visualizer + 'a + 'static>(&self, v: V) -> Box<dyn AstarAligner> {
         let AstarPAParams {
             diagonal_transition: dt,
             heuristic: h,

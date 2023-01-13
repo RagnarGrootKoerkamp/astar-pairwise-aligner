@@ -1,16 +1,9 @@
-use std::{
-    fmt::Display,
-    io::{stdout, Write},
-};
-
-use derive_more::AddAssign;
-
 use crate::{
     aligners::cigar::Cigar,
     alignment_graph::EditGraph,
     prelude::*,
     stats::AstarStats,
-    visualizer_trait::{Instance, VisualizerInstance},
+    visualizer_trait::{Visualizer, VisualizerInstance},
 };
 
 const D: bool = false;

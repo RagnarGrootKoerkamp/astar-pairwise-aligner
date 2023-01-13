@@ -2,7 +2,7 @@ use crate::{
     aligners::cigar::Cigar,
     prelude::*,
     stats::*,
-    visualizer_trait::{Instance, VisualizerInstance},
+    visualizer_trait::{Visualizer, VisualizerInstance},
 };
 
 const D: bool = false;

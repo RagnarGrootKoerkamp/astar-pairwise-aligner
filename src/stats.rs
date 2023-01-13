@@ -1,4 +1,7 @@
-use std::{fmt::Display, io::stdout};
+use std::{
+    fmt::Display,
+    io::{stdout, Write},
+};
 
 use derive_more::AddAssign;
 use pa_types::{Cost, Seq};

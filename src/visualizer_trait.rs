@@ -31,6 +31,16 @@ pub trait Visualizer: Clone {
     fn build(&self, a: Seq, b: Seq) -> Self::Instance;
 }
 
+#[derive(Clone)]
+pub struct NoVis;
+impl Visualizer for NoVis {
+    type Instance = Self;
+    fn build(&self, _a: Seq, _b: Seq) -> Self::Instance {
+        Self
+    }
+}
+impl VisualizerInstance for NoVis {}
+
 /// A visualizer can be used to visualize progress of an implementation.
 pub trait VisualizerInstance {
     fn explore(&mut self, pos: Pos, g: Cost, f: Cost) {
