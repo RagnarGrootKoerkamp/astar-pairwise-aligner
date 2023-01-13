@@ -2,6 +2,7 @@
 
 use self::cigar::Cigar;
 use crate::prelude::{Cost, Pos};
+use pa_types::*;
 use std::cmp::max;
 
 pub mod astar;
@@ -16,13 +17,6 @@ pub mod wfa;
 pub mod edit_graph;
 #[cfg(test)]
 mod tests;
-
-/// An owned sequence.
-pub type Sequence = Vec<u8>;
-/// A sequence slice.
-pub type Seq<'a> = &'a [u8];
-/// A path trough the edit graph.
-pub type Path = Vec<Pos>;
 
 /// Find the cost using exponential search based on `cost_assuming_bounded_dist`.
 fn exponential_search<T>(

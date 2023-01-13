@@ -36,7 +36,6 @@ mod tests;
 
 pub mod prelude {
     pub use super::*;
-    pub use crate::aligners::Seq;
     pub use crate::alignment_graph::*;
     pub use crate::astar::*;
     pub use crate::config::*;
@@ -48,6 +47,7 @@ pub mod prelude {
     pub use crate::matches::{LengthConfig::Fixed, *};
     pub use bio::alphabets::{Alphabet, RankTransform};
     pub use bio::data_structures::qgram_index::QGramIndex;
+    pub use pa_types::*;
     pub use rustc_hash::FxHashMap as HashMap;
     pub use rustc_hash::FxHashSet as HashSet;
     pub use std::cmp::{max, min};

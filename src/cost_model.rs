@@ -10,7 +10,7 @@ use std::cmp::{max, min};
 ///
 /// TODO: Make this a strong type, so that conversion between costs and indices
 /// is explicit.
-pub type Cost = u32;
+pub use pa_types::Cost;
 
 /// An affine layer can either correspond to an insertion or deletion.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
