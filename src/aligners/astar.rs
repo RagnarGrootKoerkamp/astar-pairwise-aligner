@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use pa_types::{Cigar, Cost};
 use serde::{Deserialize, Serialize};
 
 use crate::astar::AstarStats;
@@ -95,19 +96,11 @@ impl<V: VisualizerConfig, H: Heuristic> AstarPA<V, H> {
 }
 
 pub trait AstarAligner: Aligner {
-    fn align_with_stats(
-        &mut self,
-        a: super::Seq,
-        b: super::Seq,
-    ) -> ((crate::cost_model::Cost, super::cigar::Cigar), AstarStats);
+    fn align_with_stats(&mut self, a: super::Seq, b: super::Seq) -> ((Cost, Cigar), AstarStats);
 }
 
 impl<V: VisualizerConfig, H: Heuristic> AstarAligner for AstarPA<V, H> {
-    fn align_with_stats(
-        &mut self,
-        a: super::Seq,
-        b: super::Seq,
-    ) -> ((crate::cost_model::Cost, super::cigar::Cigar), AstarStats) {
+    fn align_with_stats(&mut self, a: super::Seq, b: super::Seq) -> ((Cost, Cigar), AstarStats) {
         if self.dt {
             astar_dt(a, b, &self.h, &self.v)
         } else {
@@ -126,11 +119,7 @@ impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for AstarPA<V, H> {
 }
 
 impl<V: VisualizerConfig, H: Heuristic> Aligner for AstarPA<V, H> {
-    fn align(
-        &mut self,
-        a: super::Seq,
-        b: super::Seq,
-    ) -> (crate::cost_model::Cost, super::cigar::Cigar) {
+    fn align(&mut self, a: super::Seq, b: super::Seq) -> (Cost, Cigar) {
         if self.dt {
             astar_dt(a, b, &self.h, &self.v).0
         } else {

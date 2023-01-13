@@ -12,7 +12,6 @@
 
 use crate::{
     aligners::{cigar::Cigar, cigar::CigarOp},
-    cost_model::Cost,
     heuristic::{HeuristicInstance, NoCostI},
     prelude::{Pos, Seq},
 };
@@ -127,7 +126,7 @@ impl VisualizerConfig for NoVisualizer {
 impl VisualizerT for NoVisualizer {}
 
 use clap::ValueEnum;
-use pa_types::I;
+use pa_types::{Cost, I};
 use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "vis", feature = "wasm"))]
 pub use visualizer::*;
@@ -139,7 +138,6 @@ mod visualizer {
     use crate::{
         aligners::{cigar::Cigar, edit_graph::State, StateT},
         cli::heuristic_params::{comment, AlgorithmArgs, HeuristicArgs},
-        cost_model::LinearCost,
         matches::MatchStatus,
         prelude::Seq,
     };

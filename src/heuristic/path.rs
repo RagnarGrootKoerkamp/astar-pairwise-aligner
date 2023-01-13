@@ -5,7 +5,7 @@ use pa_types::CostModel;
 
 use crate::{
     aligners::cigar::Cigar,
-    prelude::{Cost, LinearCost, Seq},
+    prelude::{Cost, Seq},
 };
 
 use super::Heuristic;

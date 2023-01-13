@@ -1,4 +1,5 @@
-use crate::{config::USE_TIP_BUFFER, cost_model::Cost, heuristic::PosOrderT};
+use crate::{config::USE_TIP_BUFFER, heuristic::PosOrderT};
+use pa_types::Cost;
 use std::cmp::{max, min};
 
 #[derive(Copy, Clone, Debug)]

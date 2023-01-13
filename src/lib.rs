@@ -22,7 +22,6 @@ pub mod canvas;
 pub mod cli;
 pub mod config;
 pub mod contour;
-pub mod cost_model;
 pub mod datastructures;
 pub mod generate;
 pub mod heuristic;
@@ -40,7 +39,6 @@ pub mod prelude {
     pub use crate::astar::*;
     pub use crate::config::*;
     pub use crate::contour::*;
-    pub use crate::cost_model::*;
     pub use crate::datastructures::*;
     pub use crate::generate::*;
     pub use crate::heuristic::*;

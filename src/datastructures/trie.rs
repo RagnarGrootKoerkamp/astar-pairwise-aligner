@@ -88,7 +88,7 @@ impl Trie {
         //cost_model: CostModel,
         mut f: F,
     ) {
-        let cm = crate::cost_model::LinearCost::new_unit();
+        let cm = CostModel::unit();
         struct QueueElement {
             /// Current state in tree
             state: State,
@@ -138,8 +138,12 @@ impl Trie {
                     let sub_cost = if ci == matching_index {
                         0
                     } else {
-                        let Some(x) = cm.sub else {continue;};
-                        x
+                        match cm.maybe_sub() {
+                            Some(x) => x,
+                            _ => {
+                                continue;
+                            }
+                        }
                     };
                     if cost + sub_cost as MatchCost > max_cost {
                         continue;
@@ -154,19 +158,14 @@ impl Trie {
                 }
 
                 // Delete a char: the character in the seed is ignored, and we remain at the same depth.
-                if let Some(del) = {
-                    let ref this = cm;
-                    this.del
-                } {
-                    if cost + del as MatchCost <= max_cost {
-                        queue.push(QueueElement {
-                            state,
-                            i: i + 1,
-                            j,
-                            cost: cost + del as MatchCost,
-                            last_is_insert: false,
-                        });
-                    }
+                if cost + cm.extend as MatchCost <= max_cost {
+                    queue.push(QueueElement {
+                        state,
+                        i: i + 1,
+                        j,
+                        cost: cost + cm.extend as MatchCost,
+                        last_is_insert: false,
+                    });
                 }
             }
 
@@ -175,31 +174,26 @@ impl Trie {
             if SKIP_INEXACT_INSERT_START_END && state == 0 {
                 continue;
             }
-            if let Some(ins) = {
-                let ref this = cm;
-                this.ins
-            } {
-                let matching_index = seed
-                    .get(i as usize)
-                    .map(|c| self.transform.get(*c) as usize);
-                for (ci, state) in self.states[state as usize].children.iter().enumerate() {
-                    if *state == State::MAX {
-                        continue;
-                    }
-                    if Some(ci) == matching_index {
-                        continue;
-                    }
-                    if cost + ins as MatchCost > max_cost {
-                        continue;
-                    }
-                    queue.push(QueueElement {
-                        state: *state,
-                        i,
-                        j: j + 1,
-                        cost: cost + ins as MatchCost,
-                        last_is_insert: true,
-                    });
+            let matching_index = seed
+                .get(i as usize)
+                .map(|c| self.transform.get(*c) as usize);
+            for (ci, state) in self.states[state as usize].children.iter().enumerate() {
+                if *state == State::MAX {
+                    continue;
                 }
+                if Some(ci) == matching_index {
+                    continue;
+                }
+                if cost + cm.extend as MatchCost > max_cost {
+                    continue;
+                }
+                queue.push(QueueElement {
+                    state: *state,
+                    i,
+                    j: j + 1,
+                    cost: cost + cm.extend as MatchCost,
+                    last_is_insert: true,
+                });
             }
         }
     }
