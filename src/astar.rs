@@ -10,7 +10,7 @@ use crate::{
     alignment_graph::EditGraph,
     prelude::*,
     stats::AstarStats,
-    visualizer_trait::{VisualizerConfig, VisualizerT},
+    visualizer_trait::{Instance, VisualizerInstance},
 };
 
 const D: bool = false;
@@ -41,7 +41,7 @@ pub fn astar<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,
     h: &H,
-    v: &impl VisualizerConfig,
+    v: &impl Visualizer,
 ) -> ((Cost, Cigar), AstarStats) {
     let start = instant::Instant::now();
     let ref graph = EditGraph::new(a, b, true);

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::heuristic::Heuristic;
 use crate::stats::AstarStats;
+use crate::visualizer_trait::Instance;
 use crate::{
     astar::astar,
     astar_dt::astar_dt,
@@ -24,7 +25,7 @@ pub struct AstarPAParams {
 }
 
 /// Generic A* instance for the chosen heuristic and visualizer.
-pub struct AstarPA<V: VisualizerConfig, H: Heuristic> {
+pub struct AstarPA<V: Visualizer, H: Heuristic> {
     pub dt: bool,
     /// The heuristic to use.
     pub h: H,
@@ -45,10 +46,7 @@ impl AstarPAParams {
         self.generic_algner(NoVisualizer)
     }
 
-    fn generic_algner<'a, V: VisualizerConfig + 'a + 'static>(
-        &self,
-        v: V,
-    ) -> Box<dyn AstarAligner> {
+    fn generic_algner<'a, V: Visualizer + 'a + 'static>(&self, v: V) -> Box<dyn AstarAligner> {
         let AstarPAParams {
             diagonal_transition: dt,
             heuristic: h,
@@ -85,7 +83,7 @@ impl AstarPAParams {
     }
 }
 
-impl<V: VisualizerConfig, H: Heuristic> AstarPA<V, H> {
+impl<V: Visualizer, H: Heuristic> AstarPA<V, H> {
     fn new(dt: bool, h: H, v: V) -> Self {
         AstarPA { dt, h, v }
     }
@@ -95,7 +93,7 @@ pub trait AstarAligner: Aligner {
     fn align_with_stats(&mut self, a: super::Seq, b: super::Seq) -> ((Cost, Cigar), AstarStats);
 }
 
-impl<V: VisualizerConfig, H: Heuristic> AstarAligner for AstarPA<V, H> {
+impl<V: Visualizer, H: Heuristic> AstarAligner for AstarPA<V, H> {
     fn align_with_stats(&mut self, a: super::Seq, b: super::Seq) -> ((Cost, Cigar), AstarStats) {
         if self.dt {
             astar_dt(a, b, &self.h, &self.v)
@@ -105,7 +103,7 @@ impl<V: VisualizerConfig, H: Heuristic> AstarAligner for AstarPA<V, H> {
     }
 }
 
-impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for AstarPA<V, H> {
+impl<V: Visualizer, H: Heuristic> std::fmt::Debug for AstarPA<V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Astar")
             .field("dt", &self.dt)
@@ -114,7 +112,7 @@ impl<V: VisualizerConfig, H: Heuristic> std::fmt::Debug for AstarPA<V, H> {
     }
 }
 
-impl<V: VisualizerConfig, H: Heuristic> Aligner for AstarPA<V, H> {
+impl<V: Visualizer, H: Heuristic> Aligner for AstarPA<V, H> {
     fn align(&mut self, a: super::Seq, b: super::Seq) -> (Cost, Cigar) {
         if self.dt {
             astar_dt(a, b, &self.h, &self.v).0
