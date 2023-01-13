@@ -5,8 +5,7 @@ use rand::{seq::IteratorRandom, thread_rng, Rng};
 use super::{cigar::test::verify_cigar, Aligner, Seq};
 use crate::{
     generate::{generate_model, ErrorModel},
-    heuristic::NoCost,
-    prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
+    prelude::{to_string, AffineCost},
     visualizer::NoVisualizer,
 };
 

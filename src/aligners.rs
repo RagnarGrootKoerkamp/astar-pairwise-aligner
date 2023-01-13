@@ -3,7 +3,7 @@
 use self::cigar::Cigar;
 use crate::prelude::{Cost, Pos};
 use pa_types::*;
-use std::cmp::max;
+
 
 pub mod astar;
 pub mod cigar;

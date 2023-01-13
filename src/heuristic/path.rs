@@ -1,12 +1,12 @@
+#![allow(unused)]
 use std::fmt::Debug;
 
 use crate::{
-    aligners::{cigar::Cigar, Aligner},
+    aligners::cigar::Cigar,
     prelude::{Cost, LinearCost, Seq},
-    visualizer::NoVisualizer,
 };
 
-use super::{Heuristic, NoCost};
+use super::Heuristic;
 
 /// The Path heuristic takes as input a path, and builds a heuristic that
 /// 'simulates' the pruning of the SH/CSH by doing it up-front where possible.
