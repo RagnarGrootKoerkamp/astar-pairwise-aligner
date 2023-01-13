@@ -1,11 +1,6 @@
 pub mod bruteforce_csh;
 pub mod chained_seed;
-pub mod distance;
-pub mod equal;
-pub mod max;
-pub mod mirror;
-pub mod path;
-pub mod perfect;
+pub mod distances;
 pub mod seed;
 pub mod symmetric;
 
