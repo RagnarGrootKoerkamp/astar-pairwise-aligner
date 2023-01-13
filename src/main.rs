@@ -1,14 +1,9 @@
 #![feature(let_chains)]
 
-use astar_pairwise_aligner::{
-    aligners::{triple_accel::TripleAccel, Aligner},
-    cli::heuristic_params::Algorithm,
-    prelude::*,
-    runner::Cli,
-};
+use astar_pairwise_aligner::{prelude::*, runner::Cli};
 use clap::Parser;
 use itertools::Itertools;
-use std::{ops::ControlFlow, time::Instant};
+use std::ops::ControlFlow;
 
 fn main() {
     let args = Cli::parse();
@@ -20,25 +15,13 @@ fn main() {
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = if args.algorithm.algorithm.external() {
-            let start = Instant::now();
-            let cost = match args.algorithm.algorithm {
-                Algorithm::TripleAccel => {
-                    TripleAccel::new(false, cost_model::CostModel::Levenshtein).cost(a, b)
-                }
-                _ => unreachable!(),
-            };
-            let total_duration = start.elapsed().as_secs_f32();
-            AstarStats::new(a, b, cost, total_duration)
-        } else {
-            aligners::astar::AstarPAParams {
-                diagonal_transition: args.algorithm.dt,
-                heuristic: args.heuristic.clone(),
-            }
-            .aligner_with_visualizer(&args.visualizer)
-            .align_with_stats(a, b)
-            .1
-        };
+        let r = aligners::astar::AstarPAParams {
+            diagonal_transition: args.algorithm.dt,
+            heuristic: args.heuristic.clone(),
+        }
+        .aligner_with_visualizer(&args.visualizer)
+        .align_with_stats(a, b)
+        .1;
 
         // Record and print stats.
         if args.silent <= 1 {

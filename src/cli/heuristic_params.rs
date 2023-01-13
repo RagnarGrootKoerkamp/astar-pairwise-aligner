@@ -14,20 +14,12 @@ pub enum Algorithm {
     // See HeuristicArgs for configuration.
     #[default]
     Astar,
-
-    // Internal reimplementations
-    NW,
-    DT,
-
-    // External methods
-    TripleAccel,
 }
 
 impl Algorithm {
     pub fn external(&self) -> bool {
         match self {
-            Algorithm::TripleAccel => true,
-            Algorithm::NW | Algorithm::DT | Algorithm::Astar => false,
+            Algorithm::Astar => false,
         }
     }
     pub fn internal(&self) -> bool {
@@ -48,9 +40,8 @@ pub enum HeuristicType {
 #[derive(Parser, Debug, Serialize, Deserialize)]
 #[clap(next_help_heading = "Algorithm")]
 pub struct AlgorithmArgs {
-    #[clap(short, long, default_value_t, value_enum, display_order = 10)]
-    pub algorithm: Algorithm,
-
+    // #[clap(short, long, default_value_t, value_enum, display_order = 10)]
+    // pub algorithm: Algorithm,
     /// Use diagonal-transition based A*.
     #[clap(long, hide_short_help = true)]
     pub dt: bool,
@@ -71,41 +62,40 @@ pub struct AlgorithmArgs {
 /// Convert to a title string for the visualizer.
 impl ToString for AlgorithmArgs {
     fn to_string(&self) -> String {
-        match self.algorithm {
-            Algorithm::NW => {
-                let mut s = "Needleman-Wunsch".to_string();
-                if self.exp_search {
-                    s += " + Doubling";
-                }
-                if self.local_doubling {
-                    s += " + Local Doubling";
-                }
-                s
-            }
-            Algorithm::DT => {
-                let mut s = "Diagonal Transition".to_string();
-                if self.dc {
-                    s += " + Divide & Conquer";
-                }
-                if self.local_doubling {
-                    s += " + Local Doubling";
-                }
-                s
-            }
+        match Algorithm::Astar {
+            // Algorithm::NW => {
+            //     let mut s = "Needleman-Wunsch".to_string();
+            //     if self.exp_search {
+            //         s += " + Doubling";
+            //     }
+            //     if self.local_doubling {
+            //         s += " + Local Doubling";
+            //     }
+            //     s
+            // }
+            // Algorithm::DT => {
+            //     let mut s = "Diagonal Transition".to_string();
+            //     if self.dc {
+            //         s += " + Divide & Conquer";
+            //     }
+            //     if self.local_doubling {
+            //         s += " + Local Doubling";
+            //     }
+            //     s
+            // }
             Algorithm::Astar => {
                 let mut s = "A*".to_string();
                 if self.dt {
                     s += " + Diagonal Transition";
                 }
                 s
-            }
-            Algorithm::TripleAccel => {
-                if self.exp_search {
-                    "Needleman-Wunsch + Doubling (triple-accel)".into()
-                } else {
-                    "Needleman-Wunsch (triple-accel)".into()
-                }
-            }
+            } // Algorithm::TripleAccel => {
+              //     if self.exp_search {
+              //         "Needleman-Wunsch + Doubling (triple-accel)".into()
+              //     } else {
+              //         "Needleman-Wunsch (triple-accel)".into()
+              //     }
+              // }
         }
     }
 }
@@ -205,60 +195,60 @@ impl ToString for HeuristicArgs {
 }
 
 pub fn comment(alg: &AlgorithmArgs, h: &HeuristicArgs) -> Option<String> {
-    match alg.algorithm {
-        Algorithm::NW => {
-            assert!(
-                !(alg.exp_search && alg.local_doubling),
-                "Cannot not do both exponential search and local doubling at the same time."
-            );
+    match Algorithm::Astar {
+        // Algorithm::NW => {
+        //     assert!(
+        //         !(alg.exp_search && alg.local_doubling),
+        //         "Cannot not do both exponential search and local doubling at the same time."
+        //     );
 
-            if !alg.exp_search && !alg.local_doubling {
-                Some("Visit all states ordered by i".into())
-            } else if alg.exp_search {
-                match h.heuristic {
-                    HeuristicType::None => {
-                        if !h.gap_cost {
-                            Some("Visit Gap(s, u) ≤ Fmax ordered by i".into())
-                        } else {
-                            Some("Visit Gap(s, u) + Gap(u, t) ≤ Fmax ordered by i".into())
-                        }
-                    }
-                    HeuristicType::Zero => Some("Visit g ≤ Fmax ordered by i".into()),
-                    HeuristicType::Gap => Some("Visit g + Gap(u, t) ≤ Fmax ordered by i".into()),
-                    HeuristicType::SH => Some("Visit g + SH(u) ≤ Fmax ordered by i".into()),
-                    HeuristicType::CSH => Some("Visit g + CSH(u) ≤ Fmax ordered by i".into()),
-                }
-            } else {
-                assert!(alg.local_doubling);
-                match h.heuristic {
-                    HeuristicType::None => panic!("Local doubling requires a heuristic!"),
-                    HeuristicType::Zero => Some("Visit g ≤ Fmax(i) ordered by i".into()),
-                    HeuristicType::Gap => Some("Visit g + Gap(u, t) ≤ Fmax(i) ordered by i".into()),
-                    HeuristicType::SH => Some("Visit g + SH(u) ≤ Fmax(i) ordered by i".into()),
-                    HeuristicType::CSH => Some("Visit g + CSH(u) ≤ Fmax(i) ordered by i".into()),
-                }
-            }
-        }
-        Algorithm::DT => {
-            if !alg.local_doubling {
-                Some("Visit fr. states by g".into())
-            } else {
-                assert!(alg.local_doubling);
-                match h.heuristic {
-                    HeuristicType::None => panic!("Local doubling requires a heuristic!"),
-                    HeuristicType::Zero => Some("Visit fr. states g ≤ Fmax(i) ordered by g".into()),
-                    HeuristicType::Gap => {
-                        Some("Visit fr. states g + Gap(u, t) ≤ Fmax(i) ordered by g".into())
-                    }
-                    HeuristicType::SH => {
-                        Some("Visit fr. states g + SH(u) ≤ Fmax(i) ordered by g".into())
-                    }
-                    HeuristicType::CSH => {
-                        Some("Visit fr. states g + CSH(u) ≤ Fmax(i) ordered by g".into())
-                    }
-                }
-            }
-        }
+        //     if !alg.exp_search && !alg.local_doubling {
+        //         Some("Visit all states ordered by i".into())
+        //     } else if alg.exp_search {
+        //         match h.heuristic {
+        //             HeuristicType::None => {
+        //                 if !h.gap_cost {
+        //                     Some("Visit Gap(s, u) ≤ Fmax ordered by i".into())
+        //                 } else {
+        //                     Some("Visit Gap(s, u) + Gap(u, t) ≤ Fmax ordered by i".into())
+        //                 }
+        //             }
+        //             HeuristicType::Zero => Some("Visit g ≤ Fmax ordered by i".into()),
+        //             HeuristicType::Gap => Some("Visit g + Gap(u, t) ≤ Fmax ordered by i".into()),
+        //             HeuristicType::SH => Some("Visit g + SH(u) ≤ Fmax ordered by i".into()),
+        //             HeuristicType::CSH => Some("Visit g + CSH(u) ≤ Fmax ordered by i".into()),
+        //         }
+        //     } else {
+        //         assert!(alg.local_doubling);
+        //         match h.heuristic {
+        //             HeuristicType::None => panic!("Local doubling requires a heuristic!"),
+        //             HeuristicType::Zero => Some("Visit g ≤ Fmax(i) ordered by i".into()),
+        //             HeuristicType::Gap => Some("Visit g + Gap(u, t) ≤ Fmax(i) ordered by i".into()),
+        //             HeuristicType::SH => Some("Visit g + SH(u) ≤ Fmax(i) ordered by i".into()),
+        //             HeuristicType::CSH => Some("Visit g + CSH(u) ≤ Fmax(i) ordered by i".into()),
+        //         }
+        //     }
+        // }
+        // Algorithm::DT => {
+        //     if !alg.local_doubling {
+        //         Some("Visit fr. states by g".into())
+        //     } else {
+        //         assert!(alg.local_doubling);
+        //         match h.heuristic {
+        //             HeuristicType::None => panic!("Local doubling requires a heuristic!"),
+        //             HeuristicType::Zero => Some("Visit fr. states g ≤ Fmax(i) ordered by g".into()),
+        //             HeuristicType::Gap => {
+        //                 Some("Visit fr. states g + Gap(u, t) ≤ Fmax(i) ordered by g".into())
+        //             }
+        //             HeuristicType::SH => {
+        //                 Some("Visit fr. states g + SH(u) ≤ Fmax(i) ordered by g".into())
+        //             }
+        //             HeuristicType::CSH => {
+        //                 Some("Visit fr. states g + CSH(u) ≤ Fmax(i) ordered by g".into())
+        //             }
+        //         }
+        //     }
+        // }
         Algorithm::Astar => {
             if !alg.dt {
                 match h.heuristic {
@@ -282,8 +272,6 @@ pub fn comment(alg: &AlgorithmArgs, h: &HeuristicArgs) -> Option<String> {
                 }
             }
         }
-
-        _ => None,
     }
 }
 
