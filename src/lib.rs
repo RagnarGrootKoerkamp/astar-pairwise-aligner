@@ -54,6 +54,3 @@ pub mod prelude {
         String::from_utf8(seq.to_vec()).unwrap()
     }
 }
-
-#[cfg(feature = "wasm")]
-pub mod wasm;

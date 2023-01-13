@@ -14,15 +14,6 @@ videos: fig1-video fig_layers-video fig-readme-video
 # Remove generated images for videos
 videos-clean: fig1-video-clean fig_layers-video-clean fig-readme-video-clean
 
-# ========== WASM =========
-wasm:
-	wasm-pack build --debug --target web --no-default-features --features wasm
-wasm_prod:
-	wasm-pack build --release --target web --no-default-features --features wasm
-
-run: wasm
-	python3 -m http.server
-
 # ========== EVALS ==========
 
 cpu-freq:
