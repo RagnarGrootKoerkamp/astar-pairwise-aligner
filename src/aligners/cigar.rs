@@ -31,7 +31,7 @@ pub enum CigarOp {
 
 impl CigarOp {
     /// Not all operations have an actual cigar character.
-    fn get_char(&self) -> Option<char> {
+    fn to_char(&self) -> Option<char> {
         match self {
             CigarOp::Match => Some('='),
             CigarOp::Sub => Some('X'),
@@ -54,21 +54,18 @@ impl CigarOp {
     }
 
     fn new(self) -> CigarElement {
-        let length = match &self {
+        let cnt = match &self {
             CigarOp::AffineOpen(_) | CigarOp::AffineClose(_) => 0,
             _ => 1,
         };
-        CigarElement {
-            command: self,
-            length,
-        }
+        CigarElement { op: self, cnt }
     }
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct CigarElement {
-    pub command: CigarOp,
-    pub length: usize,
+    pub op: CigarOp,
+    pub cnt: usize,
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -80,8 +77,8 @@ impl ToString for Cigar {
     fn to_string(&self) -> String {
         let mut s = String::new();
         for op in &self.ops {
-            if let Some(c) = op.command.get_char() {
-                write!(&mut s, "{}{}", op.length, c).unwrap();
+            if let Some(c) = op.op.to_char() {
+                write!(&mut s, "{}{}", op.cnt, c).unwrap();
             }
         }
         s
@@ -105,14 +102,14 @@ impl Cigar {
             ops: edits
                 .iter()
                 .map(|edit| CigarElement {
-                    command: match edit.edit {
+                    op: match edit.edit {
                         triple_accel::EditType::Match => CigarOp::Match,
                         triple_accel::EditType::Mismatch => CigarOp::Sub,
                         triple_accel::EditType::AGap => CigarOp::Ins,
                         triple_accel::EditType::BGap => CigarOp::Del,
                         triple_accel::EditType::Transpose => todo!(),
                     },
-                    length: edit.count,
+                    cnt: edit.count,
                 })
                 .collect(),
         }
@@ -147,8 +144,8 @@ impl Cigar {
 
     pub fn push(&mut self, command: CigarOp) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
-        if let Some(s) = self.ops.last_mut() && s.command == command {
-            s.length += 1;
+        if let Some(s) = self.ops.last_mut() && s.op == command {
+            s.cnt += 1;
             return;
         }
         self.ops.push(command.new());
@@ -156,14 +153,14 @@ impl Cigar {
 
     pub fn match_push(&mut self, num: usize) {
         if let Some(s) = self.ops.last_mut() {
-            if s.command == CigarOp::Match {
-                s.length += num;
+            if s.op == CigarOp::Match {
+                s.cnt += num;
                 return;
             }
         }
         self.ops.push(CigarElement {
-            command: CigarOp::Match,
-            length: num,
+            op: CigarOp::Match,
+            cnt: num,
         });
     }
 
@@ -177,8 +174,8 @@ impl Cigar {
 
     pub fn append(&mut self, other: &mut Self) {
         let Some(first) = other.ops.first_mut() else {return;};
-        if let Some(s) = self.ops.last_mut() && s.command == first.command{
-            first.length += s.length;
+        if let Some(s) = self.ops.last_mut() && s.op == first.op{
+            first.cnt += s.cnt;
             self.ops.pop().unwrap();
         }
         self.ops.append(&mut other.ops);
@@ -188,8 +185,8 @@ impl Cigar {
         let mut position = Pos(0, 0);
         let mut path = vec![position];
         for el in &self.ops {
-            for _ in 0..el.length {
-                if let Some(offset) = el.command.delta() {
+            for _ in 0..el.cnt {
+                if let Some(offset) = el.op.delta() {
                     position = position + offset;
                     path.push(position);
                 }
@@ -205,8 +202,8 @@ impl Cigar {
         let mut path = vec![(pos, cost)];
 
         for el in &self.ops {
-            let length = el.length as Cost;
-            match el.command {
+            let length = el.cnt as Cost;
+            match el.op {
                 CigarOp::Match => {
                     assert!(layer == None);
                     for _ in 0..length {
@@ -302,7 +299,11 @@ pub mod test {
         let mut layer = None;
         let mut cost = 0;
 
-        for &CigarElement { command, length } in cigar {
+        for &CigarElement {
+            op: command,
+            cnt: length,
+        } in cigar
+        {
             match command {
                 CigarOp::Match => {
                     assert!(layer == None);
