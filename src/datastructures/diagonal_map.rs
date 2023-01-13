@@ -13,7 +13,7 @@ pub enum InsertIfSmallerResult {
 }
 
 /// Trait that wraps DiagonalMap or Hashmap for entries along a diagonal.
-pub trait DiagonalMapTrait<Pos, V>: Index<Pos, Output = V> + IndexMut<Pos> {
+pub trait DiagonalMapTrait<'a, Pos: 'a, V> {
     fn new(target: Pos) -> Self;
     fn insert(&mut self, pos: Pos, v: V);
     fn get(&self, pos: Pos) -> Option<&V>;
@@ -133,7 +133,7 @@ impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
     }
 }
 
-impl<V: Default + Clone + Copy> DiagonalMapTrait<Pos, V> for DiagonalMap<V> {
+impl<V: Default + Clone + Copy> DiagonalMapTrait<'_, Pos, V> for DiagonalMap<V> {
     fn new(target: Pos) -> DiagonalMap<V> {
         // Block size should be a minimum size to prevent too small allocations.
         let mut lg_block_size = 8;
@@ -209,10 +209,9 @@ impl<V: Default + Clone + Copy> IndexMut<Pos> for DiagonalMap<V> {
     }
 }
 
-impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V>
+impl<'a, V: Default> DiagonalMapTrait<'a, Pos, V> for HashMap<Pos, V>
 where
-    HashMap<Pos, V>: Index<Pos, Output = V>,
-    HashMap<Pos, V>: IndexMut<Pos>,
+    HashMap<Pos, V>: Index<&'a Pos, Output = V>,
 {
     fn new(_target: Pos) -> Self {
         Default::default()
@@ -281,10 +280,9 @@ impl DtPos {
     }
 }
 
-impl<V: Default> DiagonalMapTrait<DtPos, V> for HashMap<DtPos, V>
+impl<V: Default> DiagonalMapTrait<'_, DtPos, V> for HashMap<DtPos, V>
 where
     HashMap<DtPos, V>: Index<DtPos, Output = V>,
-    HashMap<DtPos, V>: IndexMut<DtPos>,
 {
     fn new(_target: DtPos) -> Self {
         Default::default()

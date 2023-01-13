@@ -246,7 +246,7 @@ pub fn astar<'a, H: Heuristic>(
             None
         };
 
-        let state = &mut states[pos];
+        let state = DiagonalMapTrait::get_mut(&mut states, pos);
 
         if queue_g > state.g {
             continue;
