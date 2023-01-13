@@ -1,67 +1,12 @@
 //! Types related to the pairwise alignment graph.
-use std::{
-    cmp::max,
-    fmt::{Debug, Display},
-    ops::{Add, Sub},
-};
+use std::fmt::Debug;
 
 use std::cmp::Ordering;
 
-use crate::{
-    aligners::Seq,
-    prelude::{Cost, DtPos},
-};
+use crate::prelude::*;
 
-/// Type for positions in a sequence, and derived quantities.
-pub type I = u32;
 /// Type for the cost of a single match/mutation.
 pub type MatchCost = u8;
-
-/// A position in a pairwise matching.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct Pos(pub I, pub I);
-
-impl Add for Pos {
-    type Output = Pos;
-
-    fn add(self, Pos(x, y): Self) -> Self::Output {
-        Pos(self.0 + x, self.1 + y)
-    }
-}
-
-impl Sub for Pos {
-    type Output = Pos;
-
-    fn sub(self, Pos(x, y): Self) -> Self::Output {
-        Pos(self.0 - x, self.1 - y)
-    }
-}
-
-impl Pos {
-    pub fn root() -> Self {
-        Pos(0, 0)
-    }
-
-    pub fn from_lengths(a: Seq, b: Seq) -> Self {
-        Pos(a.len() as I, b.len() as I)
-    }
-
-    pub fn diag(&self) -> i32 {
-        self.0 as i32 - self.1 as i32
-    }
-
-    pub fn mirror(&self) -> Pos {
-        Pos(self.1, self.0)
-    }
-
-    pub fn from<T>(i: T, j: T) -> Self
-    where
-        T: TryInto<I>,
-        <T as TryInto<u32>>::Error: Debug,
-    {
-        Pos(i.try_into().unwrap(), j.try_into().unwrap())
-    }
-}
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Edge {
@@ -153,38 +98,6 @@ impl Edge {
     }
 }
 
-impl Display for Pos {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <Self as Debug>::fmt(self, f)
-    }
-}
-
-/// Partial ordering by
-/// (a,b) <= (c,d) when a<=c and b<=d.
-/// (a,b) < (c,d) when a<=c and b<=d and a<c or b<d.
-impl PartialOrd for Pos {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let a = self.0.cmp(&other.0);
-        let b = self.1.cmp(&other.1);
-        if a == b {
-            return Some(a);
-        }
-        if a == Ordering::Equal {
-            return Some(b);
-        }
-        if b == Ordering::Equal {
-            return Some(a);
-        }
-        None
-    }
-
-    #[inline]
-    fn le(&self, other: &Self) -> bool {
-        self.0 <= other.0 && self.1 <= other.1
-    }
-}
-
 /// Pos, but with a total lexicographic order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LexPos(pub Pos);
@@ -205,24 +118,6 @@ impl Ord for LexPos {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         (self.0 .0, self.0 .1).cmp(&(other.0 .0, other.0 .1))
-    }
-}
-
-impl Pos {
-    #[inline]
-    pub fn add_diagonal(&self, step: I) -> Self {
-        Pos(self.0 + step, self.1 + step)
-    }
-
-    #[inline]
-    pub fn remove_diagonal(&self, step: I) -> Self {
-        Pos(self.0 - step, self.1 - step)
-    }
-
-    #[inline]
-    pub fn max_with(&mut self, other: &Self) {
-        self.0 = max(self.0, other.0);
-        self.1 = max(self.1, other.1);
     }
 }
 

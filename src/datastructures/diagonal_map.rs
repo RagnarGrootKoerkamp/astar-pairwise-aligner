@@ -209,21 +209,6 @@ impl<V: Default + Clone + Copy> IndexMut<Pos> for DiagonalMap<V> {
     }
 }
 
-/// Implement DiagonalMapTrait for HashMap.
-impl<V> Index<Pos> for HashMap<Pos, V> {
-    type Output = V;
-
-    #[inline]
-    fn index(&self, pos: Pos) -> &Self::Output {
-        &self[&pos]
-    }
-}
-impl<V: Default> IndexMut<Pos> for HashMap<Pos, V> {
-    #[inline]
-    fn index_mut(&mut self, pos: Pos) -> &mut Self::Output {
-        self.get_mut(&pos).unwrap()
-    }
-}
 impl<V: Default> DiagonalMapTrait<Pos, V> for HashMap<Pos, V>
 where
     HashMap<Pos, V>: Index<Pos, Output = V>,
