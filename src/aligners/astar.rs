@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use pa_types::{Cigar, Cost};
 use serde::{Deserialize, Serialize};
 
-use crate::astar::AstarStats;
 use crate::heuristic::Heuristic;
+use crate::stats::AstarStats;
 use crate::{
     astar::astar,
     astar_dt::astar_dt,

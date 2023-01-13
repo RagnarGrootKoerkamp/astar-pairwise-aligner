@@ -7,7 +7,7 @@ use super::{Aligner, Seq};
 use crate::{
     generate::{generate_model, ErrorModel},
     prelude::to_string,
-    visualizer::NoVisualizer,
+    visualizer_trait::NoVisualizer,
 };
 
 fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {

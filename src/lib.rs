@@ -27,6 +27,7 @@ pub mod heuristic;
 pub mod matches;
 pub mod visualizer_trait;
 
+pub mod stats;
 #[cfg(test)]
 mod tests;
 

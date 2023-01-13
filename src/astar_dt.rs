@@ -1,8 +1,8 @@
 use crate::{
     aligners::cigar::Cigar,
-    astar::*,
     prelude::*,
-    visualizer::{VisualizerConfig, VisualizerT},
+    stats::*,
+    visualizer_trait::{VisualizerConfig, VisualizerT},
 };
 
 const D: bool = false;
