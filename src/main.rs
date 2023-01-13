@@ -24,7 +24,7 @@ fn main() {
             let start = Instant::now();
             let cost = match args.algorithm.algorithm {
                 Algorithm::TripleAccel => {
-                    TripleAccel::new(false, CostModel::Levenshtein).cost(a, b)
+                    TripleAccel::new(false, cost_model::CostModel::Levenshtein).cost(a, b)
                 }
                 Algorithm::Edlib => aligners::edlib::Edlib.cost(a, b),
                 Algorithm::Biwfa => aligners::wfa::WFA {

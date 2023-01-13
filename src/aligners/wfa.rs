@@ -17,7 +17,7 @@ impl<CostModel> std::fmt::Debug for WFA<CostModel> {
 
 // NOTE: All of the functions below internally compute the full alignment, but only return the score.
 
-fn align(a: Seq, b: Seq, mut aligner: WFAligner) -> i32 {
+fn align(a: Seq, b: Seq, mut aligner: WFAligner) -> Cost {
     aligner.set_heuristic(Heuristic::None);
     let status = aligner.align_end_to_end(a, b);
     assert_eq!(status, AlignmentStatus::StatusSuccessful);
@@ -140,7 +140,7 @@ impl<const N: usize> Aligner for WFA<AffineCost<N>> {
             unimplemented!("Cost model is not of a supported type!");
         })();
         // Work around a BiWFA bug.
-        if cost == i32::MIN as u32 {
+        if cost == i32::MIN {
             cost = 0;
         }
         cost

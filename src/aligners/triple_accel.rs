@@ -27,11 +27,11 @@ impl TripleAccel {
 impl Aligner for TripleAccel {
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         if self.exp_search {
-            triple_accel::levenshtein::levenshtein_exp_with_opts(a, b, false, self.cm).0
+            triple_accel::levenshtein::levenshtein_exp_with_opts(a, b, false, self.cm).0 as _
         } else {
             triple_accel::levenshtein::levenshtein_simd_k_with_opts(a, b, u32::MAX, false, self.cm)
                 .unwrap()
-                .0
+                .0 as _
         }
     }
 
@@ -42,16 +42,16 @@ impl Aligner for TripleAccel {
             triple_accel::levenshtein::levenshtein_simd_k_with_opts(a, b, u32::MAX, true, self.cm)
                 .unwrap()
         };
-        (cost, Cigar::from_triple_accel_edits(&edits.unwrap()))
+        (cost as _, Cigar::from_triple_accel_edits(&edits.unwrap()))
     }
 
     fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
-        triple_accel::levenshtein::levenshtein_simd_k_with_opts(a, b, f_max, false, self.cm)
-            .map(|r| r.0)
+        triple_accel::levenshtein::levenshtein_simd_k_with_opts(a, b, f_max as _, false, self.cm)
+            .map(|r| r.0 as _)
     }
 
     fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, Cigar)> {
-        triple_accel::levenshtein::levenshtein_simd_k_with_opts(a, b, f_max, true, self.cm)
-            .map(|(cost, edits)| (cost, Cigar::from_triple_accel_edits(&edits.unwrap())))
+        triple_accel::levenshtein::levenshtein_simd_k_with_opts(a, b, f_max as _, true, self.cm)
+            .map(|(cost, edits)| (cost as _, Cigar::from_triple_accel_edits(&edits.unwrap())))
     }
 }

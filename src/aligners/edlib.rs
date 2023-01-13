@@ -6,7 +6,7 @@ use edlib_rs::{edlibAlignRs, EdlibAlignConfigRs, EdlibAlignTaskRs, EDLIB_RS_STAT
 #[derive(Debug)]
 pub struct Edlib;
 
-fn edlib_align(a: Seq, b: Seq, trace: bool, f_max: Option<Cost>) -> Option<(u32, Option<Cigar>)> {
+fn edlib_align(a: Seq, b: Seq, trace: bool, f_max: Option<Cost>) -> Option<(Cost, Option<Cigar>)> {
     let mut config = EdlibAlignConfigRs::default();
     if trace {
         config.task = EdlibAlignTaskRs::EDLIB_TASK_PATH;
@@ -43,7 +43,7 @@ impl Aligner for Edlib {
         edlib_align(a, b, false, None).unwrap().0
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (u32, Cigar) {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
         let (d, c) = edlib_align(a, b, false, None).unwrap();
         (d, c.unwrap())
     }

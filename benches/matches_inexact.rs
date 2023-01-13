@@ -84,6 +84,7 @@ fn mutations(k: I, kmer: usize, dels: bool, subs: bool, ins: bool, dedup: bool) 
 }
 
 fn lookup_b_in_am_hashmap(a: Seq, b: Seq, k: I) {
+    let k = k as u32;
     assert!(k <= 14);
     let key = |l: u32, w: usize| ((w as u32) << 2) + (l + 1 - k);
     // TODO: Split in 3 hashmaps?
@@ -91,7 +92,7 @@ fn lookup_b_in_am_hashmap(a: Seq, b: Seq, k: I) {
     m.reserve(a.len() * 10 * k as usize);
     for (i, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {
         *m.entry(key(k, w)).or_default() = (i as u32, k);
-        let ms = mutations(k, w, true, true, true, false);
+        let ms = mutations(k as _, w, true, true, true, false);
         for w in ms.deletions {
             m.insert(key(k - 1, w), (i as u32, k));
         }
@@ -122,6 +123,7 @@ fn lookup_b_in_am_hashmap(a: Seq, b: Seq, k: I) {
 }
 
 fn lookup_am_in_b_hashmap(a: Seq, b: Seq, k: I) {
+    let k = k as u32;
     assert!(k <= 14);
     let key = |l: u32, w: usize| ((w as u32) << 2) + (l + 1 - k);
     let mut m = HashMap::<u32, (u32, u32)>::default();
@@ -140,7 +142,7 @@ fn lookup_am_in_b_hashmap(a: Seq, b: Seq, k: I) {
         if m.contains_key(&key(k, w)) {
             cnt += 1;
         }
-        let ms = mutations(k, w, true, true, true, false);
+        let ms = mutations(k as _, w, true, true, true, false);
         for w in ms.deletions {
             if m.contains_key(&key(k - 1, w)) {
                 cnt += 1;
@@ -161,6 +163,7 @@ fn lookup_am_in_b_hashmap(a: Seq, b: Seq, k: I) {
 }
 
 fn lookup_am_in_b_hashmap_dedup(a: Seq, b: Seq, k: I) {
+    let k = k as u32;
     assert!(k <= 14);
     let key = |l: u32, w: usize| ((w as u32) << 2) + (l + 1 - k);
     let mut m = HashMap::<u32, (u32, u32)>::default();
@@ -179,7 +182,7 @@ fn lookup_am_in_b_hashmap_dedup(a: Seq, b: Seq, k: I) {
         if m.contains_key(&key(k, w)) {
             cnt += 1;
         }
-        let ms = mutations(k, w, true, true, true, true);
+        let ms = mutations(k as _, w, true, true, true, true);
         for w in ms.deletions {
             if m.contains_key(&key(k - 1, w)) {
                 cnt += 1;
@@ -200,24 +203,25 @@ fn lookup_am_in_b_hashmap_dedup(a: Seq, b: Seq, k: I) {
 }
 
 fn lookup_a_in_bm_hashmap(a: Seq, b: Seq, k: I) -> usize {
+    let k = k as u32;
     let key = |_k: u32, w: usize| w as u32;
     let mut m = HashMap::<u32, (u32, u32)>::default();
     m.reserve(b.len() * 10 as usize);
     for (j, w) in TRANSFORM.qgrams(k - 1, b).enumerate() {
-        let ms = mutations(k, w, false, false, true, false);
+        let ms = mutations(k as _, w, false, false, true, false);
         for w in ms.insertions {
             m.insert(key(k, w), (j as u32, k));
         }
     }
     for (j, w) in TRANSFORM.qgrams(k, b).enumerate() {
         *m.entry(key(k, w)).or_default() = (j as u32, k);
-        let ms = mutations(k, w, false, true, false, false);
+        let ms = mutations(k as _, w, false, true, false, false);
         for w in ms.substitutions {
             m.insert(key(k, w), (j as u32, k));
         }
     }
     for (j, w) in TRANSFORM.qgrams(k + 1, b).enumerate() {
-        let ms = mutations(k, w, true, false, false, false);
+        let ms = mutations(k as _, w, true, false, false, false);
         for w in ms.deletions {
             m.insert(key(k, w), (j as u32, k));
         }
@@ -232,6 +236,7 @@ fn lookup_a_in_bm_hashmap(a: Seq, b: Seq, k: I) -> usize {
 }
 
 fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
+    let k = k as u32;
     let key = |k: u32, w: usize| ((w as u32) << 8) + k;
     let mut m = HashMap::<u32, (u32, u32)>::default();
     m.reserve(a.len());
@@ -240,7 +245,7 @@ fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
     }
     let mut cnt = 0;
     for (_j, w) in TRANSFORM.qgrams(k - 1, b).enumerate() {
-        let ms = mutations(k, w, false, false, true, false);
+        let ms = mutations(k as _, w, false, false, true, false);
         for w in ms.insertions {
             if m.contains_key(&key(k, w)) {
                 cnt += 1;
@@ -251,7 +256,7 @@ fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
         if m.contains_key(&key(k, w)) {
             cnt += 1;
         }
-        let ms = mutations(k, w, false, true, false, false);
+        let ms = mutations(k as _, w, false, true, false, false);
         for w in ms.substitutions {
             if m.contains_key(&key(k, w)) {
                 cnt += 1;
@@ -259,7 +264,7 @@ fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
         }
     }
     for (_j, w) in TRANSFORM.qgrams(k + 1, b).enumerate() {
-        let ms = mutations(k, w, true, false, false, false);
+        let ms = mutations(k as _, w, true, false, false, false);
         for w in ms.deletions {
             if m.contains_key(&key(k, w)) {
                 cnt += 1;

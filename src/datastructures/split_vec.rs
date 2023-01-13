@@ -9,6 +9,8 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use pa_types::Cost;
+
 #[derive(Default, Debug)]
 pub struct SplitVec<C> {
     /// The prefix of the vector.
@@ -53,16 +55,16 @@ impl<C> IndexMut<usize> for SplitVec<C> {
     }
 }
 
-impl<C> Index<u32> for SplitVec<C> {
+impl<C> Index<Cost> for SplitVec<C> {
     type Output = C;
 
-    fn index(&self, index: u32) -> &Self::Output {
+    fn index(&self, index: Cost) -> &Self::Output {
         &self[index as usize]
     }
 }
 
-impl<C> IndexMut<u32> for SplitVec<C> {
-    fn index_mut(&mut self, index: u32) -> &mut Self::Output {
+impl<C> IndexMut<Cost> for SplitVec<C> {
+    fn index_mut(&mut self, index: Cost) -> &mut Self::Output {
         &mut self[index as usize]
     }
 }

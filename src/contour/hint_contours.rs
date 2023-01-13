@@ -132,7 +132,7 @@ impl<C: Contour> HintContours<C> {
         if !D {
             return;
         }
-        for layer in 1..self.contours.len() as u32 {
+        for layer in 1..self.contours.len() as Cost {
             self.contours[layer].iterate_points(|p: Pos| {
                 let max_len = arrows.get(&p).map_or(0, |arrows| {
                     arrows.iter().map(|a| a.score).max().expect("Empty arrows")
@@ -155,9 +155,9 @@ fn chain_score<C: Contour>(
         std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
     >,
     pos: Pos,
-    v: u32,
+    v: Cost,
     contours: &SplitVec<C>,
-) -> u32 {
+) -> Cost {
     let Some(pos_arrows) = arrows.get(&pos) else {
             panic!("No arrows found for position {pos} around layer {v}.");
         };
@@ -402,7 +402,7 @@ impl<C: Contour> Contours for HintContours<C> {
             let rng = v + 1..min(v + self.max_len, self.contours.len() as Cost);
             for w in rng.clone() {
                 self.contours[w].iterate_points(|pos| {
-                    for a in &arrows[pos] {
+                    for a in &arrows[&pos] {
                         if !(a.end <= p) {
                             all_depend_on_pos = false;
                         }

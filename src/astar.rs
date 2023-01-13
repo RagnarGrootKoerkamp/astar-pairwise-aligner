@@ -78,11 +78,11 @@ pub struct AstarStats {
 }
 
 impl AstarStats {
-    pub fn new(a: Seq, b: Seq, cost: u32, total_duration: f32) -> Self {
+    pub fn new(a: Seq, b: Seq, cost: Cost, total_duration: f32) -> Self {
         Self {
             len_a: a.len(),
             len_b: b.len(),
-            distance: cost as Cost,
+            distance: cost,
             sample_size: 1,
             timing: Timing {
                 total: total_duration,
@@ -414,7 +414,7 @@ fn parent<'a, Hint: Default>(states: &HashMap<Pos, State<Hint>>, pos: Pos, g: Co
 fn traceback<'a, Hint: Default>(
     states: &HashMap<Pos, State<Hint>>,
     target: Pos,
-) -> (u32, Vec<Pos>) {
+) -> (Cost, Vec<Pos>) {
     let Some(state) = DiagonalMapTrait::get(states, target) else {
         panic!();
     };

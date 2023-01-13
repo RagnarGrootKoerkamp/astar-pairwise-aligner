@@ -2,7 +2,7 @@
 use std::panic::AssertUnwindSafe;
 
 use astar_pairwise_aligner::{
-    aligners::{astar::AstarPA, Aligner, Sequence},
+    aligners::{astar::AstarPA, Aligner},
     prelude::*,
     visualizer::NoVisualizer,
 };
@@ -15,11 +15,11 @@ fn fuzz(aligner: &mut impl Aligner) -> (Sequence, Sequence) {
                 for m in [
                     ErrorModel::Uniform,
                     ErrorModel::NoisyInsert,
-                    ErrorModel::MutatedRepeat,
+                    ErrorModel::SymmetricRepeat,
                 ] {
                     println!("n={n} r={r} e={e} m={m:?}");
-                    let (ref a, ref b) = generate_model(r, n, e, m);
-                    let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
+                    let (ref a, ref b) = generate_model(n, e, m, r);
+                    let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as _;
                     let d = std::panic::catch_unwind(AssertUnwindSafe(|| -> Cost {
                         aligner.cost(a, b)
                     }));
@@ -71,7 +71,7 @@ fn main() {
             let b = &b[start as usize..min(m, end) as usize];
             let d = aligner.cost(a, b);
             if check_dist {
-                let dist = levenshtein(a, b);
+                let dist = levenshtein(a, b) as _;
                 assert_eq!(d, dist);
             }
         }))

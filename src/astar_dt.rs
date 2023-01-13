@@ -270,7 +270,7 @@ pub fn traceback<'a, Hint: Default>(
     states: &HashMap<DtPos, State<Hint>>,
     target: Pos,
     g: Cost,
-) -> (u32, Vec<Pos>) {
+) -> (Cost, Vec<Pos>) {
     let target_dt = DtPos::from_pos(target, g);
     // Traceback algorithm from Ukkonen'85.
     let mut cost = 0;

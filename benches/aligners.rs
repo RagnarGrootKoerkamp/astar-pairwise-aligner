@@ -8,10 +8,10 @@ use astar_pairwise_aligner::{
         nw::NW,
         triple_accel::TripleAccel,
     },
+    cost_model::CostModel,
     cost_model::LinearCost,
     heuristic::{NoCost, Pruning, SH},
     matches::MatchConfig,
-    prelude::CostModel,
     visualizer::NoVisualizer,
 };
 use pa_generate::uniform_seeded;

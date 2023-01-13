@@ -23,6 +23,7 @@ impl Heuristic for PerfectHeuristic {
 impl<'a> HeuristicInstance<'a> for PerfectHeuristicI<'a> {
     fn h(&self, Pos(i, j): Pos) -> Cost {
         bio::alignment::distance::simd::levenshtein(&self.a[i as usize..], &self.b[j as usize..])
+            as _
     }
     type Hint = ();
 }

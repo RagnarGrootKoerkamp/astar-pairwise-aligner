@@ -168,11 +168,15 @@ pub fn find_matches_qgram_hash_exact_unordered<'a>(
     //let mut matches = Vec::<Match>::new();
 
     m.reserve(a.len() / k as usize + 1);
-    for (i, w) in rank_transform.qgrams(k, a).enumerate().step_by(k as usize) {
+    for (i, w) in rank_transform
+        .qgrams(k as _, a)
+        .enumerate()
+        .step_by(k as usize)
+    {
         m.entry(w as Key).or_default().push(i as I);
     }
 
-    for (j, w) in rank_transform.qgrams(k, b).enumerate() {
+    for (j, w) in rank_transform.qgrams(k as _, b).enumerate() {
         if let Some(is) = m.get(&(w as Key)) {
             for &i in is {
                 seeds[(i / k) as usize].seed_cost = 0;
@@ -229,7 +233,7 @@ pub fn find_matches_qgram_hash_inexact_unordered<'a>(
     let mut m = HashMap::<Q, SmallVec<[Cost; 4]>>::default();
     m.reserve(3 * b.len());
     for k in k - 1..=k + 1 {
-        for (j, w) in rank_transform.qgrams(k, b).enumerate() {
+        for (j, w) in rank_transform.qgrams(k as _, b).enumerate() {
             m.entry(key_for_sized_qgram(k, w))
                 .or_default()
                 .push(j as Cost);
@@ -328,7 +332,7 @@ pub fn unordered_matches<'a>(a: Seq<'a>, b: Seq<'a>, match_config: MatchConfig) 
     let mut m = HashMap::<Key, SmallVec<[I; 2]>>::default();
     m.reserve((1 + 2 * max_match_cost as usize) * b.len() as usize + 1);
     for k in length.kmin() - max_match_cost as I..=length.kmax() + max_match_cost as I {
-        for (i, qgram) in rank_transform.qgrams(k, b).enumerate() {
+        for (i, qgram) in rank_transform.qgrams(k as _, b).enumerate() {
             let x = m.entry(key_for_sized_qgram(k, qgram) as Key).or_default();
             if x.len() < 2 {
                 x.push(i as I);

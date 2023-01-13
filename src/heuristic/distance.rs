@@ -149,7 +149,7 @@ pub struct GapCostI {
 }
 
 pub fn abs_diff(i: I, j: I) -> I {
-    (i as isize - j as isize).abs() as u32
+    (i as isize - j as isize).abs() as I
 }
 
 impl HeuristicInstance<'_> for GapCostI {

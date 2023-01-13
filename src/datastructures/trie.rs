@@ -3,14 +3,14 @@ use bio::alphabets::{Alphabet, RankTransform};
 use crate::prelude::*;
 
 pub type State = u32;
-pub type Data = u32;
+pub type Data = I;
 /// A potentially smaller seed length datatype to save stack space.
 pub type MatchLen = u8;
 
 pub struct TrieNode {
     // Child indices are always positive, so 0 indicates empty.
     children: [State; 4],
-    data: Vec<u32>,
+    data: Vec<I>,
 }
 
 impl Default for TrieNode {

@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use bio::alignment::distance::simd::levenshtein;
+use pa_types::Cost;
 
 use crate::{
     aligners::{astar::AstarPA, cigar::test::verify_cigar, Aligner},
@@ -22,7 +23,7 @@ fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
     };
     let (d, cigar) = aligner.align(a, b);
     verify_cigar(&LinearCost::new_unit(), a, b, &cigar);
-    let dist = levenshtein(a, b);
+    let dist = levenshtein(a, b) as Cost;
     assert_eq!(d, dist);
 }
 

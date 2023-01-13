@@ -129,14 +129,14 @@ mod matches {
     pub fn seed_hashmap_qgrams(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<u32, u32>::default();
         m.reserve(a.len());
-        for (i, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {
+        for (i, w) in TRANSFORM.qgrams(k as _, a).step_by(k as usize).enumerate() {
             *m.entry(w as u32).or_default() = i as u32;
         }
     }
     pub fn suffix_hashmap_qgrams(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<u32, u32>::default();
         m.reserve(b.len());
-        for (i, w) in TRANSFORM.qgrams(k, b).enumerate() {
+        for (i, w) in TRANSFORM.qgrams(k as _, b).enumerate() {
             *m.entry(w as u32).or_default() = i as u32;
         }
     }
@@ -144,11 +144,11 @@ mod matches {
     pub fn lookup_seeds_in_qgram_hashmap(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<u32, u32>::default();
         m.reserve(b.len());
-        for (i, w) in TRANSFORM.qgrams(k, b).enumerate() {
+        for (i, w) in TRANSFORM.qgrams(k as _, b).enumerate() {
             *m.entry(w as u32).or_default() = i as u32;
         }
         let mut cnt = 0;
-        for (j, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {
+        for (j, w) in TRANSFORM.qgrams(k as _, a).step_by(k as usize).enumerate() {
             if m.contains_key(&(w as u32)) {
                 cnt += 1;
             }
@@ -158,11 +158,11 @@ mod matches {
     pub fn lookup_suffixes_in_qgram_hashmap(a: Seq, b: Seq, k: I) {
         let mut m = HashMap::<u32, u32>::default();
         m.reserve(a.len());
-        for (i, w) in TRANSFORM.qgrams(k, a).step_by(k as usize).enumerate() {
+        for (i, w) in TRANSFORM.qgrams(k as _, a).step_by(k as usize).enumerate() {
             *m.entry(w as u32).or_default() = i as u32;
         }
         let mut cnt = 0;
-        for (j, w) in TRANSFORM.qgrams(k, b).enumerate() {
+        for (j, w) in TRANSFORM.qgrams(k as _, b).enumerate() {
             if m.contains_key(&(w as u32)) {
                 cnt += 1;
             }
