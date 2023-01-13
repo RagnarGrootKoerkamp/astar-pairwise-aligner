@@ -42,7 +42,7 @@ tool_command = {
 }
 
 # Command to generate testcases.
-generate_command    = '../target/release/generate_dataset -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} {output}'
+generate_command    = '../target/release/generate -x {wildcards.cnt} -n {wildcards.n} -e {wildcards.e} {output}'
 
 # Wrap `command` in a small shell script than handles timeouts and memory limits
 # using `ulimit`, and write time and memory usage to `bench_path`.

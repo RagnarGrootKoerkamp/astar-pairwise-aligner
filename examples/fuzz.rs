@@ -18,7 +18,7 @@ fn fuzz(aligner: &mut impl Aligner) -> (Sequence, Sequence) {
                     ErrorModel::MutatedRepeat,
                 ] {
                     println!("n={n} r={r} e={e} m={m:?}");
-                    let (ref a, ref b) = setup_sequences_with_seed_and_model(r, n, e, m);
+                    let (ref a, ref b) = generate_model(r, n, e, m);
                     let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
                     let d = std::panic::catch_unwind(AssertUnwindSafe(|| -> Cost {
                         aligner.cost(a, b)

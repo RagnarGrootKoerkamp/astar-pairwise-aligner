@@ -1,7 +1,4 @@
-use crate::{
-    generate::{generate_pair, GenerateArgs, GenerateOptions},
-    prelude::Seq,
-};
+use crate::{generate::DatasetGenerator, prelude::Seq};
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use itertools::Itertools;
@@ -24,14 +21,15 @@ pub struct Input {
 
     /// Options to generate an input pair.
     #[clap(flatten)]
-    pub generate: GenerateArgs,
+    pub generate: DatasetGenerator,
 }
 
 impl Input {
     pub fn process_input_pairs(&self, mut run_pair: impl FnMut(Seq, Seq) -> ControlFlow<()>) {
         let mut run_cropped_pair = |mut a: Seq, mut b: Seq| -> ControlFlow<()> {
             // Shrink if needed.
-            if let Some(n) = self.generate.length && n > 0 {
+            let n = self.generate.settings.length;
+            if n > 0 {
                 if a.len() > n {
                     a = &a[..n];
                 }
@@ -95,18 +93,8 @@ impl Input {
                 seed
             });
             let ref mut rng = ChaCha8Rng::seed_from_u64(seed);
-            let generate_options = GenerateOptions {
-                length: self
-                    .generate
-                    .length
-                    .expect("Input file or length argument must be given."),
-                error_rate: self.generate.error_rate.unwrap(),
-                error_model: self.generate.error_model,
-                pattern_length: self.generate.pattern_length,
-                m: self.generate.m,
-            };
-            for _ in 0..self.generate.cnt {
-                let (a, b) = generate_pair(&generate_options, rng);
+            for _ in 0..self.generate.cnt.unwrap() {
+                let (a, b) = self.generate.settings.generate(rng);
                 if let ControlFlow::Break(()) = run_pair(&a, &b) {
                     break;
                 }

@@ -9,12 +9,12 @@ use astar_pairwise_aligner::{
         triple_accel::TripleAccel,
     },
     cost_model::LinearCost,
-    generate::setup_sequences_with_seed,
     heuristic::{NoCost, Pruning, SH},
     matches::MatchConfig,
     prelude::CostModel,
     visualizer::NoVisualizer,
 };
+use pa_generate::uniform_seeded;
 use test::Bencher;
 
 const N: usize = 30000;
@@ -26,7 +26,7 @@ fn run_aligner(
     e: f32,
     seed: &mut u64,
 ) {
-    let (ref a, ref b) = setup_sequences_with_seed(*seed, n, e);
+    let (ref a, ref b) = uniform_seeded(n, e, *seed);
     *seed += 1;
     aligner.cost(a, b);
 }

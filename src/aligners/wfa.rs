@@ -158,7 +158,7 @@ mod tests {
             Aligner,
         },
         cost_model::LinearCost,
-        generate::setup_sequences,
+        generate::uniform_random,
         heuristic::ZeroCost,
         prelude::to_string,
         visualizer::NoVisualizer,
@@ -193,7 +193,7 @@ mod tests {
         loop {
             let n = rng.gen_range(10..1000);
             let e = rng.gen_range(0.0..1.0);
-            let (ref a, ref b) = setup_sequences(n, e);
+            let (ref a, ref b) = uniform_random(n, e);
             let nw_cost = nw.cost(a, b);
             let biwfa_cost = biwfa.cost(a, b);
             let dt_cost = dt.cost(a, b);

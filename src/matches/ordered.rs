@@ -515,7 +515,7 @@ mod test {
         for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
-                    let (a, b) = setup(n, e);
+                    let (a, b) = uniform_fixed(n, e);
                     let matchconfig = MatchConfig::new(k, max_match_cost);
                     let t = find_matches_trie(&a, &b, matchconfig);
                     let r = find_matches_qgramindex(&a, &b, matchconfig, false);
@@ -545,7 +545,7 @@ mod test {
         for (k, max_match_cost) in [(4, 0), (5, 0), (6, 0), (7, 0)] {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
-                    let (a, b) = setup(n, e);
+                    let (a, b) = uniform_fixed(n, e);
                     let matchconfig = MatchConfig::new(k, max_match_cost);
                     let r = find_matches_qgramindex(&a, &b, matchconfig, false);
                     let h = find_matches_qgram_hash_exact(&a, &b, matchconfig);
@@ -577,7 +577,7 @@ mod test {
         for (k, max_match_cost) in [(6, 1), (7, 1), (10, 1)] {
             for n in [40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
-                    let (a, b) = setup(n, e);
+                    let (a, b) = uniform_fixed(n, e);
                     println!("{}\n{}", to_string(&a), to_string(&b));
                     let matchconfig = MatchConfig::new(k, max_match_cost);
                     println!("-----------------------");

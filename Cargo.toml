@@ -31,6 +31,8 @@ triple_accel = { git="https://github.com/Daniel-Liu-c0deb0t/triple_accel" }
 edlib_rs = { git="https://github.com/pairwise-alignment/edlib-rs" }
 rust-wfa2 = { git = "https://github.com/pairwise-alignment/rust-wfa2" }
 
+pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
+
 # Libs
 colorgrad = "0.6.2"
 instant = "0.1.12"

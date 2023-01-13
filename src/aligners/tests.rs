@@ -8,7 +8,7 @@ use super::{
     Aligner, Seq,
 };
 use crate::{
-    generate::{setup_sequences_with_seed_and_model, ErrorModel},
+    generate::{generate_model, ErrorModel},
     heuristic::NoCost,
     prelude::{to_string, AffineCost, AffineLayerCosts, AffineLayerType},
     visualizer::NoVisualizer,
@@ -31,7 +31,7 @@ fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
         ErrorModel::Uniform,
         ErrorModel::NoisyInsert,
         ErrorModel::NoisyDelete,
-        ErrorModel::DoubleMutatedRepeat,
+        ErrorModel::SymmetricRepeat,
     ];
     // Run each test on a new random seed for increased coverage over time.
     let seeds = [rng.gen_range(0..u64::MAX)];
@@ -102,7 +102,7 @@ fn test_aligner_on_cost_model_with_viz<const N: usize, A: Aligner>(
     test_path: bool,
 ) {
     for (((n, e), error_model), seed) in test_sequences() {
-        let (ref a, ref b) = setup_sequences_with_seed_and_model(seed, n, e, error_model);
+        let (ref a, ref b) = generate_model(n, e, error_model, seed);
         test_aligner_on_input(
             a,
             b,

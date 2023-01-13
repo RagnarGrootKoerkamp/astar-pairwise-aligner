@@ -306,91 +306,91 @@ fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
 #[bench]
 fn n100_inexact_trie(bench: &mut Bencher) {
     let n = 100;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| find_matches_trie(&a, &b, MatchConfig::inexact(K)));
 }
 
 #[bench]
 fn n10000_inexact_trie(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| find_matches_trie(&a, &b, MatchConfig::inexact(K)));
 }
 
 #[bench]
 fn n100_inexact_hash(bench: &mut Bencher) {
     let n = 100;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| find_matches_trie(&a, &b, MatchConfig::inexact(K)));
 }
 
 #[bench]
 fn n10000_inexact_hash(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| find_matches_qgram_hash_inexact(&a, &b, MatchConfig::inexact(K), false));
 }
 
 #[bench]
 fn n100000_inexact_hash(bench: &mut Bencher) {
     let n = 100000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| find_matches_qgram_hash_inexact(&a, &b, MatchConfig::inexact(K), false));
 }
 
 #[bench]
 fn n100_am_in_b(bench: &mut Bencher) {
     let n = 100;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_am_in_b_hashmap(&a, &b, K));
 }
 
 #[bench]
 fn n10000_am_in_b(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_am_in_b_hashmap(&a, &b, K));
 }
 
 #[bench]
 fn n100000_am_in_b(bench: &mut Bencher) {
     let n = 100000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_am_in_b_hashmap(&a, &b, K));
 }
 
 #[bench]
 fn n100_am_in_b_dedup(bench: &mut Bencher) {
     let n = 100;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_am_in_b_hashmap_dedup(&a, &b, K));
 }
 
 #[bench]
 fn n10000_am_in_b_dedup(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_am_in_b_hashmap_dedup(&a, &b, K));
 }
 
 #[bench]
 fn n100000_am_in_b_dedup(bench: &mut Bencher) {
     let n = 100000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_am_in_b_hashmap_dedup(&a, &b, K));
 }
 
 #[bench]
 fn n100_b_in_am(bench: &mut Bencher) {
     let n = 100;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_b_in_am_hashmap(&a, &b, K));
 }
 
 #[bench]
 fn n10000_b_in_am(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_b_in_am_hashmap(&a, &b, K));
 }
 
@@ -404,14 +404,14 @@ fn n10000_b_in_am(bench: &mut Bencher) {
 #[bench]
 fn n100_a_in_bm(bench: &mut Bencher) {
     let n = 100;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_a_in_bm_hashmap(&a, &b, K));
 }
 
 #[bench]
 fn n10000_a_in_bm(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_a_in_bm_hashmap(&a, &b, K));
 }
 
@@ -425,14 +425,14 @@ fn n10000_a_in_bm(bench: &mut Bencher) {
 #[bench]
 fn n100_bm_in_a(bench: &mut Bencher) {
     let n = 100;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_bm_in_a_hashmap(&a, &b, K));
 }
 
 #[bench]
 fn n10000_bm_in_a(bench: &mut Bencher) {
     let n = 10000;
-    let (a, b) = setup(n, E);
+    let (a, b) = uniform_fixed(n, E);
     bench.iter(|| lookup_bm_in_a_hashmap(&a, &b, K));
 }
 

@@ -1,6 +1,6 @@
 use astar_pairwise_aligner::{
     aligners::{nw::NW, Aligner},
-    prelude::{setup_sequences_with_seed_and_model, AffineCost, ErrorModel, NoCost},
+    prelude::{generate_model, AffineCost, ErrorModel, NoCost},
     visualizer::NoVisualizer,
 };
 use rand::{thread_rng, Rng};
@@ -12,7 +12,7 @@ fn main() {
         ErrorModel::Uniform,
         ErrorModel::NoisyInsert,
         ErrorModel::NoisyDelete,
-        ErrorModel::DoubleMutatedRepeat,
+        ErrorModel::SymmetricRepeat,
     ];
     let es = [0.01, 0.02, 0.05, 0.10, 0.20];
     let cost_models = [
@@ -30,7 +30,7 @@ fn main() {
         for cm in &cost_models {
             eprintln!("Cost model {cm:?}");
             for e in es {
-                let (ref a, ref b) = setup_sequences_with_seed_and_model(seed, n, e, *m);
+                let (ref a, ref b) = generate_model(n, e, *m, seed);
                 let cost = NW {
                     cm: cm.clone(),
                     use_gap_cost_heuristic: false,

@@ -19,7 +19,7 @@ fn base_100(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b) = setup(n, e);
+    let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
@@ -34,7 +34,7 @@ fn base_1000(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b) = setup(n, e);
+    let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
@@ -49,7 +49,7 @@ fn base_10000(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b) = setup(n, e);
+    let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
@@ -64,7 +64,7 @@ fn base_50000_similar(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b) = setup(n, e);
+    let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
@@ -79,7 +79,7 @@ fn fast_100(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b) = setup(n, e);
+    let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
@@ -94,7 +94,7 @@ fn fast_1000(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b) = setup(n, e);
+    let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
@@ -109,7 +109,7 @@ fn fast_10000(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b) = setup(n, e);
+    let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }
 
@@ -124,6 +124,6 @@ fn fast_50000_similar(bench: &mut Bencher) {
         c: PhantomData::<HintContours<BruteForceContour>>,
     };
 
-    let (a, b) = setup(n, e);
+    let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
 }

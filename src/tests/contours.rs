@@ -14,7 +14,7 @@ fn exact_no_pruning_gap() {
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
@@ -35,7 +35,7 @@ fn inexact_no_pruning_gap() {
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 //print(h, &a, &b);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVisualizer);
@@ -57,7 +57,7 @@ fn pruning_bruteforce_gap() {
                     use_gap_cost: true,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
@@ -78,7 +78,7 @@ fn pruning_hint_bruteforce_gap() {
                     use_gap_cost: true,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_bruteforce_contours(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
@@ -99,7 +99,7 @@ fn exact_no_pruning() {
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(
                     &a,
@@ -125,7 +125,7 @@ fn inexact_no_pruning() {
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 //print(h, &a, &b);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(
@@ -152,7 +152,7 @@ fn pruning_bruteforce() {
                     use_gap_cost: false,
                     c: PhantomData::<BruteForceContours>,
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(
                     &a,
@@ -178,7 +178,7 @@ fn pruning_hint_bruteforce_no_gap() {
                     use_gap_cost: false,
                     c: PhantomData::<HintContours<BruteForceContour>>,
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_bruteforce_contours(), &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
@@ -197,7 +197,7 @@ fn unordered() {
                     match_config: MatchConfig::new(k, max_match_cost),
                     pruning: Pruning::enabled(),
                 };
-                let (a, b) = setup(n, e);
+                let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h, &NoVisualizer);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b);
