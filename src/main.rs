@@ -26,11 +26,6 @@ fn main() {
                 Algorithm::TripleAccel => {
                     TripleAccel::new(false, cost_model::CostModel::Levenshtein).cost(a, b)
                 }
-                Algorithm::Edlib => aligners::edlib::Edlib.cost(a, b),
-                Algorithm::Biwfa => aligners::wfa::WFA {
-                    cm: LinearCost::new_unit(),
-                }
-                .cost(a, b),
                 _ => unreachable!(),
             };
             let total_duration = start.elapsed().as_secs_f32();

@@ -8,11 +8,9 @@ use std::cmp::max;
 pub mod astar;
 pub mod cigar;
 pub mod diagonal_transition;
-pub mod edlib;
 pub mod front;
 pub mod nw;
 pub mod triple_accel;
-pub mod wfa;
 
 pub mod edit_graph;
 #[cfg(test)]

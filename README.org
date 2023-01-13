@@ -75,7 +75,7 @@ INPUT:
         --seed <SEED>                Seed to initialize RNG for reproducability
 
 ALGORITHM:
-    -a, --algorithm <ALGORITHM>    [default: astar] [possible values: nw, dt, astar, triple-accel, edlib, wfa, biwfa]
+    -a, --algorithm <ALGORITHM>    [default: astar] [possible values: nw, dt, astar, triple-accel]
 
 HEURISTIC:
     -H, --heuristic <HEURISTIC>    [default: sh] [possible values: dijkstra, sh, csh]
@@ -190,7 +190,7 @@ And here is a video of figure 3 of our preprint:
 
 - Tests ::
   Code is tested for correctness in various tests ([[tests/]], [[src/aligners/tests/]])
-  against library implementation of edit distance, and against Edlib and WFA.
+  against library implementation of edit distance. More comparison are in [pa-bench](https://github.com/pairwise-alignment/pa-bench).
 
 - Benchmarks ::
   All code is benchmarked on GitHub Actions CI. Performance history of

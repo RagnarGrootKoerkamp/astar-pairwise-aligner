@@ -21,14 +21,12 @@ pub enum Algorithm {
 
     // External methods
     TripleAccel,
-    Edlib,
-    Biwfa,
 }
 
 impl Algorithm {
     pub fn external(&self) -> bool {
         match self {
-            Algorithm::TripleAccel | Algorithm::Edlib | Algorithm::Biwfa => true,
+            Algorithm::TripleAccel => true,
             Algorithm::NW | Algorithm::DT | Algorithm::Astar => false,
         }
     }
@@ -108,8 +106,6 @@ impl ToString for AlgorithmArgs {
                     "Needleman-Wunsch (triple-accel)".into()
                 }
             }
-            Algorithm::Edlib => "Edlib".into(),
-            Algorithm::Biwfa => "BiWFA".into(),
         }
     }
 }
