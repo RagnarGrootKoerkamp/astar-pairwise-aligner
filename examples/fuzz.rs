@@ -65,7 +65,7 @@ fn main() {
 
     // True on success.
     let mut test = |start: I, end: I| {
-        let Pos(n, m) = Pos::from_lengths(&a, &b);
+        let Pos(n, m) = Pos::target(&a, &b);
         let v = std::panic::catch_unwind(AssertUnwindSafe(|| {
             let a = &a[start as usize..min(n, end) as usize];
             let b = &b[start as usize..min(m, end) as usize];
@@ -136,7 +136,7 @@ fn main() {
         );
     }
 
-    let Pos(n, m) = Pos::from_lengths(&a, &b);
+    let Pos(n, m) = Pos::target(&a, &b);
     let a = &a[start as usize..min(n, end) as usize].to_vec();
     let b = &b[start as usize..min(m, end) as usize].to_vec();
 

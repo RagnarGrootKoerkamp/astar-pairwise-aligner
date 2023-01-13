@@ -146,7 +146,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V,
                 let s = s - self
                     .params
                     .cm
-                    .gap_cost(Pos(0, 0), Pos::from_lengths(&self.a, &self.b));
+                    .gap_cost(Pos(0, 0), Pos::target(&self.a, &self.b));
                 // Each extra diagonal costs one insertion and one deletion.
                 let extra_diagonals =
                     s / (self.params.cm.min_ins_extend + self.params.cm.min_del_extend);
@@ -556,11 +556,9 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> 
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut nw = self.build(a, b);
         let cost = if self.exponential_search {
-            exponential_search(
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                2.,
-                |s| nw.cost_for_bounded_dist(Some(s)).map(|c| (c, c)),
-            )
+            exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
+                nw.cost_for_bounded_dist(Some(s)).map(|c| (c, c))
+            })
             .1
         } else {
             assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
@@ -578,7 +576,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> 
         } else if self.exponential_search {
             cc = exponential_search(
                 // TODO: Take a max with h(0,0) here.
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
+                self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)),
                 2.,
                 |s| nw.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x)),
             )

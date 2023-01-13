@@ -1401,11 +1401,9 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTran
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut dt = self.build(a, b);
         let cost = if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
-            exponential_search(
-                self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                2.,
-                |s| dt.cost_for_bounded_dist(Some(s)).map(|c| (c, c)),
-            )
+            exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
+                dt.cost_for_bounded_dist(Some(s)).map(|c| (c, c))
+            })
             .1
         } else {
             dt.cost_for_bounded_dist(None).unwrap()
@@ -1436,14 +1434,10 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTran
                 );
                 cc = dt.align_local_band_doubling();
             } else if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
-                cc = exponential_search(
-                    self.cm.gap_cost(Pos(0, 0), Pos::from_lengths(a, b)),
-                    2.,
-                    |s| {
-                        dt.align_for_bounded_dist_with_h(Some(s))
-                            .map(|x @ (c, _)| (c, x))
-                    },
-                )
+                cc = exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
+                    dt.align_for_bounded_dist_with_h(Some(s))
+                        .map(|x @ (c, _)| (c, x))
+                })
                 .1;
                 //self.v.borrow_mut().last_frame(Some(&cc.1));
             } else {

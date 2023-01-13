@@ -83,7 +83,7 @@ where
         let mut h = BruteForceCSHI::<'a> {
             params,
             distance_function: Distance::build(&params.distance_function, a, b),
-            target: Pos::from_lengths(a, b),
+            target: Pos::target(a, b),
             seeds: find_matches(
                 a,
                 b,

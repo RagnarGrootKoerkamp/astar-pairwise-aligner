@@ -240,7 +240,7 @@ impl<'a> EditGraph<'a> {
         EditGraph {
             a,
             b,
-            target: Pos::from_lengths(a, b),
+            target: Pos::target(a, b),
             greedy_matching,
         }
     }

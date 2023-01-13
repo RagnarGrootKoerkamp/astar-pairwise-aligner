@@ -96,7 +96,7 @@ impl Heuristic for MaxCost {
 
     fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         MaxCostI {
-            target: Pos::from_lengths(a, b),
+            target: Pos::target(a, b),
         }
     }
 }
@@ -133,7 +133,7 @@ impl Heuristic for GapCost {
 
     fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         GapCostI {
-            target: Pos::from_lengths(a, b),
+            target: Pos::target(a, b),
         }
     }
 }
@@ -188,7 +188,7 @@ impl Heuristic for CountCost {
         CountCostI {
             a_cnts: char_counts(a),
             b_cnts: char_counts(b),
-            target: Pos::from_lengths(a, b),
+            target: Pos::target(a, b),
         }
     }
 }
@@ -267,7 +267,7 @@ impl Heuristic for BiCountCost {
             cnt: Distance::build(&CountCost, a, b),
             a_cnts: char_bicounts(a),
             b_cnts: char_bicounts(b),
-            target: Pos::from_lengths(a, b),
+            target: Pos::target(a, b),
         }
     }
 }

@@ -106,7 +106,7 @@ impl SHI {
 
         let mut h = SHI {
             params,
-            _target: Pos::from_lengths(a, b),
+            _target: Pos::target(a, b),
             arrows,
             num_arrows_per_length,
             layer_starts,
