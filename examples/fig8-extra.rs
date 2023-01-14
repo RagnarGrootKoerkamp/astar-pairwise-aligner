@@ -36,9 +36,9 @@ fn main() {
     config.style.pruned_match = BLACK;
 
     {
-        let (mut a, mut b) = setup_sequences_with_seed(6, 250 * scale, 0.08);
-        let (mut a2, mut b2) = setup_sequences_with_seed(2, 200 * scale, 0.60);
-        let (mut a3, mut b3) = setup_sequences_with_seed(3, 50 * scale, 0.08);
+        let (mut a, mut b) = uniform_seeded(250 * scale, 0.08, 6);
+        let (mut a2, mut b2) = uniform_seeded(200 * scale, 0.60, 2);
+        let (mut a3, mut b3) = uniform_seeded(50 * scale, 0.08, 3);
         a.append(&mut a2);
         b.append(&mut b2);
         a.append(&mut a3);
@@ -63,9 +63,9 @@ fn main() {
     }
 
     {
-        let (mut a, mut b) = setup_sequences_with_seed(5, 350 * scale, 0.08);
-        let (mut a2, _) = setup_sequences_with_seed(8, 50 * scale, 0.08);
-        let (mut a3, mut b3) = setup_sequences_with_seed(9, 100 * scale, 0.08);
+        let (mut a, mut b) = uniform_seeded(350 * scale, 0.08, 5);
+        let (mut a2, _) = uniform_seeded(50 * scale, 0.08, 8);
+        let (mut a3, mut b3) = uniform_seeded(100 * scale, 0.08, 9);
         a.append(&mut a2);
         //b.append(&mut b2);
         a.append(&mut a3);
@@ -90,9 +90,9 @@ fn main() {
     }
 
     {
-        let (mut a, mut b) = setup_sequences_with_seed(5, 350 * scale, 0.08);
-        let (mut a2, _) = setup_sequences_with_seed(8, 50 * scale, 0.08);
-        let (mut a3, mut b3) = setup_sequences_with_seed(9, 100 * scale, 0.08);
+        let (mut a, mut b) = uniform_seeded(350 * scale, 0.08, 5);
+        let (mut a2, _) = uniform_seeded(50 * scale, 0.08, 8);
+        let (mut a3, mut b3) = uniform_seeded(100 * scale, 0.08, 9);
         a.append(&mut a2);
         //b.append(&mut b2);
         a.append(&mut a3);
@@ -118,7 +118,7 @@ fn main() {
     }
 
     {
-        let (mut a, mut b) = setup_sequences_with_seed(1, 100 * scale, 0.08);
+        let (mut a, mut b) = uniform_seeded(100 * scale, 0.08, 1);
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(2 as u64);
         let (mut a2, mut b2) = generate_pair(
             &GenerateOptions {
@@ -130,7 +130,7 @@ fn main() {
             },
             &mut rng,
         );
-        let (mut a3, mut b3) = setup_sequences_with_seed(3, 100 * scale, 0.08);
+        let (mut a3, mut b3) = uniform_seeded(100 * scale, 0.08, 3);
         a.append(&mut a2);
         b.append(&mut b2);
         a.append(&mut a3);

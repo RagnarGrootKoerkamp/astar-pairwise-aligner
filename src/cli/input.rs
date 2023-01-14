@@ -1,4 +1,4 @@
-use crate::{generate::DatasetGenerator, prelude::Seq};
+use crate::prelude::Seq;
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use itertools::Itertools;
@@ -21,7 +21,7 @@ pub struct Input {
 
     /// Options to generate an input pair.
     #[clap(flatten)]
-    pub generate: DatasetGenerator,
+    pub generate: pa_generate::DatasetGenerator,
 }
 
 impl Input {

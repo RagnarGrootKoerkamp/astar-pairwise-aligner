@@ -17,7 +17,7 @@ fn main() {
 
     let n = 500;
     let e = 0.20;
-    let (ref a, ref b) = setup_sequences(n, e);
+    let (ref a, ref b) = uniform_fixed(n, e);
 
     let mut config = visualizer::Config::default();
     let frames = (0..10000).step_by(4).collect_vec();

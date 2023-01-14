@@ -19,7 +19,7 @@ fn main() {
     };
     let n = 500;
     let e = 0.20;
-    let (ref a, ref b) = setup_sequences(n, e);
+    let (ref a, ref b) = uniform_fixed(n, e);
 
     let cm = LinearCost::new_unit();
     let mut config = visualizer::Config::default();
