@@ -99,7 +99,29 @@ pub struct AstarPa<V: Visualizer, H: Heuristic> {
     pub v: V,
 }
 
+impl AstarPaParams<NoVis> {
+    pub fn new(diagonal_transition: bool, heuristic: HeuristicArgs) -> Self {
+        Self {
+            diagonal_transition,
+            heuristic,
+            visualizer: NoVis,
+        }
+    }
+}
+
 impl<V: Visualizer> AstarPaParams<V> {
+    pub fn new_with_vis(
+        diagonal_transition: bool,
+        heuristic: HeuristicArgs,
+        visualizer: V,
+    ) -> Self {
+        Self {
+            diagonal_transition,
+            heuristic,
+            visualizer,
+        }
+    }
+
     pub fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats) {
         struct Runner<'a, V: Visualizer> {
             params: &'a AstarPaParams<V>,

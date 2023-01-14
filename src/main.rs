@@ -1,8 +1,6 @@
 #![feature(let_chains)]
 
-use astar_pairwise_aligner::{
-    cli::Cli, prelude::*, stats::AstarStats, visualizer::NoVis, AstarPaParams,
-};
+use astar_pairwise_aligner::{cli::Cli, prelude::*, stats::AstarStats};
 use clap::Parser;
 use itertools::Itertools;
 use std::ops::ControlFlow;
@@ -10,19 +8,15 @@ use std::ops::ControlFlow;
 fn main() {
     let args = Cli::parse();
 
-    // Read the input
     let mut avg_result = AstarStats::default();
     let start = instant::Instant::now();
 
+    let aligner_params = args.to_astar_pa_params();
+
+    // Process the input.
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = AstarPaParams {
-            diagonal_transition: args.dt,
-            heuristic: args.heuristic.clone(),
-            visualizer: NoVis,
-        }
-        .align(a, b)
-        .1;
+        let r = aligner_params.align(a, b).1;
 
         // Record and print stats.
         if args.silent <= 1 {

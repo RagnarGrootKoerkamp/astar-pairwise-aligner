@@ -1,4 +1,4 @@
-use crate::{prelude::Seq, HeuristicArgs};
+use crate::{prelude::Seq, AstarPaParams, HeuristicArgs};
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use itertools::Itertools;
@@ -24,8 +24,8 @@ pub struct Cli {
     pub output: Option<PathBuf>,
 
     /// Use diagonal-transition based A*.
-    #[clap(long, hide_short_help = true)]
-    pub dt: bool,
+    #[clap(long = "dt", hide_short_help = true)]
+    pub diagonal_transition: bool,
 
     /// Parameters and settings for the heuristic.
     #[clap(flatten)]
@@ -41,6 +41,12 @@ pub struct Cli {
     /// Stop aligning new pairs after this timeout.
     #[arg(long, value_parser = parse_duration::parse, hide_short_help = true)]
     pub timeout: Option<Duration>,
+}
+
+impl Cli {
+    pub fn to_astar_pa_params(&self) -> AstarPaParams<crate::NoVis> {
+        AstarPaParams::new(self.diagonal_transition, self.heuristic)
+    }
 }
 
 #[derive(Parser, Serialize, Deserialize)]
