@@ -152,7 +152,7 @@ pub struct GapCostI {
     target: Pos,
 }
 
-pub fn abs_diff(i: I, j: I) -> I {
+fn abs_diff(i: I, j: I) -> I {
     (i as isize - j as isize).abs() as I
 }
 

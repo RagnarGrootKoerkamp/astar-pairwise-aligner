@@ -473,7 +473,7 @@ mod test {
                         if r.matches == h.matches {
                             continue;
                         }
-                        println!("{}\n{}", to_string(&a), to_string(&b));
+                        println!("{}\n{}", seq_to_string(&a), seq_to_string(&b));
                         println!("-----------------------");
                         println!("n={n} e={e} k={k} mmc={max_match_cost}");
                         println!("-----------------------");
@@ -498,7 +498,7 @@ mod test {
             for n in [40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b) = uniform_fixed(n, e);
-                    println!("{}\n{}", to_string(&a), to_string(&b));
+                    println!("{}\n{}", seq_to_string(&a), seq_to_string(&b));
                     let matchconfig = MatchConfig::new(k, max_match_cost);
                     println!("-----------------------");
                     println!("n={n} e={e} k={k} mmc={max_match_cost}");

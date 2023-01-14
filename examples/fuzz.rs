@@ -63,8 +63,8 @@ fn main() {
     let (ref a, ref b) = fuzz(aligner);
     println!(
         "\n\nShrinking sequences:\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n\n",
-        to_string(a),
-        to_string(b)
+        seq_to_string(a),
+        seq_to_string(b)
     );
 
     // True on success.
@@ -146,8 +146,8 @@ fn main() {
 
     println!(
         "\n\nResult of shrinking:\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n\n",
-        to_string(a),
-        to_string(b)
+        seq_to_string(a),
+        seq_to_string(b)
     );
     println!("Aligner:\n{aligner:?}");
 }

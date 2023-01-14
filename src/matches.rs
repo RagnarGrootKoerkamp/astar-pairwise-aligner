@@ -1,6 +1,6 @@
-pub mod ordered;
-pub mod qgrams;
-pub mod unordered;
+mod ordered;
+mod qgrams;
+mod unordered;
 
 use bio::{
     alphabets::{Alphabet, RankTransform},
@@ -15,8 +15,8 @@ use crate::{
 };
 
 pub use ordered::*;
-pub use qgrams::*;
-pub use unordered::*;
+pub use qgrams::fixed_seeds;
+use qgrams::*;
 
 #[derive(Clone, Debug)]
 pub struct Seed {

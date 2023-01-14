@@ -110,8 +110,6 @@ impl PosOrderT for I {
     }
 }
 
-pub type X = ();
-
 /// An instantiation of a heuristic for a specific pair of sequences.
 pub trait HeuristicInstance<'a> {
     fn h(&self, pos: Pos) -> Cost;

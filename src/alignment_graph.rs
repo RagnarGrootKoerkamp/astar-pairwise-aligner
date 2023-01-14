@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 
 use std::cmp::Ordering;
 
-use crate::prelude::*;
+use pa_types::*;
 
 /// Type for the cost of a single match/mutation.
 pub type MatchCost = u8;

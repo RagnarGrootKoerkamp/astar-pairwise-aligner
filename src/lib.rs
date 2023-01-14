@@ -37,10 +37,6 @@ pub mod prelude {
     pub use std::cmp::{max, min};
 
     pub use crate::config::*;
-
-    pub fn to_string(seq: &[u8]) -> String {
-        String::from_utf8(seq.to_vec()).unwrap()
-    }
 }
 
 pub use align::{AstarPa, AstarPaParams};

@@ -1,3 +1,4 @@
+#![allow(unused)]
 use smallvec::SmallVec;
 
 use super::*;

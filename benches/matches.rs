@@ -56,7 +56,7 @@ mod matches {
         suffix_array(&b);
     }
     pub fn suffix_array_suffixtable(a: Seq, b: Seq, k: I) {
-        let st = SuffixTable::new(to_string(b));
+        let st = SuffixTable::new(seq_to_string(b));
     }
 
     pub fn aho_corasick(a: Seq, b: Seq, k: I) {

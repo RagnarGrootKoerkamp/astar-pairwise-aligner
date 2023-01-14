@@ -8,7 +8,7 @@ use crate::{
     align::AstarPa,
     contour::*,
     heuristic::Heuristic,
-    prelude::to_string,
+    prelude::seq_to_string,
     visualizer::{NoVis, Visualizer},
 };
 
@@ -52,14 +52,14 @@ fn test_aligner_on_input<H: Heuristic, V: Visualizer>(
     // useful in case of panics inside the alignment code.
     eprintln!("{params}");
     if D {
-        eprintln!("a {}\nb {}", to_string(a), to_string(b));
+        eprintln!("a {}\nb {}", seq_to_string(a), seq_to_string(b));
     }
     //let mut nw = NW::new(cm.clone(), false, false);
     let nw_cost = levenshtein(a, b) as Cost;
     let cost = aligner.align(a, b).0 .0;
     // Rerun the alignment with the visualizer enabled.
     // if D && nw_cost != cost && let Some(mut viz_aligner) = viz_aligner {
-    //     eprintln!("{params}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", to_string(a), to_string(b));
+    //     eprintln!("{params}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", seq_to_string(a), seq_to_string(b));
     //     viz_aligner().align(a, b);
     // }
     // Test the cost reported by all aligners.
@@ -67,8 +67,8 @@ fn test_aligner_on_input<H: Heuristic, V: Visualizer>(
         nw_cost,
         cost,
         "\n{params}\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\nAligner\n{aligner:?}",
-        to_string(&a),
-        to_string(&b),
+        seq_to_string(&a),
+        seq_to_string(&b),
     );
     if test_path {
         let (cost, cigar) = aligner.align(a, b).0;
@@ -76,8 +76,8 @@ fn test_aligner_on_input<H: Heuristic, V: Visualizer>(
             eprintln!("\n================= TEST CIGAR ======================\n");
             eprintln!(
                 "{params}\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\ncigar: {}",
-                to_string(a),
-                to_string(b),
+                seq_to_string(a),
+                seq_to_string(b),
                 cigar.to_string(),
             );
         }
