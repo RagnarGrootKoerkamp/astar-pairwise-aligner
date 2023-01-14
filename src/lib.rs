@@ -14,7 +14,7 @@
     drain_filter
 )]
 
-pub mod align;
+mod align;
 mod alignment_graph;
 mod astar;
 mod astar_dt;
@@ -27,8 +27,11 @@ pub mod matches;
 pub mod stats;
 pub mod visualizer;
 
-#[cfg(test)]
-mod tests;
+pub use align::*;
+pub use astar::astar;
+pub use astar_dt::astar_dt;
+pub use heuristic::*;
+pub use visualizer::NoVis;
 
 pub mod prelude {
     pub use pa_types::*;
@@ -39,8 +42,5 @@ pub mod prelude {
     pub use crate::config::*;
 }
 
-pub use align::{AstarPa, AstarPaParams};
-pub use astar::astar;
-pub use astar_dt::astar_dt;
-pub use heuristic::*;
-pub use visualizer::NoVis;
+#[cfg(test)]
+mod tests;

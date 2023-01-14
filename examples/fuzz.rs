@@ -2,12 +2,12 @@
 use std::{marker::PhantomData, panic::AssertUnwindSafe};
 
 use astar_pairwise_aligner::{
-    align::AstarPa,
     contour::{BruteForceContour, HintContours},
     heuristic::{Heuristic, Pruning, CSH},
     matches::MatchConfig,
     prelude::*,
     visualizer::{NoVis, Visualizer},
+    AstarPa,
 };
 use bio::alignment::distance::simd::levenshtein;
 use pa_generate::{generate_model, ErrorModel};

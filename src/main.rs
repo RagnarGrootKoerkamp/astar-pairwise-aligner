@@ -1,7 +1,7 @@
 #![feature(let_chains)]
 
 use astar_pairwise_aligner::{
-    align::AstarPaParams, cli::Cli, prelude::*, stats::AstarStats, visualizer::NoVis,
+    cli::Cli, prelude::*, stats::AstarStats, visualizer::NoVis, AstarPaParams,
 };
 use clap::Parser;
 use itertools::Itertools;
