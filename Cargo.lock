@@ -47,7 +47,7 @@ dependencies = [
  "serde",
  "smallvec",
  "suffix",
- "triple_accel 0.4.0 (git+https://github.com/Daniel-Liu-c0deb0t/triple_accel)",
+ "triple_accel",
 ]
 
 [[package]]
@@ -91,7 +91,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "thiserror",
- "triple_accel 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "triple_accel",
  "vec_map",
 ]
 
@@ -1049,11 +1049,6 @@ name = "triple_accel"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22048bc95dfb2ffd05b1ff9a756290a009224b60b2f0e7525faeee7603851e63"
-
-[[package]]
-name = "triple_accel"
-version = "0.4.0"
-source = "git+https://github.com/Daniel-Liu-c0deb0t/triple_accel#0f2119a6bbc3e6f007bcca0051660408c47ee883"
 
 [[package]]
 name = "typenum"

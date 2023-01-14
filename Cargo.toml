@@ -27,7 +27,6 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 # aligners to compare against
-triple_accel = { git="https://github.com/Daniel-Liu-c0deb0t/triple_accel" }
 
 pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
 pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
@@ -46,7 +45,7 @@ parse_duration = "2.1.1"
 serde = "1.0.152"
 derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
 smallvec = { version = "1.10.0", features = ["union"] }
-
+triple_accel = "0.4.0"
 
 
 [[example]]

@@ -44,15 +44,17 @@ pub struct SHI {
     // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
     arrows: HashMap<Pos, Vec<Arrow>>,
 
-    /// [l][seed_idx] = number of arrows for the seed with given `seed_idx` length `l`.
+    /// index `[l][seed_idx]`: number of arrows for the seed with given `seed_idx` length `l`.
     num_arrows_per_length: Vec<Vec<usize>>,
 
     /// For each score `s`, this is the largest index `i` where total score `s` is still available.
+    /// ```
     /// layer_start[0] = n
     /// layer_start[1] = start of first seed with a match
     /// ...
-    /// Values in this vector are decreasing, and the layer of position i is the
-    /// largest index that has a value at least i.
+    /// ```
+    /// Values in this vector are decreasing, and the layer of position `i` is the
+    /// largest index that has a value at least `i`.
     layer_starts: SplitVec<I>,
 
     /// The maximum position explored so far.
