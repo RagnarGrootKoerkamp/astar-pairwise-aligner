@@ -91,6 +91,8 @@ pub struct AstarPaParams<V: Visualizer> {
     pub visualizer: V,
 }
 
+pub type AstarPaParamsNoVis = AstarPaParams<NoVis>;
+
 /// Alternative configuration using a typed `Heuristic` instance instead of a fixed config.
 #[derive(Debug)]
 pub struct AstarPa<V: Visualizer, H: Heuristic> {

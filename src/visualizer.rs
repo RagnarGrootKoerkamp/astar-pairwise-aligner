@@ -1,4 +1,5 @@
 use pa_types::{Cigar, CigarOp, Cost};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 use crate::{
@@ -10,7 +11,7 @@ pub type ParentFn<'a> = Option<&'a dyn Fn(Pos) -> Option<(Pos, [Option<CigarOp>;
 
 /// A `Visualizer` can be used to track progress of the A* search using callbacks.
 /// The `Visualizer` configuration is `build` into a corresponding `VisualizerInstance` for each input pair.
-pub trait Visualizer: Clone + Default + Debug {
+pub trait Visualizer: Clone + Copy + Default + Debug + PartialEq {
     type Instance: VisualizerInstance;
     fn build(&self, a: Seq, b: Seq) -> Self::Instance;
 }
@@ -54,7 +55,7 @@ pub trait VisualizerInstance {
     }
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NoVis;
 impl Visualizer for NoVis {
     type Instance = Self;
