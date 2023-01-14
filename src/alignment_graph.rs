@@ -52,42 +52,12 @@ impl Edge {
         })
     }
 
-    pub fn forward(&self, &Pos(i, j): &Pos) -> Option<Pos> {
-        Some(match self {
-            Edge::None => None?,
-            Edge::Match => Pos(i + 1, j + 1),
-            Edge::Substitution => Pos(i + 1, j + 1),
-            Edge::Right => Pos(i + 1, j),
-            Edge::Down => Pos(i, j + 1),
-        })
-    }
-
-    pub fn dt_forward(&self, &DtPos { diagonal, g }: &DtPos) -> Option<DtPos> {
-        Some(match self {
-            Edge::None => None?,
-            Edge::Match => DtPos { diagonal, g },
-            Edge::Substitution => DtPos { diagonal, g: g + 1 },
-            Edge::Right => DtPos {
-                diagonal: diagonal + 1,
-                g: g + 1,
-            },
-            Edge::Down => DtPos {
-                diagonal: diagonal - 1,
-                g: g + 1,
-            },
-        })
-    }
-
     pub fn cost(&self) -> Cost {
         match self {
             Edge::Match => 0,
             Edge::None => panic!("Cost of None!"),
             _ => 1,
         }
-    }
-
-    pub fn match_cost(&self) -> MatchCost {
-        self.cost() as MatchCost
     }
 
     pub fn to_f(&self) -> Cost {
@@ -143,8 +113,9 @@ impl<'a> EditGraph<'a> {
 }
 
 impl<'a> EditGraph<'a> {
+    #[allow(unused)]
     #[inline]
-    pub fn root(&self) -> Pos {
+    pub fn start(&self) -> Pos {
         Pos(0, 0)
     }
 
@@ -162,6 +133,8 @@ impl<'a> EditGraph<'a> {
         }
     }
 
+    /// Counts the number of matching characters starting at the given position.
+    #[allow(unused)]
     #[inline]
     pub fn count_match(&self, Pos(i, j): Pos) -> usize {
         let max = std::cmp::min(self.target.0 - i, self.target.1 - j) as usize;
