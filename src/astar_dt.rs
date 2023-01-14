@@ -1,4 +1,7 @@
 use crate::{
+    alignment_graph::*,
+    datastructures::{QueueElement, ShiftOrderT, ShiftQueue},
+    heuristic::*,
     prelude::*,
     stats::*,
     visualizer::{Visualizer, VisualizerInstance},

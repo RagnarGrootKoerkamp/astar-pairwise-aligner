@@ -6,6 +6,7 @@ use rand::{seq::IteratorRandom, thread_rng, Rng};
 
 use crate::{
     align::AstarPa,
+    contour::*,
     heuristic::Heuristic,
     prelude::to_string,
     visualizer::{NoVis, Visualizer},
@@ -91,7 +92,6 @@ mod astar {
     use crate::{
         heuristic::{Heuristic, Pruning, CSH, SH},
         matches::MatchConfig,
-        prelude::{BruteForceContour, HintContours},
     };
 
     use super::*;
@@ -190,7 +190,7 @@ mod astar {
     }
 
     mod dijkstra {
-        use crate::heuristic::NoCost;
+        use crate::NoCost;
 
         #[test]
         fn exact_noprune() {

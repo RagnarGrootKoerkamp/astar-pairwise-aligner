@@ -3,7 +3,7 @@
 #![feature(test)]
 #![cfg(test)]
 use astar_pairwise_aligner::{
-    matches::{find_matches_qgram_hash_exact, find_matches_qgramindex},
+    matches::{find_matches_qgram_hash_exact, find_matches_qgramindex, MatchConfig},
     prelude::*,
 };
 
@@ -11,6 +11,7 @@ use astar_pairwise_aligner::{
 extern crate lazy_static;
 extern crate test;
 
+use pa_generate::uniform_fixed;
 use test::Bencher;
 
 const E: f32 = 0.02;
@@ -18,12 +19,14 @@ const K: I = 8;
 
 mod matches {
 
+    use super::*;
     use aho_corasick::AhoCorasickBuilder;
-    use bio::data_structures::suffix_array::suffix_array;
+    use bio::{
+        alphabets::{Alphabet, RankTransform},
+        data_structures::{qgram_index::QGramIndex, suffix_array::suffix_array},
+    };
     use itertools::Itertools;
     use suffix::SuffixTable;
-
-    use crate::prelude::*;
 
     lazy_static! {
         static ref TRANSFORM: RankTransform = RankTransform::new(&Alphabet::new(b"ACGT"));

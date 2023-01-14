@@ -1,6 +1,8 @@
 #![feature(let_chains)]
 
-use astar_pairwise_aligner::{cli::Cli, prelude::*, stats::AstarStats, visualizer::NoVis};
+use astar_pairwise_aligner::{
+    align::AstarPaParams, cli::Cli, prelude::*, stats::AstarStats, visualizer::NoVis,
+};
 use clap::Parser;
 use itertools::Itertools;
 use std::ops::ControlFlow;
@@ -14,7 +16,7 @@ fn main() {
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = align::AstarPaParams {
+        let r = AstarPaParams {
             diagonal_transition: args.algorithm.dt,
             heuristic: args.heuristic.clone(),
             visualizer: NoVis,

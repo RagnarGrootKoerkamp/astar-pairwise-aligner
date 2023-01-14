@@ -1,17 +1,20 @@
-pub mod bruteforce_csh;
-pub mod chained_seed;
+mod bruteforce_csh;
+mod chained_seed;
 pub mod distances;
-pub mod seed;
+mod seed;
 pub mod wrappers;
 
-use crate::{matches::Match, prelude::*};
+use crate::contour::Arrow;
+use crate::{alignment_graph::*, matches::*, prelude::*};
 use derive_more::AddAssign;
 
-pub use bruteforce_csh::*;
+// internal/helper heuristics
+use bruteforce_csh::*;
+use distances::*;
+
 pub use chained_seed::*;
-pub use distances::*;
+pub use distances::{GapCost, NoCost, ZeroCost};
 pub use seed::*;
-pub use wrappers::*;
 
 #[derive(Default, Clone)]
 pub struct HeuristicParams {

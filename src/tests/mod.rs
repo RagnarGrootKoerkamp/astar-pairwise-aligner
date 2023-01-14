@@ -5,9 +5,9 @@ use pa_types::{Cost, CostModel};
 
 use crate::{
     align::AstarPa,
+    contour::*,
     heuristic::{Heuristic, Pruning, CSH},
     matches::MatchConfig,
-    prelude::{BruteForceContour, HintContours},
     visualizer::*,
 };
 

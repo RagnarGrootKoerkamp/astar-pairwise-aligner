@@ -15,40 +15,36 @@
 )]
 
 pub mod align;
-pub mod alignment_graph;
-pub mod astar;
-pub mod astar_dt;
+mod alignment_graph;
+mod astar;
+mod astar_dt;
 pub mod cli;
-pub mod config;
+mod config;
 pub mod contour;
-pub mod datastructures;
+mod datastructures;
 pub mod heuristic;
 pub mod matches;
+pub mod stats;
 pub mod visualizer;
 
-pub mod stats;
 #[cfg(test)]
 mod tests;
 
 pub mod prelude {
-    pub use super::*;
-    pub use crate::alignment_graph::*;
-    pub use crate::astar::*;
-    pub use crate::config::*;
-    pub use crate::contour::*;
-    pub use crate::datastructures::*;
-    pub use crate::heuristic::*;
-    pub use crate::matches::{LengthConfig::Fixed, *};
-    pub use bio::alphabets::{Alphabet, RankTransform};
-    pub use bio::data_structures::qgram_index::QGramIndex;
-    pub use pa_generate::*;
     pub use pa_types::*;
     pub use rustc_hash::FxHashMap as HashMap;
     pub use rustc_hash::FxHashSet as HashSet;
     pub use std::cmp::{max, min};
-    pub use std::marker::PhantomData;
+
+    pub use crate::config::*;
 
     pub fn to_string(seq: &[u8]) -> String {
         String::from_utf8(seq.to_vec()).unwrap()
     }
 }
+
+pub use align::{AstarPa, AstarPaParams};
+pub use astar::astar;
+pub use astar_dt::astar_dt;
+pub use heuristic::*;
+pub use visualizer::NoVis;

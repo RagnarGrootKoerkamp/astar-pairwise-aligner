@@ -2,7 +2,16 @@
 
 #![feature(test)]
 #![cfg(test)]
-use astar_pairwise_aligner::{prelude::*, visualizer::NoVis};
+
+use astar_pairwise_aligner::{
+    astar,
+    contour::*,
+    heuristic::{Pruning, CSH},
+    matches::*,
+    visualizer::NoVis,
+};
+use pa_generate::uniform_fixed;
+use std::marker::PhantomData;
 
 extern crate test;
 

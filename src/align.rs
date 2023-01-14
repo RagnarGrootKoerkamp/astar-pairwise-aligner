@@ -10,8 +10,8 @@ use crate::{
     astar::astar,
     astar_dt::astar_dt,
     cli::heuristic_params::{HeuristicArgs, HeuristicType},
+    contour::*,
     heuristic::{GapCost, NoCost, Pruning, ZeroCost, CSH, SH},
-    prelude::{BruteForceContour, HintContours},
 };
 
 /// The main entrypoint for running A* with some parameters.

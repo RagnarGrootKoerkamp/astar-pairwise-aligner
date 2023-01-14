@@ -1,9 +1,11 @@
 use std::marker::PhantomData;
 
 use crate::{
+    alignment_graph::MatchCost,
+    contour::{BruteForceContour, HintContours},
     heuristic::{GapCost, Heuristic, NoCost, Pruning, ZeroCost, CSH, SH},
     matches::{LengthConfig, MatchConfig},
-    prelude::{BruteForceContour, HintContours, MatchCost, I},
+    prelude::*,
 };
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};

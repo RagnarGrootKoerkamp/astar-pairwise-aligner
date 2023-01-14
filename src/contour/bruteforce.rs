@@ -1,7 +1,9 @@
-use crate::prelude::*;
+use crate::{alignment_graph::LexPos, prelude::*};
 use itertools::Itertools;
 use smallvec::SmallVec;
 use std::mem;
+
+use super::*;
 
 /// A contour implementation that does all operations in O(r).
 #[derive(Default, Debug, Clone)]

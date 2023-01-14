@@ -1,5 +1,7 @@
 use crate::{
-    alignment_graph::EditGraph,
+    alignment_graph::*,
+    datastructures::{QueueElement, ShiftOrderT, ShiftQueue},
+    heuristic::*,
     prelude::*,
     stats::AstarStats,
     visualizer::{Visualizer, VisualizerInstance},

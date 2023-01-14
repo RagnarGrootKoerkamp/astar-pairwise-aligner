@@ -1,8 +1,10 @@
-use super::{distances::*, *};
+use super::*;
 use crate::{
-    contour::{Arrow, Contours},
-    matches::{find_matches, Match, MatchConfig, SeedMatches},
+    contour::*,
+    distances::{Distance, DistanceInstance, GapCostI},
+    matches::*,
     prelude::*,
+    wrappers::EqualHeuristic,
 };
 use itertools::Itertools;
 use std::marker::PhantomData;

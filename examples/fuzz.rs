@@ -1,12 +1,16 @@
 #![feature(let_chains)]
-use std::panic::AssertUnwindSafe;
+use std::{marker::PhantomData, panic::AssertUnwindSafe};
 
 use astar_pairwise_aligner::{
     align::AstarPa,
+    contour::{BruteForceContour, HintContours},
+    heuristic::{Heuristic, Pruning, CSH},
+    matches::MatchConfig,
     prelude::*,
     visualizer::{NoVis, Visualizer},
 };
 use bio::alignment::distance::simd::levenshtein;
+use pa_generate::{generate_model, ErrorModel};
 
 fn fuzz<V: Visualizer, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Sequence) {
     for n in (5..).step_by(1) {

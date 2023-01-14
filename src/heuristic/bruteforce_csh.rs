@@ -2,11 +2,7 @@ use std::cmp::Reverse;
 
 use itertools::Itertools;
 
-use super::{distances::*, *};
-use crate::{
-    matches::{find_matches, Match, MatchConfig, SeedMatches},
-    prelude::*,
-};
+use super::*;
 
 #[derive(Debug, Copy, Clone)]
 pub struct BruteForceCSH<DH: Distance> {
@@ -284,7 +280,7 @@ where
             return (0, ());
         }
 
-        if D || print() {
+        if D || crate::config::print() {
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 

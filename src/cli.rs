@@ -34,6 +34,6 @@ pub struct Cli {
     pub silent: u8,
 
     /// Stop aligning new pairs after this timeout.
-    #[arg(long, value_parser = parse_duration::parse , hide_short_help = true)]
+    #[arg(long, value_parser = parse_duration::parse, hide_short_help = true)]
     pub timeout: Option<Duration>,
 }

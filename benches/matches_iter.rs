@@ -3,10 +3,14 @@
 
 use std::hint::black_box;
 
-use astar_pairwise_aligner::{matches::find_matches_qgram_hash_exact, prelude::*};
+use astar_pairwise_aligner::{
+    matches::{find_matches_qgram_hash_exact, MatchConfig},
+    prelude::*,
+};
 
 extern crate test;
 
+use pa_generate::uniform_fixed;
 use test::Bencher;
 
 const E: f32 = 0.02;

@@ -2,9 +2,17 @@ pub mod ordered;
 pub mod qgrams;
 pub mod unordered;
 
+use bio::{
+    alphabets::{Alphabet, RankTransform},
+    data_structures::qgram_index::QGramIndex,
+};
 use itertools::Itertools;
 
-use crate::prelude::*;
+use crate::{
+    alignment_graph::{LexPos, MatchCost},
+    config::SKIP_INEXACT_INSERT_START_END,
+    prelude::*,
+};
 
 pub use ordered::*;
 pub use qgrams::*;
@@ -158,6 +166,7 @@ pub enum LengthConfig {
     Fixed(I),
     Max(MaxMatches),
 }
+use LengthConfig::*;
 
 impl LengthConfig {
     pub fn k(&self) -> Option<I> {
@@ -314,7 +323,7 @@ mod test {
         assert!(ms.deletions.contains(&0b000111));
         assert_eq!(
             ms,
-            matches::Mutations {
+            Mutations {
                 deletions: [6, 7, 11, 27].to_vec(),
                 substitutions: [11, 19, 23, 24, 25, 26, 31, 43, 59, 91, 155, 219].to_vec(),
                 insertions: if SKIP_INEXACT_INSERT_START_END {

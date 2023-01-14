@@ -1,4 +1,6 @@
-use crate::{heuristic::SH, prelude::*, visualizer::NoVis};
+use crate::{astar::astar, contour::*, heuristic::*, matches::*, prelude::*, visualizer::NoVis};
+use pa_generate::uniform_fixed;
+use std::marker::PhantomData;
 
 #[test]
 fn exact_no_pruning_gap() {

@@ -21,7 +21,7 @@ pub struct Input {
 
     /// Options to generate an input pair.
     #[clap(flatten)]
-    pub generate: pa_generate::DatasetGenerator,
+    generate: pa_generate::DatasetGenerator,
 }
 
 impl Input {

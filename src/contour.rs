@@ -6,7 +6,7 @@ pub use hint_contours::*;
 
 use std::fmt::{Debug, Display};
 
-use crate::prelude::{Cost, HashMap, MatchCost, Pos, I};
+use crate::{alignment_graph::MatchCost, prelude::*};
 
 pub type Layer = u32;
 

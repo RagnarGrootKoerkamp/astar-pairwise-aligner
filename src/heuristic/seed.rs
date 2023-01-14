@@ -2,7 +2,8 @@ use std::cmp::Ordering;
 
 use itertools::Itertools;
 
-use crate::prelude::*;
+use super::*;
+use crate::{contour::Layer, datastructures::SplitVec, matches::*, prelude::*};
 
 #[derive(Debug, Copy, Clone)]
 pub struct SH {

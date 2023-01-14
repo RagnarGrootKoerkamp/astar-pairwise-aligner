@@ -4,7 +4,7 @@
 #![feature(test)]
 #![cfg(test)]
 use astar_pairwise_aligner::{
-    matches::{find_matches_qgram_hash_inexact, Mutations},
+    matches::{find_matches_qgram_hash_inexact, MatchConfig, Mutations},
     prelude::*,
 };
 
@@ -13,6 +13,8 @@ extern crate lazy_static;
 
 extern crate test;
 
+use bio::alphabets::{Alphabet, RankTransform};
+use pa_generate::uniform_fixed;
 use test::Bencher;
 
 const E: f32 = 0.20;

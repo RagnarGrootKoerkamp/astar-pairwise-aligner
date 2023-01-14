@@ -73,6 +73,7 @@ impl<T> BucketQueue<T> {
         Some(qe)
     }
 
+    #[allow(unused)]
     pub fn size(&self) -> usize {
         self.size
     }

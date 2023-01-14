@@ -1,5 +1,6 @@
 use smallvec::SmallVec;
 
+use super::*;
 use crate::prelude::*;
 
 pub fn find_matches_qgramindex<'a>(
@@ -454,6 +455,8 @@ pub fn find_matches<'a>(
 
 #[cfg(test)]
 mod test {
+    use pa_generate::uniform_fixed;
+
     use super::*;
 
     #[test]

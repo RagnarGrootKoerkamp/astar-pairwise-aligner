@@ -1,5 +1,6 @@
 use itertools::Itertools;
 
+use super::*;
 use crate::prelude::*;
 
 // NOTE: qgrams have their first character in the high-order bits.
