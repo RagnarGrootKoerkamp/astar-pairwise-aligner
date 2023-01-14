@@ -3,7 +3,7 @@
 #![feature(test)]
 #![cfg(test)]
 use astar_pairwise_aligner::{
-    matches::{find_matches_qgram_hash_exact, find_matches_qgramindex, find_matches_trie},
+    matches::{find_matches_qgram_hash_exact, find_matches_qgramindex},
     prelude::*,
 };
 
@@ -23,7 +23,7 @@ mod matches {
     use itertools::Itertools;
     use suffix::SuffixTable;
 
-    use crate::{prelude::*, trie::Trie};
+    use crate::prelude::*;
 
     lazy_static! {
         static ref TRANSFORM: RankTransform = RankTransform::new(&Alphabet::new(b"ACGT"));
@@ -72,37 +72,37 @@ mod matches {
         println!("{cnt}");
     }
 
-    pub fn build_trie(a: Seq, b: Seq, k: I) {
-        Trie::new(
-            b.windows(k as usize)
-                .enumerate()
-                .map(|(i, w)| (w, i as trie::Data)),
-        );
-    }
+    // pub fn build_trie(a: Seq, b: Seq, k: I) {
+    //     Trie::new(
+    //         b.windows(k as usize)
+    //             .enumerate()
+    //             .map(|(i, w)| (w, i as trie::Data)),
+    //     );
+    // }
 
-    pub fn build_trie_on_seeds(a: Seq, b: Seq, k: I) {
-        Trie::new(
-            a.chunks_exact(k as usize)
-                .enumerate()
-                .map(|(i, w)| (w, i as trie::Data)),
-        );
-    }
+    // pub fn build_trie_on_seeds(a: Seq, b: Seq, k: I) {
+    //     Trie::new(
+    //         a.chunks_exact(k as usize)
+    //             .enumerate()
+    //             .map(|(i, w)| (w, i as trie::Data)),
+    //     );
+    // }
 
-    pub fn build_trie_sorted(a: Seq, b: Seq, k: I) {
-        Trie::new(
-            b.windows(k as usize)
-                .enumerate()
-                .map(|(i, w)| (w, i as trie::Data)),
-        );
-    }
+    // pub fn build_trie_sorted(a: Seq, b: Seq, k: I) {
+    //     Trie::new(
+    //         b.windows(k as usize)
+    //             .enumerate()
+    //             .map(|(i, w)| (w, i as trie::Data)),
+    //     );
+    // }
 
-    pub fn build_trie_on_seeds_sorted(a: Seq, b: Seq, k: I) {
-        Trie::new(
-            a.chunks_exact(k as usize)
-                .enumerate()
-                .map(|(i, w)| (w, i as trie::Data)),
-        );
-    }
+    // pub fn build_trie_on_seeds_sorted(a: Seq, b: Seq, k: I) {
+    //     Trie::new(
+    //         a.chunks_exact(k as usize)
+    //             .enumerate()
+    //             .map(|(i, w)| (w, i as trie::Data)),
+    //     );
+    // }
 
     pub fn seed_qgrams(a: Seq, b: Seq, k: I) {
         todo!("Manual implementation needed");
@@ -208,56 +208,6 @@ fn n10000_exact_qgramindex(bench: &mut Bencher) {
 //     let (a, b) = setup(n, e);
 //     bench.iter(|| {
 //         find_matches_qgramindex(
-//             &a,
-//             &b,
-//             MatchConfig {
-//                 length: Fixed(9),
-//                 max_match_cost: 1,
-//                 ..Default::default()
-//             },
-//         )
-//     });
-// }
-
-#[bench]
-fn n100_exact_trie(bench: &mut Bencher) {
-    let n = 100;
-    let (a, b) = uniform_fixed(n, E);
-    bench.iter(|| find_matches_trie(&a, &b, MatchConfig::exact(K)));
-}
-
-// #[bench]
-// fn n100_inexact_trie(bench: &mut Bencher) {
-//     let n = 100;
-//     let e = 0.10;
-//     let (a, b) = setup(n, e);
-//     bench.iter(|| {
-//         find_matches_trie(
-//             &a,
-//             &b,
-//             MatchConfig {
-//                 length: Fixed(6),
-//                 max_match_cost: 1,
-//                 ..Default::default()
-//             },
-//         )
-//     });
-// }
-
-#[bench]
-fn n10000_exact_trie(bench: &mut Bencher) {
-    let n = 10000;
-    let (a, b) = uniform_fixed(n, E);
-    bench.iter(|| find_matches_trie(&a, &b, MatchConfig::exact(K)));
-}
-
-// #[bench]
-// fn n10000_inexact_trie(bench: &mut Bencher) {
-//     let n = 10000;
-//     let e = 0.20;
-//     let (a, b) = setup(n, e);
-//     bench.iter(|| {
-//         find_matches_trie(
 //             &a,
 //             &b,
 //             MatchConfig {
@@ -408,43 +358,43 @@ fn n10000_a_sort_seeds(bench: &mut Bencher) {
     });
 }
 
-#[bench]
-fn n100_b_build_trie(bench: &mut Bencher) {
-    let n = 100;
-    let e = 0.01;
-    let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| {
-        matches::build_trie(&a, &b, K);
-    });
-}
-#[bench]
-fn n10000_b_build_trie(bench: &mut Bencher) {
-    let n = 10000;
-    let e = 0.01;
-    let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| {
-        matches::build_trie(&a, &b, K);
-    });
-}
+// #[bench]
+// fn n100_b_build_trie(bench: &mut Bencher) {
+//     let n = 100;
+//     let e = 0.01;
+//     let (a, b) = uniform_fixed(n, e);
+//     bench.iter(|| {
+//         matches::build_trie(&a, &b, K);
+//     });
+// }
+// #[bench]
+// fn n10000_b_build_trie(bench: &mut Bencher) {
+//     let n = 10000;
+//     let e = 0.01;
+//     let (a, b) = uniform_fixed(n, e);
+//     bench.iter(|| {
+//         matches::build_trie(&a, &b, K);
+//     });
+// }
 
-#[bench]
-fn n100_a_build_trie_on_seeds(bench: &mut Bencher) {
-    let n = 100;
-    let e = 0.01;
-    let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| {
-        matches::build_trie_on_seeds(&a, &b, K);
-    });
-}
-#[bench]
-fn n10000_a_build_trie_on_seeds(bench: &mut Bencher) {
-    let n = 10000;
-    let e = 0.01;
-    let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| {
-        matches::build_trie_on_seeds(&a, &b, K);
-    });
-}
+// #[bench]
+// fn n100_a_build_trie_on_seeds(bench: &mut Bencher) {
+//     let n = 100;
+//     let e = 0.01;
+//     let (a, b) = uniform_fixed(n, e);
+//     bench.iter(|| {
+//         matches::build_trie_on_seeds(&a, &b, K);
+//     });
+// }
+// #[bench]
+// fn n10000_a_build_trie_on_seeds(bench: &mut Bencher) {
+//     let n = 10000;
+//     let e = 0.01;
+//     let (a, b) = uniform_fixed(n, e);
+//     bench.iter(|| {
+//         matches::build_trie_on_seeds(&a, &b, K);
+//     });
+// }
 
 #[bench]
 fn n100_b_qgramindex(bench: &mut Bencher) {

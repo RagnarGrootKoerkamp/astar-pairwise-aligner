@@ -1,3 +1,4 @@
+#![allow(unused)]
 use astar_pairwise_aligner::prelude::*;
 use clap::Parser;
 
@@ -25,11 +26,12 @@ fn main() {
         k,
     );
 
-    let trie = Trie::new(
-        b.windows(k as usize)
-            .enumerate()
-            .map(|(i, w)| (w, i as crate::datastructures::trie::Data)),
-    );
+    // let trie = Trie::new(
+    //     b.windows(k as usize)
+    //         .enumerate()
+    //         .map(|(i, w)| (w, i as crate::datastructures::trie::Data)),
+    // );
+    let trie: () = todo!();
 
     // Find the closest match for each kmer in a.
     let mut pot = 0 as usize;
@@ -39,17 +41,18 @@ fn main() {
         let mut i = 0;
         let mut cnt = 0;
         for cost in 0.. {
-            trie.matches(slice, cost, |start, _, _| {
-                if cnt == 0 {
-                    first = cost;
-                    i = start;
-                } else {
-                    if abs_diff(start, i) <= 2 * k {
-                        return;
-                    }
-                }
-                cnt += 1;
-            });
+            todo!();
+            // trie.matches(slice, cost, |start, _, _| {
+            //     if cnt == 0 {
+            //         first = cost;
+            //         i = start;
+            //     } else {
+            //         if abs_diff(start, i) <= 2 * k {
+            //             return;
+            //         }
+            //     }
+            //     cnt += 1;
+            // });
             if cnt > 1 {
                 pot += cost as usize;
                 for (i, c) in capped.iter_mut().enumerate() {

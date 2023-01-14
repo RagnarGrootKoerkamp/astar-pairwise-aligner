@@ -2,62 +2,6 @@ use smallvec::SmallVec;
 
 use crate::prelude::*;
 
-pub fn find_matches_trie(
-    a: Seq,
-    b: Seq,
-    MatchConfig {
-        length,
-        max_match_cost,
-        ..
-    }: MatchConfig,
-) -> SeedMatches {
-    let k: I = match length {
-        Fixed(k) => k,
-        _ => unimplemented!("Trie only works for fixed k for now."),
-    };
-    // Create a trie from all windows of b.
-    let mut trie = Trie::new(
-        b.windows(k as usize + max_match_cost as usize)
-            .enumerate()
-            .map(|(i, w)| (w, i as crate::datastructures::trie::Data)),
-    );
-    // Push all remaining suffixes of b.
-    for i in b.len() as I - k - max_match_cost as I + 1..b.len() as I {
-        trie.push(&b[i as usize..], i);
-    }
-
-    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
-    let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
-
-    // Find matches of the seeds of a in b.
-    let mut matches = Vec::<Match>::new();
-
-    for seed @ &mut Seed {
-        start,
-        end,
-        seed_potential,
-        ..
-    } in &mut seeds
-    {
-        trie.matches(
-            &a[start as usize..end as usize],
-            (seed_potential - 1) as MatchCost,
-            |match_start, match_len, cost| {
-                matches.push(Match {
-                    start: Pos(start, match_start),
-                    end: Pos(end, match_start + match_len as I),
-                    match_cost: cost as MatchCost,
-                    seed_potential,
-                    pruned: MatchStatus::Active,
-                });
-                seed.seed_cost = min(seed.seed_cost, cost);
-            },
-        );
-    }
-
-    SeedMatches::new(a, seeds, matches)
-}
-
 pub fn find_matches_qgramindex<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
@@ -503,8 +447,6 @@ pub fn find_matches<'a>(
             1 => find_matches_qgram_hash_inexact(a, b, match_config, gapcost),
             _ => unimplemented!("FIND_MATCHES with HashMap only works for max match cost 0 or 1"),
         };
-    } else if FIND_MATCHES_TRIE {
-        return find_matches_trie(a, b, match_config);
     } else {
         return find_matches_qgramindex(a, b, match_config, gapcost);
     }
@@ -513,35 +455,6 @@ pub fn find_matches<'a>(
 #[cfg(test)]
 mod test {
     use super::*;
-
-    #[test]
-    fn trie_matches() {
-        for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
-            for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
-                for e in [0.01, 0.1, 0.3, 1.0] {
-                    let (a, b) = uniform_fixed(n, e);
-                    let matchconfig = MatchConfig::new(k, max_match_cost);
-                    let t = find_matches_trie(&a, &b, matchconfig);
-                    let r = find_matches_qgramindex(&a, &b, matchconfig, false);
-                    if t.matches == r.matches {
-                        return;
-                    }
-                    println!("{}\n{}", to_string(&a), to_string(&b));
-                    println!("-----------------------");
-                    println!("n={n} e={e} k={k} mmc={max_match_cost}");
-                    println!("-----------------------");
-                    for x in &t.matches {
-                        println!("{x:?}");
-                    }
-                    println!("-----------------------");
-                    for x in &r.matches {
-                        println!("{x:?}");
-                    }
-                    assert_eq!(t.matches, r.matches);
-                }
-            }
-        }
-    }
 
     #[test]
     fn hash_matches_exact() {

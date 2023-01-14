@@ -4,7 +4,7 @@
 #![feature(test)]
 #![cfg(test)]
 use astar_pairwise_aligner::{
-    matches::{find_matches_qgram_hash_inexact, find_matches_trie, Mutations},
+    matches::{find_matches_qgram_hash_inexact, Mutations},
     prelude::*,
 };
 
@@ -307,27 +307,6 @@ fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
 //         )
 //     });
 // }
-
-#[bench]
-fn n100_inexact_trie(bench: &mut Bencher) {
-    let n = 100;
-    let (a, b) = uniform_fixed(n, E);
-    bench.iter(|| find_matches_trie(&a, &b, MatchConfig::inexact(K)));
-}
-
-#[bench]
-fn n10000_inexact_trie(bench: &mut Bencher) {
-    let n = 10000;
-    let (a, b) = uniform_fixed(n, E);
-    bench.iter(|| find_matches_trie(&a, &b, MatchConfig::inexact(K)));
-}
-
-#[bench]
-fn n100_inexact_hash(bench: &mut Bencher) {
-    let n = 100;
-    let (a, b) = uniform_fixed(n, E);
-    bench.iter(|| find_matches_trie(&a, &b, MatchConfig::inexact(K)));
-}
 
 #[bench]
 fn n10000_inexact_hash(bench: &mut Bencher) {
