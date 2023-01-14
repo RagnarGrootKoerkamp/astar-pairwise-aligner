@@ -93,14 +93,6 @@ pub struct AstarPaParams<V: Visualizer> {
 
 pub type AstarPaParamsNoVis = AstarPaParams<NoVis>;
 
-/// Alternative configuration using a typed `Heuristic` instance instead of a fixed config.
-#[derive(Debug)]
-pub struct AstarPa<V: Visualizer, H: Heuristic> {
-    pub dt: bool,
-    pub h: H,
-    pub v: V,
-}
-
 impl AstarPaParams<NoVis> {
     pub fn new(diagonal_transition: bool, heuristic: HeuristicArgs) -> Self {
         Self {
@@ -111,7 +103,15 @@ impl AstarPaParams<NoVis> {
     }
 }
 
-impl<V: Visualizer> AstarPaParams<V> {
+/// Alternative configuration using a typed `Heuristic` instance instead of a fixed config.
+#[derive(Debug)]
+pub struct AstarPa<V: Visualizer, H: Heuristic> {
+    pub dt: bool,
+    pub h: H,
+    pub v: V,
+}
+
+impl<V: Visualizer + 'static> AstarPaParams<V> {
     pub fn new_with_vis(
         diagonal_transition: bool,
         heuristic: HeuristicArgs,
@@ -124,29 +124,26 @@ impl<V: Visualizer> AstarPaParams<V> {
         }
     }
 
-    pub fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats) {
+    pub fn aligner(&self) -> Box<dyn AstarPaAligner> {
         struct Runner<'a, V: Visualizer> {
             params: &'a AstarPaParams<V>,
-            a: Seq<'a>,
-            b: Seq<'a>,
         }
-        impl<V: Visualizer> HeuristicRunner for Runner<'_, V> {
-            type R = ((Cost, Cigar), AstarStats);
-            fn call<H: Heuristic>(&self, h: H) -> Self::R {
-                self.params.align_with_h(self.a, self.b, &h)
+        impl<V: Visualizer + 'static> HeuristicMapper for Runner<'_, V> {
+            type R = Box<dyn AstarPaAligner>;
+            fn call<H: Heuristic + 'static>(&self, h: H) -> Box<dyn AstarPaAligner> {
+                Box::new(AstarPa {
+                    dt: self.params.diagonal_transition,
+                    h,
+                    v: self.params.visualizer,
+                })
             }
         }
 
-        self.heuristic
-            .run_on_heuristic(Runner { params: self, a, b })
+        self.heuristic.map(Runner { params: self })
     }
 
-    fn align_with_h<H: Heuristic>(&self, a: Seq, b: Seq, h: &H) -> ((Cost, Cigar), AstarStats) {
-        if self.diagonal_transition {
-            astar_dt(a, b, h, &self.visualizer)
-        } else {
-            astar(a, b, h, &self.visualizer)
-        }
+    pub fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats) {
+        self.aligner().align(a, b)
     }
 }
 
@@ -157,6 +154,18 @@ impl<V: Visualizer, H: Heuristic> AstarPa<V, H> {
         } else {
             astar(a, b, &self.h, &self.v)
         }
+    }
+}
+
+/// Helper trait to work with a `Box<dyn AstarPaAligner>` where the type of the
+/// heuristic is hidden.
+pub trait AstarPaAligner {
+    fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats);
+}
+
+impl<V: Visualizer, H: Heuristic> AstarPaAligner for AstarPa<V, H> {
+    fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats) {
+        self.align(a, b)
     }
 }
 
@@ -193,13 +202,13 @@ impl ToString for HeuristicArgs {
     }
 }
 
-pub trait HeuristicRunner {
+pub trait HeuristicMapper {
     type R;
-    fn call<H: Heuristic>(&self, h: H) -> Self::R;
+    fn call<H: Heuristic + 'static>(&self, h: H) -> Self::R;
 }
 
 impl HeuristicArgs {
-    pub fn match_config(&self, window_filter: bool) -> MatchConfig {
+    fn match_config(&self, window_filter: bool) -> MatchConfig {
         let r = self.r;
         let k = self.k;
         MatchConfig {
@@ -217,7 +226,8 @@ impl HeuristicArgs {
         }
     }
 
-    pub fn run_on_heuristic<F: HeuristicRunner>(&self, f: F) -> F::R {
+    /// Apply a generic function F to the instantiated heuristic.
+    pub fn map<F: HeuristicMapper>(&self, f: F) -> F::R {
         match self.heuristic {
             HeuristicType::None => f.call(NoCost),
             HeuristicType::Zero => f.call(ZeroCost),
