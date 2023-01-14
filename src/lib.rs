@@ -25,7 +25,7 @@ pub mod datastructures;
 pub mod generate;
 pub mod heuristic;
 pub mod matches;
-pub mod visualizer_trait;
+pub mod visualizer;
 
 pub mod stats;
 #[cfg(test)]

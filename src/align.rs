@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::heuristic::Heuristic;
 use crate::stats::AstarStats;
-use crate::visualizer_trait::*;
+use crate::visualizer::*;
 use crate::{
     astar::astar,
     astar_dt::astar_dt,

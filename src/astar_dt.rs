@@ -1,7 +1,7 @@
 use crate::{
     prelude::*,
     stats::*,
-    visualizer_trait::{Visualizer, VisualizerInstance},
+    visualizer::{Visualizer, VisualizerInstance},
 };
 
 const D: bool = false;

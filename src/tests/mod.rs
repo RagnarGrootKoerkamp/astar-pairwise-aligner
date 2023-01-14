@@ -8,7 +8,7 @@ use crate::{
     heuristic::{Heuristic, Pruning, CSH},
     matches::MatchConfig,
     prelude::{BruteForceContour, HintContours},
-    visualizer_trait::*,
+    visualizer::*,
 };
 
 mod contours;

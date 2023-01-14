@@ -2,7 +2,7 @@
 
 #![feature(test)]
 #![cfg(test)]
-use astar_pairwise_aligner::{prelude::*, visualizer_trait::NoVis};
+use astar_pairwise_aligner::{prelude::*, visualizer::NoVis};
 
 extern crate test;
 

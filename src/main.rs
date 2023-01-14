@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use astar_pairwise_aligner::{cli::Cli, prelude::*, stats::AstarStats, visualizer_trait::NoVis};
+use astar_pairwise_aligner::{cli::Cli, prelude::*, stats::AstarStats, visualizer::NoVis};
 use clap::Parser;
 use itertools::Itertools;
 use std::ops::ControlFlow;

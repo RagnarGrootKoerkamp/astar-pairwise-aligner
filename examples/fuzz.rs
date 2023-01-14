@@ -4,7 +4,7 @@ use std::panic::AssertUnwindSafe;
 use astar_pairwise_aligner::{
     align::AstarPa,
     prelude::*,
-    visualizer_trait::{NoVis, Visualizer},
+    visualizer::{NoVis, Visualizer},
 };
 use bio::alignment::distance::simd::levenshtein;
 

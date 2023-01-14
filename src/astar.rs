@@ -2,7 +2,7 @@ use crate::{
     alignment_graph::EditGraph,
     prelude::*,
     stats::AstarStats,
-    visualizer_trait::{Visualizer, VisualizerInstance},
+    visualizer::{Visualizer, VisualizerInstance},
 };
 
 const D: bool = false;
