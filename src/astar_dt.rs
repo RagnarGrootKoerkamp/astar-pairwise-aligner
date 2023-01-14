@@ -86,7 +86,7 @@ pub fn astar_dt<'a, H: Heuristic>(
         HashMap::<DtPos, State<<H::Instance<'a> as HeuristicInstance>::Hint>>::default();
 
     let mut max_f = 0;
-    v.new_layer_with_h(Some(h));
+    v.new_layer(Some(h));
 
     // Initialization with the root state.
     {
@@ -172,11 +172,11 @@ pub fn astar_dt<'a, H: Heuristic>(
         }
 
         stats.expanded += 1;
-        v.expand_with_h(pos, queue_g, queue_f, Some(h));
+        v.expand(pos, queue_g, queue_f, Some(h));
 
         if queue_f > max_f {
             max_f = queue_f;
-            v.new_layer_with_h(Some(h));
+            v.new_layer(Some(h));
         }
 
         // Copy for local usage.
@@ -225,8 +225,8 @@ pub fn astar_dt<'a, H: Heuristic>(
                     stats.explored += 1;
                     stats.expanded += 1;
                     stats.extended += 1;
-                    v.explore_with_h(next, queue_g, queue_f, Some(h));
-                    v.expand_with_h(next, queue_g, queue_f, Some(h));
+                    v.explore(next, queue_g, queue_f, Some(h));
+                    v.expand(next, queue_g, queue_f, Some(h));
                     if D {
                         println!("Greedy {queue_f}: {next} g={queue_g} from {pos}");
                     }
@@ -259,7 +259,7 @@ pub fn astar_dt<'a, H: Heuristic>(
 
             h.explore(next);
             stats.explored += 1;
-            v.explore_with_h(next, next_g, next_f, Some(h));
+            v.explore(next, next_g, next_f, Some(h));
         });
     };
 
@@ -268,7 +268,7 @@ pub fn astar_dt<'a, H: Heuristic>(
     let (d, path) = traceback(&states, graph.target(), dist);
     let cigar = Cigar::from_path(graph.a, graph.b, &path);
     stats.timing.traceback = traceback_start.elapsed().as_secs_f32();
-    v.last_frame_with_h(Some(&cigar), None, Some(h));
+    v.last_frame(Some(&cigar), None, Some(h));
     stats.h = h.stats();
     assert!(stats.h.h0 <= d);
 
