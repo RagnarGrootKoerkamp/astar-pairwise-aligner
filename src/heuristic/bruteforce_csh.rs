@@ -3,6 +3,7 @@ use std::cmp::Reverse;
 use itertools::Itertools;
 
 use super::*;
+pub use crate::{matches::MatchConfig, Pruning};
 
 #[derive(Debug, Copy, Clone)]
 pub struct BruteForceCSH<DH: Distance> {

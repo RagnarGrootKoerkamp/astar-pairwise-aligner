@@ -1,9 +1,8 @@
 //! Types related to the pairwise alignment graph.
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use std::cmp::Ordering;
 
-use crate::astar_dt::DtPos;
 use crate::prelude::*;
 
 /// Type for the cost of a single match/mutation.
@@ -175,5 +174,36 @@ impl<'a> EditGraph<'a> {
                 f(pos, parent)
             }
         }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+pub struct DtPos {
+    pub diagonal: i32,
+    pub g: Cost,
+}
+
+impl Display for DtPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <Self as std::fmt::Debug>::fmt(self, f)
+    }
+}
+
+impl DtPos {
+    pub fn from_pos(Pos(i, j): Pos, g: Cost) -> Self {
+        Self {
+            diagonal: i as i32 - j as i32,
+            g,
+        }
+    }
+    pub fn to_pos(self, fr: I) -> Pos {
+        Pos(
+            (fr as i32 + self.diagonal) as I / 2,
+            (fr as i32 - self.diagonal) as I / 2,
+        )
+    }
+
+    pub fn fr(Pos(i, j): Pos) -> I {
+        i + j
     }
 }

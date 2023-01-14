@@ -6,43 +6,11 @@ use crate::{
     stats::*,
     visualizer::{Visualizer, VisualizerInstance},
 };
-use std::fmt::Display;
 
 const D: bool = false;
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-pub struct DtPos {
-    pub diagonal: i32,
-    pub g: Cost,
-}
-
-impl Display for DtPos {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <Self as std::fmt::Debug>::fmt(self, f)
-    }
-}
-
-impl DtPos {
-    pub fn from_pos(Pos(i, j): Pos, g: Cost) -> Self {
-        Self {
-            diagonal: i as i32 - j as i32,
-            g,
-        }
-    }
-    pub fn to_pos(self, fr: I) -> Pos {
-        Pos(
-            (fr as i32 + self.diagonal) as I / 2,
-            (fr as i32 - self.diagonal) as I / 2,
-        )
-    }
-
-    pub fn fr(Pos(i, j): Pos) -> I {
-        i + j
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
-pub struct State<Hint> {
+struct State<Hint> {
     pub fr: I,
     pub hint: Hint,
 }
@@ -282,10 +250,7 @@ pub fn astar_dt<'a, H: Heuristic>(
     ((d, cigar), stats)
 }
 
-pub fn dt_parent<'a, Hint: Default>(
-    states: &HashMap<DtPos, State<Hint>>,
-    dt_pos: DtPos,
-) -> (I, Edge) {
+fn dt_parent<'a, Hint: Default>(states: &HashMap<DtPos, State<Hint>>, dt_pos: DtPos) -> (I, Edge) {
     let mut max_fr = (0, Edge::None);
     for edge in [Edge::Right, Edge::Down, Edge::Substitution] {
         if let Some(p) = edge.dt_back(&dt_pos) {
@@ -299,7 +264,7 @@ pub fn dt_parent<'a, Hint: Default>(
     max_fr
 }
 
-pub fn traceback<'a, Hint: Default>(
+fn traceback<'a, Hint: Default>(
     states: &HashMap<DtPos, State<Hint>>,
     target: Pos,
     g: Cost,
