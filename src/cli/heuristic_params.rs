@@ -10,25 +10,6 @@ use crate::{
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-/// TODO: Add other aligners here as well.
-#[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
-pub enum Algorithm {
-    // See HeuristicArgs for configuration.
-    #[default]
-    Astar,
-}
-
-impl Algorithm {
-    pub fn external(&self) -> bool {
-        match self {
-            Algorithm::Astar => false,
-        }
-    }
-    pub fn internal(&self) -> bool {
-        !self.external()
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
 pub enum HeuristicType {
     None,
