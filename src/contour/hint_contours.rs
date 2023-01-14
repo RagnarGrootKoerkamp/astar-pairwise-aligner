@@ -198,11 +198,7 @@ fn chain_score<C: Contour>(
 impl<C: Contour> Contours for HintContours<C> {
     // NOTE: Arrows must satisfy the following 'consistency' properties:
     // - If there is an arrow A->B of cost c>1, there is also an arrow A'->B of cost c-1, where A' is an indel away from A.
-    fn new_with_filter(
-        arrows: impl IntoIterator<Item = Arrow>,
-        max_len: I,
-        mut filter: impl FnMut(&Arrow, Cost) -> bool,
-    ) -> Self {
+    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
         let mut this = HintContours {
             contours: {
                 let mut c = SplitVec::default();
@@ -227,9 +223,10 @@ impl<C: Contour> Contours for HintContours<C> {
                 this.target.0 = max(this.target.0, a.end.0);
                 this.target.1 = max(this.target.1, a.end.1);
                 let nv = this.score(a.end) + a.score as Cost;
-                if filter(&a, nv) {
-                    continue;
-                }
+                // FIXME: Re-add removed filter here
+                // if filter(&a, nv) {
+                //     continue;
+                // }
                 v = max(v, nv as Layer);
                 l = max(l, a.score);
             }

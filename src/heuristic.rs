@@ -44,17 +44,7 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     type Instance<'a>: HeuristicInstance<'a>;
     const IS_DEFAULT: bool = false;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
-        self.build_with_filter(a, b, |_, _| false)
-    }
-    fn build_with_filter<'a>(
-        &self,
-        _a: Seq<'a>,
-        _b: Seq<'a>,
-        _f: impl FnMut(&Match, Cost) -> bool,
-    ) -> Self::Instance<'a> {
-        unimplemented!();
-    }
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a>;
 
     // Heuristic properties.
     fn name(&self) -> String;
