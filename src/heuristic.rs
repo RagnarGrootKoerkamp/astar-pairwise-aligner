@@ -2,20 +2,16 @@ pub mod bruteforce_csh;
 pub mod chained_seed;
 pub mod distances;
 pub mod seed;
-pub mod symmetric;
+pub mod wrappers;
 
 use crate::{matches::Match, prelude::*};
+use derive_more::AddAssign;
 
 pub use bruteforce_csh::*;
 pub use chained_seed::*;
-use derive_more::AddAssign;
-pub use distance::*;
-pub use equal::*;
-pub use max::*;
-pub use mirror::*;
-pub use perfect::*;
+pub use distances::*;
 pub use seed::*;
-pub use symmetric::*;
+pub use wrappers::*;
 
 #[derive(Default, Clone)]
 pub struct HeuristicParams {

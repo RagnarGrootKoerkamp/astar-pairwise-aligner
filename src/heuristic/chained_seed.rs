@@ -1,4 +1,4 @@
-use super::{distance::*, *};
+use super::{distances::*, *};
 use crate::{
     contour::{Arrow, Contours},
     matches::{find_matches, Match, MatchConfig, SeedMatches},

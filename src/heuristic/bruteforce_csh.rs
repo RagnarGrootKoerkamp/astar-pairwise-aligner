@@ -2,7 +2,7 @@ use std::cmp::Reverse;
 
 use itertools::Itertools;
 
-use super::{distance::*, *};
+use super::{distances::*, *};
 use crate::{
     matches::{find_matches, Match, MatchConfig, SeedMatches},
     prelude::*,

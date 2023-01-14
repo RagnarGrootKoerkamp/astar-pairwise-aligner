@@ -1,4 +1,4 @@
-use crate::{prelude::*, visualizer::NoVis};
+use crate::{heuristic::SH, prelude::*, visualizer::NoVis};
 
 #[test]
 fn exact_no_pruning_gap() {
