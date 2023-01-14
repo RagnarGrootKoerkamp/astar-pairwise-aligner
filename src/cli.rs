@@ -48,11 +48,11 @@ pub struct Cli {
 pub struct Input {
     /// The .seq, .txt, or Fasta file with sequence pairs to align.
     #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
-    input: Option<PathBuf>,
+    pub input: Option<PathBuf>,
 
     /// Options to generate an input pair.
     #[clap(flatten)]
-    generate: pa_generate::DatasetGenerator,
+    pub generate: pa_generate::DatasetGenerator,
 }
 
 impl Input {
