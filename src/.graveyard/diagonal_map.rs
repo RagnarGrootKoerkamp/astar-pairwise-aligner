@@ -1,16 +1,8 @@
-use crate::prelude::*;
 use std::{
     cell::RefCell,
-    fmt::Display,
+    cmp::{max, min},
     ops::{Index, IndexMut},
 };
-
-#[derive(PartialEq, Eq)]
-pub enum InsertIfSmallerResult {
-    New,
-    Smaller,
-    Larger,
-}
 
 /// Trait that wraps DiagonalMap or Hashmap for entries along a diagonal.
 pub trait DiagonalMapTrait<'a, Pos: 'a, V> {
@@ -38,7 +30,10 @@ enum DIndex {
     Above(I, I),
     Below(I, I),
 }
+use pa_types::{Cost, Pos, I};
 use DIndex::*;
+
+use crate::config::DIAGONAL_MAP_OFFSET;
 
 impl<V: Default + std::clone::Clone + Copy> DiagonalMap<V> {
     #[inline]
@@ -206,101 +201,5 @@ impl<V: Default + Clone + Copy> IndexMut<Pos> for DiagonalMap<V> {
             Above(i, j) => &mut self.above[i as usize][j as usize],
             Below(i, j) => &mut self.below[i as usize][j as usize],
         }
-    }
-}
-
-impl<'a, V: Default> DiagonalMapTrait<'a, Pos, V> for HashMap<Pos, V>
-where
-    HashMap<Pos, V>: Index<&'a Pos, Output = V>,
-{
-    fn new(_target: Pos) -> Self {
-        Default::default()
-    }
-
-    fn insert(&mut self, pos: Pos, v: V) {
-        self.insert(pos, v);
-    }
-
-    fn get(&self, pos: Pos) -> Option<&V> {
-        self.get(&pos)
-    }
-
-    fn get_mut(&mut self, pos: Pos) -> &mut V {
-        self.entry(pos).or_default()
-    }
-
-    fn dm_capacity(&self) -> usize {
-        self.capacity()
-    }
-}
-
-// DtPos
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-pub struct DtPos {
-    pub diagonal: i32,
-    pub g: Cost,
-}
-impl<V> Index<DtPos> for HashMap<DtPos, V> {
-    type Output = V;
-
-    #[inline]
-    fn index(&self, pos: DtPos) -> &Self::Output {
-        &self[&pos]
-    }
-}
-impl<V: Default> IndexMut<DtPos> for HashMap<DtPos, V> {
-    #[inline]
-    fn index_mut(&mut self, pos: DtPos) -> &mut Self::Output {
-        self.get_mut(&pos).unwrap()
-    }
-}
-
-impl Display for DtPos {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <Self as std::fmt::Debug>::fmt(self, f)
-    }
-}
-
-impl DtPos {
-    pub fn from_pos(Pos(i, j): Pos, g: Cost) -> Self {
-        Self {
-            diagonal: i as i32 - j as i32,
-            g,
-        }
-    }
-    pub fn to_pos(self, fr: I) -> Pos {
-        Pos(
-            (fr as i32 + self.diagonal) as I / 2,
-            (fr as i32 - self.diagonal) as I / 2,
-        )
-    }
-
-    pub fn fr(Pos(i, j): Pos) -> I {
-        i + j
-    }
-}
-
-impl<V: Default> DiagonalMapTrait<'_, DtPos, V> for HashMap<DtPos, V>
-where
-    HashMap<DtPos, V>: Index<DtPos, Output = V>,
-{
-    fn new(_target: DtPos) -> Self {
-        Default::default()
-    }
-
-    fn insert(&mut self, pos: DtPos, v: V) {
-        self.insert(pos, v);
-    }
-
-    fn get(&self, pos: DtPos) -> Option<&V> {
-        self.get(&pos)
-    }
-
-    fn get_mut(&mut self, pos: DtPos) -> &mut V {
-        self.entry(pos).or_default()
-    }
-
-    fn dm_capacity(&self) -> usize {
-        self.capacity()
     }
 }

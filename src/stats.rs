@@ -40,7 +40,7 @@ pub struct AstarStats {
     /// Total priority queue shift after pruning.
     pub pq_shifts: usize,
     /// Number of states allocated in the DiagonalMap
-    pub diagonalmap_capacity: usize,
+    pub hashmap_capacity: usize,
 
     pub h_params: HeuristicParams,
     pub h: HeuristicStats,

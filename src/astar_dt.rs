@@ -3,8 +3,40 @@ use crate::{
     stats::*,
     visualizer::{Visualizer, VisualizerInstance},
 };
+use std::fmt::Display;
 
 const D: bool = false;
+
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+pub struct DtPos {
+    pub diagonal: i32,
+    pub g: Cost,
+}
+
+impl Display for DtPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <Self as std::fmt::Debug>::fmt(self, f)
+    }
+}
+
+impl DtPos {
+    pub fn from_pos(Pos(i, j): Pos, g: Cost) -> Self {
+        Self {
+            diagonal: i as i32 - j as i32,
+            g,
+        }
+    }
+    pub fn to_pos(self, fr: I) -> Pos {
+        Pos(
+            (fr as i32 + self.diagonal) as I / 2,
+            (fr as i32 - self.diagonal) as I / 2,
+        )
+    }
+
+    pub fn fr(Pos(i, j): Pos) -> I {
+        i + j
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct State<Hint> {
@@ -50,7 +82,6 @@ pub fn astar_dt<'a, H: Heuristic>(
         },
     );
 
-    //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
     let mut states =
         HashMap::<DtPos, State<<H::Instance<'a> as HeuristicInstance>::Hint>>::default();
 
@@ -92,7 +123,7 @@ pub fn astar_dt<'a, H: Heuristic>(
         let queue_f = queue_f;
         let queue_fr = DtPos::fr(pos);
 
-        let state = &mut states[dt_pos];
+        let state = states.get_mut(&dt_pos).unwrap();
 
         if queue_fr < state.fr {
             continue;
@@ -172,7 +203,7 @@ pub fn astar_dt<'a, H: Heuristic>(
             let next_g = queue_g + edge.cost() as Cost;
             let dt_next = DtPos::from_pos(next, next_g);
             let next_fr = DtPos::fr(next);
-            let cur_next = DiagonalMapTrait::get_mut(&mut states, dt_next);
+            let cur_next = states.entry(dt_next).or_default();
 
             // If there is already a farther reaching state on this diagonal, no need for greedy matching.
             if cur_next.fr >= next_fr {
@@ -232,7 +263,7 @@ pub fn astar_dt<'a, H: Heuristic>(
         });
     };
 
-    stats.diagonalmap_capacity = states.dm_capacity();
+    stats.hashmap_capacity = states.capacity();
     let traceback_start = instant::Instant::now();
     let (d, path) = traceback(&states, graph.target(), dist);
     let cigar = Cigar::from_path(graph.a, graph.b, &path);
@@ -255,7 +286,7 @@ pub fn dt_parent<'a, Hint: Default>(
     let mut max_fr = (0, Edge::None);
     for edge in [Edge::Right, Edge::Down, Edge::Substitution] {
         if let Some(p) = edge.dt_back(&dt_pos) {
-            if let Some(state) = DiagonalMapTrait::get(states, p) {
+            if let Some(state) = states.get(&p) {
                 if state.fr + edge.to_f() >= max_fr.0 + max_fr.1.to_f() {
                     max_fr = (state.fr, edge);
                 }

@@ -89,7 +89,7 @@ pub fn astar<'a, H: Heuristic>(
             None
         };
 
-        let state = DiagonalMapTrait::get_mut(&mut states, pos);
+        let state = states.entry(pos).or_default();
 
         if queue_g > state.g {
             continue;
@@ -190,7 +190,7 @@ pub fn astar<'a, H: Heuristic>(
                 }
             }
 
-            let cur_next = DiagonalMapTrait::get_mut(&mut states, next);
+            let cur_next = states.entry(next).or_default();
 
             // If the next state was already visited with smaller g, skip exploring again.
             if cur_next.g <= next_g {
@@ -219,7 +219,7 @@ pub fn astar<'a, H: Heuristic>(
         });
     };
 
-    stats.diagonalmap_capacity = states.dm_capacity();
+    stats.hashmap_capacity = states.capacity();
     let traceback_start = instant::Instant::now();
     let (d, path) = traceback(&states, graph.target());
     let cigar = Cigar::from_path(graph.a, graph.b, &path);
@@ -243,7 +243,7 @@ pub fn astar<'a, H: Heuristic>(
 fn parent<'a, Hint: Default>(states: &HashMap<Pos, State<Hint>>, pos: Pos, g: Cost) -> Edge {
     for edge in [Edge::Substitution, Edge::Right, Edge::Down] {
         if let Some(p) = edge.back(&pos) {
-            if let Some(state) = DiagonalMapTrait::get(states, p) {
+            if let Some(state) = states.get(&p) {
                 if state.g + edge.cost() == g {
                     return edge;
                 }
@@ -258,7 +258,7 @@ fn traceback<'a, Hint: Default>(
     states: &HashMap<Pos, State<Hint>>,
     target: Pos,
 ) -> (Cost, Vec<Pos>) {
-    let Some(state) = DiagonalMapTrait::get(states, target) else {
+    let Some(state) = states.get(&target) else {
         panic!();
     };
     let g = state.g;

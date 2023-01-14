@@ -24,12 +24,6 @@ pub const PRUNE_MATCHES_BY_START: bool = true;
 
 // ========= FLAGS NOT IN THE PAPER (default false) =========
 
-/// Use a Trie to find matches.
-pub const FIND_MATCHES_TRIE: bool = false;
-
-/// Whether to use an offset array in the DiagonalMap.
-pub const DIAGONAL_MAP_OFFSET: bool = false;
-
 /// Whether to use a sliding window approach for finding exact matches for fixed k.
 /// This reduces the size of the hashmap by a factor k.
 /// Only for CSH with gap-cost.

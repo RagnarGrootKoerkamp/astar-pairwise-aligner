@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 use std::cmp::Ordering;
 
+use crate::astar_dt::DtPos;
 use crate::prelude::*;
 
 /// Type for the cost of a single match/mutation.
