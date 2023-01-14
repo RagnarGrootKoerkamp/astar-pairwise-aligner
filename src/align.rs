@@ -1,18 +1,11 @@
-use std::marker::PhantomData;
-
 use pa_types::{Cigar, Cost, Seq};
 use serde::{Deserialize, Serialize};
 
+use crate::cli::heuristic_params::HeuristicRunner;
 use crate::heuristic::Heuristic;
 use crate::stats::AstarStats;
 use crate::visualizer::*;
-use crate::{
-    astar::astar,
-    astar_dt::astar_dt,
-    cli::heuristic_params::{HeuristicArgs, HeuristicType},
-    contour::*,
-    heuristic::{GapCost, NoCost, Pruning, ZeroCost, CSH, SH},
-};
+use crate::{astar::astar, astar_dt::astar_dt, cli::heuristic_params::HeuristicArgs};
 
 /// The main entrypoint for running A* with some parameters.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,36 +26,20 @@ pub struct AstarPa<V: Visualizer, H: Heuristic> {
 
 impl<V: Visualizer> AstarPaParams<V> {
     pub fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats) {
-        let h = &self.heuristic;
-        match h.heuristic {
-            HeuristicType::None => self.align_with_h(a, b, &NoCost),
-            HeuristicType::Zero => self.align_with_h(a, b, &ZeroCost),
-            HeuristicType::Gap => self.align_with_h(a, b, &GapCost),
-            HeuristicType::SH => self.align_with_h(
-                a,
-                b,
-                &SH {
-                    match_config: h.match_config(false),
-                    pruning: Pruning {
-                        enabled: !h.no_prune,
-                        skip_prune: h.skip_prune,
-                    },
-                },
-            ),
-            HeuristicType::CSH => self.align_with_h(
-                a,
-                b,
-                &CSH {
-                    match_config: h.match_config(h.gap_cost),
-                    pruning: Pruning {
-                        enabled: !h.no_prune,
-                        skip_prune: h.skip_prune,
-                    },
-                    use_gap_cost: h.gap_cost,
-                    c: PhantomData::<HintContours<BruteForceContour>>,
-                },
-            ),
+        struct Runner<'a, V: Visualizer> {
+            params: &'a AstarPaParams<V>,
+            a: Seq<'a>,
+            b: Seq<'a>,
         }
+        impl<V: Visualizer> HeuristicRunner for Runner<'_, V> {
+            type R = ((Cost, Cigar), AstarStats);
+            fn call<H: Heuristic>(&self, h: H) -> Self::R {
+                self.params.align_with_h(self.a, self.b, &h)
+            }
+        }
+
+        self.heuristic
+            .run_on_heuristic(Runner { params: self, a, b })
     }
 
     fn align_with_h<H: Heuristic>(&self, a: Seq, b: Seq, h: &H) -> ((Cost, Cigar), AstarStats) {
