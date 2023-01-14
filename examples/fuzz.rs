@@ -2,13 +2,13 @@
 use std::panic::AssertUnwindSafe;
 
 use astar_pairwise_aligner::{
-    aligners::{astar::AstarPA, Aligner},
+    align::AstarPa,
     prelude::*,
-    visualizer::NoVisualizer,
+    visualizer_trait::{NoVis, Visualizer},
 };
 use bio::alignment::distance::simd::levenshtein;
 
-fn fuzz(aligner: &mut impl Aligner) -> (Sequence, Sequence) {
+fn fuzz<V: Visualizer, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Sequence) {
     for n in (5..).step_by(1) {
         for r in 0..1000 {
             for e in [0.1, 0.2, 0.4] {
@@ -19,9 +19,9 @@ fn fuzz(aligner: &mut impl Aligner) -> (Sequence, Sequence) {
                 ] {
                     println!("n={n} r={r} e={e} m={m:?}");
                     let (ref a, ref b) = generate_model(n, e, m, r);
-                    let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as _;
+                    let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
                     let d = std::panic::catch_unwind(AssertUnwindSafe(|| -> Cost {
-                        aligner.cost(a, b)
+                        aligner.align(a, b).0 .0
                     }));
                     if let Ok(d) = d && d == dist {
                         continue;
@@ -43,7 +43,7 @@ fn main() {
 
     let check_dist = true;
 
-    let ref mut aligner = AstarPA {
+    let ref mut aligner = AstarPa {
         dt,
         h: CSH {
             match_config: MatchConfig::new(k, max_match_cost),
@@ -51,7 +51,7 @@ fn main() {
             use_gap_cost: gap_cost,
             c: PhantomData::<HintContours<BruteForceContour>>::default(),
         },
-        v: NoVisualizer,
+        v: NoVis,
     };
 
     // let a = "TCTCTCTCTCTG".as_bytes();
@@ -64,12 +64,12 @@ fn main() {
     );
 
     // True on success.
-    let mut test = |start: I, end: I| {
+    let test = |start: I, end: I| {
         let Pos(n, m) = Pos::target(&a, &b);
         let v = std::panic::catch_unwind(AssertUnwindSafe(|| {
             let a = &a[start as usize..min(n, end) as usize];
             let b = &b[start as usize..min(m, end) as usize];
-            let d = aligner.cost(a, b);
+            let d = aligner.align(a, b).0 .0;
             if check_dist {
                 let dist = levenshtein(a, b) as _;
                 assert_eq!(d, dist);

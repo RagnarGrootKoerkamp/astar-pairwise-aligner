@@ -1,5 +1,4 @@
 use crate::{
-    aligners::cigar::Cigar,
     alignment_graph::EditGraph,
     prelude::*,
     stats::AstarStats,

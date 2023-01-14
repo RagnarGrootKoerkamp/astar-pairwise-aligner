@@ -1,12 +1,9 @@
 #![allow(unused)]
 use std::fmt::Debug;
 
-use pa_types::CostModel;
+use pa_types::{Cigar, CostModel};
 
-use crate::{
-    aligners::cigar::Cigar,
-    prelude::{Cost, Seq},
-};
+use crate::prelude::{Cost, Seq};
 
 use super::Heuristic;
 

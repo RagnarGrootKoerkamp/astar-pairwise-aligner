@@ -4,7 +4,7 @@ use bio::alignment::distance::simd::levenshtein;
 use pa_types::{Cost, CostModel};
 
 use crate::{
-    aligners::{astar::AstarPA, Aligner},
+    align::AstarPa,
     heuristic::{Heuristic, Pruning, CSH},
     matches::MatchConfig,
     prelude::{BruteForceContour, HintContours},
@@ -14,13 +14,8 @@ use crate::{
 mod contours;
 
 fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
-    let mut aligner = AstarPA {
-        dt,
-        h,
-        v: NoVis,
-        //v: Config::new(VisualizerStyle::Test),
-    };
-    let (d, cigar) = aligner.align(a, b);
+    let aligner = AstarPa { dt, h, v: NoVis };
+    let (d, cigar) = aligner.align(a, b).0;
     cigar.verify(&CostModel::unit(), a, b);
     let dist = levenshtein(a, b) as Cost;
     assert_eq!(d, dist);

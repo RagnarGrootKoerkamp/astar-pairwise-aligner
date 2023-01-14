@@ -2,7 +2,7 @@
 
 #![feature(test)]
 #![cfg(test)]
-use astar_pairwise_aligner::{prelude::*, visualizer::NoVisualizer};
+use astar_pairwise_aligner::{prelude::*, visualizer_trait::NoVis};
 
 extern crate test;
 
@@ -20,7 +20,7 @@ fn base_100(bench: &mut Bencher) {
     };
 
     let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
+    bench.iter(|| astar(&a, &b, &h, &NoVis));
 }
 
 #[bench]
@@ -35,7 +35,7 @@ fn base_1000(bench: &mut Bencher) {
     };
 
     let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
+    bench.iter(|| astar(&a, &b, &h, &NoVis));
 }
 
 #[bench]
@@ -50,7 +50,7 @@ fn base_10000(bench: &mut Bencher) {
     };
 
     let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
+    bench.iter(|| astar(&a, &b, &h, &NoVis));
 }
 
 #[bench]
@@ -65,7 +65,7 @@ fn base_50000_similar(bench: &mut Bencher) {
     };
 
     let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
+    bench.iter(|| astar(&a, &b, &h, &NoVis));
 }
 
 #[bench]
@@ -80,7 +80,7 @@ fn fast_100(bench: &mut Bencher) {
     };
 
     let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
+    bench.iter(|| astar(&a, &b, &h, &NoVis));
 }
 
 #[bench]
@@ -95,7 +95,7 @@ fn fast_1000(bench: &mut Bencher) {
     };
 
     let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
+    bench.iter(|| astar(&a, &b, &h, &NoVis));
 }
 
 #[bench]
@@ -110,7 +110,7 @@ fn fast_10000(bench: &mut Bencher) {
     };
 
     let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
+    bench.iter(|| astar(&a, &b, &h, &NoVis));
 }
 
 #[bench]
@@ -125,5 +125,5 @@ fn fast_50000_similar(bench: &mut Bencher) {
     };
 
     let (a, b) = uniform_fixed(n, e);
-    bench.iter(|| astar(&a, &b, &h, &NoVisualizer));
+    bench.iter(|| astar(&a, &b, &h, &NoVis));
 }

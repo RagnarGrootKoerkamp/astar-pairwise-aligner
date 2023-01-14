@@ -1,5 +1,4 @@
 use crate::{
-    aligners::cigar::Cigar,
     prelude::*,
     stats::*,
     visualizer_trait::{Visualizer, VisualizerInstance},

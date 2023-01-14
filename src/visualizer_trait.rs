@@ -10,10 +10,11 @@
 //! ffmpeg -framerate 20 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" output.mp4
 //! ```
 
-use pa_types::{Cost, I};
+use std::fmt::Debug;
+
+use pa_types::{Cigar, CigarOp, Cost, I};
 
 use crate::{
-    aligners::{cigar::Cigar, cigar::CigarOp},
     heuristic::{HeuristicInstance, NoCostI},
     prelude::{Pos, Seq},
 };
@@ -26,12 +27,12 @@ pub struct State {
 }
 type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<CigarOp>; 2])>>;
 
-pub trait Visualizer: Clone {
+pub trait Visualizer: Clone + Default + Debug {
     type Instance: VisualizerInstance;
     fn build(&self, a: Seq, b: Seq) -> Self::Instance;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default, Debug)]
 pub struct NoVis;
 impl Visualizer for NoVis {
     type Instance = Self;

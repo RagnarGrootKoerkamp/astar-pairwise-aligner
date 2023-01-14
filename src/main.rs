@@ -1,13 +1,12 @@
 #![feature(let_chains)]
 
-use astar_pairwise_aligner::{cli::Cli, prelude::*};
+use astar_pairwise_aligner::{cli::Cli, prelude::*, stats::AstarStats, visualizer_trait::NoVis};
 use clap::Parser;
 use itertools::Itertools;
 use std::ops::ControlFlow;
 
 fn main() {
     let args = Cli::parse();
-    //println!("{}", serde_json::to_string_pretty(&args).unwrap());
 
     // Read the input
     let mut avg_result = AstarStats::default();
@@ -15,12 +14,12 @@ fn main() {
 
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = aligners::astar::AstarPAParams {
+        let r = align::AstarPaParams {
             diagonal_transition: args.algorithm.dt,
             heuristic: args.heuristic.clone(),
+            visualizer: NoVis,
         }
-        .aligner_with_visualizer(&args.visualizer)
-        .align_with_stats(a, b)
+        .align(a, b)
         .1;
 
         // Record and print stats.

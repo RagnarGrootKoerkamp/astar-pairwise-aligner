@@ -14,7 +14,7 @@
     drain_filter
 )]
 
-pub mod aligners;
+pub mod align;
 pub mod alignment_graph;
 pub mod astar;
 pub mod astar_dt;
