@@ -107,23 +107,7 @@ mod astar {
                     a,
                     b,
                     Box::new(AstarPA { dt, h, v: NoVis }),
-                    Some(|| -> Box<dyn Aligner> {
-                        Box::new(AstarPA {
-                            dt,
-                            h,
-                            v: {
-                                #[cfg(feature = "vis")]
-                                {
-                                    use crate::visualizer::{Config, VisualizerStyle};
-                                    Config::new(VisualizerStyle::Test)
-                                }
-                                #[cfg(not(feature = "vis"))]
-                                {
-                                    NoVis
-                                }
-                            },
-                        })
-                    }),
+                    Some(|| -> Box<dyn Aligner> { Box::new(AstarPA { dt, h, v: NoVis }) }),
                     true,
                     &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
                 );
