@@ -60,7 +60,7 @@ pub struct SHI {
     stats: HeuristicStats,
 }
 
-type Hint = Cost;
+type Hint = Layer;
 
 impl SHI {
     fn new(a: Seq, b: Seq, params: SH) -> Self {
@@ -145,9 +145,9 @@ impl SHI {
     /// Hint is the total weight _before_ the position, since this will change
     /// less than the weight _after_ the position.
     fn value_with_hint(&self, pos: Pos, layers_before: Hint) -> (Cost, Hint) {
-        let hint_layer = (self.layer_starts.len() as Cost).saturating_sub(max(layers_before, 1));
+        let hint_layer = (self.layer_starts.len() as Layer).saturating_sub(max(layers_before, 1));
 
-        const SEARCH_RANGE: Cost = 8;
+        const SEARCH_RANGE: Layer = 8;
 
         // Do a linear search for some steps, starting at contour v.
         let layer = 'outer: {
@@ -156,7 +156,7 @@ impl SHI {
                 for layer in hint_layer + 1
                     ..min(
                         hint_layer + 1 + SEARCH_RANGE,
-                        self.layer_starts.len() as Cost,
+                        self.layer_starts.len() as Layer,
                     )
                 {
                     if self.layer_starts[layer as usize] < pos.0 {
@@ -173,14 +173,14 @@ impl SHI {
             }
 
             // Fall back to binary search if not found close to the hint.
-            self.value(pos)
+            self.value(pos) as Layer
         };
         assert!(pos.0 <= self.layer_starts[layer as usize]);
         if layer as usize + 1 < self.layer_starts.len() {
             assert!(pos.0 > self.layer_starts[layer as usize + 1]);
         }
-        let hint = self.layer_starts.len() as Cost - layer;
-        (layer, hint)
+        let hint = self.layer_starts.len() as Layer - layer;
+        (layer as Cost, hint)
     }
 
     /// When pruning a match/arrow:

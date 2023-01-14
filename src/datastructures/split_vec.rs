@@ -9,7 +9,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use pa_types::Cost;
+use crate::contour::Layer;
 
 #[derive(Default, Debug)]
 pub struct SplitVec<C> {
@@ -55,16 +55,16 @@ impl<C> IndexMut<usize> for SplitVec<C> {
     }
 }
 
-impl<C> Index<Cost> for SplitVec<C> {
+impl<C> Index<Layer> for SplitVec<C> {
     type Output = C;
 
-    fn index(&self, index: Cost) -> &Self::Output {
+    fn index(&self, index: Layer) -> &Self::Output {
         &self[index as usize]
     }
 }
 
-impl<C> IndexMut<Cost> for SplitVec<C> {
-    fn index_mut(&mut self, index: Cost) -> &mut Self::Output {
+impl<C> IndexMut<Layer> for SplitVec<C> {
+    fn index_mut(&mut self, index: Layer) -> &mut Self::Output {
         &mut self[index as usize]
     }
 }

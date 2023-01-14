@@ -11,10 +11,10 @@ const D: bool = false;
 pub struct HintContours<C: Contour> {
     contours: SplitVec<C>,
     // TODO: This should have units in the transformed domain instead.
-    max_len: I,
+    max_len: Layer,
     stats: RefCell<HintContourStats>,
 
-    layers_removed: Cost,
+    layers_removed: Layer,
     start: Pos,
     target: Pos,
 }
@@ -30,9 +30,9 @@ struct HintContourStats {
     checked_false: usize,
 
     // Average # layers a pruned point moves down.
-    sum_prune_shifts: Cost,
+    sum_prune_shifts: Layer,
     num_prune_shifts: usize,
-    max_prune_shift: Cost,
+    max_prune_shift: Layer,
 
     // Total number of layers processed.
     contours: usize,
@@ -52,13 +52,13 @@ struct HintContourStats {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Hint {
-    original_layer: Cost,
+    original_layer: Layer,
 }
 
 impl Default for Hint {
     fn default() -> Self {
         Self {
-            original_layer: Cost::MAX,
+            original_layer: Layer::MAX,
         }
     }
 }
@@ -66,7 +66,7 @@ impl Default for Hint {
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum Shift {
     None,
-    Layers(Cost),
+    Layers(Layer),
     Inconsistent,
 }
 
@@ -90,11 +90,11 @@ impl Shift {
 }
 
 impl<C: Contour> HintContours<C> {
-    fn debug(&self, pos: Pos, v: Cost, arrows: &HashMap<Pos, Vec<Arrow>>) {
+    fn debug(&self, pos: Pos, v: Layer, arrows: &HashMap<Pos, Vec<Arrow>>) {
         eprintln!("BEFORE PRUNE of {pos} layer {v}");
         let radius = 4;
         // For each layer around the current one, print:
-        for layer in max(v.saturating_sub(radius), 1)..min(v + radius, self.contours.len() as Cost)
+        for layer in max(v.saturating_sub(radius), 1)..min(v + radius, self.contours.len() as Layer)
         {
             // - the positions in the layer
             eprintln!("LAYER {layer}");
@@ -117,9 +117,9 @@ impl<C: Contour> HintContours<C> {
     }
 
     /// Returns None when false, or the first layer >= v that contains the query point.
-    fn is_score_at_least(&self, q: Pos, v: Cost) -> Option<Cost> {
+    fn is_score_at_least(&self, q: Pos, v: Layer) -> Option<Layer> {
         // Test if score >= mid by checking all points in contours mid..mid+r
-        for w in v..min(v + self.max_len, self.contours.len() as Cost) {
+        for w in v..min(v + self.max_len, self.contours.len() as Layer) {
             if self.contours[w as usize].contains(q) {
                 return Some(w);
             }
@@ -132,7 +132,7 @@ impl<C: Contour> HintContours<C> {
         if !D {
             return;
         }
-        for layer in 1..self.contours.len() as Cost {
+        for layer in 1..self.contours.len() as Layer {
             self.contours[layer].iterate_points(|p: Pos| {
                 let max_len = arrows.get(&p).map_or(0, |arrows| {
                     arrows.iter().map(|a| a.score).max().expect("Empty arrows")
@@ -151,9 +151,9 @@ impl<C: Contour> HintContours<C> {
 fn chain_score<C: Contour>(
     arrows: &HashMap<Pos, Vec<Arrow>>,
     pos: Pos,
-    v: Cost,
+    v: Layer,
     contours: &SplitVec<C>,
-) -> Cost {
+) -> Layer {
     let Some(pos_arrows) = arrows.get(&pos) else {
             panic!("No arrows found for position {pos} around layer {v}.");
         };
@@ -161,7 +161,7 @@ fn chain_score<C: Contour>(
     let mut max_score = 0;
     'fr: for arrow in pos_arrows {
         // Find the value at end_val via a linear search.
-        let mut end_layer = v as Cost - 1;
+        let mut end_layer = v as Layer - 1;
         // Commented out because `contains` is not free.
         // FIXME: comment this again
         // assert!(
@@ -173,12 +173,12 @@ fn chain_score<C: Contour>(
             end_layer -= 1;
 
             // No need to continue when this value isn't going to be optimal anyway.
-            if (end_layer + arrow.score as Cost) <= max_score {
+            if (end_layer + arrow.score as Layer) <= max_score {
                 continue 'fr;
             }
         }
 
-        let start_layer = end_layer + arrow.score as Cost;
+        let start_layer = end_layer + arrow.score as Layer;
         if D {
             let mut witness = None;
             assert!(contours[end_layer].contains(arrow.end));
@@ -209,7 +209,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 c.resize_with(1, || C::default());
                 c
             },
-            max_len,
+            max_len: max_len as _,
             stats: Default::default(),
             layers_removed: 0,
             start: Pos(I::MAX, I::MAX),
@@ -230,14 +230,14 @@ impl<C: Contour> Contours for HintContours<C> {
                 if filter(&a, nv) {
                     continue;
                 }
-                v = max(v, nv);
+                v = max(v, nv as Layer);
                 l = max(l, a.score);
             }
             if v == 0 {
                 // All arrows at pos filtered out.
                 continue;
             }
-            if (this.contours.len() as Cost) <= v {
+            if (this.contours.len() as Layer) <= v {
                 this.contours
                     .resize_with(v as usize + 1, || C::with_max_len(max_len));
             }
@@ -252,7 +252,7 @@ impl<C: Contour> Contours for HintContours<C> {
         // score >= low is known
         // score < high is known
         let mut low = 0;
-        let mut high = self.contours.len() as Cost;
+        let mut high = self.contours.len() as Layer;
         while high - low > 1 {
             let mid = (low + high) / 2;
             if let Some(v) = self.is_score_at_least(q, mid) {
@@ -261,7 +261,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 high = mid;
             }
         }
-        low
+        low as _
     }
 
     // The layer for the parent node.
@@ -276,25 +276,25 @@ impl<C: Contour> Contours for HintContours<C> {
         // hint_v) as written in the paper.
         let v = min(
             hint.original_layer.saturating_sub(self.layers_removed),
-            self.contours.len() as Cost - 1,
+            self.contours.len() as Layer - 1,
         );
 
-        const SEARCH_RANGE: Cost = 5;
+        const SEARCH_RANGE: Layer = 5;
 
         // Do a linear search for 5 steps, starting at contour v.
         self.stats.borrow_mut().contains_calls += 1;
         if let Some(v) = self.is_score_at_least(q, v) {
             // Go up.
             let mut best = v;
-            let upper_bound = min(v + SEARCH_RANGE + 2, self.contours.len() as Cost);
+            let upper_bound = min(v + SEARCH_RANGE + 2, self.contours.len() as Layer);
             for w in v + 1..=upper_bound {
                 self.stats.borrow_mut().contains_calls += 1;
-                if w < self.contours.len() as Cost && self.contours[w].contains(q) {
+                if w < self.contours.len() as Layer && self.contours[w].contains(q) {
                     best = w;
                 }
-                if w == self.contours.len() as Cost || w >= best + self.max_len {
+                if w == self.contours.len() as Layer || w >= best + self.max_len {
                     return (
-                        best,
+                        best as Cost,
                         Hint {
                             original_layer: best + self.layers_removed,
                         },
@@ -308,7 +308,7 @@ impl<C: Contour> Contours for HintContours<C> {
             for w in (v.saturating_sub(SEARCH_RANGE)..=v - 1).rev() {
                 if self.contours[w].contains(q) {
                     return (
-                        w,
+                        w as Cost,
                         Hint {
                             original_layer: w + self.layers_removed,
                         },
@@ -323,7 +323,7 @@ impl<C: Contour> Contours for HintContours<C> {
         (
             w,
             Hint {
-                original_layer: w + self.layers_removed,
+                original_layer: w as Layer + self.layers_removed,
             },
         )
     }
@@ -337,7 +337,7 @@ impl<C: Contour> Contours for HintContours<C> {
         arrows: &HashMap<Pos, Vec<Arrow>>,
     ) -> (bool, Cost) {
         // Work contour by contour.
-        let v = self.score_with_hint(p, hint).0;
+        let v = self.score_with_hint(p, hint).0 as Layer;
         // NOTE: The chain score of the point can actually be anywhere in v-max_len+1..=v.
         let mut v = 'v: {
             // TODO: Figure out why not v - self.max_len + 1. The layer v - self.max_len is really needed sometimes.
@@ -360,7 +360,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // Returns the max score of any arrow starting in the giving
         // position, and the maximum length of these arrows.
-        let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Cost| -> Cost {
+        let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Layer| -> Layer {
             chain_score(arrows, pos, v, contours)
         };
 
@@ -395,7 +395,7 @@ impl<C: Contour> Contours for HintContours<C> {
             }
             //eprintln!("Removed {p} last in layer {v}");
             let mut all_depend_on_pos = true;
-            let rng = v + 1..min(v + self.max_len, self.contours.len() as Cost);
+            let rng = v + 1..min(v + self.max_len, self.contours.len() as Layer);
             for w in rng.clone() {
                 self.contours[w].iterate_points(|pos| {
                     for a in &arrows[&pos] {
@@ -441,7 +441,7 @@ impl<C: Contour> Contours for HintContours<C> {
         let mut rolling_shift = Shift::None;
         loop {
             v += 1;
-            if v >= self.contours.len() as Cost {
+            if v >= self.contours.len() as Layer {
                 break;
             }
             self.stats.borrow_mut().contours += 1;
@@ -503,7 +503,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 assert!(current_shift == Shift::None || current_shift == Shift::Inconsistent);
             }
 
-            if v >= last_change + self.max_len as Cost {
+            if v >= last_change + self.max_len as Layer {
                 // No further changes can happen.
                 self.stats.borrow_mut().no_change += 1;
                 break;

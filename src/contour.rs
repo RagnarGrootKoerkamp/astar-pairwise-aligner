@@ -8,6 +8,8 @@ use std::fmt::{Debug, Display};
 
 use crate::prelude::{Cost, HashMap, MatchCost, Pos, I};
 
+pub type Layer = u32;
+
 /// A datastructure that contains the contours of non-dominant points.
 /// The 'main' contour is the set of dominant points: {P: P >= S for all S}.
 /// It returns whether a query point Q is inside the contour: {is there an S s.t. Q <= S}.
@@ -85,7 +87,7 @@ impl Debug for Arrow {
 pub trait Contours: Default + Debug {
     /// Build the contours from a set of arrows.
     /// NOTE: Arrows must be reverse sorted by start.
-    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
+    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: Cost) -> Self {
         Self::new_with_filter(arrows, max_len, |_, _| false)
     }
 
