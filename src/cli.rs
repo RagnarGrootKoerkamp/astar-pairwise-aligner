@@ -5,7 +5,7 @@ use std::{path::PathBuf, time::Duration};
 
 use crate::cli::input::Input;
 use clap::{value_parser, Parser};
-use heuristic_params::{AlgorithmArgs, HeuristicArgs};
+use heuristic_params::HeuristicArgs;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Serialize, Deserialize)]
@@ -18,9 +18,9 @@ pub struct Cli {
     #[arg(short, long, value_parser = value_parser!(PathBuf))]
     pub output: Option<PathBuf>,
 
-    /// Parameters and settings for the algorithm.
-    #[clap(flatten)]
-    pub algorithm: AlgorithmArgs,
+    /// Use diagonal-transition based A*.
+    #[clap(long, hide_short_help = true)]
+    pub dt: bool,
 
     /// Parameters and settings for the heuristic.
     #[clap(flatten)]

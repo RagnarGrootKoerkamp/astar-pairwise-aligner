@@ -17,7 +17,7 @@ fn main() {
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
         let r = AstarPaParams {
-            diagonal_transition: args.algorithm.dt,
+            diagonal_transition: args.dt,
             heuristic: args.heuristic.clone(),
             visualizer: NoVis,
         }
