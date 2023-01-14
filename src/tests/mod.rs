@@ -11,6 +11,7 @@ use crate::{
     visualizer::*,
 };
 
+mod align;
 mod contours;
 
 fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {

@@ -1,13 +1,14 @@
 use ::triple_accel::levenshtein;
 use itertools::Itertools;
-use pa_types::{Cost, CostModel};
+use pa_generate::ErrorModel;
+use pa_types::{Cost, CostModel, Seq};
 use rand::{seq::IteratorRandom, thread_rng, Rng};
 
-use super::{Aligner, Seq};
 use crate::{
-    generate::{generate_model, ErrorModel},
+    align::AstarPa,
+    heuristic::Heuristic,
     prelude::to_string,
-    visualizer_trait::NoVis,
+    visualizer::{NoVis, Visualizer},
 };
 
 fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
@@ -37,11 +38,10 @@ fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
         .cartesian_product(seeds)
 }
 
-fn test_aligner_on_input(
+fn test_aligner_on_input<H: Heuristic, V: Visualizer>(
     a: Seq,
     b: Seq,
-    mut aligner: Box<dyn Aligner>,
-    viz_aligner: Option<impl FnMut() -> Box<dyn Aligner>>,
+    aligner: AstarPa<V, H>,
     test_path: bool,
     params: &str,
 ) {
@@ -55,12 +55,12 @@ fn test_aligner_on_input(
     }
     //let mut nw = NW::new(cm.clone(), false, false);
     let nw_cost = levenshtein(a, b) as Cost;
-    let cost = aligner.cost(a, b);
+    let cost = aligner.align(a, b).0 .0;
     // Rerun the alignment with the visualizer enabled.
-    if D && nw_cost != cost && let Some(mut viz_aligner) = viz_aligner {
-        eprintln!("{params}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", to_string(a), to_string(b));
-        viz_aligner().align(a, b);
-    }
+    // if D && nw_cost != cost && let Some(mut viz_aligner) = viz_aligner {
+    //     eprintln!("{params}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", to_string(a), to_string(b));
+    //     viz_aligner().align(a, b);
+    // }
     // Test the cost reported by all aligners.
     assert_eq!(
         nw_cost,
@@ -70,7 +70,7 @@ fn test_aligner_on_input(
         to_string(&b),
     );
     if test_path {
-        let (cost, cigar) = aligner.align(a, b);
+        let (cost, cigar) = aligner.align(a, b).0;
         if cost != nw_cost {
             eprintln!("\n================= TEST CIGAR ======================\n");
             eprintln!(
@@ -89,7 +89,6 @@ mod astar {
     use std::marker::PhantomData;
 
     use crate::{
-        aligners::astar::AstarPA,
         heuristic::{Heuristic, Pruning, CSH, SH},
         matches::MatchConfig,
         prelude::{BruteForceContour, HintContours},
@@ -102,12 +101,11 @@ mod astar {
         // To speed up tests, we choose it randomly.
         {
             for (((n, e), error_model), seed) in test_sequences() {
-                let (ref a, ref b) = generate_model(n, e, error_model, seed);
+                let (ref a, ref b) = pa_generate::generate_model(n, e, error_model, seed);
                 test_aligner_on_input(
                     a,
                     b,
-                    Box::new(AstarPA { dt, h, v: NoVis }),
-                    Some(|| -> Box<dyn Aligner> { Box::new(AstarPA { dt, h, v: NoVis }) }),
+                    AstarPa { dt, h, v: NoVis },
                     true,
                     &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
                 );
