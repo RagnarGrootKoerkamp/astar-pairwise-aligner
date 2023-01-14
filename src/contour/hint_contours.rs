@@ -149,11 +149,7 @@ impl<C: Contour> HintContours<C> {
 }
 
 fn chain_score<C: Contour>(
-    arrows: &std::collections::HashMap<
-        Pos,
-        Vec<Arrow>,
-        std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
-    >,
+    arrows: &HashMap<Pos, Vec<Arrow>>,
     pos: Pos,
     v: Cost,
     contours: &SplitVec<C>,

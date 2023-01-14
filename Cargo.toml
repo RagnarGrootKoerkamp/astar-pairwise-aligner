@@ -33,21 +33,17 @@ pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
 pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
 
 # Libs
-colorgrad = "0.6.2"
+# wasm-friendly instant
 instant = "0.1.12"
 bio = "1.1.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
-getrandom = "0.2.8"
 itertools = "0.10.5"
 rustc-hash = "1.1.0"
 clap = { version = "4.0", features = ["derive"] }
-lazy_static = "1.4.0"
-ropey = { version = "1.5.1", default-features = false, features = ["simd"] }
 num-traits = "0.2.15"
 parse_duration = "2.1.1"
 serde = "1.0.152"
-serde_json = "1.0.91"
 derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
 smallvec = { version = "1.10.0", features = ["union"] }
 
@@ -62,6 +58,7 @@ required-features = ["vis"]
 # For benchmarking only.
 aho-corasick = "*"
 suffix = "*"
+lazy_static = "1.4.0"
 
 [features]
 bin = ["clap/wrap_help"]
