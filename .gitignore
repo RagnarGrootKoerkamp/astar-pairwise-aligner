@@ -1,4 +1,6 @@
 /target
+/*/target
+/*/Cargo.lock
 /perf.data*
 /flamegraph.svg
 /*.svg
