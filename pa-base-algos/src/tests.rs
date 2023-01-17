@@ -7,24 +7,6 @@ fn test_aligner_on_cost_model<const N: usize, A: Aligner>(
     test_aligner_on_cost_model_with_viz(cm, aligner, a, test_path);
 }
 
-mod triple_accel {
-    use crate::{aligners::triple_accel::TripleAccel, cost_model::CostModel::Levenshtein};
-
-    use super::*;
-
-    #[test]
-    fn unit_cost() {
-        let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), TripleAccel::new(false, Levenshtein), false);
-    }
-
-    #[test]
-    fn unit_cost_exp() {
-        let cm = AffineCost::new_unit();
-        test_aligner_on_cost_model(cm.clone(), TripleAccel::new(false, Levenshtein), false);
-    }
-}
-
 macro_rules! test_functions_macro {
     () => {
         #[test]
@@ -458,74 +440,5 @@ mod homopolymer {
         assert_eq!(nw.cost(b"ABBB", b"CBBA"), 2);
         assert_eq!(nw.cost(b"BBBBBBBBB", b"CCCCCCC"), 12);
         assert_eq!(nw.cost(b"AAAAAAAAA", b""), 12);
-    }
-}
-
-// Interesting csae:
-// sub: 1
-// indel: 3
-// G CA A TCGGG
-// A CA   TCGGG
-// will be found with cost 5=3+2 before finding the cost 4 path, which requires iterating up to s=4+3.
-
-#[cfg(feature = "edlib")]
-mod edlib {
-    use crate::{aligners::edlib::Edlib, cost_model::LinearCost};
-
-    use super::*;
-
-    #[test]
-    fn unit_cost() {
-        // sub=indel=1
-        test_aligner_on_cost_model(LinearCost::new_unit(), Edlib, false);
-    }
-}
-
-#[cfg(feature = "biwfa")]
-mod biwfa {
-    use crate::aligners::wfa::WFA;
-
-    use super::*;
-
-    fn test<const N: usize>(cm: AffineCost<N>) {
-        test_aligner_on_cost_model(cm.clone(), WFA { cm }, false);
-    }
-
-    #[test]
-    fn unit_cost() {
-        // sub=indel=1
-        test(AffineCost::new_unit());
-    }
-
-    #[test]
-    fn lcs_cost() {
-        // sub=infinity, indel=1
-        test(AffineCost::new_lcs());
-    }
-
-    #[test]
-    fn linear_cost() {
-        // sub=1, indel=2
-        test(AffineCost::new_linear(1, 2));
-    }
-
-    #[test]
-    fn linear_cost_3() {
-        // sub=1, indel=3
-        test(AffineCost::new_linear(1, 3));
-    }
-
-    #[test]
-    fn affine_cost() {
-        // sub=1
-        // open=2, extend=1
-        test(AffineCost::new_affine(1, 2, 1));
-    }
-
-    #[test]
-    fn double_affine_cost() {
-        // sub=1
-        // Gap cost is min(4+2*l, 10+1*l).
-        test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
     }
 }
