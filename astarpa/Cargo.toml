@@ -11,43 +11,45 @@ readme = "README.org"
 categories = ["science"]
 default-run = "astarpa"
 
+# [lib]
+# #crate-type = ["cdylib", "lib"]
+# crate-type = ["lib"]
 
-[lib]
-crate-type = ["cdylib", "lib"]
+[features]
+default = ["cli"]
+# This feature enables the cli module used by the binary, and dependencies only
+# used there.
+cli = ["clap/wrap_help", "dep:pa-generate", "dep:parse_duration", "dep:rand", "dep:rand_chacha"]
+
+[[bin]]
+name = "astarpa"
+required-features = ["cli"]
 
 [dependencies]
-# aligners to compare against
-
-pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
 pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
-
-# Libs
 # wasm-friendly instant
 instant = "0.1.12"
 bio = "1.1.0"
-rand = "0.8.5"
-rand_chacha = "0.3.1"
 itertools = "0.10.5"
 rustc-hash = "1.1.0"
 clap = { version = "4.0", features = ["derive"] }
 num-traits = "0.2.15"
-parse_duration = "2.1.1"
 serde = "1.0.152"
 derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
 smallvec = { version = "1.10.0", features = ["union"] }
-triple_accel = "0.4.0"
 
-
-[[example]]
-name = "fig_layers"
-required-features = ["vis"]
-
+# Optional features only used by the binary.
+pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate", optional = true }
+parse_duration = { version = "2.1.1", optional = true}
+rand = { version = "0.8.5", optional = true}
+rand_chacha = { version = "0.3.1", optional = true}
 
 [dev-dependencies]
 # For benchmarking only.
 aho-corasick = "*"
 suffix = "*"
 lazy_static = "1.4.0"
-
-[features]
-bin = ["clap/wrap_help"]
+pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
+triple_accel = "0.4.0"
+rand = "0.8.5"
+rand_chacha = "0.3.1"

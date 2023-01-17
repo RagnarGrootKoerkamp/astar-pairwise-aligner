@@ -18,13 +18,15 @@ mod align;
 mod alignment_graph;
 mod astar;
 mod astar_dt;
-pub mod cli;
 mod config;
 pub mod contour;
 pub mod heuristic;
 pub mod matches;
 pub mod stats;
 pub mod visualizer;
+
+#[cfg(feature = "cli")]
+pub mod cli;
 
 mod datastructures {
     pub mod bucket_queue;
