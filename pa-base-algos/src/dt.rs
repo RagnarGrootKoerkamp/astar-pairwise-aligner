@@ -21,14 +21,12 @@
 //! - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
 //!
 //!
-use super::cigar::CigarExt;
-use super::edit_graph::{CigarOps, EditGraph, Layer, State};
-use super::{exponential_search, Aligner, Seq, StateT};
-use crate::aligners::cigar::CigarOp;
-use crate::cost_model::*;
-use crate::heuristic::{Heuristic, HeuristicInstance};
-use crate::prelude::Pos;
-use crate::visualizer::{VisualizerConfig, VisualizerT};
+use crate::edit_graph::{CigarOps, EditGraph, StateT};
+use crate::exponential_search;
+use pa_affine_types::*;
+use pa_heuristic::*;
+use pa_types::*;
+use pa_vis_types::*;
 use std::cell::RefCell;
 use std::cmp::{max, min};
 use std::iter::zip;
@@ -67,7 +65,7 @@ pub enum PathTracingMethod {
 /// to use for a specific alignment. Similar to Heuristic vs HeuristicInstance.
 /// The latter can contain the sequences, direction, and other specifics.
 #[derive(Clone)]
-pub struct DiagonalTransition<const N: usize, V: VisualizerConfig, H: Heuristic> {
+pub struct DiagonalTransition<const N: usize, V: Visualizer, H: Heuristic> {
     cm: AffineCost<N>,
 
     /// Whether to use the gap heuristic to the end to reduce the number of diagonals considered.
@@ -86,9 +84,7 @@ pub struct DiagonalTransition<const N: usize, V: VisualizerConfig, H: Heuristic>
     pub path_tracing_method: PathTracingMethod,
 }
 
-impl<const N: usize, V: VisualizerConfig, H: Heuristic> std::fmt::Debug
-    for DiagonalTransition<N, V, H>
-{
+impl<const N: usize, V: Visualizer, H: Heuristic> std::fmt::Debug for DiagonalTransition<N, V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DiagonalTransition")
             .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
@@ -100,7 +96,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> std::fmt::Debug
     }
 }
 
-impl<const N: usize, V: VisualizerConfig, H: Heuristic> DiagonalTransition<N, V, H> {
+impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
     pub fn new(
         cm: AffineCost<N>,
         use_gap_cost_heuristic: GapCostHeuristic,
@@ -156,7 +152,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> DiagonalTransition<N, V,
     }
 }
 
-pub struct DTInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
+pub struct DTInstance<'a, const N: usize, V: Visualizer, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
     pub a: Seq<'a>,
     pub b: Seq<'a>,
@@ -167,7 +163,7 @@ pub struct DTInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
     pub h: H::Instance<'a>,
 
     /// The visualizer to use.
-    pub v: RefCell<V::Visualizer>,
+    pub v: RefCell<V::Instance>,
 
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
@@ -236,10 +232,7 @@ impl DtState {
         }
     }
     pub fn to_pos(&self) -> Pos {
-        Pos(
-            ((self.fr + self.d) / 2) as crate::prelude::I,
-            ((self.fr - self.d) / 2) as crate::prelude::I,
-        )
+        Pos(((self.fr + self.d) / 2) as I, ((self.fr - self.d) / 2) as I)
     }
 }
 
@@ -254,10 +247,7 @@ impl StateT for DtState {
 
     fn pos(&self) -> Pos {
         assert!((self.d + self.fr) % 2 == 0);
-        Pos(
-            ((self.fr + self.d) / 2) as crate::prelude::I,
-            ((self.fr - self.d) / 2) as crate::prelude::I,
-        )
+        Pos(((self.fr + self.d) / 2) as I, ((self.fr - self.d) / 2) as I)
     }
 }
 
@@ -271,10 +261,7 @@ fn fr_to_coords(d: Fr, fr: Fr) -> (Fr, Fr) {
 #[inline]
 fn fr_to_pos(d: Fr, fr: Fr) -> Pos {
     //assert!((d + fr) % 2 == 0);
-    Pos(
-        ((fr + d) / 2) as crate::prelude::I,
-        ((fr - d) / 2) as crate::prelude::I,
-    )
+    Pos(((fr + d) / 2) as I, ((fr - d) / 2) as I)
 }
 #[inline]
 pub fn pos_to_fr(p: Pos) -> (Fr, Fr) {
@@ -365,7 +352,7 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
     fr
 }
 
-impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V, H> {
+impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
     /// Returns true when the end is reached.
     fn extend(
         &mut self,
@@ -681,7 +668,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         start_layer: Layer,
         end_layer: Layer,
         direction: Direction,
-    ) -> Result<Fronts<N>, (Cost, CigarExt)> {
+    ) -> Result<Fronts<N>, (Cost, AffineCigar)> {
         let mut fronts = Fronts::new(
             Fr::MIN,
             // We only create a front for the s=0 layer.
@@ -702,7 +689,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
             && self.extend(0, f_max, &mut fronts[0], offset, direction)
             && end_layer == None
         {
-            let mut cigar = CigarExt::default();
+            let mut cigar = AffineCigar::default();
             cigar.match_push(self.a.len());
             Err((0, cigar))
         } else {
@@ -805,7 +792,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         offset: Pos,
         start_layer: Layer,
         end_layer: Layer,
-    ) -> (Cost, CigarExt) {
+    ) -> (Cost, AffineCigar) {
         let mut forward_fronts =
             match self.init_fronts(0, offset, start_layer, end_layer, Direction::Forward) {
                 Ok(fronts) => fronts,
@@ -930,7 +917,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
     pub fn align_for_bounded_dist_with_h<'b>(
         &mut self,
         f_max: Option<Cost>,
-    ) -> Option<(Cost, CigarExt)> {
+    ) -> Option<(Cost, AffineCigar)> {
         self.v
             .borrow_mut()
             .expand_with_h(Pos(0, 0), 0, f_max.unwrap_or(0), Some(&self.h));
@@ -981,7 +968,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         Some((s, cigar))
     }
 
-    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, CigarExt) {
+    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, AffineCigar) {
         const D: bool = false;
 
         // Front g has been computed up to this f.
@@ -1128,9 +1115,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
                 let h_before = self.h.h(Pos(0, 0));
                 for k in front.range().clone() {
                     let p = fr_to_pos(k, front.m()[k]);
-                    if p.0 >= self.a.len() as crate::prelude::I
-                        || p.1 >= self.b.len() as crate::prelude::I
-                    {
+                    if p.0 >= self.a.len() as I || p.1 >= self.b.len() as I {
                         continue;
                     }
                     if self.h.is_seed_start_or_end(p) {
@@ -1168,7 +1153,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         (distance, cigar)
     }
 
-    fn visualize_last_frame(&mut self, fronts: Fronts<N>, cigar: &CigarExt) {
+    fn visualize_last_frame(&mut self, fronts: Fronts<N>, cigar: &AffineCigar) {
         self.v.borrow_mut().last_frame_with_h::<H::Instance<'_>>(
             Some(&cigar),
             Some(
@@ -1380,8 +1365,8 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         from: DtState,
         mut to: DtState,
         direction: Direction,
-    ) -> CigarExt {
-        let mut cigar = CigarExt::default();
+    ) -> AffineCigar {
+        let mut cigar = AffineCigar::default();
 
         while to != from {
             let (parent, cigar_ops) = self.parent(fronts, to, direction).unwrap();
@@ -1397,7 +1382,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
     }
 }
 
-impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTransition<N, V, H> {
+impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut dt = self.build(a, b);
         let cost = if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
@@ -1412,7 +1397,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTran
         cost
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, CigarExt) {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
         let mut dt = self.build(a, b);
         if self.dc {
             // D&C does not work with a heuristic yet, since the target state (where
@@ -1451,7 +1436,12 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTran
         self.build(a, b).cost_for_bounded_dist(Some(f_max))
     }
 
-    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, CigarExt)> {
+    fn align_for_bounded_dist(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        f_max: Cost,
+    ) -> Option<(Cost, AffineCigar)> {
         self.build(a, b).align_for_bounded_dist_with_h(Some(f_max))
     }
 }
@@ -1461,9 +1451,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTran
 mod tests {
     use std::time::Duration;
 
-    use crate::{aligners::Aligner, cost_model::LinearCost, heuristic::NoCost, visualizer::*};
-
-    use super::DiagonalTransition;
+    use super::*;
 
     // https://github.com/smarco/BiWFA-paper/issues/8
     #[ignore = "Should only be run on request."]

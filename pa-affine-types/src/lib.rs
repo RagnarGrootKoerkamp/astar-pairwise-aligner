@@ -7,7 +7,7 @@ pub mod cost_model;
 pub use cigar::*;
 pub use cost_model::*;
 
-pub type Layer = Option<u8>;
+pub type Layer = Option<usize>;
 
 /// State in the edit graph during an affine alignment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

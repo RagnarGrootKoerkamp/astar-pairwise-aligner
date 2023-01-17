@@ -8,5 +8,9 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.1.1", features = ["derive"] }
 pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
-serde = { version = "1.0.152", features = ["derive"] }
+pa-vis-types = { path = "../pa-vis-types" }
+pa-affine-types = { path = "../pa-affine-types" }
+pa-heuristic = { path = "../pa-heuristic" }
 num-traits = "0.2.15"
+itertools = "0.10.5"
+serde = { version = "1.0.152", features = ["derive"] }

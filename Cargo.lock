@@ -671,6 +671,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pa-base-algos"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "itertools",
+ "num-traits",
+ "pa-affine-types",
+ "pa-heuristic",
+ "pa-types",
+ "pa-vis-types",
+ "serde",
+]
+
+[[package]]
 name = "pa-generate"
 version = "0.1.0"
 source = "git+https://github.com/pairwise-alignment/pa-generate#bb6b251db63b47f92b82f76f434ea06f1b4975d8"

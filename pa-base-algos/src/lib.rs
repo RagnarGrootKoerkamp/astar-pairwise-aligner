@@ -3,9 +3,7 @@
 use pa_types::Cost;
 use std::cmp::max;
 
-mod algorithm_args;
-mod cigar;
-mod cost_model;
+mod cli;
 mod edit_graph;
 mod front;
 

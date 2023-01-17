@@ -4,7 +4,7 @@ members = [
     "pa-heuristic",
     "pa-vis-types",
     "astarpa",
-    #"pa-base-algos",
+    "pa-base-algos",
 ]
 resolver = "2"
 

@@ -108,11 +108,6 @@ pub trait VisualizerT {
     }
 }
 
-pub trait VisualizerConfig: Clone {
-    type Visualizer: VisualizerT;
-    fn build(&self, a: Seq, b: Seq) -> Self::Visualizer;
-}
-
 /// A trivial visualizer that does not do anything.
 #[derive(Debug, Clone)]
 pub struct NoVisualizer;

@@ -3,8 +3,8 @@ use std::{
     ops::{Index, IndexMut, Range, RangeInclusive},
 };
 
-use super::edit_graph::Layer as LayerIdx;
 use num_traits::{AsPrimitive, NumOps, NumRef, RefNum};
+use pa_affine_types::Layer as LayerIdx;
 
 pub trait IndexType:
     NumOps + NumRef + Default + AsPrimitive<usize> + Copy + Debug + std::iter::Step

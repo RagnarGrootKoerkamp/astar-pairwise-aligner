@@ -1,13 +1,11 @@
-use super::cigar::CigarExt;
-use super::dt::Direction;
-use super::edit_graph::{CigarOps, EditGraph, State};
-use super::{exponential_search, Aligner};
-use super::{Seq, Sequence};
-use crate::cost_model::*;
-use crate::heuristic::{Heuristic, HeuristicInstance, NoCost};
-use crate::prelude::{Pos, I};
-use crate::visualizer::{NoVisualizer, VisualizerConfig, VisualizerT};
+use crate::dt::Direction;
+use crate::edit_graph::{CigarOps, EditGraph};
+use crate::exponential_search;
 use itertools::chain;
+use pa_affine_types::*;
+use pa_heuristic::*;
+use pa_types::*;
+use pa_vis_types::*;
 use std::cmp::{max, min};
 use std::ops::RangeInclusive;
 
@@ -15,7 +13,7 @@ use std::ops::RangeInclusive;
 ///
 /// NOTE: Heuristics only support unit cost graph for now.
 #[derive(Clone)]
-pub struct NW<const N: usize, V: VisualizerConfig, H: Heuristic> {
+pub struct NW<const N: usize, V: Visualizer, H: Heuristic> {
     /// The cost model to use.
     pub cm: AffineCost<N>,
 
@@ -34,7 +32,7 @@ pub struct NW<const N: usize, V: VisualizerConfig, H: Heuristic> {
     pub v: V,
 }
 
-impl<const N: usize> NW<N, NoVisualizer, NoCost> {
+impl<const N: usize> NW<N, NoVis, NoCost> {
     pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
         Self {
             cm,
@@ -42,12 +40,12 @@ impl<const N: usize> NW<N, NoVisualizer, NoCost> {
             exponential_search,
             local_doubling: false,
             h: NoCost,
-            v: NoVisualizer,
+            v: NoVis,
         }
     }
 }
 
-impl<const N: usize, V: VisualizerConfig, H: Heuristic> NW<N, V, H> {
+impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
     pub fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H> {
         NWInstance {
             a: pad(a),
@@ -59,7 +57,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> NW<N, V, H> {
     }
 }
 
-impl<const N: usize, V: VisualizerConfig, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
+impl<const N: usize, V: Visualizer, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NW")
             .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
@@ -68,7 +66,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> std::fmt::Debug for NW<N
     }
 }
 
-pub struct NWInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
+pub struct NWInstance<'a, const N: usize, V: Visualizer, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
     pub a: Sequence,
     pub b: Sequence,
@@ -79,7 +77,7 @@ pub struct NWInstance<'a, const N: usize, V: VisualizerConfig, H: Heuristic> {
     pub h: H::Instance<'a>,
 
     /// The visualizer to use.
-    pub v: V::Visualizer,
+    pub v: V::Instance,
 }
 
 /// Type used for indexing sequences.
@@ -97,7 +95,7 @@ type Fronts<const N: usize> = super::front::Fronts<N, Cost, Idx>;
 const LEFT_BUFFER: Idx = 2;
 const RIGHT_BUFFER: Idx = 2;
 
-impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V, H> {
+impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
     /// Computes the next front (front `i`) from the current one.
     ///
     /// `a` and `b` must be padded at the start by the same character.
@@ -218,7 +216,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V,
         }
     }
 
-    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, CigarExt) {
+    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, AffineCigar) {
         assert!(
             !H::IS_DEFAULT,
             "Local doubling needs a heuristic. Use -H zero to disable."
@@ -450,8 +448,8 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V,
         from: State,
         mut to: State,
         direction: Direction,
-    ) -> CigarExt {
-        let mut cigar = CigarExt::default();
+    ) -> AffineCigar {
+        let mut cigar = AffineCigar::default();
 
         while to != from {
             let (parent, cigar_ops) = self.parent(fronts, to, direction).unwrap();
@@ -498,7 +496,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V,
     /// Tries to find a path with cost <= s.
     /// Returns None if cost > s, or the actual cost otherwise.
     // TODO: Pass `h` into this function, instead of re-initializing it repeatedly for exponential search.
-    pub fn align_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<(Cost, CigarExt)> {
+    pub fn align_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<(Cost, AffineCigar)> {
         let mut fronts = Fronts::new(
             INF,
             // The fronts to create.
@@ -558,7 +556,7 @@ fn pad(a: Seq) -> Sequence {
     chain!(b"^", a).copied().collect()
 }
 
-impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> {
+impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
     fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut nw = self.build(a, b);
         let cost = if self.exponential_search {
@@ -574,7 +572,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> 
         cost
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, CigarExt) {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
         let mut nw = self.build(a, b);
         let cc;
         if self.local_doubling {
@@ -599,7 +597,12 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> 
         self.build(a, b).cost_for_bounded_dist(Some(f_max))
     }
 
-    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, CigarExt)> {
+    fn align_for_bounded_dist(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        f_max: Cost,
+    ) -> Option<(Cost, AffineCigar)> {
         self.build(a, b).align_for_bounded_dist(Some(f_max))
     }
 }
