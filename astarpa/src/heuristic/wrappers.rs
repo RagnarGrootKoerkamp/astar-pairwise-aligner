@@ -97,10 +97,6 @@ where
         (c2, (hint1, hint2))
     }
 
-    fn root_state(&self, root_pos: Pos) -> Self::Hint {
-        (self.h1.root_state(root_pos), self.h2.root_state(root_pos))
-    }
-
     fn stats(&mut self) -> HeuristicStats {
         self.h2.stats()
     }
@@ -187,10 +183,6 @@ where
         (max(c1, c2), (hint1, hint2))
     }
 
-    fn root_state(&self, root_pos: Pos) -> Self::Hint {
-        (self.h1.root_state(root_pos), self.h2.root_state(root_pos))
-    }
-
     fn stats(&mut self) -> HeuristicStats {
         self.h2.stats()
     }
@@ -262,10 +254,6 @@ where
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         self.h.h_with_hint(pos.mirror(), hint)
-    }
-
-    fn root_state(&self, root_pos: Pos) -> Self::Hint {
-        self.h.root_state(root_pos.mirror())
     }
 
     fn stats(&mut self) -> HeuristicStats {

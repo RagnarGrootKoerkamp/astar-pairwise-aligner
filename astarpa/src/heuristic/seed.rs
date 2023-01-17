@@ -268,10 +268,6 @@ impl<'a> HeuristicInstance<'a> for SHI {
         (p - m, h)
     }
 
-    fn root_state(&self, _root_pos: Pos) -> Self::Hint {
-        Default::default()
-    }
-
     fn root_potential(&self) -> Cost {
         self.matches.potential[0]
     }

@@ -133,11 +133,6 @@ pub trait HeuristicInstance<'a> {
         (self.h(pos), Default::default())
     }
 
-    /// FIXME: DELETE THIS FUNCTION.
-    fn root_state(&self, _root_pos: Pos) -> Self::Hint {
-        Default::default()
-    }
-
     fn root_potential(&self) -> Cost {
         0
     }
