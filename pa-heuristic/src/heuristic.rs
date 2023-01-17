@@ -1,11 +1,11 @@
-mod bruteforce_csh;
-mod chained_seed;
+pub mod bruteforce_csh;
+pub mod chained_seed;
 pub mod distances;
-mod seed;
+pub mod seed;
 pub mod wrappers;
 
-use crate::contour::Arrow;
-use crate::{alignment_graph::*, matches::*, prelude::*};
+use crate::prelude::*;
+use crate::{contour::Arrow, matches::*};
 use derive_more::AddAssign;
 
 // internal/helper heuristics
@@ -15,6 +15,37 @@ use distances::*;
 pub use chained_seed::*;
 pub use distances::{GapCost, NoCost, ZeroCost};
 pub use seed::*;
+
+#[derive(Copy, Clone, Debug)]
+pub struct Pruning {
+    pub enabled: bool,
+    /// Skip pruning one in N.
+    pub skip_prune: usize,
+}
+
+impl Default for Pruning {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            skip_prune: 0,
+        }
+    }
+}
+
+impl Pruning {
+    pub fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            skip_prune: 0,
+        }
+    }
+    pub fn enabled() -> Self {
+        Pruning {
+            enabled: true,
+            skip_prune: 0,
+        }
+    }
+}
 
 #[derive(Default, Clone)]
 pub struct HeuristicParams {

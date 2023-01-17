@@ -1,0 +1,22 @@
+[package]
+name = "pa-heuristic"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
+# wasm-friendly instant
+instant = "0.1.12"
+bio = "1.1.0"
+itertools = "0.10.5"
+rustc-hash = "1.1.0"
+clap = { version = "4.0", features = ["derive"] }
+num-traits = "0.2.15"
+serde = "1.0.152"
+derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
+smallvec = { version = "1.10.0", features = ["union"] }
+
+[dev-dependencies]
+pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }

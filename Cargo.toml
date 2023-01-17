@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "pa-affine-types",
+    "pa-heuristic",
     "astarpa",
     "pa-base-algos",
 ]

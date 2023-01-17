@@ -7,15 +7,14 @@ use bio::{
 };
 use itertools::Itertools;
 
-use crate::{
-    alignment_graph::{LexPos, MatchCost},
-    config::SKIP_INEXACT_INSERT_START_END,
-    prelude::*,
-};
+use crate::{config::SKIP_INEXACT_INSERT_START_END, prelude::*};
 
 pub use ordered::*;
 pub use qgrams::fixed_seeds;
 use qgrams::*;
+
+/// Type for the cost of a single match/mutation.
+pub type MatchCost = u8;
 
 #[derive(Clone, Debug)]
 pub struct Seed {

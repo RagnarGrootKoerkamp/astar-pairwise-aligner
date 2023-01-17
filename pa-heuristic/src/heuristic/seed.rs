@@ -1,9 +1,8 @@
+use itertools::Itertools;
 use std::cmp::Ordering;
 
-use itertools::Itertools;
-
 use super::*;
-use crate::{contour::Layer, datastructures::SplitVec, matches::*, prelude::*};
+use crate::{contour::Layer, split_vec::SplitVec};
 
 #[derive(Debug, Copy, Clone)]
 pub struct SH {
@@ -101,10 +100,6 @@ impl SHI {
                 num_arrows_per_length[a.score as usize]
                     [matches.seed_at[start.0 as usize].unwrap() as usize] += 1;
             }
-        }
-
-        if print() {
-            println!("Starts: {layer_starts:?}");
         }
 
         let mut h = SHI {
@@ -362,7 +357,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
             return (0, 0);
         }
 
-        if D || print() {
+        if D {
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 

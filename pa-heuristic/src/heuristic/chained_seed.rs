@@ -1,44 +1,7 @@
 use super::*;
-use crate::{
-    contour::*,
-    distances::{Distance, DistanceInstance, GapCostI},
-    matches::*,
-    prelude::*,
-    wrappers::EqualHeuristic,
-};
+use crate::{contour::*, wrappers::EqualHeuristic};
 use itertools::Itertools;
 use std::marker::PhantomData;
-
-#[derive(Copy, Clone, Debug)]
-pub struct Pruning {
-    pub enabled: bool,
-    /// Skip pruning one in N.
-    pub skip_prune: usize,
-}
-
-impl Default for Pruning {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            skip_prune: 0,
-        }
-    }
-}
-
-impl Pruning {
-    pub fn new(enabled: bool) -> Self {
-        Self {
-            enabled,
-            skip_prune: 0,
-        }
-    }
-    pub fn enabled() -> Self {
-        Pruning {
-            enabled: true,
-            skip_prune: 0,
-        }
-    }
-}
 
 pub struct CSH<C: Contours> {
     pub match_config: MatchConfig,
@@ -419,7 +382,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             return (0, Pos::default());
         }
 
-        if D || print() {
+        if D {
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 

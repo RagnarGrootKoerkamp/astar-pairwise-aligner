@@ -1,4 +1,4 @@
-use crate::{alignment_graph::LexPos, prelude::*};
+use crate::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
 use std::mem;

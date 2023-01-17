@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use itertools::Itertools;
 
 use super::*;
-use crate::{datastructures::SplitVec, prelude::*};
+use crate::{prelude::*, split_vec::SplitVec};
 
 const D: bool = false;
 
