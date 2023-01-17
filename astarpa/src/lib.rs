@@ -21,11 +21,18 @@ mod astar_dt;
 pub mod cli;
 mod config;
 pub mod contour;
-mod datastructures;
 pub mod heuristic;
 pub mod matches;
 pub mod stats;
 pub mod visualizer;
+
+mod datastructures {
+    pub mod bucket_queue;
+    pub mod split_vec;
+
+    pub use bucket_queue::*;
+    pub use split_vec::*;
+}
 
 pub use align::*;
 pub use astar::astar;

@@ -1,5 +1,5 @@
 [package]
-name = "astar-pairwise-aligner"
+name = "astarpa"
 authors = ["Ragnar Groot Koerkamp", "Pesho Ivanov"]
 description = "An exact global pairwise aligner using A* with the [chaining] seed heurstic and match pruning."
 version = "0.1.0"
@@ -9,7 +9,7 @@ license = "MPL-2.0"
 keywords = ["alignment", "edit-distance", "A*", "bioinformatics", "cli"]
 readme = "README.org"
 categories = ["science"]
-default-run = "astar-pairwise-aligner"
+default-run = "astarpa"
 
 
 [lib]
