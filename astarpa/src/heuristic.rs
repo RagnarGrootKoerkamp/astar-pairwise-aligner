@@ -64,7 +64,6 @@ pub trait PosOrderT: PartialOrd + Default + Copy + std::fmt::Debug {
     fn from_pos(p: Pos) -> Self;
     fn max(p: Self, q: Self) -> Self;
     type D: std::fmt::Debug;
-    fn diff(p: Self, q: Self) -> Self::D;
     fn tip_start(s: usize, p: Self) -> Self;
 }
 
@@ -72,7 +71,6 @@ impl PosOrderT for () {
     fn from_pos(_: Pos) -> Self {}
     fn max(_: Self, _: Self) -> Self {}
     type D = ();
-    fn diff(_: Self, _: Self) -> Self::D {}
     fn tip_start(_: usize, _: Self) -> Self {}
 }
 
@@ -85,9 +83,6 @@ impl PosOrderT for Pos {
         Pos(max(p.0, q.0), max(p.1, q.1))
     }
     type D = (i32, i32);
-    fn diff(p: Self, q: Self) -> Self::D {
-        (p.0 as i32 - q.0 as i32, p.1 as i32 - q.1 as i32)
-    }
     fn tip_start(s: usize, p: Self) -> Self {
         Pos(p.0.saturating_sub(s as I), p.1.saturating_sub(s as I))
     }
@@ -102,9 +97,6 @@ impl PosOrderT for I {
         max(p, q)
     }
     type D = i32;
-    fn diff(p: Self, q: Self) -> Self::D {
-        p as i32 - q as i32
-    }
     fn tip_start(s: usize, p: Self) -> Self {
         p.saturating_sub(s as I)
     }
