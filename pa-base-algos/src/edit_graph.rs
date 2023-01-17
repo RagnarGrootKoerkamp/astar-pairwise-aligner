@@ -2,31 +2,17 @@
 //! There may be multiple graphs corresponding to the same cost model:
 //! https://research.curiouscoding.nl/posts/diagonal-transition-variations/
 
+use pa_affine_types::*;
 use pa_types::*;
 use std::cmp::max;
 
-use super::{
-    cigar::CigarOpExt,
-    dt::{Direction, Fr},
-};
-use crate::cost_model::{AffineCost, AffineLayerType, Cost};
+use super::dt::{Direction, Fr};
 
-pub type Layer = Option<usize>;
-pub type I = isize;
-pub type CigarOps = [Option<CigarOpExt>; 2];
+pub type CigarOps = [Option<AffineCigarOp>; 2];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct State {
-    pub i: I,
-    pub j: I,
-    pub layer: Layer,
-}
-
-impl State {
-    #[inline]
-    pub fn new(i: I, j: I, layer: Layer) -> Self {
-        Self { i, j, layer }
-    }
+pub trait StateT: std::fmt::Debug {
+    fn is_root(&self) -> bool;
+    fn pos(&self) -> Pos;
 }
 
 /// NOTE: These functions assume padding from NW.
@@ -126,22 +112,22 @@ impl EditGraph {
                 // match / substitution
                 let is_match = a[i as usize - 1] == b[j as usize - 1];
                 if is_match {
-                    f(-1, -1, None, 0, [Some(CigarOpExt::Match), None]);
+                    f(-1, -1, None, 0, [Some(AffineCigarOp::Match), None]);
                     if greedy_matching {
                         return;
                     }
                 } else if let Some(cost) = cm.sub {
-                    f(-1, -1, None, cost, [Some(CigarOpExt::Sub), None]);
+                    f(-1, -1, None, cost, [Some(AffineCigarOp::Sub), None]);
                 }
 
                 // insertion
                 if let Some(cost) = cm.ins {
-                    f(0, -1, None, cost, [Some(CigarOpExt::Ins), None]);
+                    f(0, -1, None, cost, [Some(AffineCigarOp::Ins), None]);
                 }
 
                 // deletion
                 if let Some(cost) = cm.del {
-                    f(-1, 0, None, cost, [Some(CigarOpExt::Del), None]);
+                    f(-1, 0, None, cost, [Some(AffineCigarOp::Del), None]);
                 }
 
                 // affine close
@@ -151,7 +137,7 @@ impl EditGraph {
                         0,
                         Some(layer),
                         cml.extend,
-                        [Some(CigarOpExt::AffineClose(layer)), None],
+                        [Some(AffineCigarOp::AffineClose(layer)), None],
                     );
                 }
             }
@@ -166,10 +152,10 @@ impl EditGraph {
                 let cml = &cm.affine[layer];
                 let (i, j, di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (i, j - 1, 0, -1, CigarOpExt::AffineIns(layer))
+                        (i, j - 1, 0, -1, AffineCigarOp::AffineIns(layer))
                     }
                     AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (i - 1, j, -1, 0, CigarOpExt::AffineDel(layer))
+                        (i - 1, j, -1, 0, AffineCigarOp::AffineDel(layer))
                     }
                 };
                 f(
@@ -177,7 +163,7 @@ impl EditGraph {
                     dj,
                     None,
                     cml.open,
-                    [Some(op), Some(CigarOpExt::AffineOpen(layer))],
+                    [Some(op), Some(AffineCigarOp::AffineOpen(layer))],
                 );
 
                 // gap extend
@@ -229,21 +215,21 @@ impl EditGraph {
 
                 if let Some(cost) = cm.sub {
                     if let Some((i, j)) = f(-1, -1, None, cost) {
-                        g(-1, -1, i, j, None, cost, [Some(CigarOpExt::Sub), None]);
+                        g(-1, -1, i, j, None, cost, [Some(AffineCigarOp::Sub), None]);
                     }
                 }
 
                 // insertion
                 if let Some(cost) = cm.ins {
                     if let Some((i, j)) = f(0, -1, None, cost) {
-                        g(0, -1, i, j, None, cost, [Some(CigarOpExt::Ins), None]);
+                        g(0, -1, i, j, None, cost, [Some(AffineCigarOp::Ins), None]);
                     }
                 }
 
                 // deletion
                 if let Some(cost) = cm.del {
                     if let Some((i, j)) = f(-1, 0, None, cost) {
-                        g(-1, 0, i, j, None, cost, [Some(CigarOpExt::Del), None]);
+                        g(-1, 0, i, j, None, cost, [Some(AffineCigarOp::Del), None]);
                     }
                 }
 
@@ -257,7 +243,7 @@ impl EditGraph {
                             j,
                             Some(layer),
                             cml.extend,
-                            [Some(CigarOpExt::AffineClose(layer)), None],
+                            [Some(AffineCigarOp::AffineClose(layer)), None],
                         );
                     }
                 }
@@ -273,10 +259,10 @@ impl EditGraph {
                 let cml = &cm.affine[layer];
                 let (di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (0, -1, CigarOpExt::AffineIns(layer))
+                        (0, -1, AffineCigarOp::AffineIns(layer))
                     }
                     AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (-1, 0, CigarOpExt::AffineDel(layer))
+                        (-1, 0, AffineCigarOp::AffineDel(layer))
                     }
                 };
                 if let Some((i, j)) = f(di, dj, None, cml.open) {
@@ -287,7 +273,7 @@ impl EditGraph {
                         j,
                         None,
                         cml.open,
-                        [Some(op), Some(CigarOpExt::AffineOpen(layer))],
+                        [Some(op), Some(AffineCigarOp::AffineOpen(layer))],
                     );
                 }
 
@@ -337,21 +323,21 @@ impl EditGraph {
 
                 if let Some(cost) = cm.sub {
                     if let Some((i, j)) = f(1, 1, None, cost) {
-                        g(1, 1, i, j, None, cost, [Some(CigarOpExt::Sub), None]);
+                        g(1, 1, i, j, None, cost, [Some(AffineCigarOp::Sub), None]);
                     }
                 }
 
                 // insertion
                 if let Some(cost) = cm.ins {
                     if let Some((i, j)) = f(0, 1, None, cost) {
-                        g(0, 1, i, j, None, cost, [Some(CigarOpExt::Ins), None]);
+                        g(0, 1, i, j, None, cost, [Some(AffineCigarOp::Ins), None]);
                     }
                 }
 
                 // deletion
                 if let Some(cost) = cm.del {
                     if let Some((i, j)) = f(1, 0, None, cost) {
-                        g(1, 0, i, j, None, cost, [Some(CigarOpExt::Del), None]);
+                        g(1, 0, i, j, None, cost, [Some(AffineCigarOp::Del), None]);
                     }
                 }
 
@@ -359,10 +345,10 @@ impl EditGraph {
                 for (layer, cml) in cm.affine.iter().enumerate() {
                     let (di, dj, op) = match cml.affine_type {
                         AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                            (0, 1, CigarOpExt::AffineIns(layer))
+                            (0, 1, AffineCigarOp::AffineIns(layer))
                         }
                         AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                            (1, 0, CigarOpExt::AffineDel(layer))
+                            (1, 0, AffineCigarOp::AffineDel(layer))
                         }
                     };
                     if let Some((i, j)) = f(di, dj, Some(layer), cml.open) {
@@ -373,7 +359,7 @@ impl EditGraph {
                             j,
                             Some(layer),
                             cml.open,
-                            [Some(CigarOpExt::AffineOpen(layer)), Some(op)],
+                            [Some(AffineCigarOp::AffineOpen(layer)), Some(op)],
                         );
                     }
                 }
@@ -390,30 +376,14 @@ impl EditGraph {
                 let cml = &cm.affine[layer];
                 let (di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (0, 1, CigarOpExt::AffineIns(layer))
+                        (0, 1, AffineCigarOp::AffineIns(layer))
                     }
                     AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (1, 0, CigarOpExt::AffineDel(layer))
+                        (1, 0, AffineCigarOp::AffineDel(layer))
                     }
                 };
                 if let Some((i, j)) = f(di, dj, Some(layer), cml.extend) {
-                    if cml.affine_type.is_homopolymer() {
-                        // For homopolymer layers, we can only extend if the last
-                        // two characters ending in the current position are equal.
-                        if match cml.affine_type {
-                            AffineLayerType::HomoPolymerInsert => {
-                                j >= 2 && b[j as usize - 1] == b[j as usize - 2]
-                            }
-                            AffineLayerType::HomoPolymerDelete => {
-                                i >= 2 && a[i as usize - 1] == a[i as usize - 2]
-                            }
-                            _ => unreachable!(),
-                        } {
-                            g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
-                        }
-                    } else {
-                        g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
-                    }
+                    g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
                 }
 
                 // affine close
@@ -427,7 +397,7 @@ impl EditGraph {
                         j,
                         None,
                         cml.extend,
-                        [Some(CigarOpExt::AffineClose(layer)), None],
+                        [Some(AffineCigarOp::AffineClose(layer)), None],
                     );
                 }
             }
