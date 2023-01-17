@@ -12,11 +12,17 @@ instant = "0.1.12"
 bio = "1.1.0"
 itertools = "0.10.5"
 rustc-hash = "1.1.0"
-clap = { version = "4.0", features = ["derive"] }
 num-traits = "0.2.15"
-serde = "1.0.152"
 derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
 smallvec = { version = "1.10.0", features = ["union"] }
 
+# Optional deps for CLI struct.
+clap = { version = "4.0", features = ["derive"], optional = true }
+serde = { version = "1.0.152", optional = true }
+
 [dev-dependencies]
 pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
+
+[features]
+default = ["cli"]
+cli = ["dep:clap", "dep:serde"]

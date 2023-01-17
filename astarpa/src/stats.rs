@@ -6,7 +6,7 @@ use std::{
 use derive_more::AddAssign;
 use pa_types::{Cost, Seq};
 
-use crate::heuristic::{HeuristicParams, HeuristicStats};
+use pa_heuristic::{HeuristicParams, HeuristicStats};
 
 #[derive(Default, Clone, Copy, AddAssign)]
 pub struct Timing {

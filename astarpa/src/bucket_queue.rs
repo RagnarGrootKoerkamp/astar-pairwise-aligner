@@ -1,4 +1,5 @@
-use crate::{config::USE_TIP_BUFFER, heuristic::PosOrderT};
+use crate::config::USE_TIP_BUFFER;
+use pa_heuristic::PosOrderT;
 use pa_types::Cost;
 use std::cmp::{max, min};
 

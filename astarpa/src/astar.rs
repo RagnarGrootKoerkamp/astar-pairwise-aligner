@@ -1,11 +1,11 @@
 use crate::{
     alignment_graph::*,
-    datastructures::{QueueElement, ShiftOrderT, ShiftQueue},
-    heuristic::*,
+    bucket_queue::{QueueElement, ShiftOrderT, ShiftQueue},
     prelude::*,
     stats::AstarStats,
-    visualizer::{Visualizer, VisualizerInstance},
 };
+use pa_heuristic::*;
+use pa_vis_types::{Visualizer, VisualizerInstance};
 
 const D: bool = false;
 

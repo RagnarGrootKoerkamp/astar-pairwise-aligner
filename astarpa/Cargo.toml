@@ -27,6 +27,9 @@ required-features = ["cli"]
 
 [dependencies]
 pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
+pa-heuristic = { path = "../pa-heuristic" }
+pa-vis-types = { path = "../pa-vis-types" }
+
 # wasm-friendly instant
 instant = "0.1.12"
 bio = "1.1.0"

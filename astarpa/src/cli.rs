@@ -1,7 +1,9 @@
-use crate::{prelude::Seq, AstarPaParams, HeuristicArgs};
+use crate::{prelude::Seq, AstarPaParams};
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use itertools::Itertools;
+use pa_heuristic::HeuristicArgs;
+use pa_vis_types::NoVis;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
@@ -44,7 +46,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn to_astar_pa_params(&self) -> AstarPaParams<crate::NoVis> {
+    pub fn to_astar_pa_params(&self) -> AstarPaParams<NoVis> {
         AstarPaParams::new(self.diagonal_transition, self.heuristic)
     }
 }

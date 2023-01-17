@@ -1,12 +1,6 @@
 //! Types related to the pairwise alignment graph.
-use std::fmt::{Debug, Display};
-
-use std::cmp::Ordering;
-
 use pa_types::*;
-
-/// Type for the cost of a single match/mutation.
-pub type MatchCost = u8;
+use std::fmt::{Debug, Display};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Edge {
@@ -65,29 +59,6 @@ impl Edge {
             Edge::Down => 0,
             _ => 1,
         }
-    }
-}
-
-/// Pos, but with a total lexicographic order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LexPos(pub Pos);
-
-impl PartialOrd for LexPos {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-
-    #[inline]
-    fn lt(&self, other: &Self) -> bool {
-        (self.0 .0, self.0 .1) < (other.0 .0, other.0 .1)
-    }
-}
-
-impl Ord for LexPos {
-    #[inline]
-    fn cmp(&self, other: &Self) -> Ordering {
-        (self.0 .0, self.0 .1).cmp(&(other.0 .0, other.0 .1))
     }
 }
 

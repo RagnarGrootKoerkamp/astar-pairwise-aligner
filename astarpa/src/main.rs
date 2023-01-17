@@ -1,8 +1,9 @@
 #![feature(let_chains)]
 
-use astarpa::{cli::Cli, prelude::*, stats::AstarStats};
+use astarpa::{cli::Cli, stats::AstarStats};
 use clap::Parser;
 use itertools::Itertools;
+use pa_types::*;
 use std::ops::ControlFlow;
 
 fn main() {

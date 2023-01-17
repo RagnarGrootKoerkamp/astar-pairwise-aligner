@@ -39,7 +39,9 @@ dependencies = [
  "lazy_static",
  "num-traits",
  "pa-generate",
+ "pa-heuristic",
  "pa-types",
+ "pa-vis-types",
  "parse_duration",
  "rand",
  "rand_chacha",
@@ -669,16 +671,6 @@ name = "pa-affine-types"
 version = "0.1.0"
 dependencies = [
  "pa-types",
-]
-
-[[package]]
-name = "pa-base-algos"
-version = "0.1.0"
-dependencies = [
- "clap",
- "num-traits",
- "pa-types",
- "serde",
 ]
 
 [[package]]
