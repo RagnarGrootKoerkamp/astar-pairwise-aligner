@@ -1,3 +1,8 @@
+#![feature(let_chains, step_trait)]
+
+use pa_types::Cost;
+use std::cmp::max;
+
 mod algorithm_args;
 mod cigar;
 mod cost_model;

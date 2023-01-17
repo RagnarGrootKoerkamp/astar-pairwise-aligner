@@ -1,17 +1,11 @@
 use std::{fmt::Write, slice};
 
-use itertools::Itertools;
-use triple_accel::Edit;
+use crate::cost_model::{AffineCost, AffineLayerType};
+use pa_types::*;
 
-use crate::{
-    cost_model::{AffineCost, AffineLayerType, Cost},
-    prelude::Pos,
-};
-
-use super::{Path, Seq};
-
+/// A cigarop with extra markers for affine indels.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum CigarOp {
+pub enum CigarOpExt {
     Match,
     Sub,
     /// Linear cost insertion.
@@ -29,120 +23,67 @@ pub enum CigarOp {
     AffineClose(usize),
 }
 
-impl CigarOp {
-    /// Not all operations have an actual cigar character.
-    fn to_char(&self) -> Option<char> {
-        match self {
-            CigarOp::Match => Some('='),
-            CigarOp::Sub => Some('X'),
-            CigarOp::Ins => Some('I'),
-            CigarOp::Del => Some('D'),
-            CigarOp::AffineIns(_) => Some('I'),
-            CigarOp::AffineDel(_) => Some('D'),
-            _ => None,
-        }
-    }
-
-    fn delta(&self) -> Option<Pos> {
-        match self {
-            CigarOp::Match => Some(Pos(1, 1)),
-            CigarOp::Sub => Some(Pos(1, 1)),
-            CigarOp::Ins | CigarOp::AffineIns(_) => Some(Pos(0, 1)),
-            CigarOp::Del | CigarOp::AffineDel(_) => Some(Pos(1, 0)),
-            _ => None,
-        }
-    }
-
-    fn new(self) -> CigarElement {
-        let cnt = match &self {
-            CigarOp::AffineOpen(_) | CigarOp::AffineClose(_) => 0,
-            _ => 1,
-        };
-        CigarElement { op: self, cnt }
-    }
-}
-
 #[derive(Debug, Eq, PartialEq)]
-pub struct CigarElement {
-    pub op: CigarOp,
+pub struct CigarElemExt {
+    pub op: CigarOpExt,
     pub cnt: usize,
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
-pub struct Cigar {
-    ops: Vec<CigarElement>,
+pub struct CigarExt {
+    ops: Vec<CigarElemExt>,
 }
 
-impl ToString for Cigar {
+impl CigarOpExt {
+    pub fn to_base(&self) -> Option<CigarOp> {
+        Some(match self {
+            CigarOpExt::Match => CigarOp::Match,
+            CigarOpExt::Sub => CigarOp::Sub,
+            CigarOpExt::Ins => CigarOp::Ins,
+            CigarOpExt::Del => CigarOp::Del,
+            CigarOpExt::AffineIns(_) => CigarOp::Ins,
+            CigarOpExt::AffineDel(_) => CigarOp::Del,
+            CigarOpExt::AffineOpen(_) => return None,
+            CigarOpExt::AffineClose(_) => return None,
+        })
+    }
+}
+
+impl CigarExt {
+    pub fn to_base(&self) -> Cigar {
+        Cigar {
+            ops: self.ops.iter().map(|elem| CigarElem {
+                op: elem.op.to_cigar(),
+                cnt: elem.cnt,
+            }),
+        }
+    }
+}
+
+impl ToString for CigarExt {
     fn to_string(&self) -> String {
-        let mut s = String::new();
-        for op in &self.ops {
-            if let Some(c) = op.op.to_char() {
-                write!(&mut s, "{}{}", op.cnt, c).unwrap();
-            }
-        }
-        s
+        self.to_base().to_string()
     }
 }
 
-pub fn append_paths(left: &mut Path, offset: Pos, mut right: Path) {
-    for p in &mut right {
-        *p = *p + offset;
-    }
-    let Some(first) = right.first_mut() else { return; };
-    if let Some(s) = left.last_mut() && s == first {
-        left.pop().unwrap();
-    }
-    left.append(&mut right);
-}
-
-impl Cigar {
-    pub fn from_triple_accel_edits(edits: &Vec<Edit>) -> Self {
-        Self {
-            ops: edits
-                .iter()
-                .map(|edit| CigarElement {
-                    op: match edit.edit {
-                        triple_accel::EditType::Match => CigarOp::Match,
-                        triple_accel::EditType::Mismatch => CigarOp::Sub,
-                        triple_accel::EditType::AGap => CigarOp::Ins,
-                        triple_accel::EditType::BGap => CigarOp::Del,
-                        triple_accel::EditType::Transpose => todo!(),
-                    },
-                    cnt: edit.count,
-                })
-                .collect(),
-        }
-    }
-
-    fn match_pos(delta: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOp {
+impl CigarExt {
+    fn match_pos(delta: Pos, pos: Pos, a: Seq, b: Seq) -> CigarOpExt {
         match delta {
             Pos(1, 1) => {
                 assert!(pos.0 > 0 && pos.1 > 0);
                 if a[(pos.0 - 1) as usize] == b[(pos.1 - 1) as usize] {
-                    CigarOp::Match
+                    CigarOpExt::Match
                 } else {
-                    CigarOp::Sub
+                    CigarOpExt::Sub
                 }
             }
-            Pos(0, 1) => CigarOp::Ins,
-            Pos(1, 0) => CigarOp::Del,
+            Pos(0, 1) => CigarOpExt::Ins,
+            Pos(1, 0) => CigarOpExt::Del,
             _ => panic!("Offset is not correct"),
         }
     }
 
-    pub fn from_path(a: Seq, b: Seq, path: &Path) -> Cigar {
-        if path[0] != Pos(0, 0) {
-            panic!("Path must start at (0,0)!");
-        }
-        let mut cigar = Cigar::default();
-        for (&prev, &cur) in path.iter().tuple_windows() {
-            cigar.push(Self::match_pos(cur - prev, cur, a, b));
-        }
-        cigar
-    }
-
-    pub fn push(&mut self, command: CigarOp) {
+    pub fn push(&mut self, command: CigarOpExt) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
         if let Some(s) = self.ops.last_mut() && s.op == command {
             s.cnt += 1;
@@ -153,13 +94,13 @@ impl Cigar {
 
     pub fn match_push(&mut self, num: usize) {
         if let Some(s) = self.ops.last_mut() {
-            if s.op == CigarOp::Match {
+            if s.op == CigarOpExt::Match {
                 s.cnt += num;
                 return;
             }
         }
-        self.ops.push(CigarElement {
-            op: CigarOp::Match,
+        self.ops.push(CigarElemExt {
+            op: CigarOpExt::Match,
             cnt: num,
         });
     }
@@ -204,7 +145,7 @@ impl Cigar {
         for el in &self.ops {
             let length = el.cnt as Cost;
             match el.op {
-                CigarOp::Match => {
+                CigarOpExt::Match => {
                     assert!(layer == None);
                     for _ in 0..length {
                         pos.0 += 1;
@@ -212,7 +153,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::Sub => {
+                CigarOpExt::Sub => {
                     assert!(layer == None);
                     for _ in 0..length {
                         pos.0 += 1;
@@ -221,7 +162,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::Ins => {
+                CigarOpExt::Ins => {
                     assert!(layer == None);
                     for _ in 0..length {
                         pos.1 += 1;
@@ -229,7 +170,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::Del => {
+                CigarOpExt::Del => {
                     assert!(layer == None);
                     for _ in 0..length {
                         pos.0 += 1;
@@ -237,7 +178,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::AffineIns(l) => {
+                CigarOpExt::AffineIns(l) => {
                     assert_eq!(layer, Some(l));
                     assert_eq!(
                         cm.affine[l].affine_type.base(),
@@ -249,7 +190,7 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::AffineDel(l) => {
+                CigarOpExt::AffineDel(l) => {
                     assert_eq!(layer, Some(l));
                     assert_eq!(
                         cm.affine[l].affine_type.base(),
@@ -261,12 +202,12 @@ impl Cigar {
                         path.push((pos, cost));
                     }
                 }
-                CigarOp::AffineOpen(l) => {
+                CigarOpExt::AffineOpen(l) => {
                     assert_eq!(layer, None);
                     cost += cm.affine[l].open;
                     layer = Some(l)
                 }
-                CigarOp::AffineClose(l) => {
+                CigarOpExt::AffineClose(l) => {
                     assert_eq!(layer, Some(l));
                     layer = None;
                 }
@@ -276,10 +217,10 @@ impl Cigar {
     }
 }
 
-impl<'a> IntoIterator for &'a Cigar {
-    type Item = &'a CigarElement;
+impl<'a> IntoIterator for &'a CigarExt {
+    type Item = &'a CigarElemExt;
 
-    type IntoIter = slice::Iter<'a, CigarElement>;
+    type IntoIter = slice::Iter<'a, CigarElemExt>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.ops.iter()
@@ -299,7 +240,7 @@ pub mod test {
         let mut layer = None;
         let mut cost = 0;
 
-        for &CigarElement {
+        for &CigarElemExt {
             op: command,
             cnt: length,
         } in cigar

@@ -665,6 +665,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
 
 [[package]]
+name = "pa-base-algos"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "num-traits",
+ "pa-types",
+ "serde",
+]
+
+[[package]]
 name = "pa-generate"
 version = "0.1.0"
 source = "git+https://github.com/pairwise-alignment/pa-generate#bb6b251db63b47f92b82f76f434ea06f1b4975d8"

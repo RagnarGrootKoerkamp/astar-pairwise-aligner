@@ -1,5 +1,5 @@
-use super::cigar::Cigar;
-use super::diagonal_transition::Direction;
+use super::cigar::CigarExt;
+use super::dt::Direction;
 use super::edit_graph::{CigarOps, EditGraph, State};
 use super::{exponential_search, Aligner};
 use super::{Seq, Sequence};
@@ -218,7 +218,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V,
         }
     }
 
-    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, Cigar) {
+    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, CigarExt) {
         assert!(
             !H::IS_DEFAULT,
             "Local doubling needs a heuristic. Use -H zero to disable."
@@ -444,8 +444,14 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V,
         Some((parent?, cigar_ops))
     }
 
-    fn trace(&self, fronts: &Fronts<N>, from: State, mut to: State, direction: Direction) -> Cigar {
-        let mut cigar = Cigar::default();
+    fn trace(
+        &self,
+        fronts: &Fronts<N>,
+        from: State,
+        mut to: State,
+        direction: Direction,
+    ) -> CigarExt {
+        let mut cigar = CigarExt::default();
 
         while to != from {
             let (parent, cigar_ops) = self.parent(fronts, to, direction).unwrap();
@@ -492,7 +498,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> NWInstance<'a, N, V,
     /// Tries to find a path with cost <= s.
     /// Returns None if cost > s, or the actual cost otherwise.
     // TODO: Pass `h` into this function, instead of re-initializing it repeatedly for exponential search.
-    pub fn align_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<(Cost, Cigar)> {
+    pub fn align_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<(Cost, CigarExt)> {
         let mut fronts = Fronts::new(
             INF,
             // The fronts to create.
@@ -568,7 +574,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> 
         cost
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, CigarExt) {
         let mut nw = self.build(a, b);
         let cc;
         if self.local_doubling {
@@ -593,7 +599,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for NW<N, V, H> 
         self.build(a, b).cost_for_bounded_dist(Some(f_max))
     }
 
-    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, Cigar)> {
+    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, CigarExt)> {
         self.build(a, b).align_for_bounded_dist(Some(f_max))
     }
 }

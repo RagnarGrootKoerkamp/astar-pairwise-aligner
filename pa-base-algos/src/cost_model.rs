@@ -1,9 +1,6 @@
 //! This module contains the `AffineCost` and `LinearCost` cost models.
 //!
-use crate::{
-    aligners::cigar::CigarOp,
-    prelude::{Pos, I},
-};
+use pa_types::*;
 use std::cmp::{max, min};
 
 /// Type for storing costs. Not u64 to save on memory.

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "astarpa",
+    "pa-base-algos",
 ]
 resolver = "2"
 

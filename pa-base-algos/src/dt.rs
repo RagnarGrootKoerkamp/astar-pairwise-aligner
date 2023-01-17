@@ -21,7 +21,7 @@
 //! - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
 //!
 //!
-use super::cigar::Cigar;
+use super::cigar::CigarExt;
 use super::edit_graph::{CigarOps, EditGraph, Layer, State};
 use super::{exponential_search, Aligner, Seq, StateT};
 use crate::aligners::cigar::CigarOp;
@@ -292,10 +292,10 @@ fn extend_diagonal(direction: Direction, a: Seq, b: Seq, d: Fr, fr: Fr) -> Fr {
 
     // TODO: The end check can be avoided by appending `#` and `$` to `a` and `b`.
     match direction {
-        Forward => zip(a[i as usize..].iter(), b[j as usize..].iter())
+        Direction::Forward => zip(a[i as usize..].iter(), b[j as usize..].iter())
             .take_while(|(ca, cb)| ca == cb)
             .count() as Fr,
-        Backward => zip(a[..i as usize].iter().rev(), b[..j as usize].iter().rev())
+        Direction::Backward => zip(a[..i as usize].iter().rev(), b[..j as usize].iter().rev())
             .take_while(|(ca, cb)| ca == cb)
             .count() as Fr,
     }
@@ -319,7 +319,7 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
     let mut b_ptr = b[j as usize..].as_ptr() as *const usize;
     let a_ptr_original = a_ptr;
     match direction {
-        Forward => {
+        Direction::Forward => {
             let cmp = loop {
                 let cmp = unsafe { *a_ptr ^ *b_ptr };
                 // TODO: Make the break the `likely` case?
@@ -339,7 +339,7 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
                         cmp.leading_zeros()
                     } / u8::BITS) as Fr);
         }
-        Backward => {
+        Direction::Backward => {
             let cmp = loop {
                 unsafe {
                     a_ptr = a_ptr.offset(-1);
@@ -383,7 +383,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
             }
             let fr_old = *fr;
             match direction {
-                Forward => {
+                Direction::Forward => {
                     *fr += 2 * extend_diagonal(direction, &self.a, &self.b, d, *fr);
                     for fr in (fr_old..*fr).step_by(2) {
                         self.v.borrow_mut().extend_with_h(
@@ -400,7 +400,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
                         Some(&self.h),
                     );
                 }
-                Backward => {
+                Direction::Backward => {
                     *fr += 2 * extend_diagonal(
                         direction,
                         &self.a,
@@ -681,7 +681,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         start_layer: Layer,
         end_layer: Layer,
         direction: Direction,
-    ) -> Result<Fronts<N>, (Cost, Cigar)> {
+    ) -> Result<Fronts<N>, (Cost, CigarExt)> {
         let mut fronts = Fronts::new(
             Fr::MIN,
             // We only create a front for the s=0 layer.
@@ -702,7 +702,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
             && self.extend(0, f_max, &mut fronts[0], offset, direction)
             && end_layer == None
         {
-            let mut cigar = Cigar::default();
+            let mut cigar = CigarExt::default();
             cigar.match_push(self.a.len());
             Err((0, cigar))
         } else {
@@ -805,7 +805,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         offset: Pos,
         start_layer: Layer,
         end_layer: Layer,
-    ) -> (Cost, Cigar) {
+    ) -> (Cost, CigarExt) {
         let mut forward_fronts =
             match self.init_fronts(0, offset, start_layer, end_layer, Direction::Forward) {
                 Ok(fronts) => fronts,
@@ -827,8 +827,8 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
                 // First, take a step in the forward front, then in the backward front.
                 for dir in [Direction::Forward, Direction::Backward] {
                     let fronts = match dir {
-                        Forward => &mut forward_fronts,
-                        Backward => &mut backward_fronts,
+                        Direction::Forward => &mut forward_fronts,
+                        Direction::Backward => &mut backward_fronts,
                     };
                     let range = self.d_range(s, None, fronts);
                     assert!(!range.is_empty());
@@ -839,8 +839,8 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
                         fronts,
                         offset,
                         match dir {
-                            Forward => start_layer,
-                            Backward => end_layer,
+                            Direction::Forward => start_layer,
+                            Direction::Backward => end_layer,
                         },
                         dir,
                     );
@@ -930,7 +930,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
     pub fn align_for_bounded_dist_with_h<'b>(
         &mut self,
         f_max: Option<Cost>,
-    ) -> Option<(Cost, Cigar)> {
+    ) -> Option<(Cost, CigarExt)> {
         self.v
             .borrow_mut()
             .expand_with_h(Pos(0, 0), 0, f_max.unwrap_or(0), Some(&self.h));
@@ -981,7 +981,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         Some((s, cigar))
     }
 
-    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, Cigar) {
+    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, CigarExt) {
         const D: bool = false;
 
         // Front g has been computed up to this f.
@@ -1168,7 +1168,7 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         (distance, cigar)
     }
 
-    fn visualize_last_frame(&mut self, fronts: Fronts<N>, cigar: &Cigar) {
+    fn visualize_last_frame(&mut self, fronts: Fronts<N>, cigar: &CigarExt) {
         self.v.borrow_mut().last_frame_with_h::<H::Instance<'_>>(
             Some(&cigar),
             Some(
@@ -1380,8 +1380,8 @@ impl<'a, const N: usize, V: VisualizerConfig, H: Heuristic> DTInstance<'a, N, V,
         from: DtState,
         mut to: DtState,
         direction: Direction,
-    ) -> Cigar {
-        let mut cigar = Cigar::default();
+    ) -> CigarExt {
+        let mut cigar = CigarExt::default();
 
         while to != from {
             let (parent, cigar_ops) = self.parent(fronts, to, direction).unwrap();
@@ -1412,7 +1412,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTran
         cost
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Cigar) {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, CigarExt) {
         let mut dt = self.build(a, b);
         if self.dc {
             // D&C does not work with a heuristic yet, since the target state (where
@@ -1451,7 +1451,7 @@ impl<const N: usize, V: VisualizerConfig, H: Heuristic> Aligner for DiagonalTran
         self.build(a, b).cost_for_bounded_dist(Some(f_max))
     }
 
-    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, Cigar)> {
+    fn align_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, CigarExt)> {
         self.build(a, b).align_for_bounded_dist_with_h(Some(f_max))
     }
 }
