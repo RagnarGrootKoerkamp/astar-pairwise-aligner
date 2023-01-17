@@ -8,7 +8,7 @@ use std::cmp::max;
 
 use super::dt::{Direction, Fr};
 
-pub type CigarOps = [Option<AffineCigarOp>; 2];
+pub type AffineCigarOps = [Option<AffineCigarOp>; 2];
 
 pub trait StateT: std::fmt::Debug {
     fn is_root(&self) -> bool;
@@ -98,7 +98,7 @@ impl EditGraph {
         cm: &AffineCost<N>,
         greedy_matching: bool,
         State { i, j, layer }: State,
-        mut f: impl FnMut(I, I, Layer, Cost, CigarOps),
+        mut f: impl FnMut(I, I, Layer, Cost, AffineCigarOps),
     ) {
         match layer {
             None => {
@@ -187,7 +187,7 @@ impl EditGraph {
         // Given (di, dj) return the (i, j) of the end of the actual edge.
         mut f: impl FnMut(Fr, Fr, Layer, Cost) -> Option<(Fr, Fr)>,
         // Given `fr`, update fr point.
-        mut g: impl FnMut(Fr, Fr, Fr, Fr, Layer, Cost, CigarOps),
+        mut g: impl FnMut(Fr, Fr, Fr, Fr, Layer, Cost, AffineCigarOps),
     ) {
         match layer {
             None => {
@@ -275,7 +275,7 @@ impl EditGraph {
         // Given (di, dj) return the (i, j) of the end of the actual edge.
         mut f: impl FnMut(Fr, Fr, Layer, Cost) -> Option<(Fr, Fr)>,
         // Given `fr`, update fr point.
-        mut g: impl FnMut(Fr, Fr, Fr, Fr, Layer, Cost, CigarOps),
+        mut g: impl FnMut(Fr, Fr, Fr, Fr, Layer, Cost, AffineCigarOps),
     ) {
         match layer {
             None => {
@@ -371,7 +371,7 @@ impl EditGraph {
         // Given (di, dj) return the (i, j) of the end of the actual edge.
         f: impl FnMut(Fr, Fr, Layer, Cost) -> Option<(Fr, Fr)>,
         // Given `fr`, update fr point.
-        g: impl FnMut(Fr, Fr, Fr, Fr, Layer, Cost, CigarOps),
+        g: impl FnMut(Fr, Fr, Fr, Fr, Layer, Cost, AffineCigarOps),
     ) {
         match direction {
             Direction::Forward => Self::iterate_parents_dt(a, b, cm, layer, f, g),

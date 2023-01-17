@@ -16,3 +16,9 @@ pub struct State {
     pub j: I,
     pub layer: Layer,
 }
+
+impl State {
+    pub fn new(i: I, j: I, layer: Layer) -> Self {
+        Self { i, j, layer }
+    }
+}

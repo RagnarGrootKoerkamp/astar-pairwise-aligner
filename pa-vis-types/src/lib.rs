@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
+use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
 
-pub type ParentFn<'a> = Option<&'a dyn Fn(Pos) -> Option<(Pos, [Option<CigarOp>; 2])>>;
+pub type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<AffineCigarOp>; 2])>>;
 
 /// A `Visualizer` can be used to track progress of the A* search using callbacks.
 /// The `Visualizer` configuration is `build` into a corresponding `VisualizerInstance` for each input pair.

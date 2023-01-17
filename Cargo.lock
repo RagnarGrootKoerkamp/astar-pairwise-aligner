@@ -733,6 +733,7 @@ dependencies = [
 name = "pa-vis-types"
 version = "0.1.0"
 dependencies = [
+ "pa-affine-types",
  "pa-heuristic",
  "pa-types",
  "serde",

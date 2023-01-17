@@ -1,5 +1,5 @@
 use crate::dt::Direction;
-use crate::edit_graph::{CigarOps, EditGraph};
+use crate::edit_graph::{AffineCigarOps, EditGraph};
 use crate::exponential_search;
 use itertools::chain;
 use pa_affine_types::*;
@@ -80,27 +80,24 @@ pub struct NWInstance<'a, const N: usize, V: Visualizer, H: Heuristic> {
     pub v: V::Instance,
 }
 
-/// Type used for indexing sequences.
-type Idx = isize;
-
 // TODO: Instead use saturating add everywhere?
 const INF: Cost = Cost::MAX / 2;
 
 /// The base vector M, and one vector per affine layer.
 /// TODO: Possibly switch to a Vec<Layer> instead.
-type Front<const N: usize> = super::front::Front<N, Cost, Idx>;
-type Fronts<const N: usize> = super::front::Fronts<N, Cost, Idx>;
+type Front<const N: usize> = super::front::Front<N, Cost, I>;
+type Fronts<const N: usize> = super::front::Fronts<N, Cost, I>;
 
 /// NW DP only needs the cell just left and above of the current cell.
-const LEFT_BUFFER: Idx = 2;
-const RIGHT_BUFFER: Idx = 2;
+const LEFT_BUFFER: I = 2;
+const RIGHT_BUFFER: I = 2;
 
 impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
     /// Computes the next front (front `i`) from the current one.
     ///
     /// `a` and `b` must be padded at the start by the same character.
     /// `i` and `j` will always be > 0.
-    fn next_front(&mut self, i: Idx, f_max: Cost, prev: &Front<N>, next: &mut Front<N>) {
+    fn next_front(&mut self, i: I, f_max: Cost, prev: &Front<N>, next: &mut Front<N>) {
         for j in next.range().clone() {
             EditGraph::iterate_layers(&self.params.cm, |layer| {
                 let mut best = INF;
@@ -124,22 +121,22 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                 next.layer_mut(layer)[j] = best;
             });
             let pos = Pos::from(i - 1, j - 1);
-            self.v.expand_with_h(pos, next.m()[j], f_max, Some(&self.h));
+            self.v.expand(pos, next.m()[j], f_max, Some(&self.h));
         }
     }
 
     /// The range of rows `j` to consider in column `i`, when the cost is bounded by `f_bound`.
-    fn j_range(&self, i: Idx, f_bound: Option<Cost>, prev: &Front<N>) -> RangeInclusive<Idx> {
+    fn j_range(&self, i: I, f_bound: Option<Cost>, prev: &Front<N>) -> RangeInclusive<I> {
         // Without a bound on the distance, we can notuse any heuristic.
         let Some(s) = f_bound else {
-            return 1..=self.b.len() as Idx;
+            return 1..=self.b.len() as I;
         };
         if H::IS_DEFAULT {
             // For the default heuristic, either use the full range of diagonals
             // covered by distance `f_max`, or do only the gap-cost to the end when
             // needed.
             let range = if self.params.use_gap_cost_heuristic {
-                let d = self.b.len() as Idx - self.a.len() as Idx;
+                let d = self.b.len() as I - self.a.len() as I;
                 // We subtract the cost needed to bridge the gap from the start to the end.
                 let s = s - self
                     .params
@@ -149,13 +146,12 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                 let extra_diagonals =
                     s / (self.params.cm.min_ins_extend + self.params.cm.min_del_extend);
                 // NOTE: The range could be reduced slightly further by considering gap open costs.
-                min(d, 0) - extra_diagonals as Idx..=max(d, 0) + extra_diagonals as Idx
+                min(d, 0) - extra_diagonals as I..=max(d, 0) + extra_diagonals as I
             } else {
-                -(self.params.cm.max_del_for_cost(s) as Idx)
-                    ..=self.params.cm.max_ins_for_cost(s) as Idx
+                -(self.params.cm.max_del_for_cost(s) as I)..=self.params.cm.max_ins_for_cost(s) as I
             };
             // crop
-            max(i + *range.start(), 1)..=min(i + *range.end(), self.b.len() as Idx)
+            max(i + *range.start(), 1)..=min(i + *range.end(), self.b.len() as I)
         } else {
             if i == 0 {
                 0..=0
@@ -170,7 +166,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                 // To fix the padded character, we do max(start, 1) and max(i,1).
                 // TODO: include the cost needed to transition from column `prev`/`i-1` to the current column.
                 // h.h has (-1, -1) to offset the padding.
-                while start < self.b.len() as Idx
+                while start < self.b.len() as I
                     && start <= *prev.range().end() // FIXME: +1
                     // FIXME: the -1 at the end may not be needed with more precise analysis.
                     && prev.m()[start] + self.h.h(Pos::from(max(i, 1) - 1, max(start, 1) - 1))-1 > s
@@ -199,7 +195,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                 if end == prev_end {
                     // We use the cheapest possible way to extend vertically.
                     // h.h has (-1, -1) to offset the padding.
-                    while end < self.b.len() as Idx
+                    while end < self.b.len() as I
                         && prev_end_cost
                             + self
                                 .params
@@ -225,7 +221,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
         let mut fronts = Fronts::new(
             INF,
             // The fronts to create.
-            0..=0 as Idx,
+            0..=0 as I,
             // The range for each front.
             |i| self.j_range(i, Some(self.h.h(Pos(0, 0))), &Front::default()),
             0,
@@ -248,7 +244,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
 
         let mut i = 0;
         loop {
-            if i < self.a.len() as Idx {
+            if i < self.a.len() as I {
                 // Add a new front.
                 i += 1;
                 let mut range;
@@ -278,7 +274,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                 // Check if (after pruning) the range for start_i needs to grow at all.
                 start_i -= 1;
                 {
-                    let front = &fronts[start_i as Idx];
+                    let front = &fronts[start_i as I];
                     let js = *front.range().start();
                     let je = *front.range().end();
                     // println!(
@@ -296,9 +292,9 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                     //     f_max[start_i]
                     // );
                     // FIXME: Generalize to more layers.
-                    if front.m()[js as Idx] + self.h.h(Pos(start_i as I - 1, js as I - 1))
+                    if front.m()[js as I] + self.h.h(Pos(start_i as I - 1, js as I - 1))
                         > f_max[start_i + 1]
-                        && front.m()[je as Idx] + self.h.h(Pos(start_i as I - 1, je as I - 1))
+                        && front.m()[je as I] + self.h.h(Pos(start_i as I - 1, je as I - 1))
                             > f_max[start_i + 1]
                     {
                         start_i += 1;
@@ -335,9 +331,9 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
             }
 
             // Recompute all fronts from start_i upwards.
-            for i in start_i as Idx..=i {
+            for i in start_i as I..=i {
                 let range = self.j_range(i, Some(f_max[i as usize]), &fronts[i - 1]);
-                let prev_range = fronts[i as Idx].range().clone();
+                let prev_range = fronts[i as I].range().clone();
                 let new_range =
                     min(*range.start(), *prev_range.start())..=max(*range.end(), *prev_range.end());
                 // println!(
@@ -354,7 +350,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                 //     }
                 // }
                 assert!(!new_range.is_empty());
-                fronts[i as Idx].reset(INF, new_range.clone());
+                fronts[i as I].reset(INF, new_range.clone());
                 let (prev, next) = fronts.split_at(i);
                 self.next_front(i, f_max[i as usize], prev, next);
 
@@ -378,20 +374,20 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                     }
                 }
 
-                self.v.new_layer_with_h(Some(&self.h));
+                self.v.new_layer(Some(&self.h));
             }
 
-            if i == self.a.len() as Idx
-                && fronts[self.a.len() as Idx]
+            if i == self.a.len() as I
+                && fronts[self.a.len() as I]
                     .range()
-                    .contains(&(self.b.len() as Idx))
+                    .contains(&(self.b.len() as I))
             {
                 break;
             }
         }
-        let dist = *fronts[self.a.len() as Idx]
+        let dist = *fronts[self.a.len() as I]
             .m()
-            .get(self.b.len() as Idx)
+            .get(self.b.len() as I)
             .unwrap();
         let cigar = self.trace(
             &fronts,
@@ -401,13 +397,14 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                 layer: None,
             },
             State {
-                i: self.a.len() as Idx,
-                j: self.b.len() as Idx,
+                i: self.a.len() as I,
+                j: self.b.len() as I,
                 layer: None,
             },
             Direction::Forward,
         );
-        self.v.last_frame_with_h(Some(&cigar), None, Some(&self.h));
+        self.v
+            .last_frame(Some(&cigar.to_base()), None, Some(&self.h));
         (dist, cigar)
     }
 
@@ -416,11 +413,11 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
         fronts: &Fronts<N>,
         st: State,
         direction: Direction,
-    ) -> Option<(State, CigarOps)> {
+    ) -> Option<(State, AffineCigarOps)> {
         assert!(direction == Direction::Forward);
         let cur_cost = fronts[st.i].layer(st.layer)[st.j];
         let mut parent = None;
-        let mut cigar_ops: CigarOps = [None, None];
+        let mut cigar_ops: AffineCigarOps = [None, None];
         EditGraph::iterate_parents(
             &self.a,
             &self.b,
@@ -470,7 +467,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
         let ref mut prev = Front::default();
         let ref mut next = Front::new(INF, self.j_range(0, f_max, prev), LEFT_BUFFER, RIGHT_BUFFER);
         next.m_mut()[0] = 0;
-        for i in 1..=self.a.len() as Idx {
+        for i in 1..=self.a.len() as I {
             std::mem::swap(prev, next);
             // Update front size.
             let range = self.j_range(i, f_max, prev);
@@ -480,13 +477,13 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
             next.reset(INF, range);
             self.next_front(i, f_max.unwrap_or(0), prev, next);
             if !self.params.exponential_search {
-                self.v.new_layer_with_h(Some(&self.h));
+                self.v.new_layer(Some(&self.h));
             }
         }
         if self.params.exponential_search {
-            self.v.new_layer_with_h(Some(&self.h));
+            self.v.new_layer(Some(&self.h));
         }
-        if let Some(&dist) = next.m().get(self.b.len() as Idx) {
+        if let Some(&dist) = next.m().get(self.b.len() as I) {
             Some(dist)
         } else {
             None
@@ -500,7 +497,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
         let mut fronts = Fronts::new(
             INF,
             // The fronts to create.
-            0..=0 as Idx,
+            0..=0 as I,
             // The range for each front.
             |i| self.j_range(i, f_max, &Front::default()),
             0,
@@ -510,7 +507,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
         );
         fronts[0].m_mut()[0] = 0;
 
-        for i in 1..=self.a.len() as Idx {
+        for i in 1..=self.a.len() as I {
             let prev = &fronts[i - 1];
             let range = self.j_range(i, f_max, prev);
             if range.is_empty() {
@@ -520,11 +517,11 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
             self.next_front(i, f_max.unwrap_or(0), prev, &mut next);
             fronts.fronts.push(next);
             if !self.params.exponential_search {
-                self.v.new_layer_with_h(Some(&self.h));
+                self.v.new_layer(Some(&self.h));
             }
         }
 
-        if let Some(&dist) = fronts[self.a.len() as Idx].m().get(self.b.len() as Idx) {
+        if let Some(&dist) = fronts[self.a.len() as I].m().get(self.b.len() as I) {
             // We only track the actual path if `s` is small enough.
             if dist <= f_max.unwrap_or(INF) {
                 let cigar = self.trace(
@@ -535,8 +532,8 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
                         layer: None,
                     },
                     State {
-                        i: self.a.len() as Idx,
-                        j: self.b.len() as Idx,
+                        i: self.a.len() as I,
+                        j: self.b.len() as I,
                         layer: None,
                     },
                     Direction::Forward,
@@ -546,7 +543,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
         }
 
         if self.params.exponential_search {
-            self.v.new_layer_with_h(Some(&self.h));
+            self.v.new_layer(Some(&self.h));
         }
         None
     }
@@ -568,7 +565,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
             assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
             nw.cost_for_bounded_dist(None).unwrap()
         };
-        nw.v.last_frame(None);
+        nw.v.last_frame::<NoCostI>(None, None, None);
         cost
     }
 
@@ -589,7 +586,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
             assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
             cc = nw.align_for_bounded_dist(None).unwrap();
         };
-        nw.v.last_frame(Some(&cc.1));
+        nw.v.last_frame::<NoCostI>(Some(&cc.1.to_base()), None, None);
         cc
     }
 

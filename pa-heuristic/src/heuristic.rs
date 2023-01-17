@@ -13,7 +13,7 @@ use bruteforce_csh::*;
 use distances::*;
 
 pub use chained_seed::*;
-pub use distances::{GapCost, NoCost, ZeroCost};
+pub use distances::{GapCost, NoCost, NoCostI, ZeroCost};
 pub use seed::*;
 
 #[derive(Copy, Clone, Debug)]

@@ -21,9 +21,10 @@
 //! - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
 //!
 //!
-use crate::edit_graph::{CigarOps, EditGraph, StateT};
+use crate::edit_graph::{AffineCigarOps, EditGraph, StateT};
 use crate::exponential_search;
 use pa_affine_types::*;
+use pa_heuristic::distances::NoCostI;
 use pa_heuristic::*;
 use pa_types::*;
 use pa_vis_types::*;
@@ -373,19 +374,16 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                 Direction::Forward => {
                     *fr += 2 * extend_diagonal(direction, &self.a, &self.b, d, *fr);
                     for fr in (fr_old..*fr).step_by(2) {
-                        self.v.borrow_mut().extend_with_h(
+                        self.v.borrow_mut().extend(
                             offset + fr_to_pos(d, fr),
                             g,
                             f_max,
                             Some(&self.h),
                         );
                     }
-                    self.v.borrow_mut().expand_with_h(
-                        offset + fr_to_pos(d, *fr),
-                        g,
-                        f_max,
-                        Some(&self.h),
-                    );
+                    self.v
+                        .borrow_mut()
+                        .expand(offset + fr_to_pos(d, *fr), g, f_max, Some(&self.h));
                 }
                 Direction::Backward => {
                     *fr += 2 * extend_diagonal(
@@ -396,7 +394,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                         self.a.len() as Fr + self.b.len() as Fr - *fr,
                     );
                     for fr in (fr_old..*fr).step_by(2) {
-                        self.v.borrow_mut().extend_with_h(
+                        self.v.borrow_mut().extend(
                             offset
                                 + fr_to_pos(
                                     self.a.len() as Fr - self.b.len() as Fr - d,
@@ -407,7 +405,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                             Some(&self.h),
                         );
                     }
-                    self.v.borrow_mut().expand_with_h(
+                    self.v.borrow_mut().expand(
                         offset
                             + fr_to_pos(
                                 self.a.len() as Fr - self.b.len() as Fr - d,
@@ -690,7 +688,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
             && end_layer == None
         {
             let mut cigar = AffineCigar::default();
-            cigar.match_push(self.a.len());
+            cigar.match_push(self.a.len() as I);
             Err((0, cigar))
         } else {
             Ok(fronts)
@@ -848,7 +846,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                         break 'outer;
                     }
                 }
-                self.v.borrow_mut().new_layer_with_h(Some(&self.h));
+                self.v.borrow_mut().new_layer(Some(&self.h));
             }
         }
 
@@ -914,13 +912,13 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
         left
     }
 
-    pub fn align_for_bounded_dist_with_h<'b>(
+    pub fn align_for_bounded_dist<'b>(
         &mut self,
         f_max: Option<Cost>,
     ) -> Option<(Cost, AffineCigar)> {
         self.v
             .borrow_mut()
-            .expand_with_h(Pos(0, 0), 0, f_max.unwrap_or(0), Some(&self.h));
+            .expand(Pos(0, 0), 0, f_max.unwrap_or(0), Some(&self.h));
         let mut fronts = match self.init_fronts(
             f_max.unwrap_or(0),
             Pos(0, 0),
@@ -955,7 +953,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
             ) {
                 break;
             }
-            self.v.borrow_mut().new_layer_with_h(Some(&self.h));
+            self.v.borrow_mut().new_layer(Some(&self.h));
         }
 
         let cigar = self.trace(
@@ -974,7 +972,9 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
         // Front g has been computed up to this f.
         let mut f_max = vec![self.h.h(Pos(0, 0))];
 
-        self.v.borrow_mut().expand(Pos(0, 0), 0, f_max[0]);
+        self.v
+            .borrow_mut()
+            .expand::<NoCostI>(Pos(0, 0), 0, f_max[0], None);
         let mut fronts = match self.init_fronts(f_max[0], Pos(0, 0), None, None, Direction::Forward)
         {
             Ok(fronts) => fronts,
@@ -1141,7 +1141,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                 }
             }
 
-            self.v.borrow_mut().new_layer_with_h(Some(&self.h));
+            self.v.borrow_mut().new_layer(Some(&self.h));
         };
         let cigar = self.trace(
             &fronts,
@@ -1154,8 +1154,8 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
     }
 
     fn visualize_last_frame(&mut self, fronts: Fronts<N>, cigar: &AffineCigar) {
-        self.v.borrow_mut().last_frame_with_h::<H::Instance<'_>>(
-            Some(&cigar),
+        self.v.borrow_mut().last_frame::<H::Instance<'_>>(
+            Some(&cigar.to_base()),
             Some(
                 &(|st| {
                     // Determine the cost for the position.
@@ -1174,8 +1174,8 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                         let p = x.0.to_pos();
                         (
                             State {
-                                i: p.0 as isize,
-                                j: p.1 as isize,
+                                i: p.0,
+                                j: p.1,
                                 layer: x.0.layer,
                             },
                             x.1,
@@ -1191,7 +1191,9 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
     ///
     /// In particular, the number of fronts is max(sub, ins, del)+1.
     fn cost_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<Cost> {
-        self.v.borrow_mut().expand(Pos(0, 0), 0, f_max.unwrap_or(0));
+        self.v
+            .borrow_mut()
+            .expand::<NoCostI>(Pos(0, 0), 0, f_max.unwrap_or(0), None);
         let mut fronts = match self.init_fronts(
             f_max.unwrap_or(0),
             Pos(0, 0),
@@ -1220,12 +1222,10 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                 None,
                 Direction::Forward,
             ) {
-                self.v
-                    .borrow_mut()
-                    .last_frame_with_h(None, None, Some(&self.h));
+                self.v.borrow_mut().last_frame(None, None, Some(&self.h));
                 return Some(s);
             }
-            self.v.borrow_mut().new_layer_with_h(Some(&self.h));
+            self.v.borrow_mut().new_layer(Some(&self.h));
         }
 
         unreachable!()
@@ -1236,7 +1236,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
         fronts: &Fronts<N>,
         st: DtState,
         direction: Direction,
-    ) -> Option<(DtState, CigarOps)> {
+    ) -> Option<(DtState, AffineCigarOps)> {
         if st.is_root() {
             return None;
         }
@@ -1254,7 +1254,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                         if i > 0 && j > 0 && let Some(ca) = self.a.get(i as usize-1) && let Some(cb) = self.b.get(j as usize-1) && ca == cb {
                             parent = Some(st);
                             parent.as_mut().unwrap().fr -= 2;
-                            cigar_ops = [Some(CigarOp::Match), None];
+                            cigar_ops = [Some(AffineCigarOp::Match), None];
                             break 'forward;
                         }
                     }
@@ -1303,7 +1303,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                     assert_eq!(self.a[i as usize - 1], self.b[j as usize - 1]);
                     parent = Some(st);
                     parent.as_mut().unwrap().fr -= 2;
-                    cigar_ops = [Some(CigarOp::Match), None];
+                    cigar_ops = [Some(AffineCigarOp::Match), None];
                 }
             }
 
@@ -1352,7 +1352,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                     assert_eq!(self.a[i as usize], self.b[j as usize]);
                     parent = Some(st);
                     parent.as_mut().unwrap().fr -= 2;
-                    cigar_ops = [Some(CigarOp::Match), None];
+                    cigar_ops = [Some(AffineCigarOp::Match), None];
                 }
             }
         }
@@ -1393,7 +1393,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
         } else {
             dt.cost_for_bounded_dist(None).unwrap()
         };
-        dt.v.borrow_mut().last_frame(None);
+        dt.v.borrow_mut().last_frame::<NoCostI>(None, None, None);
         cost
     }
 
@@ -1406,9 +1406,10 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
             assert!(self.use_gap_cost_heuristic == GapCostHeuristic::Disable);
             assert!(!self.local_doubling);
 
-            dt.v.borrow_mut().expand(Pos(0, 0), 0, 0);
+            dt.v.borrow_mut().expand::<NoCostI>(Pos(0, 0), 0, 0, None);
             let (cost, cigar) = dt.path_between_dc(Pos(0, 0), None, None);
-            dt.v.borrow_mut().last_frame(Some(&cigar));
+            dt.v.borrow_mut()
+                .last_frame::<NoCostI>(Some(&cigar.to_base()), None, None);
             (cost, cigar)
         } else {
             let cc;
@@ -1420,13 +1421,12 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
                 cc = dt.align_local_band_doubling();
             } else if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
                 cc = exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
-                    dt.align_for_bounded_dist_with_h(Some(s))
-                        .map(|x @ (c, _)| (c, x))
+                    dt.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x))
                 })
                 .1;
                 //self.v.borrow_mut().last_frame(Some(&cc.1));
             } else {
-                cc = dt.align_for_bounded_dist_with_h(None).unwrap();
+                cc = dt.align_for_bounded_dist(None).unwrap();
             };
             cc
         }
@@ -1442,7 +1442,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
         b: Seq,
         f_max: Cost,
     ) -> Option<(Cost, AffineCigar)> {
-        self.build(a, b).align_for_bounded_dist_with_h(Some(f_max))
+        self.build(a, b).align_for_bounded_dist(Some(f_max))
     }
 }
 

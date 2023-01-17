@@ -1,4 +1,4 @@
-#![feature(let_chains, step_trait)]
+#![feature(let_chains, step_trait, int_roundings)]
 
 use pa_types::Cost;
 use std::cmp::max;
