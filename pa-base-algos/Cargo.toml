@@ -1,5 +1,5 @@
 [package]
-name = "reference-algos"
+name = "pa-base-algos"
 version = "0.1.0"
 edition = "2021"
 
