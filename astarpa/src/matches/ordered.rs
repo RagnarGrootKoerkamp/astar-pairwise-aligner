@@ -1,3 +1,6 @@
+//! `ordered` matches return the positions of all matches.  There used to be
+//! also a module `unordered` that only returns counts, but it has been moved to
+//! the graveyard since it is not in use.
 use smallvec::SmallVec;
 
 use super::*;

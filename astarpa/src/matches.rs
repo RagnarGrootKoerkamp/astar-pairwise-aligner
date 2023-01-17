@@ -1,6 +1,5 @@
 mod ordered;
 mod qgrams;
-mod unordered;
 
 use bio::{
     alphabets::{Alphabet, RankTransform},

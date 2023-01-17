@@ -13,7 +13,8 @@ pub fn print() -> bool {
 // ========= FLAGS IN THE PAPER (default true) =========
 
 /// Use a HashMap to find matches. Only works with exact matches and fixed k.
-/// Default: Use QGramIndex to find matches.
+/// Default: true, use a hashmap.
+/// When false, use a qgramindex.
 pub const FIND_MATCHES_HASH: bool = true;
 
 /// Whether to use shifting of the priority queue to reduce retries.

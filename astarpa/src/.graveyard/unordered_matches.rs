@@ -1,3 +1,6 @@
+//! With unordered matches, only the count of matches is returned, as opposed to
+//! the exact locations. This can be slightly faster than ordered matches
+//! (including counts), but involves a lot of extra code to maintain.
 #![allow(unused)]
 use smallvec::SmallVec;
 
