@@ -241,7 +241,7 @@ pub struct Mutations {
 // TODO: Do not generate insertions at the end. (Also do not generate similar
 // sequences by inserting elsewhere.)
 // TODO: Move to seeds.rs.
-pub fn mutations(k: I, qgram: usize, dedup: bool, insert_at_start: bool) -> Mutations {
+fn mutations(k: I, qgram: usize, dedup: bool, insert_at_start: bool) -> Mutations {
     // This assumes the alphabet size is 4.
     let mut deletions = Vec::with_capacity(k as usize);
     let mut substitutions = Vec::with_capacity(4 * k as usize);

@@ -13,6 +13,7 @@ pub fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> us
     q
 }
 
+#[allow(unused)]
 pub fn qgrams_overlap(mut k: I, mut q: usize, mut k2: I, mut q2: usize) -> bool {
     if k > k2 {
         std::mem::swap(&mut k, &mut k2);
