@@ -151,10 +151,10 @@ impl EditGraph {
                 // gap open
                 let cml = &cm.affine[layer];
                 let (i, j, di, dj, op) = match cml.affine_type {
-                    AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
+                    AffineLayerType::InsertLayer => {
                         (i, j - 1, 0, -1, AffineCigarOp::AffineIns(layer))
                     }
-                    AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
+                    AffineLayerType::DeleteLayer => {
                         (i - 1, j, -1, 0, AffineCigarOp::AffineDel(layer))
                     }
                 };
@@ -167,22 +167,7 @@ impl EditGraph {
                 );
 
                 // gap extend
-                if cml.affine_type.is_homopolymer() {
-                    // For homopolymer layers, we can only extend if the two characters are equal.
-                    if match cml.affine_type {
-                        AffineLayerType::HomoPolymerInsert => {
-                            j >= 2 && b[j as usize - 1] == b[j as usize - 2]
-                        }
-                        AffineLayerType::HomoPolymerDelete => {
-                            i >= 2 && a[i as usize - 1] == a[i as usize - 2]
-                        }
-                        _ => unreachable!(),
-                    } {
-                        f(di, dj, Some(layer), cml.extend, [Some(op), None]);
-                    }
-                } else {
-                    f(di, dj, Some(layer), cml.extend, [Some(op), None]);
-                }
+                f(di, dj, Some(layer), cml.extend, [Some(op), None]);
             }
         }
     }
@@ -258,12 +243,8 @@ impl EditGraph {
                 // gap open
                 let cml = &cm.affine[layer];
                 let (di, dj, op) = match cml.affine_type {
-                    AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (0, -1, AffineCigarOp::AffineIns(layer))
-                    }
-                    AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (-1, 0, AffineCigarOp::AffineDel(layer))
-                    }
+                    AffineLayerType::InsertLayer => (0, -1, AffineCigarOp::AffineIns(layer)),
+                    AffineLayerType::DeleteLayer => (-1, 0, AffineCigarOp::AffineDel(layer)),
                 };
                 if let Some((i, j)) = f(di, dj, None, cml.open) {
                     g(
@@ -279,23 +260,7 @@ impl EditGraph {
 
                 // gap extend
                 if let Some((i, j)) = f(di, dj, Some(layer), cml.extend) {
-                    if cml.affine_type.is_homopolymer() {
-                        // For homopolymer layers, we can only extend if the last
-                        // two characters ending in the current position are equal.
-                        if match cml.affine_type {
-                            AffineLayerType::HomoPolymerInsert => {
-                                j >= 2 && b[j as usize - 1] == b[j as usize - 2]
-                            }
-                            AffineLayerType::HomoPolymerDelete => {
-                                i >= 2 && a[i as usize - 1] == a[i as usize - 2]
-                            }
-                            _ => unreachable!(),
-                        } {
-                            g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
-                        }
-                    } else {
-                        g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
-                    }
+                    g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
                 }
             }
         }
@@ -344,12 +309,8 @@ impl EditGraph {
                 // affine open
                 for (layer, cml) in cm.affine.iter().enumerate() {
                     let (di, dj, op) = match cml.affine_type {
-                        AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                            (0, 1, AffineCigarOp::AffineIns(layer))
-                        }
-                        AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                            (1, 0, AffineCigarOp::AffineDel(layer))
-                        }
+                        AffineLayerType::InsertLayer => (0, 1, AffineCigarOp::AffineIns(layer)),
+                        AffineLayerType::DeleteLayer => (1, 0, AffineCigarOp::AffineDel(layer)),
                     };
                     if let Some((i, j)) = f(di, dj, Some(layer), cml.open) {
                         g(
@@ -375,12 +336,8 @@ impl EditGraph {
                 // gap extend
                 let cml = &cm.affine[layer];
                 let (di, dj, op) = match cml.affine_type {
-                    AffineLayerType::InsertLayer | AffineLayerType::HomoPolymerInsert => {
-                        (0, 1, AffineCigarOp::AffineIns(layer))
-                    }
-                    AffineLayerType::DeleteLayer | AffineLayerType::HomoPolymerDelete => {
-                        (1, 0, AffineCigarOp::AffineDel(layer))
-                    }
+                    AffineLayerType::InsertLayer => (0, 1, AffineCigarOp::AffineIns(layer)),
+                    AffineLayerType::DeleteLayer => (1, 0, AffineCigarOp::AffineDel(layer)),
                 };
                 if let Some((i, j)) = f(di, dj, Some(layer), cml.extend) {
                     g(di, dj, i, j, Some(layer), cml.extend, [Some(op), None]);
