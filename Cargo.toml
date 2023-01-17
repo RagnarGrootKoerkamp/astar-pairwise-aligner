@@ -2,6 +2,7 @@
 members = [
     "pa-affine-types",
     "pa-heuristic",
+    "pa-vis-types",
     "astarpa",
     "pa-base-algos",
 ]

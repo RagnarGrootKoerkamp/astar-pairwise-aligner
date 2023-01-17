@@ -724,6 +724,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pa-vis-types"
+version = "0.1.0"
+dependencies = [
+ "pa-heuristic",
+ "pa-types",
+ "serde",
+]
+
+[[package]]
 name = "parse-size"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

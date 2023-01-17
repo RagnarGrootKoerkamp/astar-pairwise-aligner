@@ -1,0 +1,9 @@
+[package]
+name = "pa-vis-types"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
+pa-heuristic = { path = "../pa-heuristic" }
+serde = { version = "1.0.152", features = ["derive"] }

@@ -1,11 +1,8 @@
-use pa_types::{Cigar, CigarOp, Cost};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::{
-    heuristic::HeuristicInstance,
-    prelude::{Pos, Seq},
-};
+use pa_heuristic::*;
+use pa_types::*;
 
 pub type ParentFn<'a> = Option<&'a dyn Fn(Pos) -> Option<(Pos, [Option<CigarOp>; 2])>>;
 
