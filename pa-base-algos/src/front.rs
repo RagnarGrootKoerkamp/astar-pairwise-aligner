@@ -278,6 +278,7 @@ where
         }
     }
 
+    #[allow(unused)]
     #[inline]
     pub fn m_affine_mut(&mut self, layer_idx: usize) -> (MutLayer<'_, T, I>, MutLayer<'_, T, I>) {
         (

@@ -6,7 +6,7 @@ use pa_affine_types::*;
 use pa_types::*;
 use std::cmp::max;
 
-use super::dt::{Direction, Fr};
+use super::dt::Fr;
 
 pub type AffineCigarOps = [Option<AffineCigarOp>; 2];
 
@@ -150,7 +150,7 @@ impl EditGraph {
 
                 // gap open
                 let cml = &cm.affine[layer];
-                let (i, j, di, dj, op) = match cml.affine_type {
+                let (_i, _j, di, dj, op) = match cml.affine_type {
                     AffineLayerType::InsertLayer => {
                         (i, j - 1, 0, -1, AffineCigarOp::AffineIns(layer))
                     }
@@ -179,9 +179,10 @@ impl EditGraph {
     /// - g: handles the edge, if it is indeed allowed.
     ///
     /// NOTE: Matches are completely ignored here.
+    // FIXME: Cleanup redundant arguments now that HomoPolymer is removed.
     pub fn iterate_parents_dt<const N: usize>(
-        a: Seq,
-        b: Seq,
+        _a: Seq,
+        _b: Seq,
         cm: &AffineCost<N>,
         layer: Layer,
         // Given (di, dj) return the (i, j) of the end of the actual edge.
@@ -268,8 +269,8 @@ impl EditGraph {
 
     /// Same as iterate_parent, but in the other direction.
     pub fn iterate_children_dt<const N: usize>(
-        a: Seq,
-        b: Seq,
+        _a: Seq,
+        _b: Seq,
         cm: &AffineCost<N>,
         layer: Layer,
         // Given (di, dj) return the (i, j) of the end of the actual edge.
@@ -358,24 +359,6 @@ impl EditGraph {
                     );
                 }
             }
-        }
-    }
-
-    /// Iterates parents in the given direction.
-    pub fn iterate_neighbours_dt<const N: usize>(
-        a: Seq,
-        b: Seq,
-        cm: &AffineCost<N>,
-        layer: Layer,
-        direction: Direction,
-        // Given (di, dj) return the (i, j) of the end of the actual edge.
-        f: impl FnMut(Fr, Fr, Layer, Cost) -> Option<(Fr, Fr)>,
-        // Given `fr`, update fr point.
-        g: impl FnMut(Fr, Fr, Fr, Fr, Layer, Cost, AffineCigarOps),
-    ) {
-        match direction {
-            Direction::Forward => Self::iterate_parents_dt(a, b, cm, layer, f, g),
-            Direction::Backward => Self::iterate_children_dt(a, b, cm, layer, f, g),
         }
     }
 }

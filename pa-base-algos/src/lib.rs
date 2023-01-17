@@ -7,8 +7,8 @@ mod cli;
 mod edit_graph;
 mod front;
 
-mod dt;
-mod nw;
+pub mod dt;
+pub mod nw;
 
 #[cfg(test)]
 mod tests;

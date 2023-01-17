@@ -1383,7 +1383,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
 }
 
 impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+    pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut dt = self.build(a, b);
         let cost = if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
             exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
@@ -1397,7 +1397,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
         cost
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
+    pub fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
         let mut dt = self.build(a, b);
         if self.dc {
             // D&C does not work with a heuristic yet, since the target state (where
@@ -1432,11 +1432,11 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
         }
     }
 
-    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
+    pub fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
         self.build(a, b).cost_for_bounded_dist(Some(f_max))
     }
 
-    fn align_for_bounded_dist(
+    pub fn align_for_bounded_dist(
         &mut self,
         a: Seq,
         b: Seq,

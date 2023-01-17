@@ -554,7 +554,7 @@ fn pad(a: Seq) -> Sequence {
 }
 
 impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
-    fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+    pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut nw = self.build(a, b);
         let cost = if self.exponential_search {
             exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
@@ -569,7 +569,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
         cost
     }
 
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
+    pub fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
         let mut nw = self.build(a, b);
         let cc;
         if self.local_doubling {
@@ -590,11 +590,11 @@ impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
         cc
     }
 
-    fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
+    pub fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
         self.build(a, b).cost_for_bounded_dist(Some(f_max))
     }
 
-    fn align_for_bounded_dist(
+    pub fn align_for_bounded_dist(
         &mut self,
         a: Seq,
         b: Seq,
