@@ -1,60 +1,32 @@
 //! This module contains the `AffineCost` and `LinearCost` cost models.
-//!
+
 use pa_types::*;
 use std::cmp::{max, min};
-
-/// Type for storing costs. Not u64 to save on memory.
-///
-/// TODO: Make this a strong type, so that conversion between costs and indices
-/// is explicit.
-pub use pa_types::Cost;
 
 /// An affine layer can either correspond to an insertion or deletion.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AffineLayerType {
     InsertLayer,
     DeleteLayer,
-    // TODO: Add homopolymer affine layers that only allow inserting/deleting duplicate characters.
-    // I.e.:
-    // abc -> abbbc
-    // abbbc -> abc
-    // but not:
-    // ac -> abbbc
-    // abbbc -> ac
-    //
-    // TODO:
-    // We could also decide to allow this last example, where the run of
-    // inserted/deleted characters has to be equal, but does not have to be
-    // equal to any adjacent character. However, that will likely cover more
-    // unintended single-character mutations.
-    // We could make this a parameter of the enum variant.
-    HomoPolymerInsert,
-    HomoPolymerDelete,
 }
 
 impl AffineLayerType {
-    pub fn is_homopolymer(&self) -> bool {
-        match self {
-            InsertLayer | DeleteLayer => false,
-            HomoPolymerInsert | HomoPolymerDelete => true,
-        }
-    }
     pub fn base(&self) -> AffineLayerType {
         match self {
-            InsertLayer | HomoPolymerInsert => InsertLayer,
-            DeleteLayer | HomoPolymerDelete => DeleteLayer,
+            InsertLayer => InsertLayer,
+            DeleteLayer => DeleteLayer,
         }
     }
     pub fn is_insert(&self) -> bool {
         match self {
-            InsertLayer | HomoPolymerInsert => true,
-            DeleteLayer | HomoPolymerDelete => false,
+            InsertLayer => true,
+            DeleteLayer => false,
         }
     }
     pub fn is_delete(&self) -> bool {
         match self {
-            InsertLayer | HomoPolymerInsert => false,
-            DeleteLayer | HomoPolymerDelete => true,
+            InsertLayer => false,
+            DeleteLayer => true,
         }
     }
 }
@@ -71,6 +43,8 @@ pub struct AffineLayerCosts {
 
 /// A full cost model consists of linear substitution/insertion/delete costs,
 /// and zero or more (N) affine layers.
+// The constructure is private to this module.
+#[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct AffineCost<const N: usize> {
     /// The substitution cost. Or None when substitutions are not allowed.
@@ -99,34 +73,58 @@ pub struct AffineCost<const N: usize> {
     pub max_ins_open_extend: Cost,
     pub min_del_open_extend: Cost,
     pub max_del_open_extend: Cost,
-
-    // Make the constructor private.
-    _private: (),
 }
 
-/// A linear cost model is simply an affine cost model without any affine layers.
-pub type LinearCost = AffineCost<0>;
+impl From<CostModel> for AffineCost<0> {
+    fn from(CostModel { sub, open, extend }: CostModel) -> Self {
+        assert_eq!(open, 0, "AffineCost<0> cannot handle affine cost models.");
+        AffineCost::new(Some(sub), Some(extend), Some(extend), [])
+    }
+}
 
-impl LinearCost {
-    pub fn new_lcs() -> LinearCost {
+impl From<CostModel> for AffineCost<2> {
+    fn from(CostModel { sub, open, extend }: CostModel) -> Self {
+        assert!(
+            open != 0,
+            "AffineCost<2> can only handle affine cost models."
+        );
+        AffineCost::new(
+            Some(sub),
+            None,
+            None,
+            [
+                AffineLayerCosts {
+                    affine_type: AffineLayerType::InsertLayer,
+                    open,
+                    extend,
+                },
+                AffineLayerCosts {
+                    affine_type: AffineLayerType::DeleteLayer,
+                    open,
+                    extend,
+                },
+            ],
+        )
+    }
+}
+
+impl AffineCost<0> {
+    pub fn lcs() -> AffineCost<0> {
         Self::new(None, Some(1), Some(1), [])
     }
-
-    pub fn new_unit() -> LinearCost {
+    pub fn unit() -> AffineCost<0> {
         Self::new(Some(1), Some(1), Some(1), [])
     }
-
-    pub fn new_linear(sub: Cost, indel: Cost) -> LinearCost {
+    pub fn linear(sub: Cost, indel: Cost) -> AffineCost<0> {
         Self::new(Some(sub), Some(indel), Some(indel), [])
     }
-
-    pub fn new_linear_asymmetric(sub: Cost, ins: Cost, del: Cost) -> LinearCost {
+    pub fn linear_asymmetric(sub: Cost, ins: Cost, del: Cost) -> AffineCost<0> {
         Self::new(Some(sub), Some(ins), Some(del), [])
     }
 }
 
 impl AffineCost<2> {
-    pub fn new_affine(sub: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
+    pub fn affine(sub: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
         Self::new(
             Some(sub),
             None,
@@ -145,7 +143,7 @@ impl AffineCost<2> {
             ],
         )
     }
-    pub fn new_linear_affine(sub: Cost, indel: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
+    pub fn linear_affine(sub: Cost, indel: Cost, open: Cost, extend: Cost) -> AffineCost<2> {
         Self::new(
             Some(sub),
             Some(indel),
@@ -164,7 +162,7 @@ impl AffineCost<2> {
             ],
         )
     }
-    pub fn new_affine_asymmetric(
+    pub fn affine_asymmetric(
         sub: Cost,
         ins_open: Cost,
         ins_extend: Cost,
@@ -191,7 +189,7 @@ impl AffineCost<2> {
     }
 }
 impl AffineCost<4> {
-    pub fn new_double_affine(
+    pub fn double_affine(
         sub: Cost,
         open: Cost,
         extend: Cost,
@@ -307,7 +305,6 @@ impl<const N: usize> AffineCost<N> {
             max_ins_open_extend,
             min_del_open_extend,
             max_del_open_extend,
-            _private: (),
         }
     }
 
@@ -434,10 +431,8 @@ impl<const N: usize> AffineCost<N> {
 
     pub fn to_cigar(&self, layer: usize) -> CigarOp {
         match self.affine[layer].affine_type {
-            InsertLayer | HomoPolymerInsert => CigarOp::Ins,
-            DeleteLayer | HomoPolymerDelete => CigarOp::Del,
-            // InsertLayer | HomoPolymerInsert => CigarOp::AffineIns(layer),
-            // DeleteLayer | HomoPolymerDelete => CigarOp::AffineDel(layer),
+            InsertLayer => CigarOp::Ins,
+            DeleteLayer => CigarOp::Del,
         }
     }
 
@@ -510,114 +505,6 @@ impl<const N: usize> AffineCost<N> {
                 c
             }
             _ => unreachable!(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum CostModel {
-    Levenshtein,
-    LCS,
-    Linear {
-        sub: Cost,
-        indel: Cost,
-    },
-    Affine {
-        sub: Cost,
-        open: Cost,
-        extend: Cost,
-    },
-    DoubleAffine {
-        sub: Cost,
-        open1: Cost,
-        extend1: Cost,
-        open2: Cost,
-        extend2: Cost,
-    },
-    AsymmetricLinear {
-        sub: Cost,
-        ins: Cost,
-        del: Cost,
-    },
-    AsymmetricAffine {
-        sub: Cost,
-        ins_open: Cost,
-        ins_extend: Cost,
-        del_open: Cost,
-        del_extend: Cost,
-    },
-}
-
-pub enum AffineCostModel {
-    Linear(AffineCost<0>),
-    Affine(AffineCost<2>),
-    DoubleAffine(AffineCost<4>),
-}
-
-impl CostModel {
-    pub fn is_linear(&self) -> bool {
-        match self {
-            CostModel::DoubleAffine { .. } => false,
-            _ => true,
-        }
-    }
-    pub fn is_symmetric(&self) -> bool {
-        match self {
-            CostModel::AsymmetricLinear { .. } | CostModel::AsymmetricAffine { .. } => false,
-            _ => true,
-        }
-    }
-    pub fn to_affine(&self) -> Self {
-        match *self {
-            CostModel::Levenshtein => CostModel::Affine {
-                sub: 1,
-                open: 0,
-                extend: 1,
-            },
-            CostModel::LCS => CostModel::Affine {
-                sub: Cost::MAX,
-                open: 0,
-                extend: 1,
-            },
-            CostModel::Linear { sub, indel } => CostModel::Affine {
-                sub,
-                open: 0,
-                extend: indel,
-            },
-            cm => cm,
-        }
-    }
-
-    pub fn to_affine_cost(&self) -> AffineCostModel {
-        use AffineCostModel::*;
-        match *self {
-            CostModel::Levenshtein => Linear(AffineCost::new_unit()),
-            CostModel::LCS => Linear(AffineCost::new_lcs()),
-            CostModel::Linear { sub, indel } => Linear(AffineCost::new_linear(sub, indel)),
-            CostModel::Affine { sub, open, extend } => {
-                Affine(AffineCost::new_affine(sub, open, extend))
-            }
-            CostModel::DoubleAffine {
-                sub,
-                open1,
-                extend1,
-                open2,
-                extend2,
-            } => DoubleAffine(AffineCost::new_double_affine(
-                sub, open1, extend1, open2, extend2,
-            )),
-            CostModel::AsymmetricLinear { sub, ins, del } => {
-                Linear(AffineCost::new_linear_asymmetric(sub, ins, del))
-            }
-            CostModel::AsymmetricAffine {
-                sub,
-                ins_open,
-                ins_extend,
-                del_open,
-                del_extend,
-            } => Affine(AffineCost::new_affine_asymmetric(
-                sub, ins_open, ins_extend, del_open, del_extend,
-            )),
         }
     }
 }
