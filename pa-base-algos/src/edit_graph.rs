@@ -150,13 +150,9 @@ impl EditGraph {
 
                 // gap open
                 let cml = &cm.affine[layer];
-                let (_i, _j, di, dj, op) = match cml.affine_type {
-                    AffineLayerType::InsertLayer => {
-                        (i, j - 1, 0, -1, AffineCigarOp::AffineIns(layer))
-                    }
-                    AffineLayerType::DeleteLayer => {
-                        (i - 1, j, -1, 0, AffineCigarOp::AffineDel(layer))
-                    }
+                let (di, dj, op) = match cml.affine_type {
+                    AffineLayerType::InsertLayer => (0, -1, AffineCigarOp::AffineIns(layer)),
+                    AffineLayerType::DeleteLayer => (-1, 0, AffineCigarOp::AffineDel(layer)),
                 };
                 f(
                     di,
@@ -181,8 +177,6 @@ impl EditGraph {
     /// NOTE: Matches are completely ignored here.
     // FIXME: Cleanup redundant arguments now that HomoPolymer is removed.
     pub fn iterate_parents_dt<const N: usize>(
-        _a: Seq,
-        _b: Seq,
         cm: &AffineCost<N>,
         layer: Layer,
         // Given (di, dj) return the (i, j) of the end of the actual edge.
@@ -269,8 +263,6 @@ impl EditGraph {
 
     /// Same as iterate_parent, but in the other direction.
     pub fn iterate_children_dt<const N: usize>(
-        _a: Seq,
-        _b: Seq,
         cm: &AffineCost<N>,
         layer: Layer,
         // Given (di, dj) return the (i, j) of the end of the actual edge.

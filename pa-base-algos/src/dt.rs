@@ -439,8 +439,6 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
         EditGraph::iterate_layers(&self.params.cm, |layer| {
             // Find an initial range.
             EditGraph::iterate_parents_dt(
-                self.a,
-                self.b,
                 &self.params.cm,
                 layer,
                 |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
@@ -498,8 +496,6 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
 
             // Find an initial range.
             EditGraph::iterate_parents_dt(
-                self.a,
-                self.b,
                 &self.params.cm,
                 // TODO: Fix for affine layers.
                 None,
@@ -525,8 +521,6 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                 // TODO: dedup.
                 let mut fr = Fr::MIN;
                 EditGraph::iterate_parents_dt(
-                    self.a,
-                    self.b,
                     &self.params.cm,
                     // TODO: Fix for affine layers.
                     None,
@@ -585,8 +579,6 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                     EditGraph::iterate_layers(&self.params.cm, |layer| {
                         let mut fr = Fr::MIN;
                         EditGraph::iterate_parents_dt(
-                            self.a,
-                            self.b,
                             &self.params.cm,
                             layer,
                             |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
@@ -618,8 +610,6 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                     EditGraph::iterate_layers(&self.params.cm, |layer| {
                         let mut fr = Fr::MIN;
                         EditGraph::iterate_children_dt(
-                            self.a,
-                            self.b,
                             &self.params.cm,
                             layer,
                             // NOTE: This returns a forward position.
@@ -1261,8 +1251,6 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                 }
 
                 EditGraph::iterate_parents_dt(
-                    self.a,
-                    self.b,
                     &self.params.cm,
                     st.layer,
                     |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
@@ -1313,8 +1301,6 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
                 let mirror_fr = |fr| self.a.len() as Fr + self.b.len() as Fr - fr;
 
                 EditGraph::iterate_children_dt(
-                    self.a,
-                    self.b,
                     &self.params.cm,
                     st.layer,
                     |di, dj, layer, edge_cost| -> Option<(Fr, Fr)> {
