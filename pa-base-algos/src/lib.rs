@@ -1,3 +1,15 @@
+mod algorithm_args;
+mod cigar;
+mod cost_model;
+mod edit_graph;
+mod front;
+
+mod dt;
+mod nw;
+
+#[cfg(test)]
+mod tests;
+
 /// Find the cost using exponential search based on `cost_assuming_bounded_dist`.
 fn exponential_search<T>(
     s0: Cost,
