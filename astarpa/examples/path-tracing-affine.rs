@@ -7,7 +7,7 @@ fn main() {}
 fn main() {
     use std::time::Duration;
 
-    use astar_pairwise_aligner::{
+    use astarpa::{
         aligners::{
             diagonal_transition::{DiagonalTransition, GapCostHeuristic},
             Aligner,

@@ -1,7 +1,7 @@
 #![feature(let_chains)]
 use std::{marker::PhantomData, panic::AssertUnwindSafe};
 
-use astar_pairwise_aligner::{
+use astarpa::{
     contour::{BruteForceContour, HintContours},
     heuristic::{Heuristic, Pruning, CSH},
     matches::MatchConfig,

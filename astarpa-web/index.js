@@ -1,4 +1,4 @@
-import init from "./pkg/astar_pairwise_aligner.js";
+import init from "./pkg/astarpa.js";
 // TODO: fix the import using
 // https://stackoverflow.com/questions/61986932/how-to-pass-a-string-from-js-to-wasm-generated-through-rust-using-wasm-bindgen-w
 init()

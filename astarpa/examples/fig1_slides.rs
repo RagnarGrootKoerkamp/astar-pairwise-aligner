@@ -6,7 +6,7 @@ fn main() {}
 fn main() {
     use std::path::PathBuf;
 
-    use astar_pairwise_aligner::{
+    use astarpa::{
         aligners::{
             astar::Astaras,
             diagonal_transition::{DiagonalTransition, GapCostHeuristic},

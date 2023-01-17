@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "astar-pairwise-aligner"
+name = "astarpa"
 version = "0.1.0"
 dependencies = [
  "aho-corasick",

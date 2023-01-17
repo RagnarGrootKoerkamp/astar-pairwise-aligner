@@ -7,8 +7,8 @@ fn main() {}
 fn main() {
     use std::time::Duration;
 
-    use astar_pairwise_aligner::canvas::*;
-    use astar_pairwise_aligner::{
+    use astarpa::canvas::*;
+    use astarpa::{
         aligners::{astar::Astaras, Aligner},
         prelude::*,
         visualizer::{Gradient, Visualizer, When},

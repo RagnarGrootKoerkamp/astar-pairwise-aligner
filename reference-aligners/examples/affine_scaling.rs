@@ -1,4 +1,4 @@
-use astar_pairwise_aligner::{
+use astarpa::{
     aligners::{nw::NW, Aligner},
     prelude::{generate_model, AffineCost, ErrorModel, NoCost},
     visualizer::NoVisualizer,

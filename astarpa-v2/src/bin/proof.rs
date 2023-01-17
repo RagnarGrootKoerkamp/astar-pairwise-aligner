@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use astar_pairwise_aligner::{
+use astarpa::{
     cli::{heuristic_params::AlgorithmArgs, input::Input, visualizer::VisualizerArgs},
     prelude::*,
 };

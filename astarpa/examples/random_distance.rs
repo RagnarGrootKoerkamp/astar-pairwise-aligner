@@ -1,5 +1,5 @@
 #![allow(unused)]
-use astar_pairwise_aligner::{matches::fixed_seeds, prelude::*};
+use astarpa::{matches::fixed_seeds, prelude::*};
 use bio::alphabets::{Alphabet, RankTransform};
 use clap::Parser;
 use pa_generate::uniform_seeded;

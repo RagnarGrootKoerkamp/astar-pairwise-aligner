@@ -3,7 +3,7 @@
 #![feature(test)]
 #![cfg(test)]
 
-use astar_pairwise_aligner::{
+use astarpa::{
     astar,
     contour::*,
     heuristic::{Pruning, CSH},

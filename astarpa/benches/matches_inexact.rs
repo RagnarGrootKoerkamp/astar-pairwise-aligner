@@ -3,7 +3,7 @@
 //! - am is 2.5x larger than b, so build a datastructure over b
 #![feature(test)]
 #![cfg(test)]
-use astar_pairwise_aligner::{
+use astarpa::{
     matches::{find_matches_qgram_hash_inexact, MatchConfig, Mutations},
     prelude::*,
 };
