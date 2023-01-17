@@ -11,6 +11,17 @@ pub struct CSH<C: Contours> {
     pub c: PhantomData<C>,
 }
 
+impl CSH<HintContours<BruteForceContour>> {
+    pub fn new(match_config: MatchConfig, pruning: Pruning, use_gap_cost: bool) -> Self {
+        Self {
+            match_config,
+            pruning,
+            use_gap_cost,
+            c: PhantomData,
+        }
+    }
+}
+
 impl<C: Contours> CSH<C> {
     pub fn to_seed_heuristic(&self) -> BruteForceCSH<GapCost> {
         assert!(self.use_gap_cost);

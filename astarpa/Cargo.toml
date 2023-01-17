@@ -49,9 +49,6 @@ rand_chacha = { version = "0.3.1", optional = true}
 
 [dev-dependencies]
 # For benchmarking only.
-aho-corasick = "*"
-suffix = "*"
-lazy_static = "1.4.0"
 pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
 triple_accel = "0.4.0"
 rand = "0.8.5"

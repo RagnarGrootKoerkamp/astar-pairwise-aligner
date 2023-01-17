@@ -3,10 +3,9 @@
 //! - am is 2.5x larger than b, so build a datastructure over b
 #![feature(test)]
 #![cfg(test)]
-use astarpa::{
-    matches::{find_matches_qgram_hash_inexact, MatchConfig, Mutations},
-    prelude::*,
-};
+use pa_heuristic::matches::{find_matches_qgram_hash_inexact, MatchConfig, Mutations};
+use pa_types::*;
+use rustc_hash::FxHashMap as HashMap;
 
 #[macro_use]
 extern crate lazy_static;

@@ -2,16 +2,14 @@
 #![allow(unused_variables)]
 #![feature(test)]
 #![cfg(test)]
-use astarpa::{
-    matches::{find_matches_qgram_hash_exact, find_matches_qgramindex, MatchConfig},
-    prelude::*,
-};
+use lazy_static::*;
+use pa_generate::uniform_fixed;
+use pa_heuristic::matches::{find_matches_qgram_hash_exact, find_matches_qgramindex, MatchConfig};
+use pa_types::*;
+use rustc_hash::FxHashMap as HashMap;
 
-#[macro_use]
-extern crate lazy_static;
 extern crate test;
 
-use pa_generate::uniform_fixed;
 use test::Bencher;
 
 const E: f32 = 0.02;

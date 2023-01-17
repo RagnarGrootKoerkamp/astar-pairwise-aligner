@@ -3,14 +3,12 @@
 
 use std::hint::black_box;
 
-use astarpa::{
-    matches::{find_matches_qgram_hash_exact, MatchConfig},
-    prelude::*,
-};
+use pa_heuristic::matches::{find_matches_qgram_hash_exact, MatchConfig};
 
 extern crate test;
 
 use pa_generate::uniform_fixed;
+use pa_types::I;
 use test::Bencher;
 
 const E: f32 = 0.02;

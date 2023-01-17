@@ -30,13 +30,11 @@ dependencies = [
 name = "astarpa"
 version = "0.1.0"
 dependencies = [
- "aho-corasick",
  "bio",
  "clap",
  "derive_more",
  "instant",
  "itertools",
- "lazy_static",
  "num-traits",
  "pa-generate",
  "pa-heuristic",
@@ -48,7 +46,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "smallvec",
- "suffix",
  "triple_accel",
 ]
 
@@ -691,17 +688,20 @@ dependencies = [
 name = "pa-heuristic"
 version = "0.1.0"
 dependencies = [
+ "aho-corasick",
  "bio",
  "clap",
  "derive_more",
  "instant",
  "itertools",
+ "lazy_static",
  "num-traits",
  "pa-generate",
  "pa-types",
  "rustc-hash",
  "serde",
  "smallvec",
+ "suffix",
 ]
 
 [[package]]

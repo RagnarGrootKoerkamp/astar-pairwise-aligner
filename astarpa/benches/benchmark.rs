@@ -3,15 +3,10 @@
 #![feature(test)]
 #![cfg(test)]
 
-use astarpa::{
-    astar,
-    contour::*,
-    heuristic::{Pruning, CSH},
-    matches::*,
-    visualizer::NoVis,
-};
+use astarpa::astar;
 use pa_generate::uniform_fixed;
-use std::marker::PhantomData;
+use pa_heuristic::*;
+use pa_vis_types::*;
 
 extern crate test;
 
@@ -21,12 +16,7 @@ use test::Bencher;
 fn base_100(bench: &mut Bencher) {
     let n = 100;
     let e = 0.2;
-    let h = CSH {
-        match_config: MatchConfig::inexact(6),
-        pruning: Pruning::enabled(),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    };
+    let h = CSH::new(MatchConfig::inexact(6), Pruning::enabled(), true);
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -36,12 +26,7 @@ fn base_100(bench: &mut Bencher) {
 fn base_1000(bench: &mut Bencher) {
     let n = 1000;
     let e = 0.2;
-    let h = CSH {
-        match_config: MatchConfig::inexact(7),
-        pruning: Pruning::enabled(),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    };
+    let h = CSH::new(MatchConfig::inexact(7), Pruning::enabled(), true);
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -51,12 +36,7 @@ fn base_1000(bench: &mut Bencher) {
 fn base_10000(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.2;
-    let h = CSH {
-        match_config: MatchConfig::inexact(8),
-        pruning: Pruning::enabled(),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    };
+    let h = CSH::new(MatchConfig::inexact(8), Pruning::enabled(), true);
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -66,12 +46,7 @@ fn base_10000(bench: &mut Bencher) {
 fn base_50000_similar(bench: &mut Bencher) {
     let n = 50000;
     let e = 0.05;
-    let h = CSH {
-        match_config: MatchConfig::inexact(10),
-        pruning: Pruning::enabled(),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    };
+    let h = CSH::new(MatchConfig::inexact(10), Pruning::enabled(), true);
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -81,12 +56,7 @@ fn base_50000_similar(bench: &mut Bencher) {
 fn fast_100(bench: &mut Bencher) {
     let n = 100;
     let e = 0.2;
-    let h = CSH {
-        match_config: MatchConfig::inexact(6),
-        pruning: Pruning::enabled(),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    };
+    let h = CSH::new(MatchConfig::inexact(6), Pruning::enabled(), true);
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -96,12 +66,7 @@ fn fast_100(bench: &mut Bencher) {
 fn fast_1000(bench: &mut Bencher) {
     let n = 1000;
     let e = 0.2;
-    let h = CSH {
-        match_config: MatchConfig::inexact(7),
-        pruning: Pruning::enabled(),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    };
+    let h = CSH::new(MatchConfig::inexact(7), Pruning::enabled(), true);
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -111,12 +76,7 @@ fn fast_1000(bench: &mut Bencher) {
 fn fast_10000(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.2;
-    let h = CSH {
-        match_config: MatchConfig::inexact(8),
-        pruning: Pruning::enabled(),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    };
+    let h = CSH::new(MatchConfig::inexact(8), Pruning::enabled(), true);
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -126,12 +86,7 @@ fn fast_10000(bench: &mut Bencher) {
 fn fast_50000_similar(bench: &mut Bencher) {
     let n = 50000;
     let e = 0.05;
-    let h = CSH {
-        match_config: MatchConfig::inexact(10),
-        pruning: Pruning::enabled(),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    };
+    let h = CSH::new(MatchConfig::inexact(10), Pruning::enabled(), true);
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));

@@ -1,15 +1,9 @@
-use std::marker::PhantomData;
+use triple_accel::levenshtein;
 
-use bio::alignment::distance::simd::levenshtein;
+use crate::align::AstarPa;
+use pa_heuristic::*;
 use pa_types::{Cost, CostModel};
-
-use crate::{
-    align::AstarPa,
-    contour::*,
-    heuristic::{Heuristic, Pruning, CSH},
-    matches::MatchConfig,
-    visualizer::*,
-};
+use pa_vis_types::*;
 
 mod align;
 mod contours;
@@ -27,12 +21,7 @@ fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
 /// Before it only checked for at least `max_len` layers, which is wrong.
 #[test]
 fn hint_contours_overly_greedy_shift() {
-    let mut h = CSH {
-        match_config: MatchConfig::new(3, 1),
-        pruning: Pruning::new(true),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>::default(),
-    };
+    let mut h = CSH::new(MatchConfig::new(3, 1), Pruning::new(true), true);
 
     let a = "CCCGTCGTCCCTCAAACTTGGAACCCCATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTACGGTACCCCTTCTGCGATAGAGATGGTAGTAGCCGATAGGCCACCCTGGGAACACTATGTCACCCTGGTGGTAACCGTCGGGTCAGAAATAGGAGAACATACGGTGGACCGCTAA".as_bytes();
     let b = "CCCGTCGTACCTCTAAACTTGGAACCCACATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTTCGGGTACCCCTTCGTGCGATAGAGATGGTAGTAGCCGATAGGCCACCCTGGGAACACTATGTCACCCTGGTGGTAACCGTCGGGTCAGAAATAGGAGTACATACGGTGGACCG".as_bytes();
@@ -57,12 +46,7 @@ fn hint_contours_overly_greedy_shift() {
 /// - Like normal A*, extending is done before pushing a state onto the priority queue.
 #[test]
 fn csh_dt_inconsistent_greedy() {
-    let h = CSH {
-        match_config: MatchConfig::new(3, 1),
-        pruning: Pruning::new(true),
-        use_gap_cost: false,
-        c: PhantomData::<HintContours<BruteForceContour>>::default(),
-    };
+    let h = CSH::new(MatchConfig::new(3, 1), Pruning::new(true), false);
 
     let a = "GCCGCGCGCGCAGCCGCGCGCGCGCGCGCGCCGG".as_bytes();
     let b = "GCGCCAGCGCGCGCGGGCCGCCGGCGCGCGCGCT".as_bytes();

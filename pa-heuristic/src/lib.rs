@@ -5,12 +5,13 @@ mod cli;
 mod config;
 mod contour;
 pub mod heuristic;
-mod matches;
+pub mod matches;
 mod split_vec;
 
 #[cfg(feature = "cli")]
 pub use cli::*;
 pub use heuristic::*;
+pub use matches::MatchConfig;
 
 mod prelude {
     pub use crate::config::*;

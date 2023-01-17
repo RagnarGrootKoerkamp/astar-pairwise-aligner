@@ -4,13 +4,10 @@ use pa_generate::ErrorModel;
 use pa_types::{Cost, CostModel, Seq};
 use rand::{seq::IteratorRandom, thread_rng, Rng};
 
-use crate::{
-    align::AstarPa,
-    contour::*,
-    heuristic::Heuristic,
-    prelude::seq_to_string,
-    visualizer::{NoVis, Visualizer},
-};
+use crate::align::AstarPa;
+use pa_heuristic::*;
+use pa_types::*;
+use pa_vis_types::*;
 
 fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
     let rng = &mut thread_rng();
@@ -87,13 +84,6 @@ fn test_aligner_on_input<H: Heuristic, V: Visualizer>(
 }
 
 mod astar {
-    use std::marker::PhantomData;
-
-    use crate::{
-        heuristic::{Heuristic, Pruning, CSH, SH},
-        matches::MatchConfig,
-    };
-
     use super::*;
 
     fn test_heuristic<H: Heuristic + 'static>(h: H, dt: bool) {
@@ -190,8 +180,7 @@ mod astar {
     }
 
     mod dijkstra {
-        use crate::NoCost;
-
+        use super::*;
         #[test]
         fn exact_noprune() {
             super::test_heuristic(NoCost, false);
@@ -216,16 +205,14 @@ mod astar {
         match_config: match_config(exact, small_k),
         pruning: Pruning::new(prune)
     });
-    make_test!(csh, |exact, prune, small_k| CSH {
-        match_config: match_config(exact, small_k),
-        pruning: Pruning::new(prune),
-        use_gap_cost: false,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    });
-    make_test!(gch, |exact, prune, small_k| CSH {
-        match_config: match_config(exact, small_k),
-        pruning: Pruning::new(prune),
-        use_gap_cost: true,
-        c: PhantomData::<HintContours<BruteForceContour>>,
-    });
+    make_test!(csh, |exact, prune, small_k| CSH::new(
+        match_config(exact, small_k),
+        Pruning::new(prune),
+        false,
+    ));
+    make_test!(gch, |exact, prune, small_k| CSH::new(
+        match_config(exact, small_k),
+        Pruning::new(prune),
+        true,
+    ));
 }
