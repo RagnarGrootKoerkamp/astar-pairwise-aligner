@@ -14,3 +14,8 @@ pa-heuristic = { path = "../pa-heuristic" }
 num-traits = "0.2.15"
 itertools = "0.10.5"
 serde = { version = "1.0.152", features = ["derive"] }
+
+
+[dev-dependencies]
+pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
+rand = "0.8.5"

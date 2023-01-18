@@ -24,7 +24,7 @@ impl State {
 }
 
 /// Generic pairwise global alignment interface.
-pub trait AffineAligner {
+pub trait AffineAligner: std::fmt::Debug {
     /// An alignment of sequences `a` and `b`.
     /// The returned cost is the *non-negative* cost of the alignment.
     /// Returns a trace when specified on construction.

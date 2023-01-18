@@ -33,6 +33,12 @@ pub struct AffineCigar {
     ops: Vec<AffineCigarElem>,
 }
 
+impl ToString for AffineCigar {
+    fn to_string(&self) -> String {
+        self.to_base().to_string()
+    }
+}
+
 impl AffineCigarOp {
     pub fn to_base(&self) -> Option<CigarOp> {
         Some(match self {
