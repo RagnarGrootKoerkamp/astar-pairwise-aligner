@@ -1,8 +1,13 @@
+use crate::{
+    dt::{DiagonalTransition, GapCostHeuristic},
+    nw::NW,
+};
 use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
+use pa_vis_types::NoVis;
 
-fn test_aligner_on_cost_model<const N: usize, A: Aligner>(
+fn test_aligner_on_cost_model<const N: usize, A: AffineAligner>(
     cm: AffineCost<N>,
     aligner: A,
     test_path: bool,
@@ -16,45 +21,45 @@ macro_rules! test_functions_macro {
         #[test]
         fn lcs_cost() {
             // sub=infinity, indel=1
-            test(AffineCost::new_lcs());
+            test(AffineCost::lcs());
         }
 
         #[test]
         fn unit_cost() {
             // sub=indel=1
-            test(AffineCost::new_unit());
+            test(AffineCost::unit());
         }
 
         #[test]
         fn linear_cost() {
             // sub=1, indel=2
-            test(AffineCost::new_linear(1, 2));
+            test(AffineCost::linear(1, 2));
         }
 
         #[test]
         fn linear_cost_3() {
             // sub=1, indel=3
-            test(AffineCost::new_linear(1, 3));
+            test(AffineCost::linear(1, 3));
         }
 
         #[test]
         fn linear_asymmetric_cost() {
             // sub=1, insert=2, deletion=3
-            test(AffineCost::new_linear_asymmetric(1, 2, 3));
+            test(AffineCost::linear_asymmetric(1, 2, 3));
         }
 
         #[test]
         fn affine_cost() {
             // sub=1
             // open=2, extend=1
-            test(AffineCost::new_affine(1, 2, 1));
+            test(AffineCost::affine(1, 2, 1));
         }
 
         #[test]
         fn linear_affine_cost() {
             // sub=1, indel=3
             // open=2, extend=1
-            test(AffineCost::new_linear_affine(1, 3, 2, 1));
+            test(AffineCost::linear_affine(1, 3, 2, 1));
         }
 
         #[ignore = "broken -- fix in the future"]
@@ -62,7 +67,7 @@ macro_rules! test_functions_macro {
         fn double_affine_cost() {
             // sub=1
             // Gap cost is min(4+2*l, 10+1*l).
-            test(AffineCost::new_double_affine(1, 4, 2, 10, 1));
+            test(AffineCost::double_affine(1, 4, 2, 10, 1));
         }
 
         #[test]
@@ -70,7 +75,7 @@ macro_rules! test_functions_macro {
             // sub=1
             // insert: open=2, extend=2
             // deletion: open=3, extend=1
-            test(AffineCost::new_affine_asymmetric(1, 2, 2, 3, 1));
+            test(AffineCost::affine_asymmetric(1, 2, 2, 3, 1));
         }
 
         #[test]
@@ -100,6 +105,8 @@ macro_rules! test_functions_macro {
                 }],
             ));
         }
+    };
+}
 
 // TODO: Replace the duplication below by macros.
 mod nw {
@@ -139,7 +146,7 @@ mod diagonal_transition_simple {
     fn test<const N: usize>(cm: AffineCost<N>) {
         test_aligner_on_cost_model(
             cm.clone(),
-            DiagonalTransition::new(cm, GapCostHeuristic::Disable, NoCost, false, NoVisualizer),
+            DiagonalTransition::new(cm, GapCostHeuristic::Disable, NoCost, false, NoVis),
             true,
         );
     }
@@ -148,12 +155,13 @@ mod diagonal_transition_simple {
 }
 
 mod diagonal_transition_gap_heuristic {
+
     use super::*;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
         test_aligner_on_cost_model(
             cm.clone(),
-            DiagonalTransition::new(cm, GapCostHeuristic::Enable, NoCost, false, NoVisualizer),
+            DiagonalTransition::new(cm, GapCostHeuristic::Enable, NoCost, false, NoVis),
             true,
         );
     }
@@ -169,7 +177,7 @@ mod diagonal_transition_dc {
     fn test<const N: usize>(cm: AffineCost<N>) {
         test_aligner_on_cost_model(
             cm.clone(),
-            DiagonalTransition::new(cm, GapCostHeuristic::Disable, NoCost, true, NoVisualizer),
+            DiagonalTransition::new(cm, GapCostHeuristic::Disable, NoCost, true, NoVis),
             true,
         );
     }
@@ -193,7 +201,7 @@ mod nw_sh {
                     match_config: MatchConfig::exact(5),
                     pruning: Pruning::default(),
                 },
-                v: NoVisualizer,
+                v: NoVis,
             },
             // test `align` as well?
             true,
@@ -204,15 +212,13 @@ mod nw_sh {
     #[test]
     fn unit_cost() {
         // sub=indel=1
-        test(AffineCost::new_unit());
+        test(AffineCost::unit());
     }
 }
 
 mod diagonal_transition_sh {
-    use crate::{
-        heuristic::{Pruning, SH},
-        matches::MatchConfig,
-    };
+
+    use crate::dt::{DiagonalTransition, GapCostHeuristic};
 
     use super::*;
 
@@ -227,7 +233,7 @@ mod diagonal_transition_sh {
                     pruning: Pruning::default(),
                 },
                 false,
-                NoVisualizer,
+                NoVis,
             ),
             false,
         );
@@ -236,7 +242,6 @@ mod diagonal_transition_sh {
     #[test]
     fn unit_cost() {
         // sub=indel=1
-        test(AffineCost::new_unit());
+        test(AffineCost::unit());
     }
 }
-

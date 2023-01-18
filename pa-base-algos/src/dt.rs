@@ -1432,6 +1432,13 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
     }
 }
 
+impl<const N: usize, V: Visualizer, H: Heuristic> AffineAligner for DiagonalTransition<N, V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
+        let (cost, cigar) = self.align(a, b);
+        (cost, Some(cigar))
+    }
+}
+
 #[cfg(feature = "vis")]
 #[cfg(test)]
 mod tests {

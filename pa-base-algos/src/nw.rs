@@ -603,3 +603,10 @@ impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
         self.build(a, b).align_for_bounded_dist(Some(f_max))
     }
 }
+
+impl<const N: usize, V: Visualizer, H: Heuristic> AffineAligner for NW<N, V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
+        let (cost, cigar) = self.align(a, b);
+        (cost, Some(cigar))
+    }
+}
