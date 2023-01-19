@@ -1,6 +1,6 @@
 use pa_heuristic::{Heuristic, HeuristicMapper};
 use pa_types::{Cigar, Cost, Seq};
-use pa_vis_types::{NoVis, Visualizer};
+use pa_vis_types::{NoVis, VisualizerT};
 use serde::{Deserialize, Serialize};
 
 use crate::stats::AstarStats;
@@ -10,7 +10,7 @@ use pa_heuristic::HeuristicArgs;
 /// The main entrypoint for running A* with some parameters.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct AstarPaParams<V: Visualizer> {
+pub struct AstarPaParams<V: VisualizerT> {
     pub diagonal_transition: bool,
     pub heuristic: HeuristicArgs,
     #[serde(default)]
@@ -31,13 +31,13 @@ impl AstarPaParams<NoVis> {
 
 /// Alternative configuration using a typed `Heuristic` instance instead of a fixed config.
 #[derive(Debug)]
-pub struct AstarPa<V: Visualizer, H: Heuristic> {
+pub struct AstarPa<V: VisualizerT, H: Heuristic> {
     pub dt: bool,
     pub h: H,
     pub v: V,
 }
 
-impl<V: Visualizer + 'static> AstarPaParams<V> {
+impl<V: VisualizerT + 'static> AstarPaParams<V> {
     pub fn new_with_vis(
         diagonal_transition: bool,
         heuristic: HeuristicArgs,
@@ -51,16 +51,16 @@ impl<V: Visualizer + 'static> AstarPaParams<V> {
     }
 
     pub fn aligner(&self) -> Box<dyn AstarPaAligner> {
-        struct Runner<'a, V: Visualizer> {
+        struct Runner<'a, V: VisualizerT> {
             params: &'a AstarPaParams<V>,
         }
-        impl<V: Visualizer + 'static> HeuristicMapper for Runner<'_, V> {
+        impl<V: VisualizerT + 'static> HeuristicMapper for Runner<'_, V> {
             type R = Box<dyn AstarPaAligner>;
             fn call<H: Heuristic + 'static>(&self, h: H) -> Box<dyn AstarPaAligner> {
                 Box::new(AstarPa {
                     dt: self.params.diagonal_transition,
                     h,
-                    v: self.params.visualizer,
+                    v: self.params.visualizer.clone(),
                 })
             }
         }
@@ -73,7 +73,7 @@ impl<V: Visualizer + 'static> AstarPaParams<V> {
     }
 }
 
-impl<V: Visualizer, H: Heuristic> AstarPa<V, H> {
+impl<V: VisualizerT, H: Heuristic> AstarPa<V, H> {
     pub fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats) {
         if self.dt {
             astar_dt(a, b, &self.h, &self.v)
@@ -89,7 +89,7 @@ pub trait AstarPaAligner {
     fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats);
 }
 
-impl<V: Visualizer, H: Heuristic> AstarPaAligner for AstarPa<V, H> {
+impl<V: VisualizerT, H: Heuristic> AstarPaAligner for AstarPa<V, H> {
     fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats) {
         self.align(a, b)
     }

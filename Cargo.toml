@@ -3,8 +3,13 @@ members = [
     "pa-affine-types",
     "pa-heuristic",
     "pa-vis-types",
-    "astarpa",
+
     "pa-base-algos",
+    "astarpa",
+
+    "pa-vis",
+    #"pa-web",
+    #"astarpa-v2",
 ]
 resolver = "2"
 

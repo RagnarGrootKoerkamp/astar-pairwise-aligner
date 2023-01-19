@@ -9,7 +9,7 @@ pub type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<Affin
 
 /// A `Visualizer` can be used to track progress of the A* search using callbacks.
 /// The `Visualizer` configuration is `build` into a corresponding `VisualizerInstance` for each input pair.
-pub trait Visualizer: Clone + Copy + Default + Debug + PartialEq {
+pub trait VisualizerT: Clone + Default + Debug + PartialEq {
     type Instance: VisualizerInstance;
     fn build(&self, a: Seq, b: Seq) -> Self::Instance;
 }
@@ -46,7 +46,7 @@ pub trait VisualizerInstance {
     /// This function may be called after the main loop to display final image.
     fn last_frame<'a, HI: HeuristicInstance<'a>>(
         &mut self,
-        _cigar: Option<&Cigar>,
+        _cigar: Option<&AffineCigar>,
         _parent: ParentFn<'_>,
         _h: Option<&HI>,
     ) {
@@ -55,7 +55,7 @@ pub trait VisualizerInstance {
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NoVis;
-impl Visualizer for NoVis {
+impl VisualizerT for NoVis {
     type Instance = Self;
     fn build(&self, _a: Seq, _b: Seq) -> Self::Instance {
         Self

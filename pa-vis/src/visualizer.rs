@@ -1,5 +1,3 @@
-// FIXME
-#![allow(unused_variables, dead_code)]
 //! To turn images into a video, use this:
 //!
 //! ```sh
@@ -10,10 +8,23 @@
 //! ffmpeg -framerate 20 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" output.mp4
 //! ```
 
-use crate::{
-    aligners::{cigar::Cigar, cigar::CigarOp},
-    heuristic::{HeuristicInstance, NoCostI},
-    prelude::{Pos, Seq},
+use crate::canvas::*;
+use crate::sdl::new_canvas;
+use clap::ValueEnum;
+use itertools::Itertools;
+use pa_affine_types::*;
+use pa_heuristic::matches::MatchStatus;
+use pa_heuristic::*;
+use pa_types::*;
+use pa_vis_types::*;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::{
+    cell::{RefCell, RefMut},
+    cmp::{max, min},
+    collections::HashMap,
+    ops::Range,
+    time::Duration,
 };
 
 #[derive(Debug, PartialEq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
@@ -42,685 +53,619 @@ pub enum When {
     Frames(Vec<usize>),
 }
 
-use clap::ValueEnum;
-use pa_types::{Cost, I};
-use serde::{Deserialize, Serialize};
-#[cfg(any(feature = "vis", feature = "wasm"))]
-pub use visualizer::*;
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Type {
+    Expanded,
+    Explored,
+    Extended,
+}
+use Type::*;
 
-#[cfg(any(feature = "vis", feature = "wasm"))]
-mod visualizer {
-    use super::*;
-    use crate::canvas::*;
-    use crate::{
-        aligners::{cigar::Cigar, edit_graph::State, StateT},
-        cli::heuristic_params::{comment, AlgorithmArgs, HeuristicArgs},
-        matches::MatchStatus,
-        prelude::Seq,
-    };
-    use itertools::Itertools;
-    use std::path::PathBuf;
-    use std::{
-        cell::{RefCell, RefMut},
-        cmp::{max, min},
-        collections::HashMap,
-        ops::Range,
-        time::Duration,
-    };
+type CanvasRC = RefCell<CanvasBox>;
 
-    #[derive(PartialEq, Eq, Clone, Copy)]
-    pub enum Type {
-        Expanded,
-        Explored,
-        Extended,
-    }
-    use Type::*;
+pub struct Visualizer {
+    config: Config,
 
-    type CanvasRC = RefCell<CanvasBox>;
+    // Name of the algorithm
+    title: Option<String>,
+    // Heuristic / algorithm parameters. List of (key, value).
+    params: Option<String>,
+    // An optional comment explaining the algorithm.
+    comment: Option<String>,
 
-    pub struct Visualizer {
-        config: Config,
+    canvas: Option<CanvasRC>,
 
-        // Name of the algorithm
-        title: Option<String>,
-        // Heuristic / algorithm parameters. List of (key, value).
-        params: Option<String>,
-        // An optional comment explaining the algorithm.
-        comment: Option<String>,
+    // The size in pixels of the entire canvas.
+    canvas_size: (i32, i32),
+    // The region of the NW states.
+    nw: Region,
+    // The region of the DT states.
+    dt: Region,
+    // The region of the transformed states.
+    tr: Region,
 
-        canvas: Option<CanvasRC>,
+    // The last DP state (a.len(), b.len()).
+    target: Pos,
 
-        // The size in pixels of the entire canvas.
-        canvas_size: (i32, i32),
-        // The region of the NW states.
-        nw: Region,
-        // The region of the DT states.
-        dt: Region,
-        // The region of the transformed states.
-        tr: Region,
+    // Number of calls to draw().
+    frame_number: usize,
+    // Number of calls to draw() for a new layer.
+    layer_number: usize,
+    // Number of saved frames.
+    file_number: usize,
+    // Number of times config.draw triggers.
+    drawn_frame_number: usize,
 
-        // The last DP state (a.len(), b.len()).
-        target: Pos,
+    // Type, Pos, g, f
+    pub expanded: Vec<(Type, Pos, Cost, Cost)>,
+    layer: Option<usize>,
+    // Index in expanded where each layer stars.
+    expanded_layers: Vec<usize>,
+}
 
-        // Number of calls to draw().
-        frame_number: usize,
-        // Number of calls to draw() for a new layer.
-        layer_number: usize,
-        // Number of saved frames.
-        file_number: usize,
-        // Number of times config.draw triggers.
-        drawn_frame_number: usize,
-
-        // Type, Pos, g, f
-        pub expanded: Vec<(Type, Pos, Cost, Cost)>,
-        layer: Option<usize>,
-        // Index in expanded where each layer stars.
-        expanded_layers: Vec<usize>,
-    }
-
-    impl VisualizerT for Visualizer {
-        fn explore_with_h<'a, H: HeuristicInstance<'a>>(
-            &mut self,
-            pos: Pos,
-            g: Cost,
-            f: Cost,
-            h: Option<&H>,
-        ) {
-            if !(pos <= self.target) {
-                return;
-            }
-            self.expanded.push((Explored, pos, g, f));
-            // Only draw a new frame if explored states are actually shown.
-            if self.config.style.explored.is_some() {
-                self.draw(false, None, false, h, None);
-            }
+impl VisualizerInstance for Visualizer {
+    fn explore<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, g: Cost, f: Cost, h: Option<&H>) {
+        if !(pos <= self.target) {
+            return;
         }
-
-        fn expand_with_h<'a, H: HeuristicInstance<'a>>(
-            &mut self,
-            pos: Pos,
-            g: Cost,
-            f: Cost,
-            h: Option<&H>,
-        ) {
-            if !(pos <= self.target) {
-                return;
-            }
-            self.expanded.push((Expanded, pos, g, f));
+        self.expanded.push((Explored, pos, g, f));
+        // Only draw a new frame if explored states are actually shown.
+        if self.config.style.explored.is_some() {
             self.draw(false, None, false, h, None);
         }
+    }
 
-        fn extend_with_h<'a, H: HeuristicInstance<'a>>(
-            &mut self,
-            pos: Pos,
-            g: Cost,
-            f: Cost,
-            h: Option<&H>,
-        ) {
-            if !(pos <= self.target) {
-                return;
+    fn expand<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, g: Cost, f: Cost, h: Option<&H>) {
+        if !(pos <= self.target) {
+            return;
+        }
+        self.expanded.push((Expanded, pos, g, f));
+        self.draw(false, None, false, h, None);
+    }
+
+    fn extend<'a, H: HeuristicInstance<'a>>(&mut self, pos: Pos, g: Cost, f: Cost, h: Option<&H>) {
+        if !(pos <= self.target) {
+            return;
+        }
+        self.expanded.push((Extended, pos, g, f));
+        self.draw(false, None, false, h, None);
+    }
+
+    fn new_layer<'a, H: HeuristicInstance<'a>>(&mut self, h: Option<&H>) {
+        if let Some(layer) = self.layer {
+            self.layer = Some(layer + 1);
+            self.expanded_layers.push(self.expanded.len());
+        }
+        self.draw(false, None, true, h, None);
+    }
+
+    fn last_frame<'a, H: HeuristicInstance<'a>>(
+        &mut self,
+        cigar: Option<&AffineCigar>,
+        parent: ParentFn<'_>,
+        h: Option<&H>,
+    ) {
+        self.draw(true, cigar, false, h, parent);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Gradient {
+    Fixed(Color),
+    Gradient(Range<Color>),
+    // 0 <= start < end <= 1
+    TurboGradient(Range<f64>),
+}
+
+impl Gradient {
+    fn color(&self, f: f64) -> Color {
+        match self {
+            Gradient::Fixed(color) => *color,
+            Gradient::Gradient(range) => {
+                let frac =
+                    |a: u8, b: u8| -> u8 { (a as f64 + f * (b as f64 - a as f64)).ceil() as u8 };
+                (
+                    frac(range.start.0, range.end.0),
+                    frac(range.start.1, range.end.1),
+                    frac(range.start.2, range.end.2),
+                    frac(range.start.3, range.end.3),
+                )
             }
-            self.expanded.push((Extended, pos, g, f));
-            self.draw(false, None, false, h, None);
-        }
-
-        fn new_layer_with_h<'a, H: HeuristicInstance<'a>>(&mut self, h: Option<&H>) {
-            if let Some(layer) = self.layer {
-                self.layer = Some(layer + 1);
-                self.expanded_layers.push(self.expanded.len());
-            }
-            self.draw(false, None, true, h, None);
-        }
-
-        fn last_frame_with_h<'a, H: HeuristicInstance<'a>>(
-            &mut self,
-            cigar: Option<&Cigar>,
-            parent: ParentFn<'_>,
-            h: Option<&H>,
-        ) {
-            self.draw(true, cigar, false, h, parent);
-        }
-    }
-
-    #[derive(Clone)]
-    pub enum Gradient {
-        Fixed(Color),
-        Gradient(Range<Color>),
-        // 0 <= start < end <= 1
-        TurboGradient(Range<f64>),
-    }
-
-    impl Gradient {
-        fn color(&self, f: f64) -> Color {
-            match self {
-                Gradient::Fixed(color) => *color,
-                Gradient::Gradient(range) => {
-                    let frac = |a: u8, b: u8| -> u8 {
-                        (a as f64 + f * (b as f64 - a as f64)).ceil() as u8
-                    };
-                    (
-                        frac(range.start.0, range.end.0),
-                        frac(range.start.1, range.end.1),
-                        frac(range.start.2, range.end.2),
-                        frac(range.start.3, range.end.3),
-                    )
-                }
-                Gradient::TurboGradient(range) => {
-                    let f = range.start + f * (range.end - range.start);
-                    let c = colorgrad::turbo().at(f).to_rgba8();
-                    (c[0], c[1], c[2], c[3])
-                }
-            }
-        }
-    }
-
-    #[derive(Clone)]
-    pub struct Style {
-        pub expanded: Gradient,
-        pub explored: Option<Color>,
-        pub extended: Option<Color>,
-        pub bg_color: Color,
-        /// None to disable
-        pub path: Option<Color>,
-        /// None to draw cells.
-        pub path_width: Option<usize>,
-
-        /// None to disable
-        pub tree: Option<Color>,
-        pub tree_substitution: Option<Color>,
-        pub tree_match: Option<Color>,
-        pub tree_width: usize,
-        pub tree_fr_only: bool,
-        pub tree_direction_change: Option<Color>,
-        pub tree_affine_open: Option<Color>,
-
-        // Options to draw heuristics
-        pub draw_heuristic: bool,
-        pub draw_contours: bool,
-        pub draw_layers: bool,
-        pub draw_matches: bool,
-        pub draw_dt: bool,
-        pub draw_f: bool,
-        pub draw_labels: bool,
-        pub heuristic: Gradient,
-        pub layer: Gradient,
-        pub max_heuristic: Option<u32>,
-        pub max_layer: Option<u32>,
-        pub active_match: Color,
-        pub pruned_match: Color,
-        pub match_shrink: usize,
-        pub match_width: usize,
-        pub contour: Color,
-    }
-
-    impl When {
-        fn is_active(&self, frame: usize, layer: usize, is_last: bool, new_layer: bool) -> bool {
-            match &self {
-                When::None => false,
-                When::Last => is_last,
-                When::All => is_last || !new_layer,
-                When::Layers => is_last || new_layer,
-                When::Frames(v) => v.contains(&frame) || (is_last && v.contains(&usize::MAX)),
-                When::StepBy(step) => is_last || frame % step == 0,
-                When::LayersStepBy(step) => is_last || (new_layer && layer % step == 0),
+            Gradient::TurboGradient(range) => {
+                let f = range.start + f * (range.end - range.start);
+                let c = colorgrad::turbo().at(f).to_rgba8();
+                (c[0], c[1], c[2], c[3])
             }
         }
     }
+}
 
-    const CANVAS_HEIGHT: u32 = 1200;
+#[derive(Clone, Debug, PartialEq)]
+pub struct Style {
+    pub expanded: Gradient,
+    pub explored: Option<Color>,
+    pub extended: Option<Color>,
+    pub bg_color: Color,
+    /// None to disable
+    pub path: Option<Color>,
+    /// None to draw cells.
+    pub path_width: Option<usize>,
 
-    #[derive(Clone)]
-    pub struct Config {
-        /// 0 to infer automatically.
-        pub cell_size: u32,
-        /// Divide all input coordinates by this for large inputs.
-        /// 0 to infer automatically.
-        pub downscaler: u32,
-        pub filepath: PathBuf,
-        pub draw: When,
-        /// Used in wasm rendering: the entire alignment is run and only this
-        /// single frame is drawn.
-        pub draw_single_frame: Option<usize>,
-        pub delay: Duration,
-        pub paused: bool,
-        pub save: When,
-        pub save_last: bool,
-        pub style: Style,
-        pub transparent_bmp: bool,
-        pub draw_old_on_top: bool,
-        pub layer_drawing: bool,
-        pub num_layers: Option<usize>,
+    /// None to disable
+    pub tree: Option<Color>,
+    pub tree_substitution: Option<Color>,
+    pub tree_match: Option<Color>,
+    pub tree_width: usize,
+    pub tree_fr_only: bool,
+    pub tree_direction_change: Option<Color>,
+    pub tree_affine_open: Option<Color>,
+
+    // Options to draw heuristics
+    pub draw_heuristic: bool,
+    pub draw_contours: bool,
+    pub draw_layers: bool,
+    pub draw_matches: bool,
+    pub draw_dt: bool,
+    pub draw_f: bool,
+    pub draw_labels: bool,
+    pub heuristic: Gradient,
+    pub layer: Gradient,
+    pub max_heuristic: Option<I>,
+    pub max_layer: Option<I>,
+    pub active_match: Color,
+    pub pruned_match: Color,
+    pub match_shrink: usize,
+    pub match_width: usize,
+    pub contour: Color,
+}
+
+impl When {
+    fn is_active(&self, frame: usize, layer: usize, is_last: bool, new_layer: bool) -> bool {
+        match &self {
+            When::None => false,
+            When::Last => is_last,
+            When::All => is_last || !new_layer,
+            When::Layers => is_last || new_layer,
+            When::Frames(v) => v.contains(&frame) || (is_last && v.contains(&usize::MAX)),
+            When::StepBy(step) => is_last || frame % step == 0,
+            When::LayersStepBy(step) => is_last || (new_layer && layer % step == 0),
+        }
     }
+}
 
-    impl Config {
-        pub fn new(style: VisualizerStyle) -> Self {
-            let mut config = Self {
-                cell_size: 8,
-                downscaler: 1,
-                save: When::None,
-                save_last: false,
-                filepath: PathBuf::default(),
-                draw: When::None,
-                draw_single_frame: None,
-                delay: Duration::from_secs_f32(0.1),
-                paused: false,
-                style: Style {
-                    expanded: Gradient::TurboGradient(0.2..0.95),
-                    explored: None,
-                    extended: None,
-                    bg_color: WHITE,
-                    path: Some(BLACK),
-                    path_width: Some(2),
-                    tree: None,
-                    tree_substitution: None,
-                    tree_match: None,
-                    tree_width: 1,
-                    tree_fr_only: false,
-                    tree_direction_change: None,
-                    tree_affine_open: None,
-                    draw_heuristic: false,
-                    draw_contours: false,
-                    draw_layers: false,
-                    draw_matches: false,
-                    draw_dt: true,
-                    draw_f: false,
-                    draw_labels: true,
-                    heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
-                    layer: Gradient::Gradient((250, 250, 250, 0)..(100, 100, 100, 0)),
-                    max_heuristic: None,
-                    max_layer: None,
-                    active_match: BLACK,
-                    pruned_match: RED,
-                    match_shrink: 2,
-                    match_width: 2,
-                    contour: BLACK,
-                },
-                draw_old_on_top: true,
-                layer_drawing: false,
-                num_layers: None,
-                transparent_bmp: true,
-            };
+const CANVAS_HEIGHT: I = 1200;
 
-            match style {
-                VisualizerStyle::Default => {}
-                VisualizerStyle::Large => {
-                    config.transparent_bmp = false;
-                    config.downscaler = 100;
-                    config.cell_size = 1;
-                    config.style.path = None;
-                    config.style.draw_matches = true;
-                    config.style.match_width = 1;
-                    config.style.match_shrink = 0;
-                    config.style.expanded = Gradient::TurboGradient(0.25..0.90)
-                }
-                VisualizerStyle::Detailed => {
-                    config.paused = false;
-                    config.delay = Duration::from_secs_f32(0.2);
-                    config.cell_size = 6;
-                    config.style.bg_color = WHITE;
-                    config.style.tree = Some(GRAY);
-                    config.style.expanded = Gradient::Fixed((130, 179, 102, 0));
-                    config.style.explored = Some((0, 102, 204, 0));
-                    config.style.max_heuristic = Some(10);
-                    config.style.pruned_match = RED;
-                    config.style.path = None;
-                    config.style.match_width = 3;
-                    config.style.draw_heuristic = true;
-                    config.style.draw_contours = true;
-                    config.style.draw_matches = true;
-                    config.draw_old_on_top = true;
-                    config.layer_drawing = false;
-                }
-                VisualizerStyle::Test => {
-                    config.draw = When::All;
-                    config.paused = true;
-                    config.cell_size = 0;
-                    config.style.explored = Some((0, 102, 204, 0));
-                    config.style.max_heuristic = Some(100);
-                    config.style.pruned_match = RED;
-                    config.style.match_width = 3;
-                    config.style.path_width = Some(4);
-                    config.style.draw_heuristic = true;
-                    config.style.draw_contours = true;
-                    config.style.draw_matches = true;
-                    config.style.draw_f = true;
-                    config.style.draw_dt = true;
-                }
-                VisualizerStyle::Debug => {
-                    config.paused = true;
-                    config.cell_size = 0;
-                    config.style.explored = Some((0, 102, 204, 0));
-                    config.style.pruned_match = RED;
-                    config.style.match_width = 3;
-                    config.style.path_width = Some(4);
-                    config.style.draw_heuristic = true;
-                    config.style.draw_contours = true;
-                    config.style.draw_layers = false;
-                    config.style.draw_matches = true;
-                    config.style.draw_f = false;
-                    config.style.draw_dt = true;
-                }
+#[derive(Clone, PartialEq, Debug)]
+pub struct Config {
+    /// 0 to infer automatically.
+    pub cell_size: I,
+    /// Divide all input coordinates by this for large inputs.
+    /// 0 to infer automatically.
+    pub downscaler: I,
+    pub filepath: PathBuf,
+    pub draw: When,
+    /// Used in wasm rendering: the entire alignment is run and only this
+    /// single frame is drawn.
+    pub draw_single_frame: Option<usize>,
+    pub delay: Duration,
+    pub paused: bool,
+    pub save: When,
+    pub save_last: bool,
+    pub style: Style,
+    pub transparent_bmp: bool,
+    pub draw_old_on_top: bool,
+    pub layer_drawing: bool,
+    pub num_layers: Option<usize>,
+}
+
+impl Config {
+    pub fn new(style: VisualizerStyle) -> Self {
+        let mut config = Self {
+            cell_size: 8,
+            downscaler: 1,
+            save: When::None,
+            save_last: false,
+            filepath: PathBuf::default(),
+            draw: When::None,
+            draw_single_frame: None,
+            delay: Duration::from_secs_f32(0.1),
+            paused: false,
+            style: Style {
+                expanded: Gradient::TurboGradient(0.2..0.95),
+                explored: None,
+                extended: None,
+                bg_color: WHITE,
+                path: Some(BLACK),
+                path_width: Some(2),
+                tree: None,
+                tree_substitution: None,
+                tree_match: None,
+                tree_width: 1,
+                tree_fr_only: false,
+                tree_direction_change: None,
+                tree_affine_open: None,
+                draw_heuristic: false,
+                draw_contours: false,
+                draw_layers: false,
+                draw_matches: false,
+                draw_dt: true,
+                draw_f: false,
+                draw_labels: true,
+                heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
+                layer: Gradient::Gradient((250, 250, 250, 0)..(100, 100, 100, 0)),
+                max_heuristic: None,
+                max_layer: None,
+                active_match: BLACK,
+                pruned_match: RED,
+                match_shrink: 2,
+                match_width: 2,
+                contour: BLACK,
+            },
+            draw_old_on_top: true,
+            layer_drawing: false,
+            num_layers: None,
+            transparent_bmp: true,
+        };
+
+        match style {
+            VisualizerStyle::Default => {}
+            VisualizerStyle::Large => {
+                config.transparent_bmp = false;
+                config.downscaler = 100;
+                config.cell_size = 1;
+                config.style.path = None;
+                config.style.draw_matches = true;
+                config.style.match_width = 1;
+                config.style.match_shrink = 0;
+                config.style.expanded = Gradient::TurboGradient(0.25..0.90)
             }
-
-            config
-        }
-    }
-
-    impl Default for Config {
-        fn default() -> Self {
-            Config::new(VisualizerStyle::Default)
-        }
-    }
-
-    impl VisualizerConfig for Config {
-        type Visualizer = Visualizer;
-
-        fn build(&self, a: Seq, b: Seq) -> Self::Visualizer {
-            Visualizer::new_with_cli_params(self.clone(), a, b, None, None)
-        }
-    }
-
-    struct Region {
-        /// Start position on canvas
-        start: CPos,
-        /// Size on canvas
-        size: CPos,
-        /// Cell size: state is cs by cs pixels.
-        cs: u32,
-        /// Downscaler: each state on the canvas represents ds by ds actual states.
-        ds: u32,
-    }
-
-    impl Visualizer {
-        pub fn new(config: Config, a: Seq, b: Seq) -> Self {
-            Self::new_with_cli_params(config, a, b, None, None)
-        }
-
-        /// This sets the title and parameters based on the CLI arguments.
-        pub fn new_with_cli_params(
-            mut config: Config,
-            a: Seq,
-            b: Seq,
-            alg: Option<&AlgorithmArgs>,
-            heuristic: Option<&HeuristicArgs>,
-        ) -> Self {
-            // layout:
-            //
-            // ---------------
-            // |      |  DT  |
-            // |  NW  |------|
-            // |      |  T   |
-            // ---------------
-            // | fmax | fmax |
-            // ---------------
-            //
-            // NW follows the cell size if given.
-            // Otherwise, the cell size and downscaler are chosen to give a height around 500 pixels.
-            // The DT window is chosen with the same height, but half the width.
-
-            let grid_width = a.len() as u32 + 1;
-            let grid_height = b.len() as u32 + 1;
-
-            if config.cell_size != 0 {
-                if config.downscaler == 0 {
-                    config.downscaler = 1;
-                }
-            } else {
-                if config.downscaler == 0 {
-                    config.downscaler = max(1, grid_height.div_ceil(CANVAS_HEIGHT));
-                }
-                let ds = config.downscaler;
-                config.cell_size = max(1, CANVAS_HEIGHT / (grid_height.div_ceil(ds)));
+            VisualizerStyle::Detailed => {
+                config.paused = false;
+                config.delay = Duration::from_secs_f32(0.2);
+                config.cell_size = 6;
+                config.style.bg_color = WHITE;
+                config.style.tree = Some(GRAY);
+                config.style.expanded = Gradient::Fixed((130, 179, 102, 0));
+                config.style.explored = Some((0, 102, 204, 0));
+                config.style.max_heuristic = Some(10);
+                config.style.pruned_match = RED;
+                config.style.path = None;
+                config.style.match_width = 3;
+                config.style.draw_heuristic = true;
+                config.style.draw_contours = true;
+                config.style.draw_matches = true;
+                config.draw_old_on_top = true;
+                config.layer_drawing = false;
             }
-            let nw = Region {
-                start: CPos(0, 0),
-                cs: config.cell_size,
-                ds: config.downscaler,
-                size: CPos(
-                    (grid_width.div_ceil(config.downscaler) * config.cell_size) as i32,
-                    (grid_height.div_ceil(config.downscaler) * config.cell_size) as i32,
-                ),
-            };
-            let dt = Region {
-                start: nw.start.right(nw.size.0),
-                size: nw.size / 2,
-                cs: 0,
-                ds: 0,
-            };
-            let tr = Region {
-                start: dt.start.down(dt.size.1),
-                size: nw.size / 2,
-                cs: 0,
-                ds: 0,
-            };
-            let canvas_size = (
-                nw.size.0 + if config.style.draw_dt { dt.size.0 } else { 0 },
-                nw.size.1,
+            VisualizerStyle::Test => {
+                config.draw = When::All;
+                config.paused = true;
+                config.cell_size = 0;
+                config.style.explored = Some((0, 102, 204, 0));
+                config.style.max_heuristic = Some(100);
+                config.style.pruned_match = RED;
+                config.style.match_width = 3;
+                config.style.path_width = Some(4);
+                config.style.draw_heuristic = true;
+                config.style.draw_contours = true;
+                config.style.draw_matches = true;
+                config.style.draw_f = true;
+                config.style.draw_dt = true;
+            }
+            VisualizerStyle::Debug => {
+                config.paused = true;
+                config.cell_size = 0;
+                config.style.explored = Some((0, 102, 204, 0));
+                config.style.pruned_match = RED;
+                config.style.match_width = 3;
+                config.style.path_width = Some(4);
+                config.style.draw_heuristic = true;
+                config.style.draw_contours = true;
+                config.style.draw_layers = false;
+                config.style.draw_matches = true;
+                config.style.draw_f = false;
+                config.style.draw_dt = true;
+            }
+        }
+
+        config
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config::new(VisualizerStyle::Default)
+    }
+}
+
+impl VisualizerT for Config {
+    type Instance = Visualizer;
+
+    fn build(&self, a: Seq, b: Seq) -> Self::Instance {
+        Visualizer::new(self.clone(), a, b)
+    }
+}
+
+struct Region {
+    /// Start position on canvas
+    start: CPos,
+    /// Size on canvas
+    size: CPos,
+    /// Cell size: state is cs by cs pixels.
+    cs: I,
+    /// Downscaler: each state on the canvas represents ds by ds actual states.
+    ds: I,
+}
+
+impl Visualizer {
+    /// This sets the title and parameters based on the CLI arguments.
+    /// FIXME: Add algorithm and heuristic args or title/params/comment args.
+    pub fn new(mut config: Config, a: Seq, b: Seq) -> Self {
+        // layout:
+        //
+        // ---------------
+        // |      |  DT  |
+        // |  NW  |------|
+        // |      |  T   |
+        // ---------------
+        // | fmax | fmax |
+        // ---------------
+        //
+        // NW follows the cell size if given.
+        // Otherwise, the cell size and downscaler are chosen to give a height around 500 pixels.
+        // The DT window is chosen with the same height, but half the width.
+
+        let grid_width = a.len() as I + 1;
+        let grid_height = b.len() as I + 1;
+
+        if config.cell_size != 0 {
+            if config.downscaler == 0 {
+                config.downscaler = 1;
+            }
+        } else {
+            if config.downscaler == 0 {
+                config.downscaler = max(1, grid_height.div_ceil(CANVAS_HEIGHT));
+            }
+            let ds = config.downscaler;
+            config.cell_size = max(1, CANVAS_HEIGHT / (grid_height.div_ceil(ds)));
+        }
+        let nw = Region {
+            start: CPos(0, 0),
+            cs: config.cell_size,
+            ds: config.downscaler,
+            size: CPos(
+                (grid_width.div_ceil(config.downscaler) * config.cell_size) as i32,
+                (grid_height.div_ceil(config.downscaler) * config.cell_size) as i32,
+            ),
+        };
+        let dt = Region {
+            start: nw.start.right(nw.size.0),
+            size: nw.size / 2,
+            cs: 0,
+            ds: 0,
+        };
+        let tr = Region {
+            start: dt.start.down(dt.size.1),
+            size: nw.size / 2,
+            cs: 0,
+            ds: 0,
+        };
+        let canvas_size = (
+            nw.size.0 + if config.style.draw_dt { dt.size.0 } else { 0 },
+            nw.size.1,
+        );
+
+        Visualizer {
+            title: None,
+            params: None,
+            comment: None,
+            canvas: {
+                (config.draw != When::None || config.save != When::None || config.save_last).then(
+                    || {
+                        RefCell::new(Box::new({
+                            new_canvas(
+                                canvas_size.0 as usize,
+                                canvas_size.1 as usize,
+                                &config.filepath.to_str().unwrap(),
+                            )
+                        }) as CanvasBox)
+                    },
+                )
+            },
+            config: config.clone(),
+            expanded: vec![],
+            target: Pos::target(a, b),
+            frame_number: 0,
+            layer_number: 0,
+            file_number: 0,
+            drawn_frame_number: 0,
+            layer: if config.layer_drawing { Some(0) } else { None },
+            expanded_layers: vec![],
+
+            canvas_size,
+            nw,
+            dt,
+            tr,
+        }
+    }
+
+    fn cell_begin(&self, Pos(i, j): Pos) -> CPos {
+        CPos(
+            (i / self.config.downscaler * self.config.cell_size) as i32,
+            (j / self.config.downscaler * self.config.cell_size) as i32,
+        )
+    }
+
+    fn cell_center(&self, Pos(i, j): Pos) -> CPos {
+        CPos(
+            (i / self.config.downscaler * self.config.cell_size + self.config.cell_size / 2) as i32,
+            (j / self.config.downscaler * self.config.cell_size + self.config.cell_size / 2) as i32,
+        )
+    }
+
+    fn draw_pixel(&self, canvas: &mut CanvasBox, pos: Pos, color: Color) {
+        if self.config.cell_size == 1 {
+            canvas.draw_point(self.cell_begin(pos), color);
+        } else {
+            canvas.fill_rect(
+                self.cell_begin(pos),
+                self.config.cell_size,
+                self.config.cell_size,
+                color,
             );
-
-            let (params, comment) = if let (Some(alg), Some(h)) = (alg, heuristic) && alg.algorithm.internal(){
-                        (Some(h.to_string()), comment(alg, h))
-                    } else {
-                        (None, None)
-                    };
-            Visualizer {
-                title: alg.map(|alg| alg.to_string()),
-                params,
-                comment,
-                canvas: {
-                    (config.draw != When::None || config.save != When::None || config.save_last)
-                        .then(|| {
-                            RefCell::new(Box::new({
-                                new_canvas(
-                                    canvas_size.0 as usize,
-                                    canvas_size.1 as usize,
-                                    &config.filepath.to_str().unwrap(),
-                                )
-                            }) as CanvasBox)
-                        })
-                },
-                config: config.clone(),
-                expanded: vec![],
-                target: Pos::from_lengths(a, b),
-                frame_number: 0,
-                layer_number: 0,
-                file_number: 0,
-                drawn_frame_number: 0,
-                layer: if config.layer_drawing { Some(0) } else { None },
-                expanded_layers: vec![],
-
-                canvas_size,
-                nw,
-                dt,
-                tr,
-            }
         }
+    }
 
-        fn cell_begin(&self, Pos(i, j): Pos) -> CPos {
-            CPos(
-                (i / self.config.downscaler * self.config.cell_size) as i32,
-                (j / self.config.downscaler * self.config.cell_size) as i32,
-            )
-        }
-
-        fn cell_center(&self, Pos(i, j): Pos) -> CPos {
-            CPos(
-                (i / self.config.downscaler * self.config.cell_size + self.config.cell_size / 2)
-                    as i32,
-                (j / self.config.downscaler * self.config.cell_size + self.config.cell_size / 2)
-                    as i32,
-            )
-        }
-
-        fn draw_pixel(&self, canvas: &mut CanvasBox, pos: Pos, color: Color) {
-            if self.config.cell_size == 1 {
-                canvas.draw_point(self.cell_begin(pos), color);
-            } else {
-                canvas.fill_rect(
-                    self.cell_begin(pos),
+    fn draw_pixels(&self, canvas: &mut CanvasBox, pos: Vec<Pos>, color: Color) {
+        let rects = pos
+            .iter()
+            .map(|p| {
+                (
+                    self.cell_begin(*p),
                     self.config.cell_size,
                     self.config.cell_size,
-                    color,
-                );
-            }
-        }
+                )
+            })
+            .collect_vec();
+        canvas.fill_rects(&rects, color);
+    }
 
-        fn draw_pixels(&self, canvas: &mut CanvasBox, pos: Vec<Pos>, color: Color) {
-            let rects = pos
-                .iter()
-                .map(|p| {
-                    (
-                        self.cell_begin(*p),
-                        self.config.cell_size,
-                        self.config.cell_size,
-                    )
-                })
-                .collect_vec();
-            canvas.fill_rects(&rects, color);
+    // TODO: Does this work with html canvas? maybe there is a simpler API there.
+    fn draw_diag_line(canvas: &mut CanvasBox, from: CPos, to: CPos, color: Color, width: usize) {
+        if from == to {
+            // NOTE: We skip the line width in this case.
+            canvas.draw_point(from, color);
+            return;
         }
-
-        // TODO: Does this work with html canvas? maybe there is a simpler API there.
-        fn draw_diag_line(
-            canvas: &mut CanvasBox,
-            from: CPos,
-            to: CPos,
-            color: Color,
-            width: usize,
-        ) {
-            if from == to {
-                // NOTE: We skip the line width in this case.
-                canvas.draw_point(from, color);
-                return;
-            }
-            canvas.draw_line(from, to, color);
-            for mut w in 1..width as i32 {
-                if w % 2 == 1 {
-                    w = (w + 1) / 2;
-                    canvas.draw_line(
-                        CPos(from.0 + w, from.1 - w + 1),
-                        CPos(to.0 + w - 1, to.1 - w),
-                        color,
-                    );
-                    canvas.draw_line(
-                        CPos(from.0 - w, from.1 + w - 1),
-                        CPos(to.0 - w + 1, to.1 + w),
-                        color,
-                    );
-                    canvas.draw_line(
-                        CPos(from.0 + w - 1, from.1 - w),
-                        CPos(to.0 + w, to.1 - w + 1),
-                        color,
-                    );
-                    canvas.draw_line(
-                        CPos(from.0 - w + 1, from.1 + w),
-                        CPos(to.0 - w, to.1 + w - 1),
-                        color,
-                    );
-                } else {
-                    w /= 2;
-                    canvas.draw_line(
-                        CPos(from.0 + w, from.1 - w),
-                        CPos(to.0 + w, to.1 - w),
-                        color,
-                    );
-                    canvas.draw_line(
-                        CPos(from.0 - w, from.1 + w),
-                        CPos(to.0 - w, to.1 + w),
-                        color,
-                    );
-                }
-            }
-        }
-
-        #[allow(unused)]
-        fn draw_thick_line_horizontal(
-            canvas: &mut CanvasBox,
-            from: CPos,
-            to: CPos,
-            width: i32,
-            margin: i32,
-            color: Color,
-        ) {
-            for w in -width / 2..width - width / 2 {
+        canvas.draw_line(from, to, color);
+        for mut w in 1..width as i32 {
+            if w % 2 == 1 {
+                w = (w + 1) / 2;
                 canvas.draw_line(
-                    CPos(from.0 + margin, from.1 + w),
-                    CPos(to.0 - margin, to.1 + w),
+                    CPos(from.0 + w, from.1 - w + 1),
+                    CPos(to.0 + w - 1, to.1 - w),
+                    color,
+                );
+                canvas.draw_line(
+                    CPos(from.0 - w, from.1 + w - 1),
+                    CPos(to.0 - w + 1, to.1 + w),
+                    color,
+                );
+                canvas.draw_line(
+                    CPos(from.0 + w - 1, from.1 - w),
+                    CPos(to.0 + w, to.1 - w + 1),
+                    color,
+                );
+                canvas.draw_line(
+                    CPos(from.0 - w + 1, from.1 + w),
+                    CPos(to.0 - w, to.1 + w - 1),
+                    color,
+                );
+            } else {
+                w /= 2;
+                canvas.draw_line(
+                    CPos(from.0 + w, from.1 - w),
+                    CPos(to.0 + w, to.1 - w),
+                    color,
+                );
+                canvas.draw_line(
+                    CPos(from.0 - w, from.1 + w),
+                    CPos(to.0 - w, to.1 + w),
                     color,
                 );
             }
         }
+    }
 
-        //Saves canvas to bmp file
-        fn save_canvas(&self, canvas: &mut CanvasBox, last: bool, suffix: Option<&str>) {
-            let extension = suffix.map_or("bmp".to_string(), |s| s.to_string() + ".bmp");
-            let path = if last {
-                if let Some(parent) = self.config.filepath.parent() {
-                    std::fs::create_dir_all(parent).unwrap();
-                }
-                self.config.filepath.with_extension(extension).to_owned()
-            } else {
-                // Make sure the directory exists.
-                let mut dir = self.config.filepath.clone();
-                std::fs::create_dir_all(&dir).unwrap();
-                dir.push(self.file_number.to_string());
-                dir.set_extension(extension);
-                dir
-            };
-            canvas.save(&path);
+    #[allow(unused)]
+    fn draw_thick_line_horizontal(
+        canvas: &mut CanvasBox,
+        from: CPos,
+        to: CPos,
+        width: i32,
+        margin: i32,
+        color: Color,
+    ) {
+        for w in -width / 2..width - width / 2 {
+            canvas.draw_line(
+                CPos(from.0 + margin, from.1 + w),
+                CPos(to.0 - margin, to.1 + w),
+                color,
+            );
+        }
+    }
+
+    //Saves canvas to bmp file
+    fn save_canvas(&self, canvas: &mut CanvasBox, last: bool, suffix: Option<&str>) {
+        let extension = suffix.map_or("bmp".to_string(), |s| s.to_string() + ".bmp");
+        let path = if last {
+            if let Some(parent) = self.config.filepath.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            self.config.filepath.with_extension(extension).to_owned()
+        } else {
+            // Make sure the directory exists.
+            let mut dir = self.config.filepath.clone();
+            std::fs::create_dir_all(&dir).unwrap();
+            dir.push(self.file_number.to_string());
+            dir.set_extension(extension);
+            dir
+        };
+        canvas.save(&path);
+    }
+
+    fn draw<'a, H: HeuristicInstance<'a>>(
+        &mut self,
+        is_last: bool,
+        cigar: Option<&AffineCigar>,
+        is_new_layer: bool,
+        h: Option<&H>,
+        parent: ParentFn,
+    ) {
+        self.frame_number += 1;
+        if is_new_layer {
+            self.layer_number += 1;
+        }
+        if !self
+            .config
+            .draw
+            .is_active(self.frame_number, self.layer_number, is_last, is_new_layer)
+            && !self.config.save.is_active(
+                self.frame_number,
+                self.layer_number,
+                is_last,
+                is_new_layer,
+            )
+            && !(is_last && self.config.save_last)
+        {
+            return;
         }
 
-        fn draw<'a, H: HeuristicInstance<'a>>(
-            &mut self,
-            is_last: bool,
-            cigar: Option<&Cigar>,
-            is_new_layer: bool,
-            h: Option<&H>,
-            parent: ParentFn,
-        ) {
-            self.frame_number += 1;
-            if is_new_layer {
-                self.layer_number += 1;
-            }
-            if !self.config.draw.is_active(
-                self.frame_number,
-                self.layer_number,
-                is_last,
-                is_new_layer,
-            ) && !self.config.save.is_active(
-                self.frame_number,
-                self.layer_number,
-                is_last,
-                is_new_layer,
-            ) && !(is_last && self.config.save_last)
-            {
-                return;
-            }
-
-            // Filter out non-target frames if only drawing a single frame.
-            if let Some(target_frame) = self.config.draw_single_frame
+        // Filter out non-target frames if only drawing a single frame.
+        if let Some(target_frame) = self.config.draw_single_frame
                 && self.drawn_frame_number != target_frame {
                 self.drawn_frame_number += 1;
                 return;
             }
-            self.drawn_frame_number += 1;
+        self.drawn_frame_number += 1;
 
-            // DRAW
-            {
-                // Draw background.
-                let Some(canvas) = &self.canvas else {return;};
-                let mut canvas = canvas.borrow_mut();
-                canvas.fill_rect(
-                    CPos(0, 0),
-                    self.canvas_size.0 as u32,
-                    self.canvas_size.1 as u32,
-                    self.config.style.bg_color,
-                );
+        // DRAW
+        {
+            // Draw background.
+            let Some(canvas) = &self.canvas else {return;};
+            let mut canvas = canvas.borrow_mut();
+            canvas.fill_rect(
+                CPos(0, 0),
+                self.canvas_size.0 as I,
+                self.canvas_size.1 as I,
+                self.config.style.bg_color,
+            );
 
-                // Draw heuristic values.
-                if self.config.style.draw_heuristic && let Some(h) = h {
+            // Draw heuristic values.
+            if self.config.style.draw_heuristic && let Some(h) = h {
                     let mut hint = Default::default();
                     let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
-                    let mut value_pos_map = HashMap::<u32, Vec<Pos>>::default();
+                    let mut value_pos_map = HashMap::<I, Vec<Pos>>::default();
                     for i in 0..=self.target.0 {
                         hint = h.h_with_hint(Pos(i,0), hint).1;
                         let mut hint = hint;
@@ -740,13 +685,13 @@ mod visualizer {
                     }
                 }
 
-                // Draw layer values.
-                if self.config.style.draw_layers && let Some(h) = h {
+            // Draw layer values.
+            if self.config.style.draw_layers && let Some(h) = h {
                     if let Some((mut l_max, mut hint)) = h.layer_with_hint(Pos(0,0), Default::default()) {
                         if let Some(m) = self.config.style.max_layer {
                             l_max = m;
                         }
-                        let mut value_pos_map = HashMap::<u32, Vec<Pos>>::default();
+                        let mut value_pos_map = HashMap::<I, Vec<Pos>>::default();
                         for i in 0..=self.target.0 {
                             hint = h.layer_with_hint(Pos(i,0), hint).unwrap().1;
                             let mut hint = hint;
@@ -767,8 +712,8 @@ mod visualizer {
                     }
                 }
 
-                // Draw layers and contours.
-                if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
+            // Draw layers and contours.
+            if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
                     let draw_right_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
                         canvas
                             .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
@@ -840,26 +785,26 @@ mod visualizer {
                     }
                 }
 
-                if self.config.draw_old_on_top {
-                    // Explored
-                    if let Some(color) = self.config.style.explored {
-                        for &(t, pos, _, _) in &self.expanded {
-                            if t == Type::Explored {
-                                self.draw_pixel(&mut canvas, pos, color);
-                            }
+            if self.config.draw_old_on_top {
+                // Explored
+                if let Some(color) = self.config.style.explored {
+                    for &(t, pos, _, _) in &self.expanded {
+                        if t == Type::Explored {
+                            self.draw_pixel(&mut canvas, pos, color);
                         }
                     }
-                    // Expanded
-                    let mut current_layer = self.layer.unwrap_or(0);
-                    for (i, &(t, pos, _, _)) in self.expanded.iter().enumerate().rev() {
-                        if t == Type::Explored {
-                            continue;
-                        }
-                        if t == Type::Extended && let Some(c) = self.config.style.extended {
+                }
+                // Expanded
+                let mut current_layer = self.layer.unwrap_or(0);
+                for (i, &(t, pos, _, _)) in self.expanded.iter().enumerate().rev() {
+                    if t == Type::Explored {
+                        continue;
+                    }
+                    if t == Type::Extended && let Some(c) = self.config.style.extended {
                             self.draw_pixel(&mut canvas, pos, c);
                             continue;
                         }
-                        self.draw_pixel(
+                    self.draw_pixel(
                             &mut canvas,
                             pos,
                             self.config.style.expanded.color(
@@ -875,27 +820,27 @@ mod visualizer {
                                 },
                             ),
                         );
-                    }
-                } else {
-                    // Explored
-                    if let Some(color) = self.config.style.explored {
-                        for &(t, pos, _, _) in &self.expanded {
-                            if t == Type::Explored {
-                                self.draw_pixel(&mut canvas, pos, color);
-                            }
-                        }
-                    }
-                    // Expanded
-                    let mut current_layer = 0;
-                    for (i, &(t, pos, _, _)) in self.expanded.iter().enumerate() {
+                }
+            } else {
+                // Explored
+                if let Some(color) = self.config.style.explored {
+                    for &(t, pos, _, _) in &self.expanded {
                         if t == Type::Explored {
-                            continue;
+                            self.draw_pixel(&mut canvas, pos, color);
                         }
-                        if t == Type::Extended && let Some(c) = self.config.style.extended {
+                    }
+                }
+                // Expanded
+                let mut current_layer = 0;
+                for (i, &(t, pos, _, _)) in self.expanded.iter().enumerate() {
+                    if t == Type::Explored {
+                        continue;
+                    }
+                    if t == Type::Extended && let Some(c) = self.config.style.extended {
                             self.draw_pixel(&mut canvas, pos, c);
                             continue;
                         }
-                        self.draw_pixel(
+                    self.draw_pixel(
                             &mut canvas,
                             pos,
                             self.config.style.expanded.color(
@@ -909,11 +854,11 @@ mod visualizer {
                                 },
                             ),
                         );
-                    }
                 }
+            }
 
-                // Draw matches.
-                if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
+            // Draw matches.
+            if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
                     // first draw inexact matches, then exact ones on top.
                     for exact in [false, true] {
                         for m in &matches {
@@ -947,8 +892,8 @@ mod visualizer {
                     }
                 }
 
-                // Draw path.
-                if let Some(cigar) = cigar &&
+            // Draw path.
+            if let Some(cigar) = cigar &&
                    let Some(path_color) = self.config.style.path {
                     if let Some(path_width) = self.config.style.path_width {
                         for (from, to) in cigar.to_path().iter().tuple_windows() {
@@ -967,8 +912,8 @@ mod visualizer {
                     }
                 }
 
-                // Draw tree.
-                if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
+            // Draw tree.
+            if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
                     for &(_t, u, _, _) in &self.expanded {
                         if self.config.style.tree_fr_only {
                             // Only trace if u is the furthest point on this diagonal.
@@ -988,17 +933,17 @@ mod visualizer {
                                 continue;
                             }
                         }
-                        let mut st = State{i: u.0 as isize, j: u.1 as isize, layer: None};
+                        let mut st = State{i: u.0, j: u.1, layer: None};
                         let mut path = vec![];
                         while let Some((p, op)) = parent(st){
                             path.push((st, p, op));
-                            let color = if let Some(CigarOp::AffineOpen(_)) = op[1]
+                            let color = if let Some(AffineCigarOp::AffineOpen(_)) = op[1]
                                 && let Some(c) = self.config.style.tree_affine_open {
                                     c
                                 } else {
                                     match op[0].unwrap() {
-                                        CigarOp::Match => self.config.style.tree_match,
-                                        CigarOp::Sub => self.config.style.tree_substitution,
+                                        AffineCigarOp::Match => self.config.style.tree_match,
+                                        AffineCigarOp::Sub => self.config.style.tree_substitution,
                                         _ => None,
                                     }.unwrap_or(tree_color)
                                 };
@@ -1013,12 +958,12 @@ mod visualizer {
                             st = p;
                         }
                         if let Some(c) = self.config.style.tree_direction_change {
-                            let mut last = CigarOp::Match;
+                            let mut last = AffineCigarOp::Match;
                             for &(u, p, op)  in path.iter().rev() {
                                 let op = op[0].unwrap();
                                 match op {
-                                    CigarOp::Ins => {
-                                        if last == CigarOp::Del {
+                                    AffineCigarOp::Ins => {
+                                        if last == AffineCigarOp::Del {
                                             Self::draw_diag_line(
                                                 &mut canvas,
                                                 self.cell_center(p.pos()),
@@ -1029,8 +974,8 @@ mod visualizer {
                                         }
                                         last = op;
                                     }
-                                    CigarOp::Del => {
-                                        if last == CigarOp::Ins {
+                                    AffineCigarOp::Del => {
+                                        if last == AffineCigarOp::Ins {
                                             Self::draw_diag_line(
                                                 &mut canvas,
                                                 self.cell_center(p.pos()),
@@ -1041,7 +986,7 @@ mod visualizer {
                                         }
                                         last = op;
                                     }
-                                    CigarOp::Sub => {
+                                    AffineCigarOp::Sub => {
                                         last = op;
                                     }
                                     _ => {
@@ -1052,20 +997,20 @@ mod visualizer {
                     }
                 } // draw tree
 
-                // Draw labels
-                if self.config.style.draw_labels {
-                    let mut row = 0;
-                    if let Some(title) = &self.title {
-                        canvas.write_text(
-                            self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
-                            HAlign::Center,
-                            VAlign::Top,
-                            title,
-                            BLACK,
-                        );
-                        row += 1;
-                    }
-                    if let Some(params) = &self.params && !params.is_empty(){
+            // Draw labels
+            if self.config.style.draw_labels {
+                let mut row = 0;
+                if let Some(title) = &self.title {
+                    canvas.write_text(
+                        self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
+                        HAlign::Center,
+                        VAlign::Top,
+                        title,
+                        BLACK,
+                    );
+                    row += 1;
+                }
+                if let Some(params) = &self.params && !params.is_empty(){
                     canvas.write_text(
                         self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
@@ -1074,7 +1019,7 @@ mod visualizer {
                     );
                     row += 1;
                 }
-                    if let Some(comment) = &self.comment && !comment.is_empty(){
+                if let Some(comment) = &self.comment && !comment.is_empty(){
                     canvas.write_text(
                         self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
@@ -1083,206 +1028,204 @@ mod visualizer {
                     );
                     row += 1;
                 }
-                    canvas.write_text(
-                        self.nw.start.right(self.nw.size.0),
-                        HAlign::Right,
-                        VAlign::Top,
-                        &make_label("i = ", self.target.0),
-                        GRAY,
-                    );
-                    canvas.write_text(
-                        self.nw.start.down(self.nw.size.1),
-                        HAlign::Left,
-                        VAlign::Bottom,
-                        &make_label("j = ", self.target.1),
-                        GRAY,
-                    );
+                canvas.write_text(
+                    self.nw.start.right(self.nw.size.0),
+                    HAlign::Right,
+                    VAlign::Top,
+                    &make_label("i = ", self.target.0),
+                    GRAY,
+                );
+                canvas.write_text(
+                    self.nw.start.down(self.nw.size.1),
+                    HAlign::Left,
+                    VAlign::Bottom,
+                    &make_label("j = ", self.target.1),
+                    GRAY,
+                );
 
-                    canvas.write_text(
-                        self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
-                        HAlign::Center,
-                        VAlign::Top,
-                        "DP states (i,j)",
-                        GRAY,
-                    );
-                    canvas.write_text(
-                        self.nw.start.right(self.nw.size.0 / 2).down(30 * (row + 1)),
-                        HAlign::Center,
-                        VAlign::Top,
-                        &make_label(
-                            "expanded: ",
-                            self.expanded
-                                .iter()
-                                .filter(|&(t, ..)| *t == Expanded)
-                                .count(),
-                        ),
-                        GRAY,
-                    );
-                }
-            }
-
-            self.draw_dt(cigar);
-            self.draw_f(cigar, h);
-
-            let Some(canvas) = &self.canvas else {return;};
-            let mut canvas = canvas.borrow_mut();
-
-            // SAVE
-
-            if self.config.save.is_active(
-                self.frame_number,
-                self.layer_number,
-                is_last,
-                is_new_layer,
-            ) {
-                self.save_canvas(&mut canvas, false, None);
-                self.file_number += 1;
-            }
-
-            // Save the final frame separately if needed.
-            if is_last && self.config.save_last {
-                self.save_canvas(&mut canvas, true, None);
-            }
-
-            // SHOW
-
-            if !self.config.draw.is_active(
-                self.frame_number,
-                self.layer_number,
-                is_last,
-                is_new_layer,
-            ) {
-                return;
-            }
-
-            //Keyboard events
-            canvas.present();
-            let key = canvas.wait(if self.config.paused || is_last {
-                Duration::MAX
-            } else {
-                self.config.delay
-            });
-            match key {
-                KeyboardAction::Next => {}
-                KeyboardAction::Prev => {
-                    unimplemented!()
-                }
-                KeyboardAction::PausePlay => {
-                    self.config.paused = !self.config.paused;
-                }
-                KeyboardAction::Faster => {
-                    self.config.delay = self.config.delay.mul_f32(0.8);
-                }
-                KeyboardAction::Slower => {
-                    self.config.delay = self.config.delay.div_f32(0.8);
-                }
-                KeyboardAction::ToEnd => {
-                    self.config.draw = When::Last;
-                }
-                KeyboardAction::Exit => {
-                    panic!("Running aborted by user!");
-                }
-                KeyboardAction::None => {}
+                canvas.write_text(
+                    self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
+                    HAlign::Center,
+                    VAlign::Top,
+                    "DP states (i,j)",
+                    GRAY,
+                );
+                canvas.write_text(
+                    self.nw.start.right(self.nw.size.0 / 2).down(30 * (row + 1)),
+                    HAlign::Center,
+                    VAlign::Top,
+                    &make_label(
+                        "expanded: ",
+                        self.expanded
+                            .iter()
+                            .filter(|&(t, ..)| *t == Expanded)
+                            .count(),
+                    ),
+                    GRAY,
+                );
             }
         }
 
-        // Draw DT states to the top-right 1/3rd of the canvas.
-        fn draw_dt(&mut self, cigar: Option<&Cigar>) {
-            if !self.config.style.draw_dt || self.expanded.is_empty() {
-                return;
+        self.draw_dt(cigar);
+        self.draw_f(cigar, h);
+
+        let Some(canvas) = &self.canvas else {return;};
+        let mut canvas = canvas.borrow_mut();
+
+        // SAVE
+
+        if self
+            .config
+            .save
+            .is_active(self.frame_number, self.layer_number, is_last, is_new_layer)
+        {
+            self.save_canvas(&mut canvas, false, None);
+            self.file_number += 1;
+        }
+
+        // Save the final frame separately if needed.
+        if is_last && self.config.save_last {
+            self.save_canvas(&mut canvas, true, None);
+        }
+
+        // SHOW
+
+        if !self
+            .config
+            .draw
+            .is_active(self.frame_number, self.layer_number, is_last, is_new_layer)
+        {
+            return;
+        }
+
+        //Keyboard events
+        canvas.present();
+        let key = canvas.wait(if self.config.paused || is_last {
+            Duration::MAX
+        } else {
+            self.config.delay
+        });
+        match key {
+            KeyboardAction::Next => {}
+            KeyboardAction::Prev => {
+                unimplemented!()
             }
-            let Some(canvas) = &self.canvas else {return;};
-            let mut canvas = canvas.borrow_mut();
+            KeyboardAction::PausePlay => {
+                self.config.paused = !self.config.paused;
+            }
+            KeyboardAction::Faster => {
+                self.config.delay = self.config.delay.mul_f32(0.8);
+            }
+            KeyboardAction::Slower => {
+                self.config.delay = self.config.delay.div_f32(0.8);
+            }
+            KeyboardAction::ToEnd => {
+                self.config.draw = When::Last;
+            }
+            KeyboardAction::Exit => {
+                panic!("Running aborted by user!");
+            }
+            KeyboardAction::None => {}
+        }
+    }
 
-            let offset = self.dt.start.down(self.dt.size.0 / 2);
-            // Cell_size goes down in powers of 2.
-            let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
-            let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
-            let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
-            let dt_cell_size = min(
-                self.dt.size.0 as u32 / (front_max + 1),
-                min(
-                    self.dt.size.1 as u32 / 2 / max(-diagonal_min + 1, diagonal_max + 1) as u32,
-                    10,
-                ),
-            );
+    // Draw DT states to the top-right 1/3rd of the canvas.
+    fn draw_dt(&mut self, cigar: Option<&AffineCigar>) {
+        if !self.config.style.draw_dt || self.expanded.is_empty() {
+            return;
+        }
+        let Some(canvas) = &self.canvas else {return;};
+        let mut canvas = canvas.borrow_mut();
 
-            // Draw grid
+        let offset = self.dt.start.down(self.dt.size.0 / 2);
+        // Cell_size goes down in powers of 2.
+        let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
+        let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
+        let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
+        let dt_cell_size = min(
+            self.dt.size.0 as I / (front_max + 1),
+            min(
+                self.dt.size.1 as I / 2 / max(-diagonal_min + 1, diagonal_max + 1) as I,
+                10,
+            ),
+        );
 
-            // Divider
+        // Draw grid
+
+        // Divider
+        canvas.draw_line(
+            self.nw.start.right(self.nw.size.0),
+            self.nw.start + self.nw.size,
+            BLACK,
+        );
+
+        // Horizontal d lines
+        let dy = |d: i32| offset.1 - d * dt_cell_size as i32 - dt_cell_size as i32 / 2;
+
+        let mut draw_d_line = |d: i32, y: i32| {
             canvas.draw_line(
-                self.nw.start.right(self.nw.size.0),
-                self.nw.start + self.nw.size,
-                BLACK,
+                self.dt.start.down(y),
+                self.dt.start.down(y).right(self.dt.size.0),
+                GRAY,
             );
+            canvas.write_text(
+                self.dt.start.down(y),
+                HAlign::Right,
+                VAlign::Center,
+                &make_label("d = ", d),
+                GRAY,
+            );
+        };
+        // d=0
+        draw_d_line(0, offset.1);
+        // d=min
+        if diagonal_min != 0 {
+            draw_d_line(diagonal_min, dy(diagonal_min - 1));
+        }
+        // d=max
+        if diagonal_max != 0 {
+            draw_d_line(diagonal_max, dy(diagonal_max));
+        }
 
-            // Horizontal d lines
-            let dy = |d: i32| offset.1 - d * dt_cell_size as i32 - dt_cell_size as i32 / 2;
+        // Vertical g lines
+        let mut draw_g_line = |g: i32| {
+            let line_g = if g == 0 { 0 } else { g + 1 };
+            let x = self.nw.size.0 as i32 + line_g * dt_cell_size as i32;
+            canvas.draw_line(CPos(x, 0), CPos(x, self.canvas_size.1 as i32), GRAY);
+            canvas.write_text(
+                CPos(x, dy(diagonal_min - 1)),
+                if g == 0 { HAlign::Left } else { HAlign::Right },
+                VAlign::Top,
+                &make_label("g = ", g),
+                GRAY,
+            );
+        };
+        // g=0
+        draw_g_line(0);
+        // g=min
+        if front_max > 2 {
+            draw_g_line(front_max as i32);
+        }
 
-            let mut draw_d_line = |d: i32, y: i32| {
-                canvas.draw_line(
-                    self.dt.start.down(y),
-                    self.dt.start.down(y).right(self.dt.size.0),
-                    GRAY,
-                );
-                canvas.write_text(
-                    self.dt.start.down(y),
-                    HAlign::Right,
-                    VAlign::Center,
-                    &make_label("d = ", d),
-                    GRAY,
+        let state_coords = |st: (Pos, Cost)| -> CPos {
+            CPos(offset.0 + (dt_cell_size * st.1) as i32, dy(st.0.diag()))
+        };
+
+        let draw_state =
+            |canvas: &mut RefMut<CanvasBox>, st: (Type, Pos, Cost, Cost), color: Color| {
+                canvas.fill_rect(
+                    state_coords((st.1, st.2)),
+                    dt_cell_size,
+                    dt_cell_size,
+                    color,
                 );
             };
-            // d=0
-            draw_d_line(0, offset.1);
-            // d=min
-            if diagonal_min != 0 {
-                draw_d_line(diagonal_min, dy(diagonal_min - 1));
-            }
-            // d=max
-            if diagonal_max != 0 {
-                draw_d_line(diagonal_max, dy(diagonal_max));
-            }
 
-            // Vertical g lines
-            let mut draw_g_line = |g: i32| {
-                let line_g = if g == 0 { 0 } else { g + 1 };
-                let x = self.nw.size.0 as i32 + line_g * dt_cell_size as i32;
-                canvas.draw_line(CPos(x, 0), CPos(x, self.canvas_size.1 as i32), GRAY);
-                canvas.write_text(
-                    CPos(x, dy(diagonal_min - 1)),
-                    if g == 0 { HAlign::Left } else { HAlign::Right },
-                    VAlign::Top,
-                    &make_label("g = ", g),
-                    GRAY,
-                );
-            };
-            // g=0
-            draw_g_line(0);
-            // g=min
-            if front_max > 2 {
-                draw_g_line(front_max as i32);
-            }
-
-            let state_coords = |st: (Pos, Cost)| -> CPos {
-                CPos(offset.0 + (dt_cell_size * st.1) as i32, dy(st.0.diag()))
-            };
-
-            let draw_state =
-                |canvas: &mut RefMut<CanvasBox>, st: (Type, Pos, Cost, Cost), color: Color| {
-                    canvas.fill_rect(
-                        state_coords((st.1, st.2)),
-                        dt_cell_size,
-                        dt_cell_size,
-                        color,
-                    );
-                };
-
-            if self.config.draw_old_on_top {
-                // Expanded
-                let mut current_layer = self.layer.unwrap_or(0);
-                for (i, &st) in self.expanded.iter().enumerate().rev() {
-                    let color = self.config.style.expanded.color(
+        if self.config.draw_old_on_top {
+            // Expanded
+            let mut current_layer = self.layer.unwrap_or(0);
+            for (i, &st) in self.expanded.iter().enumerate().rev() {
+                let color = self.config.style.expanded.color(
                             if let Some(layer) = self.layer && layer != 0 {
                                 if current_layer > 0
                                     && i < self.expanded_layers[current_layer - 1]
@@ -1294,13 +1237,13 @@ mod visualizer {
                                     i as f64 / self.expanded.len() as f64
                             },
                         );
-                    draw_state(&mut canvas, st, color);
-                }
-            } else {
-                // Expanded
-                let mut current_layer = 0;
-                for (i, &st) in self.expanded.iter().enumerate() {
-                    let color =
+                draw_state(&mut canvas, st, color);
+            }
+        } else {
+            // Expanded
+            let mut current_layer = 0;
+            for (i, &st) in self.expanded.iter().enumerate() {
+                let color =
                         self.config.style.expanded.color(
                             if let Some(layer) = self.layer && layer != 0 {
                                 if current_layer < layer && i >= self.expanded_layers[current_layer] {
@@ -1311,207 +1254,201 @@ mod visualizer {
                                     i as f64 / self.expanded.len() as f64
                             },
                         );
-                    draw_state(&mut canvas, st, color);
-                }
+                draw_state(&mut canvas, st, color);
             }
+        }
 
-            // Title
-            canvas.write_text(
-                CPos(self.nw.size.0 as i32 + self.dt.size.0 as i32 / 2, 0),
-                HAlign::Center,
-                VAlign::Top,
-                "Diagonal Transition states (g, d) = (s, k)",
-                GRAY,
-            );
+        // Title
+        canvas.write_text(
+            CPos(self.nw.size.0 as i32 + self.dt.size.0 as i32 / 2, 0),
+            HAlign::Center,
+            VAlign::Top,
+            "Diagonal Transition states (g, d) = (s, k)",
+            GRAY,
+        );
 
-            if let Some(cigar) = cigar {
-                if let Some(path_color) = self.config.style.path {
-                    for (from, to) in cigar
-                        .to_path_with_cost(LinearCost::new_unit())
-                        .iter()
-                        .tuple_windows()
-                    {
-                        let from_coords = state_coords(*from);
-                        let to_coords = state_coords(*to);
-                        if from_coords == to_coords {
-                            continue;
-                        }
-                        if let Some(path_width) = self.config.style.path_width {
-                            Self::draw_diag_line(
-                                &mut canvas,
-                                CPos(
-                                    from_coords.0 + dt_cell_size as i32 / 2,
-                                    from_coords.1 + dt_cell_size as i32 / 2,
-                                ),
-                                CPos(
-                                    to_coords.0 + dt_cell_size as i32 / 2,
-                                    to_coords.1 + dt_cell_size as i32 / 2,
-                                ),
-                                path_color,
-                                path_width,
-                            );
-                        } else {
-                            draw_state(
-                                &mut canvas,
-                                (Type::Expanded, from.0, from.1, 0),
-                                path_color,
-                            );
-                        }
+        if let Some(cigar) = cigar {
+            if let Some(path_color) = self.config.style.path {
+                for (from, to) in cigar
+                    .to_path_with_costs(AffineCost::unit())
+                    .iter()
+                    .tuple_windows()
+                {
+                    let from_coords = state_coords(*from);
+                    let to_coords = state_coords(*to);
+                    if from_coords == to_coords {
+                        continue;
+                    }
+                    if let Some(path_width) = self.config.style.path_width {
+                        Self::draw_diag_line(
+                            &mut canvas,
+                            CPos(
+                                from_coords.0 + dt_cell_size as i32 / 2,
+                                from_coords.1 + dt_cell_size as i32 / 2,
+                            ),
+                            CPos(
+                                to_coords.0 + dt_cell_size as i32 / 2,
+                                to_coords.1 + dt_cell_size as i32 / 2,
+                            ),
+                            path_color,
+                            path_width,
+                        );
+                    } else {
+                        draw_state(&mut canvas, (Type::Expanded, from.0, from.1, 0), path_color);
                     }
                 }
             }
         }
+    }
 
-        fn draw_f<'a, H: HeuristicInstance<'a>>(&mut self, cigar: Option<&Cigar>, h: Option<&H>) {
-            if !self.config.style.draw_f || self.expanded.is_empty() {
-                return;
-            }
-            let Some(canvas) = &self.canvas else {return;};
-            let mut canvas = canvas.borrow_mut();
+    fn draw_f<'a, H: HeuristicInstance<'a>>(&mut self, cigar: Option<&AffineCigar>, h: Option<&H>) {
+        if !self.config.style.draw_f || self.expanded.is_empty() {
+            return;
+        }
+        let Some(canvas) = &self.canvas else {return;};
+        let mut canvas = canvas.borrow_mut();
 
-            // Soft red
-            const SOFT_RED: Color = (244, 113, 116, 0);
-            const _SOFT_GREEN: Color = (111, 194, 118, 0);
+        // Soft red
+        const SOFT_RED: Color = (244, 113, 116, 0);
+        const _SOFT_GREEN: Color = (111, 194, 118, 0);
 
-            // Cell size from DT
-            // Cell_size goes down in powers of 2.
-            let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
-            let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
-            let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
-            let dt_cell_size = min(
-                self.dt.size.0 as u32 / (front_max + 1),
-                min(
-                    self.dt.size.1 as u32 / 2 / max(-diagonal_min + 1, diagonal_max + 1) as u32,
-                    10,
-                ),
-            );
+        // Cell size from DT
+        // Cell_size goes down in powers of 2.
+        let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
+        let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
+        let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
+        let dt_cell_size = min(
+            self.dt.size.0 as I / (front_max + 1),
+            min(
+                self.dt.size.1 as I / 2 / max(-diagonal_min + 1, diagonal_max + 1) as I,
+                10,
+            ),
+        );
 
-            // f is plotted with f_min at y=height-30, and f_max at y=3/4*height
-            let f_min = self
-                .expanded
-                .iter()
-                .filter(|st| st.0 == Expanded)
-                .map(|st| st.3)
-                .min()
-                .unwrap();
-            let f_max = self
-                .expanded
-                .iter()
-                .filter(|st| st.0 == Expanded)
-                .map(|st| st.3)
-                .max()
-                .unwrap();
-            let f_y = |f| {
-                (self.canvas_size.1 as i32).saturating_sub(
-                    ((f as f32 - f_min as f32) / max(f_max - f_min, 1) as f32
-                        * self.canvas_size.1 as f32
-                        / 4.) as i32
-                        + 30,
-                )
-            };
+        // f is plotted with f_min at y=height-30, and f_max at y=3/4*height
+        let f_min = self
+            .expanded
+            .iter()
+            .filter(|st| st.0 == Expanded)
+            .map(|st| st.3)
+            .min()
+            .unwrap();
+        let f_max = self
+            .expanded
+            .iter()
+            .filter(|st| st.0 == Expanded)
+            .map(|st| st.3)
+            .max()
+            .unwrap();
+        let f_y = |f| {
+            (self.canvas_size.1 as i32).saturating_sub(
+                ((f as f32 - f_min as f32) / max(f_max - f_min, 1) as f32
+                    * self.canvas_size.1 as f32
+                    / 4.) as i32
+                    + 30,
+            )
+        };
 
-            // Draw shifted states after pruning.
-            if let Some(h) = h {
-                for &(t, pos, g, _) in self.expanded.iter() {
-                    if t == Explored {
-                        continue;
-                    }
-                    let f = g + h.h(pos);
-                    let rel_f = (f as f64 - f_min as f64) / max(f_max - f_min, 1) as f64;
-                    if rel_f > 1.5 {
-                        continue;
-                    }
-                    let color =
-                        Gradient::Gradient(GRAY..WHITE).color(f64::max(0., 2. * rel_f - 2.));
-                    let y = f_y(f);
-                    canvas.fill_rect(
-                        CPos((pos.0 * self.config.cell_size) as i32, y),
-                        self.config.cell_size,
-                        1,
-                        color,
-                    );
-                    canvas.fill_rect(
-                        CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, y),
-                        dt_cell_size,
-                        1,
-                        color,
-                    );
-                }
-            }
-
-            for (i, &(t, pos, g, f)) in self.expanded.iter().enumerate() {
+        // Draw shifted states after pruning.
+        if let Some(h) = h {
+            for &(t, pos, g, _) in self.expanded.iter() {
                 if t == Explored {
                     continue;
                 }
-                let color =
-                    Gradient::TurboGradient(0.2..0.95).color(i as f64 / self.expanded.len() as f64);
+                let f = g + h.h(pos);
+                let rel_f = (f as f64 - f_min as f64) / max(f_max - f_min, 1) as f64;
+                if rel_f > 1.5 {
+                    continue;
+                }
+                let color = Gradient::Gradient(GRAY..WHITE).color(f64::max(0., 2. * rel_f - 2.));
+                let y = f_y(f);
                 canvas.fill_rect(
-                    CPos((pos.0 * self.config.cell_size) as i32, f_y(f)),
+                    CPos((pos.0 * self.config.cell_size) as i32, y),
                     self.config.cell_size,
+                    1,
+                    color,
+                );
+                canvas.fill_rect(
+                    CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, y),
+                    dt_cell_size,
+                    1,
+                    color,
+                );
+            }
+        }
+
+        for (i, &(t, pos, g, f)) in self.expanded.iter().enumerate() {
+            if t == Explored {
+                continue;
+            }
+            let color =
+                Gradient::TurboGradient(0.2..0.95).color(i as f64 / self.expanded.len() as f64);
+            canvas.fill_rect(
+                CPos((pos.0 * self.config.cell_size) as i32, f_y(f)),
+                self.config.cell_size,
+                2,
+                color,
+            );
+            if self.config.style.draw_dt {
+                canvas.fill_rect(
+                    CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, f_y(f)),
+                    dt_cell_size,
                     2,
                     color,
                 );
-                if self.config.style.draw_dt {
-                    canvas.fill_rect(
-                        CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, f_y(f)),
-                        dt_cell_size,
-                        2,
-                        color,
-                    );
-                }
             }
+        }
 
-            // Horizontal line at final cost when path is given.
-            let mut cost = None;
-            if let Some(cigar) = cigar {
-                let c = cigar
-                    .to_path_with_cost(LinearCost::new_unit())
-                    .last()
-                    .unwrap()
-                    .1;
-                cost = Some(c);
-                let y = f_y(c);
-                canvas.draw_line(CPos(0, y), CPos(self.canvas_size.0 as i32, y), SOFT_RED);
-
-                canvas.write_text(
-                    CPos(self.nw.size.0 as i32, y),
-                    HAlign::Left,
-                    VAlign::Center,
-                    &make_label("g* = ", c),
-                    SOFT_RED,
-                );
-            };
+        // Horizontal line at final cost when path is given.
+        let mut cost = None;
+        if let Some(cigar) = cigar {
+            let c = cigar
+                .to_path_with_costs(AffineCost::unit())
+                .last()
+                .unwrap()
+                .1;
+            cost = Some(c);
+            let y = f_y(c);
+            canvas.draw_line(CPos(0, y), CPos(self.canvas_size.0 as i32, y), SOFT_RED);
 
             canvas.write_text(
-                CPos(
-                    self.nw.size.0 as i32 + self.dt.size.0 as i32 / 2,
-                    self.dt.size.1 as i32,
-                ),
-                HAlign::Center,
-                VAlign::Bottom,
-                "max f per front g",
+                CPos(self.nw.size.0 as i32, y),
+                HAlign::Left,
+                VAlign::Center,
+                &make_label("g* = ", c),
                 SOFT_RED,
             );
-            for f in [f_min, f_max] {
-                if Some(f) == cost {
-                    continue;
-                }
-                canvas.write_text(
-                    CPos(self.nw.size.0 as i32, f_y(f)),
-                    HAlign::Left,
-                    VAlign::Center,
-                    &make_label("f = ", f),
-                    SOFT_RED,
-                );
-            }
+        };
 
+        canvas.write_text(
+            CPos(
+                self.nw.size.0 as i32 + self.dt.size.0 as i32 / 2,
+                self.dt.size.1 as i32,
+            ),
+            HAlign::Center,
+            VAlign::Bottom,
+            "max f per front g",
+            SOFT_RED,
+        );
+        for f in [f_min, f_max] {
+            if Some(f) == cost {
+                continue;
+            }
             canvas.write_text(
-                CPos(self.nw.size.0 as i32 / 2, self.nw.size.1 as i32),
-                HAlign::Center,
-                VAlign::Bottom,
-                "max f per column i",
+                CPos(self.nw.size.0 as i32, f_y(f)),
+                HAlign::Left,
+                VAlign::Center,
+                &make_label("f = ", f),
                 SOFT_RED,
             );
         }
+
+        canvas.write_text(
+            CPos(self.nw.size.0 as i32 / 2, self.nw.size.1 as i32),
+            HAlign::Center,
+            VAlign::Bottom,
+            "max f per column i",
+            SOFT_RED,
+        );
     }
 }

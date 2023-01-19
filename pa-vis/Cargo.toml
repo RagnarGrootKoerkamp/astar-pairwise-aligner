@@ -3,14 +3,18 @@ name = "pa-vis"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-
+clap = { version = "4.1.1", features = ["derive"] }
+colorgrad = "0.6.2"
 sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
+serde = { version = "1.0.152", features = ["derive"] }
+pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
+pa-heuristic = { path = "../pa-heuristic" }
+pa-vis-types = { path = "../pa-vis-types" }
+pa-affine-types = { path = "../pa-affine-types" }
+lazy_static = "1.4.0"
+itertools = "0.10.5"
 
 [features]
-# Enable visualizations using sdl2.
-vis = ["dep:sdl2"]
-
-colorgrad = "0.6.2"
+default = ["sdl"]
+sdl = ["dep:sdl2"]

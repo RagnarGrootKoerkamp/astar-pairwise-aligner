@@ -5,7 +5,7 @@ use crate::{
     stats::AstarStats,
 };
 use pa_heuristic::*;
-use pa_vis_types::{Visualizer, VisualizerInstance};
+use pa_vis_types::{VisualizerInstance, VisualizerT};
 
 const D: bool = false;
 
@@ -35,7 +35,7 @@ pub fn astar<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,
     h: &H,
-    v: &impl Visualizer,
+    v: &impl VisualizerT,
 ) -> ((Cost, Cigar), AstarStats) {
     let start = instant::Instant::now();
     let ref graph = EditGraph::new(a, b, true);
@@ -226,7 +226,7 @@ pub fn astar<'a, H: Heuristic>(
     let (d, path) = traceback(&states, graph.target());
     let cigar = Cigar::from_path(graph.a, graph.b, &path);
     stats.timing.traceback = traceback_start.elapsed().as_secs_f32();
-    v.last_frame(Some(&cigar), None, Some(h));
+    v.last_frame(Some(&(&cigar).into()), None, Some(h));
     stats.h = h.stats();
     assert!(
         stats.h.h0 <= d,

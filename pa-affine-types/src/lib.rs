@@ -1,4 +1,4 @@
-use pa_types::{Cost, Seq, I};
+use pa_types::{Cost, Pos, Seq, I};
 
 pub mod cigar;
 pub mod cost_model;
@@ -20,6 +20,10 @@ pub struct State {
 impl State {
     pub fn new(i: I, j: I, layer: Layer) -> Self {
         Self { i, j, layer }
+    }
+
+    pub fn pos(&self) -> Pos {
+        Pos(self.i, self.j)
     }
 }
 

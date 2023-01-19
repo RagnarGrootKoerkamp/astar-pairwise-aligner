@@ -54,6 +54,32 @@ impl AffineCigarOp {
     }
 }
 
+impl From<CigarOp> for AffineCigarOp {
+    fn from(op: CigarOp) -> Self {
+        match op {
+            CigarOp::Match => AffineCigarOp::Match,
+            CigarOp::Sub => AffineCigarOp::Sub,
+            CigarOp::Del => AffineCigarOp::Del,
+            CigarOp::Ins => AffineCigarOp::Ins,
+        }
+    }
+}
+
+impl From<&Cigar> for AffineCigar {
+    fn from(cigar: &Cigar) -> Self {
+        Self {
+            ops: cigar
+                .ops
+                .iter()
+                .map(|el| AffineCigarElem {
+                    op: el.op.into(),
+                    cnt: el.cnt,
+                })
+                .collect(),
+        }
+    }
+}
+
 impl AffineCigar {
     pub fn to_base(&self) -> Cigar {
         Cigar {
@@ -69,9 +95,7 @@ impl AffineCigar {
                 .collect(),
         }
     }
-}
 
-impl AffineCigar {
     pub fn push(&mut self, op: AffineCigarOp) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
         if let Some(s) = self.ops.last_mut() {
@@ -114,7 +138,11 @@ impl AffineCigar {
         self.ops.append(&mut other.ops);
     }
 
-    pub fn to_path_with_cost<const N: usize>(&self, cm: AffineCost<N>) -> Vec<(Pos, Cost)> {
+    pub fn to_path(&self) -> Path {
+        self.to_base().to_path()
+    }
+
+    pub fn to_path_with_costs<const N: usize>(&self, cm: AffineCost<N>) -> Vec<(Pos, Cost)> {
         let mut pos = Pos(0, 0);
         let mut layer = None;
         let mut cost = 0;

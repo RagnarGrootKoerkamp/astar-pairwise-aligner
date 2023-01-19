@@ -13,7 +13,7 @@ use std::ops::RangeInclusive;
 ///
 /// NOTE: Heuristics only support unit cost graph for now.
 #[derive(Clone)]
-pub struct NW<const N: usize, V: Visualizer, H: Heuristic> {
+pub struct NW<const N: usize, V: VisualizerT, H: Heuristic> {
     /// The cost model to use.
     pub cm: AffineCost<N>,
 
@@ -45,7 +45,7 @@ impl<const N: usize> NW<N, NoVis, NoCost> {
     }
 }
 
-impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
     pub fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H> {
         NWInstance {
             a: pad(a),
@@ -57,7 +57,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
     }
 }
 
-impl<const N: usize, V: Visualizer, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NW")
             .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
@@ -66,7 +66,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> std::fmt::Debug for NW<N, V, H
     }
 }
 
-pub struct NWInstance<'a, const N: usize, V: Visualizer, H: Heuristic> {
+pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
     pub a: Sequence,
     pub b: Sequence,
@@ -92,7 +92,7 @@ type Fronts<const N: usize> = super::front::Fronts<N, Cost, I>;
 const LEFT_BUFFER: I = 2;
 const RIGHT_BUFFER: I = 2;
 
-impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
+impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
     /// Computes the next front (front `i`) from the current one.
     ///
     /// `a` and `b` must be padded at the start by the same character.
@@ -403,8 +403,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> NWInstance<'a, N, V, H> {
             },
             Direction::Forward,
         );
-        self.v
-            .last_frame(Some(&cigar.to_base()), None, Some(&self.h));
+        self.v.last_frame(Some(&cigar), None, Some(&self.h));
         (dist, cigar)
     }
 
@@ -553,7 +552,7 @@ fn pad(a: Seq) -> Sequence {
     chain!(b"^", a).copied().collect()
 }
 
-impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
     pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut nw = self.build(a, b);
         let cost = if self.exponential_search {
@@ -586,7 +585,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
             assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
             cc = nw.align_for_bounded_dist(None).unwrap();
         };
-        nw.v.last_frame::<NoCostI>(Some(&cc.1.to_base()), None, None);
+        nw.v.last_frame::<NoCostI>(Some(&cc.1), None, None);
         cc
     }
 
@@ -604,7 +603,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> NW<N, V, H> {
     }
 }
 
-impl<const N: usize, V: Visualizer, H: Heuristic> AffineAligner for NW<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> AffineAligner for NW<N, V, H> {
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
         let (cost, cigar) = self.align(a, b);
         (cost, Some(cigar))

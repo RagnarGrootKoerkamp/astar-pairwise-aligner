@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug, Serialize, Deserialize)]
 #[clap(next_help_heading = "Algorithm")]
-struct AlgorithmArgs {
+pub struct AlgorithmArgs {
     // #[clap(short, long, default_value_t, value_enum, display_order = 10)]
     // pub algorithm: Algorithm,
     /// Use diagonal-transition based A*.

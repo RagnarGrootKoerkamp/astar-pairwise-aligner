@@ -3,10 +3,10 @@
 use pa_types::Cost;
 use std::cmp::max;
 
-mod cli;
 mod edit_graph;
 mod front;
 
+pub mod cli;
 pub mod dt;
 pub mod nw;
 

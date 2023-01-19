@@ -36,7 +36,7 @@ fn test_sequences() -> impl Iterator<Item = (((usize, f32), ErrorModel), u64)> {
         .cartesian_product(seeds)
 }
 
-fn test_aligner_on_input<H: Heuristic, V: Visualizer>(
+fn test_aligner_on_input<H: Heuristic, V: VisualizerT>(
     a: Seq,
     b: Seq,
     aligner: AstarPa<V, H>,

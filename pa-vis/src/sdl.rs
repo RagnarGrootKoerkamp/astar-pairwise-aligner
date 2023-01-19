@@ -1,7 +1,6 @@
-use std::{path::Path, time::Duration};
-
-use crate::canvas::{Canvas, Color, HAlign, VAlign};
-
+use crate::canvas::*;
+use lazy_static::lazy_static;
+use pa_types::I;
 use sdl2::{
     event::Event,
     keyboard::Keycode,
@@ -10,8 +9,9 @@ use sdl2::{
     video::Window,
     Sdl,
 };
+use std::{path::Path, time::Duration};
 
-use super::{CPos, KeyboardAction};
+use crate::canvas::{CPos, KeyboardAction};
 pub type SdlCanvas = sdl2::render::Canvas<Window>;
 
 lazy_static! {
@@ -46,42 +46,45 @@ pub fn new_canvas(w: usize, h: usize, title: &str) -> SdlCanvas {
 impl Canvas for SdlCanvas {
     fn fill_background(&mut self, color: Color) {
         self.set_draw_color(color);
-        self.fill_rect(Rect::new(
-            0,
-            0,
-            self.output_size().unwrap().0,
-            self.output_size().unwrap().1,
-        ))
+        SdlCanvas::fill_rect(
+            self,
+            Rect::new(
+                0,
+                0,
+                self.output_size().unwrap().0,
+                self.output_size().unwrap().1,
+            ),
+        )
         .unwrap();
     }
 
-    fn fill_rect(&mut self, CPos(x, y): CPos, w: u32, h: u32, color: Color) {
+    fn fill_rect(&mut self, CPos(x, y): CPos, w: I, h: I, color: Color) {
         self.set_draw_color(color);
-        self.fill_rect(Rect::new(x as i32, y as i32, w, h)).unwrap();
+        SdlCanvas::fill_rect(self, Rect::new(x as i32, y as i32, w as u32, h as u32)).unwrap();
     }
 
-    fn fill_rects(&mut self, rects: &[(CPos, u32, u32)], color: Color) {
+    fn fill_rects(&mut self, rects: &[(CPos, I, I)], color: Color) {
         self.set_draw_color(color);
         let rects: Vec<_> = rects
             .iter()
-            .map(|&(CPos(x, y), w, h)| Rect::new(x as i32, y as i32, w, h))
+            .map(|&(CPos(x, y), w, h)| Rect::new(x as i32, y as i32, w as u32, h as u32))
             .collect();
-        self.fill_rects(&rects).unwrap();
+        SdlCanvas::fill_rects(self, &rects).unwrap();
     }
 
-    fn draw_rect(&mut self, CPos(x, y): CPos, w: u32, h: u32, color: Color) {
+    fn draw_rect(&mut self, CPos(x, y): CPos, w: I, h: I, color: Color) {
         self.set_draw_color(color);
-        self.draw_rect(Rect::new(x as i32, y as i32, w, h)).unwrap();
+        SdlCanvas::draw_rect(self, Rect::new(x as i32, y as i32, w as u32, h as u32)).unwrap();
     }
 
     fn draw_point(&mut self, p: CPos, color: Color) {
         self.set_draw_color(color);
-        self.draw_point(to_point(p)).unwrap();
+        SdlCanvas::draw_point(self, to_point(p)).unwrap();
     }
 
     fn draw_line(&mut self, p: CPos, q: CPos, color: Color) {
         self.set_draw_color(color);
-        self.draw_line(to_point(p), to_point(q)).unwrap();
+        SdlCanvas::draw_line(self, to_point(p), to_point(q)).unwrap();
     }
 
     fn write_text(&mut self, CPos(x, y): CPos, ha: HAlign, va: VAlign, text: &str, color: Color) {

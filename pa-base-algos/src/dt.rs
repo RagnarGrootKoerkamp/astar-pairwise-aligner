@@ -66,7 +66,7 @@ pub enum PathTracingMethod {
 /// to use for a specific alignment. Similar to Heuristic vs HeuristicInstance.
 /// The latter can contain the sequences, direction, and other specifics.
 #[derive(Clone)]
-pub struct DiagonalTransition<const N: usize, V: Visualizer, H: Heuristic> {
+pub struct DiagonalTransition<const N: usize, V: VisualizerT, H: Heuristic> {
     cm: AffineCost<N>,
 
     /// Whether to use the gap heuristic to the end to reduce the number of diagonals considered.
@@ -85,7 +85,7 @@ pub struct DiagonalTransition<const N: usize, V: Visualizer, H: Heuristic> {
     pub path_tracing_method: PathTracingMethod,
 }
 
-impl<const N: usize, V: Visualizer, H: Heuristic> std::fmt::Debug for DiagonalTransition<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> std::fmt::Debug for DiagonalTransition<N, V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DiagonalTransition")
             .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
@@ -97,7 +97,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> std::fmt::Debug for DiagonalTr
     }
 }
 
-impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
     pub fn new(
         cm: AffineCost<N>,
         use_gap_cost_heuristic: GapCostHeuristic,
@@ -153,7 +153,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
     }
 }
 
-pub struct DTInstance<'a, const N: usize, V: Visualizer, H: Heuristic> {
+pub struct DTInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
     pub a: Seq<'a>,
     pub b: Seq<'a>,
@@ -353,7 +353,7 @@ fn extend_diagonal_packed(direction: Direction, a: Seq, b: Seq, d: Fr, mut fr: F
     fr
 }
 
-impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
+impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
     /// Returns true when the end is reached.
     fn extend(
         &mut self,
@@ -1145,7 +1145,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
 
     fn visualize_last_frame(&mut self, fronts: Fronts<N>, cigar: &AffineCigar) {
         self.v.borrow_mut().last_frame::<H::Instance<'_>>(
-            Some(&cigar.to_base()),
+            Some(&cigar),
             Some(
                 &(|st| {
                     // Determine the cost for the position.
@@ -1368,7 +1368,7 @@ impl<'a, const N: usize, V: Visualizer, H: Heuristic> DTInstance<'a, N, V, H> {
     }
 }
 
-impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
     pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut dt = self.build(a, b);
         let cost = if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
@@ -1395,7 +1395,7 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
             dt.v.borrow_mut().expand::<NoCostI>(Pos(0, 0), 0, 0, None);
             let (cost, cigar) = dt.path_between_dc(Pos(0, 0), None, None);
             dt.v.borrow_mut()
-                .last_frame::<NoCostI>(Some(&cigar.to_base()), None, None);
+                .last_frame::<NoCostI>(Some(&cigar), None, None);
             (cost, cigar)
         } else {
             let cc;
@@ -1432,51 +1432,9 @@ impl<const N: usize, V: Visualizer, H: Heuristic> DiagonalTransition<N, V, H> {
     }
 }
 
-impl<const N: usize, V: Visualizer, H: Heuristic> AffineAligner for DiagonalTransition<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic> AffineAligner for DiagonalTransition<N, V, H> {
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
         let (cost, cigar) = self.align(a, b);
         (cost, Some(cigar))
-    }
-}
-
-#[cfg(feature = "vis")]
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use super::*;
-
-    // https://github.com/smarco/BiWFA-paper/issues/8
-    #[ignore = "Should only be run on request."]
-    #[test]
-    fn meeting_condition() {
-        let a = b"CGC";
-        let b = b"CACG";
-
-        let mut config = Config::default();
-        config.draw = When::Layers;
-        config.save = When::Layers;
-        config.delay = Duration::from_secs_f32(1.);
-        config.paused = true;
-        config.cell_size = 40;
-        config.style.bg_color = (255, 255, 255, 128);
-        config.style.expanded = Gradient::TurboGradient(0.25..0.90);
-        config.style.path_width = Some(4);
-        config.draw_old_on_top = false;
-        config.num_layers = Some(6);
-        config.layer_drawing = true;
-
-        config.filepath = "imgs/biwfa_bug_fixed/".into();
-
-        let mut dt = DiagonalTransition::new(
-            LinearCost::new_linear(1, 3),
-            super::GapCostHeuristic::Disable,
-            NoCost,
-            true,
-            config,
-        );
-
-        let cost = dt.align(a, b).0;
-        assert_eq!(cost, 4);
     }
 }

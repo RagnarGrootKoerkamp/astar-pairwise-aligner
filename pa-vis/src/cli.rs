@@ -1,5 +1,7 @@
-use crate::visualizer::*;
+use crate::visualizer::{Config, VisualizerStyle, When};
 use clap::{value_parser, Parser};
+use pa_types::I;
+use pa_vis_types::VisualizerT;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -40,12 +42,12 @@ pub struct VisualizerArgs {
     /// The size in pixels of each cell.
     /// By default, chosen to give a canvas of height 500.
     #[clap(long, display_order = 10, hide_short_help = true)]
-    pub cell_size: Option<u32>,
+    pub cell_size: Option<I>,
 
     /// Number of states per cell.
     /// By default, chosen to give a canvas of height 500.
     #[clap(long, display_order = 10, hide_short_help = true)]
-    pub downscaler: Option<u32>,
+    pub downscaler: Option<I>,
 
     /// When set, draw newer expanded states on top. Useful for divide & conquer approaches.
     #[clap(long, display_order = 10, hide_short_help = true)]
@@ -62,21 +64,16 @@ pub struct VisualizerArgs {
 
 pub trait VisualizerRunner {
     type R;
-    fn call<V: VisualizerConfig>(&self, v: V) -> Self::R;
+    fn call<V: VisualizerT>(&self, v: V) -> Self::R;
 }
 
 pub enum VisualizerType {
     NoVisualizer,
-    #[cfg(any(feature = "vis", feature = "wasm"))]
     Visualizer(Config),
 }
 
 impl VisualizerArgs {
     pub fn make_visualizer(&self) -> VisualizerType {
-        #[cfg(not(any(feature = "vis", feature = "wasm")))]
-        return VisualizerType::NoVisualizer;
-
-        #[cfg(any(feature = "vis", feature = "wasm"))]
         {
             use crate::canvas::BLACK;
 

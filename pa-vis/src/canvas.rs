@@ -1,19 +1,10 @@
-// Deps for HTML canvas rendering
-#[cfg(feature = "wasm")]
-pub mod html;
-#[cfg(feature = "wasm")]
-pub use html::new_canvas;
-
-#[cfg(feature = "bin")]
-pub mod sdl;
-#[cfg(feature = "bin")]
-pub use sdl::new_canvas;
-
 use std::{
     ops::{Add, Div, Sub},
     path::Path,
     time::Duration,
 };
+
+use pa_types::I;
 
 pub fn to_label(c: u8) -> String {
     String::from_utf8(vec![c]).unwrap()
@@ -101,13 +92,13 @@ pub enum KeyboardAction {
 
 pub trait Canvas {
     fn fill_background(&mut self, color: Color);
-    fn fill_rect(&mut self, p: CPos, w: u32, h: u32, color: Color);
-    fn fill_rects(&mut self, rects: &[(CPos, u32, u32)], color: Color) {
+    fn fill_rect(&mut self, p: CPos, w: I, h: I, color: Color);
+    fn fill_rects(&mut self, rects: &[(CPos, I, I)], color: Color) {
         for &(p, w, h) in rects {
             self.fill_rect(p, w, h, color);
         }
     }
-    fn draw_rect(&mut self, p: CPos, w: u32, h: u32, color: Color);
+    fn draw_rect(&mut self, p: CPos, w: I, h: I, color: Color);
     fn draw_point(&mut self, p: CPos, color: Color) {
         self.draw_rect(p, 1, 1, color);
     }
