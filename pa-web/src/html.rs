@@ -1,11 +1,12 @@
-use crate::canvas::Canvas;
-use crate::canvas::Color;
+use pa_types::I;
+use pa_vis::canvas;
+use pa_vis::canvas::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
 
-use super::CPos;
+use pa_vis::canvas::CPos;
 
 /// A canvas element and context.
 /// Note that these are used for double-buffered drawing calls only.
@@ -42,7 +43,7 @@ fn get<T: wasm_bindgen::JsCast>(id: &str) -> T {
 pub static mut FRAMES_PRESENTED: usize = 0;
 
 impl Canvas for HtmlCanvas {
-    fn fill_background(&mut self, _color: crate::canvas::Color) {
+    fn fill_background(&mut self, _color: canvas::Color) {
         //self.context.set_fill_style(&jscol(color));
         self.context.clear_rect(
             0.,
@@ -52,13 +53,13 @@ impl Canvas for HtmlCanvas {
         );
     }
 
-    fn fill_rect(&mut self, CPos(x, y): CPos, w: u32, h: u32, color: crate::canvas::Color) {
+    fn fill_rect(&mut self, CPos(x, y): CPos, w: I, h: I, color: canvas::Color) {
         self.context.set_fill_style(&jscol(color));
         self.context
             .fill_rect(x as f64, y as f64, w as f64, h as f64);
     }
 
-    fn draw_rect(&mut self, CPos(x, y): CPos, w: u32, h: u32, color: crate::canvas::Color) {
+    fn draw_rect(&mut self, CPos(x, y): CPos, w: I, h: I, color: canvas::Color) {
         self.context.begin_path();
         self.context.set_stroke_style(&jscol(color));
         self.context
@@ -77,8 +78,8 @@ impl Canvas for HtmlCanvas {
     fn write_text(
         &mut self,
         CPos(x, y): CPos,
-        ha: crate::canvas::HAlign,
-        va: crate::canvas::VAlign,
+        ha: canvas::HAlign,
+        va: canvas::VAlign,
         text: &str,
         color: Color,
     ) {
@@ -86,14 +87,14 @@ impl Canvas for HtmlCanvas {
         self.context.set_font("24px Arial");
         self.context.set_text_baseline("middle");
         self.context.set_text_align(match ha {
-            crate::canvas::HAlign::Left => "left",
-            crate::canvas::HAlign::Center => "center",
-            crate::canvas::HAlign::Right => "right",
+            canvas::HAlign::Left => "left",
+            canvas::HAlign::Center => "center",
+            canvas::HAlign::Right => "right",
         });
         self.context.set_text_baseline(match va {
-            super::VAlign::Top => "top",
-            super::VAlign::Center => "middle",
-            super::VAlign::Bottom => "bottom",
+            canvas::VAlign::Top => "top",
+            canvas::VAlign::Center => "middle",
+            canvas::VAlign::Bottom => "bottom",
         });
         self.context.fill_text(text, x as f64, y as f64).unwrap();
     }
@@ -118,8 +119,8 @@ impl Canvas for HtmlCanvas {
         }
     }
 
-    fn wait(&mut self, _timeout: std::time::Duration) -> super::KeyboardAction {
-        super::KeyboardAction::None
+    fn wait(&mut self, _timeout: std::time::Duration) -> canvas::KeyboardAction {
+        canvas::KeyboardAction::None
     }
 }
 

@@ -8,7 +8,7 @@ members = [
     "astarpa",
 
     "pa-vis",
-    #"pa-web",
+    "pa-web",
     #"astarpa-v2",
 ]
 resolver = "2"

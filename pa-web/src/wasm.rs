@@ -1,9 +1,7 @@
-use crate::{
-    canvas::html::FRAMES_PRESENTED,
-    interaction::Interaction,
-    prelude::*,
-    runner::{AlignWithHeuristic, Cli},
-};
+use crate::{html::FRAMES_PRESENTED, interaction::Interaction};
+use astarpa::{cli::Cli, AstarPaParams};
+use pa_types::*;
+use pa_vis::cli::{VisualizerArgs, VisualizerType};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use std::ops::ControlFlow;
@@ -30,24 +28,35 @@ pub fn log(s: &str) {
     web_sys::console::log_1(&jsstr(s));
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Args {
+    cli: Cli,
+    visualizer: VisualizerArgs,
+}
+
 pub static mut INTERACTION: Interaction = Interaction::default();
-static mut CLI: Option<Cli> = None;
+static mut ARGS: Option<Args> = None;
 
 pub fn run() {
     if unsafe { INTERACTION.is_done() } {
         return;
     }
-    if let Some(args) = unsafe { &CLI } {
+    if let Some(args) = unsafe { &ARGS } {
         let before = unsafe { FRAMES_PRESENTED };
-        args.input.process_input_pairs(|a: Seq, b: Seq| {
+
+        let VisualizerType::Visualizer(visualizer) = args.visualizer.make_visualizer() else {
+            panic!();
+        };
+        let aligner = AstarPaParams {
+            diagonal_transition: args.cli.diagonal_transition,
+            heuristic: args.cli.heuristic,
+            visualizer,
+        }
+        .aligner();
+        args.cli.input.process_input_pairs(|a: Seq, b: Seq| {
             // Run the pair.
             // TODO: Show the result somewhere.
-            let _r = if args.algorithm.algorithm.external() {
-                unimplemented!();
-            } else {
-                args.heuristic
-                    .run_on_heuristic(AlignWithHeuristic { a, b, args: &args })
-            };
+            let _r = aligner.align(a, b);
             ControlFlow::Break(())
         });
         unsafe {
@@ -64,10 +73,11 @@ pub fn reset() {
     let args_json = get::<HtmlTextAreaElement>("args").value();
     unsafe {
         INTERACTION.reset(usize::MAX);
-        CLI = Some(serde_json::from_str(&args_json).unwrap());
-        if let Some(cli) = &mut CLI {
+        ARGS = Some(serde_json::from_str(&args_json).unwrap());
+        if let Some(args) = &mut ARGS {
             // Fix the seed so that reruns for consecutive draws don't change it.
-            cli.input
+            args.cli
+                .input
                 .generate
                 .seed
                 .get_or_insert(ChaCha8Rng::from_entropy().gen_range(0..u64::MAX));
