@@ -19,7 +19,8 @@ default-run = "astarpa"
 default = ["cli"]
 # This feature enables the cli module used by the binary, and dependencies only
 # used there.
-cli = ["clap/wrap_help", "dep:pa-generate", "dep:parse_duration", "dep:rand", "dep:rand_chacha"]
+# FIXME: Add clap/wrap_help to pa-bin crate
+cli = ["dep:pa-generate", "dep:parse_duration", "dep:rand", "dep:rand_chacha"]
 
 [[bin]]
 name = "astarpa"
@@ -35,7 +36,7 @@ instant = "0.1.12"
 bio = "1.1.0"
 itertools = "0.10.5"
 rustc-hash = "1.1.0"
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.1", features = ["derive"], default-features = false }
 num-traits = "0.2.15"
 serde = "1.0.152"
 derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }

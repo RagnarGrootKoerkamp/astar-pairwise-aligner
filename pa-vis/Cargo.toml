@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.1.1", features = ["derive"] }
+clap = { version = "4.1", features = ["derive"], default-features = false }
 colorgrad = "0.6.2"
 sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
 serde = { version = "1.0.152", features = ["derive"] }
