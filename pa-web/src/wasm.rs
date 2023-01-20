@@ -2,18 +2,15 @@ use crate::{html::FRAMES_PRESENTED, interaction::Interaction};
 use astarpa::{cli::Cli, AstarPaParams};
 use pa_types::*;
 use pa_vis::cli::{VisualizerArgs, VisualizerType};
-use rand::{Rng, SeedableRng};
-use rand_chacha::ChaCha8Rng;
 use std::ops::ControlFlow;
 use wasm_bindgen::{prelude::*, JsCast};
-use web_sys::HtmlTextAreaElement;
 
 fn document() -> web_sys::Document {
     let window = web_sys::window().expect("no global `window` exists");
     window.document().expect("should have a document on window")
 }
 
-fn get<T: wasm_bindgen::JsCast>(id: &str) -> T {
+pub fn get<T: wasm_bindgen::JsCast>(id: &str) -> T {
     document()
         .get_element_by_id(id)
         .unwrap()
@@ -29,13 +26,13 @@ pub fn log(s: &str) {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Args {
-    cli: Cli,
-    visualizer: VisualizerArgs,
+pub struct Args {
+    pub cli: Cli,
+    pub visualizer: VisualizerArgs,
 }
 
 pub static mut INTERACTION: Interaction = Interaction::default();
-static mut ARGS: Option<Args> = None;
+pub static mut ARGS: Option<Args> = None;
 
 pub fn run() {
     if unsafe { INTERACTION.is_done() } {
@@ -65,38 +62,5 @@ pub fn run() {
                 INTERACTION.done();
             }
         }
-    }
-}
-
-#[wasm_bindgen]
-pub fn reset() {
-    let args_json = get::<HtmlTextAreaElement>("args").value();
-    unsafe {
-        INTERACTION.reset(usize::MAX);
-        ARGS = Some(serde_json::from_str(&args_json).unwrap());
-        if let Some(args) = &mut ARGS {
-            // Fix the seed so that reruns for consecutive draws don't change it.
-            args.cli
-                .input
-                .generate
-                .seed
-                .get_or_insert(ChaCha8Rng::from_entropy().gen_range(0..u64::MAX));
-        }
-    }
-}
-
-#[wasm_bindgen]
-pub fn prev() {
-    unsafe {
-        INTERACTION.prev();
-        run();
-    };
-}
-
-#[wasm_bindgen]
-pub fn next() {
-    unsafe {
-        INTERACTION.next();
-        run();
     }
 }
