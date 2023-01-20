@@ -1,12 +1,7 @@
 use pa_types::I;
-use pa_vis::canvas;
-use pa_vis::canvas::*;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::JsValue;
-use web_sys::CanvasRenderingContext2d;
-use web_sys::HtmlCanvasElement;
-
-use pa_vis::canvas::CPos;
+use pa_vis_types::canvas::{self, *};
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
 /// A canvas element and context.
 /// Note that these are used for double-buffered drawing calls only.

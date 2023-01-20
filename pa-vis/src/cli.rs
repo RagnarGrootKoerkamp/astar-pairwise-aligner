@@ -1,7 +1,7 @@
 use crate::visualizer::{Config, VisualizerStyle, When};
 use clap::{value_parser, Parser};
 use pa_types::I;
-use pa_vis_types::VisualizerT;
+use pa_vis_types::{canvas::*, VisualizerT};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -75,8 +75,6 @@ pub enum VisualizerType {
 impl VisualizerArgs {
     pub fn make_visualizer(&self) -> VisualizerType {
         {
-            use crate::canvas::BLACK;
-
             if self.visualize == When::None && self.save == When::None {
                 return VisualizerType::NoVisualizer;
             }

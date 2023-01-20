@@ -8,14 +8,13 @@
 //! ffmpeg -framerate 20 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" output.mp4
 //! ```
 
-use crate::canvas::*;
 use clap::ValueEnum;
 use itertools::Itertools;
 use pa_affine_types::*;
 use pa_heuristic::matches::MatchStatus;
 use pa_heuristic::*;
 use pa_types::*;
-use pa_vis_types::*;
+use pa_vis_types::{canvas::*, *};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::{
@@ -381,8 +380,17 @@ impl Default for Config {
 impl VisualizerT for Config {
     type Instance = Visualizer;
 
-    fn build<CF: CanvasFactory>(&self, a: Seq, b: Seq) -> Self::Instance {
-        Visualizer::new<CF>(self.clone(), a, b)
+    #[cfg(feature = "sdl")]
+    fn build(&self, a: Seq, b: Seq) -> Self::Instance {
+        Visualizer::new::<crate::sdl::SdlCanvasFactory>(self.clone(), a, b)
+    }
+    #[cfg(not(feature = "sdl"))]
+    fn build(&self, _a: Seq, _b: Seq) -> Self::Instance {
+        unimplemented!("Enable the pa_vis:sdl feature to use the default sdl canvas.");
+    }
+
+    fn build_from_factory<CF: CanvasFactory>(&self, a: Seq, b: Seq) -> Self::Instance {
+        Visualizer::new::<CF>(self.clone(), a, b)
     }
 }
 

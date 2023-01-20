@@ -1,6 +1,6 @@
-use crate::canvas::*;
 use lazy_static::lazy_static;
 use pa_types::I;
+use pa_vis_types::{canvas::*, CanvasFactory};
 use sdl2::{
     event::Event,
     keyboard::Keycode,
@@ -10,9 +10,7 @@ use sdl2::{
     Sdl,
 };
 use std::{path::Path, time::Duration};
-
-use crate::canvas::{CPos, KeyboardAction};
-pub type SdlCanvas = sdl2::render::Canvas<Window>;
+pub struct SdlCanvas(sdl2::render::Canvas<Window>);
 
 lazy_static! {
     static ref TTF_CONTEXT: Sdl2TtfContext = sdl2::ttf::init().unwrap();
@@ -29,14 +27,14 @@ fn to_point(CPos(x, y): CPos) -> Point {
     Point::new(x as i32, y as i32)
 }
 
-struct SdlCanvasFactory;
+pub struct SdlCanvasFactory;
 
 impl CanvasFactory for SdlCanvasFactory {
     fn new(w: usize, h: usize, title: &str) -> Box<dyn Canvas> {
         let video_subsystem = SDL_CONTEXT.with(|sdl| sdl.video().unwrap());
         video_subsystem.gl_attr().set_double_buffer(true);
 
-        Box::new(
+        Box::new(SdlCanvas(
             video_subsystem
                 .window(title, w as u32, h as u32)
                 //.borderless()
@@ -45,57 +43,59 @@ impl CanvasFactory for SdlCanvasFactory {
                 .into_canvas()
                 .build()
                 .unwrap(),
-        )
+        ))
     }
 }
 
 impl Canvas for SdlCanvas {
     fn fill_background(&mut self, color: Color) {
-        self.set_draw_color(color);
-        SdlCanvas::fill_rect(
-            self,
-            Rect::new(
+        self.0.set_draw_color(color);
+        self.0
+            .fill_rect(Rect::new(
                 0,
                 0,
-                self.output_size().unwrap().0,
-                self.output_size().unwrap().1,
-            ),
-        )
-        .unwrap();
+                self.0.output_size().unwrap().0,
+                self.0.output_size().unwrap().1,
+            ))
+            .unwrap();
     }
 
     fn fill_rect(&mut self, CPos(x, y): CPos, w: I, h: I, color: Color) {
-        self.set_draw_color(color);
-        SdlCanvas::fill_rect(self, Rect::new(x as i32, y as i32, w as u32, h as u32)).unwrap();
+        self.0.set_draw_color(color);
+        self.0
+            .fill_rect(Rect::new(x as i32, y as i32, w as u32, h as u32))
+            .unwrap();
     }
 
     fn fill_rects(&mut self, rects: &[(CPos, I, I)], color: Color) {
-        self.set_draw_color(color);
+        self.0.set_draw_color(color);
         let rects: Vec<_> = rects
             .iter()
             .map(|&(CPos(x, y), w, h)| Rect::new(x as i32, y as i32, w as u32, h as u32))
             .collect();
-        SdlCanvas::fill_rects(self, &rects).unwrap();
+        self.0.fill_rects(&rects).unwrap();
     }
 
     fn draw_rect(&mut self, CPos(x, y): CPos, w: I, h: I, color: Color) {
-        self.set_draw_color(color);
-        SdlCanvas::draw_rect(self, Rect::new(x as i32, y as i32, w as u32, h as u32)).unwrap();
+        self.0.set_draw_color(color);
+        self.0
+            .draw_rect(Rect::new(x as i32, y as i32, w as u32, h as u32))
+            .unwrap();
     }
 
     fn draw_point(&mut self, p: CPos, color: Color) {
-        self.set_draw_color(color);
-        SdlCanvas::draw_point(self, to_point(p)).unwrap();
+        self.0.set_draw_color(color);
+        self.0.draw_point(to_point(p)).unwrap();
     }
 
     fn draw_line(&mut self, p: CPos, q: CPos, color: Color) {
-        self.set_draw_color(color);
-        SdlCanvas::draw_line(self, to_point(p), to_point(q)).unwrap();
+        self.0.set_draw_color(color);
+        self.0.draw_line(to_point(p), to_point(q)).unwrap();
     }
 
     fn write_text(&mut self, CPos(x, y): CPos, ha: HAlign, va: VAlign, text: &str, color: Color) {
-        self.set_draw_color(color);
-        let surface = FONT.with(|front| front.render(text).blended(self.draw_color()).unwrap());
+        self.0.set_draw_color(color);
+        let surface = FONT.with(|front| front.render(text).blended(self.0.draw_color()).unwrap());
 
         let w = surface.width();
         let h = surface.height();
@@ -109,19 +109,20 @@ impl Canvas for SdlCanvas {
             VAlign::Center => y - h as i32 / 2,
             VAlign::Bottom => y - h as i32,
         };
-        let texture_creator = self.texture_creator();
-        self.copy(
-            &surface.as_texture(&texture_creator).unwrap(),
-            None,
-            Some(Rect::new(x, y, w, h)),
-        )
-        .unwrap();
+        let texture_creator = self.0.texture_creator();
+        self.0
+            .copy(
+                &surface.as_texture(&texture_creator).unwrap(),
+                None,
+                Some(Rect::new(x, y, w, h)),
+            )
+            .unwrap();
     }
 
     fn save(&mut self, path: &Path) {
-        let pixel_format = self.default_pixel_format();
-        let mut pixels = self.read_pixels(self.viewport(), pixel_format).unwrap();
-        let (width, height) = self.output_size().unwrap();
+        let pixel_format = self.0.default_pixel_format();
+        let mut pixels = self.0.read_pixels(self.0.viewport(), pixel_format).unwrap();
+        let (width, height) = self.0.output_size().unwrap();
         let pitch = pixel_format.byte_size_of_pixels(width as usize);
         let surf = sdl2::surface::Surface::from_data(
             pixels.as_mut_slice(),
@@ -137,7 +138,7 @@ impl Canvas for SdlCanvas {
     }
 
     fn present(&mut self) {
-        self.present()
+        self.0.present()
     }
 
     fn wait(&mut self, timeout: Duration) -> KeyboardAction {
