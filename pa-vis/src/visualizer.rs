@@ -82,7 +82,8 @@ pub struct Visualizer {
     // The region of the DT states.
     dt: Region,
     // The region of the transformed states.
-    tr: Region,
+    // FIXME: USE THIS.
+    _tr: Region,
 
     // The last DP state (a.len(), b.len()).
     target: Pos,
@@ -392,9 +393,11 @@ struct Region {
     /// Size on canvas
     size: CPos,
     /// Cell size: state is cs by cs pixels.
-    cs: I,
+    // FIXME: USE THIS
+    _cs: I,
     /// Downscaler: each state on the canvas represents ds by ds actual states.
-    ds: I,
+    // FIXME: USE THIS
+    _ds: I,
 }
 
 impl Visualizer {
@@ -431,8 +434,8 @@ impl Visualizer {
         }
         let nw = Region {
             start: CPos(0, 0),
-            cs: config.cell_size,
-            ds: config.downscaler,
+            _cs: config.cell_size,
+            _ds: config.downscaler,
             size: CPos(
                 (grid_width.div_ceil(config.downscaler) * config.cell_size) as i32,
                 (grid_height.div_ceil(config.downscaler) * config.cell_size) as i32,
@@ -441,14 +444,14 @@ impl Visualizer {
         let dt = Region {
             start: nw.start.right(nw.size.0),
             size: nw.size / 2,
-            cs: 0,
-            ds: 0,
+            _cs: 0,
+            _ds: 0,
         };
         let tr = Region {
             start: dt.start.down(dt.size.1),
             size: nw.size / 2,
-            cs: 0,
-            ds: 0,
+            _cs: 0,
+            _ds: 0,
         };
         let canvas_size = (
             nw.size.0 + if config.style.draw_dt { dt.size.0 } else { 0 },
@@ -485,7 +488,7 @@ impl Visualizer {
             canvas_size,
             nw,
             dt,
-            tr,
+            _tr: tr,
         }
     }
 

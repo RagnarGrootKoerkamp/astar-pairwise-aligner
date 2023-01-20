@@ -11,8 +11,8 @@ pub struct VisualizerArgs {
     /// Run the interactive visualizer. See --help for controls. [default: all]
     ///
     /// x: exit
-    /// p: pause / unpaues
-    /// esc, space: next frame
+    /// p: pause / unpause
+    /// escape, space: next frame
     /// f: faster
     /// s: slower
     /// q: jump to last frame, or exit when already on last frame
