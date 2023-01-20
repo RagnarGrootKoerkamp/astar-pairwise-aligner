@@ -7,11 +7,15 @@ use pa_types::*;
 
 pub type ParentFn<'a> = Option<&'a dyn Fn(State) -> Option<(State, [Option<AffineCigarOp>; 2])>>;
 
+pub trait CanvasFactory {
+    fn new(w: usize, h: usize, title: &str) -> Box<dyn Canvas>;
+}
+
 /// A `Visualizer` can be used to track progress of the A* search using callbacks.
 /// The `Visualizer` configuration is `build` into a corresponding `VisualizerInstance` for each input pair.
 pub trait VisualizerT: Clone + Default + Debug + PartialEq {
     type Instance: VisualizerInstance;
-    fn build(&self, a: Seq, b: Seq) -> Self::Instance;
+    fn build<CF: CanvasFactory>(&self, a: Seq, b: Seq) -> Self::Instance;
 }
 
 pub trait VisualizerInstance {

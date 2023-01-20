@@ -9,7 +9,6 @@
 //! ```
 
 use crate::canvas::*;
-use crate::sdl::new_canvas;
 use clap::ValueEnum;
 use itertools::Itertools;
 use pa_affine_types::*;
@@ -382,8 +381,8 @@ impl Default for Config {
 impl VisualizerT for Config {
     type Instance = Visualizer;
 
-    fn build(&self, a: Seq, b: Seq) -> Self::Instance {
-        Visualizer::new(self.clone(), a, b)
+    fn build<CF: CanvasFactory>(&self, a: Seq, b: Seq) -> Self::Instance {
+        Visualizer::new<CF>(self.clone(), a, b)
     }
 }
 
@@ -403,7 +402,7 @@ struct Region {
 impl Visualizer {
     /// This sets the title and parameters based on the CLI arguments.
     /// FIXME: Add algorithm and heuristic args or title/params/comment args.
-    pub fn new(mut config: Config, a: Seq, b: Seq) -> Self {
+    pub fn new<CF: CanvasFactory>(mut config: Config, a: Seq, b: Seq) -> Self {
         // layout:
         //
         // ---------------
@@ -465,13 +464,11 @@ impl Visualizer {
             canvas: {
                 (config.draw != When::None || config.save != When::None || config.save_last).then(
                     || {
-                        RefCell::new(Box::new({
-                            new_canvas(
-                                canvas_size.0 as usize,
-                                canvas_size.1 as usize,
-                                &config.filepath.to_str().unwrap(),
-                            )
-                        }) as CanvasBox)
+                        RefCell::new(CF::new(
+                            canvas_size.0 as usize,
+                            canvas_size.1 as usize,
+                            &config.filepath.to_str().unwrap(),
+                        ))
                     },
                 )
             },

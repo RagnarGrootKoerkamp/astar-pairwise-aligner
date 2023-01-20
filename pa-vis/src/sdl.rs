@@ -29,18 +29,24 @@ fn to_point(CPos(x, y): CPos) -> Point {
     Point::new(x as i32, y as i32)
 }
 
-pub fn new_canvas(w: usize, h: usize, title: &str) -> SdlCanvas {
-    let video_subsystem = SDL_CONTEXT.with(|sdl| sdl.video().unwrap());
-    video_subsystem.gl_attr().set_double_buffer(true);
+struct SdlCanvasFactory;
 
-    video_subsystem
-        .window(title, w as u32, h as u32)
-        //.borderless()
-        .build()
-        .unwrap()
-        .into_canvas()
-        .build()
-        .unwrap()
+impl CanvasFactory for SdlCanvasFactory {
+    fn new(w: usize, h: usize, title: &str) -> Box<dyn Canvas> {
+        let video_subsystem = SDL_CONTEXT.with(|sdl| sdl.video().unwrap());
+        video_subsystem.gl_attr().set_double_buffer(true);
+
+        Box::new(
+            video_subsystem
+                .window(title, w as u32, h as u32)
+                //.borderless()
+                .build()
+                .unwrap()
+                .into_canvas()
+                .build()
+                .unwrap(),
+        )
+    }
 }
 
 impl Canvas for SdlCanvas {
