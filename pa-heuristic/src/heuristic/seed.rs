@@ -47,7 +47,7 @@ pub struct SHI {
     num_arrows_per_length: Vec<Vec<usize>>,
 
     /// For each score `s`, this is the largest index `i` where total score `s` is still available.
-    /// ```
+    /// ```text
     /// layer_start[0] = n
     /// layer_start[1] = start of first seed with a match
     /// ...
