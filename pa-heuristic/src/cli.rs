@@ -11,12 +11,19 @@ use pa_types::*;
 /// The type of the heuristic. Defaults to SH.
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy, ValueEnum, Serialize, Deserialize)]
 pub enum HeuristicType {
+    /// No heuristic.
     None,
+    /// A heuristic that returns 0.
     Zero,
+    /// Gap-cost to the target.
     Gap,
+    /// Seed heuristic.
     #[default]
     SH,
+    /// Chaining seed heuristic.
     CSH,
+    /// Gap-cost chaining seed heuristic.
+    GCSH,
 }
 
 fn default_match_cost() -> MatchCost {
@@ -77,10 +84,6 @@ pub struct HeuristicArgs {
     #[clap(long, hide_short_help = true)]
     #[serde(default)]
     pub skip_prune: Option<usize>,
-
-    /// Use gap-cost for CSH.
-    #[clap(long, hide_short_help = true)]
-    pub gap_cost: bool,
 }
 
 /// A summary string for the visualizer.
@@ -107,8 +110,17 @@ impl ToString for HeuristicArgs {
                 } else {
                     s += " (no pruning)"
                 }
-                if self.gap_cost {
-                    s += " + Gap Cost"
+                s
+            }
+            HeuristicType::GCSH => {
+                let mut s = format!(
+                    "Gap-cost chaining Seed Heuristic (r={}, k={})",
+                    self.r, self.k
+                );
+                if self.prune {
+                    s += " + Pruning"
+                } else {
+                    s += " (no pruning)"
                 }
                 s
             }
@@ -146,21 +158,30 @@ impl HeuristicArgs {
             HeuristicType::None => f.call(NoCost),
             HeuristicType::Zero => f.call(ZeroCost),
             HeuristicType::Gap => f.call(GapCost),
-            HeuristicType::CSH => f.call(CSH {
-                match_config: self.match_config(self.gap_cost),
-                pruning: Pruning {
-                    enabled: self.prune,
-                    skip_prune: self.skip_prune,
-                },
-                use_gap_cost: self.gap_cost,
-                c: PhantomData::<HintContours<BruteForceContour>>,
-            }),
             HeuristicType::SH => f.call(SH {
                 match_config: self.match_config(false),
                 pruning: Pruning {
                     enabled: self.prune,
                     skip_prune: self.skip_prune,
                 },
+            }),
+            HeuristicType::CSH => f.call(CSH {
+                match_config: self.match_config(false),
+                pruning: Pruning {
+                    enabled: self.prune,
+                    skip_prune: self.skip_prune,
+                },
+                use_gap_cost: false,
+                c: PhantomData::<HintContours<BruteForceContour>>,
+            }),
+            HeuristicType::GCSH => f.call(CSH {
+                match_config: self.match_config(true),
+                pruning: Pruning {
+                    enabled: self.prune,
+                    skip_prune: self.skip_prune,
+                },
+                use_gap_cost: true,
+                c: PhantomData::<HintContours<BruteForceContour>>,
             }),
         }
     }
