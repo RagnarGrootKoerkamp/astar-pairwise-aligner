@@ -25,6 +25,9 @@ fn default_match_cost() -> MatchCost {
 fn default_seed_length() -> I {
     15
 }
+fn default_prune() -> bool {
+    true
+}
 
 /// Heuristic arguments.
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -64,8 +67,9 @@ pub struct HeuristicArgs {
 
     /// Disable pruning
     #[clap(long, hide_short_help = true)]
-    #[serde(default)]
-    pub no_prune: bool,
+    #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
+    #[serde(default = "default_prune")]
+    pub prune: bool,
 
     /// Skip pruning every Nth match.
     ///
@@ -76,7 +80,6 @@ pub struct HeuristicArgs {
 
     /// Use gap-cost for CSH.
     #[clap(long, hide_short_help = true)]
-    #[serde(default)]
     pub gap_cost: bool,
 }
 
@@ -90,19 +93,19 @@ impl ToString for HeuristicArgs {
             HeuristicType::Gap => "Gap-cost to end".into(),
             HeuristicType::SH => {
                 let mut s = format!("Seed Heuristic (r={}, k={})", self.r, self.k);
-                if self.no_prune {
-                    s += " (no pruning)"
-                } else {
+                if self.prune {
                     s += " + Pruning"
+                } else {
+                    s += " (no pruning)"
                 }
                 s
             }
             HeuristicType::CSH => {
                 let mut s = format!("Chaining Seed Heuristic (r={}, k={})", self.r, self.k);
-                if self.no_prune {
-                    s += " (no pruning)"
-                } else {
+                if self.prune {
                     s += " + Pruning"
+                } else {
+                    s += " (no pruning)"
                 }
                 if self.gap_cost {
                     s += " + Gap Cost"
@@ -146,7 +149,7 @@ impl HeuristicArgs {
             HeuristicType::CSH => f.call(CSH {
                 match_config: self.match_config(self.gap_cost),
                 pruning: Pruning {
-                    enabled: !self.no_prune,
+                    enabled: self.prune,
                     skip_prune: self.skip_prune,
                 },
                 use_gap_cost: self.gap_cost,
@@ -155,7 +158,7 @@ impl HeuristicArgs {
             HeuristicType::SH => f.call(SH {
                 match_config: self.match_config(false),
                 pruning: Pruning {
-                    enabled: !self.no_prune,
+                    enabled: self.prune,
                     skip_prune: self.skip_prune,
                 },
             }),
