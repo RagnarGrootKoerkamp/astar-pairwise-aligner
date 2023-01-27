@@ -20,14 +20,14 @@ pub use seed::*;
 pub struct Pruning {
     pub enabled: bool,
     /// Skip pruning one in N.
-    pub skip_prune: usize,
+    pub skip_prune: Option<usize>,
 }
 
 impl Default for Pruning {
     fn default() -> Self {
         Self {
             enabled: false,
-            skip_prune: 0,
+            skip_prune: None,
         }
     }
 }
@@ -36,13 +36,13 @@ impl Pruning {
     pub fn new(enabled: bool) -> Self {
         Self {
             enabled,
-            skip_prune: 0,
+            skip_prune: None,
         }
     }
     pub fn enabled() -> Self {
         Pruning {
             enabled: true,
-            skip_prune: 0,
+            skip_prune: None,
         }
     }
 }

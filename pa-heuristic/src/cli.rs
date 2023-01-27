@@ -67,12 +67,12 @@ pub struct HeuristicArgs {
     #[serde(default)]
     pub no_prune: bool,
 
-    /// Skip pruning every Nth match. 0 to disable
+    /// Skip pruning every Nth match.
     ///
-    /// This is only used for CSH, not for SH.
-    #[clap(long, hide_short_help = true, default_value_t = 0)]
+    /// This is only used for CSH where skipping can give a speedup, not for SH.
+    #[clap(long, hide_short_help = true)]
     #[serde(default)]
-    pub skip_prune: usize,
+    pub skip_prune: Option<usize>,
 
     /// Use gap-cost for CSH.
     #[clap(long, hide_short_help = true)]

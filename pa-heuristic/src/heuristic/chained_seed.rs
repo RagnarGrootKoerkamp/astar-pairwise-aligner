@@ -250,11 +250,14 @@ impl<C: Contours> CSHI<C> {
     }
 
     /// True when the next position should be pruned.
-    /// Returns false once every `params.pruning.skip_prune` steps.
+    /// Returns false once every `params.pruning.skip_prune` steps, if set.
     fn add_prune(&mut self) -> bool {
         self.stats.num_pruned += 1;
-        self.params.pruning.skip_prune == 0
-            || self.stats.num_pruned % self.params.pruning.skip_prune != 0
+        if let Some(skip) = self.params.pruning.skip_prune {
+            self.stats.num_pruned % skip != 0
+        } else {
+            true
+        }
     }
 }
 
