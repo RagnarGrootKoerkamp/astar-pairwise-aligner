@@ -47,7 +47,7 @@ impl Pruning {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct HeuristicParams {
     pub name: String,
     pub distance_function: String,
@@ -61,7 +61,7 @@ impl std::ops::AddAssign<HeuristicParams> for HeuristicParams {
     fn add_assign(&mut self, _rhs: HeuristicParams) {}
 }
 
-#[derive(Clone, AddAssign, Default, Copy)]
+#[derive(Clone, AddAssign, Default, Copy, Debug)]
 pub struct HeuristicStats {
     pub num_seeds: I,
     pub num_matches: usize,

@@ -8,7 +8,7 @@ use pa_types::{Cost, Seq};
 
 use pa_heuristic::{HeuristicParams, HeuristicStats};
 
-#[derive(Default, Clone, Copy, AddAssign)]
+#[derive(Default, Clone, Copy, AddAssign, Debug)]
 pub struct Timing {
     /// precomp + astar
     pub total: f32,
@@ -21,7 +21,7 @@ pub struct Timing {
     pub retries: f32,
 }
 
-#[derive(Default, Clone, AddAssign)]
+#[derive(Default, Clone, AddAssign, Debug)]
 pub struct AstarStats {
     pub len_a: usize,
     pub len_b: usize,
