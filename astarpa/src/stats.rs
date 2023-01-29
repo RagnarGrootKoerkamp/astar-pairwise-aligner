@@ -50,6 +50,14 @@ pub struct AstarStats {
 }
 
 impl AstarStats {
+    pub fn init(a: Seq, b: Seq) -> Self {
+        Self {
+            len_a: a.len(),
+            len_b: b.len(),
+            sample_size: 1,
+            ..Default::default()
+        }
+    }
     pub fn new(a: Seq, b: Seq, cost: Cost, total_duration: f32) -> Self {
         Self {
             len_a: a.len(),

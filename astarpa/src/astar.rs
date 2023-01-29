@@ -43,10 +43,7 @@ pub fn astar<'a, H: Heuristic>(
     let precomp = start.elapsed().as_secs_f32();
     let ref mut v = v.build(a, b);
 
-    let mut stats = AstarStats::default();
-    stats.len_a = a.len();
-    stats.len_b = b.len();
-    stats.sample_size = 1;
+    let mut stats = AstarStats::init(a, b);
 
     // f -> (pos, g)
     let mut queue = ShiftQueue::<(Pos, Cost), <H::Instance<'a> as HeuristicInstance>::Order>::new(

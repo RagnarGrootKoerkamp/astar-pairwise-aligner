@@ -42,7 +42,7 @@ pub fn astar_dt<'a, H: Heuristic>(
     let precomp = start.elapsed().as_secs_f32();
     let ref mut v = v.build(a, b);
 
-    let mut stats = AstarStats::default();
+    let mut stats = AstarStats::init(a, b);
 
     // f -> (pos, g)
     let mut queue = ShiftQueue::<(Pos, Cost), <H::Instance<'a> as HeuristicInstance>::Order>::new(
@@ -247,6 +247,7 @@ pub fn astar_dt<'a, H: Heuristic>(
     stats.timing.total = total;
     stats.timing.precomp = precomp;
     stats.timing.astar = total - precomp;
+    stats.distance = d;
     ((d, cigar), stats)
 }
 
