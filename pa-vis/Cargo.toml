@@ -4,16 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.1", features = ["derive"], default-features = false }
+pa-types.workspace = true
+pa-heuristic.workspace = true
+pa-vis-types.workspace = true
+pa-affine-types.workspace = true
+
+clap.workspace = true
+serde.workspace = true
+itertools.workspace = true
+
 colorgrad = "0.6.2"
 sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
-serde = { version = "1.0.152", features = ["derive"] }
-pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
-pa-heuristic = { path = "../pa-heuristic" }
-pa-vis-types = { path = "../pa-vis-types" }
-pa-affine-types = { path = "../pa-affine-types" }
 lazy_static = "1.4.0"
-itertools = "0.10.5"
 
 [features]
 default = ["sdl"]

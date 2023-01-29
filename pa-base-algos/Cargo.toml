@@ -6,16 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.1", features = ["derive"], default-features = false }
-pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
-pa-vis-types = { path = "../pa-vis-types" }
-pa-affine-types = { path = "../pa-affine-types" }
-pa-heuristic = { path = "../pa-heuristic" }
-num-traits = "0.2.15"
-itertools = "0.10.5"
-serde = { version = "1.0.152", features = ["derive"] }
+pa-types.workspace = true
+pa-heuristic.workspace = true
+pa-affine-types.workspace = true
+pa-vis-types.workspace = true
 
+clap.workspace = true
+serde.workspace = true
+itertools.workspace = true
+
+num-traits = "0.2.15"
 
 [dev-dependencies]
-pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
+pa-generate.workspace = true
 rand = "0.8.5"

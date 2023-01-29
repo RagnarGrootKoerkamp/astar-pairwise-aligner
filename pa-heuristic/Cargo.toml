@@ -6,19 +6,19 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
+pa-types.workspace = true
+
+clap.workspace = true
+serde.workspace = true
+bio.workspace = true
+
 # wasm-friendly instant
 instant = "0.1.12"
-bio = "1.1.0"
 itertools = "0.10.5"
 rustc-hash = "1.1.0"
 num-traits = "0.2.15"
 derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
 smallvec = { version = "1.10.0", features = ["union"] }
-
-# Optional deps for CLI struct.
-clap = { version = "4.1", features = ["derive"], default-features = false }
-serde = { version = "1.0.152"}
 suffix = "1.3.0"
 
 [dev-dependencies]

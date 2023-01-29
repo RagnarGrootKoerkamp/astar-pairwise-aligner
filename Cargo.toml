@@ -23,3 +23,18 @@ debug = true
 # 10x smaller file size without debug symbols.
 # Breaks backtrace printing.
 strip = false
+
+[workspace.dependencies]
+pa-types.git = "https://github.com/pairwise-alignment/pa-types"
+pa-generate.git = "https://github.com/pairwise-alignment/pa-generate"
+pa-affine-types.path = "pa-affine-types"
+pa-heuristic.path = "pa-heuristic"
+pa-vis-types.path = "pa-vis-types"
+pa-base-algos.path = "pa-base-algos"
+pa-vis.path = "pa-vis"
+astarpa.path = "astarpa"
+
+clap = { version = "4.1", features = ["derive"] }
+serde = { version = "1.0.152", features = ["derive"] }
+itertools = "0.10.5"
+bio = "1.1.0"

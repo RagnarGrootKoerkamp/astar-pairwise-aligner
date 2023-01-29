@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
+pa-types.workspace = true

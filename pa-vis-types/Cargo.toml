@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-pa-types = { git = "https://github.com/pairwise-alignment/pa-types" }
-pa-heuristic = { path = "../pa-heuristic" }
-pa-affine-types = { path = "../pa-affine-types" }
-serde = { version = "1.0.152", features = ["derive"] }
+pa-types.workspace = true
+pa-heuristic.workspace = true
+pa-affine-types.workspace = true
+serde.workspace = true
