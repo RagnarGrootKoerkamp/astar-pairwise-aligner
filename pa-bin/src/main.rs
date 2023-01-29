@@ -4,13 +4,13 @@ use astarpa::{cli::Cli, stats::AstarStats};
 use clap::Parser;
 use itertools::Itertools;
 use pa_types::*;
-use std::ops::ControlFlow;
+use std::{ops::ControlFlow, time::Instant};
 
 fn main() {
     let args = Cli::parse();
 
     let mut avg_result = AstarStats::default();
-    let start = instant::Instant::now();
+    let start = Instant::now();
 
     let aligner_params = args.to_astar_pa_params();
 
@@ -60,7 +60,7 @@ fn main() {
 
 #[cfg(test)]
 mod test {
-    use super::Cli;
+    use astarpa::cli::Cli;
 
     #[test]
     fn cli_test() {

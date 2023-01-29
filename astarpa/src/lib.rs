@@ -20,10 +20,9 @@ mod astar;
 mod astar_dt;
 mod bucket_queue;
 mod config;
-pub mod stats;
 
-#[cfg(feature = "cli")]
 pub mod cli;
+pub mod stats;
 
 pub use align::*;
 pub use astar::astar;

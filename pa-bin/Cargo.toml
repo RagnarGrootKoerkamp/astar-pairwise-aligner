@@ -1,0 +1,19 @@
+[package]
+name = "pa-bin"
+version = "0.1.0"
+edition = "2021"
+default-run = "astarpa"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pa-types.workspace = true
+pa-generate.workspace = true
+astarpa.workspace = true
+
+itertools.workspace = true
+clap.workspace = true
+
+[[bin]]
+name = "astarpa"
+path = "main.rs"

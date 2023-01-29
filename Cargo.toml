@@ -8,7 +8,10 @@ members = [
     "astarpa",
 
     "pa-vis",
+
+    "pa-bin",
     "pa-web",
+
     #"astarpa-next",
 ]
 resolver = "2"

@@ -6,14 +6,9 @@ version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner"
 license = "MPL-2.0"
-keywords = ["alignment", "edit-distance", "A*", "bioinformatics", "cli"]
+keywords = ["alignment", "edit-distance", "A*", "bioinformatics"]
 readme = "README.org"
 categories = ["science"]
-default-run = "astarpa"
-
-[[bin]]
-name = "astarpa"
-required-features = ["cli"]
 
 [dependencies]
 pa-types.workspace = true
