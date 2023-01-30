@@ -315,7 +315,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
                     };
                     // First try pruning neighbouring start states, and prune the diagonal start state last.
                     for d in 1..=max_match_cost {
-                        if d as Cost <= match_start.1 {
+                        if (d as Cost) <= match_start.1 {
                             try_prune_pos(Pos(match_start.0, match_start.1 - d as I));
                         }
                         try_prune_pos(Pos(match_start.0, match_start.1 + d as I));
@@ -425,6 +425,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn stats(&mut self) -> HeuristicStats {
+        self.stats.h0_end = self.h(Pos(0, 0));
         self.stats
     }
 

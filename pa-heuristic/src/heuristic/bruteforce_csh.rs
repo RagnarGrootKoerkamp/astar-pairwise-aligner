@@ -118,7 +118,6 @@ where
             num_seeds: h.seeds.seeds.len() as I,
             num_matches: h.seeds.matches.len(),
             num_filtered_matches: h.seeds.matches.len(),
-            h0_end: h.h(Pos(0, 0)),
             ..Default::default()
         };
         h

@@ -78,26 +78,6 @@ impl AstarStats {
         self.print_internal(false);
     }
 
-    fn format_scl<T: Display + num_traits::AsPrimitive<f32>>(
-        &self,
-        align: char,
-        width: usize,
-        title: &str,
-        val: T,
-    ) -> (String, String) {
-        if align == '<' {
-            (
-                format!("{:<width$}", title),
-                format!("{:<width$}", val.as_() / self.sample_size as f32),
-            )
-        } else {
-            (
-                format!("{:>width$}", title),
-                format!("{:>width$}", val.as_() / self.sample_size as f32),
-            )
-        }
-    }
-
     fn format_raw<T: Display>(
         &self,
         align: char,
@@ -112,36 +92,68 @@ impl AstarStats {
         }
     }
 
+    fn format_flt<T: Display>(
+        &self,
+        align: char,
+        mut width: usize,
+        title: &str,
+        val: T,
+    ) -> (String, String) {
+        let val = val.to_string();
+        // make sure to not discard things before the decimal point.
+        let point = val.find('.').unwrap_or(val.len());
+        width = width.max(point);
+        let mut val = val.as_str();
+        if val.len() > width {
+            val = &val[0..width];
+        }
+        if align == '<' {
+            (format!("{:<width$}", title), format!("{:<width$}", val))
+        } else {
+            (format!("{:>width$}", title), format!("{:>width$}", val))
+        }
+    }
+
+    fn format_avg<T: Display + num_traits::AsPrimitive<f32>>(
+        &self,
+        align: char,
+        width: usize,
+        title: &str,
+        val: T,
+    ) -> (String, String) {
+        self.format_flt(align, width, title, val.as_() / self.sample_size as f32)
+    }
+
     pub fn values(&self) -> (Vec<String>, Vec<String>) {
         [
             self.format_raw('>', 7, "nr", self.sample_size),
-            self.format_scl('>', 10, "|a|", self.len_a),
-            self.format_scl('>', 10, "|b|", self.len_b),
-            self.format_scl('>', 4, "e", self.error_rate),
+            self.format_avg('>', 10, "|a|", self.len_a),
+            self.format_avg('>', 10, "|b|", self.len_b),
+            self.format_avg('>', 4, "e", self.error_rate),
             self.format_raw('<', 7, "H", self.h_params.name.clone()),
             self.format_raw('>', 2, "k", self.h_params.k),
             self.format_raw('>', 2, "m", self.h_params.max_match_cost),
-            self.format_scl('>', 7, "seeds", self.h.num_seeds),
-            self.format_scl('>', 7, "match/s", self.h.num_matches),
-            self.format_scl('>', 9, "expanded", self.expanded),
-            self.format_scl('>', 9, "explored", self.explored),
-            self.format_scl('>', 9, "greedy", self.extended),
-            self.format_scl('>', 7, "pruned", self.h.num_pruned),
-            self.format_scl('>', 7, "shift", self.pq_shifts),
-            self.format_raw('>', 8, "band", self.expanded as f32 / self.len_a as f32),
-            self.format_scl('>', 8, "t", 1000. * self.timing.total),
-            self.format_scl('>', 8, "precom", 1000. * self.timing.precomp),
-            self.format_scl('>', 8, "prune", 1000. * self.h.pruning_duration),
-            self.format_scl('>', 8, "retries", 1000. * self.timing.retries),
-            self.format_scl('>', 7, "ed", self.distance),
-            self.format_raw(
+            self.format_avg('>', 7, "seeds", self.h.num_seeds),
+            self.format_avg('>', 7, "match/s", self.h.num_matches),
+            self.format_avg('>', 9, "expanded", self.expanded),
+            self.format_avg('>', 9, "explored", self.explored),
+            self.format_avg('>', 9, "extended", self.extended),
+            self.format_avg('>', 7, "pruned", self.h.num_pruned),
+            self.format_avg('>', 7, "shift", self.pq_shifts),
+            self.format_flt('>', 8, "band", self.expanded as f32 / self.len_a as f32),
+            self.format_avg('>', 8, "t", 1000. * self.timing.total),
+            self.format_avg('>', 8, "precom", 1000. * self.timing.precomp),
+            self.format_avg('>', 8, "prune", 1000. * self.h.pruning_duration),
+            self.format_avg('>', 8, "retries", 1000. * self.timing.retries),
+            self.format_avg('>', 7, "ed", self.distance),
+            self.format_flt(
                 '>',
                 4,
                 "e%",
                 100.0 * self.distance as f32 / self.len_a as f32,
             ),
-            self.format_scl('>', 6, "h0", self.h.h0),
-            self.format_scl('>', 6, "h0end", self.h.h0_end),
+            self.format_avg('>', 6, "h0", self.h.h0),
+            self.format_avg('>', 6, "h0end", self.h.h0_end),
         ]
         .into_iter()
         .unzip()
