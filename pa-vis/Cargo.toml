@@ -16,6 +16,7 @@ itertools.workspace = true
 colorgrad = "0.6.2"
 sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
 lazy_static = "1.4.0"
+astarpa.workspace = true
 
 [features]
 default = ["sdl"]

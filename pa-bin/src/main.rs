@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use astarpa::{stats::AstarStats, AstarPaParams};
+use astarpa::stats::AstarStats;
 use clap::Parser;
 use itertools::Itertools;
 use pa_types::*;
@@ -21,12 +21,7 @@ fn main() {
     let mut avg_result = AstarStats::default();
     let start = Instant::now();
 
-    let aligner = match vis.make_visualizer() {
-        pa_vis::cli::VisualizerType::NoVisualizer => args.to_astar_pa_params().aligner(),
-        pa_vis::cli::VisualizerType::Visualizer(vis) => {
-            AstarPaParams::new_with_vis(args.diagonal_transition, args.heuristic, vis).aligner()
-        }
-    };
+    let aligner = vis.astar_aligner(&args);
 
     // Process the input.
     args.input.process_input_pairs(|a: Seq, b: Seq| {

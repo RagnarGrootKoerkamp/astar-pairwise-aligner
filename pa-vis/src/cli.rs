@@ -1,4 +1,5 @@
 use crate::visualizer::{Config, VisualizerStyle, When};
+use astarpa::{AstarPaAligner, AstarPaParams};
 use clap::{value_parser, Parser};
 use pa_types::I;
 use pa_vis_types::{canvas::*, VisualizerT};
@@ -127,6 +128,18 @@ impl VisualizerArgs {
             }
 
             VisualizerType::Visualizer(config)
+        }
+    }
+
+    pub fn astar_aligner(&self, astarpa_args: &astarpa::cli::Cli) -> Box<dyn AstarPaAligner> {
+        match self.make_visualizer() {
+            VisualizerType::NoVisualizer => astarpa_args.to_astar_pa_params().aligner(),
+            VisualizerType::Visualizer(vis) => AstarPaParams::new_with_vis(
+                astarpa_args.diagonal_transition,
+                astarpa_args.heuristic,
+                vis,
+            )
+            .aligner(),
         }
     }
 }
