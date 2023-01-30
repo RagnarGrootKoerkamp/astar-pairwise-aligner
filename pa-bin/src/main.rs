@@ -1,23 +1,37 @@
 #![feature(let_chains)]
 
-use astarpa::{cli::Cli, stats::AstarStats};
+use astarpa::{stats::AstarStats, AstarPaParams};
 use clap::Parser;
 use itertools::Itertools;
 use pa_types::*;
+use pa_vis::cli::VisualizerArgs;
 use std::{ops::ControlFlow, time::Instant};
 
+#[derive(Parser)]
+pub struct Cli {
+    #[clap(flatten)]
+    args: astarpa::cli::Cli,
+    #[clap(flatten)]
+    vis: VisualizerArgs,
+}
+
 fn main() {
-    let args = Cli::parse();
+    let Cli { args, vis } = Cli::parse();
 
     let mut avg_result = AstarStats::default();
     let start = Instant::now();
 
-    let aligner_params = args.to_astar_pa_params();
+    let aligner = match vis.make_visualizer() {
+        pa_vis::cli::VisualizerType::NoVisualizer => args.to_astar_pa_params().aligner(),
+        pa_vis::cli::VisualizerType::Visualizer(vis) => {
+            AstarPaParams::new_with_vis(args.diagonal_transition, args.heuristic, vis).aligner()
+        }
+    };
 
     // Process the input.
     args.input.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = aligner_params.align(a, b).1;
+        let r = aligner.align(a, b).1;
 
         // Record and print stats.
         if args.silent <= 1 {
@@ -60,10 +74,8 @@ fn main() {
 
 #[cfg(test)]
 mod test {
-    use astarpa::cli::Cli;
-
     #[test]
     fn cli_test() {
-        <Cli as clap::CommandFactory>::command().debug_assert();
+        <super::Cli as clap::CommandFactory>::command().debug_assert();
     }
 }

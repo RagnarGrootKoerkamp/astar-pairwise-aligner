@@ -17,6 +17,7 @@ use std::{
 
 #[derive(Parser, Serialize, Deserialize)]
 #[clap(author, about)]
+#[group(skip)]
 pub struct Cli {
     #[clap(flatten)]
     pub input: Input,
