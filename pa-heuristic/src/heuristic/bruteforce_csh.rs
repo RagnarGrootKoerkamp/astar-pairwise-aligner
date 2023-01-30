@@ -283,34 +283,6 @@ where
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 
-        // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
-        // TODO: Make this more precise for larger inexact matches.
-        if PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END
-            && a.score == self.params.match_config.max_match_cost + 1
-        {
-            // See if there are neighbouring points that can now be fully pruned.
-            for d in 1..=self.params.match_config.max_match_cost {
-                let mut check = |pos: Pos| {
-                    let tp = pos;
-                    if let Some(arrows) = self.arrows.get(&tp) {
-                        if arrows.iter().all(|a2| a2.end == a.end) {
-                            self.stats.num_pruned += 1;
-                            self.arrows.remove(&tp);
-                        }
-                    } else {
-                        if CHECK_MATCH_CONSISTENCY {
-                            println!("Did not find nb arrow at {tp} while pruning {a} at {pos}");
-                            panic!("Arrows are not consistent!");
-                        }
-                    }
-                };
-                if pos.1 >= d as Cost {
-                    check(Pos(pos.0, pos.1 - d as I));
-                }
-                check(Pos(pos.0, pos.1 + d as I));
-            }
-        }
-
         if PRUNE_MATCHES_BY_START {
             if min_len == 0 {
                 self.arrows.remove(&tpos).unwrap();

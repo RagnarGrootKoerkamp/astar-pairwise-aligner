@@ -361,36 +361,6 @@ impl<'a> HeuristicInstance<'a> for SHI {
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 
-        // If there is an exact match here, also prune neighbouring states for which all arrows end in the same position.
-        // TODO: Make this more precise for larger inexact matches.
-        if PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END
-            && a.score == self.params.match_config.max_match_cost + 1
-        {
-            // See if there are neighbouring points that can now be fully pruned.
-            for d in 1..=self.params.match_config.max_match_cost {
-                let mut check = |pos: Pos| {
-                    if let Some(arrows) = self.arrows.get(&pos) {
-                        if arrows.iter().all(|a2| a2.end == a.end) {
-                            self.stats.num_pruned += 1;
-                            for a in self.arrows.remove(&pos).unwrap() {
-                                // TODO: Increment change here?
-                                self.update_layers_on_pruning_arrow(a, hint);
-                            }
-                        }
-                    } else {
-                        if CHECK_MATCH_CONSISTENCY {
-                            println!("Did not find nb arrow at {pos} while pruning {a}");
-                            panic!("Arrows are not consistent!");
-                        }
-                    }
-                };
-                if pos.1 >= d as Cost {
-                    check(Pos(pos.0, pos.1 - d as I));
-                }
-                check(Pos(pos.0, pos.1 + d as I));
-            }
-        }
-
         if PRUNE_MATCHES_BY_START {
             if min_len == 0 {
                 for a in self.arrows.remove(&pos).unwrap() {

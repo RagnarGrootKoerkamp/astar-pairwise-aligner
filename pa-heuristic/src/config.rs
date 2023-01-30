@@ -21,9 +21,6 @@ pub const SLIDING_WINDOW_MATCHES: bool = false;
 /// Whether to prune matches by end, in addition to pruning by start.
 pub const PRUNE_MATCHES_BY_END: bool = false;
 
-/// Given an exact match, when this is true any other inexact matches ending in the same position are also pruned.
-pub const PRUNE_NEIGHBOURING_INEXACT_MATCHES_BY_END: bool = false;
-
 /// Whether to check for consistency before pruning for SH and CSH.
 /// NOTE: For CSH+gaps consistency is always checked.
 pub const CHECK_MATCH_CONSISTENCY: bool = false;
