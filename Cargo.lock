@@ -754,6 +754,7 @@ dependencies = [
  "itertools",
  "pa-generate",
  "pa-types",
+ "pa-vis",
 ]
 
 [[package]]
