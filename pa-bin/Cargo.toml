@@ -23,3 +23,10 @@ rand = "0.8.5"
 pa-vis-types.workspace = true
 rand_chacha = "0.3.1"
 bio.workspace = true
+
+[features]
+example = ["pa-heuristic/example"]
+
+[[example]]
+name = "fig_layers"
+required-features = ["example"]
