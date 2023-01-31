@@ -1,20 +1,19 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
+use astarpa::AstarPa;
+use itertools::Itertools;
 
-#[cfg(not(feature = "vis"))]
-fn main() {}
 
-#[cfg(feature = "vis")]
+use pa_generate::{uniform_fixed};
+use pa_heuristic::{
+    MatchConfig, Pruning, CSH,
+};
+
+use pa_vis::visualizer::{self, Gradient, When};
+use pa_vis_types::canvas::*;
+
+use std::{time::Duration};
+
 fn main() {
-    use std::time::Duration;
-
-    use astarpa::canvas::*;
-    use astarpa::{
-        aligners::{astar::Astaras, Aligner},
-        prelude::*,
-        visualizer::{Gradient, Visualizer, When},
-    };
-    use itertools::Itertools;
-
     let n = 500;
     let e = 0.20;
     let (ref a, ref b) = uniform_fixed(n, e);
@@ -45,13 +44,8 @@ fn main() {
     config.filepath = "imgs/fig-readme".into();
     {
         let k = 5;
-        let h = CSH {
-            match_config: MatchConfig::exact(k),
-            pruning: Pruning::enabled(),
-            use_gap_cost: false,
-            c: PhantomData::<HintContours<BruteForceContour>>::default(),
-        };
-        let mut a_star = Astar {
+        let h = CSH::new(MatchConfig::exact(k), Pruning::enabled());
+        let a_star = AstarPa {
             dt: false,
             h,
             v: config.clone(),

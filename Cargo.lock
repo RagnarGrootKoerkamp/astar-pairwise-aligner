@@ -750,11 +750,18 @@ name = "pa-bin"
 version = "0.1.0"
 dependencies = [
  "astarpa",
+ "bio",
  "clap",
  "itertools",
+ "pa-affine-types",
+ "pa-base-algos",
  "pa-generate",
+ "pa-heuristic",
  "pa-types",
  "pa-vis",
+ "pa-vis-types",
+ "rand",
+ "rand_chacha",
 ]
 
 [[package]]

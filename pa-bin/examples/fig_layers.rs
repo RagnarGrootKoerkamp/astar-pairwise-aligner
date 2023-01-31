@@ -1,15 +1,11 @@
+use astarpa::AstarPa;
+use pa_heuristic::{MatchConfig, Pruning, CSH, GCSH, SH};
+use pa_vis::visualizer::{self, Gradient, When};
+use pa_vis_types::canvas::*;
 use std::path::PathBuf;
+use std::time::Duration;
 
 fn main() {
-    use std::time::Duration;
-
-    use astarpa::canvas::*;
-    use astarpa::{
-        aligners::{astar::Astaras, Aligner},
-        prelude::*,
-        visualizer::{Gradient, Visualizer, When},
-    };
-
     let a = b"ACTCAGCTGTTGCCCGCTGTCGATCCGTAATTTAAAGTAGGTCGAAAC";
     let b = b"ACTCAACGTTGCGCCTGTCTATCGTAATTAAAGTGGAGAAAC";
 
@@ -52,47 +48,37 @@ fn main() {
                 match_config: MatchConfig::exact(k),
                 pruning: Pruning::new(pruning),
             };
-            let mut a_star = Astaras {
+            let a_star = AstarPa {
                 dt: false,
                 h,
                 v: config.clone(),
             };
-            let cost = a_star.align(a, b).0;
+            let cost = a_star.align(a, b).0 .0;
             println!("Distance: {cost}");
         }
 
         // CSH
         {
             config.filepath = dir.join("csh".to_string() + suf);
-            let h = CSH {
-                match_config: MatchConfig::exact(k),
-                pruning: Pruning::new(pruning),
-                use_gap_cost: false,
-                c: PhantomData::<BruteForceContours>::default(),
-            };
-            let mut a_star = Astaras {
+            let h = CSH::new(MatchConfig::exact(k), Pruning::new(pruning));
+            let a_star = AstarPa {
                 dt: false,
                 h,
                 v: config.clone(),
             };
-            let cost = a_star.align(a, b).0;
+            a_star.align(a, b);
         }
 
-        // GCH
+        // GCSH
         {
             config.filepath = dir.join("gch".to_string() + suf);
-            let h = CSH {
-                match_config: MatchConfig::exact(k),
-                pruning: Pruning::new(pruning),
-                use_gap_cost: true,
-                c: PhantomData::<BruteForceContours>::default(),
-            };
-            let mut a_star = Astaras {
+            let h = GCSH::new(MatchConfig::exact(k), Pruning::new(pruning));
+            let a_star = AstarPa {
                 dt: false,
                 h,
                 v: config.clone(),
             };
-            let cost = a_star.align(a, b).0;
+            a_star.align(a, b);
         }
     }
 

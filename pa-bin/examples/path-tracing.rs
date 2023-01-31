@@ -1,25 +1,24 @@
 //! This generates the visualizations used in the blogpost on linear memory WFA.
 
-#[cfg(not(feature = "vis"))]
-fn main() {}
+use pa_affine_types::AffineCost;
+use pa_base_algos::{
+    dt::{DiagonalTransition, GapCostHeuristic, PathTracingMethod},
+};
 
-#[cfg(feature = "vis")]
+use pa_heuristic::{
+    NoCost,
+};
+
+use pa_vis::visualizer::{self, Gradient, When};
+use pa_vis_types::canvas::*;
+
+use std::{path::PathBuf, time::Duration};
+
 fn main() {
-    use std::{path::PathBuf, time::Duration};
-
-    use astarpa::{
-        aligners::{
-            diagonal_transition::{DiagonalTransition, GapCostHeuristic, PathTracingMethod},
-            Aligner,
-        },
-        canvas::{BLUE, RED},
-        prelude::*,
-        visualizer::{Gradient, Visualizer, When},
-    };
     let a = b"CACTGCAATCGGGAGTCAGTTCAGTAACAAGCGTACGACGCCGATACATGCTACGATCGA";
     let b = b"CATCTGCTCTCTGAGTCAGTGCAGTAACAGCGTACG";
 
-    let cm = LinearCost::new_unit();
+    let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
     config.draw = When::All;
     config.save = When::None;

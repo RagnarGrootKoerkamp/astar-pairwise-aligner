@@ -1,28 +1,22 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
-#[cfg(not(feature = "vis"))]
-fn main() {}
 
-#[cfg(feature = "vis")]
+use astarpa::AstarPa;
+use pa_affine_types::AffineCost;
+use pa_base_algos::{
+    dt::{DiagonalTransition, GapCostHeuristic},
+    nw::NW,
+};
+use pa_generate::uniform_fixed;
+use pa_heuristic::{MatchConfig, NoCost, Pruning, CSH};
+use pa_vis::visualizer::{self, Gradient, When};
+use std::{path::PathBuf, time::Duration};
+
 fn main() {
-    use std::path::PathBuf;
-
-    use astarpa::{
-        aligners::{
-            astar::Astaras,
-            diagonal_transition::{DiagonalTransition, GapCostHeuristic},
-            nw::NW,
-            Aligner,
-        },
-        prelude::*,
-        visualizer::{Gradient, Visualizer, When},
-    };
-    use instant::Duration;
-
     let n = 500;
     let e = 0.20;
     let (ref a, ref b) = uniform_fixed(n, e);
 
-    let cm = LinearCost::new_unit();
+    let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
     config.draw = When::None;
     config.save = When::Last;
@@ -52,7 +46,7 @@ fn main() {
     }
 
     {
-        let mut a_star = Astar {
+        let a_star = AstarPa {
             dt: false,
             h: NoCost,
             v: vis(config.clone(), "2_dijkstra"),
@@ -85,13 +79,8 @@ fn main() {
 
     {
         let k = 5;
-        let h = CSH {
-            match_config: MatchConfig::exact(k),
-            pruning: Pruning::default(),
-            use_gap_cost: false,
-            c: PhantomData::<BruteForceContours>::default(),
-        };
-        let mut a_star = Astar {
+        let h = CSH::new(MatchConfig::exact(k), Pruning::disabled());
+        let a_star = AstarPa {
             dt: false,
             h,
             v: vis(config.clone(), "5_astar-csh"),
@@ -101,13 +90,8 @@ fn main() {
 
     {
         let k = 5;
-        let h = CSH {
-            match_config: MatchConfig::exact(k),
-            pruning: Pruning::enabled(),
-            use_gap_cost: false,
-            c: PhantomData::<BruteForceContours>::default(),
-        };
-        let mut a_star = Astar {
+        let h = CSH::new(MatchConfig::exact(k), Pruning::enabled());
+        let a_star = AstarPa {
             dt: false,
             h,
             v: vis(config.clone(), "6_astar-csh-pruning"),

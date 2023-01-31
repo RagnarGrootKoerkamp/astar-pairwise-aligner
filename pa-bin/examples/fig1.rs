@@ -1,14 +1,15 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 
+use astarpa::astar;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
     nw::NW,
 };
 use pa_generate::uniform_fixed;
-use pa_heuristic::{MatchConfig, NoCost, Pruning, ZeroCost, CSH};
+use pa_heuristic::{MatchConfig, NoCost, Pruning, CSH};
 use pa_vis::visualizer::{self, Gradient, When};
-use std::{marker::PhantomData, path::PathBuf, time::Duration};
+use std::{path::PathBuf, time::Duration};
 
 fn main() {
     let n = 500;
@@ -40,7 +41,7 @@ fn main() {
                 use_gap_cost_heuristic: true,
                 exponential_search: true,
                 local_doubling: false,
-                h: ZeroCost,
+                h: NoCost,
                 v: vis(config.clone(), "1_ukkonen"),
             };
             let mut nw = nw.build(a, b);
@@ -85,18 +86,8 @@ fn main() {
         }
         {
             let k = 5;
-            let h = CSH {
-                match_config: MatchConfig::exact(k),
-                pruning: Pruning::enabled(),
-                use_gap_cost: false,
-                c: PhantomData::<HintContours<BruteForceContour>>::default(),
-            };
-            let mut a_star = Astar {
-                dt: false,
-                h,
-                v: vis(config.clone(), "5_astar-csh-pruning"),
-            };
-            let r = a_star.align_with_stats(a, b).1;
+            let h = CSH::new(MatchConfig::exact(k), Pruning::enabled());
+            let r = astar(a, b, &h, &vis(config.clone(), "5_astar-csh-pruning")).1;
             println!("{}", r.expanded as f32 / a.len() as f32);
         }
     };

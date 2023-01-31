@@ -1,25 +1,21 @@
-#[cfg(not(feature = "vis"))]
-fn main() {}
+use pa_affine_types::AffineCost;
+use pa_base_algos::{
+    dt::{DiagonalTransition, GapCostHeuristic},
+    nw::NW,
+};
+use pa_generate::uniform_fixed;
+use pa_heuristic::{GapCost, MatchConfig, NoCost, Pruning, CSH, SH};
+use pa_types::seq_to_string;
+use pa_vis::visualizer::{self, Gradient, When};
+use std::{path::PathBuf, time::Duration};
 
-#[cfg(feature = "vis")]
 fn main() {
-    use std::{path::PathBuf, time::Duration};
-
-    use astarpa::{
-        aligners::{
-            diagonal_transition::{DiagonalTransition, GapCostHeuristic},
-            nw::NW,
-            Aligner,
-        },
-        prelude::*,
-        visualizer::{Gradient, Visualizer, When},
-    };
     let n = 500;
     let e = 0.20;
     let (ref a, ref b) = uniform_fixed(n, e);
-    println!("{}\n{}\n", to_string(a), to_string(b));
+    println!("{}\n{}\n", seq_to_string(a), seq_to_string(b));
 
-    let cm = LinearCost::new_unit();
+    let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
     config.draw = When::All;
     config.save = When::Last;
@@ -35,14 +31,9 @@ fn main() {
 
     let sh = SH {
         match_config: MatchConfig::exact(4),
-        pruning: Pruning::default(),
+        pruning: Pruning::disabled(),
     };
-    let csh = CSH {
-        match_config: MatchConfig::exact(4),
-        pruning: Pruning::default(),
-        use_gap_cost: false,
-        c: PhantomData::<BruteForceContours>,
-    };
+    let csh = CSH::new(MatchConfig::exact(4), Pruning::disabled());
 
     {
         let mut nw = NW {

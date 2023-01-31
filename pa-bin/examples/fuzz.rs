@@ -1,18 +1,16 @@
 #![feature(let_chains)]
-use std::{marker::PhantomData, panic::AssertUnwindSafe};
-
-use astarpa::{
-    contour::{BruteForceContour, HintContours},
-    heuristic::{Heuristic, Pruning, CSH},
-    matches::MatchConfig,
-    prelude::*,
-    visualizer::{NoVis, Visualizer},
-    AstarPa,
-};
+use astarpa::AstarPa;
 use bio::alignment::distance::simd::levenshtein;
 use pa_generate::{generate_model, ErrorModel};
+use pa_heuristic::{Heuristic, MatchConfig, Pruning, CSH};
+use pa_types::{seq_to_string, Cost, Pos, Sequence, I};
+use pa_vis_types::{NoVis, VisualizerT};
+use std::{
+    cmp::{max, min},
+    panic::AssertUnwindSafe,
+};
 
-fn fuzz<V: Visualizer, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Sequence) {
+fn fuzz<V: VisualizerT, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Sequence) {
     for n in (5..).step_by(1) {
         for r in 0..1000 {
             for e in [0.1, 0.2, 0.4] {
@@ -43,18 +41,12 @@ fn main() {
     let k = 3;
     let max_match_cost = 1;
     let pruning = true;
-    let gap_cost = false;
 
     let check_dist = true;
 
     let ref mut aligner = AstarPa {
         dt,
-        h: CSH {
-            match_config: MatchConfig::new(k, max_match_cost),
-            pruning: Pruning::new(pruning),
-            use_gap_cost: gap_cost,
-            c: PhantomData::<HintContours<BruteForceContour>>::default(),
-        },
+        h: CSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning)),
         v: NoVis,
     };
 

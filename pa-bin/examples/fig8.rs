@@ -1,19 +1,14 @@
 //! This generates the visualizations used in the limitations section of the paper.
-#[cfg(not(feature = "vis"))]
-fn main() {}
 
-#[cfg(feature = "vis")]
+use astarpa::astar;
+use pa_generate::{uniform_seeded, ErrorModel};
+use pa_heuristic::{MatchConfig, Pruning, CSH};
+use pa_vis::visualizer::{self, Gradient, When};
+use pa_vis_types::canvas::BLACK;
+use rand::SeedableRng;
+use std::time::Duration;
+
 fn main() {
-    use std::time::Duration;
-
-    use astarpa::{
-        aligners::{astar::Astaras, Aligner},
-        canvas::BLACK,
-        prelude::*,
-        visualizer::{Gradient, Visualizer, When},
-    };
-    use rand::SeedableRng;
-
     let mut config = visualizer::Config::default();
     config.draw = When::None;
     config.save = When::None;
@@ -47,17 +42,14 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8/high-error-rate".into();
-        let mut a_star = Astar {
-            dt: false,
-            h: CSH {
-                match_config: MatchConfig::inexact(10),
-                pruning: Pruning::enabled(),
-                use_gap_cost: false,
-                c: PhantomData::<HintContours<BruteForceContour>>::default(),
-            },
-            v: config.clone(),
-        };
-        let cost = a_star.align(a, b).0;
+        let cost = astar(
+            a,
+            b,
+            &CSH::new(MatchConfig::inexact(10), Pruning::enabled()),
+            &config,
+        )
+        .0
+         .0;
         println!("cost {cost}");
     }
 
@@ -73,33 +65,27 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8/deletion".into();
-        let mut a_star = Astar {
-            dt: false,
-            h: CSH {
-                match_config: MatchConfig::inexact(10),
-                pruning: Pruning::enabled(),
-                use_gap_cost: false,
-                c: PhantomData::<HintContours<BruteForceContour>>::default(),
-            },
-            v: config.clone(),
-        };
-        let cost = a_star.align(a, b).0;
+        let cost = astar(
+            a,
+            b,
+            &CSH::new(MatchConfig::inexact(10), Pruning::enabled()),
+            &config,
+        )
+        .0
+         .0;
         println!("cost {cost}");
     }
 
     {
         let (mut a, mut b) = uniform_seeded(100 * scale, 0.08, 1);
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(2 as u64);
-        let (mut a2, mut b2) = generate_pair(
-            &GenerateOptions {
-                length: 300 * scale,
-                error_rate: 0.08,
-                error_model: ErrorModel::DoubleMutatedRepeat,
-                pattern_length: 10 * scale,
-                m: None,
-            },
-            &mut rng,
-        );
+        let rng = &mut rand_chacha::ChaCha8Rng::seed_from_u64(2 as u64);
+        let (mut a2, mut b2) = pa_generate::SeqPairGenerator {
+            length: 300 * scale,
+            error_rate: 0.08,
+            error_model: ErrorModel::SymmetricRepeat,
+            pattern_length: Some(10 * scale),
+        }
+        .generate(rng);
         let (mut a3, mut b3) = uniform_seeded(100 * scale, 0.08, 3);
         a.append(&mut a2);
         b.append(&mut b2);
@@ -109,17 +95,14 @@ fn main() {
         let ref b = b;
 
         config.filepath = "imgs/fig8/repeats".into();
-        let mut a_star = Astar {
-            dt: false,
-            h: CSH {
-                match_config: MatchConfig::inexact(10),
-                pruning: Pruning::enabled(),
-                use_gap_cost: false,
-                c: PhantomData::<HintContours<BruteForceContour>>::default(),
-            },
-            v: config.clone(),
-        };
-        let cost = a_star.align(a, b).0;
+        let cost = astar(
+            a,
+            b,
+            &CSH::new(MatchConfig::inexact(10), Pruning::enabled()),
+            &config,
+        )
+        .0
+         .0;
         println!("cost {cost}");
     }
 }
