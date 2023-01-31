@@ -31,6 +31,6 @@ impl State {
 pub trait AffineAligner: std::fmt::Debug {
     /// An alignment of sequences `a` and `b`.
     /// The returned cost is the *non-negative* cost of the alignment.
-    /// Returns a trace when specified on construction.
+    /// Costmodel and traceback parameters must be specified on construction of the aligner.
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>);
 }

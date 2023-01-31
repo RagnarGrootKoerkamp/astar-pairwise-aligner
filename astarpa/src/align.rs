@@ -1,3 +1,4 @@
+use pa_affine_types::{AffineAligner, AffineCigar};
 use pa_heuristic::{Heuristic, HeuristicMapper};
 use pa_types::{Cigar, Cost, Seq};
 use pa_vis_types::{NoVis, VisualizerT};
@@ -92,5 +93,12 @@ pub trait AstarPaAligner {
 impl<V: VisualizerT, H: Heuristic> AstarPaAligner for AstarPa<V, H> {
     fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats) {
         self.align(a, b)
+    }
+}
+
+impl<V: VisualizerT, H: Heuristic> AffineAligner for AstarPa<V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
+        let ((cost, ref cigar), _stats) = AstarPa::align(self, a, b);
+        (cost, Some(cigar.into()))
     }
 }

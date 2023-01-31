@@ -31,6 +31,7 @@ smallvec = { version = "1.10.0", features = ["union"] }
 parse_duration = { version = "2.1.1" }
 rand = { version = "0.8.5" }
 rand_chacha = { version = "0.3.1" }
+pa-affine-types.workspace = true
 
 [dev-dependencies]
 # For benchmarking only.

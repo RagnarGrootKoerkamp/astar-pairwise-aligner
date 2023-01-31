@@ -36,6 +36,7 @@ dependencies = [
  "instant",
  "itertools",
  "num-traits",
+ "pa-affine-types",
  "pa-generate",
  "pa-heuristic",
  "pa-types",
