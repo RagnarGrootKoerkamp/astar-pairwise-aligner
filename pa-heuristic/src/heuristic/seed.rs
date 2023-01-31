@@ -10,6 +10,15 @@ pub struct SH {
     pub pruning: Pruning,
 }
 
+impl SH {
+    pub fn new(match_config: MatchConfig, pruning: Pruning) -> Self {
+        Self {
+            match_config,
+            pruning,
+        }
+    }
+}
+
 impl Heuristic for SH {
     type Instance<'a> = SHI;
 

@@ -34,7 +34,7 @@ impl AffineLayerType {
 pub use AffineLayerType::*;
 
 /// An affine layer depends on its type, the open cost, and the extend cost.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct AffineLayerCosts {
     pub affine_type: AffineLayerType,
     pub open: Cost,
@@ -45,7 +45,7 @@ pub struct AffineLayerCosts {
 /// and zero or more (N) affine layers.
 // The constructure is private to this module.
 #[non_exhaustive]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct AffineCost<const N: usize> {
     /// The substitution cost. Or None when substitutions are not allowed.
     pub sub: Option<Cost>,

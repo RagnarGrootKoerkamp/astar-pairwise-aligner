@@ -369,6 +369,12 @@ impl Config {
 
         config
     }
+
+    pub fn with_filename(&self, filename: &str) -> Self {
+        let mut config = self.clone();
+        config.filepath = config.filepath.join(filename);
+        config
+    }
 }
 
 impl Default for Config {
