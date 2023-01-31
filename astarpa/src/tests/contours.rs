@@ -9,7 +9,7 @@ fn exact_no_pruning_gap() {
     for k in [4, 5] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GCSH::new(MatchConfig::exact(k), Pruning::default());
+                let h = GCSH::new(MatchConfig::exact(k), Pruning::disabled());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVis);
@@ -25,7 +25,7 @@ fn inexact_no_pruning_gap() {
     for k in [6, 7] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GCSH::new(MatchConfig::inexact(k), Pruning::default());
+                let h = GCSH::new(MatchConfig::inexact(k), Pruning::disabled());
                 let (a, b) = uniform_fixed(n, e);
                 //print(h, &a, &b);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
@@ -74,7 +74,7 @@ fn exact_no_pruning() {
     for k in [4, 5] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = CSH::new(MatchConfig::exact(k), Pruning::default());
+                let h = CSH::new(MatchConfig::exact(k), Pruning::disabled());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_zero_cost_seed_heuristic(), &NoVis);
@@ -90,7 +90,7 @@ fn inexact_no_pruning() {
     for k in [6, 7] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = CSH::new(MatchConfig::inexact(k), Pruning::default());
+                let h = CSH::new(MatchConfig::inexact(k), Pruning::disabled());
                 let (a, b) = uniform_fixed(n, e);
                 //print(h, &a, &b);
                 println!("TESTING n {} e {}: {:?}", n, e, h);

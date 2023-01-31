@@ -303,7 +303,7 @@ mod nw_sh {
                 local_doubling: false,
                 h: SH {
                     match_config: MatchConfig::exact(5),
-                    pruning: Pruning::default(),
+                    pruning: Pruning::disabled(),
                 },
                 v: NoVis,
             },
@@ -334,7 +334,7 @@ mod diagonal_transition_sh {
                 GapCostHeuristic::Disable,
                 SH {
                     match_config: MatchConfig::exact(5),
-                    pruning: Pruning::default(),
+                    pruning: Pruning::disabled(),
                 },
                 false,
                 NoVis,

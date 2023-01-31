@@ -21,7 +21,7 @@ fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
 /// Before it only checked for at least `max_len` layers, which is wrong.
 #[test]
 fn hint_contours_overly_greedy_shift() {
-    let mut h = GCSH::new(MatchConfig::new(3, 1), Pruning::new(true));
+    let mut h = GCSH::new(MatchConfig::new(3, 1), Pruning::enabled());
 
     let a = "CCCGTCGTCCCTCAAACTTGGAACCCCATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTACGGTACCCCTTCTGCGATAGAGATGGTAGTAGCCGATAGGCCACCCTGGGAACACTATGTCACCCTGGTGGTAACCGTCGGGTCAGAAATAGGAGAACATACGGTGGACCGCTAA".as_bytes();
     let b = "CCCGTCGTACCTCTAAACTTGGAACCCACATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTTCGGGTACCCCTTCGTGCGATAGAGATGGTAGTAGCCGATAGGCCACCCTGGGAACACTATGTCACCCTGGTGGTAACCGTCGGGTCAGAAATAGGAGTACATACGGTGGACCG".as_bytes();
@@ -46,7 +46,7 @@ fn hint_contours_overly_greedy_shift() {
 /// - Like normal A*, extending is done before pushing a state onto the priority queue.
 #[test]
 fn csh_dt_inconsistent_greedy() {
-    let h = CSH::new(MatchConfig::new(3, 1), Pruning::new(true));
+    let h = CSH::new(MatchConfig::new(3, 1), Pruning::enabled());
 
     let a = "GCCGCGCGCGCAGCCGCGCGCGCGCGCGCGCCGG".as_bytes();
     let b = "GCGCCAGCGCGCGCGGGCCGCCGGCGCGCGCGCT".as_bytes();

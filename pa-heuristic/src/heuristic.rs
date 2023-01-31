@@ -39,6 +39,12 @@ impl Pruning {
             skip_prune: None,
         }
     }
+    pub fn disabled() -> Self {
+        Pruning {
+            enabled: false,
+            skip_prune: None,
+        }
+    }
     pub fn enabled() -> Self {
         Pruning {
             enabled: true,
