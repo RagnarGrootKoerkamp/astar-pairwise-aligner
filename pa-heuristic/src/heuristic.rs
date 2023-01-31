@@ -25,10 +25,7 @@ pub struct Pruning {
 
 impl Default for Pruning {
     fn default() -> Self {
-        Self {
-            enabled: false,
-            skip_prune: None,
-        }
+        Self::enabled()
     }
 }
 
