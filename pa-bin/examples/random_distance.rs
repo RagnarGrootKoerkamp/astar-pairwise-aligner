@@ -1,8 +1,8 @@
 #![allow(unused)]
-use astarpa::{matches::fixed_seeds, prelude::*};
-use bio::alphabets::{Alphabet, RankTransform};
 use clap::Parser;
 use pa_generate::uniform_seeded;
+use pa_types::I;
+use std::cmp::min;
 
 #[derive(Parser)]
 struct Cli {
@@ -21,12 +21,6 @@ fn main() {
     let (a, b) = uniform_seeded(args.n, args.e, 31415);
     let k = args.k;
     let max_match_cost = 0;
-    fixed_seeds(
-        &RankTransform::new(&Alphabet::new(b"ACGT")),
-        max_match_cost,
-        &a,
-        k,
-    );
 
     // let trie = Trie::new(
     //     b.windows(k as usize)

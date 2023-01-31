@@ -1,27 +1,21 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 
-#[cfg(not(feature = "vis"))]
-fn main() {}
+use pa_affine_types::AffineCost;
+use pa_base_algos::{
+    dt::{DiagonalTransition, GapCostHeuristic},
+    nw::NW,
+};
+use pa_generate::uniform_fixed;
+use pa_heuristic::{MatchConfig, NoCost, Pruning, ZeroCost, CSH};
+use pa_vis::visualizer::{self, Gradient, When};
+use std::{marker::PhantomData, path::PathBuf, time::Duration};
 
-#[cfg(feature = "vis")]
 fn main() {
-    use std::{path::PathBuf, time::Duration};
-
-    use astarpa::{
-        aligners::{
-            astar::{AstarAligner, Astaras},
-            diagonal_transition::{DiagonalTransition, GapCostHeuristic},
-            nw::NW,
-            Aligner,
-        },
-        prelude::*,
-        visualizer::{Gradient, Visualizer, When},
-    };
     let n = 500;
     let e = 0.20;
     let (ref a, ref b) = uniform_fixed(n, e);
 
-    let cm = LinearCost::new_unit();
+    let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
     config.draw = When::None;
     config.save = When::None;
@@ -46,7 +40,7 @@ fn main() {
                 use_gap_cost_heuristic: true,
                 exponential_search: true,
                 local_doubling: false,
-                h: NoCost,
+                h: ZeroCost,
                 v: vis(config.clone(), "1_ukkonen"),
             };
             let mut nw = nw.build(a, b);
@@ -68,7 +62,7 @@ fn main() {
                 vis(config.clone(), "3_diagonal-transition"),
             );
             let mut dt = dt.build(a, b);
-            dt.align_for_bounded_dist_with_h(None).unwrap();
+            dt.align_for_bounded_dist(None).unwrap();
             println!("{}", dt.v.borrow().expanded.len() as f32 / a.len() as f32);
         }
 
@@ -82,7 +76,7 @@ fn main() {
                 vis(config.clone(), "4_dt-divide-and-conquer"),
             );
             let mut dt = dt.build(a, b);
-            dt.align_for_bounded_dist_with_h(None).unwrap();
+            dt.align_for_bounded_dist(None).unwrap();
             println!("{}", dt.v.borrow().expanded.len() as f32 / a.len() as f32);
         }
 
