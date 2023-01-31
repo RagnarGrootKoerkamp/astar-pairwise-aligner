@@ -16,4 +16,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib --no-default-features --release
+          args: --lib --release --workspace --exclude pa-vis --exclude pa-web
