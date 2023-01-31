@@ -190,7 +190,7 @@ where
     /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
     fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> (Cost, ()) {
         const D: bool = false;
-        if !self.params.pruning.enabled {
+        if self.params.pruning.is_enabled() {
             return (0, ());
         }
 
@@ -201,7 +201,7 @@ where
         let max_match_cost = self.params.match_config.max_match_cost;
 
         // Prune any matches ending here.
-        if PRUNE_MATCHES_BY_END {
+        if self.params.pruning.end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
                 if let Some(s) = self.seeds.seed_ending_at(pos) {
@@ -236,7 +236,7 @@ where
                     };
                     // First try pruning neighbouring start states, and prune the diagonal start state last.
                     for d in 1..=max_match_cost {
-                        if d as Cost <= match_start.1 {
+                        if (d as Cost) <= match_start.1 {
                             try_prune_pos(Pos(match_start.0, match_start.1 - d as I));
                         }
                         try_prune_pos(Pos(match_start.0, match_start.1 + d as I));
@@ -283,7 +283,7 @@ where
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 
-        if PRUNE_MATCHES_BY_START {
+        if self.params.pruning.start() {
             if min_len == 0 {
                 self.arrows.remove(&tpos).unwrap();
             } else {

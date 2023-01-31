@@ -8,18 +8,12 @@
 /// When false, use a qgramindex.
 pub const FIND_MATCHES_HASH: bool = true;
 
-/// Whether to prune matches by start.
-pub const PRUNE_MATCHES_BY_START: bool = true;
-
 // ========= FLAGS NOT IN THE PAPER (default false) =========
 
 /// Whether to use a sliding window approach for finding exact matches for fixed k.
 /// This reduces the size of the hashmap by a factor k.
 /// Only for CSH with gap-cost.
 pub const SLIDING_WINDOW_MATCHES: bool = false;
-
-/// Whether to prune matches by end, in addition to pruning by start.
-pub const PRUNE_MATCHES_BY_END: bool = false;
 
 /// Whether to check for consistency before pruning for SH and CSH.
 /// NOTE: For CSH+gaps consistency is always checked.

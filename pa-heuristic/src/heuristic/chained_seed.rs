@@ -320,7 +320,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     type Order = Pos;
     fn prune(&mut self, pos: Pos, hint: Self::Hint) -> (Cost, Pos) {
         const D: bool = false;
-        if !self.params.pruning.enabled {
+        if !self.params.pruning.is_enabled() {
             return (0, Pos::default());
         }
         self.stats.prune_count += 1;
@@ -339,7 +339,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         // Prune any matches ending here.
         let mut change = 0;
-        if PRUNE_MATCHES_BY_END {
+        if self.params.pruning.end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
                 if let Some(s) = self.seeds.seed_ending_at(pos) {
@@ -415,7 +415,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 
-        if PRUNE_MATCHES_BY_START {
+        if self.params.pruning.start() {
             change += if min_len == 0 {
                 if self.add_prune() {
                     self.arrows.remove(&tpos).unwrap();

@@ -285,7 +285,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     /// FIXME: This code is copied from CSH. Should be extracted into a pruning module.
     fn prune(&mut self, pos: Pos, hint: Self::Hint) -> (Cost, I) {
         const D: bool = false;
-        if !self.params.pruning.enabled {
+        if !self.params.pruning.is_enabled() {
             return (0, 0);
         }
 
@@ -294,7 +294,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
 
         // Prune any matches ending here.
         // TODO: Shifting for prune by end.
-        if PRUNE_MATCHES_BY_END {
+        if self.params.pruning.end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
                 if let Some(s) = self.matches.seed_ending_at(pos) {
@@ -370,7 +370,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 
-        if PRUNE_MATCHES_BY_START {
+        if self.params.pruning.start() {
             if min_len == 0 {
                 for a in self.arrows.remove(&pos).unwrap() {
                     change += self.update_layers_on_pruning_arrow(a, hint);

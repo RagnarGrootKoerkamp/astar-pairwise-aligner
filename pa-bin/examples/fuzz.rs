@@ -2,7 +2,7 @@
 use astarpa::AstarPa;
 use bio::alignment::distance::simd::levenshtein;
 use pa_generate::{generate_model, ErrorModel};
-use pa_heuristic::{Heuristic, MatchConfig, Pruning, CSH};
+use pa_heuristic::{Heuristic, MatchConfig, Prune, Pruning, CSH};
 use pa_types::{seq_to_string, Cost, Pos, Sequence, I};
 use pa_vis_types::{NoVis, VisualizerT};
 use std::{
@@ -40,7 +40,7 @@ fn main() {
     let dt = true;
     let k = 3;
     let max_match_cost = 1;
-    let pruning = true;
+    let pruning = Prune::Both;
 
     let check_dist = true;
 

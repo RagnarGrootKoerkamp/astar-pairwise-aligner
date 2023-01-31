@@ -6,6 +6,7 @@ pub mod wrappers;
 
 use crate::prelude::*;
 use crate::{contour::Arrow, matches::*};
+use clap::ValueEnum;
 use derive_more::AddAssign;
 
 // internal/helper heuristics
@@ -15,10 +16,39 @@ use distances::*;
 pub use chained_seed::*;
 pub use distances::{GapCost, NoCost, NoCostI, ZeroCost};
 pub use seed::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, ValueEnum, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum Prune {
+    None,
+    Start,
+    End,
+    Both,
+}
+impl Prune {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Prune::None => false,
+            _ => true,
+        }
+    }
+    pub fn start(&self) -> bool {
+        match self {
+            Prune::None | Prune::End => false,
+            Prune::Start | Prune::Both => true,
+        }
+    }
+    pub fn end(&self) -> bool {
+        match self {
+            Prune::None | Prune::Start => false,
+            Prune::End | Prune::Both => true,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Pruning {
-    pub enabled: bool,
+    pub enabled: Prune,
     /// Skip pruning one in N.
     pub skip_prune: Option<usize>,
 }
@@ -30,7 +60,7 @@ impl Default for Pruning {
 }
 
 impl Pruning {
-    pub fn new(enabled: bool) -> Self {
+    pub fn new(enabled: Prune) -> Self {
         Self {
             enabled,
             skip_prune: None,
@@ -38,14 +68,33 @@ impl Pruning {
     }
     pub fn disabled() -> Self {
         Pruning {
-            enabled: false,
+            enabled: Prune::None,
             skip_prune: None,
         }
     }
     pub fn enabled() -> Self {
         Pruning {
-            enabled: true,
+            enabled: Prune::Both,
             skip_prune: None,
+        }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        match self.enabled {
+            Prune::None => false,
+            _ => true,
+        }
+    }
+    pub fn start(&self) -> bool {
+        match self.enabled {
+            Prune::None | Prune::End => false,
+            Prune::Start | Prune::Both => true,
+        }
+    }
+    pub fn end(&self) -> bool {
+        match self.enabled {
+            Prune::None | Prune::Start => false,
+            Prune::End | Prune::Both => true,
         }
     }
 }

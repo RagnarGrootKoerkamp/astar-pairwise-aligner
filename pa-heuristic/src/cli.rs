@@ -29,8 +29,8 @@ fn default_match_cost() -> MatchCost {
 fn default_seed_length() -> I {
     15
 }
-fn default_prune() -> bool {
-    true
+fn default_prune() -> Prune {
+    Prune::Both
 }
 
 /// Heuristic arguments.
@@ -71,9 +71,9 @@ pub struct HeuristicArgs {
 
     /// Disable pruning
     #[clap(long, hide_short_help = true)]
-    #[clap(long, action = clap::ArgAction::Set, default_value = "true")]
+    #[clap(long, action = clap::ArgAction::Set, default_value = "Prune::None")]
     #[serde(default = "default_prune")]
-    pub prune: bool,
+    pub prune: Prune,
 
     /// Skip pruning every Nth match.
     ///
@@ -93,7 +93,7 @@ impl ToString for HeuristicArgs {
             HeuristicType::Gap => "Gap-cost to end".into(),
             HeuristicType::SH => {
                 let mut s = format!("Seed Heuristic (r={}, k={})", self.r, self.k);
-                if self.prune {
+                if self.prune.is_enabled() {
                     s += " + Pruning"
                 } else {
                     s += " (no pruning)"
@@ -102,7 +102,7 @@ impl ToString for HeuristicArgs {
             }
             HeuristicType::CSH => {
                 let mut s = format!("Chaining Seed Heuristic (r={}, k={})", self.r, self.k);
-                if self.prune {
+                if self.prune.is_enabled() {
                     s += " + Pruning"
                 } else {
                     s += " (no pruning)"
@@ -114,7 +114,7 @@ impl ToString for HeuristicArgs {
                     "Gap-cost chaining Seed Heuristic (r={}, k={})",
                     self.r, self.k
                 );
-                if self.prune {
+                if self.prune.is_enabled() {
                     s += " + Pruning"
                 } else {
                     s += " (no pruning)"

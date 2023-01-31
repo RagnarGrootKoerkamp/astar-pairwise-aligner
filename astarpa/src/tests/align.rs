@@ -111,69 +111,69 @@ mod astar {
                 // large k variants with mostly linear matches
                 #[test]
                 fn exact_noprune() {
-                    super::test_heuristic($h(true, false, false), false);
+                    super::test_heuristic($h(true, Prune::None, false), false);
                 }
                 #[test]
                 fn exact_prune() {
-                    super::test_heuristic($h(true, true, false), false);
+                    super::test_heuristic($h(true, Prune::Both, false), false);
                 }
                 #[test]
                 fn inexact_noprune() {
-                    super::test_heuristic($h(false, false, false), false);
+                    super::test_heuristic($h(false, Prune::None, false), false);
                 }
                 #[test]
                 fn inexact_prune() {
-                    super::test_heuristic($h(false, true, false), false);
+                    super::test_heuristic($h(false, Prune::Both, false), false);
                 }
                 #[test]
                 fn exact_noprune_dt() {
-                    super::test_heuristic($h(true, false, false), true);
+                    super::test_heuristic($h(true, Prune::None, false), true);
                 }
                 #[test]
                 fn exact_prune_dt() {
-                    super::test_heuristic($h(true, true, false), true);
+                    super::test_heuristic($h(true, Prune::Both, false), true);
                 }
                 #[test]
                 fn inexact_noprune_dt() {
-                    super::test_heuristic($h(false, false, false), true);
+                    super::test_heuristic($h(false, Prune::None, false), true);
                 }
                 #[test]
                 fn inexact_prune_dt() {
-                    super::test_heuristic($h(false, true, false), true);
+                    super::test_heuristic($h(false, Prune::Both, false), true);
                 }
 
                 // small k variants with many matches, to stress the contours
                 #[test]
                 fn exact_noprune_smallk() {
-                    super::test_heuristic($h(true, false, true), false);
+                    super::test_heuristic($h(true, Prune::None, true), false);
                 }
                 #[test]
                 fn exact_prune_smallk() {
-                    super::test_heuristic($h(true, true, true), false);
+                    super::test_heuristic($h(true, Prune::Both, true), false);
                 }
                 #[test]
                 fn inexact_noprune_smallk() {
-                    super::test_heuristic($h(false, false, true), false);
+                    super::test_heuristic($h(false, Prune::None, true), false);
                 }
                 #[test]
                 fn inexact_prune_smallk() {
-                    super::test_heuristic($h(false, true, true), false);
+                    super::test_heuristic($h(false, Prune::Both, true), false);
                 }
                 #[test]
                 fn exact_noprune_dt_smallk() {
-                    super::test_heuristic($h(true, false, true), true);
+                    super::test_heuristic($h(true, Prune::None, true), true);
                 }
                 #[test]
                 fn exact_prune_dt_smallk() {
-                    super::test_heuristic($h(true, true, true), true);
+                    super::test_heuristic($h(true, Prune::Both, true), true);
                 }
                 #[test]
                 fn inexact_noprune_dt_smallk() {
-                    super::test_heuristic($h(false, false, true), true);
+                    super::test_heuristic($h(false, Prune::None, true), true);
                 }
                 #[test]
                 fn inexact_prune_dt_smallk() {
-                    super::test_heuristic($h(false, true, true), true);
+                    super::test_heuristic($h(false, Prune::Both, true), true);
                 }
             }
         };
