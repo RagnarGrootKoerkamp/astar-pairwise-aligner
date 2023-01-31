@@ -208,11 +208,9 @@ mod astar {
     make_test!(csh, |exact, prune, small_k| CSH::new(
         match_config(exact, small_k),
         Pruning::new(prune),
-        false,
     ));
-    make_test!(gch, |exact, prune, small_k| CSH::new(
+    make_test!(gch, |exact, prune, small_k| GCSH::new(
         match_config(exact, small_k),
         Pruning::new(prune),
-        true,
     ));
 }

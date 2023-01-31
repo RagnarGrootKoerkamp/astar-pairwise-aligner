@@ -1,9 +1,6 @@
-use std::marker::PhantomData;
-
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-use crate::contour::*;
 use crate::heuristic::*;
 use crate::matches::*;
 use pa_types::*;
@@ -165,24 +162,20 @@ impl HeuristicArgs {
                     skip_prune: self.skip_prune,
                 },
             }),
-            HeuristicType::CSH => f.call(CSH {
-                match_config: self.match_config(false),
-                pruning: Pruning {
+            HeuristicType::CSH => f.call(CSH::new(
+                self.match_config(false),
+                Pruning {
                     enabled: self.prune,
                     skip_prune: self.skip_prune,
                 },
-                use_gap_cost: false,
-                c: PhantomData::<HintContours<BruteForceContour>>,
-            }),
-            HeuristicType::GCSH => f.call(CSH {
-                match_config: self.match_config(true),
-                pruning: Pruning {
+            )),
+            HeuristicType::GCSH => f.call(GCSH::new(
+                self.match_config(true),
+                Pruning {
                     enabled: self.prune,
                     skip_prune: self.skip_prune,
                 },
-                use_gap_cost: true,
-                c: PhantomData::<HintContours<BruteForceContour>>,
-            }),
+            )),
         }
     }
 }
