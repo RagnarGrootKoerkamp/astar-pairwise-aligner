@@ -184,7 +184,7 @@ visualization strategies (per layer, per cell) timings are not at all comparable
 
 And here is a video of figure 3 of our preprint:
 
-[[file:imgs/fig3.gif]]
+[[file:imgs/fig_layers.gif]]
 
 * Tests & Benchmarks
 

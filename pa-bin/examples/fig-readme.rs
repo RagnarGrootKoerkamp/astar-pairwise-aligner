@@ -1,17 +1,11 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 use astarpa::AstarPa;
 use itertools::Itertools;
-
-
-use pa_generate::{uniform_fixed};
-use pa_heuristic::{
-    MatchConfig, Pruning, CSH,
-};
-
+use pa_generate::uniform_fixed;
+use pa_heuristic::{MatchConfig, Pruning, CSH};
 use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis_types::canvas::*;
-
-use std::{time::Duration};
+use std::time::Duration;
 
 fn main() {
     let n = 500;

@@ -29,6 +29,13 @@ fn main() {
     config.style.match_width = 4;
     config.style.match_shrink = 0;
     config.style.pruned_match = BLACK;
+    config.style.draw_dt = false;
+    config.style.draw_f = false;
+    config.style.draw_labels = false;
+
+    config.filepath = "imgs/fig8".into();
+
+    let csh = CSH::new(MatchConfig::inexact(10), Pruning::enabled());
 
     {
         let (mut a, mut b) = uniform_seeded(250 * scale, 0.08, 6);
@@ -38,18 +45,10 @@ fn main() {
         b.append(&mut b2);
         a.append(&mut a3);
         b.append(&mut b3);
-        let ref a = a;
-        let ref b = b;
 
-        config.filepath = "imgs/fig8/high-error-rate".into();
-        let cost = astar(
-            a,
-            b,
-            &CSH::new(MatchConfig::inexact(10), Pruning::enabled()),
-            &config,
-        )
-        .0
-         .0;
+        let cost = astar(&a, &b, &csh, &config.with_filename("high-error-rate"))
+            .0
+             .0;
         println!("cost {cost}");
     }
 
@@ -61,18 +60,8 @@ fn main() {
         //b.append(&mut b2);
         a.append(&mut a3);
         b.append(&mut b3);
-        let ref a = a;
-        let ref b = b;
 
-        config.filepath = "imgs/fig8/deletion".into();
-        let cost = astar(
-            a,
-            b,
-            &CSH::new(MatchConfig::inexact(10), Pruning::enabled()),
-            &config,
-        )
-        .0
-         .0;
+        let cost = astar(&a, &b, &csh, &config.with_filename("deletion")).0 .0;
         println!("cost {cost}");
     }
 
@@ -91,18 +80,8 @@ fn main() {
         b.append(&mut b2);
         a.append(&mut a3);
         b.append(&mut b3);
-        let ref a = a;
-        let ref b = b;
 
-        config.filepath = "imgs/fig8/repeats".into();
-        let cost = astar(
-            a,
-            b,
-            &CSH::new(MatchConfig::inexact(10), Pruning::enabled()),
-            &config,
-        )
-        .0
-         .0;
+        let cost = astar(&a, &b, &csh, &config.with_filename("repeats")).0 .0;
         println!("cost {cost}");
     }
 }
