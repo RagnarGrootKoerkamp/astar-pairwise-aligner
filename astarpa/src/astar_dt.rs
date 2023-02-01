@@ -62,10 +62,7 @@ pub fn astar_dt<'a, H: Heuristic>(
     // Initialization with the root state.
     {
         let start = Pos(0, 0);
-        let (hroot, hint) = h.h_with_hint(
-            start,
-            <H::Instance<'a> as HeuristicInstance>::Hint::default(),
-        );
+        let (hroot, hint) = h.h_with_hint(start, Default::default());
         queue.push(QueueElement {
             f: hroot,
             data: (start, 0),

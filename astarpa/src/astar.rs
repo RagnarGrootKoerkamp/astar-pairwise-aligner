@@ -54,7 +54,6 @@ pub fn astar<'a, H: Heuristic>(
         },
     );
 
-    //let mut states = DiagonalMap::<State<H::Hint>>::new(graph.target());
     let mut states =
         HashMap::<Pos, State<<H::Instance<'a> as HeuristicInstance<'a>>::Hint>>::default();
 
