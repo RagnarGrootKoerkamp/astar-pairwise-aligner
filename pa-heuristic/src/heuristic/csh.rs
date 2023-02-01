@@ -38,32 +38,34 @@ impl GCSH {
 }
 
 impl<C: Contours> CSH<C> {
-    pub fn to_seed_heuristic(&self) -> BruteForceCSH<GapCost> {
+    pub fn to_seed_heuristic(&self) -> BruteForceGCSH<GapCost> {
         assert!(self.use_gap_cost);
-        BruteForceCSH {
+        BruteForceGCSH {
             match_config: self.match_config,
             distance_function: GapCost,
             pruning: self.pruning,
         }
     }
 
-    pub fn to_zero_cost_seed_heuristic(&self) -> BruteForceCSH<NoCost> {
+    pub fn to_zero_cost_seed_heuristic(&self) -> BruteForceGCSH<NoCost> {
         assert!(!self.use_gap_cost);
-        BruteForceCSH {
+        BruteForceGCSH {
             match_config: self.match_config,
             distance_function: NoCost,
             pruning: self.pruning,
         }
     }
 
-    pub fn equal_to_seed_heuristic(&self) -> EqualHeuristic<BruteForceCSH<GapCost>, Self> {
+    pub fn equal_to_seed_heuristic(&self) -> EqualHeuristic<BruteForceGCSH<GapCost>, Self> {
         EqualHeuristic {
             h1: self.to_seed_heuristic(),
             h2: *self,
         }
     }
 
-    pub fn equal_to_zero_cost_seed_heuristic(&self) -> EqualHeuristic<BruteForceCSH<NoCost>, Self> {
+    pub fn equal_to_zero_cost_seed_heuristic(
+        &self,
+    ) -> EqualHeuristic<BruteForceGCSH<NoCost>, Self> {
         EqualHeuristic {
             h1: self.to_zero_cost_seed_heuristic(),
             h2: *self,
@@ -208,6 +210,7 @@ impl<C: Contours> CSHI<C> {
 
         h.stats.num_matches = h.seeds.matches.len();
         if params.use_gap_cost {
+            // Remove irrelevant matches.
             // Need to take it out of h.seeds because transform also uses this.
             let mut matches = std::mem::take(&mut h.seeds.matches);
             matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);

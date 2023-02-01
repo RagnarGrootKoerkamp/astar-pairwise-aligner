@@ -1,22 +1,19 @@
-pub mod bruteforce_csh;
-pub mod chained_seed;
+pub mod bruteforce_gcsh;
+pub mod csh;
 pub mod distances;
-pub mod seed;
+pub mod sh;
 pub mod wrappers;
 
 use crate::prelude::*;
 use crate::{contour::Arrow, matches::*};
 use clap::ValueEnum;
 use derive_more::AddAssign;
-
-// internal/helper heuristics
-use bruteforce_csh::*;
-use distances::*;
-
-pub use chained_seed::*;
-pub use distances::{GapCost, NoCost, NoCostI, ZeroCost};
-pub use seed::*;
 use serde::{Deserialize, Serialize};
+
+pub use bruteforce_gcsh::*;
+pub use csh::*;
+pub use distances::*;
+pub use sh::*;
 
 #[derive(Debug, ValueEnum, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Prune {

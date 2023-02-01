@@ -5,24 +5,24 @@ use super::*;
 use crate::matches::*;
 
 #[derive(Debug, Copy, Clone)]
-pub struct BruteForceCSH<DH: Distance> {
+pub struct BruteForceGCSH<DH: Distance> {
     pub match_config: MatchConfig,
     pub distance_function: DH,
     pub pruning: Pruning,
 }
 
-impl<DH: Distance> Heuristic for BruteForceCSH<DH>
+impl<DH: Distance> Heuristic for BruteForceGCSH<DH>
 where
     for<'a> DH::DistanceInstance<'a>: HeuristicInstance<'a>,
 {
-    type Instance<'a> = BruteForceCSHI<'a, DH>;
+    type Instance<'a> = BruteForceGCSHI<'a, DH>;
 
     fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         assert!(
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
-        BruteForceCSHI::new(a, b, *self)
+        BruteForceGCSHI::new(a, b, *self)
     }
 
     fn name(&self) -> String {
@@ -41,8 +41,8 @@ where
     }
 }
 
-pub struct BruteForceCSHI<'a, DH: Distance> {
-    params: BruteForceCSH<DH>,
+pub struct BruteForceGCSHI<'a, DH: Distance> {
+    params: BruteForceGCSH<DH>,
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
 
@@ -59,7 +59,7 @@ pub struct BruteForceCSHI<'a, DH: Distance> {
 /// provided distance function and the potential difference between the two
 /// positions.  Assumes that the current position is not a match, and no matches
 /// are visited in between `from` and `to`.
-impl<'a, DH: Distance> DistanceInstance<'a> for BruteForceCSHI<'a, DH>
+impl<'a, DH: Distance> DistanceInstance<'a> for BruteForceGCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
@@ -71,12 +71,12 @@ where
     }
 }
 
-impl<'a, DH: Distance> BruteForceCSHI<'a, DH>
+impl<'a, DH: Distance> BruteForceGCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
-    fn new(a: Seq<'a>, b: Seq<'a>, params: BruteForceCSH<DH>) -> Self {
-        let mut h = BruteForceCSHI::<'a> {
+    fn new(a: Seq<'a>, b: Seq<'a>, params: BruteForceGCSH<DH>) -> Self {
+        let mut h = BruteForceGCSHI::<'a> {
             params,
             distance_function: Distance::build(&params.distance_function, a, b),
             target: Pos::target(a, b),
@@ -159,7 +159,7 @@ where
     }
 }
 
-impl<'a, DH: Distance> HeuristicInstance<'a> for BruteForceCSHI<'a, DH>
+impl<'a, DH: Distance> HeuristicInstance<'a> for BruteForceGCSHI<'a, DH>
 where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
