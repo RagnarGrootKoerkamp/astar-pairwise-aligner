@@ -116,8 +116,8 @@ pub struct MaxCostI {
 }
 
 impl HeuristicInstance<'_> for MaxCostI {
-    fn h(&self, Pos(i, j): Pos) -> Cost {
-        max(self.target.0 - i, self.target.1 - j) as Cost
+    fn h(&self, from: Pos) -> Cost {
+        self.distance(from, self.target)
     }
 }
 impl DistanceInstance<'_> for MaxCostI {
@@ -157,8 +157,8 @@ fn abs_diff(i: I, j: I) -> I {
 }
 
 impl HeuristicInstance<'_> for GapCostI {
-    fn h(&self, Pos(i, j): Pos) -> Cost {
-        abs_diff(self.target.0 - i, self.target.1 - j) as Cost
+    fn h(&self, from: Pos) -> Cost {
+        self.distance(from, self.target)
     }
 }
 impl DistanceInstance<'_> for GapCostI {
@@ -321,5 +321,61 @@ impl<'a> DistanceInstance<'a> for BiCountCostI {
             // TODO: Why does rounding up give an error here?
             ((max(pos, neg) + 1) / 2) as Cost,
         )
+    }
+}
+
+// # AFFINE GAP HEURISTIC
+// NOTE: This currently assumes (x=1, o=1, e=1) and seedcost r=1.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AffineGapCost {
+    pub k: I,
+}
+impl Heuristic for AffineGapCost {
+    type Instance<'a> = AffineGapCostI;
+    fn name(&self) -> String {
+        "AffineGap".into()
+    }
+
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
+        AffineGapCostI {
+            k: self.k,
+            target: Pos::target(a, b),
+        }
+    }
+}
+impl Distance for AffineGapCost {
+    type DistanceInstance<'a> = AffineGapCostI;
+
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::DistanceInstance<'a> {
+        <AffineGapCost as Heuristic>::build(self, a, b)
+    }
+}
+pub struct AffineGapCostI {
+    k: I,
+    target: Pos,
+}
+
+impl HeuristicInstance<'_> for AffineGapCostI {
+    fn h(&self, from: Pos) -> Cost {
+        self.distance(from, self.target)
+    }
+}
+impl DistanceInstance<'_> for AffineGapCostI {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
+        let e = (to.1 - to.0) - (from.1 - from.0);
+        let s = to.0.div_floor(self.k) - from.0.div_ceil(self.k);
+        // If on same diagonal
+        match e {
+            // Diagonal
+            e if e == 0 => s,
+            // Vertical
+            e if e > 0 => s + e,
+            // Horizontal
+            // TODO: Make this more strict for large gaps
+            //e if e < 0 => s + e.abs().div_ceil(2),
+            // FIXME: Make this consistent
+            e if e < 0 => s + e.abs(),
+            _ => unreachable!(),
+        }
     }
 }
