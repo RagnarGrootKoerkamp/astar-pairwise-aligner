@@ -677,127 +677,127 @@ impl Visualizer {
 
             // Draw heuristic values.
             if self.config.style.draw_heuristic && let Some(h) = h {
-                    let mut hint = Default::default();
-                    let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
-                    let mut value_pos_map = HashMap::<I, Vec<Pos>>::default();
-                    for i in 0..=self.target.0 {
-                        hint = h.h_with_hint(Pos(i,0), hint).1;
-                        let mut hint = hint;
-                        for j in 0..=self.target.1 {
-                            let pos = Pos(i, j);
-                            let (h, new_hint) = h.h_with_hint(pos, hint);
-                            hint = new_hint;
-                            value_pos_map.entry(h).or_default().push(pos);
-                        }
-                    }
-                    for (h, poss) in value_pos_map {
-                        self.draw_pixels(
-                            &mut canvas,
-                            poss,
-                            self.config.style.heuristic.color(h as f64 / h_max as f64),
-                        );
+                let mut hint = Default::default();
+                let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
+                let mut value_pos_map = HashMap::<I, Vec<Pos>>::default();
+                for i in 0..=self.target.0 {
+                    hint = h.h_with_hint(Pos(i,0), hint).1;
+                    let mut hint = hint;
+                    for j in 0..=self.target.1 {
+                        let pos = Pos(i, j);
+                        let (h, new_hint) = h.h_with_hint(pos, hint);
+                        hint = new_hint;
+                        value_pos_map.entry(h).or_default().push(pos);
                     }
                 }
+                for (h, poss) in value_pos_map {
+                    self.draw_pixels(
+                        &mut canvas,
+                        poss,
+                        self.config.style.heuristic.color(h as f64 / h_max as f64),
+                    );
+                }
+            }
 
             // Draw layer values.
             if self.config.style.draw_layers && let Some(h) = h {
-                    if let Some((mut l_max, mut hint)) = h.layer_with_hint(Pos(0,0), Default::default()) {
-                        if let Some(m) = self.config.style.max_layer {
-                            l_max = m;
-                        }
-                        let mut value_pos_map = HashMap::<I, Vec<Pos>>::default();
-                        for i in 0..=self.target.0 {
-                            hint = h.layer_with_hint(Pos(i,0), hint).unwrap().1;
-                            let mut hint = hint;
-                            for j in 0..=self.target.1 {
-                                let pos = Pos(i, j);
-                                let (l, new_hint) = h.layer_with_hint(pos, hint).unwrap();
-                                hint = new_hint;
-                                value_pos_map.entry(l).or_default().push(pos);
-                            }
-                        }
-                        for (l, poss) in value_pos_map {
-                            self.draw_pixels(
-                                &mut canvas,
-                                poss,
-                                self.config.style.layer.color(l as f64 / max(l_max, 1) as f64),
-                            );
-                        }
+                if let Some((mut l_max, mut hint)) = h.layer_with_hint(Pos(0,0), Default::default()) {
+                    if let Some(m) = self.config.style.max_layer {
+                        l_max = m;
                     }
-                }
-
-            // Draw layers and contours.
-            if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
-                    let draw_right_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
-                        canvas
-                            .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
-                    };
-                    let draw_bottom_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
-                        canvas
-                            .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
-                    };
-
-
-                    // Right borders
-                    let mut hint = Default::default();
-                    let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
-                    for i in 0..self.target.0 {
-                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                    let mut value_pos_map = HashMap::<I, Vec<Pos>>::default();
+                    for i in 0..=self.target.0 {
+                        hint = h.layer_with_hint(Pos(i,0), hint).unwrap().1;
                         let mut hint = hint;
                         for j in 0..=self.target.1 {
                             let pos = Pos(i, j);
-                            let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                            let (l, new_hint) = h.layer_with_hint(pos, hint).unwrap();
                             hint = new_hint;
-                            let pos_r = Pos(i + 1, j);
-                            let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
-                            hint = new_hint;
-                            if v_r != v {
-                                draw_right_border(&mut canvas, pos);
-
-                                if j == 0 {
-                                    top_borders.push((i+1, v_r));
-                                }
-                            }
+                            value_pos_map.entry(l).or_default().push(pos);
                         }
                     }
-                    top_borders.push((self.target.0+1, 0));
-
-                    // Bottom borders
-                    let mut hint = Default::default();
-                    let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
-                    for i in 0..=self.target.0 {
-                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
-                        let mut hint = hint;
-                        for j in 0..self.target.1 {
-                            let pos = Pos(i, j);
-                            let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
-                            hint = new_hint;
-                            let pos_l = Pos(i, j + 1);
-                            let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
-                            hint = new_hint;
-                            if v_l != v {
-                                draw_bottom_border(&mut canvas, pos);
-
-                                if i == 0 {
-                                    left_borders.push((j+1, v_l));
-                                }
-                            }
-                        }
-                    }
-                    left_borders.push((self.target.1, 0));
-
-                    // Draw numbers at the top and left.
-                    for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
-                        if right < 3 { continue; }
-                        let x = (right * self.config.cell_size -1 ).saturating_sub(1);
-                        canvas.write_text(CPos(x as i32, -6), HAlign::Right, VAlign::Top, &layer.to_string(), BLACK);
-                    }
-                    for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
-                        if bottom < 3 || bottom == self.target.1 { continue; }
-                        let y = bottom * self.config.cell_size +5;
-                        canvas.write_text(CPos(3, y as i32), HAlign::Left, VAlign::Bottom, &layer.to_string(), BLACK);
+                    for (l, poss) in value_pos_map {
+                        self.draw_pixels(
+                            &mut canvas,
+                            poss,
+                            self.config.style.layer.color(l as f64 / max(l_max, 1) as f64),
+                        );
                     }
                 }
+            }
+
+            // Draw layers and contours.
+            if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
+                let draw_right_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
+                    canvas
+                        .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
+                };
+                let draw_bottom_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
+                    canvas
+                        .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
+                };
+
+
+                // Right borders
+                let mut hint = Default::default();
+                let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                for i in 0..self.target.0 {
+                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                    let mut hint = hint;
+                    for j in 0..=self.target.1 {
+                        let pos = Pos(i, j);
+                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                        hint = new_hint;
+                        let pos_r = Pos(i + 1, j);
+                        let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
+                        hint = new_hint;
+                        if v_r != v {
+                            draw_right_border(&mut canvas, pos);
+
+                            if j == 0 {
+                                top_borders.push((i+1, v_r));
+                            }
+                        }
+                    }
+                }
+                top_borders.push((self.target.0+1, 0));
+
+                // Bottom borders
+                let mut hint = Default::default();
+                let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                for i in 0..=self.target.0 {
+                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                    let mut hint = hint;
+                    for j in 0..self.target.1 {
+                        let pos = Pos(i, j);
+                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                        hint = new_hint;
+                        let pos_l = Pos(i, j + 1);
+                        let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
+                        hint = new_hint;
+                        if v_l != v {
+                            draw_bottom_border(&mut canvas, pos);
+
+                            if i == 0 {
+                                left_borders.push((j+1, v_l));
+                            }
+                        }
+                    }
+                }
+                left_borders.push((self.target.1, 0));
+
+                // Draw numbers at the top and left.
+                for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
+                    if right < 3 { continue; }
+                    let x = (right * self.config.cell_size -1 ).saturating_sub(1);
+                    canvas.write_text(CPos(x as i32, -6), HAlign::Right, VAlign::Top, &layer.to_string(), BLACK);
+                }
+                for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
+                    if bottom < 3 || bottom == self.target.1 { continue; }
+                    let y = bottom * self.config.cell_size +5;
+                    canvas.write_text(CPos(3, y as i32), HAlign::Left, VAlign::Bottom, &layer.to_string(), BLACK);
+                }
+            }
 
             if self.config.draw_old_on_top {
                 // Explored
@@ -873,143 +873,143 @@ impl Visualizer {
 
             // Draw matches.
             if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
-                    // first draw inexact matches, then exact ones on top.
-                    for exact in [false, true] {
-                        for m in &matches {
-                            if (m.match_cost == 0) != exact {
-                                continue;
-                            }
-                            let mut b = self.cell_center(m.start);
-                            b.0 += self.config.style.match_shrink as i32;
-                            b.1 += self.config.style.match_shrink as i32;
-                            let mut e = self.cell_center(m.end);
-                            e.0 -= self.config.style.match_shrink as i32;
-                            e.1 -= self.config.style.match_shrink as i32;
-                            let mut color = match m.pruned {
-                                    MatchStatus::Active => self.config.style.active_match,
-                                    MatchStatus::Pruned => self.config.style.pruned_match,
-                                };
-                            let mut width = self.config.style.match_width;
-                            if m.match_cost > 0 {
-                                if m.pruned == MatchStatus::Active {
-                                    color = GRAY;
-                                }
-                                width = max(1, width-1);
-                            }
-                            Self::draw_diag_line(
-                                &mut canvas,
-                                b, e,
-                                color,
-                                width,
-                            );
+                // first draw inexact matches, then exact ones on top.
+                for exact in [false, true] {
+                    for m in &matches {
+                        if (m.match_cost == 0) != exact {
+                            continue;
                         }
+                        let mut b = self.cell_center(m.start);
+                        b.0 += self.config.style.match_shrink as i32;
+                        b.1 += self.config.style.match_shrink as i32;
+                        let mut e = self.cell_center(m.end);
+                        e.0 -= self.config.style.match_shrink as i32;
+                        e.1 -= self.config.style.match_shrink as i32;
+                        let mut color = match m.pruned {
+                                MatchStatus::Active => self.config.style.active_match,
+                                MatchStatus::Pruned => self.config.style.pruned_match,
+                            };
+                        let mut width = self.config.style.match_width;
+                        if m.match_cost > 0 {
+                            if m.pruned == MatchStatus::Active {
+                                color = GRAY;
+                            }
+                            width = max(1, width-1);
+                        }
+                        Self::draw_diag_line(
+                            &mut canvas,
+                            b, e,
+                            color,
+                            width,
+                        );
                     }
                 }
+            }
 
             // Draw path.
             if let Some(cigar) = cigar &&
-                   let Some(path_color) = self.config.style.path {
-                    if let Some(path_width) = self.config.style.path_width {
-                        for (from, to) in cigar.to_path().iter().tuple_windows() {
-                            Self::draw_diag_line(
-                                &mut canvas,
-                                self.cell_center(*from),
-                                self.cell_center(*to),
-                                path_color,
-                                path_width,
-                            );
-                        }
-                    } else {
-                        for p in cigar.to_path() {
-                            self.draw_pixel(&mut canvas, p, path_color)
-                        }
+                let Some(path_color) = self.config.style.path {
+                if let Some(path_width) = self.config.style.path_width {
+                    for (from, to) in cigar.to_path().iter().tuple_windows() {
+                        Self::draw_diag_line(
+                            &mut canvas,
+                            self.cell_center(*from),
+                            self.cell_center(*to),
+                            path_color,
+                            path_width,
+                        );
+                    }
+                } else {
+                    for p in cigar.to_path() {
+                        self.draw_pixel(&mut canvas, p, path_color)
                     }
                 }
+            }
 
             // Draw tree.
             if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
-                    for &(_t, u, _, _) in &self.expanded {
-                        if self.config.style.tree_fr_only {
-                            // Only trace if u is the furthest point on this diagonal.
-                            let mut v = u;
-                            let mut skip = false;
-                            loop {
-                                v = v + Pos(1,1);
-                                if !(v <= self.target) {
-                                    break;
-                                }
-                                if self.expanded.iter().filter(|(_, u, _, _)| *u == v).count() > 0 {
-                                    skip = true;
-                                    break;
-                                }
+                for &(_t, u, _, _) in &self.expanded {
+                    if self.config.style.tree_fr_only {
+                        // Only trace if u is the furthest point on this diagonal.
+                        let mut v = u;
+                        let mut skip = false;
+                        loop {
+                            v = v + Pos(1,1);
+                            if !(v <= self.target) {
+                                break;
                             }
-                            if skip {
-                                continue;
+                            if self.expanded.iter().filter(|(_, u, _, _)| *u == v).count() > 0 {
+                                skip = true;
+                                break;
                             }
                         }
-                        let mut st = State{i: u.0, j: u.1, layer: None};
-                        let mut path = vec![];
-                        while let Some((p, op)) = parent(st){
-                            path.push((st, p, op));
-                            let color = if let Some(AffineCigarOp::AffineOpen(_)) = op[1]
-                                && let Some(c) = self.config.style.tree_affine_open {
-                                    c
-                                } else {
-                                    match op[0].unwrap() {
-                                        AffineCigarOp::Match => self.config.style.tree_match,
-                                        AffineCigarOp::Sub => self.config.style.tree_substitution,
-                                        _ => None,
-                                    }.unwrap_or(tree_color)
-                                };
-                            Self::draw_diag_line(
-                                &mut canvas,
-                                self.cell_center(p.pos()),
-                                self.cell_center(st.pos()),
-                                color,
-                                self.config.style.tree_width,
-                            );
+                        if skip {
+                            continue;
+                        }
+                    }
+                    let mut st = State{i: u.0, j: u.1, layer: None};
+                    let mut path = vec![];
+                    while let Some((p, op)) = parent(st){
+                        path.push((st, p, op));
+                        let color = if let Some(AffineCigarOp::AffineOpen(_)) = op[1]
+                            && let Some(c) = self.config.style.tree_affine_open {
+                                c
+                            } else {
+                                match op[0].unwrap() {
+                                    AffineCigarOp::Match => self.config.style.tree_match,
+                                    AffineCigarOp::Sub => self.config.style.tree_substitution,
+                                    _ => None,
+                                }.unwrap_or(tree_color)
+                            };
+                        Self::draw_diag_line(
+                            &mut canvas,
+                            self.cell_center(p.pos()),
+                            self.cell_center(st.pos()),
+                            color,
+                            self.config.style.tree_width,
+                        );
 
-                            st = p;
-                        }
-                        if let Some(c) = self.config.style.tree_direction_change {
-                            let mut last = AffineCigarOp::Match;
-                            for &(u, p, op)  in path.iter().rev() {
-                                let op = op[0].unwrap();
-                                match op {
-                                    AffineCigarOp::Ins => {
-                                        if last == AffineCigarOp::Del {
-                                            Self::draw_diag_line(
-                                                &mut canvas,
-                                                self.cell_center(p.pos()),
-                                                self.cell_center(u.pos()),
-                                                c,
-                                                self.config.style.tree_width,
-                                            );
-                                        }
-                                        last = op;
+                        st = p;
+                    }
+                    if let Some(c) = self.config.style.tree_direction_change {
+                        let mut last = AffineCigarOp::Match;
+                        for &(u, p, op)  in path.iter().rev() {
+                            let op = op[0].unwrap();
+                            match op {
+                                AffineCigarOp::Ins => {
+                                    if last == AffineCigarOp::Del {
+                                        Self::draw_diag_line(
+                                            &mut canvas,
+                                            self.cell_center(p.pos()),
+                                            self.cell_center(u.pos()),
+                                            c,
+                                            self.config.style.tree_width,
+                                        );
                                     }
-                                    AffineCigarOp::Del => {
-                                        if last == AffineCigarOp::Ins {
-                                            Self::draw_diag_line(
-                                                &mut canvas,
-                                                self.cell_center(p.pos()),
-                                                self.cell_center(u.pos()),
-                                                c,
-                                                self.config.style.tree_width,
-                                            );
-                                        }
-                                        last = op;
+                                    last = op;
+                                }
+                                AffineCigarOp::Del => {
+                                    if last == AffineCigarOp::Ins {
+                                        Self::draw_diag_line(
+                                            &mut canvas,
+                                            self.cell_center(p.pos()),
+                                            self.cell_center(u.pos()),
+                                            c,
+                                            self.config.style.tree_width,
+                                        );
                                     }
-                                    AffineCigarOp::Sub => {
-                                        last = op;
-                                    }
-                                    _ => {
-                                    }
+                                    last = op;
+                                }
+                                AffineCigarOp::Sub => {
+                                    last = op;
+                                }
+                                _ => {
                                 }
                             }
                         }
                     }
-                } // draw tree
+                }
+            } // draw tree
 
             // Draw labels
             if self.config.style.draw_labels {
