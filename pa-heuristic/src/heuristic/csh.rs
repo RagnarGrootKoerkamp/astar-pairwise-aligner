@@ -267,6 +267,27 @@ impl<C: Contours> CSHI<C> {
         }
     }
 
+    // TODO: Transform maps from position domain into cost domain.
+    // Contours should take a template for the type of point they deal with.
+    fn transform_back(&self, pos @ Pos(x, y): Pos) -> Pos {
+        if self.params.use_gap_cost {
+            if pos == Pos(I::MAX, I::MAX) {
+                return pos;
+            }
+            let k = self.params.match_config.length.k().unwrap();
+            let a = self.target.0;
+            let b = self.target.1;
+            let delta_p = (x - b - a + y) / 2;
+            let i = delta_p / (self.params.match_config.max_match_cost + 1) as I * k;
+            let diff = (x - y + a - b) / 2;
+            let j = i - diff;
+            assert_eq!(pos, self.transform(Pos(i, j)));
+            Pos(i, j)
+        } else {
+            pos
+        }
+    }
+
     /// True when the next position should be pruned.
     /// Returns false once every `params.pruning.skip_prune` steps, if set.
     fn add_prune(&mut self) -> bool {
@@ -297,6 +318,13 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     fn layer_with_hint(&self, pos: Pos, hint: Self::Hint) -> Option<(Cost, Self::Hint)> {
         Some(self.contours.score_with_hint(self.transform(pos), hint))
+    }
+
+    fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
+        (
+            self.h(pos),
+            self.transform_back(self.contours.parent(self.transform(pos)).1),
+        )
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
