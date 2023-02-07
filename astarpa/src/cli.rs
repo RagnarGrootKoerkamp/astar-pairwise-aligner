@@ -129,7 +129,7 @@ impl Input {
         } else {
             // Generate random input.
             let seed = self.generate.seed.unwrap_or_else(|| {
-                let seed = ChaCha8Rng::from_entropy().gen_range(0..u64::MAX);
+                let seed = ChaCha8Rng::from_entropy().gen_range(0..1_000);
                 eprintln!("Seed: {seed}");
                 seed
             });
