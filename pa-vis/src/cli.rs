@@ -61,6 +61,10 @@ pub struct VisualizerArgs {
     /// Disable drawing the tree.
     #[clap(long, display_order = 10, hide_short_help = true)]
     pub no_draw_tree: bool,
+
+    /// Draw parents for the chaining computation.
+    #[clap(long, display_order = 10, hide_short_help = true)]
+    pub draw_parents: bool,
 }
 
 pub trait VisualizerRunner {
@@ -120,6 +124,16 @@ impl VisualizerArgs {
             }
             if self.no_draw_tree {
                 config.style.tree = None;
+            }
+
+            if self.draw_parents {
+                config.style.draw_dt = false;
+                config.style.draw_f = false;
+                config.style.draw_heuristic = false;
+                config.style.draw_labels = false;
+
+                config.style.draw_parents = true;
+                config.style.draw_matches = true;
             }
 
             #[cfg(feature = "wasm")]

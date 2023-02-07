@@ -17,6 +17,7 @@ colorgrad = "0.6.2"
 sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
 lazy_static = "1.4.0"
 astarpa.workspace = true
+rand = "0.8.5"
 
 [features]
 default = ["sdl"]

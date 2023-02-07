@@ -15,6 +15,8 @@ use pa_heuristic::matches::MatchStatus;
 use pa_heuristic::*;
 use pa_types::*;
 use pa_vis_types::{canvas::*, *};
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::{
@@ -204,6 +206,7 @@ pub struct Style {
     pub draw_contours: bool,
     pub draw_layers: bool,
     pub draw_matches: bool,
+    pub draw_parents: bool,
     pub draw_dt: bool,
     pub draw_f: bool,
     pub draw_labels: bool,
@@ -287,6 +290,7 @@ impl Config {
                 draw_contours: false,
                 draw_layers: false,
                 draw_matches: false,
+                draw_parents: false,
                 draw_dt: true,
                 draw_f: false,
                 draw_labels: true,
@@ -530,7 +534,7 @@ impl Visualizer {
         }
     }
 
-    fn draw_pixels(&self, canvas: &mut CanvasBox, pos: Vec<Pos>, color: Color) {
+    fn draw_pixels(&self, canvas: &mut CanvasBox, pos: &Vec<Pos>, color: Color) {
         let rects = pos
             .iter()
             .map(|p| {
@@ -693,8 +697,40 @@ impl Visualizer {
                 for (h, poss) in value_pos_map {
                     self.draw_pixels(
                         &mut canvas,
-                        poss,
+                        &poss,
                         self.config.style.heuristic.color(h as f64 / h_max as f64),
+                    );
+                }
+            }
+
+            let color_for_pos = |p: &Pos| -> Color {
+                let mut rng = StdRng::seed_from_u64(
+                    (self.target.0.saturating_mul(p.0).saturating_add(p.1)) as _,
+                );
+                let r = rng.gen_range(0..=255);
+                let g = rng.gen_range(0..=255);
+                let b = rng.gen_range(0..=255);
+                (r, g, b, 0)
+            };
+
+            // Draw parents
+            if self.config.style.draw_parents && let Some(h) = h {
+                let mut parent_pos_map = HashMap::<Pos, Vec<Pos>>::default();
+                for i in 0..=self.target.0 {
+                    for j in 0..=self.target.1 {
+                        let pos = Pos(i, j);
+                        let (_h, parent) = h.h_with_parent(pos);
+                        parent_pos_map.entry(parent).or_default().push(pos);
+                    }
+                }
+
+
+                for (_i, (parent, poss)) in parent_pos_map.iter().enumerate() {
+                    self.draw_pixels(
+                        &mut canvas,
+                        poss,
+                        color_for_pos(parent)
+                        //self.config.style.heuristic.color(i as f64 / parent_pos_map.len() as f64),
                     );
                 }
             }
@@ -719,7 +755,7 @@ impl Visualizer {
                     for (l, poss) in value_pos_map {
                         self.draw_pixels(
                             &mut canvas,
-                            poss,
+                            &poss,
                             self.config.style.layer.color(l as f64 / max(l_max, 1) as f64),
                         );
                     }
