@@ -21,6 +21,12 @@ pub enum HeuristicType {
     CSH,
     /// Gap-cost chaining seed heuristic.
     GCSH,
+
+    // For testing
+    /// Bruteforce GapCost
+    GapCost,
+    /// Affine gap costs
+    Affine,
 }
 
 fn default_match_cost() -> MatchCost {
@@ -71,7 +77,7 @@ pub struct HeuristicArgs {
 
     /// Disable pruning
     #[clap(long, hide_short_help = true)]
-    #[clap(long, action = clap::ArgAction::Set, default_value = "Prune::None")]
+    #[clap(long, action = clap::ArgAction::Set, default_value = "none")]
     #[serde(default = "default_prune")]
     pub prune: Prune,
 
@@ -121,6 +127,7 @@ impl ToString for HeuristicArgs {
                 }
                 s
             }
+            _ => panic!(),
         }
     }
 }
@@ -176,6 +183,23 @@ impl HeuristicArgs {
                     skip_prune: self.skip_prune,
                 },
             )),
+            // bruteforce variants
+            HeuristicType::GapCost => f.call(BruteForceGCSH {
+                match_config: self.match_config(false),
+                pruning: Pruning {
+                    enabled: self.prune,
+                    skip_prune: self.skip_prune,
+                },
+                distance_function: GapCost,
+            }),
+            HeuristicType::Affine => f.call(BruteForceGCSH {
+                match_config: self.match_config(false),
+                pruning: Pruning {
+                    enabled: self.prune,
+                    skip_prune: self.skip_prune,
+                },
+                distance_function: AffineGapCost { k: self.k },
+            }),
         }
     }
 }

@@ -364,6 +364,7 @@ impl DistanceInstance<'_> for AffineGapCostI {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         let e = (to.1 - to.0) - (from.1 - from.0);
         let s = to.0.div_floor(self.k) - from.0.div_ceil(self.k);
+        //return max(e.abs(), s);
         // If on same diagonal
         match e {
             // Diagonal
@@ -372,9 +373,9 @@ impl DistanceInstance<'_> for AffineGapCostI {
             e if e > 0 => s + e,
             // Horizontal
             // TODO: Make this more strict for large gaps
-            //e if e < 0 => s + e.abs().div_ceil(2),
-            // FIXME: Make this consistent
             e if e < 0 => s + e.abs(),
+            // FIXME: Make this consistent
+            //e if e < 0 => s + e.abs(),
             _ => unreachable!(),
         }
     }
