@@ -29,6 +29,9 @@ pub trait Contour: Default + Debug + Clone {
     fn contains_equal(&self, _q: Pos) -> bool;
     /// Is point `q` above/top-left of the contour.
     fn contains(&self, _q: Pos) -> bool;
+    /// Assuming that q is contained in the contour, find a witness of this.
+    fn parent(&self, q: Pos) -> Pos;
+
     /// Is this point dominant?
     fn is_dominant(&self, _q: Pos) -> bool;
     /// Remove the point at the given position, and shift all contours.
@@ -92,6 +95,9 @@ pub trait Contours: Default + Debug {
     /// The value of the contour this point is on.
     /// Hint is guaranteed to be for the current position.
     fn score(&self, q: Pos) -> Cost;
+
+    /// Find the value of the contour, and return a witness on that contour.
+    fn parent(&self, q: Pos) -> (Cost, Pos);
 
     type Hint: Copy + Debug + Default = ();
     fn score_with_hint(&self, q: Pos, _hint: Self::Hint) -> (Cost, Self::Hint)

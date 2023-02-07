@@ -262,6 +262,12 @@ impl<C: Contour> Contours for HintContours<C> {
         low as _
     }
 
+    fn parent(&self, q: Pos) -> (Cost, Pos) {
+        let v = self.score(q);
+        let parent = self.contours[v as Layer].parent(q);
+        (v, parent)
+    }
+
     // The layer for the parent node.
     type Hint = Hint;
 

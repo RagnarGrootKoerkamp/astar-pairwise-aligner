@@ -28,6 +28,10 @@ impl Contour for BruteForceContour {
         self.points.iter().any(|s| q <= *s)
     }
 
+    fn parent(&self, q: Pos) -> Pos {
+        *self.points.iter().find(|s| q <= **s).unwrap()
+    }
+
     fn is_dominant(&self, q: Pos) -> bool {
         !self.points.iter().any(|s| q < *s)
     }
@@ -98,6 +102,15 @@ impl Contours for BruteForceContours {
             .map(|(_arrow, value)| *value)
             .max()
             .unwrap_or(0)
+    }
+
+    fn parent(&self, q: Pos) -> (Cost, Pos) {
+        self.valued_arrows
+            .iter()
+            .filter(|(arrow, _)| q <= arrow.start)
+            .map(|(arrow, value)| (*value, arrow.start))
+            .max_by_key(|&(a, p)| (a, LexPos(p)))
+            .unwrap()
     }
 
     fn prune_with_hint(
