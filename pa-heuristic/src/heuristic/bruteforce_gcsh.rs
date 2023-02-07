@@ -1,5 +1,7 @@
-use itertools::Itertools;
 use std::cmp::Reverse;
+
+use itertools::Itertools;
+use rand::Rng;
 
 use super::*;
 use crate::matches::*;
@@ -174,12 +176,13 @@ where
     }
 
     fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
+        let rng = &mut rand::thread_rng();
         self.h_at_seeds
             .iter()
             .into_iter()
             .filter(|&(parent, _)| *parent >= pos)
             .map(|(parent, val)| (self.distance(pos, *parent).saturating_add(*val), *parent))
-            .min_by_key(|(val, pos)| (*val, Reverse(LexPos(*pos))))
+            .min_by_key(|(val, pos)| (*val, rng.gen_range(0..u64::MAX), Reverse(LexPos(*pos))))
             .unwrap()
     }
 

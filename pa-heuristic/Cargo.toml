@@ -20,6 +20,7 @@ num-traits = "0.2.15"
 derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
 smallvec = { version = "1.10.0", features = ["union"] }
 suffix = "1.3.0"
+rand = "0.8.5"
 
 [dev-dependencies]
 pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
