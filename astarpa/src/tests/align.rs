@@ -4,7 +4,7 @@ use pa_generate::ErrorModel;
 use pa_types::{Cost, CostModel, Seq};
 use rand::{seq::IteratorRandom, thread_rng, Rng};
 
-use crate::align::AstarPa;
+use crate::AstarPa;
 use pa_heuristic::*;
 use pa_types::*;
 use pa_vis_types::*;

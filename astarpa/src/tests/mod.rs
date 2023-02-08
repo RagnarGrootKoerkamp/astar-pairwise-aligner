@@ -1,6 +1,6 @@
 use triple_accel::levenshtein;
 
-use crate::align::AstarPa;
+use crate::AstarPa;
 use pa_heuristic::*;
 use pa_types::{Cost, CostModel};
 use pa_vis_types::*;
