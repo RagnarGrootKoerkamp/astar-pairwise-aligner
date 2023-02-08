@@ -62,6 +62,37 @@ impl Edge {
     }
 }
 
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
+pub struct DtPos {
+    pub diagonal: i32,
+    pub g: Cost,
+}
+
+impl Display for DtPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <Self as std::fmt::Debug>::fmt(self, f)
+    }
+}
+
+impl DtPos {
+    pub fn from_pos(Pos(i, j): Pos, g: Cost) -> Self {
+        Self {
+            diagonal: i as i32 - j as i32,
+            g,
+        }
+    }
+    pub fn to_pos(self, fr: I) -> Pos {
+        Pos(
+            (fr as i32 + self.diagonal) as I / 2,
+            (fr as i32 - self.diagonal) as I / 2,
+        )
+    }
+
+    pub fn fr(Pos(i, j): Pos) -> I {
+        i + j
+    }
+}
+
 /// AlignmentGraph, modelling the position and transitions in a pairwise matching graph.
 #[derive(Clone)]
 pub struct EditGraph<'a> {
@@ -115,66 +146,37 @@ impl<'a> EditGraph<'a> {
         cnt
     }
 
-    /// Internal iterator to get the edges from a position.
+    /// Map a function `f` over all the outgoing edges of the given position.
     #[inline]
-    pub fn iterate_outgoing_edges<F>(&self, n @ Pos(i, j): Pos, mut f: F)
+    pub fn iterate_outgoing_edges<F>(&self, p: Pos, mut f: F)
     where
         F: FnMut(Pos, Edge),
     {
-        // Take any of the 3 edges, and then walk as much diagonally as possible.
-        let is_match = self.is_match(n);
-        if self.greedy_matching {
-            if let Some(n) = is_match {
-                f(n, Edge::Match);
-                return;
-            }
+        let is_match = self.is_match(p);
+        // With greedy matching, skip other edges in case of a match.
+        if self.greedy_matching && let Some(n) = is_match {
+            f(n, Edge::Match);
+            return;
         }
-        for (di, dj, parent) in [
-            (1, 0, Edge::Right),
-            (0, 1, Edge::Down),
-            // This edge is last, so that the LIFO behaviour of the priority
-            // queue picks up diagonal edges first.
-            if is_match.is_some() {
-                (1, 1, Edge::Match)
-            } else {
-                (1, 1, Edge::Substitution)
-            },
+        for (dp, parent) in [
+            (Pos(1, 0), Edge::Right),
+            (Pos(0, 1), Edge::Down),
+            // The diagonal edge is last, so that the LIFO behaviour of the
+            // priority queue picks up diagonal edges first.  Or somewhat
+            // equivalently, do tail-recursion on the diagonal edge.
+            (
+                Pos(1, 1),
+                if is_match.is_some() {
+                    Edge::Match
+                } else {
+                    Edge::Substitution
+                },
+            ),
         ] {
-            let pos = Pos(i + di, j + dj);
+            let pos = p + dp;
             if pos <= self.target {
                 f(pos, parent)
             }
         }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-pub struct DtPos {
-    pub diagonal: i32,
-    pub g: Cost,
-}
-
-impl Display for DtPos {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <Self as std::fmt::Debug>::fmt(self, f)
-    }
-}
-
-impl DtPos {
-    pub fn from_pos(Pos(i, j): Pos, g: Cost) -> Self {
-        Self {
-            diagonal: i as i32 - j as i32,
-            g,
-        }
-    }
-    pub fn to_pos(self, fr: I) -> Pos {
-        Pos(
-            (fr as i32 + self.diagonal) as I / 2,
-            (fr as i32 - self.diagonal) as I / 2,
-        )
-    }
-
-    pub fn fr(Pos(i, j): Pos) -> I {
-        i + j
     }
 }
