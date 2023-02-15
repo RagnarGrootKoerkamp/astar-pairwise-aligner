@@ -22,6 +22,9 @@ impl CSH<HintContours<BruteForceContour>> {
     }
 }
 
+/// TODO: Make a version of GCSH that stores arrows in the original <i,j>
+/// domain, and only applies the transformation at the time when states are
+/// compared via $\preceq_T$.
 pub struct GCSH;
 impl GCSH {
     pub fn new(

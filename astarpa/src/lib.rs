@@ -1,3 +1,16 @@
+//!
+//! # A*PA library
+//!
+//! This crate is the entrypoint of the A*PA library.
+//! It can be used in a few ways:
+//! - Call `astar` or `astar_dt` directly using a heuristic and visualizer.
+//! - Create a reusable `AstarPa` `Aligner` object.
+//! - Create a simpler `AstarPaParams` object.
+//!
+//! The difference between `AstarPa` and `AstarPaParams` is that the first
+//! requires an instantiated heuristic type, whereas the letter can be
+//! configured using `HeuristicArgs` and instantiates the heuristic for you.
+//!
 #![feature(
     test,
     array_methods,
@@ -19,10 +32,13 @@ mod astar;
 mod astar_dt;
 mod bucket_queue;
 mod config;
+#[cfg(test)]
+mod tests;
 
 pub mod cli;
 pub mod stats;
 
+// The main alignment functions.
 pub use astar::astar;
 pub use astar_dt::astar_dt;
 
@@ -35,8 +51,7 @@ mod prelude {
     pub use crate::config::*;
 }
 
-#[cfg(test)]
-mod tests;
+// ------------ Root alignment interface follows from here ------------
 
 use pa_affine_types::{AffineAligner, AffineCigar};
 use pa_heuristic::HeuristicArgs;
