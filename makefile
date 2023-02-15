@@ -78,7 +78,7 @@ videos-clean: fig-intro-video-clean fig_layers-video-clean fig-readme-video-clea
 fig-intro:
 	cargo run --features example --release --example fig-intro
 	mogrify -format png imgs/paper/intro/*bmp
-	#rm imgs/paper/intro/*bmp
+	rm imgs/paper/intro/*bmp
 
 fig-layers:
 	rm -f imgs/paper/layers/*
