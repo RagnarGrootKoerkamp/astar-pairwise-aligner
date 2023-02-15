@@ -47,6 +47,35 @@ impl CanvasFactory for SdlCanvasFactory {
     }
 }
 
+fn save_transparent(canvas: &SdlCanvas, path: &Path, bg_color: Option<Color>) {
+    let pixel_format = canvas.0.default_pixel_format();
+    let mut pixels = canvas
+        .0
+        .read_pixels(canvas.0.viewport(), pixel_format)
+        .unwrap();
+    let (width, height) = canvas.0.output_size().unwrap();
+    let pitch = pixel_format.byte_size_of_pixels(width as usize);
+    let mut surf = sdl2::surface::Surface::from_data(
+        pixels.as_mut_slice(),
+        width,
+        height,
+        pitch as u32,
+        pixel_format,
+    )
+    .unwrap();
+
+    // Make the given colour transparent.
+    if let Some(bg_color) = bg_color {
+        surf.set_color_key(true, bg_color.into()).unwrap();
+    }
+
+    eprintln!("Saving: {}", path.display());
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap();
+    }
+    surf.save_bmp(path).unwrap();
+}
+
 impl Canvas for SdlCanvas {
     fn fill_background(&mut self, color: Color) {
         self.0.set_draw_color(color);
@@ -120,24 +149,11 @@ impl Canvas for SdlCanvas {
     }
 
     fn save(&mut self, path: &Path) {
-        let pixel_format = self.0.default_pixel_format();
-        let mut pixels = self.0.read_pixels(self.0.viewport(), pixel_format).unwrap();
-        let (width, height) = self.0.output_size().unwrap();
-        let pitch = pixel_format.byte_size_of_pixels(width as usize);
-        let surf = sdl2::surface::Surface::from_data(
-            pixels.as_mut_slice(),
-            width,
-            height,
-            pitch as u32,
-            pixel_format,
-        )
-        .unwrap();
+        save_transparent(self, path, None);
+    }
 
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).unwrap();
-        }
-        eprintln!("Saving: {}", path.display());
-        surf.save_bmp(path).unwrap();
+    fn save_transparent(&mut self, path: &Path, bg_color: Color) {
+        save_transparent(self, path, Some(bg_color));
     }
 
     fn present(&mut self) {

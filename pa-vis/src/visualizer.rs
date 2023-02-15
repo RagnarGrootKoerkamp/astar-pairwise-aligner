@@ -629,7 +629,11 @@ impl Visualizer {
             dir.set_extension(extension);
             dir
         };
-        canvas.save(&path);
+        if self.config.transparent_bmp {
+            canvas.save_transparent(&path, self.config.style.bg_color);
+        } else {
+            canvas.save(&path);
+        }
     }
 
     fn draw<'a, H: HeuristicInstance<'a>>(

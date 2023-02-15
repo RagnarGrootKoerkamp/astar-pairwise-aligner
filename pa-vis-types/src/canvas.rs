@@ -107,6 +107,7 @@ pub trait Canvas {
     fn write_text(&mut self, p: CPos, ha: HAlign, va: VAlign, text: &str, color: Color);
 
     fn save(&mut self, _path: &Path) {}
+    fn save_transparent(&mut self, _path: &Path, _bg_color: Color) {}
     fn present(&mut self) {}
 
     fn wait(&mut self, timeout: Duration) -> KeyboardAction;
