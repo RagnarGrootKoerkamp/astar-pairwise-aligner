@@ -33,7 +33,7 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
 
-    config.filepath = "imgs/fig8".into();
+    config.filepath = "imgs/paper/limitations".into();
 
     let csh = CSH::new(MatchConfig::inexact(10), Pruning::enabled());
 

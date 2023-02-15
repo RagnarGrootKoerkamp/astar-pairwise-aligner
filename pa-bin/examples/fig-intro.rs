@@ -30,9 +30,10 @@ fn main() {
     config.style.draw_dt = false;
     config.style.draw_f = false;
     config.style.draw_labels = false;
+    config.transparent_bmp = true;
 
     config.draw_old_on_top = true;
-    config.filepath = PathBuf::from("imgs/fig1");
+    config.filepath = PathBuf::from("imgs/paper/intro");
 
     let aligners: [Box<dyn AffineAligner>; 5] = [
         Box::new(NW {
@@ -61,7 +62,7 @@ fn main() {
             NoCost,
             true,
             {
-                let mut c = config.with_filename("4-dt-divide-and-conquer");
+                let mut c = config.with_filename("4_dt-divide-and-conquer");
                 c.draw_old_on_top = false;
                 c
             },

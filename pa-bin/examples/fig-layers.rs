@@ -1,5 +1,5 @@
 use astarpa::AstarPa;
-use pa_heuristic::{MatchConfig, Pruning, CSH, GCSH, SH};
+use pa_heuristic::{MatchConfig, Prune, Pruning, CSH, GCSH, SH};
 use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis_types::canvas::*;
 use std::path::PathBuf;
@@ -36,15 +36,15 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
 
-    config.filepath = PathBuf::from("imgs/fig_layers/");
+    config.filepath = PathBuf::from("imgs/paper/layers/");
 
     if !cfg!(feature = "example") {
         eprintln!("WARNING: Without the example feature, pruned matches aren't shown red for SH");
     }
 
     let k = 3;
-    for pruning in [false, true] {
-        let suf = if pruning { "" } else { "-noprune" };
+    for pruning in [Prune::None, Prune::Start] {
+        let suf = if pruning.is_enabled() { "" } else { "-noprune" };
         AstarPa {
             dt: false,
             h: SH::new(MatchConfig::exact(k), Pruning::new(pruning)),

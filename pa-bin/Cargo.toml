@@ -28,5 +28,5 @@ bio.workspace = true
 example = ["pa-heuristic/example"]
 
 [[example]]
-name = "fig_layers"
+name = "fig-layers"
 required-features = ["example"]
