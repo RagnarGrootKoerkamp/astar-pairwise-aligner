@@ -76,6 +76,7 @@ videos-clean: fig-intro-video-clean fig_layers-video-clean fig-readme-video-clea
 # ========== PAPER FIGURES ==========
 
 fig-intro:
+	rm -rf imgs/paper/intro/*/*.bmp
 	cargo run --features example --release --example fig-intro
 	mogrify -format png imgs/paper/intro/*bmp
 	rm imgs/paper/intro/*bmp
@@ -102,25 +103,25 @@ paper-export: paper-figs paper-export-only
 # ========== VIDEOS ==========
 
 # https://superuser.com/questions/1049606/reduce-generated-gif-size-using-ffmpeg
-FILTER = -filter_complex "split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer"
+FILTER = -filter_complex "tpad=stop_mode=clone:stop_duration=2[t];[t]split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer"
 
 fig-intro-video:
 	# mp4
-	ffmpeg -y -framerate 1 -i imgs/paper/fig-intro/1_ukkonen/%d.bmp imgs/paper/fig-intro/1_ukkonen.mp4
-	ffmpeg -y -framerate 10 -i imgs/paper/fig-intro/2_dijkstra/%d.bmp imgs/paper/fig-intro/2_dijkstra.mp4
-	ffmpeg -y -framerate 10 -i imgs/paper/fig-intro/3_diagonal-transition/%d.bmp imgs/paper/fig-intro/3_diagonal_transition.mp4
-	ffmpeg -y -framerate 20 -i imgs/paper/fig-intro/4_dt-divide-and-conquer/%d.bmp imgs/paper/fig-intro/4_dt-divide-and-conquer.mp4
-	ffmpeg -y -framerate 60 -i imgs/paper/fig-intro/5_astar-csh-pruning/%d.bmp imgs/paper/fig-intro/5_astar-csh-pruning.mp4
+	ffmpeg -y -framerate 1 -i imgs/paper/intro/1_ukkonen/%d.bmp imgs/paper/intro/1_ukkonen.mp4
+	ffmpeg -y -framerate 10 -i imgs/paper/intro/2_dijkstra/%d.bmp imgs/paper/intro/2_dijkstra.mp4
+	ffmpeg -y -framerate 10 -i imgs/paper/intro/3_diagonal-transition/%d.bmp imgs/paper/intro/3_diagonal_transition.mp4
+	ffmpeg -y -framerate 20 -i imgs/paper/intro/4_dt-divide-and-conquer/%d.bmp imgs/paper/intro/4_dt-divide-and-conquer.mp4
+	ffmpeg -y -framerate 60 -i imgs/paper/intro/5_astar-csh-pruning/%d.bmp imgs/paper/intro/5_astar-csh-pruning.mp4
 	# gif
-	ffmpeg -y -framerate 1 -i imgs/paper/fig-intro/1_ukkonen/%d.bmp 				$(FILTER) imgs/paper/fig-intro/1_ukkonen.gif
-	ffmpeg -y -framerate 10 -i imgs/paper/fig-intro/2_dijkstra/%d.bmp 				$(FILTER) imgs/paper/fig-intro/2_dijkstra.gif
-	ffmpeg -y -framerate 10 -i imgs/paper/fig-intro/3_diagonal-transition/%d.bmp 	$(FILTER) imgs/paper/fig-intro/3_diagonal_transition.gif
-	ffmpeg -y -framerate 20 -i imgs/paper/fig-intro/4_dt-divide-and-conquer/%d.bmp $(FILTER) imgs/paper/fig-intro/4_dt-divide-and-conquer.gif
-	ffmpeg -y -framerate 60 -i imgs/paper/fig-intro/5_astar-csh-pruning/%d.bmp 	$(FILTER) imgs/paper/fig-intro/5_astar-csh-pruning.gif
+	ffmpeg -y -framerate 1 -i imgs/paper/intro/1_ukkonen/%d.bmp 				$(FILTER) imgs/paper/intro/1_ukkonen.gif
+	ffmpeg -y -framerate 10 -i imgs/paper/intro/2_dijkstra/%d.bmp 				$(FILTER) imgs/paper/intro/2_dijkstra.gif
+	ffmpeg -y -framerate 10 -i imgs/paper/intro/3_diagonal-transition/%d.bmp 	$(FILTER) imgs/paper/intro/3_diagonal_transition.gif
+	ffmpeg -y -framerate 20 -i imgs/paper/intro/4_dt-divide-and-conquer/%d.bmp $(FILTER) imgs/paper/intro/4_dt-divide-and-conquer.gif
+	ffmpeg -y -framerate 60 -i imgs/paper/intro/5_astar-csh-pruning/%d.bmp 	$(FILTER) imgs/paper/intro/5_astar-csh-pruning.gif
 
 # Remove video source files
 fig-intro-video-clean:
-	rm -rf imgs/paper/fig-intro/*/
+	rm -rf imgs/paper/intro/*/*.bmp
 
 fig_layers-video:
 	ffmpeg -y -framerate 20 -i imgs/fig_layers-video/%d.bmp imgs/fig_layers.mp4

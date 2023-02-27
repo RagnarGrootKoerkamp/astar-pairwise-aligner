@@ -178,9 +178,9 @@ Sample videos corresponding to figure 1 of the paper are below. Due to different
 visualization strategies (per layer, per cell) timings are not at all comparable.
 
 |-----------------------------------------------------------------------+--------------------------------------------------------------------------|
-| Dijkstra [[file:imgs/fig1/2_dijkstra.gif]]                                | Ukkonen's exponential search (Edlib) [[file:imgs/fig1/1_ukkonen.gif]]        |
-| Diagonal transition (WFA) [[file:imgs/fig1/3_diagonal_transition.gif]]    | DT + Divide & Conquer (BiWFA) [[file:imgs/fig1/4_dt-divide-and-conquer.gif]] |
-| A* with CSH and pruning (A*PA) [[file:imgs/fig1/5_astar-csh-pruning.gif]] |                                                                          |
+| Dijkstra [[file:imgs/paper/intro/2_dijkstra.gif]]                                | Ukkonen's exponential search (Edlib) [[file:imgs/paper/intro/1_ukkonen.gif]]        |
+| Diagonal transition (WFA) [[file:imgs/paper/intro/3_diagonal_transition.gif]]    | DT + Divide & Conquer (BiWFA) [[file:imgs/paper/intro/4_dt-divide-and-conquer.gif]] |
+| A* with CSH and pruning (A*PA) [[file:imgs/paper/intro/5_astar-csh-pruning.gif]] |                                                                          |
 
 And here is a video of figure 3 of our preprint:
 

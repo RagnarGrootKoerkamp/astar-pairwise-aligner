@@ -19,7 +19,7 @@ fn main() {
     let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
     config.draw = When::None;
-    config.save = When::None;
+    config.save = When::Layers;
     config.save_last = true;
     config.delay = Duration::from_secs_f32(0.0001);
     config.cell_size = 4;
@@ -31,11 +31,10 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
     config.transparent_bmp = true;
-
     config.draw_old_on_top = true;
     config.filepath = PathBuf::from("imgs/paper/intro");
 
-    let aligners: [Box<dyn AffineAligner>; 5] = [
+    let aligners: &mut [Box<dyn AffineAligner>] = &mut [
         Box::new(NW {
             cm,
             use_gap_cost_heuristic: true,
@@ -61,11 +60,7 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             true,
-            {
-                let mut c = config.with_filename("4_dt-divide-and-conquer");
-                c.draw_old_on_top = false;
-                c
-            },
+            config.with_filename("4_dt-divide-and-conquer"),
         )),
         Box::new(AstarPa {
             h: CSH::new(MatchConfig::exact(5), Pruning::enabled()),
@@ -73,7 +68,7 @@ fn main() {
             v: config.with_filename("5_astar-csh-pruning"),
         }),
     ];
-    for mut aligner in aligners {
+    for aligner in aligners {
         aligner.align(a, b);
     }
 }

@@ -15,9 +15,16 @@
 __pycache__
 /.cargo/config
 /evals/runs.backup/
-/imgs/
 /tmp/
 .vscode/
 .ipynb_checkpoints
 .DS_Store
 /evals/human/*/
+
+/imgs/*
+!/imgs/fig-readme.gif
+!/imgs/paper
+/imgs/paper/*
+!/imgs/paper/intro
+/imgs/paper/intro/*
+!/imgs/paper/intro/*.gif
