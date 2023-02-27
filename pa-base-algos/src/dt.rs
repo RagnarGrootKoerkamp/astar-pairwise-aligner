@@ -115,7 +115,13 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
             path_tracing_method: PathTracingMethod::ForwardGreedy,
         }
     }
-    pub fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> DTInstance<'a, N, V, H> {
+
+    fn build<'a>(
+        &self,
+        a: Seq<'a>,
+        b: Seq<'a>,
+        v: &'a RefCell<V::Instance>,
+    ) -> DTInstance<'a, N, V, H> {
         // The maximum cost we look back:
         let top_buffer = EditGraph::max_edge_cost(&self.cm) as Fr;
 
@@ -145,7 +151,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
             b,
             params: self.clone(),
             h: self.h.build(a, b),
-            v: RefCell::new(self.v.build(a, b)),
+            v,
             top_buffer,
             left_buffer,
             right_buffer,
@@ -164,7 +170,7 @@ pub struct DTInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     pub h: H::Instance<'a>,
 
     /// The visualizer to use.
-    pub v: RefCell<V::Instance>,
+    pub v: &'a RefCell<V::Instance>,
 
     /// We add a few buffer layers to the top of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
@@ -863,7 +869,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
         } else {
             let (cost, cigar) = self
                 .params
-                .build(&self.a[..i as usize], &self.b[..j as usize])
+                .build(&self.a[..i as usize], &self.b[..j as usize], self.v)
                 .path_between_dc(offset, start_layer, fw.layer);
             assert_eq!(cost, fw.s);
             (cost, cigar)
@@ -888,7 +894,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
         } else {
             let (cost, cigar) = self
                 .params
-                .build(&self.a[i as usize..], &self.b[j as usize..])
+                .build(&self.a[i as usize..], &self.b[j as usize..], self.v)
                 .path_between_dc(offset + fw.pos(), bw.layer, end_layer);
             assert_eq!(cost, bw.s);
 
@@ -1370,7 +1376,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
     pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        let mut dt = self.build(a, b);
+        let v = &RefCell::new(self.v.build(a, b));
+        let mut dt = self.build(a, b, v);
         let cost = if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
             exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
                 dt.cost_for_bounded_dist(Some(s)).map(|c| (c, c))
@@ -1384,7 +1391,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
     }
 
     pub fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
-        let mut dt = self.build(a, b);
+        let v = &RefCell::new(self.v.build(a, b));
+        let mut dt = self.build(a, b, v);
         if self.dc {
             // D&C does not work with a heuristic yet, since the target state (where
             // the fronts meet) is not know.
@@ -1419,7 +1427,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
     }
 
     pub fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
-        self.build(a, b).cost_for_bounded_dist(Some(f_max))
+        self.build(a, b, &RefCell::new(self.v.build(a, b)))
+            .cost_for_bounded_dist(Some(f_max))
     }
 
     pub fn align_for_bounded_dist(
@@ -1428,7 +1437,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
         b: Seq,
         f_max: Cost,
     ) -> Option<(Cost, AffineCigar)> {
-        self.build(a, b).align_for_bounded_dist(Some(f_max))
+        self.build(a, b, &RefCell::new(self.v.build(a, b)))
+            .align_for_bounded_dist(Some(f_max))
     }
 }
 
