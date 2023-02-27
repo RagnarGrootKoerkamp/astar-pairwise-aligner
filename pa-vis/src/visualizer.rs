@@ -99,9 +99,12 @@ pub struct Visualizer {
 
     // Type, Pos, g, f
     pub expanded: Vec<(Type, Pos, Cost, Cost)>,
+    // The current layer
     layer: Option<usize>,
     // Index in expanded where each layer stars.
     expanded_layers: Vec<usize>,
+    // Partial path for divide-and-conquer.
+    meeting_points: Vec<Pos>,
 }
 
 impl VisualizerInstance for Visualizer {
@@ -138,6 +141,12 @@ impl VisualizerInstance for Visualizer {
             self.expanded_layers.push(self.expanded.len());
         }
         self.draw(false, None, true, h, None);
+    }
+
+    fn add_meeting_point<'a, HI: HeuristicInstance<'a>>(&mut self, pos: Pos) {
+        self.meeting_points.push(pos);
+        self.expanded.clear();
+        self.draw::<HI>(false, None, true, None, None);
     }
 
     fn last_frame<'a, H: HeuristicInstance<'a>>(
@@ -499,6 +508,7 @@ impl Visualizer {
             drawn_frame_number: 0,
             layer: if config.layer_drawing { Some(0) } else { None },
             expanded_layers: vec![],
+            meeting_points: vec![],
 
             canvas_size,
             nw,
@@ -943,6 +953,13 @@ impl Visualizer {
                             width,
                         );
                     }
+                }
+            }
+
+            // Draw meeting points.
+            if let Some(path_color) = self.config.style.path {
+                for &p in &self.meeting_points {
+                    self.draw_pixel(&mut canvas, p, path_color)
                 }
             }
 

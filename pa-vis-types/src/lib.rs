@@ -52,6 +52,10 @@ pub trait VisualizerInstance {
     /// This function should be called after completing each layer
     fn new_layer<'a, HI: HeuristicInstance<'a>>(&mut self, _h: Option<&HI>) {}
 
+    /// Add the given position to the optimal path for divide-and-conquer
+    /// methods, and clear existing explored/expanded states.
+    fn add_meeting_point<'a, HI: HeuristicInstance<'a>>(&mut self, _pos: Pos) {}
+
     /// This function may be called after the main loop to display final image.
     fn last_frame<'a, HI: HeuristicInstance<'a>>(
         &mut self,

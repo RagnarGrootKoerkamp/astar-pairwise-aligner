@@ -848,7 +848,10 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
 
         let (fw, bw) = best_meet.unwrap();
 
-        let Pos(i, j) = fw.pos();
+        let pos @ Pos(i, j) = fw.pos();
+        self.v
+            .borrow_mut()
+            .add_meeting_point::<H::Instance<'a>>(offset + pos);
         let mut left = if forward_fronts.full_range().contains(&0) {
             // Rotate the front back as far as needed.
             while (fw.s as Fr) < *forward_fronts.range().end() {
