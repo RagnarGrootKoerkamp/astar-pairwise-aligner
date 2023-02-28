@@ -25,6 +25,7 @@ fn main() {
     config.cell_size = 4;
     config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
+    config.style.path = Some((128, 128, 128, 0));
     config.style.path_width = Some(4);
     config.layer_drawing = false;
     config.style.draw_dt = false;
