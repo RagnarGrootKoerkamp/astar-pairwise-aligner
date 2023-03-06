@@ -211,6 +211,7 @@ impl<C: Contours> CSHI<C> {
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
+        h.stats.num_seeds = h.seeds.seeds.len() as _;
         h.stats.num_matches = h.seeds.matches.len();
         if params.use_gap_cost {
             // Remove irrelevant matches.

@@ -134,7 +134,12 @@ impl AstarStats {
             self.format_raw('>', 2, "k", self.h_params.k),
             self.format_raw('>', 2, "m", self.h_params.max_match_cost),
             self.format_avg('>', 7, "seeds", self.h.num_seeds),
-            self.format_avg('>', 7, "match/s", self.h.num_matches),
+            self.format_flt(
+                '>',
+                7,
+                "match/s",
+                self.h.num_matches as f32 / self.h.num_seeds as f32,
+            ),
             self.format_avg('>', 9, "expanded", self.expanded),
             self.format_avg('>', 9, "explored", self.explored),
             self.format_avg('>', 9, "extended", self.extended),

@@ -364,10 +364,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
 
                 // Prune matches
                 if self.h.is_seed_start_or_end(Pos(i as I - 1, 0)) {
-                    // println!("Prune col {}\t {new_range:?}", i - 1);
                     let hint = self
                         .h
-                        .h_with_hint(Pos(i as I, *new_range.start() as I), Default::default())
+                        .h_with_hint(Pos(i as I - 1, *new_range.start() as I), Default::default())
                         .1;
                     for j in new_range {
                         self.h.prune(Pos(i as I - 1, j as I), hint);
