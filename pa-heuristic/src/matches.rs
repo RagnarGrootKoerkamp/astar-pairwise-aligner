@@ -1,5 +1,6 @@
 mod ordered;
 mod qgrams;
+pub mod suffix_array;
 
 use bio::{
     alphabets::{Alphabet, RankTransform},
@@ -183,6 +184,12 @@ impl LengthConfig {
         match *self {
             Fixed(k) => k,
             LengthConfig::Max(MaxMatches { k_min, .. }) => k_min,
+        }
+    }
+    pub fn max_matches(&self) -> Option<usize> {
+        match *self {
+            Fixed(_) => None,
+            LengthConfig::Max(MaxMatches { max_matches, .. }) => Some(max_matches),
         }
     }
 }

@@ -3,7 +3,7 @@
 //! the graveyard since it is not in use.
 use smallvec::SmallVec;
 
-use super::*;
+use super::{suffix_array::minimal_unique_matches, *};
 use crate::prelude::*;
 
 pub fn find_matches_qgramindex<'a>(
@@ -300,10 +300,11 @@ pub fn find_matches_qgram_hash_exact<'a>(
         ..
     }: MatchConfig,
 ) -> SeedMatches {
-    let k: I = match length {
-        Fixed(k) => k,
-        _ => unimplemented!("QGram Hashing only works for fixed k for now."),
-    };
+    if length.kmin() != length.kmax() {
+        unimplemented!("QGram Hashing only works for fixed k for now.");
+    }
+    let k = length.kmin();
+
     assert!(max_match_cost == 0);
 
     let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
@@ -445,6 +446,9 @@ pub fn find_matches<'a>(
     match_config: MatchConfig,
     gapcost: bool,
 ) -> SeedMatches {
+    if let Some(max_matches) = match_config.length.max_matches() {
+        return minimal_unique_matches(a, b, match_config.max_match_cost + 1, max_matches);
+    }
     if FIND_MATCHES_HASH {
         return match match_config.max_match_cost {
             0 => find_matches_qgram_hash_exact(a, b, match_config),
