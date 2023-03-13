@@ -87,7 +87,7 @@ impl Input {
             } else {
                 input
                     .read_dir()
-                    .unwrap()
+                    .expect(&format!("{} is not a file or directory", input.display()))
                     .map(|x| x.unwrap().path())
                     .collect_vec()
             };
