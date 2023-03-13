@@ -40,6 +40,8 @@ pub enum VisualizerStyle {
 #[derive(Debug, PartialEq, Eq, Clone, ValueEnum, Serialize, Deserialize)]
 pub enum When {
     None,
+    // Translates to Frames([0])
+    First,
     Last,
     All,
     Layers,
@@ -234,6 +236,7 @@ impl When {
     fn is_active(&self, frame: usize, layer: usize, is_last: bool, new_layer: bool) -> bool {
         match &self {
             When::None => false,
+            When::First => frame == 1,
             When::Last => is_last,
             When::All => is_last || !new_layer,
             When::Layers => is_last || new_layer,
@@ -1152,6 +1155,11 @@ impl Visualizer {
         {
             self.save_canvas(&mut canvas, false, None);
             self.file_number += 1;
+        }
+
+        if self.config.save == When::First && self.config.draw == When::None {
+            eprintln!("Exiting after saving first frame.");
+            std::process::exit(0);
         }
 
         // Save the final frame separately if needed.
