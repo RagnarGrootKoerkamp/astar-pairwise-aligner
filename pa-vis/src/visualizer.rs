@@ -147,7 +147,9 @@ impl VisualizerInstance for Visualizer {
 
     fn add_meeting_point<'a, HI: HeuristicInstance<'a>>(&mut self, pos: Pos) {
         self.meeting_points.push(pos);
-        self.expanded.clear();
+        if self.config.clear_after_meeting_point {
+            self.expanded.clear();
+        }
         self.draw::<HI>(false, None, true, None, None);
     }
 
@@ -270,6 +272,7 @@ pub struct Config {
     pub draw_old_on_top: bool,
     pub layer_drawing: bool,
     pub num_layers: Option<usize>,
+    pub clear_after_meeting_point: bool,
 }
 
 impl Config {
@@ -320,6 +323,7 @@ impl Config {
             layer_drawing: false,
             num_layers: None,
             transparent_bmp: true,
+            clear_after_meeting_point: true,
         };
 
         match style {

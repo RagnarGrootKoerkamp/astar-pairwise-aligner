@@ -19,7 +19,7 @@ fn main() {
     let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
     config.draw = When::None;
-    config.save = When::Layers;
+    config.save = When::None;
     config.save_last = true;
     config.delay = Duration::from_secs_f32(0.0001);
     config.cell_size = 4;
@@ -34,6 +34,7 @@ fn main() {
     config.transparent_bmp = true;
     config.draw_old_on_top = true;
     config.filepath = PathBuf::from("imgs/paper/intro");
+    config.clear_after_meeting_point = false;
 
     let aligners: &mut [Box<dyn AffineAligner>] = &mut [
         Box::new(NW {
