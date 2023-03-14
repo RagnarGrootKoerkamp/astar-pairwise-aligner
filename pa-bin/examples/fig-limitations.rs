@@ -1,8 +1,8 @@
 //! This generates the visualizations used in the limitations section of the paper.
 
-use astarpa::astar;
+use astarpa::astar_dt;
 use pa_generate::{uniform_seeded, ErrorModel};
-use pa_heuristic::{MatchConfig, Pruning, CSH};
+use pa_heuristic::{BruteForceGCSH, GapCost, MatchConfig, Pruning};
 use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis_types::canvas::BLACK;
 use rand::SeedableRng;
@@ -35,7 +35,12 @@ fn main() {
 
     config.filepath = "imgs/paper/limitations".into();
 
-    let csh = CSH::new(MatchConfig::inexact(10), Pruning::enabled());
+    let h = BruteForceGCSH {
+        match_config: MatchConfig::inexact(10),
+        distance_function: GapCost,
+        pruning: Pruning::enabled(),
+    };
+    let astar = astar_dt;
 
     {
         let (mut a, mut b) = uniform_seeded(250 * scale, 0.08, 6);
@@ -46,7 +51,7 @@ fn main() {
         a.append(&mut a3);
         b.append(&mut b3);
 
-        let cost = astar(&a, &b, &csh, &config.with_filename("high-error-rate"))
+        let cost = astar(&a, &b, &h, &config.with_filename("high-error-rate"))
             .0
              .0;
         println!("cost {cost}");
@@ -61,7 +66,7 @@ fn main() {
         a.append(&mut a3);
         b.append(&mut b3);
 
-        let cost = astar(&a, &b, &csh, &config.with_filename("deletion")).0 .0;
+        let cost = astar(&a, &b, &h, &config.with_filename("deletion")).0 .0;
         println!("cost {cost}");
     }
 
@@ -81,7 +86,7 @@ fn main() {
         a.append(&mut a3);
         b.append(&mut b3);
 
-        let cost = astar(&a, &b, &csh, &config.with_filename("repeats")).0 .0;
+        let cost = astar(&a, &b, &h, &config.with_filename("repeats")).0 .0;
         println!("cost {cost}");
     }
 }

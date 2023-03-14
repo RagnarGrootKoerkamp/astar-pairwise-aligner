@@ -43,7 +43,7 @@ fn main() {
     }
 
     let k = 3;
-    for pruning in [Prune::None, Prune::Start] {
+    for pruning in [Prune::None, Prune::Both] {
         let suf = if pruning.is_enabled() { "" } else { "-noprune" };
         AstarPa {
             dt: false,
@@ -60,7 +60,7 @@ fn main() {
         AstarPa {
             dt: false,
             h: GCSH::new(MatchConfig::exact(k), Pruning::new(pruning)),
-            v: config.with_filename(&("gch".to_string() + suf)),
+            v: config.with_filename(&("gcsh".to_string() + suf)),
         }
         .align(a, b);
     }
