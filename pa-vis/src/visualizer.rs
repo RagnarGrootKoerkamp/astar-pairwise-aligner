@@ -924,6 +924,33 @@ impl Visualizer {
                 }
             }
 
+            // Draw meeting points.
+            if let Some(path_color) = self.config.style.path {
+                for &p in &self.meeting_points {
+                    self.draw_pixel(&mut canvas, p, path_color)
+                }
+            }
+
+            // Draw path.
+            if let Some(cigar) = cigar &&
+                let Some(path_color) = self.config.style.path {
+                if let Some(path_width) = self.config.style.path_width {
+                    for (from, to) in cigar.to_path().iter().tuple_windows() {
+                        Self::draw_diag_line(
+                            &mut canvas,
+                            self.cell_center(*from),
+                            self.cell_center(*to),
+                            path_color,
+                            path_width,
+                        );
+                    }
+                } else {
+                    for p in cigar.to_path() {
+                        self.draw_pixel(&mut canvas, p, path_color)
+                    }
+                }
+            }
+
             // Draw matches.
             if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
                 // first draw inexact matches, then exact ones on top.
@@ -955,33 +982,6 @@ impl Visualizer {
                             color,
                             width,
                         );
-                    }
-                }
-            }
-
-            // Draw meeting points.
-            if let Some(path_color) = self.config.style.path {
-                for &p in &self.meeting_points {
-                    self.draw_pixel(&mut canvas, p, path_color)
-                }
-            }
-
-            // Draw path.
-            if let Some(cigar) = cigar &&
-                let Some(path_color) = self.config.style.path {
-                if let Some(path_width) = self.config.style.path_width {
-                    for (from, to) in cigar.to_path().iter().tuple_windows() {
-                        Self::draw_diag_line(
-                            &mut canvas,
-                            self.cell_center(*from),
-                            self.cell_center(*to),
-                            path_color,
-                            path_width,
-                        );
-                    }
-                } else {
-                    for p in cigar.to_path() {
-                        self.draw_pixel(&mut canvas, p, path_color)
                     }
                 }
             }

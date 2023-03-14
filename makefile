@@ -92,11 +92,19 @@ fig-limitations:
 	mogrify -format png imgs/paper/limitations/*bmp
 	rm imgs/paper/limitations/*bmp
 
+fig-comparison:
+	cargo run --features example --release --example fig-comparison
+	mogrify -format png imgs/paper/comparison/*bmp
+	rm imgs/paper/comparison/*bmp
+
 paper-figs: fig-intro fig-layers fig-limitations
 
 paper-export-only:
-	rm -rf ../pairwise-aligner-paper/imgs/{intro/*,layers/*,limitations/*}
-	rsync -a imgs/paper/* ../pairwise-aligner-paper/imgs/
+	rm -rf ../pairwise-aligner-paper/imgs/{intro/*,layers/*,limitations/*,comparison/*}
+	rsync -a imgs/paper/intro/*png ../pairwise-aligner-paper/imgs/intro/
+	rsync -a imgs/paper/layers/*png ../pairwise-aligner-paper/imgs/layers/
+	rsync -a imgs/paper/limitations/*png ../pairwise-aligner-paper/imgs/limitations/
+	rsync -a imgs/paper/comparison/*png ../pairwise-aligner-paper/imgs/comparison/
 
 paper-export: paper-figs paper-export-only
 
