@@ -7,7 +7,7 @@ use pa_base_algos::{
     nw::NW,
 };
 use pa_generate::uniform_fixed;
-use pa_heuristic::{MatchConfig, NoCost, Pruning, CSH};
+use pa_heuristic::{MatchConfig, NoCost, Pruning, GCSH};
 use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis_types::NoVis;
 use std::{path::PathBuf, time::Duration};
@@ -25,6 +25,7 @@ fn main() {
     let mut config = visualizer::Config::default();
     config.draw = When::None;
     config.save = When::None;
+    //config.save = When::Layers;
     config.save_last = true;
     config.delay = Duration::from_secs_f32(0.0001);
     config.cell_size = 4;
@@ -70,9 +71,9 @@ fn main() {
             config.with_filename("4_dt-divide-and-conquer"),
         )),
         Box::new(AstarPa {
-            h: CSH::new(MatchConfig::exact(5), Pruning::enabled()),
+            h: GCSH::new(MatchConfig::exact(5), Pruning::enabled()),
             dt: true,
-            v: config.with_filename("5_astar-csh-pruning"),
+            v: config.with_filename("5_astarpa"),
         }),
     ];
     for aligner in aligners {

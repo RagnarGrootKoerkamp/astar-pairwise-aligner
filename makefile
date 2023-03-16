@@ -77,6 +77,8 @@ videos-clean: fig-intro-video-clean fig_layers-video-clean fig-readme-video-clea
 
 fig-intro:
 	rm -rf imgs/paper/intro/*/*.bmp
+	rm -rf imgs/paper/intro/*.bmp
+	rm -rf imgs/paper/intro/*.png
 	cargo run --features example --release --example fig-intro
 	mogrify -format png imgs/paper/intro/*bmp
 	rm imgs/paper/intro/*bmp
@@ -119,13 +121,13 @@ fig-intro-video:
 	ffmpeg -y -framerate 10 -i imgs/paper/intro/2_dijkstra/%d.bmp imgs/paper/intro/2_dijkstra.mp4
 	ffmpeg -y -framerate 10 -i imgs/paper/intro/3_diagonal-transition/%d.bmp imgs/paper/intro/3_diagonal_transition.mp4
 	ffmpeg -y -framerate 20 -i imgs/paper/intro/4_dt-divide-and-conquer/%d.bmp imgs/paper/intro/4_dt-divide-and-conquer.mp4
-	ffmpeg -y -framerate 60 -i imgs/paper/intro/5_astar-csh-pruning/%d.bmp imgs/paper/intro/5_astar-csh-pruning.mp4
+	ffmpeg -y -framerate 2 -i imgs/paper/intro/5_astarpa/%d.bmp imgs/paper/intro/5_astarpa.mp4
 	# gif
 	ffmpeg -y -framerate 1 -i imgs/paper/intro/1_ukkonen/%d.bmp 				$(FILTER) imgs/paper/intro/1_ukkonen.gif
 	ffmpeg -y -framerate 10 -i imgs/paper/intro/2_dijkstra/%d.bmp 				$(FILTER) imgs/paper/intro/2_dijkstra.gif
 	ffmpeg -y -framerate 10 -i imgs/paper/intro/3_diagonal-transition/%d.bmp 	$(FILTER) imgs/paper/intro/3_diagonal_transition.gif
 	ffmpeg -y -framerate 20 -i imgs/paper/intro/4_dt-divide-and-conquer/%d.bmp $(FILTER) imgs/paper/intro/4_dt-divide-and-conquer.gif
-	ffmpeg -y -framerate 60 -i imgs/paper/intro/5_astar-csh-pruning/%d.bmp 	$(FILTER) imgs/paper/intro/5_astar-csh-pruning.gif
+	ffmpeg -y -framerate 2 -i imgs/paper/intro/5_astarpa/%d.bmp 	$(FILTER) imgs/paper/intro/5_astarpa.gif
 
 # Remove video source files
 fig-intro-video-clean:
