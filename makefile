@@ -59,19 +59,19 @@ videos-clean: fig-intro-video-clean fig_layers-video-clean fig-readme-video-clea
 # 	cd evals && python3 ./results.py
 
 # results-export:
-# 	rm -f ../pairwise-aligner-paper/imgs/fig4/*
-# 	rm -f ../pairwise-aligner-paper/imgs/fig6/*
+# 	rm -f ../astarpa-paper/imgs/fig4/*
+# 	rm -f ../astarpa-paper/imgs/fig6/*
 # 	cp evals/results/tools_*.pdf \
-#       ../pairwise-aligner-paper/imgs/fig4/
+#       ../astarpa-paper/imgs/fig4/
 # 	cp evals/results/scaling_*.pdf \
-#       ../pairwise-aligner-paper/imgs/fig5/
+#       ../astarpa-paper/imgs/fig5/
 # 	cp evals/results/expanded_*.pdf \
-#       ../pairwise-aligner-paper/imgs/fig6/
-# 	cp evals/results/table* ../pairwise-aligner-paper/data/
-# 	cp evals/results/speedup ../pairwise-aligner-paper/data/speedup
-# 	cp evals/results/human* ../pairwise-aligner-paper/imgs/fig7/
-# 	cp evals/results/stats_* ../pairwise-aligner-paper/data/
-# 	cp evals/results/prune_fraction_* ../pairwise-aligner-paper/data/
+#       ../astarpa-paper/imgs/fig6/
+# 	cp evals/results/table* ../astarpa-paper/data/
+# 	cp evals/results/speedup ../astarpa-paper/data/speedup
+# 	cp evals/results/human* ../astarpa-paper/imgs/fig7/
+# 	cp evals/results/stats_* ../astarpa-paper/data/
+# 	cp evals/results/prune_fraction_* ../astarpa-paper/data/
 
 # ========== PAPER FIGURES ==========
 
@@ -100,11 +100,11 @@ fig-comparison:
 paper-figs: fig-intro fig-layers fig-limitations
 
 paper-export-only:
-	rm -rf ../pairwise-aligner-paper/imgs/{intro/*,layers/*,limitations/*,comparison/*}
-	rsync -a imgs/paper/intro/*png ../pairwise-aligner-paper/imgs/intro/
-	rsync -a imgs/paper/layers/*png ../pairwise-aligner-paper/imgs/layers/
-	rsync -a imgs/paper/limitations/*png ../pairwise-aligner-paper/imgs/limitations/
-	rsync -a imgs/paper/comparison/*png ../pairwise-aligner-paper/imgs/comparison/
+	rm -rf ../astarpa-paper/imgs/{intro/*,layers/*,limitations/*,comparison/*}
+	rsync -a imgs/paper/intro/*png ../astarpa-paper/imgs/intro/
+	rsync -a imgs/paper/layers/*png ../astarpa-paper/imgs/layers/
+	rsync -a imgs/paper/limitations/*png ../astarpa-paper/imgs/limitations/
+	rsync -a imgs/paper/comparison/*png ../astarpa-paper/imgs/comparison/
 
 paper-export: paper-figs paper-export-only
 
