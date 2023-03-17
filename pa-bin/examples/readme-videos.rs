@@ -24,22 +24,22 @@ fn main() {
     let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
     config.draw = When::None;
-    config.save = When::None;
+    config.save = When::Layers;
     config.save_last = true;
     config.delay = Duration::from_secs_f32(0.0001);
-    config.cell_size = 4;
+    config.cell_size = 1;
     config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
     config.style.path = Some((0, 0, 0, 0));
-    config.style.path_width = Some(4);
+    config.style.path_width = None;
     config.layer_drawing = false;
     config.style.draw_dt = false;
     config.style.draw_f = false;
     config.style.draw_labels = false;
     config.transparent_bmp = true;
     config.draw_old_on_top = true;
-    config.filepath = PathBuf::from("imgs/paper/intro");
-    config.clear_after_meeting_point = false;
+    config.filepath = PathBuf::from("imgs/readme/");
+    config.clear_after_meeting_point = true;
 
     let aligners: &mut [Box<dyn AffineAligner>] = &mut [
         Box::new(NW {

@@ -9,9 +9,7 @@ videos-clean: fig-intro-video-clean fig_layers-video-clean fig-readme-video-clea
 # ========== PAPER FIGURES ==========
 
 fig-intro:
-	rm -rf imgs/paper/intro/*/*.bmp
-	rm -rf imgs/paper/intro/*.bmp
-	rm -rf imgs/paper/intro/*.png
+	rm -rf imgs/paper/intro/*
 	cargo run --features example --release --example fig-intro
 	mogrify -format png imgs/paper/intro/*bmp
 	rm imgs/paper/intro/*bmp
@@ -49,18 +47,19 @@ paper-export: paper-figs paper-export-only
 FILTER = -filter_complex "tpad=stop_mode=clone:stop_duration=2[t];[t]split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer"
 
 fig-intro-video:
+	cargo run --features example --release --example readme-videos
 	# mp4
-	ffmpeg -y -framerate 1 -i imgs/paper/intro/1_ukkonen/%d.bmp imgs/paper/intro/1_ukkonen.mp4
-	ffmpeg -y -framerate 10 -i imgs/paper/intro/2_dijkstra/%d.bmp imgs/paper/intro/2_dijkstra.mp4
-	ffmpeg -y -framerate 10 -i imgs/paper/intro/3_diagonal-transition/%d.bmp imgs/paper/intro/3_diagonal_transition.mp4
-	ffmpeg -y -framerate 20 -i imgs/paper/intro/4_dt-divide-and-conquer/%d.bmp imgs/paper/intro/4_dt-divide-and-conquer.mp4
-	ffmpeg -y -framerate 2 -i imgs/paper/intro/5_astarpa/%d.bmp imgs/paper/intro/5_astarpa.mp4
+	ffmpeg -y -framerate 1 -i imgs/readme/1_ukkonen/%d.bmp imgs/readme/1_ukkonen.mp4
+	ffmpeg -y -framerate 10 -i imgs/readme/2_dijkstra/%d.bmp imgs/readme/2_dijkstra.mp4
+	ffmpeg -y -framerate 10 -i imgs/readme/3_diagonal-transition/%d.bmp imgs/readme/3_diagonal_transition.mp4
+	ffmpeg -y -framerate 20 -i imgs/readme/4_dt-divide-and-conquer/%d.bmp imgs/readme/4_dt-divide-and-conquer.mp4
+	ffmpeg -y -framerate 2 -i imgs/readme/5_astarpa/%d.bmp imgs/readme/5_astarpa.mp4
 	# gif
-	ffmpeg -y -framerate 1 -i imgs/paper/intro/1_ukkonen/%d.bmp 				$(FILTER) imgs/paper/intro/1_ukkonen.gif
-	ffmpeg -y -framerate 10 -i imgs/paper/intro/2_dijkstra/%d.bmp 				$(FILTER) imgs/paper/intro/2_dijkstra.gif
-	ffmpeg -y -framerate 10 -i imgs/paper/intro/3_diagonal-transition/%d.bmp 	$(FILTER) imgs/paper/intro/3_diagonal_transition.gif
-	ffmpeg -y -framerate 20 -i imgs/paper/intro/4_dt-divide-and-conquer/%d.bmp $(FILTER) imgs/paper/intro/4_dt-divide-and-conquer.gif
-	ffmpeg -y -framerate 2 -i imgs/paper/intro/5_astarpa/%d.bmp 	$(FILTER) imgs/paper/intro/5_astarpa.gif
+	ffmpeg -y -framerate 1 -i imgs/readme/1_ukkonen/%d.bmp 				$(FILTER) imgs/readme/1_ukkonen.gif
+	ffmpeg -y -framerate 10 -i imgs/readme/2_dijkstra/%d.bmp 				$(FILTER) imgs/readme/2_dijkstra.gif
+	ffmpeg -y -framerate 10 -i imgs/readme/3_diagonal-transition/%d.bmp 	$(FILTER) imgs/readme/3_diagonal_transition.gif
+	ffmpeg -y -framerate 20 -i imgs/readme/4_dt-divide-and-conquer/%d.bmp $(FILTER) imgs/readme/4_dt-divide-and-conquer.gif
+	ffmpeg -y -framerate 2 -i imgs/readme/5_astarpa/%d.bmp 	$(FILTER) imgs/readme/5_astarpa.gif
 
 # Remove video source files
 fig-intro-video-clean:
