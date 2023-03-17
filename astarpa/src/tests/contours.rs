@@ -12,7 +12,7 @@ fn exact_no_pruning_gap() {
                 let h = GCSH::new(MatchConfig::exact(k), Pruning::disabled());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVis);
+                let r = astar(&a, &b, &h.equal_to_bruteforce_gcsh(), &NoVis);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
                 assert_eq!(r.0 .0, dist);
             }
@@ -29,7 +29,7 @@ fn inexact_no_pruning_gap() {
                 let (a, b) = uniform_fixed(n, e);
                 //print(h, &a, &b);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVis);
+                let r = astar(&a, &b, &h.equal_to_bruteforce_gcsh(), &NoVis);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
                 assert_eq!(r.0 .0, dist);
             }
@@ -45,7 +45,7 @@ fn pruning_bruteforce_gap() {
                 let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::enabled());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = astar(&a, &b, &h.equal_to_seed_heuristic(), &NoVis);
+                let r = astar(&a, &b, &h.equal_to_bruteforce_gcsh(), &NoVis);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
                 assert_eq!(r.0 .0, dist);
             }
@@ -77,7 +77,7 @@ fn exact_no_pruning() {
                 let h = CSH::new(MatchConfig::exact(k), Pruning::disabled());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = astar(&a, &b, &h.equal_to_zero_cost_seed_heuristic(), &NoVis);
+                let r = astar(&a, &b, &h.equal_to_bruteforce_csh(), &NoVis);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
                 assert_eq!(r.0 .0, dist);
             }
@@ -94,7 +94,7 @@ fn inexact_no_pruning() {
                 let (a, b) = uniform_fixed(n, e);
                 //print(h, &a, &b);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = astar(&a, &b, &h.equal_to_zero_cost_seed_heuristic(), &NoVis);
+                let r = astar(&a, &b, &h.equal_to_bruteforce_csh(), &NoVis);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
                 assert_eq!(r.0 .0, dist);
             }
@@ -110,7 +110,7 @@ fn pruning_bruteforce() {
                 let h = CSH::new(MatchConfig::new(k, max_match_cost), Pruning::enabled());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
-                let r = astar(&a, &b, &h.equal_to_zero_cost_seed_heuristic(), &NoVis);
+                let r = astar(&a, &b, &h.equal_to_bruteforce_csh(), &NoVis);
                 let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
                 assert_eq!(r.0 .0, dist);
             }

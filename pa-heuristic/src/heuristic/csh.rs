@@ -41,7 +41,7 @@ impl GCSH {
 }
 
 impl<C: Contours> CSH<C> {
-    pub fn to_seed_heuristic(&self) -> BruteForceGCSH<GapCost> {
+    pub fn to_bruteforce_gcsh(&self) -> BruteForceGCSH<GapCost> {
         assert!(self.use_gap_cost);
         BruteForceGCSH {
             match_config: self.match_config,
@@ -50,7 +50,7 @@ impl<C: Contours> CSH<C> {
         }
     }
 
-    pub fn to_zero_cost_seed_heuristic(&self) -> BruteForceGCSH<NoCost> {
+    pub fn to_bruteforce_csh(&self) -> BruteForceGCSH<NoCost> {
         assert!(!self.use_gap_cost);
         BruteForceGCSH {
             match_config: self.match_config,
@@ -59,18 +59,16 @@ impl<C: Contours> CSH<C> {
         }
     }
 
-    pub fn equal_to_seed_heuristic(&self) -> EqualHeuristic<BruteForceGCSH<GapCost>, Self> {
+    pub fn equal_to_bruteforce_gcsh(&self) -> EqualHeuristic<BruteForceGCSH<GapCost>, Self> {
         EqualHeuristic {
-            h1: self.to_seed_heuristic(),
+            h1: self.to_bruteforce_gcsh(),
             h2: *self,
         }
     }
 
-    pub fn equal_to_zero_cost_seed_heuristic(
-        &self,
-    ) -> EqualHeuristic<BruteForceGCSH<NoCost>, Self> {
+    pub fn equal_to_bruteforce_csh(&self) -> EqualHeuristic<BruteForceGCSH<NoCost>, Self> {
         EqualHeuristic {
-            h1: self.to_zero_cost_seed_heuristic(),
+            h1: self.to_bruteforce_csh(),
             h2: *self,
         }
     }
