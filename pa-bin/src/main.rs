@@ -2,48 +2,53 @@
 
 use astarpa::stats::AstarStats;
 use clap::Parser;
+use pa_bin::cli::Cli;
 use pa_types::*;
-use pa_vis::cli::VisualizerArgs;
-use std::ops::ControlFlow;
-
-#[derive(Parser)]
-pub struct Cli {
-    #[clap(flatten)]
-    args: pa_bin::cli::Cli,
-    #[clap(flatten)]
-    vis: VisualizerArgs,
-}
+use std::{
+    io::{BufWriter, Write},
+    ops::ControlFlow,
+};
 
 fn main() {
-    let Cli { args, vis } = Cli::parse();
+    let args = Cli::parse();
 
-    let mut avg_result = AstarStats::default();
+    let mut avg_stats = AstarStats::default();
 
-    let aligner = vis.astar_aligner(args.diagonal_transition, &args.heuristic);
+    let aligner = args
+        .vis
+        .astar_aligner(args.diagonal_transition, &args.heuristic);
+
+    let mut out_file = args
+        .output
+        .as_ref()
+        .map(|o| BufWriter::new(std::fs::File::create(o).unwrap()));
 
     // Process the input.
-    args.input.process_input_pairs(|a: Seq, b: Seq| {
+    args.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let r = aligner.align(a, b).1;
+        let ((cost, cigar), stats) = aligner.align(a, b);
 
         // Record and print stats.
         if args.silent <= 1 {
             print!("\r");
             if args.silent == 0 {
-                r.print();
+                stats.print();
             }
         }
-        avg_result += r;
+        avg_stats += stats;
         if args.silent <= 1 {
-            avg_result.print_no_newline();
+            avg_stats.print_no_newline();
         }
 
+        if let Some(f) = &mut out_file {
+            writeln!(f, "{cost},{}", cigar.to_string()).unwrap();
+        }
         ControlFlow::Continue(())
     });
 
-    if avg_result.sample_size > 0 {
+    if avg_stats.sample_size > 0 {
         print!("\r");
-        avg_result.print();
+        avg_stats.print();
     }
 }
 

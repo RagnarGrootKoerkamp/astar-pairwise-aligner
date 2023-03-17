@@ -50,10 +50,10 @@ pub fn run() {
             &args.cli.heuristic,
             visualizer,
         );
-        args.cli.input.process_input_pairs(|a: Seq, b: Seq| {
+        args.cli.process_input_pairs(|a: Seq, b: Seq| {
             // Run the pair.
             // TODO: Show the result somewhere.
-            let _r = aligner.align(a, b);
+            aligner.align(a, b);
             ControlFlow::Break(())
         });
         unsafe {

@@ -20,7 +20,6 @@ pub fn reset() {
         if let Some(args) = &mut ARGS {
             // Fix the seed so that reruns for consecutive draws don't change it.
             args.cli
-                .input
                 .generate
                 .seed
                 .get_or_insert(ChaCha8Rng::from_entropy().gen_range(0..u64::MAX));

@@ -18,8 +18,17 @@ use std::{
 #[clap(author, about)]
 #[group(skip)]
 pub struct Cli {
+    /// The .seq, .txt, or Fasta file with sequence pairs to align.
+    #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
+    pub input: Option<PathBuf>,
+
+    /// Write a .csv of `{cost},{cigar}` lines
+    #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
+    pub output: Option<PathBuf>,
+
+    /// Options to generate an input pair.
     #[clap(flatten)]
-    pub input: Input,
+    pub generate: pa_generate::DatasetGenerator,
 
     /// Use diagonal-transition based A*.
     #[clap(long = "dt", hide_short_help = true)]
@@ -40,23 +49,7 @@ pub struct Cli {
     pub silent: u8,
 }
 
-#[derive(Parser, Serialize, Deserialize)]
-#[clap(next_help_heading = "Input")]
-pub struct Input {
-    /// The .seq, .txt, or Fasta file with sequence pairs to align.
-    #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
-    pub input: Option<PathBuf>,
-
-    /// The output csv file where to write costs and cigars
-    #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
-    pub output: Option<PathBuf>,
-
-    /// Options to generate an input pair.
-    #[clap(flatten)]
-    pub generate: pa_generate::DatasetGenerator,
-}
-
-impl Input {
+impl Cli {
     /// Call the given function for each pair in the input.
     pub fn process_input_pairs(&self, mut run_pair: impl FnMut(Seq, Seq) -> ControlFlow<()>) {
         let mut run_cropped_pair = |mut a: Seq, mut b: Seq| -> ControlFlow<()> {
@@ -74,6 +67,7 @@ impl Input {
         };
 
         if let Some(input) = &self.input {
+            // Parse file
             let files = if input.is_file() {
                 vec![input.clone()]
             } else {

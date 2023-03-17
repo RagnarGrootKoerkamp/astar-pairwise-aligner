@@ -781,7 +781,7 @@ dependencies = [
 [[package]]
 name = "pa-types"
 version = "0.1.0"
-source = "git+https://github.com/pairwise-alignment/pa-types#15f5d5c39e0e22059de6695ff6adda2880e9304c"
+source = "git+https://github.com/pairwise-alignment/pa-types#1f678b0b145084d4d9d27dc6ae112f6fcd9ae090"
 dependencies = [
  "derive_more",
  "itertools",
