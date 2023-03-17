@@ -2,10 +2,9 @@
 
 use astarpa::stats::AstarStats;
 use clap::Parser;
-use itertools::Itertools;
 use pa_types::*;
 use pa_vis::cli::VisualizerArgs;
-use std::{ops::ControlFlow, time::Instant};
+use std::ops::ControlFlow;
 
 #[derive(Parser)]
 pub struct Cli {
@@ -19,7 +18,6 @@ fn main() {
     let Cli { args, vis } = Cli::parse();
 
     let mut avg_result = AstarStats::default();
-    let start = Instant::now();
 
     let aligner = vis.astar_aligner(&args);
 
@@ -40,30 +38,12 @@ fn main() {
             avg_result.print_no_newline();
         }
 
-        if let Some(d) = args.timeout && start.elapsed() > d {
-            ControlFlow::Break(())
-        } else {
-            ControlFlow::Continue(())
-        }
+        ControlFlow::Continue(())
     });
 
     if avg_result.sample_size > 0 {
         print!("\r");
         avg_result.print();
-
-        if let Some(output) = args.output {
-            let (header, vals) = avg_result.values();
-
-            std::fs::write(
-                output,
-                format!(
-                    "{}\n{}\n",
-                    header.iter().map(|x| x.trim()).join("\t"),
-                    vals.iter().map(|x| x.trim()).join("\t")
-                ),
-            )
-            .unwrap();
-        }
     }
 }
 

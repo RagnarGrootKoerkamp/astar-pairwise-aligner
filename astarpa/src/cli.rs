@@ -12,7 +12,6 @@ use std::{
     io::{BufRead, BufReader},
     ops::ControlFlow,
     path::PathBuf,
-    time::Duration,
 };
 
 #[derive(Parser, Serialize, Deserialize)]
@@ -21,10 +20,6 @@ use std::{
 pub struct Cli {
     #[clap(flatten)]
     pub input: Input,
-
-    /// Where to write optional statistics.
-    #[arg(short, long, value_parser = value_parser!(PathBuf))]
-    pub output: Option<PathBuf>,
 
     /// Use diagonal-transition based A*.
     #[clap(long = "dt", hide_short_help = true)]
@@ -40,10 +35,6 @@ pub struct Cli {
     /// Pass twice to only print a summary line and avoid all terminal clutter, e.g. for benchmarking.
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub silent: u8,
-
-    /// Stop aligning new pairs after this timeout.
-    #[arg(long, value_parser = parse_duration::parse, hide_short_help = true)]
-    pub timeout: Option<Duration>,
 }
 
 impl Cli {
