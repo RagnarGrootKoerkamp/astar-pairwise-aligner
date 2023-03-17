@@ -63,17 +63,17 @@ pub use astar_dt::astar_dt;
 /// - seed length k=15
 /// - prune by start only.
 pub fn astarpa(a: Seq, b: Seq) -> (Cost, Cigar) {
-    astarpa_gcsh(a, b, 15, 2, Prune::Start)
+    astarpa_gcsh(a, b, 2, 15, Prune::Start)
 }
 
 /// Align using GCSH with DT, with custom parameters.
 /// - r=1 instead of r=2 can be used when the error rate is low.
 /// - pruning by start *and* end (`Prune::Both`) can help for higher error rates where there are not many spurious matches.
-pub fn astarpa_gcsh(a: Seq, b: Seq, k: I, r: MatchCost, pruning: Prune) -> (Cost, Cigar) {
+pub fn astarpa_gcsh(a: Seq, b: Seq, r: MatchCost, k: I, pruning: Prune) -> (Cost, Cigar) {
     astar_dt::astar_dt(
         a,
         b,
-        &GCSH::new(MatchConfig::new(k, r), Pruning::new(pruning)),
+        &GCSH::new(MatchConfig::new(k, r - 1), Pruning::new(pruning)),
         &NoVis,
     )
     .0
