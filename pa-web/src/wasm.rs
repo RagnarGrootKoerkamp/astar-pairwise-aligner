@@ -1,5 +1,6 @@
 use crate::{html::FRAMES_PRESENTED, interaction::Interaction};
-use astarpa::{cli::Cli, make_aligner_with_visualizer};
+use astarpa::make_aligner_with_visualizer;
+use pa_bin::cli::Cli;
 use pa_types::*;
 use pa_vis::cli::{VisualizerArgs, VisualizerType};
 use std::ops::ControlFlow;

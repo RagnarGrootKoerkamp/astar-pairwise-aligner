@@ -29,3 +29,4 @@ smallvec = { version = "1.10.0", features = ["union"] }
 # For benchmarking only.
 triple_accel = "0.4.0"
 rand = "0.8.5"
+pa-generate.workspace = true

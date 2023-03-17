@@ -2,14 +2,12 @@
 //! # A*PA library
 //!
 //! This crate is the entrypoint of the A*PA library.
-//! It can be used in a few ways:
-//! - Call `astar` or `astar_dt` directly using a heuristic and visualizer.
-//! - Create a reusable `AstarPa` `Aligner` object.
-//! - Create a simpler `AstarPaParams` object.
-//!
-//! The difference between `AstarPa` and `AstarPaParams` is that the first
-//! requires an instantiated heuristic type, whereas the letter can be
-//! configured using `HeuristicArgs` and instantiates the heuristic for you.
+//! It can be used in a few ways. From simple to generic:
+//! - `astarpa(a,b)`
+//! - `astarpa_gcsh(a,b,r,k,Prune)`
+//! - `make_aligner(dt: bool, h: HeuristicParams).align(a,b)`
+//! - `AstarPa{ dt: bool, h: Heuristic, v: VisualizerT}.align(a,b)`
+//! The last 2 methods create an aligner object that can be reused.
 //!
 #![feature(
     test,
