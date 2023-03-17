@@ -25,7 +25,7 @@ fn main() {
     let mut config = visualizer::Config::default();
     config.draw = When::None;
     config.save = When::Layers;
-    config.save_last = true;
+    config.save_last = false;
     config.delay = Duration::from_secs_f32(0.0001);
     config.cell_size = 1;
     config.style.bg_color = (255, 255, 255, 128);

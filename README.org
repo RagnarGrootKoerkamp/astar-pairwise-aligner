@@ -39,9 +39,9 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   existing code, but may inspire new ideas.)
 
 Here's an alignment of two sequences of length $500$ with $30\%$ error rate
-using the /chaining seed heuristic/ with /pruning/:
+using the /chaining seed heuristic/ with /diagonal transition/ and /pruning/:
 
-[[file:imgs/fig-readme.gif]]
+[[file:imgs/readme/layers.gif]]
 
 
 * Getting started
@@ -178,13 +178,10 @@ Sample videos corresponding to figure 1 of the paper are below. Due to different
 visualization strategies (per layer, per cell) timings are not at all comparable.
 
 |---------------------------------------------------------------------------+---------------------------------------------------------------------------------|
-| Dijkstra [[file:imgs/paper/intro/2_dijkstra.gif]]                             | Ukkonen's exponential search (Edlib) [[file:imgs/paper/intro/1_ukkonen.gif]]        |
-| Diagonal transition (WFA) [[file:imgs/paper/intro/3_diagonal_transition.gif]] | DT + Divide & Conquer (BiWFA) [[file:imgs/paper/intro/4_dt-divide-and-conquer.gif]] |
-| A*PA (GCSH+DT) [[file:imgs/paper/intro/5_astarpa.gif]]            |                                                                                 |
+| Dijkstra [[file:imgs/readme/2_dijkstra.gif]]                             | Ukkonen's exponential search (Edlib) [[file:imgs/readme/1_ukkonen.gif]]        |
+| Diagonal transition (WFA) [[file:imgs/readme/3_diagonal_transition.gif]] | DT + Divide & Conquer (BiWFA) [[file:imgs/readme/4_dt-divide-and-conquer.gif]] |
+| A*PA (GCSH+DT) [[file:imgs/readme/5_astarpa.gif]]            |                                                                                 |
 
-And here is a video of figure 3 of our preprint:
-
-[[file:imgs/fig_layers.gif]]
 
 * Tests & Benchmarks
 
