@@ -34,3 +34,10 @@ pub trait AffineAligner: std::fmt::Debug {
     /// Costmodel and traceback parameters must be specified on construction of the aligner.
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>);
 }
+
+impl<T: pa_types::Aligner> AffineAligner for T {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
+        let (cost, cigar) = pa_types::Aligner::align(self, a, b);
+        (cost, cigar.map(|c| (&c).into()))
+    }
+}

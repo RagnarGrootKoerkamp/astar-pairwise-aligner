@@ -49,7 +49,6 @@ mod prelude {
 
 // ------------ Root alignment interface follows from here ------------
 
-use pa_affine_types::{AffineAligner, AffineCigar};
 use pa_heuristic::matches::MatchCost;
 use pa_heuristic::{Heuristic, HeuristicMapper, Prune};
 use pa_heuristic::{HeuristicArgs, MatchConfig, Pruning, GCSH};
@@ -182,9 +181,9 @@ impl<V: VisualizerT, H: Heuristic> AstarPaAligner for AstarPa<V, H> {
     }
 }
 
-impl<V: VisualizerT, H: Heuristic> AffineAligner for AstarPa<V, H> {
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
-        let ((cost, ref cigar), _stats) = AstarPa::align(self, a, b);
-        (cost, Some(cigar.into()))
+impl<V: VisualizerT, H: Heuristic> pa_types::Aligner for AstarPa<V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
+        let ((cost, cigar), _stats) = AstarPa::align(self, a, b);
+        (cost, Some(cigar))
     }
 }
