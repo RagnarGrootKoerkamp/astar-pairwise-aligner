@@ -249,7 +249,7 @@ impl When {
     }
 }
 
-const CANVAS_HEIGHT: I = 1200;
+const CANVAS_HEIGHT: I = 1000;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Config {
