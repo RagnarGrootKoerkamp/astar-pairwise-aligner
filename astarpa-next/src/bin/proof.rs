@@ -39,7 +39,7 @@ struct Cli {
     silent: u8,
 
     /// Stop aligning new pairs after this timeout.
-    #[clap(long, value_parser =  parse_duration::parse)]
+    #[clap(long, value_parser =  parse_duration0::parse)]
     timeout: Option<Duration>,
 }
 

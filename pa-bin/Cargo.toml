@@ -18,7 +18,7 @@ serde.workspace = true
 bio.workspace = true
 rand_chacha = "0.3"
 rand = "0.8"
-parse_duration = "2"
+parse_duration0 = "3"
 
 [dev-dependencies]
 pa-base-algos.workspace = true
