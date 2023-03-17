@@ -30,6 +30,7 @@ impl<P: PosOrderT> ShiftOrderT<(DtPos, I)> for P {
     }
 }
 
+/// Align two sequences using the given heuristic and visualizer, using the diagonal transition (DT) optimization.
 pub fn astar_dt<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,

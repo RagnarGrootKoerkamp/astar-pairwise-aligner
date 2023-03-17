@@ -31,6 +31,7 @@ impl<P: PosOrderT> ShiftOrderT<(Pos, Cost)> for P {
     }
 }
 
+/// Align two sequences using the given heuristic and visualizer.
 pub fn astar<'a, H: Heuristic>(
     a: Seq<'a>,
     b: Seq<'a>,
