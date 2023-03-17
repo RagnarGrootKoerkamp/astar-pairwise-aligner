@@ -1,5 +1,5 @@
 use crate::{html::FRAMES_PRESENTED, interaction::Interaction};
-use astarpa::{cli::Cli, AstarPaParams};
+use astarpa::{cli::Cli, make_aligner_with_visualizer};
 use pa_types::*;
 use pa_vis::cli::{VisualizerArgs, VisualizerType};
 use std::ops::ControlFlow;
@@ -44,12 +44,11 @@ pub fn run() {
         let VisualizerType::Visualizer(visualizer) = args.visualizer.make_visualizer() else {
             panic!();
         };
-        let aligner = AstarPaParams {
-            diagonal_transition: args.cli.diagonal_transition,
-            heuristic: args.cli.heuristic,
+        let aligner = make_aligner_with_visualizer(
+            args.cli.diagonal_transition,
+            &args.cli.heuristic,
             visualizer,
-        }
-        .aligner();
+        );
         args.cli.input.process_input_pairs(|a: Seq, b: Seq| {
             // Run the pair.
             // TODO: Show the result somewhere.

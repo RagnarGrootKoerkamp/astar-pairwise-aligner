@@ -19,7 +19,7 @@ fn main() {
 
     let mut avg_result = AstarStats::default();
 
-    let aligner = vis.astar_aligner(&args);
+    let aligner = vis.astar_aligner(args.diagonal_transition, &args.heuristic);
 
     // Process the input.
     args.input.process_input_pairs(|a: Seq, b: Seq| {

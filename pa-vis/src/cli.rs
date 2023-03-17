@@ -1,6 +1,7 @@
 use crate::visualizer::{Config, VisualizerStyle, When};
-use astarpa::{AstarPaAligner, AstarPaParams};
+use astarpa::{make_aligner, make_aligner_with_visualizer, AstarStatsAligner};
 use clap::{value_parser, Parser};
+use pa_heuristic::HeuristicParams;
 use pa_types::I;
 use pa_vis_types::{canvas::*, VisualizerT};
 use serde::{Deserialize, Serialize};
@@ -79,81 +80,74 @@ pub enum VisualizerType {
 
 impl VisualizerArgs {
     pub fn make_visualizer(&self) -> VisualizerType {
-        {
-            if self.visualize == When::None && self.save == When::None {
-                return VisualizerType::NoVisualizer;
-            }
-
-            // Get the default config for the style.
-            let mut config = Config::new(self.style);
-            config.draw = self.visualize.clone();
-            config.save = self.save.clone();
-            if config.save != When::None {
-                config.save_last = true;
-                // In this case, the save_last above is sufficient.
-                if config.save == When::Last {
-                    config.save = When::None;
-                }
-                config.filepath = self
-                    .save_path
-                    .clone()
-                    .expect("--save-path must be set when --save is set");
-            }
-            let update = |when: &mut When| {
-                if let Some(step) = self.each {
-                    if *when == When::All {
-                        *when = When::StepBy(step);
-                    }
-                    if *when == When::Layers {
-                        *when = When::LayersStepBy(step);
-                    }
-                }
-            };
-            update(&mut config.draw);
-            update(&mut config.save);
-
-            config.paused = self.pause;
-
-            // Apply CLI flag customizations to the style.
-            config.cell_size = self.cell_size.unwrap_or(0);
-            config.downscaler = self.downscaler.unwrap_or(0);
-
-            config.draw_old_on_top = !self.new_on_top;
-            if self.draw_tree {
-                config.style.tree = Some(BLACK);
-            }
-            if self.no_draw_tree {
-                config.style.tree = None;
-            }
-
-            if self.draw_parents {
-                config.style.draw_dt = false;
-                config.style.draw_f = false;
-                config.style.draw_heuristic = false;
-                config.style.draw_labels = false;
-
-                config.style.draw_parents = true;
-                config.style.draw_matches = true;
-            }
-
-            #[cfg(feature = "wasm")]
-            {
-                config.draw_single_frame = Some(unsafe { crate::wasm::INTERACTION.get() });
-            }
-
-            VisualizerType::Visualizer(config)
+        if self.visualize == When::None && self.save == When::None {
+            return VisualizerType::NoVisualizer;
         }
+
+        // Get the default config for the style.
+        let mut config = Config::new(self.style);
+        config.draw = self.visualize.clone();
+        config.save = self.save.clone();
+        if config.save != When::None {
+            config.save_last = true;
+            // In this case, the save_last above is sufficient.
+            if config.save == When::Last {
+                config.save = When::None;
+            }
+            config.filepath = self
+                .save_path
+                .clone()
+                .expect("--save-path must be set when --save is set");
+        }
+        let update = |when: &mut When| {
+            if let Some(step) = self.each {
+                if *when == When::All {
+                    *when = When::StepBy(step);
+                }
+                if *when == When::Layers {
+                    *when = When::LayersStepBy(step);
+                }
+            }
+        };
+        update(&mut config.draw);
+        update(&mut config.save);
+
+        config.paused = self.pause;
+
+        // Apply CLI flag customizations to the style.
+        config.cell_size = self.cell_size.unwrap_or(0);
+        config.downscaler = self.downscaler.unwrap_or(0);
+
+        config.draw_old_on_top = !self.new_on_top;
+        if self.draw_tree {
+            config.style.tree = Some(BLACK);
+        }
+        if self.no_draw_tree {
+            config.style.tree = None;
+        }
+
+        if self.draw_parents {
+            config.style.draw_dt = false;
+            config.style.draw_f = false;
+            config.style.draw_heuristic = false;
+            config.style.draw_labels = false;
+
+            config.style.draw_parents = true;
+            config.style.draw_matches = true;
+        }
+
+        #[cfg(feature = "wasm")]
+        {
+            config.draw_single_frame = Some(unsafe { crate::wasm::INTERACTION.get() });
+        }
+
+        VisualizerType::Visualizer(config)
     }
 
-    pub fn astar_aligner(&self, astarpa_args: &astarpa::cli::Cli) -> Box<dyn AstarPaAligner> {
+    pub fn astar_aligner(&self, dt: bool, h: &HeuristicParams) -> Box<dyn AstarStatsAligner> {
         match self.make_visualizer() {
-            VisualizerType::NoVisualizer => astarpa_args.to_astar_pa_params().aligner(),
-            VisualizerType::Visualizer(vis) => AstarPaParams::new_with_vis(
-                astarpa_args.diagonal_transition,
-                astarpa_args.heuristic,
-                vis,
-            )
-            .aligner(),
+            VisualizerType::NoVisualizer => make_aligner(dt, h),
+            VisualizerType::Visualizer(vis) => make_aligner_with_visualizer(dt, h, vis),
         }
     }
 }
