@@ -1,15 +1,17 @@
 #![feature(let_chains)]
 use astarpa::AstarPa;
 use bio::alignment::distance::simd::levenshtein;
-use pa_generate::{generate_model, ErrorModel};
+use pa_generate::{generate_model, uniform_fixed, ErrorModel};
 use pa_heuristic::{Heuristic, MatchConfig, Prune, Pruning, CSH};
 use pa_types::{seq_to_string, Cost, Pos, Sequence, I};
+use pa_vis::visualizer::{self, When};
 use pa_vis_types::{NoVis, VisualizerT};
 use std::{
     cmp::{max, min},
     panic::AssertUnwindSafe,
 };
 
+#[allow(unused)]
 fn fuzz<V: VisualizerT, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Sequence) {
     for n in (5..).step_by(1) {
         for r in 0..1000 {
@@ -38,21 +40,26 @@ fn fuzz<V: VisualizerT, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Seq
 
 fn main() {
     let dt = true;
-    let k = 3;
-    let max_match_cost = 1;
+    let k = 4;
+    let max_match_cost = 0;
     let pruning = Prune::Both;
 
     let check_dist = true;
 
+    let h = CSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning));
     let ref mut aligner = AstarPa {
         dt,
-        h: CSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning)),
+        h: h.equal_to_bruteforce_csh(),
         v: NoVis,
     };
 
     // let a = "TCTCTCTCTCTG".as_bytes();
     // let b = "GTCTCTCTTCTG".as_bytes();
-    let (ref a, ref b) = fuzz(aligner);
+
+    //let (ref a, ref b) = fuzz(aligner);
+
+    let (ref a, ref b) = uniform_fixed(40, 0.3);
+
     println!(
         "\n\nShrinking sequences:\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n\n",
         seq_to_string(a),
@@ -142,4 +149,12 @@ fn main() {
         seq_to_string(b)
     );
     println!("Aligner:\n{aligner:?}");
+
+    let mut aligner = AstarPa {
+        dt: aligner.dt,
+        h: CSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning)).to_bruteforce_csh(),
+        v: visualizer::Config::new(visualizer::VisualizerStyle::Debug),
+    };
+    aligner.v.draw = When::All;
+    aligner.align(a, b);
 }
