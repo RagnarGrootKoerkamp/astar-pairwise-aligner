@@ -6,7 +6,7 @@ use std::{
 use derive_more::AddAssign;
 use pa_types::{Cost, Seq};
 
-use pa_heuristic::{HeuristicParams, HeuristicStats};
+use pa_heuristic::HeuristicStats;
 
 #[derive(Default, Clone, Copy, AddAssign, Debug)]
 pub struct Timing {
@@ -42,7 +42,6 @@ pub struct AstarStats {
     /// Number of states allocated in the DiagonalMap
     pub hashmap_capacity: usize,
 
-    pub h_params: HeuristicParams,
     pub h: HeuristicStats,
 
     pub timing: Timing,
@@ -130,9 +129,6 @@ impl AstarStats {
             self.format_avg('>', 10, "|a|", self.len_a),
             self.format_avg('>', 10, "|b|", self.len_b),
             self.format_avg('>', 4, "e", self.error_rate),
-            self.format_raw('<', 7, "H", self.h_params.name.clone()),
-            self.format_raw('>', 2, "k", self.h_params.k),
-            self.format_raw('>', 2, "m", self.h_params.max_match_cost),
             self.format_avg('>', 7, "seeds", self.h.num_seeds),
             self.format_flt(
                 '>',

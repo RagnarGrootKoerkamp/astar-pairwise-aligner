@@ -29,18 +29,6 @@ impl Heuristic for SH {
     fn name(&self) -> String {
         "SH".into()
     }
-
-    fn params(&self) -> HeuristicParams {
-        // TODO
-        HeuristicParams {
-            name: self.name(),
-            k: self.match_config.length.k().unwrap_or(0),
-            max_match_cost: self.match_config.max_match_cost,
-            pruning: self.pruning,
-            distance_function: "Zero".to_string(),
-            ..Default::default()
-        }
-    }
 }
 
 pub struct SHI {

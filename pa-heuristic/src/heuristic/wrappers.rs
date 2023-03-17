@@ -31,13 +31,6 @@ where
             h2: self.h2.build(a, b),
         }
     }
-
-    fn params(&self) -> HeuristicParams {
-        HeuristicParams {
-            name: self.name(),
-            ..self.h1.params()
-        }
-    }
 }
 
 impl<'a, H1: Heuristic, H2: Heuristic> HeuristicInstance<'a> for EqualHeuristicI<'a, H1, H2>
@@ -141,13 +134,6 @@ where
             h2: self.h2.build(a, b),
         }
     }
-
-    fn params(&self) -> HeuristicParams {
-        HeuristicParams {
-            name: self.name(),
-            ..self.h1.params()
-        }
-    }
 }
 
 impl<'a, H1: Heuristic, H2: Heuristic> HeuristicInstance<'a> for MaxHeuristicI<'a, H1, H2>
@@ -219,13 +205,6 @@ where
     fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         MirrorHeuristicI {
             h: self.0.build(b, a),
-        }
-    }
-
-    fn params(&self) -> HeuristicParams {
-        HeuristicParams {
-            name: self.name(),
-            ..self.0.params()
         }
     }
 }
@@ -320,12 +299,5 @@ where
             h2: MirrorHeuristic(self.0),
         };
         max_config.build(a, b)
-    }
-
-    fn params(&self) -> HeuristicParams {
-        HeuristicParams {
-            name: self.name(),
-            ..self.0.params()
-        }
     }
 }

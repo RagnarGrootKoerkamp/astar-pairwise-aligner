@@ -96,20 +96,6 @@ impl Pruning {
     }
 }
 
-#[derive(Default, Clone, Debug)]
-pub struct HeuristicParams {
-    pub name: String,
-    pub distance_function: String,
-    pub k: I,
-    pub max_match_cost: MatchCost,
-    pub pruning: Pruning,
-}
-
-impl std::ops::AddAssign<HeuristicParams> for HeuristicParams {
-    /// This does nothing; parameters can't be added.
-    fn add_assign(&mut self, _rhs: HeuristicParams) {}
-}
-
 #[derive(Clone, AddAssign, Default, Copy, Debug)]
 pub struct HeuristicStats {
     pub num_seeds: I,
@@ -131,13 +117,6 @@ pub trait Heuristic: std::fmt::Debug + Copy {
 
     // Heuristic properties.
     fn name(&self) -> String;
-
-    fn params(&self) -> HeuristicParams {
-        HeuristicParams {
-            name: self.name(),
-            ..Default::default()
-        }
-    }
 }
 
 pub trait PosOrderT: PartialOrd + Default + Copy + std::fmt::Debug {
