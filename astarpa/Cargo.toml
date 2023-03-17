@@ -19,14 +19,14 @@ serde.workspace = true
 itertools.workspace = true
 bio.workspace = true
 # wasm-friendly instant
-instant = "0.1.12"
-rustc-hash = "1.1.0"
-num-traits = "0.2.15"
-derive_more = { version = "0.99.17", default-features = false, features = ["add_assign"] }
-smallvec = { version = "1.10.0", features = ["union"] }
+instant = "0.1"
+rustc-hash = "1"
+num-traits = "0.2"
+derive_more = { version = "0.99", default-features = false, features = ["add_assign"] }
+smallvec = { version = "1", features = ["union"] }
 
 [dev-dependencies]
 # For benchmarking only.
-triple_accel = "0.4.0"
-rand = "0.8.5"
+triple_accel = "0.4"
+rand = "0.8"
 pa-generate.workspace = true

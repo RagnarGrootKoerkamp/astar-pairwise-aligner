@@ -13,11 +13,11 @@ clap.workspace = true
 serde.workspace = true
 itertools.workspace = true
 
-colorgrad = "0.6.2"
-sdl2 = { version = "0.35.2", features = ["ttf"], optional = true }
-lazy_static = "1.4.0"
+colorgrad = "0.6"
+sdl2 = { version = "0.35", features = ["ttf"], optional = true }
+lazy_static = "1.4"
 astarpa.workspace = true
-rand = "0.8.5"
+rand = "0.8"
 
 [features]
 default = ["sdl"]
