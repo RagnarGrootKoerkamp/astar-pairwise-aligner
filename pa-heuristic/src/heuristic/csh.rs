@@ -363,7 +363,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         // Prune any matches ending here.
         let mut change = 0;
-        if self.params.pruning.end() {
+        if self.params.pruning.prune_end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
                 if let Some(s) = self.seeds.seed_ending_at(pos) {
@@ -439,7 +439,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 
-        if self.params.pruning.start() {
+        if self.params.pruning.prune_start() {
             change += if min_len == 0 {
                 if self.add_prune() {
                     self.arrows.remove(&tpos).unwrap();

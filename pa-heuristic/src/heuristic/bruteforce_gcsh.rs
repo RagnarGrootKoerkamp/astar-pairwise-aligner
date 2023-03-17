@@ -193,7 +193,7 @@ where
         let max_match_cost = self.params.match_config.max_match_cost;
 
         // Prune any matches ending here.
-        if self.params.pruning.end() {
+        if self.params.pruning.prune_end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
                 if let Some(s) = self.seeds.seed_ending_at(pos) {
@@ -275,7 +275,7 @@ where
             println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
         }
 
-        if self.params.pruning.start() {
+        if self.params.pruning.prune_start() {
             if min_len == 0 {
                 self.arrows.remove(&tpos).unwrap();
             } else {

@@ -69,6 +69,12 @@ impl Pruning {
             skip_prune: None,
         }
     }
+    pub fn start() -> Self {
+        Pruning {
+            enabled: Prune::Start,
+            skip_prune: None,
+        }
+    }
     pub fn enabled() -> Self {
         Pruning {
             enabled: Prune::Both,
@@ -82,13 +88,13 @@ impl Pruning {
             _ => true,
         }
     }
-    pub fn start(&self) -> bool {
+    pub fn prune_start(&self) -> bool {
         match self.enabled {
             Prune::None | Prune::End => false,
             Prune::Start | Prune::Both => true,
         }
     }
-    pub fn end(&self) -> bool {
+    pub fn prune_end(&self) -> bool {
         match self.enabled {
             Prune::None | Prune::Start => false,
             Prune::End | Prune::Both => true,
@@ -225,6 +231,7 @@ pub trait HeuristicInstance<'a> {
         None
     }
 
+    /// A descriptive string of the heuristic settings, used for failing assertions.
     fn params_string(&self) -> String {
         "".into()
     }
