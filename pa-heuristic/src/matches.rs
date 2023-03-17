@@ -200,7 +200,6 @@ pub struct MatchConfig {
     pub length: LengthConfig,
     // TODO: Move the max_match_cost into MatchLength.
     pub max_match_cost: MatchCost,
-    pub window_filter: bool,
 }
 
 impl MatchConfig {
@@ -208,21 +207,18 @@ impl MatchConfig {
         Self {
             length: Fixed(k),
             max_match_cost,
-            window_filter: false,
         }
     }
     pub fn exact(k: I) -> Self {
         Self {
             length: Fixed(k),
             max_match_cost: 0,
-            window_filter: false,
         }
     }
     pub fn inexact(k: I) -> Self {
         Self {
             length: Fixed(k),
             max_match_cost: 1,
-            window_filter: false,
         }
     }
 }
@@ -232,7 +228,6 @@ impl Default for MatchConfig {
         Self {
             length: Fixed(0),
             max_match_cost: 0,
-            window_filter: false,
         }
     }
 }

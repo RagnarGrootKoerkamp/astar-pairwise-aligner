@@ -149,70 +149,44 @@ impl ToString for HeuristicArgs {
 
 pub trait HeuristicMapper {
     type R;
-    fn call<H: Heuristic + 'static>(&self, h: H) -> Self::R;
+    fn call<H: Heuristic + 'static>(self, h: H) -> Self::R;
 }
 
 impl HeuristicArgs {
-    pub fn match_config(&self, window_filter: bool) -> MatchConfig {
-        let r = self.r;
-        let k = self.k;
-        MatchConfig {
+    /// Apply a generic function F to the instantiated heuristic.
+    pub fn map<F: HeuristicMapper>(&self, f: F) -> F::R {
+        let match_config = MatchConfig {
             length: if let Some(max) = self.max_matches {
                 LengthConfig::Max(crate::matches::MaxMatches {
                     max_matches: max,
-                    k_min: self.kmin.unwrap_or(k),
-                    k_max: self.kmax.unwrap_or(k),
+                    k_min: self.kmin.unwrap_or(self.k),
+                    k_max: self.kmax.unwrap_or(self.k),
                 })
             } else {
-                LengthConfig::Fixed(k)
+                LengthConfig::Fixed(self.k)
             },
-            max_match_cost: r - 1,
-            window_filter,
-        }
-    }
-
-    /// Apply a generic function F to the instantiated heuristic.
-    pub fn map<F: HeuristicMapper>(&self, f: F) -> F::R {
+            max_match_cost: self.r - 1,
+        };
+        let pruning = Pruning {
+            enabled: self.prune,
+            skip_prune: self.skip_prune,
+        };
         match self.heuristic {
             HeuristicType::None => f.call(NoCost),
             HeuristicType::Zero => f.call(ZeroCost),
             HeuristicType::Gap => f.call(GapCost),
-            HeuristicType::SH => f.call(SH {
-                match_config: self.match_config(false),
-                pruning: Pruning {
-                    enabled: self.prune,
-                    skip_prune: self.skip_prune,
-                },
-            }),
-            HeuristicType::CSH => f.call(CSH::new(
-                self.match_config(false),
-                Pruning {
-                    enabled: self.prune,
-                    skip_prune: self.skip_prune,
-                },
-            )),
-            HeuristicType::GCSH => f.call(GCSH::new(
-                self.match_config(true),
-                Pruning {
-                    enabled: self.prune,
-                    skip_prune: self.skip_prune,
-                },
-            )),
+            HeuristicType::SH => f.call(SH::new(match_config, pruning)),
+            HeuristicType::CSH => f.call(CSH::new(match_config, pruning)),
+            HeuristicType::GCSH => f.call(GCSH::new(match_config, pruning)),
             // bruteforce variants
             HeuristicType::GapCost => f.call(BruteForceGCSH {
-                match_config: self.match_config(false),
-                pruning: Pruning {
-                    enabled: self.prune,
-                    skip_prune: self.skip_prune,
-                },
+                match_config,
+                pruning,
                 distance_function: GapCost,
             }),
             HeuristicType::Affine => f.call(BruteForceGCSH {
-                match_config: self.match_config(false),
-                pruning: Pruning {
-                    enabled: self.prune,
-                    skip_prune: self.skip_prune,
-                },
+                match_config,
+                pruning,
                 distance_function: AffineGapCost { k: self.k },
             }),
         }
