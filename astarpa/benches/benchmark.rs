@@ -16,7 +16,7 @@ use test::Bencher;
 fn base_100(bench: &mut Bencher) {
     let n = 100;
     let e = 0.2;
-    let h = GCSH::new(MatchConfig::inexact(6), Pruning::enabled());
+    let h = GCSH::new(MatchConfig::inexact(6), Pruning::start());
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -26,7 +26,7 @@ fn base_100(bench: &mut Bencher) {
 fn base_1000(bench: &mut Bencher) {
     let n = 1000;
     let e = 0.2;
-    let h = GCSH::new(MatchConfig::inexact(7), Pruning::enabled());
+    let h = GCSH::new(MatchConfig::inexact(7), Pruning::start());
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -36,7 +36,7 @@ fn base_1000(bench: &mut Bencher) {
 fn base_10000(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.2;
-    let h = GCSH::new(MatchConfig::inexact(8), Pruning::enabled());
+    let h = GCSH::new(MatchConfig::inexact(8), Pruning::start());
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -46,7 +46,7 @@ fn base_10000(bench: &mut Bencher) {
 fn base_50000_similar(bench: &mut Bencher) {
     let n = 50000;
     let e = 0.05;
-    let h = GCSH::new(MatchConfig::inexact(10), Pruning::enabled());
+    let h = GCSH::new(MatchConfig::inexact(10), Pruning::start());
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -56,7 +56,7 @@ fn base_50000_similar(bench: &mut Bencher) {
 fn fast_100(bench: &mut Bencher) {
     let n = 100;
     let e = 0.2;
-    let h = GCSH::new(MatchConfig::inexact(6), Pruning::enabled());
+    let h = GCSH::new(MatchConfig::inexact(6), Pruning::start());
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -66,7 +66,7 @@ fn fast_100(bench: &mut Bencher) {
 fn fast_1000(bench: &mut Bencher) {
     let n = 1000;
     let e = 0.2;
-    let h = GCSH::new(MatchConfig::inexact(7), Pruning::enabled());
+    let h = GCSH::new(MatchConfig::inexact(7), Pruning::start());
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -76,7 +76,7 @@ fn fast_1000(bench: &mut Bencher) {
 fn fast_10000(bench: &mut Bencher) {
     let n = 10000;
     let e = 0.2;
-    let h = GCSH::new(MatchConfig::inexact(8), Pruning::enabled());
+    let h = GCSH::new(MatchConfig::inexact(8), Pruning::start());
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
@@ -86,7 +86,7 @@ fn fast_10000(bench: &mut Bencher) {
 fn fast_50000_similar(bench: &mut Bencher) {
     let n = 50000;
     let e = 0.05;
-    let h = GCSH::new(MatchConfig::inexact(10), Pruning::enabled());
+    let h = GCSH::new(MatchConfig::inexact(10), Pruning::start());
 
     let (a, b) = uniform_fixed(n, e);
     bench.iter(|| astar(&a, &b, &h, &NoVis));
