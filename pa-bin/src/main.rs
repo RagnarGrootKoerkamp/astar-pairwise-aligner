@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use astarpa::stats::AstarStats;
+use astarpa::{make_aligner, stats::AstarStats};
 use clap::Parser;
 use pa_bin::cli::Cli;
 use pa_types::*;
@@ -14,6 +14,10 @@ fn main() {
 
     let mut avg_stats = AstarStats::default();
 
+    #[cfg(not(features = "vis"))]
+    let aligner = make_aligner(args.diagonal_transition, &args.heuristic);
+
+    #[cfg(features = "vis")]
     let aligner = args
         .vis
         .astar_aligner(args.diagonal_transition, &args.heuristic);

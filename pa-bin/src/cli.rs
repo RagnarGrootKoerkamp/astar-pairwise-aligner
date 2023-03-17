@@ -3,6 +3,7 @@ use clap::{value_parser, Parser};
 use itertools::Itertools;
 use pa_heuristic::HeuristicParams;
 use pa_types::Seq;
+#[cfg(features = "vis")]
 use pa_vis::cli::VisualizerArgs;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -38,6 +39,7 @@ pub struct Cli {
     #[clap(flatten)]
     pub heuristic: HeuristicParams,
 
+    #[cfg(features = "vis")]
     #[clap(flatten)]
     pub vis: VisualizerArgs,
 

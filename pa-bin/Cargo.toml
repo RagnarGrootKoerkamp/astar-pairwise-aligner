@@ -13,7 +13,7 @@ pa-heuristic.workspace = true
 astarpa.workspace = true
 itertools.workspace = true
 clap.workspace = true
-pa-vis.workspace = true
+pa-vis = {workspace = true, optional=true}
 serde.workspace = true
 bio.workspace = true
 rand_chacha = "0.3"
@@ -21,12 +21,17 @@ rand = "0.8"
 parse_duration0 = "3"
 
 [dev-dependencies]
+# Dependencies used by the examples.
 pa-base-algos.workspace = true
 pa-affine-types.workspace = true
 pa-vis-types.workspace = true
 
 [features]
+# Needed to correctly show pruned matches in visualizations.
 example = ["pa-heuristic/example"]
+# Visualizer features can be disabled.
+vis = ["dep:pa-vis"]
+default = ["vis"]
 
 [[example]]
 name = "fig-intro"
