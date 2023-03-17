@@ -43,7 +43,7 @@ fn default_prune() -> Prune {
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[clap(next_help_heading = "Heuristic")]
 #[serde(deny_unknown_fields)]
-pub struct HeuristicArgs {
+pub struct HeuristicParams {
     #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]
     #[serde(rename = "type")]
     pub heuristic: HeuristicType,
@@ -89,7 +89,7 @@ pub struct HeuristicArgs {
     pub skip_prune: Option<usize>,
 }
 
-impl Default for HeuristicArgs {
+impl Default for HeuristicParams {
     fn default() -> Self {
         Self {
             heuristic: HeuristicType::GCSH,
@@ -106,7 +106,7 @@ impl Default for HeuristicArgs {
 
 /// A summary string for the visualizer.
 /// Only includes parameters that change the type of algorithm, not numerical values.
-impl ToString for HeuristicArgs {
+impl ToString for HeuristicParams {
     fn to_string(&self) -> String {
         match self.heuristic {
             HeuristicType::None => "".into(),
@@ -152,7 +152,7 @@ pub trait HeuristicMapper {
     fn call<H: Heuristic + 'static>(self, h: H) -> Self::R;
 }
 
-impl HeuristicArgs {
+impl HeuristicParams {
     /// Apply a generic function F to the instantiated heuristic.
     pub fn map<F: HeuristicMapper>(&self, f: F) -> F::R {
         let match_config = MatchConfig {

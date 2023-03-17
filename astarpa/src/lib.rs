@@ -51,8 +51,8 @@ mod prelude {
 
 use pa_heuristic::matches::MatchCost;
 use pa_heuristic::{Heuristic, HeuristicMapper, Prune};
-use pa_heuristic::{HeuristicArgs, MatchConfig, Pruning, GCSH};
 use pa_types::{Cigar, Cost, Seq, I};
+use pa_heuristic::{HeuristicParams, MatchConfig, Pruning, GCSH};
 use pa_vis_types::{NoVis, VisualizerT};
 use serde::{Deserialize, Serialize};
 use stats::AstarStats;

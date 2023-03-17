@@ -2,7 +2,7 @@ use crate::{prelude::Seq, AstarPaParams};
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use itertools::Itertools;
-use pa_heuristic::HeuristicArgs;
+use pa_heuristic::HeuristicParams;
 use pa_vis_types::NoVis;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -27,7 +27,7 @@ pub struct Cli {
 
     /// Parameters and settings for the heuristic.
     #[clap(flatten)]
-    pub heuristic: HeuristicArgs,
+    pub heuristic: HeuristicParams,
 
     /// Print less. Pass twice for summary line only.
     ///
