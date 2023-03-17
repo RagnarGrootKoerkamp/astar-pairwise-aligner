@@ -36,6 +36,7 @@ pa-vis-types.path = "pa-vis-types"
 pa-base-algos.path = "pa-base-algos"
 pa-vis.path = "pa-vis"
 astarpa.path = "astarpa"
+pa-bin.path = "pa-bin"
 
 clap = { version = "4.1", features = ["derive"] }
 serde = { version = "1.0.152", features = ["derive"] }

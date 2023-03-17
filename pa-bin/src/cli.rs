@@ -1,9 +1,9 @@
-use crate::{prelude::Seq, AstarPaParams};
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use itertools::Itertools;
 use pa_heuristic::HeuristicParams;
-use pa_vis_types::NoVis;
+use pa_types::Seq;
+use pa_vis::cli::VisualizerArgs;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,9 @@ pub struct Cli {
     #[clap(flatten)]
     pub heuristic: HeuristicParams,
 
+    #[clap(flatten)]
+    pub vis: VisualizerArgs,
+
     /// Print less. Pass twice for summary line only.
     ///
     /// Do not print a new line per alignment, but instead overwrite the previous one.
@@ -37,18 +40,16 @@ pub struct Cli {
     pub silent: u8,
 }
 
-impl Cli {
-    pub fn to_astar_pa_params(&self) -> AstarPaParams<NoVis> {
-        AstarPaParams::new(self.diagonal_transition, self.heuristic)
-    }
-}
-
 #[derive(Parser, Serialize, Deserialize)]
 #[clap(next_help_heading = "Input")]
 pub struct Input {
     /// The .seq, .txt, or Fasta file with sequence pairs to align.
     #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
     pub input: Option<PathBuf>,
+
+    /// The output csv file where to write costs and cigars
+    #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
+    pub output: Option<PathBuf>,
 
     /// Options to generate an input pair.
     #[clap(flatten)]

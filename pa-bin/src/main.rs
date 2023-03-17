@@ -9,7 +9,7 @@ use std::ops::ControlFlow;
 #[derive(Parser)]
 pub struct Cli {
     #[clap(flatten)]
-    args: astarpa::cli::Cli,
+    args: pa_bin::cli::Cli,
     #[clap(flatten)]
     vis: VisualizerArgs,
 }

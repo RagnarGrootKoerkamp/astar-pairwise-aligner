@@ -35,7 +35,6 @@ mod config;
 #[cfg(test)]
 mod tests;
 
-pub mod cli;
 pub mod stats;
 
 mod prelude {
