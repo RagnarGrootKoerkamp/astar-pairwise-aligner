@@ -36,7 +36,7 @@ fn default_seed_length() -> I {
     15
 }
 fn default_prune() -> Prune {
-    Prune::Both
+    Prune::Start
 }
 
 /// Heuristic arguments.

@@ -52,7 +52,7 @@ pub struct Pruning {
 
 impl Default for Pruning {
     fn default() -> Self {
-        Self::enabled()
+        Self::start()
     }
 }
 
@@ -75,7 +75,7 @@ impl Pruning {
             skip_prune: None,
         }
     }
-    pub fn enabled() -> Self {
+    pub fn both() -> Self {
         Pruning {
             enabled: Prune::Both,
             skip_prune: None,

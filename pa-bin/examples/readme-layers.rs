@@ -40,7 +40,7 @@ fn main() {
     config.filepath = "imgs/readme/layers".into();
     {
         let k = 5;
-        let h = CSH::new(MatchConfig::exact(k), Pruning::enabled());
+        let h = CSH::new(MatchConfig::exact(k), Pruning::both());
         let a_star = AstarPa {
             dt: true,
             h,

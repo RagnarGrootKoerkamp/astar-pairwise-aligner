@@ -70,7 +70,7 @@ fn main() {
             config.with_filename("4_dt-divide-and-conquer"),
         )),
         Box::new(AstarPa {
-            h: GCSH::new(MatchConfig::exact(5), Pruning::enabled()),
+            h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
             dt: true,
             v: config.with_filename("5_astarpa"),
         }),

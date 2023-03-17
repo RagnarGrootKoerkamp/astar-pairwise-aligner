@@ -42,7 +42,7 @@ fn pruning_bruteforce_gap() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::enabled());
+                let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::both());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_bruteforce_gcsh(), &NoVis);
@@ -58,7 +58,7 @@ fn pruning_hint_bruteforce_gap() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
-                let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::enabled());
+                let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::both());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_bruteforce_contours(), &NoVis);
@@ -107,7 +107,7 @@ fn pruning_bruteforce() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500] {
             for e in [0.1, 0.3, 1.0] {
-                let h = CSH::new(MatchConfig::new(k, max_match_cost), Pruning::enabled());
+                let h = CSH::new(MatchConfig::new(k, max_match_cost), Pruning::both());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_bruteforce_csh(), &NoVis);
@@ -123,7 +123,7 @@ fn pruning_hint_bruteforce_no_gap() {
     for (k, max_match_cost) in [(4, 0), (5, 0), (6, 1), (7, 1)] {
         for n in [40, 100, 200, 500, 1000] {
             for e in [0.1, 0.3, 1.0] {
-                let h = CSH::new(MatchConfig::new(k, max_match_cost), Pruning::enabled());
+                let h = CSH::new(MatchConfig::new(k, max_match_cost), Pruning::both());
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);
                 let r = astar(&a, &b, &h.equal_to_bruteforce_contours(), &NoVis);
@@ -141,7 +141,7 @@ fn unordered() {
             for e in [0.1, 0.3, 1.0] {
                 let h = SH {
                     match_config: MatchConfig::new(k, max_match_cost),
-                    pruning: Pruning::enabled(),
+                    pruning: Pruning::both(),
                 };
                 let (a, b) = uniform_fixed(n, e);
                 println!("TESTING n {} e {}: {:?}", n, e, h);

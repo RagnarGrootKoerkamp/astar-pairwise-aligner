@@ -38,7 +38,7 @@ fn main() {
     let h = BruteForceGCSH {
         match_config: MatchConfig::new(k, 0),
         distance_function: AffineGapCost { k },
-        pruning: Pruning::enabled(),
+        pruning: Pruning::both(),
     };
 
     let (ref a, ref b) = pa_generate::uniform_fixed(200, 0.3);

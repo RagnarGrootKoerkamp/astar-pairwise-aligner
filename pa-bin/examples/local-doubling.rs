@@ -33,7 +33,7 @@ fn main() {
         use_gap_cost_heuristic: false,
         exponential_search: false,
         local_doubling: true,
-        h: CSH::new(MatchConfig::exact(5), Pruning::enabled()),
+        h: CSH::new(MatchConfig::exact(5), Pruning::both()),
         v: config,
     };
     aligner.align(a, b);

@@ -38,7 +38,7 @@ fn main() {
     let h = BruteForceGCSH {
         match_config: MatchConfig::inexact(10),
         distance_function: GapCost,
-        pruning: Pruning::enabled(),
+        pruning: Pruning::both(),
     };
     let astar = astar_dt;
 
