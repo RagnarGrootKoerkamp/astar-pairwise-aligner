@@ -15,11 +15,11 @@ pub enum HeuristicType {
     /// Gap-cost to the target.
     Gap,
     /// Seed heuristic.
-    #[default]
     SH,
     /// Chaining seed heuristic.
     CSH,
     /// Gap-cost chaining seed heuristic.
+    #[default]
     GCSH,
 
     // For testing
@@ -87,6 +87,21 @@ pub struct HeuristicArgs {
     #[clap(long, hide_short_help = true)]
     #[serde(default)]
     pub skip_prune: Option<usize>,
+}
+
+impl Default for HeuristicArgs {
+    fn default() -> Self {
+        Self {
+            heuristic: HeuristicType::GCSH,
+            r: 2,
+            k: 15,
+            prune: Prune::Start,
+            kmin: None,
+            kmax: None,
+            max_matches: None,
+            skip_prune: None,
+        }
+    }
 }
 
 /// A summary string for the visualizer.

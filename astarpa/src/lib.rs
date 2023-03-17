@@ -83,6 +83,16 @@ impl AstarPaParams<NoVis> {
     }
 }
 
+impl Default for AstarPaParams<NoVis> {
+    fn default() -> Self {
+        Self {
+            diagonal_transition: true,
+            heuristic: HeuristicArgs::default(),
+            visualizer: NoVis,
+        }
+    }
+}
+
 /// Alternative configuration using a typed `Heuristic` instance instead of a fixed config.
 #[derive(Debug)]
 pub struct AstarPa<V: VisualizerT, H: Heuristic> {
