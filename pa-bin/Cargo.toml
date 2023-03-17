@@ -28,5 +28,15 @@ bio.workspace = true
 example = ["pa-heuristic/example"]
 
 [[example]]
+name = "fig-intro"
+path = "examples/paper-figures/intro.rs"
+[[example]]
 name = "fig-layers"
+path = "examples/paper-figures/layers.rs"
 required-features = ["example"]
+[[example]]
+name = "fig-comparison"
+path = "examples/paper-figures/comparison.rs"
+[[example]]
+name = "fig-limitations"
+path = "examples/paper-figures/limitations.rs"
