@@ -14,7 +14,7 @@ fn main() {
 
     let mut config = visualizer::Config::default();
     let frames = (0..10000).step_by(10).collect_vec();
-    config.draw = When::Frames(frames.clone());
+    config.draw = When::None;
     config.save = When::Frames(frames);
     config.paused = false;
     config.delay = Duration::from_secs_f32(0.0001);

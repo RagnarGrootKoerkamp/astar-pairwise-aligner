@@ -12,10 +12,11 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   "Exact pairwise alignment using A* with seed heuristic and match pruning".
   bioRxiv (2022). DOI [[https://doi.org/10.1101/2022.09.19.508631][2022.09.19.508631]]
 - Usage ::
-  ~cargo run --release -- -i <input>.{seq,txt,fasta} [-a csh] [-s]~
+  ~cargo run --release -- -i <input>.{seq,txt,fasta} -o output.csv [-s]~
 
-  Edit distance is shown in the ~ed~ column. The Cigar string is computed but
-  not written to a file currently (#15).
+  This globally aligns sequence pairs from the input and writes a csv with lines of
+  ~{cost},{score}~.
+
 - Visualizations ::
   Show a video of a small alignment:
   #+begin_src sh
@@ -23,7 +24,7 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   #+end_src
   Save a large alignment to disk:
   #+begin_src sh
-  cargo run --release --features vis -- -i <input> --save --save-path <filename>.bmp --style large
+  cargo run --release --features vis -- -i <input> --draw Layers --save-last --save-path alignment --style large
   #+end_src
 - Rust/C library usage ::
   This is TODO (#14).
@@ -31,17 +32,26 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   Any kind of feedback and questions on the paper and code is welcome in the
   issues here. We're happy to help out with any kind of problems you may run into.
 - Disclaimer ::
-  While our method works well on random sequences with random errors, it can be
-  *very* slow on alignments containing long indels. Over $100\times$ slower than
-  WFA happens regularly. Use the unpublished ~--dt --gap-cost~ flags for
-  possible speed improvements in this case. If A*PA is still slow, feel free to
-  make an issue containing a ~.seq~ file and visualization. (It won't speed up
-  existing code, but may inspire new ideas.)
+  A*PA can fail (out of memory/very slow) when the error rate is high ($>
+  10\%$). In this case you could either play with parameters (lower/higher $k$,
+  more/less pruning), but otherwise consider using Edlib/BiWFA in such cases.
 
 Here's an alignment of two sequences of length $500$ with $30\%$ error rate
 using the /chaining seed heuristic/ with /diagonal transition/ and /pruning/:
 
 [[file:imgs/readme/layers.gif]]
+
+
+** Repo layout
+
+#+begin_src shell :eval no-export :results file :file imgs/readme/depgraph.svg :exports results
+	cargo depgraph --dedup-transitive-deps \
+		--include pa-generate,pa-bin,pa-vis,astarpa,pa-types,pa-affine-types,sdl2,pa-base-algos,pa-web,web-sys,pa-heuristic,pa-vis-types,astarpa-c,astarpa-next \
+        | dot -Tsvg
+#+end_src
+
+#+RESULTS:
+[[file:imgs/readme/depgraph.svg]]
 
 
 * Getting started
@@ -177,10 +187,10 @@ Visualizer options:
 Sample videos corresponding to figure 1 of the paper are below. Due to different
 visualization strategies (per layer, per cell) timings are not at all comparable.
 
-|---------------------------------------------------------------------------+---------------------------------------------------------------------------------|
+|----------------------------------------------------------------------+----------------------------------------------------------------------------|
 | Dijkstra [[file:imgs/readme/2_dijkstra.gif]]                             | Ukkonen's exponential search (Edlib) [[file:imgs/readme/1_ukkonen.gif]]        |
 | Diagonal transition (WFA) [[file:imgs/readme/3_diagonal_transition.gif]] | DT + Divide & Conquer (BiWFA) [[file:imgs/readme/4_dt-divide-and-conquer.gif]] |
-| A*PA (GCSH+DT) [[file:imgs/readme/5_astarpa.gif]]            |                                                                                 |
+| A*PA (GCSH+DT) [[file:imgs/readme/5_astarpa.gif]]                        |                                                                            |
 
 
 * Tests & Benchmarks
