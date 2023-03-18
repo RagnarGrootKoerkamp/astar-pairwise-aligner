@@ -65,20 +65,6 @@ pub struct Cli {
 impl Cli {
     /// Call the given function for each pair in the input.
     pub fn process_input_pairs(&self, mut run_pair: impl FnMut(Seq, Seq) -> ControlFlow<()>) {
-        let mut run_cropped_pair = |mut a: Seq, mut b: Seq| -> ControlFlow<()> {
-            // Shrink if needed.
-            let n = self.generate.settings.length;
-            if n > 0 {
-                if a.len() > n {
-                    a = &a[..n];
-                }
-                if b.len() > n {
-                    b = &b[..n];
-                }
-            }
-            run_pair(a, b)
-        };
-
         if let Some(input) = &self.input {
             // Parse file
             let files = if input.is_file() {
@@ -101,7 +87,7 @@ impl Cli {
                                 assert_eq!(a.remove(0), '>' as u8);
                                 assert_eq!(b.remove(0), '<' as u8);
                             }
-                            if let ControlFlow::Break(()) = run_cropped_pair(&a, &b) {
+                            if let ControlFlow::Break(()) = run_pair(&a, &b) {
                                 break 'outer;
                             }
                         }
@@ -112,7 +98,7 @@ impl Cli {
                             .tuples()
                         {
                             if let ControlFlow::Break(()) =
-                                run_cropped_pair(a.unwrap().seq(), b.unwrap().seq())
+                                run_pair(a.unwrap().seq(), b.unwrap().seq())
                             {
                                 break 'outer;
                             }
