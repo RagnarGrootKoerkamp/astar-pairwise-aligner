@@ -6,6 +6,7 @@ members = [
 
     "pa-base-algos",
     "astarpa",
+    "astarpa-c",
 
     "pa-vis",
 
