@@ -1,213 +1,156 @@
 #+TITLE: A*PA: A* Pairwise Aligner
 #+PROPERTY: header-args :eval no-export :exports results
 
-A pairwise sequence aligner using A*, extending the seed heuristic from [[https://github.com/eth-sri/astarix][AStarix]].
+A global pairwise sequence aligner using A*.
 
 Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
 
-- Links ::
-  - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
-  - Blog: [[https://research.curiouscoding.nl]]
+- Usage ::
+  ~cargo run --release -- -i <input>.{seq,txt,fasta} -o output.csv~
+
+  This globally aligns sequence pairs from the input and writes a csv with lines of
+  ~{cost},{score}~. Rust nightly is needed.
 - Citation ::
   *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
   "Exact pairwise alignment using A* with seed heuristic and match pruning".
   bioRxiv (2022). DOI [[https://doi.org/10.1101/2022.09.19.508631][2022.09.19.508631]]
-- Usage ::
-  ~cargo run --release -- -i <input>.{seq,txt,fasta} -o output.csv [-s]~
-
-  This globally aligns sequence pairs from the input and writes a csv with lines of
-  ~{cost},{score}~.
-
-- Visualizations ::
-  Show a video of a small alignment:
-  #+begin_src sh
-  cargo run --release --features vis -- -i <input> -v [--style detailed]
-  #+end_src
-  Save a large alignment to disk:
-  #+begin_src sh
-  cargo run --release --features vis -- -i <input> --draw Layers --save-last --save-path alignment --style large
-  #+end_src
-- Rust/C library usage ::
-  This is TODO (#14).
-- Feedback/Issues ::
-  Any kind of feedback and questions on the paper and code is welcome in the
-  issues here. We're happy to help out with any kind of problems you may run into.
+- Links ::
+  - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
+  - Blog: [[https://research.curiouscoding.nl]]
 - Disclaimer ::
-  A*PA can fail (out of memory/very slow) when the error rate is high ($>
-  10\%$). In this case you could either play with parameters (lower/higher $k$,
-  more/less pruning), but otherwise consider using Edlib/BiWFA in such cases.
+  A*PA can be slow and/or go out of memory when the error rate is high ($\gg
+  10\%$) or when long indels are present. You could try
+  lower/higher $k$, and more/less pruning, but otherwise use Edlib or BiWFA.
 
-** Gif
+** Example
 
-Here's an alignment of two sequences of length $500$ with $30\%$ error rate
-using the /chaining seed heuristic/ with /diagonal transition/ and /pruning/:
+Here's an A*PA alignment of two sequences of length $500$ with $30\%$ error rate.
 
 [[file:imgs/readme/layers.gif]]
 
+* Usage
 
-** Repo layout
+** Command line application: ~pa-bin~ crate
 
-#+begin_src shell :results file :file imgs/readme/depgraph.svg :exports results
-cargo depgraph --dedup-transitive-deps \
-    --include pa-generate,pa-bin,pa-vis,astarpa,pa-types,pa-affine-types,sdl2,pa-base-algos,pa-web,web-sys,pa-heuristic,pa-vis-types,astarpa-c,astarpa-next \
-    | dot -Gbgcolor=transparent -T svg
-#+end_src
-
-#+RESULTS:
-[[file:imgs/readme/depgraph.svg]]
-
-
-* Getting started
-
-** Installing Rust
-
-1. Install [[https://rustup.rs/][rustup]].
-2. Install Rust Nightly using ~rustup install nightly~
-3. Make nightly the default: ~rustup default nightly~
-
-** Usage
-
-- Clone the repository.
-- ~cargo run~ should already work and run on a randomly generated input.
-- Do ~-h~ for help or ~--help~ for more help:
+- [[https://rustup.rs/][Install rustup]], enable ~nightly~ (~rustup install nightly~ ~rustup default
+  nightly~), and clone this repo.
+- ~cargo run --release~ should already work and run on some randomly generated sequences.
+- To disable the visualizer and not need ~sdl2~: ~cargo run --release --no-default-features~.
 
 #+begin_src shell :exports both :results verbatim
-cargo run -- -h
+cargo run --release -- -h
 #+end_src
 
 #+RESULTS:
 #+begin_example
-Options to generate multiple sequence pairs
+Globally align pairs of sequences using A*PA
 
-Usage: pa-bin [OPTIONS]
+Usage: pa-bin [OPTIONS] <--input <INPUT>|--length <LENGTH>>
 
 Options:
   -i, --input <INPUT>    A .seq, .txt, or Fasta file with sequence pairs to align
   -o, --output <OUTPUT>  Write a .csv of `{cost},{cigar}` lines
-      --no-dt            Do not use diagonal-transition based A*
+      --no-dt            Do not use the diagonal-transition optimization
   -s, --silent...        Print less stats. Pass twice for summary line only
   -h, --help             Print help (see more with '--help')
 
 Heuristic:
-      --prune <PRUNE>          [default: start] [possible values: none, start, end, both]
   -H, --heuristic <HEURISTIC>  [default: gcsh] [possible values: none, zero, gap, sh, csh, gcsh,
                                gap-cost, affine]
-  -k <k>                       Seed length [default: 15]
   -r <r>                       Seed potential [default: 2]
+  -k <k>                       Seed length [default: 15]
+      --prune <PRUNE>          [default: start] [possible values: none, start, end, both]
 
 Generated input:
   -n, --length <LENGTH>          Target length of each generated sequence [default: 1000]
   -e, --error-rate <ERROR_RATE>  Error rate between sequences [default: 0.05]
-  -x, --cnt <CNT>                The number of sequence pairs to generate [default: 1]
 
 Visualizer:
   -v, --visualize <WHEN>  Interactive visualizer. See --help for more [default: none] [possible
                           values: none, first, last, all, layers]
 #+end_example
 
-*Input* can be a file (~--input file.{fasta,txt,seq}~) or randomly generated (~--length <n> --error-rate <e>~).
-
-The *heuristic* can be changed between /seed heuristic/ (~-H sh~) and /chaining
-seed heuristic/ (~-H csh~).
-*Parameters* ~-r~ and ~-k~ can be specified if non-default values are needed.
-
-*** Notes
-- There is no option yet output alignments. Edit distances are shown
-  in the terminal output and ~--output~ file in the ~ed~ column towards the end.
-
-  I'll add it eventually, but make an issue if needed; it's not much work.
-- There is no standalone library/API yet. I'll add something soon (#1).
-
-** Examples
-
+*** Examples
 To align all consecutive pairs in a file:
 #+begin_src
-cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq}>
+cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq}> -o cigars.csv
 #+end_src
 To run on $100$ random sequences of length $10^5$ with error rate $5\%$:
 #+begin_src
-cargo run --release -- -x 100 -n 100000 -e 0.05
+cargo run --release -- --cnt 100 -n 100000 -e 0.05
+#+end_src
+Show a video of a small alignment:
+#+begin_src sh
+cargo run --release -- -n 100 -e 0.10 -v all --style detailed
+#+end_src
+Save a large alignment to disk:
+#+begin_src sh
+cargo run --release -- -i <input> --draw Layers --save-last --save-path alignment --style large
 #+end_src
 
-To generate a =.seq= dataset:
-#+begin_src
-cargo run --release --bin generate_dataset -- -x 1000 -n 10000 -e 0.05 /tmp/random-sequences.seq
-#+end_src
-
-** Work-in-progress features
-- Pass ~--dt~ to run diagonal-transition based A*. This can give up to $5$ times speedup.
-- Pass ~--gap-cost~ to improve the chaining seed heuristic with gap costs. This
-  improves runtime when the alignment contains long indels.
-- Pass ~--kmin <kmin>~, ~--kmax <kmax>~, and ~--max-matches <num>~ to use
-  variable length seeds with at most the given number of matches and between the given lengths.
+*** Unpublished features
+- Pass  ~--max-matches <num>~ to use variable length seeds with at most ~<num>~
+  matches per seed.  ~--kmin <kmin>~, ~--kmax <kmax>~ are sometimes needed to
+  constrain seed lengths.
 - Pass ~--skip-prune <N>~ to skip pruning every ~N~'th match that would
   otherwise be pruned. This can speed up pruning when there are a lot of matches.
 
-* Evals
+** Rust API: ~astarpa~ crate
+The ~astarpa~ crate is the [[file:astarpa/src/lib.rs][main entrypoint]]. See the docs there.
+Use ~astarpa::astarpa(a, b)~ for alignment with default settings.
+*** Examples
+Examples of usages can be found at [[file:pa-bin/examples/][~pa-bin/examples~]].
 
-The results in our preprint are entirely reproducible using the [[./makefile][makefile]]:
+** C API: ~astarpa-c~ crate
+The ~astarpa-c~ crate contains simple C-bindings for the
+~astarpa::{astarpa,astarpa_gcsh}~ functions. More should not be needed for
+simple usage.
 
-- Synthetic data (~#evals-sythetic~ tag) ::
-  1. Run the synthetic evals ([[evals/Snakefile]], ~5h~) using ~make evals~ to write data tables to
-     [[evals/table/]]. Data used in the paper is already committed.
-  2. Write plots to [[evals/results/]] using ~make results~ or [[evals/results.py]]
-     directly. An interactive notebook is at [[evals/evals.ipynb]].
+* Visualization: ~pa-vis~ crate
 
-- Human data (~#evals-human~ tag) ::
-  1. Download the datasets from the [[https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner/releases/tag/datasets][sequence data release]] and unzip the
-     files to ~evals/human/{chm13,na12878}/seq<id>.seq~.
-
-     The CHM13 set was created using the steps in [[evals/human/Snakefile]].
-  2. Run ~make evals-human~ (~1-2h~) and ~make results~.
-
-
-* Visualizations
-
-Visualizations require the =vis= feature flag to be enabled, either via
-~cargo run --features vis~ or by enabling then as default in [[Cargo.toml]].
-
-Reimplementations of the following algorithms can be visualized:
-- Needleman-Wunsch (~nw~) ::
-  - Pass ~--exp-search~ to enable exponential search on band, as in Edlib.
-- Diagonal-Transition (~dt~) ::
-  - Pass ~--dc~ to enable divide & conquer, as in BiWFA.
-- A* (~astar~) ::
-  - Choose heuristic with ~-H {dijkstra,sh,csh}~.
-  - Pass parameters with ~-r {1,2} -k <k>~.
-  - Pass ~--dt~ to enable diagonal transition based A*.
-  - Pass ~--gap-cost~ for an improved version of the chaining seed heuristic.
-
-Visualizer options:
-- ~-v {all,last,layers}~ ::
-  Visualize either all frames, only the last frame, or one frame per /layer/ (ie
-  NW column, DT wavefront, or A* value of $f$).
-- ~--save {all,last,layers}~ ::
-  Save the corresponding frame as ~.bmp~ in the directory given by
-  ~--save-path~. These can be manually turned into gifs.
-- ~--style {default,detailed,large}~ :: Choose between different visualizer presets. ~detailed~ includes
-  the heuristic, and ~large~ scales things down a factor ~100~ to render long
-  alignments. (Use ~-v last~ in this case.)
-- ~--cell-size <size>~ :: Override the cell size (number of pixels per cell).
-- ~--downscaler <scale>~ :: Override the number of states drawn per cell.
+Currently only A*PA can be visualized using the binary. Reimplementations of
+Needleman-Wunsch, band-doubling (Edlib), and diagonal-transition (WFA, BiWFA)
+are available in the ~pa-base-algos~ crate and can be called directly for now;
+see the [[file:pa-bin/examples/paper-figures/intro.rs][examples]].
 
 Sample videos corresponding to figure 1 of the paper are below. Due to different
-visualization strategies (per layer, per cell) timings are not at all comparable.
+visualization strategies (per layer, per cell) timings are not comparable.
 
 |----------------------------------------------------------------------+----------------------------------------------------------------------------|
 | Dijkstra [[file:imgs/readme/2_dijkstra.gif]]                             | Ukkonen's exponential search (Edlib) [[file:imgs/readme/1_ukkonen.gif]]        |
 | Diagonal transition (WFA) [[file:imgs/readme/3_diagonal_transition.gif]] | DT + Divide & Conquer (BiWFA) [[file:imgs/readme/4_dt-divide-and-conquer.gif]] |
 | A*PA (GCSH+DT) [[file:imgs/readme/5_astarpa.gif]]                        |                                                                            |
 
+* Paper
+** Figures
+Paper figures are generated using the examples at [[file:pa-bin/examples/paper-figures/][~pa-bin/examples/paper-figures~]].
 
-* Tests & Benchmarks
+** Evals
 
+Benchmarking code, evals, and datasets have moved to [[https://github.com/pairwise-alignment/pa-bench][pa-bench]].
+Results can be found in [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/evals.ipynb][this notebook]] and reproduced using [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/makefile][this makefile]].
+Dataset downloads are in [[https://github.com/pairwise-alignment/pa-bench/releases/tag/datasets][this release]].
+
+** Tests & CI Benchmarks
 - Tests ::
   Code is tested for correctness in various tests ([[file:astarpa/src/tests/][astarpa/src/tests]])
-  against library implementation of edit distance. More comparison are in [pa-bench](https://github.com/pairwise-alignment/pa-bench).
+  against ~triple-accel~. The benchmark tool [[https://github.com/pairwise-alignment/pa-bench][pa-bench]] also checks correctness automatically.
 
 - Benchmarks ::
-  All code is benchmarked on GitHub Actions CI. Performance history of
+  The code is benchmarked on GitHub Actions CI. Performance history of
   benchmarks is [[https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/][here]].
+
+* Repo layout
+
+#+begin_src shell :results file :file imgs/readme/depgraph.svg :exports results
+cargo depgraph --dedup-transitive-deps \
+    --include pa-generate,pa-bin,pa-vis,astarpa,pa-types,pa-affine-types,sdl2,pa-base-algos,pa-web,web-sys,pa-heuristic,pa-vis-types,astarpa-c,astarpa-next \
+    | dot -T svg
+#+end_src
+
+#+RESULTS:
+[[file:imgs/readme/depgraph.svg]]
+
 
 
 * License
