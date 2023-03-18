@@ -110,7 +110,7 @@ simple usage.
 
 Currently only A*PA can be visualized using the binary. Reimplementations of
 Needleman-Wunsch, band-doubling (Edlib), and diagonal-transition (WFA, BiWFA)
-are available in the ~pa-base-algos~ crate and can be called directly for now;
+are available in the ~pa-base-algos~ crate and can be called from rust for now;
 see the [[file:pa-bin/examples/paper-figures/intro.rs][examples]].
 
 Sample videos corresponding to figure 1 of the paper are below. Due to different
@@ -122,16 +122,18 @@ visualization strategies (per layer, per cell) timings are not comparable.
 | A*PA (GCSH+DT) [[file:imgs/readme/5_astarpa.gif]]                        |                                                                            |
 
 * Paper
-** Figures
-Paper figures are generated using the examples at [[file:pa-bin/examples/paper-figures/][~pa-bin/examples/paper-figures~]].
+  *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
+  "Exact pairwise alignment using A* with seed heuristic and match pruning".
+  bioRxiv (2022). DOI [[https://doi.org/10.1101/2022.09.19.508631][2022.09.19.508631]]
 
-** Evals
+- Figures ::
+  Paper figures are generated using the examples at [[file:pa-bin/examples/paper-figures/][pa-bin/examples/paper-figures]].
 
-Benchmarking code, evals, and datasets have moved to [[https://github.com/pairwise-alignment/pa-bench][pa-bench]].
-Results can be found in [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/evals.ipynb][this notebook]] and reproduced using [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/makefile][this makefile]].
-Dataset downloads are in [[https://github.com/pairwise-alignment/pa-bench/releases/tag/datasets][this release]].
+- Evals ::
+  Benchmarking code, evals, and datasets have moved to [[https://github.com/pairwise-alignment/pa-bench][pa-bench]].
+  Results can be found in [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/evals.ipynb][this notebook]] and reproduced using [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/makefile][this makefile]].
+  Dataset downloads are in [[https://github.com/pairwise-alignment/pa-bench/releases/tag/datasets][this release]].
 
-** Tests & CI Benchmarks
 - Tests ::
   Code is tested for correctness in various tests ([[file:astarpa/src/tests/][astarpa/src/tests]])
   against ~triple-accel~. The benchmark tool [[https://github.com/pairwise-alignment/pa-bench][pa-bench]] also checks correctness automatically.
@@ -140,7 +142,35 @@ Dataset downloads are in [[https://github.com/pairwise-alignment/pa-bench/releas
   The code is benchmarked on GitHub Actions CI. Performance history of
   benchmarks is [[https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/][here]].
 
-* Repo layout
+* Crate structure
+
+Code is spread out over multiple crates.
+From low to high:
+- ~pa-types~: Basic types such as ~Seq~, ~Pos~, ~Cigar~, and ~Cost~, hosted in
+  the ~pairwise-alignment~ org.
+- ~pa-affine-types~: Types for affine edit graphs such as
+   ~State = (Pos, Layer)~, ~AffineCigar~, and ~CostModel~. Not used by A*PA, but other
+  algorithms and the visualizer support it.
+- ~pa-heuristic~: Code for
+  - finding matches
+  - computing contours (fast and bruteforce)
+  - heuristics themselves
+  - wrapper/bruteforce heuristics for debugging
+- ~pa-vis-types~: Trait definition of the visualizer, and the empty ~NoVis~ visualizer.
+- ~astarpa~: Main A*PA API entrypoint containing the ~astar~ and ~astar_dt~
+  functions, the ~bucket_queue~ data structure, and the ~astarpa(a,b)~ entrypoint.
+- ~astarpa-c~: C-bindings for ~astarpa~
+- ~pa-vis~: The visualizer. Contains a ~Canvas~ trait implemented for the
+  ~SDL2Canvas~. The ~sdl2~ feature is optional.
+- ~pa-generate~: Library and binary to generate different types of random sequences.
+- ~pa-bin~: Main command line interface to A*PA. Allows for input from file,
+  generated input, visualizing, and customization of the A*PA parameters.
+- ~pa-web~: web-interface to A*PA by compiling to webassembly. Implements the
+  ~Canvas~ trait for ~HTMLCanvas~. (Not maintained.)
+- ~pa-base-algos~: Re-implementations of Needleman-Wunsch/Edlib and
+  Diagonal-transition/WFA/BiWFA for visualizations. Also playground for new A*PA
+  variants such as [[https://curiouscoding.nl/posts/local-doubling/][local doubling]].
+- ~astarpa-next~: Some code for other new ideas such as [[https://curiouscoding.nl/posts/speeding-up-astar/][pre-pruning]].
 
 #+begin_src shell :results file :file imgs/readme/depgraph.svg :exports results
 cargo depgraph --dedup-transitive-deps \
