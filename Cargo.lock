@@ -57,6 +57,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "astarpa-next"
+version = "0.1.0"
+dependencies = [
+ "astarpa",
+ "pa-base-algos",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
