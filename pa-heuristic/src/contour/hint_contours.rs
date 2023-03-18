@@ -16,8 +16,6 @@ pub struct HintContours<C: Contour> {
     stats: RefCell<HintContourStats>,
 
     layers_removed: Layer,
-    start: Pos,
-    target: Pos,
 }
 
 #[derive(Default, Debug)]
@@ -209,8 +207,6 @@ impl<C: Contour> Contours for HintContours<C> {
             max_len: max_len as _,
             stats: Default::default(),
             layers_removed: 0,
-            start: Pos(I::MAX, I::MAX),
-            target: Pos(0, 0),
         };
         this.contours[0usize].push(Pos(I::MAX, I::MAX));
         // Loop over all arrows from a given positions.
@@ -219,10 +215,6 @@ impl<C: Contour> Contours for HintContours<C> {
             let mut l = 0;
             // TODO: The this.score() could also be implemented using a fenwick tree, as done in LCSk++.
             for a in pos_arrows {
-                this.start.0 = min(this.start.0, a.end.0);
-                this.start.1 = min(this.start.1, a.end.1);
-                this.target.0 = max(this.target.0, a.end.0);
-                this.target.1 = max(this.target.1, a.end.1);
                 let nv = this.score(a.end) + a.score as Cost;
                 // FIXME: Re-add removed filter here
                 // if filter(&a, nv) {
