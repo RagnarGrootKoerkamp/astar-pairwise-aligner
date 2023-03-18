@@ -87,20 +87,16 @@ mod astar {
     use super::*;
 
     fn test_heuristic<H: Heuristic + 'static>(h: H, dt: bool) {
-        // Greedy matching doesn't really matter much.
-        // To speed up tests, we choose it randomly.
-        {
-            for (((n, e), error_model), seed) in test_sequences() {
-                let (ref a, ref b) = pa_generate::generate_model(n, e, error_model, seed);
-                test_aligner_on_input(
-                    a,
-                    b,
-                    AstarPa { dt, h, v: NoVis },
-                    true,
-                    &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
-                );
-            }
-        };
+        for (((n, e), error_model), seed) in test_sequences() {
+            let (ref a, ref b) = pa_generate::generate_model(n, e, error_model, seed);
+            test_aligner_on_input(
+                a,
+                b,
+                AstarPa { dt, h, v: NoVis },
+                true,
+                &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
+            );
+        }
     }
 
     macro_rules! make_test {

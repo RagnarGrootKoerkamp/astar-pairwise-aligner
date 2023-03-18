@@ -60,6 +60,11 @@ pub struct HeuristicParams {
     #[serde(default = "default_seed_length")]
     pub k: I,
 
+    #[clap(long)]
+    #[clap(long, action = clap::ArgAction::Set, default_value = "start")]
+    #[serde(default = "default_prune")]
+    pub prune: Prune,
+
     /// Minimal seed length
     #[clap(long, hide_short_help = true)]
     #[serde(default)]
@@ -74,11 +79,6 @@ pub struct HeuristicParams {
     #[clap(long, hide_short_help = true)]
     #[serde(default)]
     pub max_matches: Option<usize>,
-
-    #[clap(long, hide_short_help = true)]
-    #[clap(long, action = clap::ArgAction::Set, default_value = "start")]
-    #[serde(default = "default_prune")]
-    pub prune: Prune,
 
     /// Skip pruning every Nth match.
     ///

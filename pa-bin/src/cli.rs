@@ -3,7 +3,7 @@ use clap::{value_parser, Parser};
 use itertools::Itertools;
 use pa_heuristic::HeuristicParams;
 use pa_types::Seq;
-#[cfg(features = "vis")]
+#[cfg(feature = "vis")]
 use pa_vis::cli::VisualizerArgs;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -16,10 +16,13 @@ use std::{
 };
 
 #[derive(Parser, Serialize, Deserialize)]
-#[clap(author, about)]
-#[group(skip)]
+#[clap(author, about, disable_version_flag(true))]
+// Override some generator flags
+#[clap(mut_arg("seed", |a| a.hide_short_help(true)))]
+#[clap(mut_arg("size", |a| a.hide_short_help(true)))]
+#[clap(mut_arg("error_model", |a| a.hide_short_help(true)))]
 pub struct Cli {
-    /// The .seq, .txt, or Fasta file with sequence pairs to align.
+    /// A .seq, .txt, or Fasta file with sequence pairs to align.
     #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
     pub input: Option<PathBuf>,
 
@@ -27,28 +30,28 @@ pub struct Cli {
     #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
     pub output: Option<PathBuf>,
 
-    /// Options to generate an input pair.
-    #[clap(flatten)]
-    pub generate: pa_generate::DatasetGenerator,
-
     /// Do not use diagonal-transition based A*.
-    #[clap(long = "no-dt", action = clap::ArgAction::SetFalse , hide_short_help = true)]
+    #[clap(long = "no-dt", action = clap::ArgAction::SetFalse)]
     pub diagonal_transition: bool,
+
+    /// Print less stats. Pass twice for summary line only.
+    ///
+    /// Do not print a new line per alignment, but instead overwrite the previous one.
+    /// Pass twice to only print a summary line and avoid all terminal clutter.
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    pub silent: u8,
 
     /// Parameters and settings for the heuristic.
     #[clap(flatten)]
     pub heuristic: HeuristicParams,
 
-    #[cfg(features = "vis")]
+    /// Options to generate an input pair.
+    #[clap(flatten, next_help_heading = "Generated input")]
+    pub generate: pa_generate::DatasetGenerator,
+
+    #[cfg(feature = "vis")]
     #[clap(flatten)]
     pub vis: VisualizerArgs,
-
-    /// Print less. Pass twice for summary line only.
-    ///
-    /// Do not print a new line per alignment, but instead overwrite the previous one.
-    /// Pass twice to only print a summary line and avoid all terminal clutter, e.g. for benchmarking.
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    pub silent: u8,
 }
 
 impl Cli {

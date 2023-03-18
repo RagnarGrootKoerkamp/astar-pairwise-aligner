@@ -10,7 +10,9 @@ use std::path::PathBuf;
 #[derive(Parser, Serialize, Deserialize)]
 #[clap(next_help_heading = "Visualizer")]
 pub struct VisualizerArgs {
-    /// Run the interactive visualizer. See --help for controls. [default: all]
+    /// Interactive visualizer. See --help for more.
+    ///
+    /// -v without argument defaults to all frames.
     ///
     /// x: exit
     /// p: pause / unpause
@@ -22,23 +24,29 @@ pub struct VisualizerArgs {
     pub visualize: When,
 
     /// Visualizer style.
-    #[clap(long, default_value_t, value_enum, display_order = 2)]
+    #[clap(
+        long,
+        default_value_t,
+        value_enum,
+        display_order = 2,
+        hide_short_help = true
+    )]
     pub style: VisualizerStyle,
 
     /// Start paused.
-    #[clap(short, long, display_order = 3)]
+    #[clap(short, long, display_order = 3, hide_short_help = true)]
     pub pause: bool,
 
     /// Which frames to save.
-    #[clap(long, display_order = 3, value_enum, value_name = "WHEN", default_value_t = When::None)]
+    #[clap(long, display_order = 3, value_enum, value_name = "WHEN", default_value_t = When::None, hide_short_help = true)]
     pub save: When,
 
     /// Show or save only each Nth frame.
-    #[clap(long, display_order = 3)]
+    #[clap(long, display_order = 3, hide_short_help = true)]
     pub each: Option<usize>,
 
     /// Where to save. Implies --save [last].
-    #[clap(long, display_order = 4, value_name = "PATH", value_parser = value_parser!(PathBuf))]
+    #[clap(long, display_order = 4, value_name = "PATH", value_parser = value_parser!(PathBuf), hide_short_help = true)]
     pub save_path: Option<PathBuf>,
 
     /// The size in pixels of each cell.

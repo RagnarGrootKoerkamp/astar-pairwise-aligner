@@ -1,4 +1,5 @@
 #+TITLE: A*PA: A* Pairwise Aligner
+#+PROPERTY: header-args :eval no-export :exports results
 
 A pairwise sequence aligner using A*, extending the seed heuristic from [[https://github.com/eth-sri/astarix][AStarix]].
 
@@ -46,7 +47,7 @@ using the /chaining seed heuristic/ with /diagonal transition/ and /pruning/:
 
 ** Repo layout
 
-#+begin_src shell :eval no-export :results file :file imgs/readme/depgraph.svg :exports results
+#+begin_src shell :results file :file imgs/readme/depgraph.svg :exports results
 cargo depgraph --dedup-transitive-deps \
     --include pa-generate,pa-bin,pa-vis,astarpa,pa-types,pa-affine-types,sdl2,pa-base-algos,pa-web,web-sys,pa-heuristic,pa-vis-types,astarpa-c,astarpa-next \
     | dot -Gbgcolor=transparent -T svg
@@ -67,39 +68,42 @@ cargo depgraph --dedup-transitive-deps \
 ** Usage
 
 - Clone the repository.
-- Run ~cargo run -- -h~ for the help below
-- Check out ~cargo run -- --help~ for more flags and features not in the paper.
+- ~cargo run~ should already work and run on a randomly generated input.
+- Do ~-h~ for help or ~--help~ for more help:
 
-#+begin_src shell
-USAGE:
-    astar-pairwise-aligner [OPTIONS] <--input <INPUT>|--length <LENGTH>>
-
-OPTIONS:
-    -h, --help               Print help information
-    -o, --output <OUTPUT>    Where to write optional statistics
-    -s, --silent             Print less. Pass twice for summary line only
-
-INPUT:
-    -i, --input <INPUT>              The .seq, .txt, or Fasta file with sequence pairs to align
-    -x, --cnt <CNT>                  The number of sequence pairs to generate [default: 1]
-    -n, --length <LENGTH>            Length of generated sequences
-    -e, --error-rate <ERROR_RATE>    Input error rate
-        --seed <SEED>                Seed to initialize RNG for reproducability
-
-ALGORITHM:
-    -a, --algorithm <ALGORITHM>    [default: astar] [possible values: nw, dt, astar, triple-accel]
-
-HEURISTIC:
-    -H, --heuristic <HEURISTIC>    [default: sh] [possible values: dijkstra, sh, csh]
-    -k <k>                         Seed length [default: 15]
-    -r <r>                         Seed potential [default: 2]
-
-VISUALIZER:
-    -v, --visualize [<WHEN>...]    Run the interactive visualizer. See --help for controls. [default: all] [possible values: none, last, all, layers]
-        --style <STYLE>            Visualizer style [default: default] [possible values: default, large, detailed]
-        --save [<WHEN>...]         Which frames to save [possible values: none, last, all, layers]
-        --save-path <PATH>         Where to save
+#+begin_src shell :exports both :results verbatim
+cargo run -- -h
 #+end_src
+
+#+RESULTS:
+#+begin_example
+Options to generate multiple sequence pairs
+
+Usage: pa-bin [OPTIONS]
+
+Options:
+  -i, --input <INPUT>    A .seq, .txt, or Fasta file with sequence pairs to align
+  -o, --output <OUTPUT>  Write a .csv of `{cost},{cigar}` lines
+      --no-dt            Do not use diagonal-transition based A*
+  -s, --silent...        Print less stats. Pass twice for summary line only
+  -h, --help             Print help (see more with '--help')
+
+Heuristic:
+      --prune <PRUNE>          [default: start] [possible values: none, start, end, both]
+  -H, --heuristic <HEURISTIC>  [default: gcsh] [possible values: none, zero, gap, sh, csh, gcsh,
+                               gap-cost, affine]
+  -k <k>                       Seed length [default: 15]
+  -r <r>                       Seed potential [default: 2]
+
+Generated input:
+  -n, --length <LENGTH>          Target length of each generated sequence [default: 1000]
+  -e, --error-rate <ERROR_RATE>  Error rate between sequences [default: 0.05]
+  -x, --cnt <CNT>                The number of sequence pairs to generate [default: 1]
+
+Visualizer:
+  -v, --visualize <WHEN>  Interactive visualizer. See --help for more [default: none] [possible
+                          values: none, first, last, all, layers]
+#+end_example
 
 *Input* can be a file (~--input file.{fasta,txt,seq}~) or randomly generated (~--length <n> --error-rate <e>~).
 
@@ -198,7 +202,7 @@ visualization strategies (per layer, per cell) timings are not at all comparable
 * Tests & Benchmarks
 
 - Tests ::
-  Code is tested for correctness in various tests ([[tests/]], [[src/aligners/tests/]])
+  Code is tested for correctness in various tests ([[file:astarpa/src/tests/][astarpa/src/tests]])
   against library implementation of edit distance. More comparison are in [pa-bench](https://github.com/pairwise-alignment/pa-bench).
 
 - Benchmarks ::
