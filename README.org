@@ -30,7 +30,7 @@ Here's an A*PA alignment of two sequences of length $500$ with $30\%$ error rate
 
 * Usage
 
-** Command line application: ~pa-bin~ crate
+** Command line application
 
 - [[https://rustup.rs/][Install rustup]], enable ~nightly~ (~rustup install nightly~ ~rustup default
   nightly~), and clone this repo.
@@ -95,18 +95,19 @@ cargo run --release -- -i <input> --draw Layers --save-last --save-path alignmen
 - Pass ~--skip-prune <N>~ to skip pruning every ~N~'th match that would
   otherwise be pruned. This can speed up pruning when there are a lot of matches.
 
-** Rust API: ~astarpa~ crate
+** Rust API
 The ~astarpa~ crate is the [[file:astarpa/src/lib.rs][main entrypoint]]. See the docs there.
-Use ~astarpa::astarpa(a, b)~ for alignment with default settings.
-*** Examples
-Examples of usages can be found at [[file:pa-bin/examples/][~pa-bin/examples~]].
+Use ~astarpa::astarpa(a, b)~ for alignment with default settings or
+~astarpa::astarpa_gcsh(a,b,r,k,end_pruning)~ to use GCSH+DT with custom parameters.
 
-** C API: ~astarpa-c~ crate
-The ~astarpa-c~ crate contains simple C-bindings for the
-~astarpa::{astarpa,astarpa_gcsh}~ functions. More should not be needed for
+Examples of more advanced usages using the ~AstarPa~ aligner object can be found at [[file:pa-bin/examples/][pa-bin/examples]].
+
+** C API
+The ~astarpa-c~ [[file:astarpa-c/astarpa.h][crate]] contains simple C-bindings for the
+~astarpa::{astarpa,astarpa_gcsh}~ functions and an [[file:astarpa-c/example.c][example]] with [[file:astarpa-c/makefile][makefile]]. More should not be needed for
 simple usage.
 
-* Visualization: ~pa-vis~ crate
+* Visualization
 
 Currently only A*PA can be visualized using the binary. Reimplementations of
 Needleman-Wunsch, band-doubling (Edlib), and diagonal-transition (WFA, BiWFA)
@@ -156,7 +157,7 @@ From low to high:
   - computing contours (fast and bruteforce)
   - heuristics themselves
   - wrapper/bruteforce heuristics for debugging
-- ~pa-vis-types~: Trait definition of the visualizer, and the empty ~NoVis~ visualizer.
+- ~pa-vis-types~: Trait definition of the visualizer callbacks, and the empty ~NoVis~ visualizer.
 - ~astarpa~: Main A*PA API entrypoint containing the ~astar~ and ~astar_dt~
   functions, the ~bucket_queue~ data structure, and the ~astarpa(a,b)~ entrypoint.
 - ~astarpa-c~: C-bindings for ~astarpa~
