@@ -36,6 +36,8 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   10\%$). In this case you could either play with parameters (lower/higher $k$,
   more/less pruning), but otherwise consider using Edlib/BiWFA in such cases.
 
+** Gif
+
 Here's an alignment of two sequences of length $500$ with $30\%$ error rate
 using the /chaining seed heuristic/ with /diagonal transition/ and /pruning/:
 
@@ -45,9 +47,9 @@ using the /chaining seed heuristic/ with /diagonal transition/ and /pruning/:
 ** Repo layout
 
 #+begin_src shell :eval no-export :results file :file imgs/readme/depgraph.svg :exports results
-	cargo depgraph --dedup-transitive-deps \
-		--include pa-generate,pa-bin,pa-vis,astarpa,pa-types,pa-affine-types,sdl2,pa-base-algos,pa-web,web-sys,pa-heuristic,pa-vis-types,astarpa-c,astarpa-next \
-        | dot -Tsvg
+cargo depgraph --dedup-transitive-deps \
+    --include pa-generate,pa-bin,pa-vis,astarpa,pa-types,pa-affine-types,sdl2,pa-base-algos,pa-web,web-sys,pa-heuristic,pa-vis-types,astarpa-c,astarpa-next \
+    | dot -Gbgcolor=transparent -T svg
 #+end_src
 
 #+RESULTS:
