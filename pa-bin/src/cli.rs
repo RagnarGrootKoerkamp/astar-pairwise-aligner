@@ -15,12 +15,20 @@ use std::{
     path::PathBuf,
 };
 
+/// Globally align pairs of sequences using A*PA.
 #[derive(Parser, Serialize, Deserialize)]
 #[clap(author, about, disable_version_flag(true))]
 // Override some generator flags
 #[clap(mut_arg("seed", |a| a.hide_short_help(true)))]
+#[clap(mut_arg("cnt", |a| a.hide_short_help(true)))]
 #[clap(mut_arg("size", |a| a.hide_short_help(true)))]
 #[clap(mut_arg("error_model", |a| a.hide_short_help(true)))]
+#[clap(mut_arg("error_model", |a| a.hide_short_help(true)))]
+#[clap(group(
+    clap::ArgGroup::new("input_type")
+        .required(true)
+        .args(&["input", "length"]),
+))]
 pub struct Cli {
     /// A .seq, .txt, or Fasta file with sequence pairs to align.
     #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
@@ -30,7 +38,7 @@ pub struct Cli {
     #[clap(short, long, value_parser = value_parser!(PathBuf), display_order = 1)]
     pub output: Option<PathBuf>,
 
-    /// Do not use diagonal-transition based A*.
+    /// Do not use the diagonal-transition optimization.
     #[clap(long = "no-dt", action = clap::ArgAction::SetFalse)]
     pub diagonal_transition: bool,
 

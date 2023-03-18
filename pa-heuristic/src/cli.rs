@@ -44,19 +44,19 @@ fn default_prune() -> Prune {
 #[clap(next_help_heading = "Heuristic")]
 #[serde(deny_unknown_fields)]
 pub struct HeuristicParams {
-    #[clap(short = 'H', long, default_value_t, value_enum, display_order = 10)]
+    #[clap(short = 'H', long, default_value_t, value_enum)]
     #[serde(rename = "type")]
     pub heuristic: HeuristicType,
 
     /// Seed potential
     ///
     /// 2 for inexact matches.
-    #[clap(short = 'r', default_value_t = 2, value_name = "r", display_order = 10)]
+    #[clap(short = 'r', default_value_t = 2, value_name = "r")]
     #[serde(default = "default_match_cost")]
     pub r: MatchCost,
 
     /// Seed length
-    #[clap(short, value_name = "k", display_order = 10, default_value_t = 15)]
+    #[clap(short, value_name = "k", default_value_t = 15)]
     #[serde(default = "default_seed_length")]
     pub k: I,
 
