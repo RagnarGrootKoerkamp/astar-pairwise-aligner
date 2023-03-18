@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use astarpa::{make_aligner, stats::AstarStats};
+use astarpa::{make_aligner, stats::AstarStats, AstarStatsAligner};
 use clap::Parser;
 use pa_bin::cli::Cli;
 use pa_types::*;
@@ -9,18 +9,30 @@ use std::{
     ops::ControlFlow,
 };
 
+pub fn astar_aligner(args: &Cli) -> Box<dyn AstarStatsAligner> {
+    #[cfg(not(features = "vis"))]
+    {
+        make_aligner(args.diagonal_transition, &args.heuristic)
+    }
+
+    #[cfg(features = "vis")]
+    {
+        match args.vis.make_visualizer() {
+            VisualizerType::NoVisualizer => make_aligner(args.diagonal_transition, &args.heuristic),
+            VisualizerType::Visualizer(vis) => {
+                eprintln!("vis!");
+                make_aligner_with_visualizer(args.diagonal_transition, &args.heuristic, vis)
+            }
+        }
+    }
+}
+
 fn main() {
     let args = Cli::parse();
 
     let mut avg_stats = AstarStats::default();
 
-    #[cfg(not(features = "vis"))]
-    let aligner = make_aligner(args.diagonal_transition, &args.heuristic);
-
-    #[cfg(features = "vis")]
-    let aligner = args
-        .vis
-        .astar_aligner(args.diagonal_transition, &args.heuristic);
+    let aligner = astar_aligner(&args);
 
     let mut out_file = args
         .output

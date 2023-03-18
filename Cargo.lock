@@ -753,7 +753,6 @@ dependencies = [
 name = "pa-vis"
 version = "0.1.0"
 dependencies = [
- "astarpa",
  "clap",
  "colorgrad",
  "itertools",

@@ -1,7 +1,5 @@
 use crate::visualizer::{Config, VisualizerStyle, When};
-use astarpa::{make_aligner, make_aligner_with_visualizer, AstarStatsAligner};
 use clap::{value_parser, Parser};
-use pa_heuristic::HeuristicParams;
 use pa_types::I;
 use pa_vis_types::{canvas::*, VisualizerT};
 use serde::{Deserialize, Serialize};
@@ -150,12 +148,5 @@ impl VisualizerArgs {
         }
 
         VisualizerType::Visualizer(config)
-    }
-
-    pub fn astar_aligner(&self, dt: bool, h: &HeuristicParams) -> Box<dyn AstarStatsAligner> {
-        match self.make_visualizer() {
-            VisualizerType::NoVisualizer => make_aligner(dt, h),
-            VisualizerType::Visualizer(vis) => make_aligner_with_visualizer(dt, h, vis),
-        }
     }
 }

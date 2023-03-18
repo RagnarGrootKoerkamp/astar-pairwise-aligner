@@ -12,7 +12,7 @@ use clap::ValueEnum;
 use itertools::Itertools;
 use pa_affine_types::*;
 use pa_heuristic::matches::MatchStatus;
-use pa_heuristic::*;
+use pa_heuristic::HeuristicInstance;
 use pa_types::*;
 use pa_vis_types::{canvas::*, *};
 use rand::rngs::StdRng;
