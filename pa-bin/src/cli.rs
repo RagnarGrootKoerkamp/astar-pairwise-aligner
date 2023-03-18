@@ -31,8 +31,8 @@ pub struct Cli {
     #[clap(flatten)]
     pub generate: pa_generate::DatasetGenerator,
 
-    /// Use diagonal-transition based A*.
-    #[clap(long = "dt", hide_short_help = true)]
+    /// Do not use diagonal-transition based A*.
+    #[clap(long = "no-dt", action = clap::ArgAction::SetFalse , hide_short_help = true)]
     pub diagonal_transition: bool,
 
     /// Parameters and settings for the heuristic.

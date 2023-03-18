@@ -75,15 +75,14 @@ pub struct HeuristicParams {
     #[serde(default)]
     pub max_matches: Option<usize>,
 
-    /// Disable pruning
     #[clap(long, hide_short_help = true)]
-    #[clap(long, action = clap::ArgAction::Set, default_value = "none")]
+    #[clap(long, action = clap::ArgAction::Set, default_value = "start")]
     #[serde(default = "default_prune")]
     pub prune: Prune,
 
     /// Skip pruning every Nth match.
     ///
-    /// This is only used for CSH where skipping can give a speedup, not for SH.
+    /// This is not useful for SH, where pruning is always efficient.
     #[clap(long, hide_short_help = true)]
     #[serde(default)]
     pub skip_prune: Option<usize>,
