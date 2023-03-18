@@ -59,6 +59,14 @@ where
         <<H2 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint,
     );
 
+    fn seeds(&self) -> Option<&Vec<Seed>> {
+        self.h2.seeds()
+    }
+
+    fn matches(&self) -> Option<Vec<Match>> {
+        self.h2.matches()
+    }
+
     fn seed_matches(&self) -> Option<&SeedMatches> {
         unimplemented!("Can't choose which seed matches to use");
     }
