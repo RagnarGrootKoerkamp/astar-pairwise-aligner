@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 
 use super::*;
 use crate::*;
-use crate::{contour::Layer, seeds::Seed, split_vec::SplitVec};
+use crate::{contour::Layer, split_vec::SplitVec};
 
 #[derive(Debug, Copy, Clone)]
 pub struct SH {

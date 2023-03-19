@@ -5,7 +5,7 @@ pub mod sh;
 pub mod wrappers;
 
 use crate::prelude::*;
-use crate::seeds::{Seed, Seeds};
+use crate::seeds::{Seeds};
 use crate::{contour::Arrow, matches::*};
 use derive_more::AddAssign;
 

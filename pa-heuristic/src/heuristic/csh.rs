@@ -1,8 +1,10 @@
+use smallvec::SmallVec;
+
 use super::*;
+use crate::prune::MatchPruner;
 use crate::seeds::Seeds;
 use crate::*;
 use crate::{contour::*, wrappers::EqualHeuristic};
-use itertools::Itertools;
 use std::marker::PhantomData;
 
 pub struct CSH<C: Contours> {
@@ -133,17 +135,14 @@ pub struct CSHI<C: Contours> {
     gap_distance: GapCostI,
     target: Pos,
 
-    stats: HeuristicStats,
-    matches: Matches,
+    seeds: Seeds,
+    matches: MatchPruner,
 
     /// The max transformed position.
     max_transformed_pos: Pos,
-    transform_target: Pos,
     contours: C,
 
-    // TODO: Do not use vectors inside a hashmap.
-    // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
-    arrows: HashMap<Pos, Vec<Arrow>>,
+    stats: HeuristicStats,
 }
 
 /// The seed heuristic implies a distance function as the maximum of the
@@ -155,10 +154,10 @@ impl<'a, C: Contours> DistanceInstance<'a> for CSHI<C> {
         if self.params.use_gap_cost {
             max(
                 self.gap_distance.distance(from, to),
-                self.matches.seeds.potential_distance(from, to),
+                self.seeds.potential_distance(from, to),
             )
         } else {
-            self.matches.seeds.potential_distance(from, to)
+            self.seeds.potential_distance(from, to)
         }
     }
 }
@@ -174,87 +173,70 @@ impl<C: Contours> CSHI<C> {
     /// `filter` is currently only used for pre-pruning when an optimal path is guessed and all matches on it are pruned directly.
     /// This is not in the paper yet.
     fn new(a: Seq, b: Seq, params: CSH<C>) -> Self {
-        let matches = find_matches(a, b, params.match_config, params.use_gap_cost);
-        //println!("\nfind matches.. done: {}", matches.matches.len());
+        let Matches { seeds, mut matches } =
+            find_matches(a, b, params.match_config, params.use_gap_cost);
+        let target = Pos::target(a, b);
+        let t_target = seeds.transform(target);
+
+        // Filter matches: only keep matches with m.end <= target.
+        // FIXME: We must also keep matches with m.start <= target.
+        let num_matches = matches.len();
+        if params.use_gap_cost {
+            matches.retain(|Match { end, .. }| seeds.transform(*end) <= t_target);
+        }
+        let num_filtered_matches = matches.len();
+
+        // Transform to Arrows.
+        // For arrows with length > 1, also make arrows for length down to 1.
+        let match_to_arrow = |m: &Match| Arrow {
+            start: if params.use_gap_cost {
+                seeds.transform(m.start)
+            } else {
+                m.start
+            },
+            end: if params.use_gap_cost {
+                seeds.transform(m.end)
+            } else {
+                m.end
+            },
+            score: m.score(),
+        };
+
+        // Sort reversed by start (the order needed to construct contours).
+        matches.sort_by_key(|m| LexPos(m.start));
+
+        // TODO: Fix the units here -- unclear whether it should be I or cost.
+        let contours = C::new(
+            matches.iter().rev().map(match_to_arrow),
+            params.match_config.max_match_cost as I + 1,
+        );
+
         let mut h = CSHI {
             params,
             gap_distance: Distance::build(&GapCost, a, b),
-            target: Pos::target(a, b),
-            matches,
+            target,
+            seeds,
+            matches: MatchPruner::new(params.pruning, params.use_gap_cost, matches),
             stats: HeuristicStats::default(),
 
             // For pruning propagation
             max_transformed_pos: Pos(0, 0),
 
-            // Filled below.
-            transform_target: Pos(0, 0),
-            contours: C::default(),
-            arrows: Default::default(),
+            contours,
         };
-        h.transform_target = h.transform(h.target);
-
-        // Filter the matches.
-        // NOTE: Matches is already sorted by start.
-        assert!(h
-            .matches
-            .matches
-            .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
-
-        h.stats.num_seeds = h.matches.seeds.seeds.len() as _;
-        h.stats.num_matches = h.matches.matches.len();
-        if params.use_gap_cost {
-            // Remove irrelevant matches.
-            // Need to take it out of h.seeds because transform also uses this.
-            let mut matches = std::mem::take(&mut h.matches.matches);
-            matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);
-            h.matches.matches = matches;
-        }
-        h.stats.num_filtered_matches = h.matches.matches.len();
-
-        // Transform to Arrows.
-        // For arrows with length > 1, also make arrows for length down to 1.
-        let match_to_arrow = |m: &Match| Arrow {
-            start: h.transform(m.start),
-            end: h.transform(m.end),
-            score: m.seed_potential - m.match_cost,
-        };
-
-        let arrows = h
-            .matches
-            .matches
-            .iter()
-            .map(match_to_arrow)
-            .group_by(|a| a.start)
-            .into_iter()
-            .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
-            .collect();
-
-        // Sort reversed by start (the order needed to construct contours).
-        // TODO: Can we get away without sorting? It's probably possible if seeds
-        // TODO: Fix the units here -- unclear whether it should be I or cost.
-        // FIXME: Re-add the removed filter here?
-        h.contours = C::new(
-            h.matches.matches.iter().rev().map(match_to_arrow),
-            h.params.match_config.max_match_cost as I + 1,
-        );
-        h.arrows = arrows;
-        h.contours.print_stats();
         h.stats.h0 = h.h(Pos(0, 0));
+        h.stats.num_seeds = h.seeds.seeds.len() as _;
+        h.stats.num_matches = num_matches;
+        h.stats.num_filtered_matches = num_filtered_matches;
+        h.contours.print_stats();
         h
     }
 
     // TODO: Transform maps from position domain into cost domain.
     // Contours should take a template for the type of point they deal with.
-    fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
+    fn transform(&self, pos: Pos) -> Pos {
         if self.params.use_gap_cost {
-            let a = self.target.0;
-            let b = self.target.1;
-            let pot = |pos| self.matches.seeds.potential(pos);
-            Pos(
-                // Units here are a lie. All should be converted to cost, instead of position really.
-                i + b - j + pot(Pos(0, 0)) as I - pot(pos) as I,
-                j + a - i + pot(Pos(0, 0)) as I - pot(pos) as I,
-            )
+            self.seeds.transform(pos)
         } else {
             pos
         }
@@ -262,40 +244,18 @@ impl<C: Contours> CSHI<C> {
 
     // TODO: Transform maps from position domain into cost domain.
     // Contours should take a template for the type of point they deal with.
-    fn transform_back(&self, pos @ Pos(x, y): Pos) -> Pos {
+    fn transform_back(&self, pos: Pos) -> Pos {
         if self.params.use_gap_cost {
-            if pos == Pos(I::MAX, I::MAX) {
-                return pos;
-            }
-            let k = self.params.match_config.length.k().unwrap();
-            let a = self.target.0;
-            let b = self.target.1;
-            let delta_p = (x - b - a + y) / 2;
-            let i = delta_p / (self.params.match_config.max_match_cost + 1) as I * k;
-            let diff = (x - y + a - b) / 2;
-            let j = i - diff;
-            assert_eq!(pos, self.transform(Pos(i, j)));
-            Pos(i, j)
+            self.seeds.transform_back(pos)
         } else {
             pos
-        }
-    }
-
-    /// True when the next position should be pruned.
-    /// Returns false once every `params.pruning.skip_prune` steps, if set.
-    fn add_prune(&mut self) -> bool {
-        self.stats.num_pruned += 1;
-        if let Some(skip) = self.params.pruning.skip_prune {
-            self.stats.num_pruned % skip != 0
-        } else {
-            true
         }
     }
 }
 
 impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     fn h(&self, pos: Pos) -> Cost {
-        let p = self.matches.seeds.potential(pos);
+        let p = self.seeds.potential(pos);
         let val = self.contours.score(self.transform(pos));
         // FIXME: Why not max(self.distance, p-val)?
         if val == 0 {
@@ -321,7 +281,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
-        let p = self.matches.seeds.potential(pos);
+        let p = self.seeds.potential(pos);
         let (val, new_hint) = self.contours.score_with_hint(self.transform(pos), hint);
         if val == 0 {
             (self.distance(pos, self.target), new_hint)
@@ -332,18 +292,13 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     type Hint = C::Hint;
     fn root_potential(&self) -> Cost {
-        self.matches.seeds.potential(Pos(0, 0))
-    }
-
-    fn seed_matches(&self) -> Option<&Matches> {
-        Some(&self.matches)
+        self.seeds.potential(Pos(0, 0))
     }
 
     /// `seed_cost` can be used to filter out lookups for states that won't have a match ending there.
     /// TODO: Separate into one step removing as many arrows as needed, and a separate step updating the contours.
     type Order = Pos;
     fn prune(&mut self, pos: Pos, hint: Self::Hint) -> (Cost, Pos) {
-        const D: bool = false;
         if !self.params.pruning.is_enabled() {
             return (0, Pos::default());
         }
@@ -351,126 +306,55 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         // Time the duration of retrying once in this many iterations.
         const TIME_EACH: usize = 64;
-        let start = if self.stats.prune_count % TIME_EACH == 0 {
+        let start_time = if self.stats.prune_count % TIME_EACH == 0 {
             Some(instant::Instant::now())
         } else {
             None
         };
 
-        // Maximum length arrow at given pos.
-        let tpos = self.transform(pos);
-        let max_match_cost = self.params.match_config.max_match_cost;
+        let start_layer = self.contours.score_with_hint(pos, hint).0;
 
-        // Prune any matches ending here.
-        let mut change = 0;
-        if self.params.pruning.prune_end() {
-            'prune_by_end: {
-                // Check all possible start positions of a match ending here.
-                if let Some(s) = self.matches.seeds.seed_ending_at(pos) {
-                    assert_eq!(pos.0, s.end);
-                    if s.start + pos.1 < pos.0 {
-                        break 'prune_by_end;
-                    }
-                    let match_start = Pos(s.start, s.start + pos.1 - pos.0);
-                    let mut try_prune_pos = |startpos: Pos| {
-                        if !self.add_prune() {
-                            return;
-                        }
-                        let tp = self.transform(startpos);
-                        let Some(arrows) = self.arrows.get_mut(&tp) else { return; };
-                        // Filter arrows starting in the current position.
-                        if arrows.drain_filter(|a| a.end == tpos).count() == 0 {
-                            return;
-                        }
-                        if arrows.is_empty() {
-                            self.arrows.remove(&tp).unwrap();
-                        }
-                        self.stats.num_pruned += 1;
-                        // FIXME: Propagate this change.
-                        self.contours.prune_with_hint(tp, hint, &self.arrows).1;
-                    };
-                    // First try pruning neighbouring start states, and prune the diagonal start state last.
-                    for d in 1..=max_match_cost {
-                        if (d as Cost) <= match_start.1 {
-                            try_prune_pos(Pos(match_start.0, match_start.1 - d as I));
-                        }
-                        try_prune_pos(Pos(match_start.0, match_start.1 + d as I));
-                    }
-                    try_prune_pos(match_start);
-                }
+        let mut pruned_start_positions: SmallVec<[Pos; 5]> = Default::default();
+        let (p_start, p_end) = self.matches.prune(&self.seeds, pos, |m| {
+            if !pruned_start_positions.contains(&m.start) {
+                pruned_start_positions.push(m.start)
             }
-        }
-        let a = if let Some(arrows) = self.arrows.get(&tpos) {
-            arrows.iter().max_by_key(|a| a.score).unwrap().clone()
-        } else {
-            if let Some(start) = start {
-                self.stats.pruning_duration += TIME_EACH as f32 * start.elapsed().as_secs_f32();
-            }
-            // FIXME: Fix queue shifting with gapcost.
-            return (change, pos);
+        });
+
+        self.stats.num_pruned += p_start + p_end;
+
+        let match_to_arrow = |m: &Match| Arrow {
+            start: if self.params.use_gap_cost {
+                self.seeds.transform(m.start)
+            } else {
+                m.start
+            },
+            end: if self.params.use_gap_cost {
+                self.seeds.transform(m.end)
+            } else {
+                m.end
+            },
+            score: m.score(),
         };
 
-        // Make sure that h remains consistent: never prune positions with larger neighbouring arrows.
-        // TODO: Make this smarter and allow pruning long arrows even when pruning short arrows is not possible.
-        // The minimum length required for consistency here.
-        let mut min_len = 0;
-        if CHECK_MATCH_CONSISTENCY || self.params.use_gap_cost {
-            for d in 1..=self.params.match_config.max_match_cost {
-                let mut check = |pos: Pos| {
-                    if let Some(pos_arrows) = self.arrows.get(&self.transform(pos)) {
-                        min_len = max(
-                            min_len,
-                            pos_arrows.iter().map(|a| a.score).max().unwrap() - d,
-                        );
-                    }
-                };
-                if pos.0 >= d as Cost {
-                    check(Pos(pos.0, pos.1 - d as I));
-                }
-                check(Pos(pos.0, pos.1 + d as I));
-            }
+        // TODO: This should be optimized to a single `contours.prune` call.
+        for p in pruned_start_positions {
+            self.contours.prune_with_hint(p, hint, |p| {
+                self.matches
+                    .by_start
+                    .get(&p)
+                    .map(|ms| ms.iter().map(match_to_arrow))
+            });
         }
 
-        if a.score <= min_len {
-            return (0, Pos::default());
-        }
-
-        if D {
-            println!("PRUNE GAP SEED HEURISTIC {pos} to {min_len}: {a}");
-        }
-
-        if self.params.pruning.prune_start() {
-            change += if min_len == 0 {
-                if self.add_prune() {
-                    self.arrows.remove(&tpos).unwrap();
-                    self.contours.prune_with_hint(tpos, hint, &self.arrows).1
-                } else {
-                    0
-                }
-            } else {
-                if self.add_prune() {
-                    // If we only remove a subset of arrows, do no actual pruning.
-                    // TODO: Also update contours on partial pruning.
-                    let arrows = self.arrows.get_mut(&tpos).unwrap();
-                    if D {
-                        println!("Remove arrows of length > {min_len} at pos {pos}.");
-                    }
-                    arrows.drain_filter(|a| a.score > min_len).count();
-                    assert!(arrows.len() > 0);
-                    self.contours.prune_with_hint(tpos, hint, &self.arrows).1
-                } else {
-                    0
-                }
-            };
-        }
-
-        if let Some(start) = start {
-            self.stats.pruning_duration += TIME_EACH as f32 * start.elapsed().as_secs_f32();
-        }
-
-        if self.params.use_gap_cost {
-            // FIXME: Return `change`, and `tpos` instead of `pos`.
-            change = 0;
+        let change = if p_start > 0 {
+            let end_layer = self.contours.score_with_hint(pos, hint).0;
+            end_layer - start_layer
+        } else {
+            0
+        };
+        if let Some(start_time) = start_time {
+            self.stats.pruning_duration += TIME_EACH as f32 * start_time.elapsed().as_secs_f32();
         }
         (change, pos)
     }
@@ -488,21 +372,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn matches(&self) -> Option<Vec<Match>> {
-        Some(
-            self.matches
-                .matches
-                .iter()
-                .map(|m| {
-                    let mut m = m.clone();
-                    m.pruned = if self.arrows.contains_key(&self.transform(m.start)) {
-                        MatchStatus::Active
-                    } else {
-                        MatchStatus::Pruned
-                    };
-                    m
-                })
-                .collect(),
-        )
+        Some(self.matches.collect_vec())
     }
 
     fn seeds(&self) -> Option<&Seeds> {

@@ -1,5 +1,5 @@
 use crate::{
-    matches::{Match, MatchStatus, Matches},
+    matches::{Match, MatchStatus},
     prelude::*,
     seeds::MatchCost,
 };
@@ -215,5 +215,13 @@ impl MatchPruner {
         }
 
         true
+    }
+
+    pub fn collect_vec(&self) -> Vec<Match> {
+        self.by_start
+            .iter()
+            .flat_map(|(_start, ms)| ms)
+            .cloned()
+            .collect_vec()
     }
 }
