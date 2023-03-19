@@ -1,9 +1,7 @@
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-use crate::heuristic::*;
-use crate::matches::*;
-use crate::seeds::MatchCost;
+use crate::*;
 use pa_types::*;
 
 /// The type of the heuristic. Defaults to SH.

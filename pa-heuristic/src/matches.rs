@@ -27,6 +27,16 @@ pub struct Match {
     pub pruned: MatchStatus,
 }
 
+impl Match {
+    pub fn score(&self) -> MatchCost {
+        self.seed_potential - self.match_cost
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.pruned == MatchStatus::Active
+    }
+}
+
 #[derive(Default)]
 pub struct Matches {
     pub seeds: Seeds,
@@ -41,7 +51,7 @@ impl Matches {
     pub fn new(a: Seq, seeds: Vec<Seed>, mut matches: Vec<Match>) -> Self {
         // First sort by start, then by end, then by match cost.
         matches.sort_unstable_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
-        // Dedup to only keep the lowest match cost.
+        // Dedup to only keep the lowest match cost between each start and end.
         matches.dedup_by_key(|m| (m.start, m.end));
 
         Matches {

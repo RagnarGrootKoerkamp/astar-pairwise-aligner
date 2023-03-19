@@ -4,7 +4,7 @@ use itertools::Itertools;
 use rand::Rng;
 
 use super::*;
-use crate::{matches::*, seeds::MatchCost};
+use crate::*;
 
 #[derive(Debug, Copy, Clone)]
 pub struct BruteForceGCSH<DH: Distance> {

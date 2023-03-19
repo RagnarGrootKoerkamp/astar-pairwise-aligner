@@ -3,14 +3,19 @@
 mod cli;
 mod config;
 mod contour;
+// FIXME: MAKE MOST MODULES PRIVATE
+// SEEDS AND MATCHES DO NOT NEED TO BE EXPOSED.
 pub mod heuristic;
 pub mod matches;
+pub mod prune;
 pub mod seeds;
 mod split_vec;
 
 pub use cli::*;
 pub use heuristic::*;
-pub use matches::MatchConfig;
+pub use matches::{LengthConfig, MatchConfig};
+pub use prune::{Prune, Pruning};
+pub use seeds::MatchCost;
 
 mod prelude {
     pub use crate::config::*;

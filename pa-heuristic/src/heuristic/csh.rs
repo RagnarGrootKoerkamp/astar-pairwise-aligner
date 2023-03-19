@@ -1,5 +1,6 @@
 use super::*;
-use crate::{contour::*, seeds::MatchCost, wrappers::EqualHeuristic};
+use crate::*;
+use crate::{contour::*, wrappers::EqualHeuristic};
 use itertools::Itertools;
 use std::marker::PhantomData;
 
