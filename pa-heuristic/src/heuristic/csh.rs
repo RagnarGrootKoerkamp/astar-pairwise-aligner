@@ -1,5 +1,5 @@
 use super::*;
-use crate::{contour::*, wrappers::EqualHeuristic};
+use crate::{contour::*, seeds::MatchCost, wrappers::EqualHeuristic};
 use itertools::Itertools;
 use std::marker::PhantomData;
 
@@ -153,10 +153,10 @@ impl<'a, C: Contours> DistanceInstance<'a> for CSHI<C> {
         if self.params.use_gap_cost {
             max(
                 self.gap_distance.distance(from, to),
-                self.seeds.potential_distance(from, to),
+                self.seeds.seeds.potential_distance(from, to),
             )
         } else {
-            self.seeds.potential_distance(from, to)
+            self.seeds.seeds.potential_distance(from, to)
         }
     }
 }
@@ -198,7 +198,7 @@ impl<C: Contours> CSHI<C> {
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
-        h.stats.num_seeds = h.seeds.seeds.len() as _;
+        h.stats.num_seeds = h.seeds.seeds.seeds.len() as _;
         h.stats.num_matches = h.seeds.matches.len();
         if params.use_gap_cost {
             // Remove irrelevant matches.
@@ -247,7 +247,7 @@ impl<C: Contours> CSHI<C> {
         if self.params.use_gap_cost {
             let a = self.target.0;
             let b = self.target.1;
-            let pot = |pos| self.seeds.potential(pos);
+            let pot = |pos| self.seeds.seeds.potential(pos);
             Pos(
                 // Units here are a lie. All should be converted to cost, instead of position really.
                 i + b - j + pot(Pos(0, 0)) as I - pot(pos) as I,
@@ -293,7 +293,7 @@ impl<C: Contours> CSHI<C> {
 
 impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     fn h(&self, pos: Pos) -> Cost {
-        let p = self.seeds.potential(pos);
+        let p = self.seeds.seeds.potential(pos);
         let val = self.contours.score(self.transform(pos));
         // FIXME: Why not max(self.distance, p-val)?
         if val == 0 {
@@ -319,7 +319,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
-        let p = self.seeds.potential(pos);
+        let p = self.seeds.seeds.potential(pos);
         let (val, new_hint) = self.contours.score_with_hint(self.transform(pos), hint);
         if val == 0 {
             (self.distance(pos, self.target), new_hint)
@@ -330,7 +330,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     type Hint = C::Hint;
     fn root_potential(&self) -> Cost {
-        self.seeds.potential(Pos(0, 0))
+        self.seeds.seeds.potential(Pos(0, 0))
     }
 
     fn seed_matches(&self) -> Option<&SeedMatches> {
@@ -364,7 +364,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         if self.params.pruning.prune_end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
-                if let Some(s) = self.seeds.seed_ending_at(pos) {
+                if let Some(s) = self.seeds.seeds.seed_ending_at(pos) {
                     assert_eq!(pos.0, s.end);
                     if s.start + pos.1 < pos.0 {
                         break 'prune_by_end;
@@ -504,7 +504,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.seeds.seeds)
+        Some(&self.seeds.seeds.seeds)
     }
 
     fn params_string(&self) -> String {

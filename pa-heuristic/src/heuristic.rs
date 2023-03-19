@@ -5,6 +5,7 @@ pub mod sh;
 pub mod wrappers;
 
 use crate::prelude::*;
+use crate::seeds::Seed;
 use crate::{contour::Arrow, matches::*};
 use clap::ValueEnum;
 use derive_more::AddAssign;
@@ -202,7 +203,7 @@ pub trait HeuristicInstance<'a> {
     /// A* will checked for consistency whenever this returns true.
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         self.seed_matches()
-            .map_or(false, |sm| sm.is_seed_start_or_end(pos))
+            .map_or(false, |sm| sm.seeds.is_seed_start_or_end(pos))
     }
 
     type Order: PosOrderT = ();

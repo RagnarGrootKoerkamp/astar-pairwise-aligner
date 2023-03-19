@@ -1123,7 +1123,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
                     // Try pruning the previous start-of-seed position on this diagonal.
                     if let Some(matches) = &self.h.seed_matches() &&
                        let Some(&prev_fr) = prev_front.m().get(k) &&
-                       let Some(prev_seed) = matches.seed_ending_at(p) {
+                       let Some(prev_seed) = matches.seeds.seed_ending_at(p) {
                         let prev_p = p - Pos(p.0 - prev_seed.start, p.0 - prev_seed.start);
                         if pos_to_fr(prev_p).1 >= prev_fr {
                             self.h.prune(prev_p, Default::default());

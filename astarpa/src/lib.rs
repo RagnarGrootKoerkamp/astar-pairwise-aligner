@@ -44,7 +44,7 @@ mod prelude {
     pub use crate::config::*;
 }
 
-use pa_heuristic::matches::MatchCost;
+use pa_heuristic::seeds::MatchCost;
 use pa_heuristic::{Heuristic, HeuristicMapper, Prune};
 use pa_heuristic::{HeuristicParams, MatchConfig, Pruning, GCSH};
 use pa_types::{Aligner, Cigar, Cost, Seq, I};

@@ -5,6 +5,7 @@ mod config;
 mod contour;
 pub mod heuristic;
 pub mod matches;
+pub mod seeds;
 mod split_vec;
 
 pub use cli::*;

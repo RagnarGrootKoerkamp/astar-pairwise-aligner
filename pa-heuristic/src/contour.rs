@@ -6,7 +6,7 @@ pub use hint_contours::*;
 
 use std::fmt::{Debug, Display};
 
-use crate::{matches::MatchCost, prelude::*};
+use crate::{prelude::*, seeds::MatchCost};
 
 pub type Layer = u32;
 

@@ -1,6 +1,7 @@
 use super::*;
 use crate::matches::*;
 use crate::prelude::*;
+use crate::seeds::Seed;
 
 #[derive(Debug, Clone, Copy)]
 pub struct EqualHeuristic<H1: Heuristic, H2: Heuristic> {

@@ -2,7 +2,7 @@ use itertools::Itertools;
 use std::cmp::Ordering;
 
 use super::*;
-use crate::{contour::Layer, split_vec::SplitVec};
+use crate::{contour::Layer, seeds::Seed, split_vec::SplitVec};
 
 #[derive(Debug, Copy, Clone)]
 pub struct SH {
@@ -70,7 +70,7 @@ impl SHI {
         let mut layer_starts = SplitVec::default();
         // Layer 0 starts at the end of A.
         layer_starts.push(a.len() as I);
-        for seed in matches.seeds.iter().rev() {
+        for seed in matches.seeds.seeds.iter().rev() {
             let weight = seed.seed_potential - seed.seed_cost;
             for _ in 0..weight {
                 layer_starts.push(seed.start);
@@ -88,14 +88,16 @@ impl SHI {
 
         // Count number of matches per seed of each length.
         // The max length is r=1+max_match_cost.
-        let mut num_arrows_per_length =
-            vec![vec![0; matches.seeds.len()]; params.match_config.max_match_cost as usize + 2];
+        let mut num_arrows_per_length = vec![
+            vec![0; matches.seeds.seeds.len()];
+            params.match_config.max_match_cost as usize + 2
+        ];
 
         for (start, arrows) in &arrows {
             for a in arrows {
                 assert!(0 < a.score && a.score <= params.match_config.max_match_cost + 1);
                 num_arrows_per_length[a.score as usize]
-                    [matches.seed_at[start.0 as usize].unwrap() as usize] += 1;
+                    [matches.seeds.seed_at[start.0 as usize].unwrap() as usize] += 1;
             }
         }
 
@@ -107,7 +109,7 @@ impl SHI {
             layer_starts,
             max_explored_pos: Pos(0, 0),
             stats: HeuristicStats {
-                num_seeds: matches.seeds.len() as I,
+                num_seeds: matches.seeds.seeds.len() as I,
                 num_matches: matches.matches.len(),
                 num_filtered_matches: matches.matches.len(),
                 pruning_duration: 0.0,
@@ -187,7 +189,7 @@ impl SHI {
     ///
     /// Returns the number of layers removed.
     fn update_layers_on_pruning_arrow(&mut self, a: Arrow, hint: Hint) -> Cost {
-        let seed_idx = self.matches.seed_at[a.start.0 as usize].unwrap() as usize;
+        let seed_idx = self.matches.seeds.seed_at[a.start.0 as usize].unwrap() as usize;
         if SH_MARK_MATCH_AS_PRUNED {
             for m in &mut self.matches.matches {
                 if match_to_arrow(m) == a {
@@ -237,7 +239,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     type Hint = Hint;
 
     fn h(&self, pos: Pos) -> Cost {
-        let p = self.matches.potential(pos);
+        let p = self.matches.seeds.potential(pos);
         let m = self.value(pos);
         p - m
     }
@@ -251,13 +253,13 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
-        let p = self.matches.potential(pos);
+        let p = self.matches.seeds.potential(pos);
         let (m, h) = self.value_with_hint(pos, hint);
         (p - m, h)
     }
 
     fn root_potential(&self) -> Cost {
-        self.matches.potential[0]
+        self.matches.seeds.potential[0]
     }
 
     fn seed_matches(&self) -> Option<&SeedMatches> {
@@ -281,7 +283,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
         if self.params.pruning.prune_end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
-                if let Some(s) = self.matches.seed_ending_at(pos) {
+                if let Some(s) = self.matches.seeds.seed_ending_at(pos) {
                     assert_eq!(pos.0, s.end);
                     if s.start + pos.1 < pos.0 {
                         break 'prune_by_end;
@@ -397,7 +399,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.matches.seeds)
+        Some(&self.matches.seeds.seeds)
     }
 
     fn params_string(&self) -> String {

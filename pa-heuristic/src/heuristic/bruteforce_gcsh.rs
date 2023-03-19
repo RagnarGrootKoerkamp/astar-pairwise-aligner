@@ -4,7 +4,7 @@ use itertools::Itertools;
 use rand::Rng;
 
 use super::*;
-use crate::matches::*;
+use crate::{matches::*, seeds::MatchCost};
 
 #[derive(Debug, Copy, Clone)]
 pub struct BruteForceGCSH<DH: Distance> {
@@ -57,7 +57,7 @@ where
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.distance_function.distance(from, to),
-            self.seeds.potential_distance(from, to),
+            self.seeds.seeds.potential_distance(from, to),
         )
     }
 }
@@ -106,7 +106,7 @@ where
 
         h.build();
         h.stats = HeuristicStats {
-            num_seeds: h.seeds.seeds.len() as I,
+            num_seeds: h.seeds.seeds.seeds.len() as I,
             num_matches: h.seeds.matches.len(),
             num_filtered_matches: h.seeds.matches.len(),
             ..Default::default()
@@ -196,7 +196,7 @@ where
         if self.params.pruning.prune_end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
-                if let Some(s) = self.seeds.seed_ending_at(pos) {
+                if let Some(s) = self.seeds.seeds.seed_ending_at(pos) {
                     assert_eq!(pos.0, s.end);
                     if s.start + pos.1 < pos.0 {
                         break 'prune_by_end;
@@ -320,7 +320,7 @@ where
     }
 
     fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.seeds.seeds)
+        Some(&self.seeds.seeds.seeds)
     }
 
     fn params_string(&self) -> String {
