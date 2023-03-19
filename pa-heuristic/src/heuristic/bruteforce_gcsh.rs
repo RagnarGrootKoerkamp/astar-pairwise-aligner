@@ -175,10 +175,6 @@ where
             .unwrap()
     }
 
-    fn seed_matches(&self) -> Option<&Matches> {
-        Some(&self.matches)
-    }
-
     /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
     fn prune(&mut self, pos: Pos, _hint: Self::Hint) -> (Cost, ()) {
         const D: bool = false;
@@ -319,8 +315,8 @@ where
         )
     }
 
-    fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.matches.seeds.seeds)
+    fn seeds(&self) -> Option<&Seeds> {
+        Some(&self.matches.seeds)
     }
 
     fn params_string(&self) -> String {

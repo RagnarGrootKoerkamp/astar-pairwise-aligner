@@ -101,14 +101,14 @@ pub struct MatchPruner {
     check_consistency: bool,
     /// Skip a prune when this reaches 0 and `skip_prune` is set.
     skip: usize,
-    seeds: Seeds,
-    by_start: HashMap<Pos, Vec<Match>>,
-    by_end: HashMap<Pos, Vec<Match>>,
+    // TODO: Do not use vectors inside a hashmap.
+    // Instead, store a Vec<Array>, and attach a slice to each contour point.
+    pub by_start: HashMap<Pos, Vec<Match>>,
+    pub by_end: HashMap<Pos, Vec<Match>>,
 }
 
 impl MatchPruner {
-    pub fn new(pruning: Pruning, check_consistency: bool, matches: Matches) -> MatchPruner {
-        let Matches { seeds, mut matches } = matches;
+    pub fn new(pruning: Pruning, check_consistency: bool, mut matches: Vec<Match>) -> MatchPruner {
         // Sort by start, then by  match cost.
         // This ensures that matches are pruned from low cost to high cost.
         matches.sort_unstable_by_key(|m| (LexPos(m.start), m.match_cost));
@@ -133,23 +133,22 @@ impl MatchPruner {
             pruning,
             check_consistency,
             skip: 1,
-            seeds,
             by_start,
             by_end,
         }
     }
 
     /// Returns number of matches pruned by start (succeeding this pos) and by end (preceding this pos).
-    pub fn prune(&mut self, pos: Pos, mut f: impl FnMut(&Match)) -> (usize, usize) {
+    pub fn prune(&mut self, seeds: &Seeds, pos: Pos, mut f: impl FnMut(&Match)) -> (usize, usize) {
         let mut cnt = (0, 0);
-        if self.pruning.prune_start() && self.seeds.is_seed_start(pos) {
+        if self.pruning.prune_start() && seeds.is_seed_start(pos) {
             if let Some(ms) = self.by_start.get_mut(&pos) {
                 let mut ms = std::mem::take(ms);
                 cnt.0 = self.prune_vec(&mut ms, &mut f);
                 *self.by_start.get_mut(&pos).unwrap() = ms;
             }
         };
-        if self.pruning.prune_end() && self.seeds.is_seed_end(pos) {
+        if self.pruning.prune_end() && seeds.is_seed_end(pos) {
             if let Some(ms) = self.by_end.get_mut(&pos) {
                 let mut ms = std::mem::take(ms);
                 cnt.0 = self.prune_vec(&mut ms, &mut f);

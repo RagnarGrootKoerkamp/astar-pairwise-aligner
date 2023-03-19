@@ -5,7 +5,7 @@ pub mod sh;
 pub mod wrappers;
 
 use crate::prelude::*;
-use crate::seeds::Seed;
+use crate::seeds::{Seed, Seeds};
 use crate::{contour::Arrow, matches::*};
 use derive_more::AddAssign;
 
@@ -106,15 +106,10 @@ pub trait HeuristicInstance<'a> {
         0
     }
 
-    /// The seed matches used by the heuristic.
-    fn seed_matches(&self) -> Option<&Matches> {
-        None
-    }
-
     /// A* will checked for consistency whenever this returns true.
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
-        self.seed_matches()
-            .map_or(false, |sm| sm.seeds.is_seed_start_or_end(pos))
+        self.seeds()
+            .map_or(false, |sm| sm.is_seed_start_or_end(pos))
     }
 
     type Order: PosOrderT = ();
@@ -139,7 +134,7 @@ pub trait HeuristicInstance<'a> {
         None
     }
 
-    fn seeds(&self) -> Option<&Vec<Seed>> {
+    fn seeds(&self) -> Option<&Seeds> {
         None
     }
 

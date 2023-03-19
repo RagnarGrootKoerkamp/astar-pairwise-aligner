@@ -1,4 +1,5 @@
 use super::*;
+use crate::seeds::Seeds;
 use crate::*;
 use crate::{contour::*, wrappers::EqualHeuristic};
 use itertools::Itertools;
@@ -504,8 +505,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         )
     }
 
-    fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.matches.seeds.seeds)
+    fn seeds(&self) -> Option<&Seeds> {
+        Some(&self.seeds)
     }
 
     fn params_string(&self) -> String {

@@ -1,7 +1,5 @@
 use super::*;
-use crate::matches::*;
 use crate::prelude::*;
-use crate::seeds::Seed;
 
 #[derive(Debug, Clone, Copy)]
 pub struct EqualHeuristic<H1: Heuristic, H2: Heuristic> {
@@ -60,16 +58,8 @@ where
         <<H2 as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint,
     );
 
-    fn seeds(&self) -> Option<&Vec<Seed>> {
+    fn seeds(&self) -> Option<&Seeds> {
         self.h2.seeds()
-    }
-
-    fn matches(&self) -> Option<Vec<Match>> {
-        self.h2.matches()
-    }
-
-    fn seed_matches(&self) -> Option<&Matches> {
-        unimplemented!("Can't choose which seed matches to use");
     }
 
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
@@ -227,10 +217,6 @@ where
     }
 
     type Hint = <<H as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint;
-
-    fn seed_matches(&self) -> Option<&Matches> {
-        unimplemented!("MirrorHeuristic cannot mirror SeedMatches");
-    }
 
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         self.h.is_seed_start_or_end(pos.mirror())

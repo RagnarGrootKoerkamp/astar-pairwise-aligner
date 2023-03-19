@@ -263,10 +263,6 @@ impl<'a> HeuristicInstance<'a> for SHI {
         self.matches.seeds.potential[0]
     }
 
-    fn seed_matches(&self) -> Option<&Matches> {
-        Some(&self.matches)
-    }
-
     type Order = I;
 
     /// FIXME: This code is copied from CSH. Should be extracted into a pruning module.
@@ -399,8 +395,8 @@ impl<'a> HeuristicInstance<'a> for SHI {
         Some(self.matches.matches.clone())
     }
 
-    fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.matches.seeds.seeds)
+    fn seeds(&self) -> Option<&Seeds> {
+        Some(&self.matches.seeds)
     }
 
     fn params_string(&self) -> String {
