@@ -26,6 +26,8 @@ pub struct Seeds {
     pub seed_at: Vec<Option<I>>,
     /// The sum of seed potentials of all seeds not starting before each position.
     pub potential: Vec<Cost>,
+    /// The largest i with given potential.
+    start_of_potential: Vec<I>,
 }
 
 impl Seeds {
@@ -43,6 +45,7 @@ impl Seeds {
         let mut seed_at = vec![None; n + 1];
         let mut cur_potential = 0;
         let mut next_seed = seeds.iter().enumerate().rev().peekable();
+        let mut start_of_potential = vec![n as I];
         for i in (0..=n).rev() {
             if let Some((seed_idx, ns)) = next_seed.peek() {
                 if i < ns.end as usize {
@@ -51,6 +54,7 @@ impl Seeds {
 
                 if i == ns.start as usize {
                     cur_potential += ns.seed_potential as Cost;
+                    start_of_potential.push(i as I);
                     next_seed.next();
                 }
             }
@@ -60,6 +64,7 @@ impl Seeds {
             seeds,
             seed_at,
             potential,
+            start_of_potential,
         }
     }
 
@@ -111,5 +116,27 @@ impl Seeds {
     #[inline]
     pub fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         self.is_seed_start(pos) || self.is_seed_end(pos)
+    }
+
+    /// Apply the transformation for GCSH.
+    // Units here are a lie. The output should have `Cost` instead of `Position`
+    // units really.
+    #[inline]
+    pub fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
+        let p = self.potential(pos);
+        Pos(i - j - p, j - i - p)
+    }
+
+    /// Invert the transformation for GCSH.
+    pub fn transform_back(&self, pos @ Pos(x, y): Pos) -> Pos {
+        if pos == Pos(I::MAX, I::MAX) {
+            return pos;
+        }
+        let p = (x + y) / 2;
+        let i = self.start_of_potential[p as usize];
+        let diff = (x - y) / 2;
+        let j = i - diff;
+        assert_eq!(pos, self.transform(Pos(i, j)));
+        Pos(i, j)
     }
 }
