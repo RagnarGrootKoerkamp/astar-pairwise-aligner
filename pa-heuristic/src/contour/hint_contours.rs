@@ -89,7 +89,12 @@ impl Shift {
 }
 
 impl<C: Contour> HintContours<C> {
-    fn debug(&self, pos: Pos, v: Layer, arrows: &HashMap<Pos, Vec<Arrow>>) {
+    fn debug<R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
+        &self,
+        pos: Pos,
+        v: Layer,
+        arrows: &F,
+    ) {
         eprintln!("BEFORE PRUNE of {pos} layer {v}");
         let radius = 4;
         // For each layer around the current one, print:
@@ -98,11 +103,11 @@ impl<C: Contour> HintContours<C> {
             // - the positions in the layer
             eprintln!("LAYER {layer}");
             self.contours[layer].iterate_points(|p: Pos| {
-                let max_len = arrows.get(&p).map_or(0, |arrows| {
-                    arrows.iter().map(|a| a.score).max().expect("Empty arrows")
+                let max_len = arrows(&p).map_or(0, |arrows| {
+                    arrows.map(|a| a.score).max().expect("Empty arrows")
                 });
                 // - the arrows starting at each position.
-                arrows.get(&p).map(|arrows| {
+                arrows(&p).map(|arrows| {
                     for a in arrows {
                         eprintln!("{a}");
                     }
@@ -127,14 +132,17 @@ impl<C: Contour> HintContours<C> {
     }
 
     /// Check that each arrow is in the correct layer.
-    fn check_consistency(&mut self, arrows: &HashMap<Pos, Vec<Arrow>>) {
+    fn check_consistency<R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
+        &mut self,
+        arrows: &F,
+    ) {
         if !D {
             return;
         }
         for layer in 1..self.contours.len() as Layer {
             self.contours[layer].iterate_points(|p: Pos| {
-                let max_len = arrows.get(&p).map_or(0, |arrows| {
-                    arrows.iter().map(|a| a.score).max().expect("Empty arrows")
+                let max_len = arrows(&p).map_or(0, |arrows| {
+                    arrows.map(|a| a.score).max().expect("Empty arrows")
                 });
                 assert!(max_len > 0);
                 let target_layer = chain_score(arrows, p, layer, &self.contours);
@@ -147,18 +155,19 @@ impl<C: Contour> HintContours<C> {
     }
 }
 
-fn chain_score<C: Contour>(
-    arrows: &HashMap<Pos, Vec<Arrow>>,
+fn chain_score<C: Contour, R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
+    arrows: &F,
     pos: Pos,
     v: Layer,
     contours: &SplitVec<C>,
 ) -> Layer {
-    let Some(pos_arrows) = arrows.get(&pos) else {
+    let Some(pos_arrows) = arrows(&pos) else {
             panic!("No arrows found for position {pos} around layer {v}.");
         };
-    assert!(!pos_arrows.is_empty());
     let mut max_score = 0;
+    let mut empty = true;
     'fr: for arrow in pos_arrows {
+        empty = false;
         // Find the value at end_val via a linear search.
         let mut end_layer = v as Layer - 1;
         // Commented out because `contains` is not free.
@@ -191,6 +200,7 @@ fn chain_score<C: Contour>(
         }
         max_score = max(max_score, start_layer);
     }
+    assert!(!empty);
     max_score
 }
 
@@ -326,11 +336,11 @@ impl<C: Contour> Contours for HintContours<C> {
 
     // NOTE: The set of arrows must already been pruned by the caller.
     // This will update the internal contours structure corresponding to the arrows.
-    fn prune_with_hint(
+    fn prune_with_hint<R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
         &mut self,
         p: Pos,
-        hint: Hint,
-        arrows: &HashMap<Pos, Vec<Arrow>>,
+        hint: Self::Hint,
+        arrows: F,
     ) -> (bool, Cost) {
         // Work contour by contour.
         let v = self.score_with_hint(p, hint).0 as Layer;
@@ -342,12 +352,12 @@ impl<C: Contour> Contours for HintContours<C> {
                     break 'v w;
                 }
             }
-            self.debug(p, v, arrows);
+            self.debug(p, v, &arrows);
             panic!("Did not find point {p} in contours around {v}!");
         };
         if D {
             eprintln!("Pruning {p} in layer {v}");
-            self.debug(p, v, arrows);
+            self.debug(p, v, &arrows);
         }
 
         assert!(v > 0);
@@ -357,10 +367,10 @@ impl<C: Contour> Contours for HintContours<C> {
         // Returns the max score of any arrow starting in the giving
         // position, and the maximum length of these arrows.
         let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Layer| -> Layer {
-            chain_score(arrows, pos, v, contours)
+            chain_score(&arrows, pos, v, contours)
         };
 
-        let (new_p_score, mut first_to_check) = if arrows.contains_key(&p) {
+        let (new_p_score, mut first_to_check) = if arrows(&p).is_some() {
             let s = chain_score(&self.contours, p, v);
             assert!(s <= v);
             (Some(s), s + 1)
@@ -375,7 +385,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // Remove the point from its layer.
         if !self.contours[v].prune(p) {
-            self.debug(p, v, arrows);
+            self.debug(p, v, &arrows);
             panic!("Pruning {p} from layer {v} failed!");
         }
         // Add the point to its new layer.
@@ -394,7 +404,7 @@ impl<C: Contour> Contours for HintContours<C> {
             let rng = v + 1..min(v + self.max_len, self.contours.len() as Layer);
             for w in rng.clone() {
                 self.contours[w].iterate_points(|pos| {
-                    for a in &arrows[&pos] {
+                    for a in arrows(&pos).unwrap() {
                         if !(a.end <= p) {
                             all_depend_on_pos = false;
                         }
@@ -557,7 +567,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             }
         }
-        self.check_consistency(arrows);
+        self.check_consistency(&arrows);
         (true, initial_shift)
     }
 

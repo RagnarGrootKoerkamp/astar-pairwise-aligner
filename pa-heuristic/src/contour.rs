@@ -114,12 +114,12 @@ pub trait Contours: Default + Debug {
     /// If the additional Cost return is positive, this indicates that position
     /// `p` was the only arrow in its layer, and a total of Cost layers were
     /// removed.
-    fn prune_with_hint(
+    fn prune_with_hint<R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
         &mut self,
         p: Pos,
         hint: Self::Hint,
         // TODO: Consider giving ownership to Contours, and add a getter to access it from the heuristic.
-        arrows: &HashMap<Pos, Vec<Arrow>>,
+        arrows: F,
     ) -> (bool, Cost);
 
     /// Returns some statistics.

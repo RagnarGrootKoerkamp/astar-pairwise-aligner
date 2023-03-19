@@ -113,15 +113,14 @@ impl Contours for BruteForceContours {
             .unwrap()
     }
 
-    fn prune_with_hint(
+    fn prune_with_hint<R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
         &mut self,
         pos: Pos,
         _hint: Self::Hint,
-        arrows: &HashMap<Pos, Vec<Arrow>>,
+        arrows: F,
     ) -> (bool, Cost) {
         let len_before = self.valued_arrows.len();
-        let v = vec![];
-        let pos_arrows = arrows.get(&pos).unwrap_or(&v);
+        let pos_arrows = arrows(&pos).map(|pa| pa.collect_vec()).unwrap_or_default();
         self.valued_arrows = Self::new(
             mem::take(&mut self.valued_arrows)
                 .into_iter()
