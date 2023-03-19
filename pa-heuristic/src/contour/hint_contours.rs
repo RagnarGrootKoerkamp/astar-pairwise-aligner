@@ -106,16 +106,17 @@ impl<C: Contour> HintContours<C> {
                 let max_len = arrows(&p).map_or(0, |arrows| {
                     arrows.map(|a| a.score).max().expect("Empty arrows")
                 });
+                eprintln!("Max len: {max_len}");
                 // - the arrows starting at each position.
                 arrows(&p).map(|arrows| {
                     for a in arrows {
                         eprintln!("{a}");
                     }
                 });
-                assert!(
-                    max_len > 0 || p == pos,
-                    "No arrows found for position {p} at layer {layer}"
-                );
+                // assert!(
+                //     max_len > 0 || p == pos,
+                //     "No arrows found for position {p} at layer {layer}"
+                // );
             })
         }
     }
@@ -147,27 +148,24 @@ impl<C: Contour> HintContours<C> {
                 assert!(max_len > 0);
                 let target_layer = chain_score(arrows, p, layer, &self.contours);
                 assert!(
-                    target_layer == layer,
-                    "BAD CONSISTENCY: {p} in layer {layer} should be in layer {target_layer}"
+                    target_layer == Some(layer),
+                    "BAD CONSISTENCY: {p} in layer {layer} should be in layer {target_layer:?}"
                 );
             })
         }
     }
 }
 
+/// Best score of the given `pos` by iterating over all arrows starting there, or `None` otherwise.
 fn chain_score<C: Contour, R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
     arrows: &F,
     pos: Pos,
     v: Layer,
     contours: &SplitVec<C>,
-) -> Layer {
-    let Some(pos_arrows) = arrows(&pos) else {
-            panic!("No arrows found for position {pos} around layer {v}.");
-        };
+) -> Option<Layer> {
+    let pos_arrows = arrows(&pos)?;
     let mut max_score = 0;
-    let mut empty = true;
     'fr: for arrow in pos_arrows {
-        empty = false;
         // Find the value at end_val via a linear search.
         let mut end_layer = v as Layer - 1;
         // Commented out because `contains` is not free.
@@ -200,8 +198,11 @@ fn chain_score<C: Contour, R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
         }
         max_score = max(max_score, start_layer);
     }
-    assert!(!empty);
-    max_score
+    if max_score == 0 {
+        None
+    } else {
+        Some(max_score)
+    }
 }
 
 impl<C: Contour> Contours for HintContours<C> {
@@ -352,8 +353,10 @@ impl<C: Contour> Contours for HintContours<C> {
                     break 'v w;
                 }
             }
-            self.debug(p, v, &arrows);
-            panic!("Did not find point {p} in contours around {v}!");
+            // point is not present anymore anyway.
+            return (false, 0);
+            // self.debug(p, v, &arrows);
+            // panic!("Did not find point {p} in contours around {v}!");
         };
         if D {
             eprintln!("Pruning {p} in layer {v}");
@@ -366,12 +369,11 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // Returns the max score of any arrow starting in the giving
         // position, and the maximum length of these arrows.
-        let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Layer| -> Layer {
+        let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Layer| -> Option<Layer> {
             chain_score(&arrows, pos, v, contours)
         };
 
-        let (new_p_score, mut first_to_check) = if arrows(&p).is_some() {
-            let s = chain_score(&self.contours, p, v);
+        let (new_p_score, mut first_to_check) = if let Some(s) = chain_score(&self.contours, p, v) {
             assert!(s <= v);
             (Some(s), s + 1)
         } else {
@@ -404,9 +406,11 @@ impl<C: Contour> Contours for HintContours<C> {
             let rng = v + 1..min(v + self.max_len, self.contours.len() as Layer);
             for w in rng.clone() {
                 self.contours[w].iterate_points(|pos| {
-                    for a in arrows(&pos).unwrap() {
-                        if !(a.end <= p) {
-                            all_depend_on_pos = false;
+                    if let Some(arrows) = arrows(&pos) {
+                        for a in arrows {
+                            if !(a.end <= p) {
+                                all_depend_on_pos = false;
+                            }
                         }
                     }
                 });
@@ -463,13 +467,17 @@ impl<C: Contour> Contours for HintContours<C> {
                 // value at pos and if it's < v, we push is to the new contour
                 // of its value.
                 self.stats.borrow_mut().checked += 1;
-                let new_layer = chain_score(&self.contours, pos, v);
+                let Some(new_layer) = chain_score(&self.contours, pos, v) else {
+                    // Points that are not present anymore in `arrows` are pruned.
+                    return true;
+                };
                 assert!(new_layer <= v, "New layer {new_layer} should never be larger than current layer v={v}! Error at {pos}");
-                assert!(
-                    v.saturating_sub(self.max_len) <= new_layer,
-                    "Point {pos} drops by more than max_len={} from current={v} to new_layer={new_layer}",
-                    self.max_len
-                );
+                // NOTE: This assertion only works when pruning 1 match at a time, not when pruning multiple.
+                // assert!(
+                //     v.saturating_sub(self.max_len) <= new_layer,
+                //     "Point {pos} drops by more than max_len={} from current={v} to new_layer={new_layer}",
+                //     self.max_len
+                // );
 
                 max_new_layer = max(max_new_layer, new_layer);
                 // Value v is still up to date. No need to loop over the remaining arrows starting here.
@@ -532,16 +540,17 @@ impl<C: Contour> Contours for HintContours<C> {
                 fully_shifted_layers = 0;
                 rolling_shift = Shift::None;
             }
-            assert!(
-                // 0 happens when the layer was already empty.
-                max_new_layer == 0 || max_new_layer + self.max_len >= v,
-                "Pruning {} now layer {} new max {} drops more than {}.\nlast_change: {}, shift_to {:?}, layer size: {}",
-                p,
-                v,
-                max_new_layer,
-                self.max_len,
-                last_change, current_shift, self.contours[v ].len()
-            );
+            // NOTE: Points can drop more than `max_len` layers when multiple arrows are pruned at once.
+            // assert!(
+            //     // 0 happens when the layer was already empty.
+            //     max_new_layer == 0 || max_new_layer + self.max_len >= v,
+            //     "Pruning {} now layer {} new max {} drops more than {}.\nlast_change: {}, shift_to {:?}, layer size: {}",
+            //     p,
+            //     v,
+            //     max_new_layer,
+            //     self.max_len,
+            //     last_change, current_shift, self.contours[v ].len()
+            // );
 
             if let Shift::Layers(shift) = rolling_shift {
                 assert!(fully_shifted_layers > 0);
