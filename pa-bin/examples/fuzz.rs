@@ -1,9 +1,12 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 #![feature(let_chains)]
-use astarpa::AstarPa;
+use astarpa::{AstarPa, AstarStatsAligner};
 use bio::alignment::distance::simd::levenshtein;
 use pa_generate::{generate_model, uniform_fixed, ErrorModel};
-use pa_heuristic::{Heuristic, MatchConfig, Prune, Pruning, CSH};
-use pa_types::{seq_to_string, Cost, Pos, Sequence, I};
+use pa_heuristic::{Heuristic, MatchConfig, Prune, Pruning, CSH, GCSH};
+use pa_types::{seq_to_string, Aligner, Cost, Pos, Sequence, I};
 use pa_vis::visualizer::{self, When};
 use pa_vis_types::{NoVis, VisualizerT};
 use std::{
@@ -40,26 +43,42 @@ fn fuzz<V: VisualizerT, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Seq
 
 fn main() {
     let dt = true;
-    let k = 4;
-    let max_match_cost = 0;
+    let k = 3;
+    let max_match_cost = 1;
     let pruning = Prune::Both;
 
-    let check_dist = true;
+    let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning))
+        .equal_to_bruteforce_gcsh();
+    let ref mut aligner = AstarPa { dt, h, v: NoVis };
 
-    let h = CSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning));
-    let ref mut aligner = AstarPa {
-        dt,
-        h: h.equal_to_bruteforce_csh(),
-        v: NoVis,
-    };
-
-    // let a = "TCTCTCTCTCTG".as_bytes();
-    // let b = "GTCTCTCTTCTG".as_bytes();
-
+    let a = "TTGGGTCAATCAGCCAGTTTTTA".as_bytes();
+    let b = "TTTGAGTGGGTCATCACCGATTTTAT".as_bytes();
     //let (ref a, ref b) = fuzz(aligner);
+    //let (ref a, ref b) = uniform_fixed(40, 0.3);
 
-    let (ref a, ref b) = uniform_fixed(40, 0.3);
+    let a = "AGTTTTAT".as_bytes();
+    let b = "ACCGATTTTTA".as_bytes();
 
+    //let (ref a, ref b) = shrink(a, b, aligner, k);
+
+    let mut aligner = AstarPa {
+        dt: aligner.dt,
+        h: aligner.h, //h.equal_to_bruteforce_gcsh(),
+        v: visualizer::Config::new(visualizer::VisualizerStyle::Debug),
+    };
+    aligner.v.draw = When::All;
+    //aligner.v.style.draw_heuristic = false;
+    aligner.v.style.draw_contours = true;
+    //aligner.v.style.max_layer = Some(10);
+    aligner.v.style.draw_dt = false;
+    eprintln!("DRAW!");
+    aligner.align(a, b);
+}
+
+fn shrink<A>(a: &[u8], b: &[u8], aligner: &mut A, k: i32) -> (Vec<u8>, Vec<u8>)
+where
+    A: AstarStatsAligner + std::fmt::Debug,
+{
     println!(
         "\n\nShrinking sequences:\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n\n",
         seq_to_string(a),
@@ -68,15 +87,13 @@ fn main() {
 
     // True on success.
     let test = |start: I, end: I| {
-        let Pos(n, m) = Pos::target(&a, &b);
+        let Pos(n, m) = Pos::target(a, b);
         let v = std::panic::catch_unwind(AssertUnwindSafe(|| {
             let a = &a[start as usize..min(n, end) as usize];
             let b = &b[start as usize..min(m, end) as usize];
             let d = aligner.align(a, b).0 .0;
-            if check_dist {
-                let dist = levenshtein(a, b) as _;
-                assert_eq!(d, dist);
-            }
+            let dist = levenshtein(a, b) as _;
+            assert_eq!(d, dist);
         }))
         .is_ok();
         println!("Test: {} {} => {}", start, end, v);
@@ -140,21 +157,14 @@ fn main() {
     }
 
     let Pos(n, m) = Pos::target(&a, &b);
-    let a = &a[start as usize..min(n, end) as usize].to_vec();
-    let b = &b[start as usize..min(m, end) as usize].to_vec();
+    let a = a[start as usize..min(n, end) as usize].to_vec();
+    let b = b[start as usize..min(m, end) as usize].to_vec();
 
     println!(
         "\n\nResult of shrinking:\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n\n",
-        seq_to_string(a),
-        seq_to_string(b)
+        seq_to_string(&a),
+        seq_to_string(&b)
     );
     println!("Aligner:\n{aligner:?}");
-
-    let mut aligner = AstarPa {
-        dt: aligner.dt,
-        h: CSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning)).to_bruteforce_csh(),
-        v: visualizer::Config::new(visualizer::VisualizerStyle::Debug),
-    };
-    aligner.v.draw = When::All;
-    aligner.align(a, b);
+    (a, b)
 }
