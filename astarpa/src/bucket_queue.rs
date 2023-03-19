@@ -181,7 +181,7 @@ where
             return 0;
         }
         if !(self.tip_start <= below) {
-            self.missed += 1;
+            self.missed += shift as usize;
             return 0;
         }
 
