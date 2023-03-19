@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use astarpa::{make_aligner, stats::AstarStats, AstarStatsAligner};
+use astarpa::{make_aligner, make_aligner_with_visualizer, stats::AstarStats, AstarStatsAligner};
 use clap::Parser;
 use pa_bin::cli::Cli;
 use pa_types::*;
@@ -10,15 +10,18 @@ use std::{
 };
 
 pub fn astar_aligner(args: &Cli) -> Box<dyn AstarStatsAligner> {
-    #[cfg(not(features = "vis"))]
+    #[cfg(not(feature = "vis"))]
     {
         make_aligner(args.diagonal_transition, &args.heuristic)
     }
 
-    #[cfg(features = "vis")]
+    #[cfg(feature = "vis")]
     {
+        use pa_vis::cli::VisualizerType;
         match args.vis.make_visualizer() {
-            VisualizerType::NoVisualizer => make_aligner(args.diagonal_transition, &args.heuristic),
+            VisualizerType::NoVisualizer => {
+                make_aligner(args.diagonal_transition, &args.heuristic)
+            }
             VisualizerType::Visualizer(vis) => {
                 eprintln!("vis!");
                 make_aligner_with_visualizer(args.diagonal_transition, &args.heuristic, vis)
