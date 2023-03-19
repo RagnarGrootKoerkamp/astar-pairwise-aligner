@@ -28,14 +28,14 @@ pub struct Match {
 }
 
 #[derive(Default)]
-pub struct SeedMatches {
+pub struct Matches {
     pub seeds: Seeds,
     /// Sorted by start (i, j).
     /// Empty for unordered matching.
     pub matches: Vec<Match>,
 }
 
-impl SeedMatches {
+impl Matches {
     /// Seeds must be sorted by start.
     /// Matches will be sorted and deduplicated in this function.
     pub fn new(a: Seq, seeds: Vec<Seed>, mut matches: Vec<Match>) -> Self {
@@ -44,7 +44,7 @@ impl SeedMatches {
         // Dedup to only keep the lowest match cost.
         matches.dedup_by_key(|m| (m.start, m.end));
 
-        SeedMatches {
+        Matches {
             seeds: Seeds::new(a, seeds),
             matches,
         }

@@ -132,7 +132,7 @@ pub struct CSHI<C: Contours> {
     target: Pos,
 
     stats: HeuristicStats,
-    seeds: SeedMatches,
+    matches: Matches,
 
     /// The max transformed position.
     max_transformed_pos: Pos,
@@ -153,10 +153,10 @@ impl<'a, C: Contours> DistanceInstance<'a> for CSHI<C> {
         if self.params.use_gap_cost {
             max(
                 self.gap_distance.distance(from, to),
-                self.seeds.seeds.potential_distance(from, to),
+                self.matches.seeds.potential_distance(from, to),
             )
         } else {
-            self.seeds.seeds.potential_distance(from, to)
+            self.matches.seeds.potential_distance(from, to)
         }
     }
 }
@@ -178,7 +178,7 @@ impl<C: Contours> CSHI<C> {
             params,
             gap_distance: Distance::build(&GapCost, a, b),
             target: Pos::target(a, b),
-            seeds: matches,
+            matches,
             stats: HeuristicStats::default(),
 
             // For pruning propagation
@@ -194,20 +194,20 @@ impl<C: Contours> CSHI<C> {
         // Filter the matches.
         // NOTE: Matches is already sorted by start.
         assert!(h
-            .seeds
+            .matches
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
-        h.stats.num_seeds = h.seeds.seeds.seeds.len() as _;
-        h.stats.num_matches = h.seeds.matches.len();
+        h.stats.num_seeds = h.matches.seeds.seeds.len() as _;
+        h.stats.num_matches = h.matches.matches.len();
         if params.use_gap_cost {
             // Remove irrelevant matches.
             // Need to take it out of h.seeds because transform also uses this.
-            let mut matches = std::mem::take(&mut h.seeds.matches);
+            let mut matches = std::mem::take(&mut h.matches.matches);
             matches.retain(|Match { end, .. }| h.transform(*end) <= h.transform_target);
-            h.seeds.matches = matches;
+            h.matches.matches = matches;
         }
-        h.stats.num_filtered_matches = h.seeds.matches.len();
+        h.stats.num_filtered_matches = h.matches.matches.len();
 
         // Transform to Arrows.
         // For arrows with length > 1, also make arrows for length down to 1.
@@ -218,7 +218,7 @@ impl<C: Contours> CSHI<C> {
         };
 
         let arrows = h
-            .seeds
+            .matches
             .matches
             .iter()
             .map(match_to_arrow)
@@ -232,7 +232,7 @@ impl<C: Contours> CSHI<C> {
         // TODO: Fix the units here -- unclear whether it should be I or cost.
         // FIXME: Re-add the removed filter here?
         h.contours = C::new(
-            h.seeds.matches.iter().rev().map(match_to_arrow),
+            h.matches.matches.iter().rev().map(match_to_arrow),
             h.params.match_config.max_match_cost as I + 1,
         );
         h.arrows = arrows;
@@ -247,7 +247,7 @@ impl<C: Contours> CSHI<C> {
         if self.params.use_gap_cost {
             let a = self.target.0;
             let b = self.target.1;
-            let pot = |pos| self.seeds.seeds.potential(pos);
+            let pot = |pos| self.matches.seeds.potential(pos);
             Pos(
                 // Units here are a lie. All should be converted to cost, instead of position really.
                 i + b - j + pot(Pos(0, 0)) as I - pot(pos) as I,
@@ -293,7 +293,7 @@ impl<C: Contours> CSHI<C> {
 
 impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     fn h(&self, pos: Pos) -> Cost {
-        let p = self.seeds.seeds.potential(pos);
+        let p = self.matches.seeds.potential(pos);
         let val = self.contours.score(self.transform(pos));
         // FIXME: Why not max(self.distance, p-val)?
         if val == 0 {
@@ -319,7 +319,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
-        let p = self.seeds.seeds.potential(pos);
+        let p = self.matches.seeds.potential(pos);
         let (val, new_hint) = self.contours.score_with_hint(self.transform(pos), hint);
         if val == 0 {
             (self.distance(pos, self.target), new_hint)
@@ -330,11 +330,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     type Hint = C::Hint;
     fn root_potential(&self) -> Cost {
-        self.seeds.seeds.potential(Pos(0, 0))
+        self.matches.seeds.potential(Pos(0, 0))
     }
 
-    fn seed_matches(&self) -> Option<&SeedMatches> {
-        Some(&self.seeds)
+    fn seed_matches(&self) -> Option<&Matches> {
+        Some(&self.matches)
     }
 
     /// `seed_cost` can be used to filter out lookups for states that won't have a match ending there.
@@ -364,7 +364,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         if self.params.pruning.prune_end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
-                if let Some(s) = self.seeds.seeds.seed_ending_at(pos) {
+                if let Some(s) = self.matches.seeds.seed_ending_at(pos) {
                     assert_eq!(pos.0, s.end);
                     if s.start + pos.1 < pos.0 {
                         break 'prune_by_end;
@@ -487,7 +487,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     fn matches(&self) -> Option<Vec<Match>> {
         Some(
-            self.seeds
+            self.matches
                 .matches
                 .iter()
                 .map(|m| {
@@ -504,7 +504,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.seeds.seeds.seeds)
+        Some(&self.matches.seeds.seeds)
     }
 
     fn params_string(&self) -> String {

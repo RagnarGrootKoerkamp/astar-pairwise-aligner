@@ -68,7 +68,7 @@ where
         self.h2.matches()
     }
 
-    fn seed_matches(&self) -> Option<&SeedMatches> {
+    fn seed_matches(&self) -> Option<&Matches> {
         unimplemented!("Can't choose which seed matches to use");
     }
 
@@ -228,7 +228,7 @@ where
 
     type Hint = <<H as Heuristic>::Instance<'a> as HeuristicInstance<'a>>::Hint;
 
-    fn seed_matches(&self) -> Option<&SeedMatches> {
+    fn seed_matches(&self) -> Option<&Matches> {
         unimplemented!("MirrorHeuristic cannot mirror SeedMatches");
     }
 

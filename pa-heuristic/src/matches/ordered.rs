@@ -15,7 +15,7 @@ pub fn find_matches_qgramindex<'a>(
         ..
     }: MatchConfig,
     gapcost: bool,
-) -> SeedMatches {
+) -> Matches {
     assert!(max_match_cost == 0 || max_match_cost == 1);
 
     // Qgrams of B.
@@ -188,7 +188,7 @@ pub fn find_matches_qgramindex<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, matches)
+    Matches::new(a, seeds, matches)
 }
 
 /// Build a hashset of the kmers in b, and query all mutations of seeds in a.
@@ -201,7 +201,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         ..
     }: MatchConfig,
     gapcost: bool,
-) -> SeedMatches {
+) -> Matches {
     let k: I = match length {
         Fixed(k) => k,
         _ => unimplemented!("QGram Hashing only works for fixed k for now."),
@@ -286,7 +286,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, matches)
+    Matches::new(a, seeds, matches)
 }
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
@@ -298,7 +298,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
         max_match_cost,
         ..
     }: MatchConfig,
-) -> SeedMatches {
+) -> Matches {
     if length.kmin() != length.kmax() {
         unimplemented!("QGram Hashing only works for fixed k for now.");
     }
@@ -436,7 +436,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
         }
     }
 
-    SeedMatches::new(a, seeds, matches)
+    Matches::new(a, seeds, matches)
 }
 
 pub fn find_matches<'a>(
@@ -444,7 +444,7 @@ pub fn find_matches<'a>(
     b: Seq<'a>,
     match_config: MatchConfig,
     gapcost: bool,
-) -> SeedMatches {
+) -> Matches {
     if let Some(max_matches) = match_config.length.max_matches() {
         return minimal_unique_matches(a, b, match_config.max_match_cost + 1, max_matches);
     }

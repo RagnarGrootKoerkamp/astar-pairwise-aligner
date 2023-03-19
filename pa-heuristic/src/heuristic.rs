@@ -196,7 +196,7 @@ pub trait HeuristicInstance<'a> {
     }
 
     /// The seed matches used by the heuristic.
-    fn seed_matches(&self) -> Option<&SeedMatches> {
+    fn seed_matches(&self) -> Option<&Matches> {
         None
     }
 

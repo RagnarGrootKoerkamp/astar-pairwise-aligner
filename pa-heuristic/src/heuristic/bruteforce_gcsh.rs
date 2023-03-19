@@ -37,7 +37,7 @@ pub struct BruteForceGCSHI<'a, DH: Distance> {
     distance_function: DH::DistanceInstance<'a>,
     target: Pos,
 
-    pub seeds: SeedMatches,
+    pub matches: Matches,
     // The lowest cost match starting at each position.
     h_at_seeds: HashMap<Pos, Cost>,
     // Remaining arrows/matches
@@ -57,7 +57,7 @@ where
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         max(
             self.distance_function.distance(from, to),
-            self.seeds.seeds.potential_distance(from, to),
+            self.matches.seeds.potential_distance(from, to),
         )
     }
 }
@@ -71,7 +71,7 @@ where
             params,
             distance_function: Distance::build(&params.distance_function, a, b),
             target: Pos::target(a, b),
-            seeds: find_matches(
+            matches: find_matches(
                 a,
                 b,
                 params.match_config,
@@ -82,7 +82,7 @@ where
             stats: Default::default(),
         };
         assert!(h
-            .seeds
+            .matches
             .matches
             .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
 
@@ -95,7 +95,7 @@ where
         };
 
         h.arrows = h
-            .seeds
+            .matches
             .matches
             .iter()
             .map(match_to_arrow)
@@ -106,9 +106,9 @@ where
 
         h.build();
         h.stats = HeuristicStats {
-            num_seeds: h.seeds.seeds.seeds.len() as I,
-            num_matches: h.seeds.matches.len(),
-            num_filtered_matches: h.seeds.matches.len(),
+            num_seeds: h.matches.seeds.seeds.len() as I,
+            num_matches: h.matches.matches.len(),
+            num_filtered_matches: h.matches.matches.len(),
             ..Default::default()
         };
         h
@@ -124,7 +124,7 @@ where
             match_cost,
             seed_potential,
             ..
-        } in self.seeds.matches.iter().rev()
+        } in self.matches.matches.iter().rev()
         {
             let Some(arrows) = self.arrows.get(start) else {continue;};
 
@@ -175,8 +175,8 @@ where
             .unwrap()
     }
 
-    fn seed_matches(&self) -> Option<&SeedMatches> {
-        Some(&self.seeds)
+    fn seed_matches(&self) -> Option<&Matches> {
+        Some(&self.matches)
     }
 
     /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
@@ -196,7 +196,7 @@ where
         if self.params.pruning.prune_end() {
             'prune_by_end: {
                 // Check all possible start positions of a match ending here.
-                if let Some(s) = self.seeds.seeds.seed_ending_at(pos) {
+                if let Some(s) = self.matches.seeds.seed_ending_at(pos) {
                     assert_eq!(pos.0, s.end);
                     if s.start + pos.1 < pos.0 {
                         break 'prune_by_end;
@@ -303,7 +303,7 @@ where
 
     fn matches(&self) -> Option<Vec<Match>> {
         Some(
-            self.seeds
+            self.matches
                 .matches
                 .iter()
                 .map(|m| {
@@ -320,7 +320,7 @@ where
     }
 
     fn seeds(&self) -> Option<&Vec<Seed>> {
-        Some(&self.seeds.seeds.seeds)
+        Some(&self.matches.seeds.seeds)
     }
 
     fn params_string(&self) -> String {

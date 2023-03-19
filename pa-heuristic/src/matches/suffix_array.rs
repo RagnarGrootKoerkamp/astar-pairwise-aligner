@@ -9,7 +9,7 @@ use bio::{
 };
 use pa_types::{Base, Pos, Seq};
 
-use crate::matches::{qgrams::to_qgram, Match, MatchStatus, Seed, SeedMatches};
+use crate::matches::{qgrams::to_qgram, Match, MatchStatus, Matches, Seed};
 
 type SaRange = Range<usize>;
 
@@ -60,7 +60,7 @@ impl FmIndex {
 /// - Keep a list of 'current' intervals, and prepend each char to each interval.
 /// - Also allow mutations for intervals that still have leftover cost.
 
-pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize) -> SeedMatches {
+pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize) -> Matches {
     let fm = FmIndex::new(b);
     assert!(
         r == 1 || r == 2,
@@ -179,5 +179,5 @@ pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize) -> SeedMatches {
     //     eprintln!("Match {m:?}");
     // }
 
-    SeedMatches::new(a, seeds, matches)
+    Matches::new(a, seeds, matches)
 }

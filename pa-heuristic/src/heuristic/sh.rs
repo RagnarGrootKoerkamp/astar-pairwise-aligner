@@ -34,7 +34,7 @@ impl Heuristic for SH {
 pub struct SHI {
     params: SH,
     _target: Pos,
-    matches: SeedMatches,
+    matches: Matches,
 
     // TODO: Do not use vectors inside a hashmap.
     // TODO: Instead, store a Vec<Array>, and attach a slice to each contour point.
@@ -262,7 +262,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
         self.matches.seeds.potential[0]
     }
 
-    fn seed_matches(&self) -> Option<&SeedMatches> {
+    fn seed_matches(&self) -> Option<&Matches> {
         Some(&self.matches)
     }
 
