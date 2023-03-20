@@ -149,10 +149,10 @@ where
         }
 
         let (p_start, p_end) = self.matches.prune(&self.seeds, pos, |_m| {});
-        self.stats.prune_count += 1;
-        self.stats.num_pruned += p_start + p_end;
 
         if p_start + p_end > 0 {
+            self.stats.prune_count += 1;
+            self.stats.num_pruned += p_start + p_end;
             self.build();
         }
 

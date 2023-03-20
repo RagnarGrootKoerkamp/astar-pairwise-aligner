@@ -27,7 +27,7 @@ pub struct Seeds {
     /// The sum of seed potentials of all seeds not starting before each position.
     pub potential: Vec<Cost>,
     /// The largest i with given potential.
-    start_of_potential: Vec<I>,
+    pub start_of_potential: Vec<I>,
 }
 
 impl Seeds {
@@ -54,7 +54,9 @@ impl Seeds {
 
                 if i == ns.start as usize {
                     cur_potential += ns.seed_potential as Cost;
-                    start_of_potential.push(i as I);
+                    for _ in 0..ns.seed_potential {
+                        start_of_potential.push(i as I);
+                    }
                     next_seed.next();
                 }
             }
@@ -66,6 +68,10 @@ impl Seeds {
             potential,
             start_of_potential,
         }
+    }
+
+    pub fn n(&self) -> usize {
+        self.potential.len() - 1
     }
 
     /// The potential at p is the cost of going from p to the end, without hitting any matches.
@@ -132,7 +138,7 @@ impl Seeds {
         if pos == Pos(I::MAX, I::MAX) {
             return pos;
         }
-        let p = (x + y) / 2;
+        let p = -(x + y) / 2;
         let i = self.start_of_potential[p as usize];
         let diff = (x - y) / 2;
         let j = i - diff;
