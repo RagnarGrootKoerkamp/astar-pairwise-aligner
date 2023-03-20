@@ -4,9 +4,9 @@ pub mod distances;
 pub mod sh;
 pub mod wrappers;
 
+use crate::matches::*;
 use crate::prelude::*;
-use crate::seeds::{Seeds};
-use crate::{contour::Arrow, matches::*};
+use crate::seeds::Seeds;
 use derive_more::AddAssign;
 
 pub use bruteforce_gcsh::*;

@@ -1,5 +1,6 @@
 pub mod bruteforce;
 pub mod hint_contours;
+pub mod sh_contours;
 
 pub use bruteforce::*;
 pub use hint_contours::*;
