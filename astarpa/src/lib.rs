@@ -46,7 +46,7 @@ mod prelude {
 
 use pa_heuristic::seeds::MatchCost;
 use pa_heuristic::{Heuristic, HeuristicMapper, Prune};
-use pa_heuristic::{HeuristicParams, MatchConfig, Pruning, GCSH};
+use pa_heuristic::{MatchConfig, Pruning, GCSH};
 use pa_types::{Aligner, Cigar, Cost, Seq, I};
 use pa_vis_types::{NoVis, VisualizerT};
 use stats::AstarStats;
@@ -55,6 +55,7 @@ use stats::AstarStats;
 
 pub use astar::astar;
 pub use astar_dt::astar_dt;
+pub use pa_heuristic::HeuristicParams;
 
 /// Align using default settings:
 /// - Gap-cost chaining seed heuristic (GCSH)
