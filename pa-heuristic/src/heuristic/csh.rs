@@ -150,6 +150,7 @@ pub struct CSHI<C: Contours> {
     params: CSH<C>,
     gap_distance: GapCostI,
     target: Pos,
+    t_target: Pos,
 
     seeds: Seeds,
     matches: MatchPruner,
@@ -192,13 +193,19 @@ impl<C: Contours> CSHI<C> {
         let Matches { seeds, mut matches } =
             find_matches(a, b, params.match_config, params.use_gap_cost);
         let target = Pos::target(a, b);
-        let t_target = seeds.transform(target);
+        let t_target = if params.use_gap_cost {
+            seeds.transform(target)
+        } else {
+            target
+        };
 
-        // Filter matches: only keep matches with m.end <= target.
-        // FIXME: We must also keep matches with m.start <= target.
+        // Filter matches: only keep matches with m.start <= target.
+        // NOTE: Only matches m.end <= target can be used in chains and
+        // forwarded to the Contours, but the ones with m.start <= target are
+        // still needed for consistency.
         let num_matches = matches.len();
         if params.use_gap_cost {
-            matches.retain(|Match { end, .. }| seeds.transform(*end) <= t_target);
+            matches.retain(|m| seeds.transform(m.start) <= t_target);
         }
         let num_filtered_matches = matches.len();
 
@@ -223,7 +230,11 @@ impl<C: Contours> CSHI<C> {
 
         // TODO: Fix the units here -- unclear whether it should be I or cost.
         let contours = C::new(
-            matches.iter().rev().map(match_to_arrow),
+            matches
+                .iter()
+                .rev()
+                .map(match_to_arrow)
+                .filter(|a| a.end <= t_target),
             params.match_config.max_match_cost as I + 1,
         );
 
@@ -231,6 +242,7 @@ impl<C: Contours> CSHI<C> {
             params,
             gap_distance: Distance::build(&GapCost, a, b),
             target,
+            t_target,
             seeds,
             matches: MatchPruner::new(params.pruning, params.use_gap_cost, matches),
             stats: HeuristicStats::default(),
@@ -362,10 +374,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                 } else {
                     *pt
                 };
-                self.matches
-                    .by_start
-                    .get(&p)
-                    .map(|ms| ms.iter().filter(|m| m.is_active()).map(match_to_arrow))
+                self.matches.by_start.get(&p).map(|ms| {
+                    ms.iter()
+                        .filter(|m| m.is_active())
+                        .map(match_to_arrow)
+                        .filter(|a| a.end <= self.t_target)
+                })
             });
         }
 
