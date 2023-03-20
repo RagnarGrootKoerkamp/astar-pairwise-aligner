@@ -340,7 +340,13 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
         // TODO: This should be optimized to a single `contours.prune` call.
         for p in pruned_start_positions {
-            self.contours.prune_with_hint(p, hint, |p| {
+            let pt = self.transform(p);
+            self.contours.prune_with_hint(pt, hint, |pt| {
+                let p = if self.params.use_gap_cost {
+                    self.seeds.transform_back(*pt)
+                } else {
+                    *pt
+                };
                 self.matches
                     .by_start
                     .get(&p)
