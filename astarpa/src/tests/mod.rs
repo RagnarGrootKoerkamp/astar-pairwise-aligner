@@ -7,6 +7,7 @@ use pa_vis_types::*;
 
 mod align;
 mod contours;
+mod edge_cases;
 
 fn test_input(a: &[u8], b: &[u8], dt: bool, h: impl Heuristic) {
     let aligner = AstarPa { dt, h, v: NoVis };

@@ -1,3 +1,4 @@
+//! Tests of all aligners with all possible settings.
 use ::triple_accel::levenshtein;
 use itertools::Itertools;
 use pa_generate::ErrorModel;
@@ -40,26 +41,15 @@ fn test_aligner_on_input<H: Heuristic, V: VisualizerT>(
     a: Seq,
     b: Seq,
     aligner: AstarPa<V, H>,
-    test_path: bool,
     params: &str,
 ) {
-    // Set to true for local debugging.
     const D: bool = false;
-
-    // useful in case of panics inside the alignment code.
-    eprintln!("{params}");
     if D {
+        eprintln!("{params}");
         eprintln!("a {}\nb {}", seq_to_string(a), seq_to_string(b));
     }
-    //let mut nw = NW::new(cm.clone(), false, false);
     let nw_cost = levenshtein(a, b) as Cost;
-    let cost = aligner.align(a, b).0 .0;
-    // Rerun the alignment with the visualizer enabled.
-    // if D && nw_cost != cost && let Some(mut viz_aligner) = viz_aligner {
-    //     eprintln!("{params}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", seq_to_string(a), seq_to_string(b));
-    //     viz_aligner().align(a, b);
-    // }
-    // Test the cost reported by all aligners.
+    let (cost, cigar) = aligner.align(a, b).0;
     assert_eq!(
         nw_cost,
         cost,
@@ -67,20 +57,7 @@ fn test_aligner_on_input<H: Heuristic, V: VisualizerT>(
         seq_to_string(&a),
         seq_to_string(&b),
     );
-    if test_path {
-        let (cost, cigar) = aligner.align(a, b).0;
-        if cost != nw_cost {
-            eprintln!("\n================= TEST CIGAR ======================\n");
-            eprintln!(
-                "{params}\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\ncigar: {}",
-                seq_to_string(a),
-                seq_to_string(b),
-                cigar.to_string(),
-            );
-        }
-        assert_eq!(cost, nw_cost);
-        cigar.verify(&CostModel::unit(), a, b);
-    }
+    cigar.verify(&CostModel::unit(), a, b);
 }
 
 mod astar {
@@ -93,7 +70,6 @@ mod astar {
                 a,
                 b,
                 AstarPa { dt, h, v: NoVis },
-                true,
                 &format!("seed {seed} n {n} e {e} error_model {error_model:?}"),
             );
         }

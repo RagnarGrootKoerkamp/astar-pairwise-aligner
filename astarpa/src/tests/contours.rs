@@ -1,3 +1,5 @@
+//! Tests that compare CSH and GCSH heuristics using HintContours to equivalents
+//! using BruteForceGCSH.
 use crate::astar;
 use pa_generate::uniform_fixed;
 use pa_heuristic::*;
