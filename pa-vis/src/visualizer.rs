@@ -783,79 +783,6 @@ impl Visualizer {
                 }
             }
 
-            // Draw layers and contours.
-            if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
-                let draw_right_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
-                    canvas
-                        .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
-                };
-                let draw_bottom_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
-                    canvas
-                        .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
-                };
-
-
-                // Right borders
-                let mut hint = Default::default();
-                let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
-                for i in 0..self.target.0 {
-                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
-                    let mut hint = hint;
-                    for j in 0..=self.target.1 {
-                        let pos = Pos(i, j);
-                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
-                        hint = new_hint;
-                        let pos_r = Pos(i + 1, j);
-                        let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
-                        hint = new_hint;
-                        if v_r != v {
-                            draw_right_border(&mut canvas, pos);
-
-                            if j == 0 {
-                                top_borders.push((i+1, v_r));
-                            }
-                        }
-                    }
-                }
-                top_borders.push((self.target.0+1, 0));
-
-                // Bottom borders
-                let mut hint = Default::default();
-                let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
-                for i in 0..=self.target.0 {
-                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
-                    let mut hint = hint;
-                    for j in 0..self.target.1 {
-                        let pos = Pos(i, j);
-                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
-                        hint = new_hint;
-                        let pos_l = Pos(i, j + 1);
-                        let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
-                        hint = new_hint;
-                        if v_l != v {
-                            draw_bottom_border(&mut canvas, pos);
-
-                            if i == 0 {
-                                left_borders.push((j+1, v_l));
-                            }
-                        }
-                    }
-                }
-                left_borders.push((self.target.1, 0));
-
-                // Draw numbers at the top and left.
-                for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
-                    if right < 3 { continue; }
-                    let x = (right * self.config.cell_size -1 ).saturating_sub(1);
-                    canvas.write_text(CPos(x as i32, -6), HAlign::Right, VAlign::Top, &layer.to_string(), BLACK);
-                }
-                for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
-                    if bottom < 3 || bottom == self.target.1 { continue; }
-                    let y = bottom * self.config.cell_size +5;
-                    canvas.write_text(CPos(3, y as i32), HAlign::Left, VAlign::Bottom, &layer.to_string(), BLACK);
-                }
-            }
-
             if self.config.draw_old_on_top {
                 // Explored
                 if let Some(color) = self.config.style.explored {
@@ -987,6 +914,79 @@ impl Visualizer {
                             width,
                         );
                     }
+                }
+            }
+
+            // Draw contours.
+            if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
+                let draw_right_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
+                    canvas
+                        .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
+                };
+                let draw_bottom_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
+                    canvas
+                        .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
+                };
+
+
+                // Right borders
+                let mut hint = Default::default();
+                let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                for i in 0..self.target.0 {
+                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                    let mut hint = hint;
+                    for j in 0..=self.target.1 {
+                        let pos = Pos(i, j);
+                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                        hint = new_hint;
+                        let pos_r = Pos(i + 1, j);
+                        let (v_r, new_hint) = h.layer_with_hint(pos_r, hint).unwrap();
+                        hint = new_hint;
+                        if v_r != v {
+                            draw_right_border(&mut canvas, pos);
+
+                            if j == 0 {
+                                top_borders.push((i+1, v_r));
+                            }
+                        }
+                    }
+                }
+                top_borders.push((self.target.0+1, 0));
+
+                // Bottom borders
+                let mut hint = Default::default();
+                let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                for i in 0..=self.target.0 {
+                    hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
+                    let mut hint = hint;
+                    for j in 0..self.target.1 {
+                        let pos = Pos(i, j);
+                        let (v, new_hint) = h.layer_with_hint(pos, hint).unwrap();
+                        hint = new_hint;
+                        let pos_l = Pos(i, j + 1);
+                        let (v_l, new_hint) = h.layer_with_hint(pos_l, hint).unwrap();
+                        hint = new_hint;
+                        if v_l != v {
+                            draw_bottom_border(&mut canvas, pos);
+
+                            if i == 0 {
+                                left_borders.push((j+1, v_l));
+                            }
+                        }
+                    }
+                }
+                left_borders.push((self.target.1, 0));
+
+                // Draw numbers at the top and left.
+                for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
+                    if right < 3 { continue; }
+                    let x = (right * self.config.cell_size -1 ).saturating_sub(1);
+                    canvas.write_text(CPos(x as i32, -6), HAlign::Right, VAlign::Top, &layer.to_string(), BLACK);
+                }
+                for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
+                    if bottom < 3 || bottom == self.target.1 { continue; }
+                    let y = bottom * self.config.cell_size +5;
+                    canvas.write_text(CPos(3, y as i32), HAlign::Left, VAlign::Bottom, &layer.to_string(), BLACK);
                 }
             }
 
