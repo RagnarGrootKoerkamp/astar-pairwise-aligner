@@ -27,6 +27,17 @@ impl CSH<HintContours<BruteForceContour>> {
     }
 }
 
+impl CSH<BruteForceContours> {
+    pub fn new_bruteforce(match_config: MatchConfig, pruning: Pruning) -> Self {
+        Self {
+            match_config,
+            pruning,
+            use_gap_cost: false,
+            c: PhantomData,
+        }
+    }
+}
+
 /// TODO: Make a version of GCSH that stores arrows in the original <i,j>
 /// domain, and only applies the transformation at the time when states are
 /// compared via $\preceq_T$.
@@ -64,6 +75,15 @@ impl<C: Contours> CSH<C> {
         }
     }
 
+    pub fn to_bruteforce_contours(&self) -> CSH<BruteForceContours> {
+        CSH {
+            match_config: self.match_config,
+            pruning: self.pruning,
+            use_gap_cost: self.use_gap_cost,
+            c: Default::default(),
+        }
+    }
+
     pub fn equal_to_bruteforce_gcsh(&self) -> EqualHeuristic<BruteForceGCSH<GapCost>, Self> {
         EqualHeuristic {
             h1: self.to_bruteforce_gcsh(),
@@ -80,12 +100,7 @@ impl<C: Contours> CSH<C> {
 
     pub fn equal_to_bruteforce_contours(&self) -> EqualHeuristic<CSH<BruteForceContours>, Self> {
         EqualHeuristic {
-            h1: CSH {
-                match_config: self.match_config,
-                pruning: self.pruning,
-                use_gap_cost: self.use_gap_cost,
-                c: Default::default(),
-            },
+            h1: self.to_bruteforce_contours(),
             h2: *self,
         }
     }

@@ -12,12 +12,14 @@ fn test_sequences() -> Vec<(Seq<'static>, Seq<'static>)> {
         (b"TTGGGTCAATCAGCCAGTTTTTA", b"TTTGAGTGGGTCATCACCGATTTTAT"),
         (b"AGTTTTAT", b"ACCGATTTTTA"),
         (b"AGTGGGTTGCCTTCATTCCG", b"AGTGGTGTCTTCAGGCCTTCATTCCG"),
+        (b"CGCGTGTATCCGTCCACATCGAGCCGCCCTTGTTGCTTTTCGAGCGCTCATTTCCCGCAAGAGTGGCGTGCGGTCACTTTCGCGCAGCAATTAGAGTACTAACGGGTAGACGTGGCTTTCCTCCTCGTCCTGTCAACGCGCATAGGATGTCCTGCAGCAGGCCGCCGCGATTGCCTAAATCAAGGGGTTCCAATGGAGTTTCCATCTGATATCCGCGCTCCGGTTCTGAGTCTAAAGTGGAAATACTCCGAATGGGCCGGTATGAGGTTGGGTCAATCAGCCAGTTTTTA",
+         b"CGCTGGGGATGCCTCCACCTTTCGAGTGCCTGTTGGTTCCGACGCTATCATAGTCCCCATGCAAGGAGATGGCTGCGCGTCCTATCGCGCGGCAAATAGAGTCTACGGGGGCGGCTGTCCTCCTCGTCCTGGTCAACGGCCATAGGATTTCCGCGATGGTCGCCCGGATGTGCCTAAACCAAGGCTCCGATGGAGCTGCCTCTGATATCCGCGCTGCCGGTTTCCTGACGTCTGAAAACGTTGGAAAATACCTCCGAATGGGCCCCGTTTGAGTGGGTCATCACCGATTTTAT")
     ]
 }
 
 fn test_heuristic<H: Heuristic + 'static>(h: H, dt: bool) {
     let aligner = AstarPa { dt, h, v: NoVis };
-    const D: bool = false;
+    const D: bool = true;
     for (a, b) in test_sequences() {
         if D {
             eprintln!("{aligner:?}");
@@ -100,11 +102,29 @@ make_test!(sh, |prune, exact, k| SH::new(
     match_config(k, exact),
     Pruning::new(prune)
 ));
+
+// The following should all be equal:
+// CSH<HintContours>
+// CSH<BruteforceContours>
+// BruteforceCSH
+make_test!(csh_contours, |prune, exact, k| CSH::new(
+    match_config(k, exact),
+    Pruning::new(prune)
+)
+.equal_to_bruteforce_contours());
 make_test!(csh, |prune, exact, k| CSH::new(
     match_config(k, exact),
     Pruning::new(prune)
-));
+)
+.equal_to_bruteforce_csh());
+
+make_test!(gcsh_contours, |prune, exact, k| GCSH::new(
+    match_config(k, exact),
+    Pruning::new(prune)
+)
+.equal_to_bruteforce_contours());
 make_test!(gcsh, |prune, exact, k| GCSH::new(
     match_config(k, exact),
     Pruning::new(prune)
-));
+)
+.equal_to_bruteforce_gcsh());

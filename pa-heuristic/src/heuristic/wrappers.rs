@@ -106,6 +106,19 @@ where
         self.h1.explore(pos);
         self.h2.explore(pos);
     }
+
+    fn layer(&self, pos: Pos) -> Option<Cost> {
+        self.h2.layer(pos)
+    }
+
+    fn layer_with_hint(&self, pos: Pos, hint: Self::Hint) -> Option<(Cost, Self::Hint)> {
+        let (c, h) = self.h2.layer_with_hint(pos, hint.1)?;
+        Some((c, (hint.0, h)))
+    }
+
+    fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
+        (self.h(pos), Pos::default())
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
