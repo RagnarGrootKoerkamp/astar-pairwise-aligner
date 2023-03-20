@@ -142,7 +142,7 @@ impl Seeds {
         let i = self.start_of_potential[p as usize];
         let diff = (x - y) / 2;
         let j = i - diff;
-        assert_eq!(pos, self.transform(Pos(i, j)));
+        debug_assert_eq!(pos, self.transform(Pos(i, j)));
         Pos(i, j)
     }
 }

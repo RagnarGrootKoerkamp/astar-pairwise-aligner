@@ -28,16 +28,19 @@ pub struct Match {
 }
 
 impl Match {
+    #[inline]
     pub fn score(&self) -> MatchCost {
         self.seed_potential - self.match_cost
     }
 
+    #[inline]
     pub fn is_active(&self) -> bool {
         self.pruned == MatchStatus::Active
     }
 
+    #[inline]
     pub fn prune(&mut self) {
-        assert!(self.pruned == MatchStatus::Active);
+        debug_assert!(self.pruned == MatchStatus::Active);
         self.pruned = MatchStatus::Pruned;
     }
 }

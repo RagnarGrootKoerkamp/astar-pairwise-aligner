@@ -340,7 +340,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             None
         };
 
-        let start_layer = self.contours.score_with_hint(pos, hint).0;
+        let (start_layer, hint) = self.contours.score_with_hint(pos, hint);
 
         let mut pruned_start_positions: SmallVec<[Pos; 5]> = Default::default();
         let (p_start, p_end) = self.matches.prune(&self.seeds, pos, |m| {

@@ -441,7 +441,7 @@ impl<C: Contour> Contours for HintContours<C> {
             if D {
                 eprintln!("THIS WAS LAST ARROW IN LAYER {v}. SHIFT DOWN BY {initial_shift}");
             }
-            self.stats.borrow_mut().shifts += 1;
+            self.stats.borrow_mut().shifts += initial_shift;
         }
 
         // Loop over the matches in the next layer, and repeatedly prune while needed.
@@ -577,7 +577,7 @@ impl<C: Contour> Contours for HintContours<C> {
             }
         }
         self.check_consistency(&arrows);
-        (true, initial_shift)
+        (true, initial_shift as _)
     }
 
     #[allow(unreachable_code)]
