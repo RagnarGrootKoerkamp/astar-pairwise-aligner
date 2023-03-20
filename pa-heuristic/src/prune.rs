@@ -228,11 +228,7 @@ impl MatchPruner {
         }
     }
 
-    pub fn collect_vec(&self) -> Vec<Match> {
-        self.by_start
-            .iter()
-            .flat_map(|(_start, ms)| ms)
-            .cloned()
-            .collect_vec()
+    pub fn iter(&self) -> impl '_ + Iterator<Item = Match> {
+        self.by_start.iter().flat_map(|(_start, ms)| ms).cloned()
     }
 }

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rand::Rng;
 use std::cmp::Reverse;
 
@@ -93,7 +94,7 @@ where
     fn build(&mut self) {
         self.h_at_matches.clear();
         self.h_at_matches.insert(self.target, 0);
-        let mut matches = self.matches.collect_vec();
+        let mut matches = self.matches.iter().filter(|m| m.is_active()).collect_vec();
         matches.sort_by_key(|m| LexPos(m.start));
 
         for Match {
@@ -165,7 +166,7 @@ where
     }
 
     fn matches(&self) -> Option<Vec<Match>> {
-        Some(self.matches.collect_vec())
+        Some(self.matches.iter().collect_vec())
     }
 
     fn seeds(&self) -> Option<&Seeds> {

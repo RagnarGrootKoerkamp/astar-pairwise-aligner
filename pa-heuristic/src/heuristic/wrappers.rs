@@ -62,6 +62,10 @@ where
         self.h2.seeds()
     }
 
+    fn matches(&self) -> Option<Vec<Match>> {
+        self.h2.matches()
+    }
+
     fn is_seed_start_or_end(&self, pos: Pos) -> bool {
         let s1 = self.h1.is_seed_start_or_end(pos);
         let s2 = self.h2.is_seed_start_or_end(pos);

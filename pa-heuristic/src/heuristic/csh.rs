@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::*;
@@ -343,7 +344,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                 self.matches
                     .by_start
                     .get(&p)
-                    .map(|ms| ms.iter().map(match_to_arrow))
+                    .map(|ms| ms.iter().filter(|m| m.is_active()).map(match_to_arrow))
             });
         }
 
@@ -372,7 +373,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn matches(&self) -> Option<Vec<Match>> {
-        Some(self.matches.collect_vec())
+        Some(self.matches.iter().collect_vec())
     }
 
     fn seeds(&self) -> Option<&Seeds> {

@@ -154,7 +154,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
     }
 
     fn matches(&self) -> Option<Vec<Match>> {
-        Some(self.matches.collect_vec())
+        Some(self.matches.iter().collect())
     }
 
     fn seeds(&self) -> Option<&Seeds> {
