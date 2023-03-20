@@ -1,8 +1,4 @@
-use crate::{
-    matches::{Match, MatchStatus},
-    prelude::*,
-    seeds::MatchCost,
-};
+use crate::{matches::Match, prelude::*, seeds::MatchCost};
 use clap::ValueEnum;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -124,9 +120,9 @@ impl MatchPruner {
         matches.sort_unstable_by_key(|m| (LexPos(m.end), m.match_cost));
         let by_end = matches
             .into_iter()
-            .group_by(|m| m.start)
+            .group_by(|m| m.end)
             .into_iter()
-            .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
+            .map(|(end, pos_arrows)| (end, pos_arrows.collect_vec()))
             .collect();
 
         MatchPruner {
@@ -142,46 +138,45 @@ impl MatchPruner {
     pub fn prune(&mut self, seeds: &Seeds, pos: Pos, mut f: impl FnMut(&Match)) -> (usize, usize) {
         let mut cnt = (0, 0);
         if self.pruning.prune_start() && seeds.is_seed_start(pos) {
-            if let Some(ms) = self.by_start.get_mut(&pos) {
-                let mut ms = std::mem::take(ms);
-                cnt.0 = self.prune_vec(&mut ms, &mut f);
-                *self.by_start.get_mut(&pos).unwrap() = ms;
+            if let Some(ms) = self.by_start.get(&pos).cloned() {
+                for m in &ms {
+                    if m.is_active() && self.check_consistency(m) && self.skip_prune_filter() {
+                        self.prune_match(m);
+                        cnt.0 += 1;
+                        f(m);
+                    }
+                }
             }
         };
         if self.pruning.prune_end() && seeds.is_seed_end(pos) {
-            if let Some(ms) = self.by_end.get_mut(&pos) {
-                let mut ms = std::mem::take(ms);
-                cnt.0 = self.prune_vec(&mut ms, &mut f);
-                *self.by_end.get_mut(&pos).unwrap() = ms;
+            if let Some(ms) = self.by_end.get(&pos).cloned() {
+                for m in &ms {
+                    if m.is_active() && self.check_consistency(m) && self.skip_prune_filter() {
+                        self.prune_match(m);
+                        cnt.1 += 1;
+                        f(m);
+                    }
+                }
             }
         };
         cnt
     }
 
-    /// Returns the number of pruned matches.
-    fn prune_vec(&mut self, ms: &mut Vec<Match>, f: &mut impl FnMut(&Match)) -> usize {
-        ms.iter_mut()
-            .filter(|m| m.is_active() && self.check_consistency(m) && self.skip_prune_filter())
-            .map(|m| {
-                m.pruned = MatchStatus::Pruned;
-                f(m);
-            })
-            .count()
-    }
-
-    /// Returns false when this match should be skipped (i.e. not pruned).
-    fn skip_prune_filter(&mut self) -> bool {
-        if let Some(skip) = self.pruning.skip_prune {
-            self.skip -= 1;
-            if self.skip == 0 {
-                self.skip = skip;
-                false
-            } else {
-                true
-            }
-        } else {
-            true
-        }
+    fn prune_match(&mut self, m: &Match) {
+        self.by_start
+            .get_mut(&m.start)
+            .unwrap()
+            .iter_mut()
+            .find(|m2| m2 == &m)
+            .unwrap()
+            .prune();
+        self.by_end
+            .get_mut(&m.end)
+            .unwrap()
+            .iter_mut()
+            .find(|m2| m2 == &m)
+            .unwrap()
+            .prune();
     }
 
     fn max_score_for_match(&self, start: Pos, end: Pos) -> MatchCost {
@@ -215,6 +210,22 @@ impl MatchPruner {
         }
 
         true
+    }
+
+    /// Returns false when this match should be skipped (i.e. not pruned).
+    fn skip_prune_filter(&mut self) -> bool {
+        let cnt = &mut self.skip;
+        if let Some(skip) = self.pruning.skip_prune {
+            *cnt -= 1;
+            if *cnt == 0 {
+                *cnt = skip;
+                false
+            } else {
+                true
+            }
+        } else {
+            true
+        }
     }
 
     pub fn collect_vec(&self) -> Vec<Match> {

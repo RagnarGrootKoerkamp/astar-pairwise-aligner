@@ -35,6 +35,11 @@ impl Match {
     pub fn is_active(&self) -> bool {
         self.pruned == MatchStatus::Active
     }
+
+    pub fn prune(&mut self) {
+        assert!(self.pruned == MatchStatus::Active);
+        self.pruned = MatchStatus::Pruned;
+    }
 }
 
 #[derive(Default)]
