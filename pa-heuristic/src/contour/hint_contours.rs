@@ -327,12 +327,14 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // Fall back to binary search if not found close to the hint.
         let w = self.score(q);
-        (
-            w,
-            Hint {
-                original_layer: w as Layer + self.layers_removed,
-            },
-        )
+        let new_hint = Hint {
+            original_layer: w as Layer + self.layers_removed,
+        };
+        // eprintln!(
+        //     "Binary search fallback for {q}: guess {v}, final {w}. Hint layer: {}, Layers removed {}. New hint: {}",
+        //     hint.original_layer, self.layers_removed, new_hint.original_layer);
+        // assert!(false);
+        (w, new_hint)
     }
 
     // NOTE: The set of arrows must already been pruned by the caller.
