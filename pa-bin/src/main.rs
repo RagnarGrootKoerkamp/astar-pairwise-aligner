@@ -19,9 +19,7 @@ pub fn astar_aligner(args: &Cli) -> Box<dyn AstarStatsAligner> {
     {
         use pa_vis::cli::VisualizerType;
         match args.vis.make_visualizer() {
-            VisualizerType::NoVisualizer => {
-                make_aligner(args.diagonal_transition, &args.heuristic)
-            }
+            VisualizerType::NoVisualizer => make_aligner(args.diagonal_transition, &args.heuristic),
             VisualizerType::Visualizer(vis) => {
                 eprintln!("vis!");
                 make_aligner_with_visualizer(args.diagonal_transition, &args.heuristic, vis)
@@ -55,7 +53,7 @@ fn main() {
             }
         }
         avg_stats += stats;
-        if args.silent <= 1 {
+        if args.silent <= 1 && avg_stats.sample_size > 1 {
             avg_stats.print_no_newline();
         }
 
@@ -65,7 +63,7 @@ fn main() {
         ControlFlow::Continue(())
     });
 
-    if avg_stats.sample_size > 0 {
+    if avg_stats.sample_size > 1 || args.silent > 1 {
         print!("\r");
         avg_stats.print();
     }
