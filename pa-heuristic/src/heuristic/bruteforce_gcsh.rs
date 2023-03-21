@@ -76,7 +76,12 @@ where
             distance_function: Distance::build(&params.distance_function, a, b),
             target: Pos::target(a, b),
             seeds,
-            matches: MatchPruner::new(params.pruning, false, matches),
+            matches: MatchPruner::new(
+                params.pruning,
+                // Ensure consistency with GCSH.
+                params.distance_function.name() == "Gap",
+                matches,
+            ),
             h_at_matches: Default::default(),
             stats: Default::default(),
         };
