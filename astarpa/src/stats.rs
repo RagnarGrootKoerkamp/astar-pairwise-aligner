@@ -139,6 +139,7 @@ impl AstarStats {
             self.format_avg('>', 9, "expanded", self.expanded),
             self.format_avg('>', 9, "explored", self.explored),
             self.format_avg('>', 9, "extended", self.extended),
+            self.format_avg('>', 9, "retries", self.retries),
             self.format_avg('>', 7, "pruned", self.h.num_pruned),
             self.format_avg('>', 7, "shift", self.pq_shifts),
             self.format_flt('>', 8, "band", self.expanded as f32 / self.len_a as f32),

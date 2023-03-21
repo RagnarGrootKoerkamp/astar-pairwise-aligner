@@ -384,7 +384,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             });
         }
 
-        let change = if p_start > 0 {
+        let change = if p_start > 0 && false {
             let end_layer = self.contours.score_with_hint(tpos, hint).0;
             start_layer - end_layer
         } else {
