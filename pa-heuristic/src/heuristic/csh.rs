@@ -248,7 +248,7 @@ impl<C: Contours> CSHI<C> {
             stats: HeuristicStats::default(),
 
             // For pruning propagation
-            max_transformed_pos: Pos(0, 0),
+            max_transformed_pos: Pos(I::MIN, I::MIN),
 
             contours,
         };
@@ -341,7 +341,6 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         };
 
         let tpos = self.transform(pos);
-        let (start_layer, hint) = self.contours.score_with_hint(tpos, hint);
 
         let mut pruned_start_positions: SmallVec<[Pos; 5]> = Default::default();
         let (p_start, p_end) = self.matches.prune(&self.seeds, pos, |m| {
@@ -373,9 +372,10 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         pruned_start_positions.sort_by_key(|p| LexPos(*p));
 
         // TODO: This should be optimized to a single `contours.prune` call.
+        let mut change = 0;
         for p in pruned_start_positions {
             let pt = self.transform(p);
-            self.contours.prune_with_hint(pt, hint, |pt| {
+            let c = self.contours.prune_with_hint(pt, hint, |pt| {
                 let p = if self.params.use_gap_cost {
                     self.seeds.transform_back(*pt)
                 } else {
@@ -388,14 +388,15 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                         .filter(|a| a.end <= self.t_target)
                 })
             });
+            if p == pos {
+                // For CSH, propagating just works.
+                // For GCSH, we manually ensure here that all states in the queue are <= the pruned pos.
+                if !self.params.use_gap_cost || self.max_transformed_pos <= tpos {
+                    change = c.1;
+                }
+            }
         }
 
-        let change = if p_start > 0 && false {
-            let end_layer = self.contours.score_with_hint(tpos, hint).0;
-            start_layer - end_layer
-        } else {
-            0
-        };
         if let Some(start_time) = start_time {
             self.stats.pruning_duration += TIME_EACH as f32 * start_time.elapsed().as_secs_f32();
         }
