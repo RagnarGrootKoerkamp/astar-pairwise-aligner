@@ -366,6 +366,12 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             score: m.score(),
         };
 
+        // Remove from contour from left to right.
+        // Without this, the pruning of the right vertex (p itself) changes the
+        // layers and presence of the earlier vertex (at the start of the match
+        // ending in p), breaking the subsequent pruning step.
+        pruned_start_positions.sort_by_key(|p| LexPos(*p));
+
         // TODO: This should be optimized to a single `contours.prune` call.
         for p in pruned_start_positions {
             let pt = self.transform(p);
