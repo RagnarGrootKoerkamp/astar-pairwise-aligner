@@ -10,6 +10,7 @@ pub mod matches;
 pub mod prune;
 pub mod seeds;
 mod split_vec;
+pub mod util;
 
 pub use cli::*;
 pub use heuristic::*;

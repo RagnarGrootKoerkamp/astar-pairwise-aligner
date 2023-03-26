@@ -4,6 +4,7 @@ use smallvec::SmallVec;
 use super::*;
 use crate::prune::MatchPruner;
 use crate::seeds::Seeds;
+use crate::util::Timer;
 use crate::*;
 use crate::{contour::*, wrappers::EqualHeuristic};
 use std::marker::PhantomData;
@@ -311,11 +312,19 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
         let p = self.seeds.potential(pos);
         let (val, new_hint) = self.contours.score_with_hint(self.transform(pos), hint);
-        if val == 0 {
+        let ans = if val == 0 {
             (self.distance(pos, self.target), new_hint)
         } else {
             (p - val, new_hint)
-        }
+        };
+        ans
+    }
+
+    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), f64) {
+        let timer = Timer::new(&mut self.stats.h_calls);
+        let ans = self.h_with_hint(pos, hint);
+        let t = timer.end(&mut self.stats.h_duration);
+        (ans, t)
     }
 
     type Hint = C::Hint;
@@ -330,15 +339,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         if !self.params.pruning.is_enabled() {
             return (0, Pos::default());
         }
-        self.stats.prune_count += 1;
-
         // Time the duration of retrying once in this many iterations.
-        const TIME_EACH: usize = 64;
-        let start_time = if self.stats.prune_count % TIME_EACH == 0 {
-            Some(instant::Instant::now())
-        } else {
-            None
-        };
+        let timer = Timer::new(&mut self.stats.prune_calls);
 
         let tpos = self.transform(pos);
 
@@ -397,9 +399,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             }
         }
 
-        if let Some(start_time) = start_time {
-            self.stats.pruning_duration += TIME_EACH as f32 * start_time.elapsed().as_secs_f32();
-        }
+        timer.end(&mut self.stats.prune_duration);
         (change, pos)
     }
 

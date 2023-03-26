@@ -1,6 +1,7 @@
 use super::*;
 use crate::contour::sh_contours::{self, Arrow, ShContours};
 use crate::prune::MatchPruner;
+use crate::util::Timer;
 use crate::*;
 
 #[derive(Debug, Copy, Clone)]
@@ -60,11 +61,13 @@ impl SHI {
                 num_seeds: seeds.seeds.len() as I,
                 num_matches: matches.len(),
                 num_filtered_matches: matches.len(),
-                pruning_duration: 0.0,
                 num_pruned: 0,
                 h0: 0,
                 h0_end: 0,
-                prune_count: 0,
+                prune_duration: 0.0,
+                prune_calls: 0,
+                h_duration: 0.0,
+                h_calls: 0,
             },
             seeds,
             matches: MatchPruner::new(params.pruning, false, matches),
@@ -109,6 +112,13 @@ impl<'a> HeuristicInstance<'a> for SHI {
         (p - m, h)
     }
 
+    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), f64) {
+        let timer = Timer::new(&mut self.stats.h_calls);
+        let ans = self.h_with_hint(pos, hint);
+        let t = timer.end(&mut self.stats.h_duration);
+        (ans, t)
+    }
+
     fn root_potential(&self) -> Cost {
         self.seeds.potential[0]
     }
@@ -119,6 +129,9 @@ impl<'a> HeuristicInstance<'a> for SHI {
         if !self.params.pruning.is_enabled() {
             return (0, 0);
         }
+
+        // Time the duration of retrying once in this many iterations.
+        let timer = Timer::new(&mut self.stats.prune_calls);
 
         let mut change = 0;
         let (p_start, p_end) = self.matches.prune(&self.seeds, pos, |m| {
@@ -132,10 +145,10 @@ impl<'a> HeuristicInstance<'a> for SHI {
         });
 
         if p_start + p_end > 0 {
-            self.stats.prune_count += 1;
             self.stats.num_pruned += p_start + p_end;
         }
 
+        timer.end(&mut self.stats.prune_duration);
         if pos >= self.max_explored_pos {
             (change, pos.0)
         } else {

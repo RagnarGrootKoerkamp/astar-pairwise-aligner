@@ -19,11 +19,16 @@ pub struct HeuristicStats {
     pub num_seeds: I,
     pub num_matches: usize,
     pub num_filtered_matches: usize,
-    pub pruning_duration: f32,
     pub num_pruned: usize,
     pub h0: Cost,
     pub h0_end: Cost,
-    pub prune_count: usize,
+
+    // Timers
+    pub prune_duration: f64,
+    pub prune_calls: usize,
+
+    pub h_duration: f64,
+    pub h_calls: usize,
 }
 
 /// An object containing the settings for a heuristic.
@@ -100,6 +105,10 @@ pub trait HeuristicInstance<'a> {
     type Hint: Copy + Default + std::fmt::Debug = ();
     fn h_with_hint(&self, pos: Pos, _hint: Self::Hint) -> (Cost, Self::Hint) {
         (self.h(pos), Default::default())
+    }
+
+    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), f64) {
+        (self.h_with_hint(pos, hint), 0.)
     }
 
     fn root_potential(&self) -> Cost {

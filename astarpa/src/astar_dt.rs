@@ -4,7 +4,7 @@ use crate::{
     prelude::*,
     stats::AstarStats,
 };
-use pa_heuristic::*;
+use pa_heuristic::{util::Timer, *};
 use pa_vis_types::{VisualizerInstance, VisualizerT};
 
 const D: bool = false;
@@ -37,17 +37,18 @@ pub fn astar_dt<'a, H: Heuristic>(
     h: &H,
     v: &impl VisualizerT,
 ) -> ((Cost, Cigar), AstarStats) {
+    let mut stats = AstarStats::init(a, b);
+
     let start = instant::Instant::now();
     let ref graph = EditGraph::new(a, b, true);
     let ref mut h = h.build(a, b);
-    let precomp = start.elapsed().as_secs_f32();
-    let ref mut v = v.build(a, b);
+    stats.timing.precomp = start.elapsed().as_secs_f64();
 
-    let mut stats = AstarStats::init(a, b);
+    let ref mut v = v.build(a, b);
 
     // f -> (pos, g)
     let mut queue = ShiftQueue::<(Pos, Cost), <H::Instance<'a> as HeuristicInstance>::Order>::new(
-        if REDUCE_RETRIES {
+        if REDUCE_REORDERING {
             h.root_potential()
         } else {
             0
@@ -63,7 +64,7 @@ pub fn astar_dt<'a, H: Heuristic>(
     // Initialization with the root state.
     {
         let start = Pos(0, 0);
-        let (hroot, hint) = h.h_with_hint(start, Default::default());
+        let (hroot, hint) = h.h_with_hint_timed(start, Default::default()).0;
         queue.push(QueueElement {
             f: hroot,
             data: (start, 0),
@@ -72,19 +73,15 @@ pub fn astar_dt<'a, H: Heuristic>(
         states.insert(DtPos::from_pos(start, 0), State { fr: 0, hint });
     }
 
+    // Computation of h that turned out to be retry is double counted.
+    // We track them and in the end subtract it from h time.
+    let mut double_timed = 0.0;
     let mut retry_cnt = 0;
 
     let dist = loop {
+        let reorder_timer = Timer::new(&mut retry_cnt);
         let Some(QueueElement {f: queue_f, data: (pos, queue_g),}) = queue.pop() else {
             panic!("priority queue is empty before the end is reached.");
-        };
-
-        // Time the duration of retrying once in this many iterations.
-        const TIME_EACH: i32 = 64;
-        let expand_start = if retry_cnt % TIME_EACH == 0 {
-            Some(instant::Instant::now())
-        } else {
-            None
         };
 
         let dt_pos = DtPos::from_pos(pos, queue_g);
@@ -107,7 +104,9 @@ pub fn astar_dt<'a, H: Heuristic>(
         // Whenever A* pops a position, if the value of h and f is outdated, the point is pushed and not expanded.
         // Must be true for correctness.
         {
-            let (current_h, new_hint) = h.h_with_hint(pos, state.hint);
+            // The reorder timing stops here and
+            let ((current_h, new_hint), hint_t) = h.h_with_hint_timed(pos, state.hint);
+
             state.hint = new_hint;
             let current_f = queue_g + current_h;
             assert!(
@@ -115,15 +114,14 @@ pub fn astar_dt<'a, H: Heuristic>(
                 "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.fr={} queue_fr={} queue_h={} current_h={}", state.fr, queue_fr, queue_f-queue_g, current_h
             );
             if current_f > queue_f {
-                stats.retries += 1;
+                stats.reordered += 1;
                 queue.push(QueueElement {
                     f: current_f,
                     data: (pos, queue_g),
                 });
-                retry_cnt += 1;
-                if let Some(expand_start) = expand_start {
-                    stats.timing.retries += TIME_EACH as f32 * expand_start.elapsed().as_secs_f32();
-                }
+                reorder_timer.end(&mut stats.timing.reordering);
+                // Remove the double counted part.
+                double_timed += hint_t;
                 continue;
             }
             assert!(current_f == queue_f);
@@ -162,7 +160,7 @@ pub fn astar_dt<'a, H: Heuristic>(
         // Prune is needed
         if h.is_seed_start_or_end(pos) {
             let (shift, pos) = h.prune(pos, state.hint);
-            if REDUCE_RETRIES {
+            if REDUCE_REORDERING {
                 stats.pq_shifts += queue.shift(shift, pos) as usize;
             }
         }
@@ -207,7 +205,7 @@ pub fn astar_dt<'a, H: Heuristic>(
 
             cur_next.fr = next_fr;
 
-            let (next_h, next_hint) = h.h_with_hint(next, state.hint);
+            let (next_h, next_hint) = h.h_with_hint_timed(next, state.hint).0;
             cur_next.hint = next_hint;
             let next_f = next_g + next_h;
 
@@ -234,15 +232,24 @@ pub fn astar_dt<'a, H: Heuristic>(
     let traceback_start = instant::Instant::now();
     let (d, path) = traceback(&states, graph.target(), dist);
     let cigar = Cigar::from_path(graph.a, graph.b, &path);
-    stats.timing.traceback = traceback_start.elapsed().as_secs_f32();
-    v.last_frame(Some(&(&cigar).into()), None, Some(h));
-    stats.h = h.stats();
-    assert!(stats.h.h0 <= d);
+    let end = instant::Instant::now();
 
-    let total = start.elapsed().as_secs_f32();
-    stats.timing.total = total;
-    stats.timing.precomp = precomp;
-    stats.timing.astar = total - precomp;
+    stats.h = h.stats();
+    stats.h.h_duration -= double_timed;
+    stats.timing.total = (end - start).as_secs_f64();
+    stats.timing.traceback = (end - traceback_start).as_secs_f64();
+    stats.timing.astar = (traceback_start - start).as_secs_f64()
+        - stats.timing.precomp
+        - stats.h.h_duration
+        - stats.h.prune_duration
+        - stats.timing.reordering;
+
+    v.last_frame(Some(&(&cigar).into()), None, Some(h));
+    assert!(
+        stats.h.h0 <= d,
+        "Heuristic at start is {} but the distance is only {d}!",
+        stats.h.h0
+    );
     stats.distance = d;
     ((d, cigar), stats)
 }

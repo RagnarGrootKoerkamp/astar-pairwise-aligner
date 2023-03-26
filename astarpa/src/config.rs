@@ -3,8 +3,8 @@
 
 // ========= FLAGS IN THE PAPER (default true) =========
 
-/// Whether to use shifting of the priority queue to reduce retries.
-pub const REDUCE_RETRIES: bool = true;
+/// Whether to use shifting of the priority queue to reduce reordering.
+pub const REDUCE_REORDERING: bool = true;
 
 // ========= FLAGS NOT IN THE PAPER (default false) =========
 
