@@ -54,21 +54,14 @@ impl SHI {
             params.match_config.max_match_cost as I + 1,
         );
 
+        let mut stats = HeuristicStats::default();
+        stats.num_seeds = seeds.seeds.len() as I;
+        stats.num_matches = matches.len();
+        stats.num_filtered_matches = matches.len();
         let mut h = SHI {
             params,
             max_explored_pos: Pos(0, 0),
-            stats: HeuristicStats {
-                num_seeds: seeds.seeds.len() as I,
-                num_matches: matches.len(),
-                num_filtered_matches: matches.len(),
-                num_pruned: 0,
-                h0: 0,
-                h0_end: 0,
-                prune_duration: 0.0,
-                prune_calls: 0,
-                h_duration: 0.0,
-                h_calls: 0,
-            },
+            stats,
             seeds,
             matches: MatchPruner::new(params.pruning, false, matches),
             contours,

@@ -229,6 +229,7 @@ pub fn astar<'a, H: Heuristic>(
         - stats.timing.precomp
         - stats.h.h_duration
         - stats.h.prune_duration
+        - stats.h.contours_duration
         - stats.timing.reordering;
 
     v.last_frame(Some(&(&cigar).into()), None, Some(h));

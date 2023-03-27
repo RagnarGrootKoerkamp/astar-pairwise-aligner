@@ -339,8 +339,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         if !self.params.pruning.is_enabled() {
             return (0, Pos::default());
         }
-        // Time the duration of retrying once in this many iterations.
-        let timer = Timer::new(&mut self.stats.prune_calls);
+
+        // Time the duration of pruning and consistency checks.
+        let timer = Timer::each(64, &mut self.stats.prune_calls);
 
         let tpos = self.transform(pos);
 
@@ -350,6 +351,14 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                 pruned_start_positions.push(m.start)
             }
         });
+        timer.end(&mut self.stats.prune_duration);
+        if p_start + p_end == 0 {
+            return (0, pos);
+        }
+
+        // Time the duration updating the contours.
+        // Each of them is timed individually, since the variance can be high.
+        let timer = Timer::each(1, &mut self.stats.contours_calls);
 
         self.stats.num_pruned += p_start + p_end;
 
@@ -398,8 +407,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                 }
             }
         }
+        timer.end(&mut self.stats.contours_duration);
 
-        timer.end(&mut self.stats.prune_duration);
         (change, pos)
     }
 

@@ -27,6 +27,9 @@ pub struct HeuristicStats {
     pub prune_duration: f64,
     pub prune_calls: usize,
 
+    pub contours_duration: f64,
+    pub contours_calls: usize,
+
     pub h_duration: f64,
     pub h_calls: usize,
 }
