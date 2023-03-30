@@ -229,6 +229,7 @@ pub struct Style {
     pub max_layer: Option<I>,
     pub active_match: Color,
     pub pruned_match: Color,
+    pub filtered_match: Color,
     pub match_shrink: usize,
     pub match_width: usize,
     pub contour: Color,
@@ -315,6 +316,7 @@ impl Config {
                 max_layer: None,
                 active_match: BLACK,
                 pruned_match: RED,
+                filtered_match: RED,
                 match_shrink: 2,
                 match_width: 2,
                 contour: BLACK,
@@ -899,6 +901,7 @@ impl Visualizer {
                         let mut color = match m.pruned {
                                 MatchStatus::Active => self.config.style.active_match,
                                 MatchStatus::Pruned => self.config.style.pruned_match,
+                                MatchStatus::Filtered => self.config.style.filtered_match,
                             };
                         let mut width = self.config.style.match_width;
                         if m.match_cost > 0 {

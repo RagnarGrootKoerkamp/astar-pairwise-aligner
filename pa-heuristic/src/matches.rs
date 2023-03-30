@@ -14,8 +14,12 @@ use qgrams::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MatchStatus {
+    /// Active
     Active,
+    /// Pruned by match pruning because the start or end was expanded.
     Pruned,
+    /// Filtered out by PatHeuristic
+    Filtered,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,6 +46,12 @@ impl Match {
     pub fn prune(&mut self) {
         debug_assert!(self.pruned == MatchStatus::Active);
         self.pruned = MatchStatus::Pruned;
+    }
+
+    #[inline]
+    pub fn filter(&mut self) {
+        debug_assert!(self.pruned == MatchStatus::Active);
+        self.pruned = MatchStatus::Filtered;
     }
 }
 
