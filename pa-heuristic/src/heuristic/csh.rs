@@ -133,13 +133,18 @@ impl<C: Contours> Copy for CSH<C> {}
 impl<C: Contours> Heuristic for CSH<C> {
     type Instance<'a> = CSHI<C>;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
+    fn build_with_filter<'a>(
+        &self,
+        a: Seq<'a>,
+        b: Seq<'a>,
+        filter: Option<impl FnMut(&Match, Cost) -> bool>,
+    ) -> Self::Instance<'a> {
         // TODO: Warning
         assert!(
             self.match_config.max_match_cost
                 <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
-        CSHI::new(a, b, *self)
+        CSHI::new(a, b, filter, *self)
     }
 
     fn name(&self) -> String {
@@ -190,7 +195,12 @@ impl<C: Contours> Drop for CSHI<C> {
 impl<C: Contours> CSHI<C> {
     /// `filter` is currently only used for pre-pruning when an optimal path is guessed and all matches on it are pruned directly.
     /// This is not in the paper yet.
-    fn new(a: Seq, b: Seq, params: CSH<C>) -> Self {
+    fn new(
+        a: Seq,
+        b: Seq,
+        filter: Option<impl FnMut(&Match, Cost) -> bool>,
+        params: CSH<C>,
+    ) -> Self {
         let Matches { seeds, mut matches } =
             find_matches(a, b, params.match_config, params.use_gap_cost);
         let target = Pos::target(a, b);
@@ -231,15 +241,42 @@ impl<C: Contours> CSHI<C> {
         // Sort reversed by start (the order needed to construct contours).
         matches.sort_by_key(|m| LexPos(m.start));
 
-        // TODO: Fix the units here -- unclear whether it should be I or cost.
-        let contours = C::new(
-            matches
-                .iter()
-                .rev()
-                .map(match_to_arrow)
-                .filter(|a| a.end <= t_target),
-            params.match_config.max_match_cost as I + 1,
-        );
+        let arrows = matches
+            .iter()
+            .rev()
+            .map(match_to_arrow)
+            .filter(|a| a.end <= t_target);
+        let contours = if let Some(mut filter) = filter {
+            C::new_with_filter(
+                arrows,
+                params.match_config.max_match_cost as I + 1,
+                |arrow, layer| {
+                    let m = Match {
+                        start: if params.use_gap_cost {
+                            seeds.transform_back(arrow.start)
+                        } else {
+                            arrow.start
+                        },
+                        end: if params.use_gap_cost {
+                            seeds.transform_back(arrow.end)
+                        } else {
+                            arrow.start
+                        },
+                        match_cost: params.match_config.max_match_cost + 1 - arrow.score,
+                        seed_potential: params.match_config.max_match_cost + 1,
+                        pruned: MatchStatus::Active,
+                    };
+                    let f = filter(&m, seeds.potential(m.start) - layer);
+                    if !f {
+                        pruner.mut_match_start(&m).unwrap().filter();
+                        pruner.mut_match_end(&m).unwrap().filter();
+                    }
+                    f
+                },
+            )
+        } else {
+            C::new(arrows, params.match_config.max_match_cost as I + 1)
+        };
 
         let mut h = CSHI {
             params,

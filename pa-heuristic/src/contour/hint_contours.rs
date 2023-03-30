@@ -208,7 +208,11 @@ fn chain_score<C: Contour, R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
 impl<C: Contour> Contours for HintContours<C> {
     // NOTE: Arrows must satisfy the following 'consistency' properties:
     // - If there is an arrow A->B of cost c>1, there is also an arrow A'->B of cost c-1, where A' is an indel away from A.
-    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: I) -> Self {
+    fn new_with_filter(
+        arrows: impl IntoIterator<Item = Arrow>,
+        max_len: Cost,
+        mut filter: impl FnMut(&Arrow, Cost) -> bool,
+    ) -> Self {
         let mut this = HintContours {
             contours: {
                 let mut c = SplitVec::default();
@@ -227,10 +231,10 @@ impl<C: Contour> Contours for HintContours<C> {
             // TODO: The this.score() could also be implemented using a fenwick tree, as done in LCSk++.
             for a in pos_arrows {
                 let nv = this.score(a.end) + a.score as Cost;
-                // FIXME: Re-add removed filter here
-                // if filter(&a, nv) {
-                //     continue;
-                // }
+                // Filter out arrows where filter returns false.
+                if !filter(&a, nv) {
+                    continue;
+                }
                 v = max(v, nv as Layer);
                 l = max(l, a.score);
             }

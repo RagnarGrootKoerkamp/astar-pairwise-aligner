@@ -1,11 +1,10 @@
 #![allow(unused)]
 use std::fmt::Debug;
 
-use pa_types::{Cigar, CostModel};
-
-use crate::prelude::{Cost, Seq};
-
 use super::Heuristic;
+use crate::prelude::{Cost, Seq};
+use pa_heuristic::{matches::Match, Heuristic};
+use pa_types::{seq_to_string, Cigar, Cost, CostModel, Seq};
 
 /// The Path heuristic takes as input a path, and builds a heuristic that
 /// 'simulates' the pruning of the SH/CSH by doing it up-front where possible.
@@ -36,20 +35,24 @@ impl<H: Heuristic> PathHeuristic<H> {
         assert_eq!(path.last().unwrap().1, path_cost);
         let mut p = path.iter().rev().peekable();
 
-        let h = self.h.build_with_filter(a, b, |m, h| {
-            while m.start < p.peek().unwrap().0 {
-                p.next();
-            }
-            let (pos, pos_cost) = **p.peek().unwrap();
-            if m.start == pos {
-                assert!(h <= path_cost - pos_cost);
-                // Filter away the match when h < cost_to_end
-                if h < path_cost - pos_cost {
-                    return true;
+        let h = self.h.build_with_filter(
+            a,
+            b,
+            Some(|m: &Match, h: Cost| {
+                while m.start < p.peek().unwrap().0 {
+                    p.next();
                 }
-            }
-            false
-        });
+                let (pos, pos_cost) = **p.peek().unwrap();
+                if m.start == pos {
+                    assert!(h <= path_cost - pos_cost);
+                    // Filter away the match when h < cost_to_end
+                    if h < path_cost - pos_cost {
+                        return false;
+                    }
+                }
+                true
+            }),
+        );
         (path_cost, h)
     }
 }

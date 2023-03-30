@@ -39,7 +39,20 @@ pub trait Heuristic: std::fmt::Debug + Copy {
     type Instance<'a>: HeuristicInstance<'a>;
     const IS_DEFAULT: bool = false;
 
-    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a>;
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
+        self.build_with_filter(a, b, None::<fn(&Match, Cost) -> bool>)
+    }
+
+    /// Matches can be filtered during construction of the contours.
+    /// Used in PathHeuristic.
+    fn build_with_filter<'a>(
+        &self,
+        _a: Seq<'a>,
+        _b: Seq<'a>,
+        _f: Option<impl FnMut(&Match, Cost) -> bool>,
+    ) -> Self::Instance<'a> {
+        unimplemented!();
+    }
 
     // Heuristic properties.
     fn name(&self) -> String;

@@ -91,7 +91,19 @@ impl Debug for Arrow {
 pub trait Contours: Default + Debug {
     /// Build the contours from a set of arrows.
     /// NOTE: Arrows must be reverse sorted by start.
-    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: Cost) -> Self;
+    fn new(arrows: impl IntoIterator<Item = Arrow>, max_len: Cost) -> Self {
+        Self::new_with_filter(arrows, max_len, |_, _| true)
+    }
+
+    /// A secondary constructor used in PathHeuristic that filters arrows while constructing the heuristic.
+    /// Only arrows for which [filter] returns true are kept.
+    fn new_with_filter(
+        _arrows: impl IntoIterator<Item = Arrow>,
+        _max_len: Cost,
+        _filter: impl FnMut(&Arrow, Cost) -> bool,
+    ) -> Self {
+        unimplemented!();
+    }
 
     /// The value of the contour this point is on.
     /// Hint is guaranteed to be for the current position.
