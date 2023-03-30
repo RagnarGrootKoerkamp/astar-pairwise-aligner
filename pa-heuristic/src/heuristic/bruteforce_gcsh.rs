@@ -144,8 +144,16 @@ where
             .into_iter()
             .filter(|&(parent, _)| *parent >= pos)
             .map(|(parent, val)| (self.distance(pos, *parent).saturating_add(*val), *parent))
-            .min_by_key(|(val, pos)| (*val, rng.gen_range(0..u64::MAX), Reverse(LexPos(*pos))))
+            .min_by_key(|(val, pos)| (*val, 0 * rng.gen_range(0..u64::MAX), Reverse(LexPos(*pos))))
             .unwrap()
+    }
+
+    fn layer(&self, pos: Pos) -> Option<Cost> {
+        Some(max(self.seeds.potential(pos) - self.h(pos), 0))
+    }
+
+    fn layer_with_hint(&self, pos: Pos, _hint: Self::Hint) -> Option<(Cost, Self::Hint)> {
+        Some((self.layer(pos).unwrap(), ()))
     }
 
     /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
