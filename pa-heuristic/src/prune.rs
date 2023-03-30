@@ -104,7 +104,7 @@ pub struct MatchPruner {
 }
 
 impl MatchPruner {
-    pub fn new(pruning: Pruning, check_consistency: bool, mut matches: Vec<Match>) -> MatchPruner {
+    pub fn new(pruning: Pruning, check_consistency: bool, matches: &mut Vec<Match>) -> MatchPruner {
         // Sort by start, then by  match cost.
         // This ensures that matches are pruned from low cost to high cost.
         matches.sort_unstable_by_key(|m| (LexPos(m.start), m.match_cost));
@@ -119,7 +119,8 @@ impl MatchPruner {
         // Sort by end, then by *decreasing* match cost.
         matches.sort_unstable_by_key(|m| (LexPos(m.end), m.match_cost));
         let by_end = matches
-            .into_iter()
+            .iter()
+            .cloned()
             .group_by(|m| m.end)
             .into_iter()
             .map(|(end, pos_arrows)| (end, pos_arrows.collect_vec()))
@@ -163,20 +164,24 @@ impl MatchPruner {
     }
 
     fn prune_match(&mut self, m: &Match) {
+        self.mut_match_start(m).unwrap().prune();
+        self.mut_match_end(m).unwrap().prune();
+    }
+
+    pub fn mut_match_start(&mut self, m: &Match) -> Option<&mut Match> {
         self.by_start
             .get_mut(&m.start)
             .unwrap()
             .iter_mut()
             .find(|m2| m2 == &m)
-            .unwrap()
-            .prune();
+    }
+
+    pub fn mut_match_end(&mut self, m: &Match) -> Option<&mut Match> {
         self.by_end
             .get_mut(&m.end)
             .unwrap()
             .iter_mut()
             .find(|m2| m2 == &m)
-            .unwrap()
-            .prune();
     }
 
     fn max_score_for_match(&self, start: Pos, end: Pos) -> MatchCost {

@@ -46,7 +46,7 @@ pub struct SHI {
 
 impl SHI {
     fn new(a: Seq, b: Seq, params: SH) -> Self {
-        let Matches { seeds, matches } = find_matches(a, b, params.match_config, false);
+        let Matches { seeds, mut matches } = find_matches(a, b, params.match_config, false);
 
         let contours = ShContours::new(
             &seeds,
@@ -63,7 +63,7 @@ impl SHI {
             max_explored_pos: Pos(0, 0),
             stats,
             seeds,
-            matches: MatchPruner::new(params.pruning, false, matches),
+            matches: MatchPruner::new(params.pruning, false, &mut matches),
             contours,
         };
         h.stats.h0 = h.h(Pos(0, 0));

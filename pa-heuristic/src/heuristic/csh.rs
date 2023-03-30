@@ -226,6 +226,8 @@ impl<C: Contours> CSHI<C> {
             score: m.score(),
         };
 
+        let mut pruner = MatchPruner::new(params.pruning, params.use_gap_cost, &mut matches);
+
         // Sort reversed by start (the order needed to construct contours).
         matches.sort_by_key(|m| LexPos(m.start));
 
@@ -245,7 +247,7 @@ impl<C: Contours> CSHI<C> {
             target,
             t_target,
             seeds,
-            matches: MatchPruner::new(params.pruning, params.use_gap_cost, matches),
+            matches: pruner,
             stats: HeuristicStats::default(),
 
             // For pruning propagation

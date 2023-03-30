@@ -80,7 +80,7 @@ where
                 params.pruning,
                 // Ensure consistency with GCSH.
                 params.distance_function.name() == "Gap",
-                matches,
+                &mut matches,
             ),
             h_at_matches: Default::default(),
             stats: Default::default(),
