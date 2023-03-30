@@ -1,8 +1,6 @@
 #![allow(unused)]
 use std::fmt::Debug;
 
-use super::Heuristic;
-use crate::prelude::{Cost, Seq};
 use pa_heuristic::{matches::Match, Heuristic};
 use pa_types::{seq_to_string, Cigar, Cost, CostModel, Seq};
 
@@ -20,19 +18,25 @@ pub struct PathHeuristic<H: Heuristic> {
 
 impl<H: Heuristic> PathHeuristic<H> {
     pub fn build_with_cost<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> (Cost, H::Instance<'a>) {
-        // Find a candidate path
-        // let mut aligner = DiagonalTransition::new(
-        //     LinearCost::new_unit(),
-        //     GapCostHeuristic::Disable,
-        //     NoCost,
-        //     true,
-        //     NoVisualizer,
-        // );
         let start = instant::Instant::now();
-        let (path_cost, cigar): (Cost, Cigar) = todo!();
+        let (path_cost, cigar): (Cost, Cigar) = astarpa::astarpa(a, b);
         println!("Inner alignment: {}", start.elapsed().as_secs_f32());
         let path = cigar.to_path_with_costs(CostModel::unit());
-        assert_eq!(path.last().unwrap().1, path_cost);
+        let cigar_cost = path.last().unwrap().1;
+        assert_eq!(
+            cigar_cost,
+            path_cost,
+            "
+a: {}
+b: {}
+cigar: {}
+cost:       {path_cost}
+cigar cost: {cigar_cost}
+path {path:?}",
+            seq_to_string(a),
+            seq_to_string(b),
+            cigar.to_string()
+        );
         let mut p = path.iter().rev().peekable();
 
         let h = self.h.build_with_filter(
