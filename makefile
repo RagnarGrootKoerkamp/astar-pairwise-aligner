@@ -42,8 +42,8 @@ readme-layers:
 	rm -rf imgs/readme/layers/
 
 # https://superuser.com/questions/1049606/reduce-generated-gif-size-using-ffmpeg
-readme-intro:
-	FILTER = -filter_complex "tpad=stop_mode=clone:stop_duration=2[t];[t]split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer"
+FILTER = -filter_complex "tpad=stop_mode=clone:stop_duration=3[t];[t]split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer"
+readme-videos:
 	cargo run --features example --release --example readme-videos
 	ffmpeg -y -framerate 1 -i imgs/readme/1_ukkonen/%d.bmp 				$(FILTER) imgs/readme/1_ukkonen.gif
 	ffmpeg -y -framerate 10 -i imgs/readme/2_dijkstra/%d.bmp 				$(FILTER) imgs/readme/2_dijkstra.gif
@@ -52,6 +52,22 @@ readme-intro:
 	ffmpeg -y -framerate 2 -i imgs/readme/5_astarpa/%d.bmp 	$(FILTER) imgs/readme/5_astarpa.gif
 	gifsicle -O3 --batch imgs/readme/*.gif
 	rm -rf imgs/readme/*/
+
+slides-videos:
+	cargo run --features example --release --example slides-videos
+	cargo run --features example --release --example local-doubling
+	cargo run --features example --release --example path-pruning
+	ffmpeg -y -framerate 6 -i imgs/slides/sh-noprune/%d.bmp 				$(FILTER) imgs/slides/sh-noprune.gif
+	ffmpeg -y -framerate 6 -i imgs/slides/sh/%d.bmp 						$(FILTER) imgs/slides/sh.gif
+	ffmpeg -y -framerate 6 -i imgs/slides/gcsh-noprune/%d.bmp 				$(FILTER) imgs/slides/gcsh-noprune.gif
+	ffmpeg -y -framerate 6 -i imgs/slides/gcsh/%d.bmp 						$(FILTER) imgs/slides/gcsh.gif
+	ffmpeg -y -framerate 6 -i imgs/slides/gcsh-dt/%d.bmp 					$(FILTER) imgs/slides/gcsh-dt.gif
+	ffmpeg -y -framerate 6 -i imgs/slides/gcsh-dt/%d.bmp 					$(FILTER) imgs/slides/gcsh-dt.gif
+	ffmpeg -y -framerate 6 -i imgs/slides/local-doubling-noprune/%d.bmp 	$(FILTER) imgs/slides/local-doubling-noprune.gif
+	ffmpeg -y -framerate 6 -i imgs/slides/local-doubling/%d.bmp 			$(FILTER) imgs/slides/local-doubling.gif
+	ffmpeg -y -framerate 6 -i imgs/slides/path-pruning/%d.bmp 				$(FILTER) imgs/slides/path-pruning.gif
+	gifsicle -O3 --batch imgs/slides/*.gif
+	rm -rf imgs/slides/*/
 
 
 # ========== BLOGSPOSTS IMAGES ==========
