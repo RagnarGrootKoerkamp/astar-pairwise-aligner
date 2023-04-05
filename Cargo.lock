@@ -784,6 +784,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pa-bitpacking"
+version = "0.1.0"
+dependencies = [
+ "bio",
+ "clap",
+ "itertools",
+ "pa-generate",
+ "pa-types",
+]
+
+[[package]]
 name = "pa-generate"
 version = "0.1.0"
 source = "git+https://github.com/pairwise-alignment/pa-generate#cbaee559d0dc760b78bf6ed0854399759322cf05"

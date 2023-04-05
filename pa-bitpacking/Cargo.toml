@@ -1,0 +1,11 @@
+[package]
+name = "pa-bitpacking"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bio.workspace = true
+clap.workspace = true
+itertools.workspace = true
+pa-generate.workspace = true
+pa-types.workspace = true

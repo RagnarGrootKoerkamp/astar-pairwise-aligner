@@ -4,7 +4,6 @@ members = [
     "pa-heuristic",
     "pa-vis-types",
 
-    "pa-base-algos",
     "astarpa",
     "astarpa-c",
 
@@ -13,6 +12,8 @@ members = [
     "pa-bin",
     "pa-web",
 
+    "pa-bitpacking",
+    "pa-base-algos",
     "astarpa-next",
 ]
 resolver = "2"
@@ -21,7 +22,7 @@ resolver = "2"
 [profile.release]
 # 2x smaller file size when 'true', but that takes longer
 lto = "thin"
-incremental = true
+#incremental = true
 opt-level = 3
 debug = true
 # 10x smaller file size without debug symbols.
