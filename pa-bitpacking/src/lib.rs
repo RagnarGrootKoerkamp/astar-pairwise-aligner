@@ -9,13 +9,18 @@
     generic_const_exprs
 )]
 
-use std::simd::u64x4;
+use std::{
+    array::from_fn,
+    simd::{LaneCount, Simd, SupportedLaneCount},
+};
 
 use itertools::izip;
 use pa_types::Seq;
 
 /// The type used for all bitvectors.
 type B = u64;
+/// The type for a Simd vector of `L` lanes of `B`.
+type S<const L: usize> = Simd<B, L>;
 /// The length of each bitvector.
 const W: usize = B::BITS as usize;
 /// The type used for differences.
@@ -36,6 +41,7 @@ pub fn profile(seq: Seq) -> Vec<[B; 4]> {
     }
     p
 }
+
 #[inline(always)]
 pub fn padded_profile(seq: Seq, padding: usize) -> Vec<[B; 4]> {
     let words = num_words(seq);
@@ -133,16 +139,17 @@ pub fn compute_block_pmh(pv: B, mv: B, ph0: B, mh0: B, eq: B) -> (B, B, B, B) {
     (pv_out, mv_out, phw, mhw)
 }
 
-type Bsimd = u64x4;
-
 #[inline(always)]
-pub fn compute_block_simd(
-    pv: Bsimd,
-    mv: Bsimd,
-    ph0: Bsimd,
-    mh0: Bsimd,
-    eq: Bsimd,
-) -> (Bsimd, Bsimd, Bsimd, Bsimd) {
+pub fn compute_block_simd<const L: usize>(
+    pv: S<L>,
+    mv: S<L>,
+    ph0: S<L>,
+    mh0: S<L>,
+    eq: S<L>,
+) -> (S<L>, S<L>, S<L>, S<L>)
+where
+    LaneCount<L>: SupportedLaneCount,
+{
     let xv = eq | mv;
     let eq = eq | mh0;
     // The add here contains the 'folding' magic that makes this algorithm
@@ -151,12 +158,12 @@ pub fn compute_block_simd(
     let ph = mv | !(xh | pv);
     let mh = pv & xh;
     // Extract `hw` from `ph` and `mh`.
-    let right_shift: Bsimd = Bsimd::splat(W as u64 - 1);
+    let right_shift: S<L> = Simd::<u64, L>::splat(W as u64 - 1);
     let phw = ph >> right_shift;
     let mhw = mh >> right_shift;
 
     // Push `hw` out of `ph` and `mh` and shift in `h0`.
-    let left_shift: Bsimd = Bsimd::splat(1);
+    let left_shift: S<L> = Simd::<u64, L>::splat(1);
     let ph = (ph << left_shift) | ph0;
     let mh = (mh << left_shift) | mh0;
 
@@ -214,7 +221,7 @@ pub fn nw_2(a: Seq, b: Seq) -> i64 {
     bottom_row_score
 }
 
-/// Same as `nw_2`, but strides across for columns at a time.
+/// Same as `nw_2`, but strides across four columns at a time.
 ///
 /// Each | is one block/word.
 /// ||||
@@ -529,47 +536,107 @@ pub fn nw_7(a: Seq, b: Seq) -> i64 {
     bottom_row_score
 }
 
-/// nw_9, but inner loop is a for-loop instead of manually unrolled.
-pub fn nw_simd_copies<const N: usize>(a: Seq, b: Seq) -> i64
+/// N: Number of parallel columns
+pub fn nw_scalar_copies<const N: usize>(a: Seq, b: Seq) -> i64
 where
-    [(); 4 * N]: Sized,
+    [(); 1 * N]: Sized,
 {
+    const L: usize = 1;
     // For simplicity.
     assert!(b.len() % W == 0);
 
-    let profile = padded_profile(b, 4 * N - 1);
+    let padding = L * N - 1;
+    let profile = padded_profile(b, padding);
 
     let words = num_words(b);
     // (pv, mv) for each block.
     // In the first column, vertical deltas are all +1.
-    let mut pcol = vec![B::MAX; words + 8 * N - 2];
-    let mut mcol = vec![0; words + 8 * N - 2];
+    let mut col = vec![(B::MAX, 0); words + 2 * padding];
+    assert!(profile.len() == col.len());
+    let mut bottom_row_score = b.len() as i64;
+
+    let chunks = a.array_chunks::<{ L * N }>();
+    for chars in chunks.clone() {
+        let mut ph = [1; N];
+        let mut mh = [0; N];
+
+        // NOTE: `array_windows_mut` would be cool here but sadly doesn't exist.
+        for (i, profiles) in profile.array_windows::<{ L * N }>().enumerate() {
+            // NOTE: The rev is important for higher instructions/cycle.
+            for j in (0..N).rev() {
+                let offset = j * L;
+                let (pcols, mcols) = &mut col[i + offset];
+                let eqs: B = profiles[offset][chars[L * N - 1 - offset] as usize];
+                (*pcols, *mcols, ph[j], mh[j]) =
+                    compute_block_pmh(*pcols, *mcols, ph[j], mh[j], eqs);
+            }
+        }
+
+        bottom_row_score += ph.into_iter().sum::<u64>() as i64 - mh.into_iter().sum::<u64>() as i64;
+    }
+
+    // Do simple per-column scan for the remaining cols.
+    for c in chunks.remainder() {
+        let mut ph = 1;
+        let mut mh = 0;
+        for ((pv, mv), block_profile) in izip!(col.iter_mut(), &profile) {
+            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
+            assert!(*pv & *mv == 0);
+        }
+        bottom_row_score += ph as i64 - mh as i64;
+    }
+
+    bottom_row_score
+}
+
+/// nw_9, but inner loop is a for-loop instead of manually unrolled.
+/// L: Number of simd lanes to use
+/// N: Number of parallel simd units to use
+pub fn nw_simd_copies<const L: usize, const N: usize>(a: Seq, b: Seq) -> i64
+where
+    LaneCount<L>: SupportedLaneCount,
+    [(); L * N]: Sized,
+{
+    // For simplicity.
+    assert!(b.len() % W == 0);
+
+    let padding = L * N - 1;
+    let profile = padded_profile(b, padding);
+
+    let words = num_words(b);
+    // (pv, mv) for each block.
+    // In the first column, vertical deltas are all +1.
+    let mut pcol = vec![B::MAX; words + 2 * padding];
+    let mut mcol = vec![0; words + 2 * padding];
     assert!(profile.len() == pcol.len());
     assert!(profile.len() == mcol.len());
     let mut bottom_row_score = b.len() as i64;
 
-    let chunks = a.array_chunks::<{ 4 * N }>();
+    let chunks = a.array_chunks::<{ L * N }>();
     for chars in chunks.clone() {
-        let mut ph = [Bsimd::splat(1); N];
-        let mut mh = [Bsimd::splat(0); N];
+        // unsafe {
+        //     prefetch_read_data((&chars[0] as *const u8).add(L * N), 3);
+        // }
+        let mut ph = [S::<L>::splat(1); N];
+        let mut mh = [S::<L>::splat(0); N];
 
-        // NOTE: `array_windows_mut` would be cool here but sadly doesn't exist.
-        for (i, profiles) in profile.array_windows::<{ 4 * N }>().enumerate() {
+        for i in 0..words + padding {
+            // unsafe {
+            //     prefetch_read_data((&profile[i] as *const [B; 4]).add(N * L), 3);
+            //     prefetch_write_data((&pcol[i] as *const B).add(N * L), 3);
+            //     prefetch_write_data((&mcol[i] as *const B).add(N * L), 3);
+            // }
             // NOTE: The rev is important for higher instructions/cycle.
+            // This loop is unrolled by the compiler.
             for j in (0..N).rev() {
-                let offset = j * 4;
-                // Manually unroll the 8 parallel columns into two sets of 4.
-                let pcols_mut = pcol[i + offset..i + offset + 4].split_array_mut::<4>().0;
-                let mcols_mut = mcol[i + offset..i + offset + 4].split_array_mut::<4>().0;
-                let mut pcols: Bsimd = (*pcols_mut).into();
-                let mut mcols: Bsimd = (*mcols_mut).into();
-                let eqs = [
-                    profiles[offset + 0][chars[4 * N - 1 - offset] as usize],
-                    profiles[offset + 1][chars[4 * N - 2 - offset] as usize],
-                    profiles[offset + 2][chars[4 * N - 3 - offset] as usize],
-                    profiles[offset + 3][chars[4 * N - 4 - offset] as usize],
-                ]
-                .into();
+                let offset = j * L;
+                let profiles = profile[i + offset..i + offset + L].split_array_ref::<L>().0;
+                let pcols_mut = pcol[i + offset..i + offset + L].split_array_mut::<L>().0;
+                let mcols_mut = mcol[i + offset..i + offset + L].split_array_mut::<L>().0;
+                let mut pcols: S<L> = (*pcols_mut).into();
+                let mut mcols: S<L> = (*mcols_mut).into();
+                let eqs: S<L> =
+                    from_fn(|k| profiles[k][chars[L * N - 1 - k - offset] as usize]).into();
                 (pcols, mcols, ph[j], mh[j]) = compute_block_simd(pcols, mcols, ph[j], mh[j], eqs);
                 *pcols_mut = *pcols.as_array();
                 *mcols_mut = *mcols.as_array();
@@ -597,19 +664,6 @@ where
     }
 
     bottom_row_score
-}
-
-pub fn nw_8(a: Seq, b: Seq) -> i64 {
-    nw_simd_copies::<1>(a, b)
-}
-pub fn nw_9(a: Seq, b: Seq) -> i64 {
-    nw_simd_copies::<2>(a, b)
-}
-pub fn nw_10(a: Seq, b: Seq) -> i64 {
-    nw_simd_copies::<3>(a, b)
-}
-pub fn nw_11(a: Seq, b: Seq) -> i64 {
-    nw_simd_copies::<4>(a, b)
 }
 
 #[cfg(test)]
@@ -668,20 +722,39 @@ mod bench {
     fn nw_7(bench: &mut Bencher) {
         bench_aligner(super::nw_7, bench);
     }
-    #[bench]
-    fn nw_8(bench: &mut Bencher) {
-        bench_aligner(super::nw_8, bench);
+    macro_rules! scalar_test {
+        // h is a function (exact: bool, pruning: bool) -> Heuristic.
+        ($name:ident, $N:expr) => {
+            #[bench]
+            fn $name(bench: &mut Bencher) {
+                bench_aligner(super::nw_scalar_copies::<$N>, bench);
+            }
+        };
     }
-    #[bench]
-    fn nw_9(bench: &mut Bencher) {
-        bench_aligner(super::nw_9, bench);
+    scalar_test!(scalar_1, 1);
+    scalar_test!(scalar_2, 2);
+    scalar_test!(scalar_3, 3);
+    scalar_test!(scalar_4, 4);
+
+    macro_rules! simd_test {
+        // h is a function (exact: bool, pruning: bool) -> Heuristic.
+        ($name:ident, $L:expr, $N:expr) => {
+            #[bench]
+            fn $name(bench: &mut Bencher) {
+                bench_aligner(super::nw_simd_copies::<$L, $N>, bench);
+            }
+        };
     }
-    #[bench]
-    fn nw_10(bench: &mut Bencher) {
-        bench_aligner(super::nw_10, bench);
-    }
-    #[bench]
-    fn nw_11(bench: &mut Bencher) {
-        bench_aligner(super::nw_10, bench);
-    }
+    simd_test!(simd_1_1, 1, 1);
+    simd_test!(simd_1_2, 1, 2);
+    simd_test!(simd_1_3, 1, 3);
+    simd_test!(simd_1_4, 1, 4);
+    simd_test!(simd_2_1, 2, 1);
+    simd_test!(simd_2_2, 2, 2);
+    simd_test!(simd_2_3, 2, 3);
+    simd_test!(simd_2_4, 2, 4);
+    simd_test!(simd_4_1, 4, 1);
+    simd_test!(simd_4_2, 4, 2);
+    simd_test!(simd_4_3, 4, 3);
+    simd_test!(simd_4_4, 4, 4);
 }
