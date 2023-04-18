@@ -25,8 +25,6 @@ pub struct Timing {
 pub struct AstarStats {
     pub len_a: usize,
     pub len_b: usize,
-    /// The known error rate of the generated input.
-    pub error_rate: f32,
     /// The computed distance.
     pub distance: Cost,
     /// states popped from PQ
@@ -128,7 +126,6 @@ impl AstarStats {
             self.format_raw('>', 7, "nr", self.sample_size),
             self.format_avg('>', 10, "|a|", self.len_a),
             self.format_avg('>', 10, "|b|", self.len_b),
-            self.format_avg('>', 4, "e", self.error_rate),
             self.format_avg('>', 7, "seeds", self.h.num_seeds),
             self.format_flt(
                 '>',
