@@ -33,6 +33,11 @@ fig-comparison:
 	mogrify -format png imgs/paper/comparison/*bmp
 	rm imgs/paper/comparison/*bmp
 
+fig-no-matches:
+	cargo run --features example --release --example no-matches
+	mogrify -format png imgs/paper/no-matches.bmp
+	rm imgs/paper/no-matches.bmp
+
 # ========== README VIDEOS ==========
 readme: readme-layers readme-intro
 readme-layers:
