@@ -1,6 +1,7 @@
 use crate::dt::Direction;
 use crate::edit_graph::{AffineCigarOps, EditGraph};
-use crate::exponential_search;
+use crate::Domain;
+use crate::{exponential_search, Strategy};
 use itertools::chain;
 use pa_affine_types::*;
 use pa_heuristic::*;
@@ -17,16 +18,9 @@ pub struct NW<const N: usize, V: VisualizerT, H: Heuristic> {
     /// The cost model to use.
     pub cm: AffineCost<N>,
 
-    /// When false, the band covers all states with distance <=s.
-    /// When true, we only cover states with distance <=s/2.
-    pub use_gap_cost_heuristic: bool,
+    pub domain: Domain<H>,
 
-    pub exponential_search: bool,
-
-    pub local_doubling: bool,
-
-    /// The heuristic to use.
-    pub h: H,
+    pub strategy: Strategy,
 
     /// The visualizer to use.
     pub v: V,
@@ -36,10 +30,16 @@ impl<const N: usize> NW<N, NoVis, NoCost> {
     pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
         Self {
             cm,
-            use_gap_cost_heuristic,
-            exponential_search,
-            local_doubling: false,
-            h: NoCost,
+            domain: if use_gap_cost_heuristic {
+                Domain::GapGap
+            } else {
+                Domain::Full
+            },
+            strategy: if exponential_search {
+                Strategy::BandDoubling
+            } else {
+                Strategy::None
+            },
             v: NoVis,
         }
     }
@@ -47,11 +47,17 @@ impl<const N: usize> NW<N, NoVis, NoCost> {
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
     pub fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H> {
+        use Domain::*;
         NWInstance {
             a: pad(a),
             b: pad(b),
             params: self.clone(),
-            h: self.h.build(a, b),
+            domain: match self.domain {
+                Full => Full,
+                GapStart => GapStart,
+                GapGap => GapGap,
+                Astar(h) => Astar(h.build(a, b)),
+            },
             v: self.v.build(a, b),
         }
     }
@@ -59,10 +65,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NW")
-            .field("use_gap_cost_heuristic", &self.use_gap_cost_heuristic)
-            .field("h", &self.h)
-            .finish()
+        f.debug_struct("NW").field("domain", &self.domain).finish()
     }
 }
 
@@ -74,7 +77,7 @@ pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     pub params: NW<N, V, H>,
 
     /// The heuristic to use.
-    pub h: H::Instance<'a>,
+    pub domain: Domain<H::Instance<'a>>,
 
     /// The visualizer to use.
     pub v: V::Instance,
@@ -121,7 +124,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 next.layer_mut(layer)[j] = best;
             });
             let pos = Pos::from(i - 1, j - 1);
-            self.v.expand(pos, next.m()[j], f_max, Some(&self.h));
+            self.v.expand(pos, next.m()[j], f_max, self.domain.h());
         }
     }
 
@@ -131,11 +134,16 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
         let Some(s) = f_bound else {
             return 1..=self.b.len() as I;
         };
-        if H::IS_DEFAULT {
-            // For the default heuristic, either use the full range of diagonals
-            // covered by distance `f_max`, or do only the gap-cost to the end when
-            // needed.
-            let range = if self.params.use_gap_cost_heuristic {
+        match &self.domain {
+            Domain::Full => 1..=self.b.len() as I,
+            Domain::GapStart => {
+                // range: the max number of diagonals we can move up/down from the start with cost f.
+                let range = -(self.params.cm.max_del_for_cost(s) as I)
+                    ..=self.params.cm.max_ins_for_cost(s) as I;
+                // crop
+                max(i + *range.start(), 1)..=min(i + *range.end(), self.b.len() as I)
+            }
+            Domain::GapGap => {
                 let d = self.b.len() as I - self.a.len() as I;
                 // We subtract the cost needed to bridge the gap from the start to the end.
                 let s = s - self
@@ -146,68 +154,68 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 let extra_diagonals =
                     s / (self.params.cm.min_ins_extend + self.params.cm.min_del_extend);
                 // NOTE: The range could be reduced slightly further by considering gap open costs.
-                min(d, 0) - extra_diagonals as I..=max(d, 0) + extra_diagonals as I
-            } else {
-                -(self.params.cm.max_del_for_cost(s) as I)..=self.params.cm.max_ins_for_cost(s) as I
-            };
-            // crop
-            max(i + *range.start(), 1)..=min(i + *range.end(), self.b.len() as I)
-        } else {
-            if i == 0 {
-                0..=0
-            } else {
-                // Start with the range of the previous front.
-                // Then:
-                // Keep increasing the start while prev[start]+h() > f_max.
-                // Keep decreasing the end while prev[end]+h() > f_max.
-                // Keep increasing the end while prev[prev_end]+extend_cost*(end-prev_end)+h() > f_max.
-                let mut start = *prev.range().start();
+                let range = min(d, 0) - extra_diagonals as I..=max(d, 0) + extra_diagonals as I;
 
-                // To fix the padded character, we do max(start, 1) and max(i,1).
-                // TODO: include the cost needed to transition from column `prev`/`i-1` to the current column.
-                // h.h has (-1, -1) to offset the padding.
-                while start < self.b.len() as I
+                // crop
+                max(i + *range.start(), 1)..=min(i + *range.end(), self.b.len() as I)
+            }
+            Domain::Astar(h) => {
+                if i == 0 {
+                    0..=0
+                } else {
+                    // Start with the range of the previous front.
+                    // Then:
+                    // Keep increasing the start while prev[start]+h() > f_max.
+                    // Keep decreasing the end while prev[end]+h() > f_max.
+                    // Keep increasing the end while prev[prev_end]+extend_cost*(end-prev_end)+h() > f_max.
+                    let mut start = *prev.range().start();
+
+                    // To fix the padded character, we do max(start, 1) and max(i,1).
+                    // TODO: include the cost needed to transition from column `prev`/`i-1` to the current column.
+                    // h.h has (-1, -1) to offset the padding.
+                    while start < self.b.len() as I
                     && start <= *prev.range().end() // FIXME: +1
                     // FIXME: the -1 at the end may not be needed with more precise analysis.
-                    && prev.m()[start] + self.h.h(Pos::from(max(i, 1) - 1, max(start, 1) - 1))-1 > s
-                {
-                    start += 1;
-                }
-
-                start = max(start, 1);
-                if start > prev.range().end() + 1 {
-                    return start..=start - 1;
-                }
-                let prev_end = *prev.range().end();
-                let prev_end_cost = prev.m()[prev_end];
-                let mut end = prev_end;
-
-                // Decrease end as needed.
-                while end >= start
-                    && min(prev.m()[end], *prev.m().get(end - 1).unwrap_or(&Cost::MAX))
-                        + self.h.h(Pos::from(max(i, 1) - 1, end - 1))
-                        > s
-                {
-                    end -= 1;
-                }
-
-                // Increase end as needed, when not already decreased.
-                if end == prev_end {
-                    // We use the cheapest possible way to extend vertically.
-                    // h.h has (-1, -1) to offset the padding.
-                    while end < self.b.len() as I
-                        && prev_end_cost
-                            + self
-                                .params
-                                .cm
-                                .extend_cost(Pos::from(i - 1, prev_end), Pos::from(i, end + 1))
-                            + self.h.h(Pos::from(i - 1, end + 1 - 1))
-                            <= s
+                    && prev.m()[start] + h.h(Pos::from(max(i, 1) - 1, max(start, 1) - 1))-1 > s
                     {
-                        end += 1;
+                        start += 1;
                     }
+
+                    start = max(start, 1);
+                    if start > prev.range().end() + 1 {
+                        return start..=start - 1;
+                    }
+                    let prev_end = *prev.range().end();
+                    let prev_end_cost = prev.m()[prev_end];
+                    let mut end = prev_end;
+
+                    // Decrease end as needed.
+                    while end >= start
+                        && min(prev.m()[end], *prev.m().get(end - 1).unwrap_or(&Cost::MAX))
+                            + h.h(Pos::from(max(i, 1) - 1, end - 1))
+                            > s
+                    {
+                        end -= 1;
+                    }
+
+                    // Increase end as needed, when not already decreased.
+                    if end == prev_end {
+                        // We use the cheapest possible way to extend vertically.
+                        // h.h has (-1, -1) to offset the padding.
+                        while end < self.b.len() as I
+                            && prev_end_cost
+                                + self
+                                    .params
+                                    .cm
+                                    .extend_cost(Pos::from(i - 1, prev_end), Pos::from(i, end + 1))
+                                + h.h(Pos::from(i - 1, end + 1 - 1))
+                                <= s
+                        {
+                            end += 1;
+                        }
+                    }
+                    start..=end
                 }
-                start..=end
             }
         }
     }
@@ -218,12 +226,13 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             "Local doubling needs a heuristic. Use -H zero to disable."
         );
 
+        let h0 = self.domain.h().unwrap().h(Pos(0, 0));
         let mut fronts = Fronts::new(
             INF,
             // The fronts to create.
             0..=0 as I,
             // The range for each front.
-            |i| self.j_range(i, Some(self.h.h(Pos(0, 0))), &Front::default()),
+            |i| self.j_range(i, Some(h0), &Front::default()),
             0,
             0,
             LEFT_BUFFER,
@@ -232,7 +241,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
         fronts[0].m_mut()[0] = 0;
 
         // Front i has been computed up to this f.
-        let mut f_max = vec![self.h.h(Pos(0, 0))];
+        let mut f_max = vec![h0];
         // Each time a front is grown, it grows to the least multiple of delta that is large enough.
         // Delta doubles after each grow.
         const DELTA_0: Cost = 2;
@@ -240,9 +249,11 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
 
         // The value of f at the tip. When going to the next front, this is
         // incremented until the range is non-empty.
-        let mut f_tip = self.h.h(Pos(0, 0));
+        let mut f_tip = self.domain.h().unwrap().h(Pos(0, 0));
 
         let mut i = 0;
+        // This is a for loop over `i`, but once `i` reached `a.len()`, the last
+        // front is grown instead of increasing `i`.
         loop {
             if i < self.a.len() as I {
                 // Add a new front.
@@ -292,9 +303,22 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                     //     f_max[start_i]
                     // );
                     // FIXME: Generalize to more layers.
-                    if front.m()[js as I] + self.h.h(Pos(start_i as I - 1, js as I - 1))
+                    // NOTE: -1's are to correct for sequence padding.
+                    // NOTE: equality isn't good enough: in that case there
+                    // could be adjacent states that also have equality.
+                    if front.m()[js as I]
+                        + self
+                            .domain
+                            .h()
+                            .unwrap()
+                            .h(Pos(start_i as I - 1, js as I - 1))
                         > f_max[start_i + 1]
-                        && front.m()[je as I] + self.h.h(Pos(start_i as I - 1, je as I - 1))
+                        && front.m()[je as I]
+                            + self
+                                .domain
+                                .h()
+                                .unwrap()
+                                .h(Pos(start_i as I - 1, je as I - 1))
                             > f_max[start_i + 1]
                     {
                         start_i += 1;
@@ -308,7 +332,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
 
                 let before = f_max[start_i];
                 let delta = &mut f_delta[start_i];
-                f_max[start_i] = (f_max[start_i + 1] + *delta - 1) / *delta * *delta;
+                f_max[start_i] = f_max[start_i + 1].next_multiple_of(*delta);
                 // println!("{start_i} => {before} -> {} \t ({delta})", f_max[start_i]);
                 assert!(
                     f_max[start_i] >= f_max[start_i + 1],
@@ -363,17 +387,27 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 // }
 
                 // Prune matches
-                if self.h.is_seed_start_or_end(Pos(i as I - 1, 0)) {
+                if self
+                    .domain
+                    .h()
+                    .unwrap()
+                    .is_seed_start_or_end(Pos(i as I - 1, 0))
+                {
                     let hint = self
-                        .h
+                        .domain
+                        .h()
+                        .unwrap()
                         .h_with_hint(Pos(i as I - 1, *new_range.start() as I), Default::default())
                         .1;
                     for j in new_range {
-                        self.h.prune(Pos(i as I - 1, j as I), hint);
+                        self.domain
+                            .h_mut()
+                            .unwrap()
+                            .prune(Pos(i as I - 1, j as I), hint);
                     }
                 }
 
-                self.v.new_layer(Some(&self.h));
+                self.v.new_layer(Some(self.domain.h().unwrap()));
             }
 
             if i == self.a.len() as I
@@ -383,7 +417,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             {
                 break;
             }
-        }
+        } // end loop
+
         let dist = *fronts[self.a.len() as I]
             .m()
             .get(self.b.len() as I)
@@ -402,7 +437,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             },
             Direction::Forward,
         );
-        self.v.last_frame(Some(&cigar), None, Some(&self.h));
+        self.v
+            .last_frame(Some(&cigar), None, Some(self.domain.h().unwrap()));
         (dist, cigar)
     }
 
@@ -474,12 +510,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             }
             next.reset(INF, range);
             self.next_front(i, f_max.unwrap_or(0), prev, next);
-            if !self.params.exponential_search {
-                self.v.new_layer(Some(&self.h));
+            if self.params.strategy == Strategy::BandDoubling {
+                self.v.new_layer(self.domain.h());
             }
         }
-        if self.params.exponential_search {
-            self.v.new_layer(Some(&self.h));
+        if self.params.strategy == Strategy::None {
+            self.v.new_layer(self.domain.h());
         }
         if let Some(&dist) = next.m().get(self.b.len() as I) {
             Some(dist)
@@ -514,8 +550,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             let mut next = Front::new(INF, range, LEFT_BUFFER, RIGHT_BUFFER);
             self.next_front(i, f_max.unwrap_or(0), prev, &mut next);
             fronts.fronts.push(next);
-            if !self.params.exponential_search {
-                self.v.new_layer(Some(&self.h));
+            if self.params.strategy == Strategy::None {
+                self.v.new_layer(self.domain.h());
             }
         }
 
@@ -540,8 +576,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             }
         }
 
-        if self.params.exponential_search {
-            self.v.new_layer(Some(&self.h));
+        if self.params.strategy == Strategy::BandDoubling {
+            self.v.new_layer(self.domain.h());
         }
         None
     }
@@ -554,14 +590,23 @@ fn pad(a: Seq) -> Sequence {
 impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
     pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut nw = self.build(a, b);
-        let cost = if self.exponential_search {
-            exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
-                nw.cost_for_bounded_dist(Some(s)).map(|c| (c, c))
-            })
-            .1
-        } else {
-            assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
-            nw.cost_for_bounded_dist(None).unwrap()
+        let cost = match self.strategy {
+            Strategy::LocalDoubling => {
+                unimplemented!();
+            }
+            Strategy::BandDoubling => {
+                exponential_search(
+                    // TODO: Take a max with h(0,0) here.
+                    self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)),
+                    2.,
+                    |s| nw.cost_for_bounded_dist(Some(s)).map(|c| (c, c)),
+                )
+                .1
+            }
+            Strategy::None => {
+                assert!(matches!(self.domain, Domain::Full));
+                nw.cost_for_bounded_dist(None).unwrap()
+            }
         };
         nw.v.last_frame::<NoCostI>(None, None, None);
         cost
@@ -570,19 +615,23 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
     pub fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
         let mut nw = self.build(a, b);
         let cc;
-        if self.local_doubling {
-            return nw.align_local_band_doubling();
-        } else if self.exponential_search {
-            cc = exponential_search(
-                // TODO: Take a max with h(0,0) here.
-                self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)),
-                2.,
-                |s| nw.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x)),
-            )
-            .1;
-        } else {
-            assert!(!self.use_gap_cost_heuristic && H::IS_DEFAULT);
-            cc = nw.align_for_bounded_dist(None).unwrap();
+        match self.strategy {
+            Strategy::LocalDoubling => {
+                return nw.align_local_band_doubling();
+            }
+            Strategy::BandDoubling => {
+                cc = exponential_search(
+                    // TODO: Take a max with h(0,0) here.
+                    self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)),
+                    2.,
+                    |s| nw.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x)),
+                )
+                .1;
+            }
+            Strategy::None => {
+                assert!(matches!(self.domain, Domain::Full));
+                cc = nw.align_for_bounded_dist(None).unwrap();
+            }
         };
         nw.v.last_frame::<NoCostI>(Some(&cc.1), None, None);
         cc

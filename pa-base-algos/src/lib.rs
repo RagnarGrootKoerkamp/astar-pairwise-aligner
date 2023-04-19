@@ -28,3 +28,73 @@ fn exponential_search<T>(
         s = max((factor * s as f32).ceil() as Cost, 1);
     }
 }
+
+use pa_heuristic::{GapCost, NoCost};
+
+/// Enum for the various computational domain types.
+/// See Ukkonen, Scrooge, O(NP), Papamichail, A*PA
+///
+/// Distance from start can be none, gap, or g*
+/// Distance to end can be none, gap, h
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Domain<H> {
+    /// Compute the entire rectangle
+    Full,
+    /// States with gap(s, u) <= f
+    GapStart,
+    /// States with gap(s, u) + gap(u, t) <= f
+    GapGap,
+    /// States with g(u) + h(u) <= f, for some arbitrary h.
+    /// For Dijkstra, use H=NoCost.
+    /// For GapCost to end, use H=GapCost.
+    Astar(H),
+}
+
+use Domain::*;
+
+impl Domain<NoCost> {
+    pub fn full() -> Self {
+        Full
+    }
+    pub fn gap_start() -> Self {
+        GapStart
+    }
+    pub fn gap_gap() -> Self {
+        Full
+    }
+    pub fn dijkstra() -> Self {
+        Astar(NoCost)
+    }
+}
+
+impl Domain<GapCost> {
+    pub fn dist_gap() -> Self {
+        Astar(GapCost)
+    }
+}
+
+impl<H> Domain<H> {
+    pub fn astar(h: H) -> Self {
+        Astar(h)
+    }
+
+    pub fn h(&self) -> Option<&H> {
+        match self {
+            Astar(h) => Some(&h),
+            _ => None,
+        }
+    }
+    pub fn h_mut(&mut self) -> Option<&mut H> {
+        match self {
+            Astar(h) => Some(h),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub enum Strategy {
+    None,
+    BandDoubling,
+    LocalDoubling,
+}
