@@ -36,54 +36,45 @@ fn test(f: fn(Seq, Seq) -> i64) -> f32 {
 fn main() {
     let args = Cli::parse();
     if let Some(id) = args.id {
-        let f = [nw_1, nw_2, nw_3, nw_4, nw_5, nw_6, nw_7][id - 1];
-        test(f);
+        let f = [
+            nw_edlib,
+            nw_better,
+            nw_bool,
+            nw_edlib_h,
+            nw_better_h,
+            nw_bool_h,
+        ][id - 1];
+        eprintln!("t: {:.2}", test(f));
     } else {
         if args.lanes.is_none() && args.n.is_none() {
             eprintln!("      \tcopies");
             eprintln!("      \t1\t2\t3\t4");
             eprint!("scalar\t");
-            eprint!("{:.2}\t", test(nw_scalar_copies::<1>));
-            eprint!("{:.2}\t", test(nw_scalar_copies::<2>));
-            eprint!("{:.2}\t", test(nw_scalar_copies::<3>));
-            eprint!("{:.2}", test(nw_scalar_copies::<4>));
-            eprintln!();
-            eprint!("simd 1\t");
-            eprint!("{:.2}\t", test(nw_simd_copies::<1, 1>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<1, 2>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<1, 3>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<1, 4>));
-            eprintln!();
-            eprint!("simd 2\t");
-            eprint!("{:.2}\t", test(nw_simd_copies::<2, 1>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<2, 2>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<2, 3>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<2, 4>));
+            eprint!("{:.2}\t", test(nw_scalar::<1>));
+            eprint!("{:.2}\t", test(nw_scalar::<2>));
+            eprint!("{:.2}\t", test(nw_scalar::<3>));
+            eprint!("{:.2}", test(nw_scalar::<4>));
             eprintln!();
             eprint!("simd 4\t");
-            eprint!("{:.2}\t", test(nw_simd_copies::<4, 1>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<4, 2>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<4, 3>));
-            eprint!("{:.2}\t", test(nw_simd_copies::<4, 4>));
+            eprint!("{:.2}\t", test(nw_simd::<4, 1>));
+            eprint!("{:.2}\t", test(nw_simd::<4, 2>));
+            eprint!("{:.2}\t", test(nw_simd::<4, 3>));
+            eprint!("{:.2}\t", test(nw_simd::<4, 4>));
             eprintln!();
         } else {
             let f = match (args.lanes, args.n) {
-                (None, Some(1)) => nw_scalar_copies::<1>,
-                (None, Some(2)) => nw_scalar_copies::<2>,
-                (None, Some(3)) => nw_scalar_copies::<3>,
-                (None, Some(4)) => nw_scalar_copies::<4>,
-                (Some(1), Some(1)) => nw_simd_copies::<1, 1>,
-                (Some(1), Some(2)) => nw_simd_copies::<1, 2>,
-                (Some(1), Some(3)) => nw_simd_copies::<1, 3>,
-                (Some(1), Some(4)) => nw_simd_copies::<1, 4>,
-                (Some(2), Some(1)) => nw_simd_copies::<2, 1>,
-                (Some(2), Some(2)) => nw_simd_copies::<2, 2>,
-                (Some(2), Some(3)) => nw_simd_copies::<2, 3>,
-                (Some(2), Some(4)) => nw_simd_copies::<2, 4>,
-                (Some(4), Some(1)) => nw_simd_copies::<4, 1>,
-                (Some(4), Some(2)) => nw_simd_copies::<4, 2>,
-                (Some(4), Some(3)) => nw_simd_copies::<4, 3>,
-                (Some(4), Some(4)) => nw_simd_copies::<4, 4>,
+                (None, Some(1)) => nw_scalar::<1>,
+                (None, Some(2)) => nw_scalar::<2>,
+                (None, Some(3)) => nw_scalar::<3>,
+                (None, Some(4)) => nw_scalar::<4>,
+                (Some(1), Some(1)) => nw_simd::<1, 1>,
+                (Some(1), Some(2)) => nw_simd::<1, 2>,
+                (Some(1), Some(3)) => nw_simd::<1, 3>,
+                (Some(1), Some(4)) => nw_simd::<1, 4>,
+                (Some(4), Some(1)) => nw_simd::<4, 1>,
+                (Some(4), Some(2)) => nw_simd::<4, 2>,
+                (Some(4), Some(3)) => nw_simd::<4, 3>,
+                (Some(4), Some(4)) => nw_simd::<4, 4>,
                 _ => unimplemented!(),
             };
             eprintln!("t: {:.2}", test(f));

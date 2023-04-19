@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![feature(
     let_chains,
     int_roundings,
@@ -78,7 +79,7 @@ pub fn padded_profile(seq: Seq, padding: usize) -> Vec<[B; 4]> {
 ///
 /// 24 operations.
 #[inline(always)]
-pub fn compute_block(pv: B, mv: B, h0: D, eq: B) -> (B, B, D) {
+pub fn compute_block_edlib(pv: B, mv: B, h0: D, eq: B) -> (B, B, D) {
     // Indicator for h==-1:
     // 00..01 if h==-1, 00..00 otherwise.
     let mh0 = (h0 as B >> 1) & 1;
@@ -118,7 +119,7 @@ pub fn compute_block(pv: B, mv: B, h0: D, eq: B) -> (B, B, D) {
 ///
 /// 20 operations.
 #[inline(always)]
-pub fn compute_block_pmh(pv: B, mv: B, ph0: B, mh0: B, eq: B) -> (B, B, B, B) {
+pub fn compute_block(pv: B, mv: B, ph0: B, mh0: B, eq: B) -> (B, B, B, B) {
     let xv = eq | mv;
     let eq = eq | mh0;
     // The add here contains the 'folding' magic that makes this algorithm
@@ -137,6 +138,28 @@ pub fn compute_block_pmh(pv: B, mv: B, ph0: B, mh0: B, eq: B) -> (B, B, B, B) {
     let pv_out = mh | !(xv | ph);
     let mv_out = ph & xv;
     (pv_out, mv_out, phw, mhw)
+}
+
+#[inline(always)]
+pub fn compute_block_bool(pv: B, mv: B, ph0: bool, mh0: bool, eq: B) -> (B, B, bool, bool) {
+    let xv = eq | mv;
+    let eq = eq | mh0 as B;
+    // The add here contains the 'folding' magic that makes this algorithm
+    // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
+    let xh = (((eq & pv).wrapping_add(pv)) ^ pv) | eq;
+    let ph = mv | !(xh | pv);
+    let mh = pv & xh;
+    // Extract `hw` from `ph` and `mh`.
+    let phw = ph >> (W - 1);
+    let mhw = mh >> (W - 1);
+
+    // Push `hw` out of `ph` and `mh` and shift in `h0`.
+    let ph = (ph << 1) | ph0 as B;
+    let mh = (mh << 1) | mh0 as B;
+
+    let pv_out = mh | !(xv | ph);
+    let mv_out = ph & xv;
+    (pv_out, mv_out, phw != 0, mhw != 0)
 }
 
 #[inline(always)]
@@ -173,7 +196,7 @@ where
 }
 
 /// NOTE: This assumes an alphabet of {0,1,2,3} encoded as `u8`.
-pub fn nw_1(a: Seq, b: Seq) -> i64 {
+pub fn nw_edlib(a: Seq, b: Seq) -> i64 {
     // For simplicity.
     assert!(b.len() % W == 0);
 
@@ -182,22 +205,40 @@ pub fn nw_1(a: Seq, b: Seq) -> i64 {
     // (pv, mv) for each block.
     // In the first column, vertical deltas are all +1.
     let mut col = vec![(B::MAX, 0); words];
-    let mut bottom_row_score = b.len() as _;
+    let mut bottom_row_score = b.len() as D;
 
     for c in a {
         // In the first row, horizontal deltas are all +1.
         let mut h = 1;
         for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, h) = compute_block(*pv, *mv, h, block_profile[*c as usize]);
-            assert!(*pv & *mv == 0);
+            (*pv, *mv, h) = compute_block_edlib(*pv, *mv, h, block_profile[*c as usize]);
         }
         bottom_row_score += h;
     }
     bottom_row_score
 }
 
+pub fn nw_edlib_h(a: Seq, b: Seq) -> i64 {
+    // For simplicity.
+    assert!(b.len() % W == 0);
+
+    let profile = profile(b);
+    let mut h = vec![1; a.len()];
+    let mut bottom_row_score = b.len() as D;
+
+    for block_profile in profile {
+        let mut pv = B::MAX;
+        let mut mv = 0;
+        for (&c, h) in izip!(a, h.iter_mut()) {
+            (pv, mv, *h) = compute_block_edlib(pv, mv, *h, block_profile[c as usize]);
+        }
+    }
+    bottom_row_score += h.iter().sum::<D>();
+    bottom_row_score
+}
+
 /// Same as `nw_1`, but stores horizontal deltas bitencoded as `ph` and `mh`.
-pub fn nw_2(a: Seq, b: Seq) -> i64 {
+pub fn nw_better(a: Seq, b: Seq) -> i64 {
     // For simplicity.
     assert!(b.len() % W == 0);
 
@@ -206,41 +247,42 @@ pub fn nw_2(a: Seq, b: Seq) -> i64 {
     // (pv, mv) for each block.
     // In the first column, vertical deltas are all +1.
     let mut col = vec![(B::MAX, 0); words];
-    let mut bottom_row_score = b.len() as _;
+    let mut bottom_row_score = b.len() as D;
 
     for c in a {
         // In the first row, horizontal deltas are all +1.
         let mut ph = 1;
         let mut mh = 0;
         for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
-            assert!(*pv & *mv == 0);
+            (*pv, *mv, ph, mh) = compute_block(*pv, *mv, ph, mh, block_profile[*c as usize]);
         }
         bottom_row_score += ph as i64 - mh as i64;
     }
     bottom_row_score
 }
 
-/// Same as `nw_2`, but strides across four columns at a time.
-///
-/// Each | is one block/word.
-/// ||||
-/// ||||
-/// ||||
-/// ||||
-///
-/// They are computed in order:
-///
-///  col
-///  v
-/// 0123
-/// 1234 <- row
-/// 2345 <- base_row
-/// 3456
-///
-/// when base_row == 2 and col == 1, then row == 1.
-/// Within one diagonal stripe, computation is from bot-left to top-right.
-pub fn nw_3(a: Seq, b: Seq) -> i64 {
+/// Same as `nw_1`, but stores horizontal deltas bitencoded as `ph` and `mh`.
+pub fn nw_better_h(a: Seq, b: Seq) -> i64 {
+    // For simplicity.
+    assert!(b.len() % W == 0);
+
+    let profile = profile(b);
+    let mut h = vec![(1, 0); a.len()];
+    let mut bottom_row_score = b.len() as D;
+
+    for block_profile in profile {
+        let mut pv = B::MAX;
+        let mut mv = 0;
+        for (&c, (ph, mh)) in izip!(a, h.iter_mut()) {
+            (pv, mv, *ph, *mh) = compute_block(pv, mv, *ph, *mh, block_profile[c as usize]);
+        }
+    }
+    bottom_row_score += h.iter().map(|(ph, mh)| *ph as D - *mh as D).sum::<D>();
+    bottom_row_score
+}
+
+/// Same as `nw_1`, but stores horizontal deltas bitencoded as `ph` and `mh`.
+pub fn nw_bool(a: Seq, b: Seq) -> i64 {
     // For simplicity.
     assert!(b.len() % W == 0);
 
@@ -249,295 +291,57 @@ pub fn nw_3(a: Seq, b: Seq) -> i64 {
     // (pv, mv) for each block.
     // In the first column, vertical deltas are all +1.
     let mut col = vec![(B::MAX, 0); words];
-    let mut bottom_row_score = b.len() as i64;
+    let mut bottom_row_score = b.len() as D;
 
-    let chunks = a.array_chunks::<4>();
-    for chars in chunks.clone() {
-        let mut ph = [1, 1, 1, 1];
-        let mut mh = [0, 0, 0, 0];
-
-        // TODO: Extract first and last 3 iterations that are special.
-        for base_row in 0..words + 3 {
-            for c in 0..4 {
-                let r = base_row.wrapping_sub(c);
-                // r < 0 is captured by wrapping.
-                if r >= words {
-                    continue;
-                }
-                (col[r].0, col[r].1, ph[c], mh[c]) = compute_block_pmh(
-                    col[r].0,
-                    col[r].1,
-                    ph[c],
-                    mh[c],
-                    profile[r][chars[c] as usize],
-                );
-            }
-        }
-
-        bottom_row_score += ph.into_iter().sum::<u64>() as i64 - mh.into_iter().sum::<u64>() as i64;
-    }
-
-    // Do simple per-column scan for the remaining cols.
-    for c in chunks.remainder() {
-        let mut ph = 1;
-        let mut mh = 0;
+    for c in a {
+        // In the first row, horizontal deltas are all +1.
+        let mut ph = true;
+        let mut mh = false;
         for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
+            (*pv, *mv, ph, mh) = compute_block_bool(*pv, *mv, ph, mh, block_profile[*c as usize]);
             assert!(*pv & *mv == 0);
         }
-        bottom_row_score += ph as i64 - mh as i64;
+        bottom_row_score += ph as D - mh as D;
     }
-
     bottom_row_score
 }
 
-/// Same as `nw_3`, but the first and last 3 base_rows are done separately.
-pub fn nw_4(a: Seq, b: Seq) -> i64 {
+pub fn nw_bool_h(a: Seq, b: Seq) -> i64 {
     // For simplicity.
     assert!(b.len() % W == 0);
 
     let profile = profile(b);
-    let words = num_words(b);
-    // (pv, mv) for each block.
-    // In the first column, vertical deltas are all +1.
-    let mut col = vec![(B::MAX, 0); words];
-    let mut bottom_row_score = b.len() as i64;
+    let mut h = vec![(true, false); a.len()];
+    let mut bottom_row_score = b.len() as D;
 
-    let chunks = a.array_chunks::<4>();
-    for chars in chunks.clone() {
-        let mut ph = [1, 1, 1, 1];
-        let mut mh = [0, 0, 0, 0];
-
-        // TODO: Extract first and last 3 iterations that are special.
-        for base_row in 0..3usize {
-            for c in 0..4 {
-                let r = base_row.wrapping_sub(c);
-                // r < 0 is captured by wrapping.
-                if r >= words {
-                    continue;
-                }
-                (col[r].0, col[r].1, ph[c], mh[c]) = compute_block_pmh(
-                    col[r].0,
-                    col[r].1,
-                    ph[c],
-                    mh[c],
-                    profile[r][chars[c] as usize],
-                );
-            }
+    for block_profile in profile {
+        let mut pv = B::MAX;
+        let mut mv = 0;
+        for (&c, (ph, mh)) in izip!(a, h.iter_mut()) {
+            (pv, mv, *ph, *mh) = compute_block_bool(pv, mv, *ph, *mh, block_profile[c as usize]);
         }
-
-        // TODO: Extract first and last 3 iterations that are special.
-        for base_row in 3..words {
-            for c in 0..4 {
-                let r = base_row.wrapping_sub(c);
-                // r is always in range here.
-                (col[r].0, col[r].1, ph[c], mh[c]) = compute_block_pmh(
-                    col[r].0,
-                    col[r].1,
-                    ph[c],
-                    mh[c],
-                    profile[r][chars[c] as usize],
-                );
-            }
-        }
-
-        // TODO: Extract first and last 3 iterations that are special.
-        for base_row in words..words + 3 {
-            for c in 0..4 {
-                let r = base_row.wrapping_sub(c);
-                // r < 0 is captured by wrapping.
-                if r >= words {
-                    continue;
-                }
-                (col[r].0, col[r].1, ph[c], mh[c]) = compute_block_pmh(
-                    col[r].0,
-                    col[r].1,
-                    ph[c],
-                    mh[c],
-                    profile[r][chars[c] as usize],
-                );
-            }
-        }
-
-        bottom_row_score += ph.into_iter().sum::<u64>() as i64 - mh.into_iter().sum::<u64>() as i64;
     }
-
-    // Do simple per-column scan for the remaining cols.
-    for c in chunks.remainder() {
-        let mut ph = 1;
-        let mut mh = 0;
-        for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
-            assert!(*pv & *mv == 0);
-        }
-        bottom_row_score += ph as i64 - mh as i64;
-    }
-
-    bottom_row_score
-}
-
-/// nw_3, but with padding and zipping and iterators
-pub fn nw_5(a: Seq, b: Seq) -> i64 {
-    // For simplicity.
-    assert!(b.len() % W == 0);
-
-    let profile = padded_profile(b, 3);
-
-    let words = num_words(b);
-    // (pv, mv) for each block.
-    // In the first column, vertical deltas are all +1.
-    let mut col = vec![(B::MAX, 0); words + 6];
-    assert!(profile.len() == col.len());
-    let mut bottom_row_score = b.len() as i64;
-
-    let chunks = a.array_chunks::<4>();
-    for chars in chunks.clone() {
-        let mut ph = [1, 1, 1, 1];
-        let mut mh = [0, 0, 0, 0];
-
-        // TODO: Extract first and last 3 iterations that are special.
-        for base_row in 3..words + 6 {
-            for (ch, ph, mh, col, profile) in izip!(
-                chars,
-                ph.iter_mut(),
-                mh.iter_mut(),
-                col[base_row - 3..=base_row].iter_mut().rev(),
-                profile[base_row - 3..=base_row].iter().rev(),
-            ) {
-                //let r = base_row - c;
-                (col.0, col.1, *ph, *mh) =
-                    compute_block_pmh(col.0, col.1, *ph, *mh, profile[*ch as usize]);
-            }
-        }
-
-        bottom_row_score += ph.into_iter().sum::<u64>() as i64 - mh.into_iter().sum::<u64>() as i64;
-    }
-
-    // Do simple per-column scan for the remaining cols.
-    for c in chunks.remainder() {
-        let mut ph = 1;
-        let mut mh = 0;
-        for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
-            assert!(*pv & *mv == 0);
-        }
-        bottom_row_score += ph as i64 - mh as i64;
-    }
-
-    bottom_row_score
-}
-
-/// nw_5, with even more iterators
-pub fn nw_6(a: Seq, b: Seq) -> i64 {
-    // For simplicity.
-    assert!(b.len() % W == 0);
-
-    let profile = padded_profile(b, 3);
-
-    let words = num_words(b);
-    // (pv, mv) for each block.
-    // In the first column, vertical deltas are all +1.
-    let mut col = vec![(B::MAX, 0); words + 6];
-    assert!(profile.len() == col.len());
-    let mut bottom_row_score = b.len() as i64;
-
-    let chunks = a.array_chunks::<4>();
-    for chars in chunks.clone() {
-        let mut ph = [1, 1, 1, 1];
-        let mut mh = [0, 0, 0, 0];
-
-        // NOTE: `array_windows_mut` would be cool here but sadly doesn't exist.
-        for (i, profiles) in profile.array_windows::<4>().enumerate() {
-            let cols = col[i..i + 4].split_array_mut::<4>().0;
-            for (ch, ph, mh, col, profile) in izip!(
-                chars,
-                ph.iter_mut(),
-                mh.iter_mut(),
-                cols.iter_mut().rev(),
-                profiles.iter().rev(),
-            ) {
-                (col.0, col.1, *ph, *mh) =
-                    compute_block_pmh(col.0, col.1, *ph, *mh, profile[*ch as usize]);
-            }
-        }
-
-        bottom_row_score += ph.into_iter().sum::<u64>() as i64 - mh.into_iter().sum::<u64>() as i64;
-    }
-
-    // Do simple per-column scan for the remaining cols.
-    for c in chunks.remainder() {
-        let mut ph = 1;
-        let mut mh = 0;
-        for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
-            assert!(*pv & *mv == 0);
-        }
-        bottom_row_score += ph as i64 - mh as i64;
-    }
-
-    bottom_row_score
-}
-
-/// nw_6, with unrolled inner loop
-pub fn nw_7(a: Seq, b: Seq) -> i64 {
-    // For simplicity.
-    assert!(b.len() % W == 0);
-
-    let profile = padded_profile(b, 3);
-
-    let words = num_words(b);
-    // (pv, mv) for each block.
-    // In the first column, vertical deltas are all +1.
-    let mut col = vec![(B::MAX, 0); words + 6];
-    assert!(profile.len() == col.len());
-    let mut bottom_row_score = b.len() as i64;
-
-    let chunks = a.array_chunks::<4>();
-    for chars in chunks.clone() {
-        let mut ph = [1, 1, 1, 1];
-        let mut mh = [0, 0, 0, 0];
-
-        // NOTE: `array_windows_mut` would be cool here but sadly doesn't exist.
-        for (i, profiles) in profile.array_windows::<4>().enumerate() {
-            let cols = col[i..i + 4].split_array_mut::<4>().0;
-            let eqs = [
-                profiles[0][chars[3] as usize],
-                profiles[1][chars[2] as usize],
-                profiles[2][chars[1] as usize],
-                profiles[3][chars[0] as usize],
-            ];
-            #[rustfmt::skip]
-            {
-            // (cols[3].0, cols[3].1, ph[0], mh[0]) = compute_block_pmh(cols[3].0, cols[3].1, ph[0], mh[0], profiles[3][chars[0] as usize],);
-            // (cols[2].0, cols[2].1, ph[1], mh[1]) = compute_block_pmh(cols[2].0, cols[2].1, ph[1], mh[1], profiles[2][chars[1] as usize],);
-            // (cols[1].0, cols[1].1, ph[2], mh[2]) = compute_block_pmh(cols[1].0, cols[1].1, ph[2], mh[2], profiles[1][chars[2] as usize],);
-            // (cols[0].0, cols[0].1, ph[3], mh[3]) = compute_block_pmh(cols[0].0, cols[0].1, ph[3], mh[3], profiles[0][chars[3] as usize],);
-            (cols[0].0, cols[0].1, ph[0], mh[0]) = compute_block_pmh(cols[0].0, cols[0].1, ph[0], mh[0], eqs[0]);
-            (cols[1].0, cols[1].1, ph[1], mh[1]) = compute_block_pmh(cols[1].0, cols[1].1, ph[1], mh[1], eqs[1]);
-            (cols[2].0, cols[2].1, ph[2], mh[2]) = compute_block_pmh(cols[2].0, cols[2].1, ph[2], mh[2], eqs[2]);
-            (cols[3].0, cols[3].1, ph[3], mh[3]) = compute_block_pmh(cols[3].0, cols[3].1, ph[3], mh[3], eqs[3]);
-            };
-        }
-
-        bottom_row_score += ph.into_iter().sum::<u64>() as i64 - mh.into_iter().sum::<u64>() as i64;
-    }
-
-    // Do simple per-column scan for the remaining cols.
-    for c in chunks.remainder() {
-        let mut ph = 1;
-        let mut mh = 0;
-        for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
-            assert!(*pv & *mv == 0);
-        }
-        bottom_row_score += ph as i64 - mh as i64;
-    }
-
+    bottom_row_score += h.iter().map(|(ph, mh)| *ph as D - *mh as D).sum::<D>();
     bottom_row_score
 }
 
 /// N: Number of parallel columns
-pub fn nw_scalar_copies<const N: usize>(a: Seq, b: Seq) -> i64
+///
+/// For N=3: Each | is one block/word.
+/// |||
+/// |||
+/// |||
+/// |||
+///
+/// They are computed in order:
+///
+/// 012
+/// 123
+/// 234
+/// 345
+///
+/// Within one diagonal stripe, computation is from bot-left to top-right.
+pub fn nw_scalar<const N: usize>(a: Seq, b: Seq) -> i64
 where
     [(); 1 * N]: Sized,
 {
@@ -567,8 +371,7 @@ where
                 let offset = j * L;
                 let (pcols, mcols) = &mut col[i + offset];
                 let eqs: B = profiles[offset][chars[L * N - 1 - offset] as usize];
-                (*pcols, *mcols, ph[j], mh[j]) =
-                    compute_block_pmh(*pcols, *mcols, ph[j], mh[j], eqs);
+                (*pcols, *mcols, ph[j], mh[j]) = compute_block(*pcols, *mcols, ph[j], mh[j], eqs);
             }
         }
 
@@ -580,7 +383,7 @@ where
         let mut ph = 1;
         let mut mh = 0;
         for ((pv, mv), block_profile) in izip!(col.iter_mut(), &profile) {
-            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
+            (*pv, *mv, ph, mh) = compute_block(*pv, *mv, ph, mh, block_profile[*c as usize]);
             assert!(*pv & *mv == 0);
         }
         bottom_row_score += ph as i64 - mh as i64;
@@ -589,10 +392,51 @@ where
     bottom_row_score
 }
 
+/// This version goes row by row instead of col by col.
+pub fn nw_scalar_h<const N: usize>(a: Seq, b: Seq) -> i64
+where
+    [(); 1 * N]: Sized,
+{
+    const L: usize = 1;
+    // For simplicity.
+    assert!(b.len() % W == 0);
+
+    let padding = L * N - 1;
+    let profile = padded_profile(b, padding);
+
+    let words = num_words(b);
+    // (pv, mv) for each block.
+    // In the first column, vertical deltas are all +1.
+    let mut col = vec![(B::MAX, 0); words + 2 * padding];
+    assert!(profile.len() == col.len());
+    let mut bottom_row_score = b.len() as i64;
+
+    let chunks = a.array_chunks::<{ L * N }>();
+    for chars in chunks.clone() {
+        let mut ph = [1; N];
+        let mut mh = [0; N];
+
+        // NOTE: `array_windows_mut` would be cool here but sadly doesn't exist.
+        for (i, profiles) in profile.array_windows::<{ L * N }>().enumerate() {
+            // NOTE: The rev is important for higher instructions/cycle.
+            for j in (0..N).rev() {
+                let offset = j * L;
+                let (pcols, mcols) = &mut col[i + offset];
+                let eqs: B = profiles[offset][chars[L * N - 1 - offset] as usize];
+                (*pcols, *mcols, ph[j], mh[j]) = compute_block(*pcols, *mcols, ph[j], mh[j], eqs);
+            }
+        }
+
+        bottom_row_score += ph.into_iter().sum::<u64>() as i64 - mh.into_iter().sum::<u64>() as i64;
+    }
+
+    bottom_row_score
+}
+
 /// nw_9, but inner loop is a for-loop instead of manually unrolled.
 /// L: Number of simd lanes to use
 /// N: Number of parallel simd units to use
-pub fn nw_simd_copies<const L: usize, const N: usize>(a: Seq, b: Seq) -> i64
+pub fn nw_simd<const L: usize, const N: usize>(a: Seq, b: Seq) -> i64
 where
     LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
@@ -657,8 +501,7 @@ where
         let mut ph = 1;
         let mut mh = 0;
         for (pv, mv, block_profile) in izip!(pcol.iter_mut(), mcol.iter_mut(), &profile) {
-            (*pv, *mv, ph, mh) = compute_block_pmh(*pv, *mv, ph, mh, block_profile[*c as usize]);
-            assert!(*pv & *mv == 0);
+            (*pv, *mv, ph, mh) = compute_block(*pv, *mv, ph, mh, block_profile[*c as usize]);
         }
         bottom_row_score += ph as i64 - mh as i64;
     }
@@ -695,39 +538,35 @@ mod bench {
     }
 
     #[bench]
-    fn nw_1(bench: &mut Bencher) {
-        bench_aligner(super::nw_1, bench);
+    fn nw_edlib(bench: &mut Bencher) {
+        bench_aligner(super::nw_edlib, bench);
     }
     #[bench]
-    fn nw_2(bench: &mut Bencher) {
-        bench_aligner(super::nw_2, bench);
+    fn nw_better(bench: &mut Bencher) {
+        bench_aligner(super::nw_better, bench);
     }
     #[bench]
-    fn nw_3(bench: &mut Bencher) {
-        bench_aligner(super::nw_3, bench);
+    fn nw_bool(bench: &mut Bencher) {
+        bench_aligner(super::nw_bool, bench);
     }
     #[bench]
-    fn nw_4(bench: &mut Bencher) {
-        bench_aligner(super::nw_4, bench);
+    fn nw_edlib_h(bench: &mut Bencher) {
+        bench_aligner(super::nw_edlib_h, bench);
     }
     #[bench]
-    fn nw_5(bench: &mut Bencher) {
-        bench_aligner(super::nw_5, bench);
+    fn nw_better_h(bench: &mut Bencher) {
+        bench_aligner(super::nw_better_h, bench);
     }
     #[bench]
-    fn nw_6(bench: &mut Bencher) {
-        bench_aligner(super::nw_6, bench);
-    }
-    #[bench]
-    fn nw_7(bench: &mut Bencher) {
-        bench_aligner(super::nw_7, bench);
+    fn nw_bool_h(bench: &mut Bencher) {
+        bench_aligner(super::nw_bool_h, bench);
     }
     macro_rules! scalar_test {
         // h is a function (exact: bool, pruning: bool) -> Heuristic.
         ($name:ident, $N:expr) => {
             #[bench]
             fn $name(bench: &mut Bencher) {
-                bench_aligner(super::nw_scalar_copies::<$N>, bench);
+                bench_aligner(super::nw_scalar::<$N>, bench);
             }
         };
     }
@@ -741,7 +580,7 @@ mod bench {
         ($name:ident, $L:expr, $N:expr) => {
             #[bench]
             fn $name(bench: &mut Bencher) {
-                bench_aligner(super::nw_simd_copies::<$L, $N>, bench);
+                bench_aligner(super::nw_simd::<$L, $N>, bench);
             }
         };
     }
@@ -749,10 +588,6 @@ mod bench {
     simd_test!(simd_1_2, 1, 2);
     simd_test!(simd_1_3, 1, 3);
     simd_test!(simd_1_4, 1, 4);
-    simd_test!(simd_2_1, 2, 1);
-    simd_test!(simd_2_2, 2, 2);
-    simd_test!(simd_2_3, 2, 3);
-    simd_test!(simd_2_4, 2, 4);
     simd_test!(simd_4_1, 4, 1);
     simd_test!(simd_4_2, 4, 2);
     simd_test!(simd_4_3, 4, 3);
