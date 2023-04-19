@@ -298,13 +298,11 @@ mod nw_sh {
             cm.clone(),
             NW {
                 cm,
-                use_gap_cost_heuristic: false,
-                exponential_search: true,
-                local_doubling: false,
-                h: SH {
+                strategy: crate::Strategy::BandDoubling,
+                domain: crate::Domain::Astar(SH {
                     match_config: MatchConfig::exact(5),
                     pruning: Pruning::disabled(),
-                },
+                }),
                 v: NoVis,
             },
             // test `align` as well?

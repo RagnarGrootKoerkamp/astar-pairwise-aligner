@@ -30,20 +30,16 @@ fn main() {
 
     let mut aligner = NW {
         cm,
-        use_gap_cost_heuristic: false,
-        exponential_search: false,
-        local_doubling: true,
-        h: GCSH::new(MatchConfig::exact(5), Pruning::disabled()),
+        strategy: Strategy::LocalDoubling,
+        domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::disabled())),
         v: config.with_filename("local-doubling-noprune"),
     };
     aligner.align(a, b);
 
     let mut aligner = NW {
         cm,
-        use_gap_cost_heuristic: false,
-        exponential_search: false,
-        local_doubling: true,
-        h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
+        strategy: Strategy::LocalDoubling,
+        domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::both())),
         v: config.with_filename("local-doubling"),
     };
     aligner.align(a, b);

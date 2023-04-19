@@ -5,6 +5,7 @@ use pa_affine_types::{AffineAligner, AffineCost};
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
     nw::NW,
+    Domain,
 };
 use pa_generate::uniform_fixed;
 use pa_heuristic::{MatchConfig, NoCost, Pruning, GCSH};
@@ -44,10 +45,8 @@ fn main() {
     let aligners: &mut [Box<dyn AffineAligner>] = &mut [
         Box::new(NW {
             cm,
-            use_gap_cost_heuristic: true,
-            exponential_search: true,
-            local_doubling: false,
-            h: NoCost,
+            strategy: pa_base_algos::Strategy::BandDoubling,
+            domain: Domain::gap_gap(),
             v: config.with_filename("1_ukkonen"),
         }),
         Box::new(AstarPa {

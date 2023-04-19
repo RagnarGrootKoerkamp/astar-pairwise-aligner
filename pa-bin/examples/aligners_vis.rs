@@ -2,6 +2,7 @@ use pa_affine_types::AffineCost;
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
     nw::NW,
+    Domain,
 };
 use pa_generate::uniform_fixed;
 use pa_heuristic::{GapCost, MatchConfig, NoCost, Pruning, CSH, SH};
@@ -38,10 +39,8 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            use_gap_cost_heuristic: false,
-            exponential_search: false,
-            local_doubling: false,
-            h: NoCost,
+            strategy: pa_base_algos::Strategy::None,
+            domain: Domain::full(),
             v: vis("nw"),
         };
         nw.align(a, b);
@@ -50,10 +49,8 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            use_gap_cost_heuristic: true,
-            exponential_search: true,
-            local_doubling: false,
-            h: NoCost,
+            strategy: pa_base_algos::Strategy::BandDoubling,
+            domain: Domain::gap_gap(),
             v: vis("nw_gapcost"),
         };
         nw.align(a, b);
@@ -62,10 +59,8 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            use_gap_cost_heuristic: false,
-            exponential_search: true,
-            local_doubling: false,
-            h: GapCost,
+            strategy: pa_base_algos::Strategy::BandDoubling,
+            domain: Domain::dist_gap(),
             v: vis("nw_gapcost_h"),
         };
 
@@ -75,10 +70,8 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            use_gap_cost_heuristic: false,
-            exponential_search: true,
-            local_doubling: false,
-            h: sh,
+            strategy: pa_base_algos::Strategy::BandDoubling,
+            domain: Domain::astar(sh),
             v: vis("nw_sh"),
         };
 
@@ -88,10 +81,8 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            use_gap_cost_heuristic: false,
-            exponential_search: true,
-            local_doubling: false,
-            h: csh,
+            strategy: pa_base_algos::Strategy::BandDoubling,
+            domain: Domain::astar(csh),
             v: vis("nw_csh"),
         };
 

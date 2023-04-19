@@ -1,7 +1,6 @@
 use pa_affine_types::AffineCost;
 use pa_base_algos::nw::NW;
 use pa_generate::{generate_model, ErrorModel};
-use pa_heuristic::NoCost;
 use pa_vis_types::NoVis;
 use rand::{thread_rng, Rng};
 
@@ -33,10 +32,8 @@ fn main() {
                 let (ref a, ref b) = generate_model(n, e, *m, seed);
                 let cost = NW {
                     cm: cm.clone(),
-                    use_gap_cost_heuristic: false,
-                    exponential_search: true,
-                    local_doubling: false,
-                    h: NoCost,
+                    strategy: pa_base_algos::Strategy::BandDoubling,
+                    domain: pa_base_algos::Domain::gap_start(),
                     v: NoVis,
                 }
                 .cost(a, b);

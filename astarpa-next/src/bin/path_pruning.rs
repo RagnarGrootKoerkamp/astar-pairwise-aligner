@@ -5,7 +5,7 @@
 use astarpa_next::path_pruning::PathHeuristic;
 use clap::Parser;
 use pa_affine_types::{AffineAligner, AffineCost};
-use pa_base_algos::nw::NW;
+use pa_base_algos::{nw::NW, Domain};
 use pa_bin::cli::Cli;
 use pa_heuristic::{Heuristic, HeuristicMapper};
 use pa_types::*;
@@ -49,11 +49,9 @@ fn make_path_heuristic_aligner(
         type R = Box<dyn AffineAligner>;
         fn call<H: Heuristic + 'static>(self, h: H) -> Box<dyn AffineAligner> {
             Box::new(NW {
-                use_gap_cost_heuristic: false,
-                exponential_search: false,
-                local_doubling: true,
                 cm: AffineCost::unit(),
-                h: PathHeuristic { h },
+                strategy: pa_base_algos::Strategy::LocalDoubling,
+                domain: Domain::Astar(PathHeuristic { h }),
                 v: self.v,
             })
         }

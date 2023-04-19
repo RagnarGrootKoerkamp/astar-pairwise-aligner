@@ -1,6 +1,6 @@
 use astarpa_next::path_pruning::PathHeuristic;
 use pa_affine_types::AffineCost;
-use pa_base_algos::nw::NW;
+use pa_base_algos::{nw::NW, Domain};
 use pa_generate::uniform_fixed;
 use pa_heuristic::{MatchConfig, Pruning, GCSH};
 use pa_vis::visualizer::{self, Gradient, When};
@@ -31,12 +31,10 @@ fn main() {
 
     let mut aligner = NW {
         cm,
-        use_gap_cost_heuristic: false,
-        exponential_search: false,
-        local_doubling: true,
-        h: PathHeuristic {
+        strategy: pa_base_algos::Strategy::LocalDoubling,
+        domain: Domain::Astar(PathHeuristic {
             h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
-        },
+        }),
         v: config.with_filename("path-pruning"),
     };
     aligner.align(a, b);
