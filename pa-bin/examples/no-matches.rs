@@ -41,14 +41,32 @@ fn main() {
     let n = 50;
     let k = 5;
     let (ref a, _) = uniform_fixed(n, 0.0);
-    let mut b = a.clone();
-    for i in (0..n).step_by(k as _) {
-        b[i] = if a[i] == b'A' { b'C' } else { b'A' }
+    let mut b = vec![];
+    for i in 0..n {
+        if i % k == 0 {
+            match (i / k) % 3 {
+                0 => {
+                    // sub
+                    b.push(if a[i] == b'A' { b'C' } else { b'A' });
+                }
+                1 => {
+                    // del
+                }
+                2 => {
+                    // ins
+                    b.push(a[i]);
+                    b.push(b'T');
+                }
+                _ => unreachable!(),
+            }
+        } else {
+            b.push(a[i]);
+        }
     }
     let b = &b;
 
     {
-        let h = SH::new(MatchConfig::exact(k), Pruning::both());
+        let h = SH::new(MatchConfig::exact(k as _), Pruning::both());
         let a_star = AstarPa {
             dt: false,
             h,

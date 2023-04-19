@@ -2,14 +2,15 @@ all:
 
 # ========== PAPER FIGURES ==========
 #
-paper: fig-intro fig-layers fig-limitations fig-comparison
+paper: fig-intro fig-layers fig-limitations fig-comparison fig-no-matches
 
 paper-export:
-	rm -rf ../astarpa-paper/imgs/{intro/*,layers/*,limitations/*,comparison/*}
+	rm -rf ../astarpa-paper/imgs/{intro/*,layers/*,limitations/*,comparison/*,no-matches.png}
 	rsync -a imgs/paper/intro/*png ../astarpa-paper/imgs/intro/
 	rsync -a imgs/paper/layers/*png ../astarpa-paper/imgs/layers/
 	rsync -a imgs/paper/limitations/*png ../astarpa-paper/imgs/limitations/
 	rsync -a imgs/paper/comparison/*png ../astarpa-paper/imgs/comparison/
+	rsync -a imgs/paper/no-matches.png ../astarpa-paper/imgs/
 
 fig-intro:
 	rm -rf imgs/paper/intro/*
