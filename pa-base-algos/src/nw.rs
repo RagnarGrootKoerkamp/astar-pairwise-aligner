@@ -69,6 +69,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> std::fmt::Debug for NW<N, V, 
     }
 }
 
+const PADDING: Pos = Pos(1, 1);
 pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
     pub a: Sequence,
@@ -131,7 +132,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
     /// The range of rows `j` to consider in column `i`, when the cost is bounded by `f_bound`.
     fn j_range(&self, i: I, f_bound: Option<Cost>, prev: &Front<N>) -> RangeInclusive<I> {
         // Without a bound on the distance, we can notuse any heuristic.
-        let Some(s) = f_bound else {
+        let s = if let Some(s) = f_bound {
+            s
+        } else {
             return 1..=self.b.len() as I;
         };
         match &self.domain {
@@ -161,58 +164,49 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             }
             Domain::Astar(h) => {
                 if i == 0 {
+                    // special case for padding.
                     0..=0
                 } else {
-                    // Start with the range of the previous front.
-                    // Then:
-                    // Keep increasing the start while prev[start]+h() > f_max.
-                    // Keep decreasing the end while prev[end]+h() > f_max.
-                    // Keep increasing the end while prev[prev_end]+extend_cost*(end-prev_end)+h() > f_max.
-                    let mut start = *prev.range().start();
+                    // Instead of computing the start and end exactly, we bound them using the computed values of the previous range.
 
-                    // To fix the padded character, we do max(start, 1) and max(i,1).
-                    // TODO: include the cost needed to transition from column `prev`/`i-1` to the current column.
-                    // h.h has (-1, -1) to offset the padding.
-                    while start < self.b.len() as I
-                    && start <= *prev.range().end() // FIXME: +1
-                    // FIXME: the -1 at the end may not be needed with more precise analysis.
-                    && prev.m()[start] + h.h(Pos::from(max(i, 1) - 1, max(start, 1) - 1))-1 > s
-                    {
-                        start += 1;
+                    let f = |j| prev.m()[j] + h.h(Pos(i - 1, j) - PADDING);
+
+                    // Start: increment the start of the previous range until f<=f_max is satisfied in previous column.
+                    // End: decrement the end of the previous range until f<=f_max is satisfied in previous column.
+                    let mut start = max(*prev.range().start(), 1);
+                    let mut end = *prev.range().end();
+                    if i > 1 {
+                        while start <= end && f(start) > s {
+                            start += 1;
+                        }
+
+                        while end >= start && f(end) > s {
+                            end -= 1;
+                        }
                     }
 
-                    start = max(start, 1);
-                    if start > prev.range().end() + 1 {
+                    // Early return for empty range.
+                    if start > end + 1 {
                         return start..=start - 1;
                     }
-                    let prev_end = *prev.range().end();
+
+                    // values increase on diagonals: g(Pos(i, end+1)) >= g(Pos(i-1, end))
+                    // g(Pos(i, j)) >= g(Pos(i, end+1)) + min(vertical_extend) * (j-(end+1))
+                    //
+                    // Use the cheapest possible way to extend vertically from
+                    // the end of the previous range as a lower bound on g.
+                    let prev_end = end;
                     let prev_end_cost = prev.m()[prev_end];
-                    let mut end = prev_end;
-
-                    // Decrease end as needed.
-                    while end >= start
-                        && min(prev.m()[end], *prev.m().get(end - 1).unwrap_or(&Cost::MAX))
-                            + h.h(Pos::from(max(i, 1) - 1, end - 1))
-                            > s
+                    end += 1;
+                    // Check if end+1 has lower_bound(f) <= s.
+                    // If not, stop here.
+                    while end < self.b.len() as I
+                        && prev_end_cost
+                            + self.params.cm.min_ins_extend * (end + 1 - (prev_end + 1))
+                            + h.h(Pos::from(i, end + 1) - PADDING)
+                            <= s
                     {
-                        end -= 1;
-                    }
-
-                    // Increase end as needed, when not already decreased.
-                    if end == prev_end {
-                        // We use the cheapest possible way to extend vertically.
-                        // h.h has (-1, -1) to offset the padding.
-                        while end < self.b.len() as I
-                            && prev_end_cost
-                                + self
-                                    .params
-                                    .cm
-                                    .extend_cost(Pos::from(i - 1, prev_end), Pos::from(i, end + 1))
-                                + h.h(Pos::from(i - 1, end + 1 - 1))
-                                <= s
-                        {
-                            end += 1;
-                        }
+                        end += 1;
                     }
                     start..=end
                 }
