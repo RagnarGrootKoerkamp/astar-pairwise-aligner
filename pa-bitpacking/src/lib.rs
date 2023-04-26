@@ -10,22 +10,25 @@
     generic_const_exprs
 )]
 
-use std::{
-    array::from_fn,
-    simd::{LaneCount, Simd, SupportedLaneCount},
-};
+use std::{array::from_fn, simd::Simd};
 
 use itertools::izip;
 use pa_types::Seq;
 
+mod compute_block;
+use compute_block::*;
+
 /// The type used for all bitvectors.
-type B = u64;
-/// The type for a Simd vector of `L` lanes of `B`.
-type S<const L: usize> = Simd<B, L>;
+pub type B = u64;
 /// The length of each bitvector.
-const W: usize = B::BITS as usize;
+pub const W: usize = B::BITS as usize;
 /// The type used for differences.
-type D = i64;
+pub type D = i64;
+
+/// The number of lanes in a Simd vector.
+pub const L: usize = 4;
+/// The type for a Simd vector of `L` lanes of `B`.
+pub type S = Simd<B, L>;
 
 fn num_words(seq: Seq) -> usize {
     seq.len().div_ceil(W)
@@ -43,6 +46,7 @@ pub fn profile(seq: Seq) -> Vec<[B; 4]> {
     p
 }
 
+/// Pad the profile with `padding` words on each side.
 #[inline(always)]
 pub fn padded_profile(seq: Seq, padding: usize) -> Vec<[B; 4]> {
     let words = num_words(seq);
@@ -52,147 +56,6 @@ pub fn padded_profile(seq: Seq, padding: usize) -> Vec<[B; 4]> {
         p[i / W + padding][*c as usize] |= 1 << (i % W);
     }
     p
-}
-
-/// Implements Myers '99 bitpacking based algorithm. Terminology is as in the paper.
-/// The code is a direct translation from the implementation in Edlib.
-///
-/// Given the scores below:
-///
-/// A0 - B0
-/// |    |
-/// A1 - B1
-///   ...
-/// AW - BW
-///
-/// h0/hw are the horizontal difference at the top and bottom:
-/// h0 = B0 - A0
-///
-/// pv and mv bit-encode whether *v*ertical differences are *p*lus 1 or *m*inus 1:
-/// pv[i] = [A[i+1] - A[i] ==  1]
-/// mv[i] = [A[i+1] - A[i] == -1]
-///
-/// Returns (pvout, mvout, hw):
-/// pvout[i] = [B[i+1] - B[i] ==  1]
-/// mvout[i] = [B[i+1] - B[i] == -1]
-/// hw = Bw - Aw
-///
-/// 24 operations.
-#[inline(always)]
-pub fn compute_block_edlib(pv: B, mv: B, h0: D, eq: B) -> (B, B, D) {
-    // Indicator for h==-1:
-    // 00..01 if h==-1, 00..00 otherwise.
-    let mh0 = (h0 as B >> 1) & 1;
-    let xv = eq | mv;
-    let eq = eq | mh0;
-    // The add here contains the 'folding' magic that makes this algorithm
-    // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
-    let xh = (((eq & pv).wrapping_add(pv)) ^ pv) | eq;
-    let ph = mv | !(xh | pv);
-    let mh = pv & xh;
-    // Extract `hw` from `ph` and `mh`.
-    let hw = (ph >> (W - 1)) as D - (mh >> (W - 1)) as D;
-
-    // Push `hw` out of `ph` and `mh` and shift in `h0`.
-    // The | is equivalent to `if hin>0 { ph |= 1; }`.
-    let ph = (ph << 1) | ((h0 + 1) >> 1) as B;
-    // The | is equivalent to `if hin<0 { mh |= 1; }`.
-    let mh = (mh << 1) | mh0;
-
-    let pv_out = mh | !(xv | ph);
-    let mv_out = ph & xv;
-    (pv_out, mv_out, hw)
-}
-
-/// Same as above, but h0 and hw are encoded using p and m indicators.
-/// h=-1:
-/// p = 00..00
-/// m = 00..01
-/// h=0:
-/// p = 00..00
-/// m = 00..00
-/// h=1:
-/// p = 00..01
-/// m = 00..00
-///
-/// Returns (pv, mv, phw, mhw).
-///
-/// 20 operations.
-#[inline(always)]
-pub fn compute_block(pv: B, mv: B, ph0: B, mh0: B, eq: B) -> (B, B, B, B) {
-    let xv = eq | mv;
-    let eq = eq | mh0;
-    // The add here contains the 'folding' magic that makes this algorithm
-    // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
-    let xh = (((eq & pv).wrapping_add(pv)) ^ pv) | eq;
-    let ph = mv | !(xh | pv);
-    let mh = pv & xh;
-    // Extract `hw` from `ph` and `mh`.
-    let phw = ph >> (W - 1);
-    let mhw = mh >> (W - 1);
-
-    // Push `hw` out of `ph` and `mh` and shift in `h0`.
-    let ph = (ph << 1) | ph0;
-    let mh = (mh << 1) | mh0;
-
-    let pv_out = mh | !(xv | ph);
-    let mv_out = ph & xv;
-    (pv_out, mv_out, phw, mhw)
-}
-
-#[inline(always)]
-pub fn compute_block_bool(pv: B, mv: B, ph0: bool, mh0: bool, eq: B) -> (B, B, bool, bool) {
-    let xv = eq | mv;
-    let eq = eq | mh0 as B;
-    // The add here contains the 'folding' magic that makes this algorithm
-    // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
-    let xh = (((eq & pv).wrapping_add(pv)) ^ pv) | eq;
-    let ph = mv | !(xh | pv);
-    let mh = pv & xh;
-    // Extract `hw` from `ph` and `mh`.
-    let phw = ph >> (W - 1);
-    let mhw = mh >> (W - 1);
-
-    // Push `hw` out of `ph` and `mh` and shift in `h0`.
-    let ph = (ph << 1) | ph0 as B;
-    let mh = (mh << 1) | mh0 as B;
-
-    let pv_out = mh | !(xv | ph);
-    let mv_out = ph & xv;
-    (pv_out, mv_out, phw != 0, mhw != 0)
-}
-
-#[inline(always)]
-pub fn compute_block_simd<const L: usize>(
-    pv: S<L>,
-    mv: S<L>,
-    ph0: S<L>,
-    mh0: S<L>,
-    eq: S<L>,
-) -> (S<L>, S<L>, S<L>, S<L>)
-where
-    LaneCount<L>: SupportedLaneCount,
-{
-    let xv = eq | mv;
-    let eq = eq | mh0;
-    // The add here contains the 'folding' magic that makes this algorithm
-    // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
-    let xh = (((eq & pv) + pv) ^ pv) | eq;
-    let ph = mv | !(xh | pv);
-    let mh = pv & xh;
-    // Extract `hw` from `ph` and `mh`.
-    let right_shift: S<L> = Simd::<u64, L>::splat(W as u64 - 1);
-    let phw = ph >> right_shift;
-    let mhw = mh >> right_shift;
-
-    // Push `hw` out of `ph` and `mh` and shift in `h0`.
-    let left_shift: S<L> = Simd::<u64, L>::splat(1);
-    let ph = (ph << left_shift) | ph0;
-    let mh = (mh << left_shift) | mh0;
-
-    let pv_out = mh | !(xv | ph);
-    let mv_out = ph & xv;
-    (pv_out, mv_out, phw, mhw)
 }
 
 /// NOTE: This assumes an alphabet of {0,1,2,3} encoded as `u8`.
@@ -254,7 +117,7 @@ pub fn nw_better(a: Seq, b: Seq) -> i64 {
         let mut ph = 1;
         let mut mh = 0;
         for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, ph, mh) = compute_block(*pv, *mv, ph, mh, block_profile[*c as usize]);
+            compute_block(pv, mv, &mut ph, &mut mh, block_profile[*c as usize]);
         }
         bottom_row_score += ph as i64 - mh as i64;
     }
@@ -273,8 +136,8 @@ pub fn nw_better_h(a: Seq, b: Seq) -> i64 {
     for block_profile in profile {
         let mut pv = B::MAX;
         let mut mv = 0;
-        for (&c, (ph, mh)) in izip!(a, h.iter_mut()) {
-            (pv, mv, *ph, *mh) = compute_block(pv, mv, *ph, *mh, block_profile[c as usize]);
+        for (c, (ph, mh)) in izip!(a, h.iter_mut()) {
+            compute_block(&mut pv, &mut mv, ph, mh, block_profile[*c as usize]);
         }
     }
     bottom_row_score += h.iter().map(|(ph, mh)| *ph as D - *mh as D).sum::<D>();
@@ -298,7 +161,7 @@ pub fn nw_bool(a: Seq, b: Seq) -> i64 {
         let mut ph = true;
         let mut mh = false;
         for ((pv, mv), block_profile) in col.iter_mut().zip(&profile) {
-            (*pv, *mv, ph, mh) = compute_block_bool(*pv, *mv, ph, mh, block_profile[*c as usize]);
+            compute_block_bool(pv, mv, &mut ph, &mut mh, block_profile[*c as usize]);
             assert!(*pv & *mv == 0);
         }
         bottom_row_score += ph as D - mh as D;
@@ -318,7 +181,7 @@ pub fn nw_bool_h(a: Seq, b: Seq) -> i64 {
         let mut pv = B::MAX;
         let mut mv = 0;
         for (&c, (ph, mh)) in izip!(a, h.iter_mut()) {
-            (pv, mv, *ph, *mh) = compute_block_bool(pv, mv, *ph, *mh, block_profile[c as usize]);
+            compute_block_bool(&mut pv, &mut mv, ph, mh, block_profile[c as usize]);
         }
     }
     bottom_row_score += h.iter().map(|(ph, mh)| *ph as D - *mh as D).sum::<D>();
@@ -371,7 +234,7 @@ where
                 let offset = j * L;
                 let (pcols, mcols) = &mut col[i + offset];
                 let eqs: B = profiles[offset][chars[L * N - 1 - offset] as usize];
-                (*pcols, *mcols, ph[j], mh[j]) = compute_block(*pcols, *mcols, ph[j], mh[j], eqs);
+                compute_block(pcols, mcols, &mut ph[j], &mut mh[j], eqs);
             }
         }
 
@@ -383,7 +246,7 @@ where
         let mut ph = 1;
         let mut mh = 0;
         for ((pv, mv), block_profile) in izip!(col.iter_mut(), &profile) {
-            (*pv, *mv, ph, mh) = compute_block(*pv, *mv, ph, mh, block_profile[*c as usize]);
+            compute_block(pv, mv, &mut ph, &mut mh, block_profile[*c as usize]);
             assert!(*pv & *mv == 0);
         }
         bottom_row_score += ph as i64 - mh as i64;
@@ -423,7 +286,7 @@ where
                 let offset = j * L;
                 let (pcols, mcols) = &mut col[i + offset];
                 let eqs: B = profiles[offset][chars[L * N - 1 - offset] as usize];
-                (*pcols, *mcols, ph[j], mh[j]) = compute_block(*pcols, *mcols, ph[j], mh[j], eqs);
+                compute_block(pcols, mcols, &mut ph[j], &mut mh[j], eqs);
             }
         }
 
@@ -436,9 +299,8 @@ where
 /// nw_9, but inner loop is a for-loop instead of manually unrolled.
 /// L: Number of simd lanes to use
 /// N: Number of parallel simd units to use
-pub fn nw_simd<const L: usize, const N: usize>(a: Seq, b: Seq) -> i64
+pub fn nw_simd<const N: usize>(a: Seq, b: Seq) -> i64
 where
-    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
 {
     // For simplicity.
@@ -461,8 +323,8 @@ where
         // unsafe {
         //     prefetch_read_data((&chars[0] as *const u8).add(L * N), 3);
         // }
-        let mut ph = [S::<L>::splat(1); N];
-        let mut mh = [S::<L>::splat(0); N];
+        let mut ph = [S::splat(1); N];
+        let mut mh = [S::splat(0); N];
 
         for i in 0..words + padding {
             // unsafe {
@@ -477,11 +339,10 @@ where
                 let profiles = profile[i + offset..i + offset + L].split_array_ref::<L>().0;
                 let pcols_mut = pcol[i + offset..i + offset + L].split_array_mut::<L>().0;
                 let mcols_mut = mcol[i + offset..i + offset + L].split_array_mut::<L>().0;
-                let mut pcols: S<L> = (*pcols_mut).into();
-                let mut mcols: S<L> = (*mcols_mut).into();
-                let eqs: S<L> =
-                    from_fn(|k| profiles[k][chars[L * N - 1 - k - offset] as usize]).into();
-                (pcols, mcols, ph[j], mh[j]) = compute_block_simd(pcols, mcols, ph[j], mh[j], eqs);
+                let mut pcols = (*pcols_mut).into();
+                let mut mcols = (*mcols_mut).into();
+                let eqs = from_fn(|k| profiles[k][chars[L * N - 1 - k - offset] as usize]).into();
+                compute_block_simd(&mut pcols, &mut mcols, &mut ph[j], &mut mh[j], eqs);
                 *pcols_mut = *pcols.as_array();
                 *mcols_mut = *mcols.as_array();
             }
@@ -501,7 +362,7 @@ where
         let mut ph = 1;
         let mut mh = 0;
         for (pv, mv, block_profile) in izip!(pcol.iter_mut(), mcol.iter_mut(), &profile) {
-            (*pv, *mv, ph, mh) = compute_block(*pv, *mv, ph, mh, block_profile[*c as usize]);
+            compute_block(pv, mv, &mut ph, &mut mh, block_profile[*c as usize]);
         }
         bottom_row_score += ph as i64 - mh as i64;
     }
@@ -577,19 +438,15 @@ mod bench {
 
     macro_rules! simd_test {
         // h is a function (exact: bool, pruning: bool) -> Heuristic.
-        ($name:ident, $L:expr, $N:expr) => {
+        ($name:ident,  $N:expr) => {
             #[bench]
             fn $name(bench: &mut Bencher) {
-                bench_aligner(super::nw_simd::<$L, $N>, bench);
+                bench_aligner(super::nw_simd::<$N>, bench);
             }
         };
     }
-    simd_test!(simd_1_1, 1, 1);
-    simd_test!(simd_1_2, 1, 2);
-    simd_test!(simd_1_3, 1, 3);
-    simd_test!(simd_1_4, 1, 4);
-    simd_test!(simd_4_1, 4, 1);
-    simd_test!(simd_4_2, 4, 2);
-    simd_test!(simd_4_3, 4, 3);
-    simd_test!(simd_4_4, 4, 4);
+    simd_test!(simd_1, 1);
+    simd_test!(simd_2, 2);
+    simd_test!(simd_3, 3);
+    simd_test!(simd_4, 4);
 }

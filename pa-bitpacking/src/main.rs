@@ -1,3 +1,4 @@
+#![feature(portable_simd)]
 use std::time::Instant;
 
 use bio::alphabets::{Alphabet, RankTransform};
@@ -56,10 +57,10 @@ fn main() {
             eprint!("{:.2}", test(nw_scalar::<4>));
             eprintln!();
             eprint!("simd 4\t");
-            eprint!("{:.2}\t", test(nw_simd::<4, 1>));
-            eprint!("{:.2}\t", test(nw_simd::<4, 2>));
-            eprint!("{:.2}\t", test(nw_simd::<4, 3>));
-            eprint!("{:.2}\t", test(nw_simd::<4, 4>));
+            eprint!("{:.2}\t", test(nw_simd::<1>));
+            eprint!("{:.2}\t", test(nw_simd::<2>));
+            eprint!("{:.2}\t", test(nw_simd::<3>));
+            eprint!("{:.2}\t", test(nw_simd::<4>));
             eprintln!();
         } else {
             let f = match (args.lanes, args.n) {
@@ -67,14 +68,10 @@ fn main() {
                 (None, Some(2)) => nw_scalar::<2>,
                 (None, Some(3)) => nw_scalar::<3>,
                 (None, Some(4)) => nw_scalar::<4>,
-                (Some(1), Some(1)) => nw_simd::<1, 1>,
-                (Some(1), Some(2)) => nw_simd::<1, 2>,
-                (Some(1), Some(3)) => nw_simd::<1, 3>,
-                (Some(1), Some(4)) => nw_simd::<1, 4>,
-                (Some(4), Some(1)) => nw_simd::<4, 1>,
-                (Some(4), Some(2)) => nw_simd::<4, 2>,
-                (Some(4), Some(3)) => nw_simd::<4, 3>,
-                (Some(4), Some(4)) => nw_simd::<4, 4>,
+                (Some(4), Some(1)) => nw_simd::<1>,
+                (Some(4), Some(2)) => nw_simd::<2>,
+                (Some(4), Some(3)) => nw_simd::<3>,
+                (Some(4), Some(4)) => nw_simd::<4>,
                 _ => unimplemented!(),
             };
             eprintln!("t: {:.2}", test(f));
