@@ -32,8 +32,7 @@ Here's an A*PA alignment of two sequences of length $500$ with $30\%$ error rate
 
 ** Command line application
 
-- [[https://rustup.rs/][Install rustup]], enable ~nightly~ (~rustup install nightly~ ~rustup default
-  nightly~), and clone this repo.
+- [[https://rustup.rs/][Install rustup]], enable ~nightly~ (~rustup install nightly~ ~rustup default nightly~), and clone this repo.
 - ~cargo run --release -- -n 100000~ should already work and run on some randomly generated sequences.
 - To disable the visualizer and not need ~sdl2~: ~cargo run --release --no-default-features~.
 
