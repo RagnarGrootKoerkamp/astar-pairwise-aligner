@@ -1,6 +1,7 @@
 #![feature(let_chains, step_trait, int_roundings)]
 
 use pa_types::Cost;
+use serde::{Deserialize, Serialize};
 use std::cmp::max;
 
 mod edit_graph;
@@ -39,7 +40,7 @@ use pa_heuristic::{GapCost, NoCost};
 ///
 /// Distance from start can be none, gap, or g*
 /// Distance to end can be none, gap, h
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Domain<H> {
     /// Compute the entire rectangle
     Full,
@@ -54,6 +55,17 @@ pub enum Domain<H> {
 }
 
 use Domain::*;
+
+impl Domain<()> {
+    pub fn into(self) -> Domain<NoCost> {
+        match self {
+            Full => Full,
+            GapStart => GapStart,
+            GapGap => GapGap,
+            Astar(_) => panic!(),
+        }
+    }
+}
 
 impl Domain<NoCost> {
     pub fn full() -> Self {
@@ -95,14 +107,14 @@ impl<H> Domain<H> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum DoublingStart {
     Zero,
     Gap,
     H0,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Strategy {
     None,
     BandDoubling(DoublingStart, f32),

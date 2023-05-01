@@ -74,7 +74,7 @@ fn main() {
     // Process the input.
     args.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let (cost, cigar) = aligner.align(a, b);
+        let (cost, cigar) = aligner.align_affine(a, b);
 
         if let Some(f) = &mut out_file {
             writeln!(f, "{cost},{}", cigar.unwrap().to_string()).unwrap();

@@ -80,6 +80,33 @@ impl From<&Cigar> for AffineCigar {
     }
 }
 
+impl Into<CigarOp> for AffineCigarOp {
+    fn into(self) -> CigarOp {
+        match self {
+            AffineCigarOp::Match => CigarOp::Match,
+            AffineCigarOp::Sub => CigarOp::Sub,
+            AffineCigarOp::Ins => CigarOp::Ins,
+            AffineCigarOp::Del => CigarOp::Del,
+            _ => panic!("Can not convert affine operations into CigarOp base."),
+        }
+    }
+}
+
+impl Into<Cigar> for AffineCigar {
+    fn into(self) -> Cigar {
+        Cigar {
+            ops: self
+                .ops
+                .iter()
+                .map(|el| CigarElem {
+                    op: el.op.into(),
+                    cnt: el.cnt,
+                })
+                .collect(),
+        }
+    }
+}
+
 impl AffineCigar {
     pub fn to_base(&self) -> Cigar {
         Cigar {

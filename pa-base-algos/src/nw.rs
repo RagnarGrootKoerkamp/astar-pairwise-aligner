@@ -10,8 +10,62 @@ use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
 use pa_vis_types::*;
+use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
 use std::ops::{Range, RangeInclusive};
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct AstarNwParams {
+    /// The domain to compute.
+    pub domain: Domain<()>,
+
+    /// Heuristic to use for A* domain.
+    pub heuristic: HeuristicParams,
+
+    /// The strategy to use to compute the given domain.
+    pub strategy: Strategy,
+
+    /// Compute `block_width` columns at a time, to reduce overhead of metadata
+    /// computations.
+    pub block_width: I,
+}
+
+impl AstarNwParams {
+    /// Build an `AstarStatsAligner` instance from
+    pub fn make_aligner(&self) -> Box<dyn Aligner> {
+        self.make_aligner_with_visualizer(NoVis)
+    }
+
+    /// Build a type-erased aligner object from parameters.
+    pub fn make_aligner_with_visualizer<V: VisualizerT + 'static>(&self, v: V) -> Box<dyn Aligner> {
+        struct Mapper<V: VisualizerT> {
+            params: AstarNwParams,
+            v: V,
+        }
+        impl<V: VisualizerT + 'static> HeuristicMapper for Mapper<V> {
+            type R = Box<dyn Aligner>;
+            fn call<H: Heuristic + 'static>(self, h: H) -> Box<dyn Aligner> {
+                Box::new(NW {
+                    cm: AffineCost::unit(),
+                    domain: Domain::Astar(h),
+                    strategy: self.params.strategy,
+                    block_width: self.params.block_width,
+                    v: self.v,
+                })
+            }
+        }
+        match self.domain {
+            Domain::Astar(()) => self.heuristic.map(Mapper { params: *self, v }),
+            d => Box::new(NW {
+                cm: AffineCost::unit(),
+                domain: d.into(),
+                strategy: self.strategy,
+                block_width: self.block_width,
+                v,
+            }),
+        }
+    }
+}
 
 /// Needleman-Wunsch aligner.
 ///
@@ -645,9 +699,16 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> AffineAligner for NW<N, V, H> {
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
+    fn align_affine(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
         let (cost, cigar) = self.align(a, b);
         (cost, Some(cigar))
+    }
+}
+
+impl<V: VisualizerT, H: Heuristic> Aligner for NW<0, V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
+        let (cost, cigar) = self.align(a, b);
+        (cost, Some(cigar.into()))
     }
 }
 

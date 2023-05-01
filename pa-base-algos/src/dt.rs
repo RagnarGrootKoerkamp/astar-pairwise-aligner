@@ -1449,8 +1449,15 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> AffineAligner for DiagonalTransition<N, V, H> {
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
+    fn align_affine(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
         let (cost, cigar) = self.align(a, b);
         (cost, Some(cigar))
+    }
+}
+
+impl<const N: usize, V: VisualizerT, H: Heuristic> Aligner for DiagonalTransition<N, V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
+        let (cost, cigar) = self.align(a, b);
+        (cost, Some(cigar.into()))
     }
 }

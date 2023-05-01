@@ -84,6 +84,6 @@ fn main() {
         }),
     ];
     for aligner in aligners {
-        aligner.align(a, b);
+        aligner.align_affine(a, b);
     }
 }

@@ -32,12 +32,5 @@ pub trait AffineAligner: std::fmt::Debug {
     /// An alignment of sequences `a` and `b`.
     /// The returned cost is the *non-negative* cost of the alignment.
     /// Costmodel and traceback parameters must be specified on construction of the aligner.
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>);
-}
-
-impl<T: pa_types::Aligner> AffineAligner for T {
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
-        let (cost, cigar) = pa_types::Aligner::align(self, a, b);
-        (cost, cigar.map(|c| (&c).into()))
-    }
+    fn align_affine(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>);
 }

@@ -1,9 +1,9 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 
 use astarpa::{astar, AstarPa};
-use pa_affine_types::AffineAligner;
 use pa_generate::uniform_fixed;
 use pa_heuristic::{MatchConfig, NoCost, Pruning, GCSH, SH};
+use pa_types::Aligner;
 use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis_types::NoVis;
 use std::{path::PathBuf, time::Duration};
@@ -36,7 +36,7 @@ fn main() {
     config.filepath = PathBuf::from("imgs/slides/");
     config.clear_after_meeting_point = true;
 
-    let aligners: &mut [Box<dyn AffineAligner>] = &mut [
+    let aligners: &mut [Box<dyn Aligner>] = &mut [
         Box::new(AstarPa {
             dt: false,
             h: SH::new(MatchConfig::exact(5), Pruning::disabled()),

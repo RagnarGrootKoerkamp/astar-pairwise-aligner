@@ -1,13 +1,14 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 
 use astarpa::{astar, AstarPa};
-use pa_affine_types::{AffineAligner, AffineCost};
+use pa_affine_types::AffineCost;
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
     nw::NW,
 };
 use pa_generate::uniform_fixed;
 use pa_heuristic::{MatchConfig, NoCost, Pruning, GCSH};
+use pa_types::Aligner;
 use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis_types::NoVis;
 use std::{path::PathBuf, time::Duration};
@@ -41,7 +42,7 @@ fn main() {
     config.filepath = PathBuf::from("imgs/paper/intro");
     config.clear_after_meeting_point = false;
 
-    let aligners: &mut [Box<dyn AffineAligner>] = &mut [
+    let aligners: &mut [Box<dyn Aligner>] = &mut [
         Box::new(NW {
             cm,
             strategy: pa_base_algos::Strategy::band_doubling(),

@@ -56,11 +56,11 @@ fn test_aligner_on_input<const N: usize, A: AffineAligner>(
     }
     let mut nw = NW::new(cm.clone(), false, false);
     let nw_cost = nw.cost(a, b);
-    let cost = aligner.align(a, b).0;
+    let cost = aligner.align_affine(a, b).0;
     // Rerun the alignment with the visualizer enabled.
     if D && nw_cost != cost && let Some(viz_aligner) = viz_aligner {
         eprintln!("{params}\na: {}\nb: {}\nnw_cost: {nw_cost}\ntest_cost: {cost}\n", seq_to_string(a), seq_to_string(b));
-        viz_aligner(a, b).align(a, b);
+        viz_aligner(a, b).align_affine(a, b);
     }
     // Test the cost reported by all aligners.
     assert_eq!(
@@ -72,7 +72,7 @@ fn test_aligner_on_input<const N: usize, A: AffineAligner>(
         nw.align(a, b).1.to_string()
     );
     if test_path {
-        let (cost, Some(cigar)) = aligner.align(a, b) else { panic!() };
+        let (cost, Some(cigar)) = aligner.align_affine(a, b) else { panic!() };
         if cost != nw_cost {
             eprintln!("\n================= TEST CIGAR ======================\n");
             eprintln!(
