@@ -5,7 +5,23 @@ edition = "2021"
 
 [dependencies]
 bio.workspace = true
-clap.workspace = true
 itertools.workspace = true
-pa-generate.workspace = true
 pa-types.workspace = true
+
+[dev-dependencies]
+pa-vis.workspace = true
+pa-vis-types.workspace = true
+pa-generate.workspace = true
+criterion = { version = "0.4.0" }
+#criterion = { version = "0.4.0", features = ["html_reports"] }
+criterion-perf-events = "0.3.0"
+perfcnt = "0.8.0"
+strum = { version = "0.24.1", features = ["derive"] }
+
+[features]
+small_blocks = []
+experiments = []
+
+[[bench]]
+name = "nw"
+harness = false
