@@ -62,7 +62,7 @@ where
 pub struct Fronts<const N: usize, T, I> {
     pub fronts: Vec<Front<N, T, I>>,
     /// The default value.
-    value: T,
+    default_value: T,
     /// The inclusive range of values this front corresponds to.
     range: RangeInclusive<I>,
     /// The top and bottom buffer we add before/after the range of fronts.
@@ -78,7 +78,7 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Fronts")
             .field("fronts", &self.fronts)
-            .field("value", &self.value)
+            .field("value", &self.default_value)
             .field("range", &self.range)
             .field("buffers", &self.buffers)
             .field("lr_buffers", &self.lr_buffers)
@@ -109,21 +109,21 @@ where
             fronts: (range.start() - top_buffer..=range.end() + bottom_buffer)
                 .map(|i| Front::new(value, range_fn(i), left_buffer, right_buffer))
                 .collect(),
-            value,
+            default_value: value,
             range,
             buffers: (top_buffer, bottom_buffer),
             lr_buffers: (left_buffer, right_buffer),
         }
     }
 
-    pub fn push(&mut self, range: RangeInclusive<I>)
+    pub fn push_default_front(&mut self, range: RangeInclusive<I>)
     where
         T: Copy,
         for<'l> &'l I: RefNum<I>,
     {
         // We can not initialize all layers directly at the start, since we do not know the final distance s.
         self.fronts.push(Front::new(
-            self.value,
+            self.default_value,
             range,
             self.lr_buffers.0,
             self.lr_buffers.1,
@@ -136,7 +136,10 @@ where
         for<'l> &'l I: RefNum<I>,
     {
         self.fronts.rotate_left(1);
-        self.fronts.last_mut().unwrap().reset(self.value, range);
+        self.fronts
+            .last_mut()
+            .unwrap()
+            .reset(self.default_value, range);
         self.range = *self.range.start() + I::one()..=*self.range.end() + I::one();
     }
 

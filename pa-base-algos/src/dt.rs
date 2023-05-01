@@ -941,7 +941,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
             if range.is_empty() {
                 return None;
             }
-            fronts.push(range);
+            fronts.push_default_front(range);
             if self.next_front(
                 s,
                 f_max.unwrap_or(0),
@@ -1003,7 +1003,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
             }
             f_max.push(f_tip);
             f_delta.push(GROWTH);
-            fronts.push(range);
+            fronts.push_default_front(range);
 
             if D {
                 println!("Compute {g} up to {f_tip}");

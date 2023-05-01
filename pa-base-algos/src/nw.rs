@@ -272,7 +272,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 }
                 f_max.push(f_tip);
                 f_delta.push(DELTA_0);
-                fronts.push(range);
+                fronts.fronts.push_default_front(range);
             } else {
                 // Only grow the last front.
                 let delta = &mut f_delta[i as usize];
