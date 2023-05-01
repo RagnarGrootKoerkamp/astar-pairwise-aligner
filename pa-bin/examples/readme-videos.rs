@@ -45,8 +45,9 @@ fn main() {
     let aligners: &mut [Box<dyn AffineAligner>] = &mut [
         Box::new(NW {
             cm,
-            strategy: pa_base_algos::Strategy::BandDoubling,
+            strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::gap_gap(),
+            block_width: 1,
             v: config.with_filename("1_ukkonen"),
         }),
         Box::new(AstarPa {

@@ -52,6 +52,7 @@ fn make_path_heuristic_aligner(
                 cm: AffineCost::unit(),
                 strategy: pa_base_algos::Strategy::LocalDoubling,
                 domain: Domain::Astar(PathHeuristic { h }),
+                block_width: 1,
                 v: self.v,
             })
         }

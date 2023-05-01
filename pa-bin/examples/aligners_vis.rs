@@ -41,6 +41,7 @@ fn main() {
             cm: cm.clone(),
             strategy: pa_base_algos::Strategy::None,
             domain: Domain::full(),
+            block_width: 1,
             v: vis("nw"),
         };
         nw.align(a, b);
@@ -49,8 +50,9 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            strategy: pa_base_algos::Strategy::BandDoubling,
+            strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::gap_gap(),
+            block_width: 1,
             v: vis("nw_gapcost"),
         };
         nw.align(a, b);
@@ -59,8 +61,9 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            strategy: pa_base_algos::Strategy::BandDoubling,
+            strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::dist_gap(),
+            block_width: 1,
             v: vis("nw_gapcost_h"),
         };
 
@@ -70,8 +73,9 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            strategy: pa_base_algos::Strategy::BandDoubling,
+            strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::astar(sh),
+            block_width: 1,
             v: vis("nw_sh"),
         };
 
@@ -81,8 +85,9 @@ fn main() {
     {
         let mut nw = NW {
             cm: cm.clone(),
-            strategy: pa_base_algos::Strategy::BandDoubling,
+            strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::astar(csh),
+            block_width: 1,
             v: vis("nw_csh"),
         };
 

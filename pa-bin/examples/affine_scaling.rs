@@ -32,8 +32,9 @@ fn main() {
                 let (ref a, ref b) = generate_model(n, e, *m, seed);
                 let cost = NW {
                     cm: cm.clone(),
-                    strategy: pa_base_algos::Strategy::BandDoubling,
+                    strategy: pa_base_algos::Strategy::band_doubling(),
                     domain: pa_base_algos::Domain::gap_start(),
+                    block_width: 1,
                     v: NoVis,
                 }
                 .cost(a, b);

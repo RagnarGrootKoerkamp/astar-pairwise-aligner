@@ -76,6 +76,7 @@ fn main() {
         cm,
         strategy: Strategy::LocalDoubling,
         domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::disabled())),
+        block_width: 1,
         v: config.with_filename("local-doubling-noprune"),
     };
     aligner.align(a, b);
@@ -91,6 +92,7 @@ fn main() {
         cm,
         strategy: Strategy::LocalDoubling,
         domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::both())),
+        block_width: 1,
         v: config.with_filename("local-doubling"),
     };
     aligner.align(a, b);

@@ -35,6 +35,7 @@ fn main() {
         domain: Domain::Astar(PathHeuristic {
             h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
         }),
+        block_width: 1,
         v: config.with_filename("path-pruning"),
     };
     aligner.align(a, b);

@@ -18,9 +18,15 @@ pub struct NW<const N: usize, V: VisualizerT, H: Heuristic> {
     /// The cost model to use.
     pub cm: AffineCost<N>,
 
+    /// The domain to compute.
     pub domain: Domain<H>,
 
+    /// The strategy to use to compute the given domain.
     pub strategy: Strategy,
+
+    /// Compute `block_width` columns at a time, to reduce overhead of metadata
+    /// computations.
+    pub block_width: I,
 
     /// The visualizer to use.
     pub v: V,
@@ -36,10 +42,13 @@ impl<const N: usize> NW<N, NoVis, NoCost> {
                 Domain::Full
             },
             strategy: if exponential_search {
-                Strategy::BandDoubling
+                // FIXME: Make this more general.
+                Strategy::band_doubling()
             } else {
                 Strategy::None
             },
+            // FIXME: Make this more general.
+            block_width: 32,
             v: NoVis,
         }
     }

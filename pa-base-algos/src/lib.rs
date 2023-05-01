@@ -60,7 +60,7 @@ impl Domain<NoCost> {
         GapStart
     }
     pub fn gap_gap() -> Self {
-        Full
+        GapGap
     }
     pub fn dijkstra() -> Self {
         Astar(NoCost)
@@ -92,9 +92,21 @@ impl<H> Domain<H> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DoublingStart {
+    Zero,
+    Gap,
+    H0,
+}
+
+#[derive(Clone, Copy, PartialEq)]
 pub enum Strategy {
     None,
-    BandDoubling,
+    BandDoubling(DoublingStart, f32),
     LocalDoubling,
+}
+impl Strategy {
+    pub fn band_doubling() -> Strategy {
+        Self::BandDoubling(DoublingStart::Gap, 2.0)
+    }
 }
