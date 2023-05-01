@@ -117,11 +117,14 @@ pub enum DoublingStart {
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Strategy {
     None,
-    BandDoubling(DoublingStart, f32),
+    BandDoubling { start: DoublingStart, factor: f32 },
     LocalDoubling,
 }
 impl Strategy {
     pub fn band_doubling() -> Strategy {
-        Self::BandDoubling(DoublingStart::Gap, 2.0)
+        Self::BandDoubling {
+            start: DoublingStart::Gap,
+            factor: 2.0,
+        }
     }
 }

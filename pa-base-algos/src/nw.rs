@@ -607,7 +607,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             }
         }
 
-        if matches!(self.params.strategy, Strategy::BandDoubling(_, _)) {
+        if matches!(self.params.strategy, Strategy::BandDoubling { .. }) {
             self.v.new_layer(self.domain.h());
         }
         None
@@ -645,7 +645,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
             Strategy::LocalDoubling => {
                 unimplemented!();
             }
-            Strategy::BandDoubling(start, factor) => {
+            Strategy::BandDoubling { start, factor } => {
                 let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
                 exponential_search(start_f, start_increment, factor, |s| {
                     nw.cost_for_bounded_dist(Some(s)).map(|c| (c, c))
@@ -668,7 +668,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
             Strategy::LocalDoubling => {
                 return nw.align_local_band_doubling();
             }
-            Strategy::BandDoubling(start, factor) => {
+            Strategy::BandDoubling { start, factor } => {
                 let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
                 exponential_search(start_f, start_increment, factor, |s| {
                     nw.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x))
