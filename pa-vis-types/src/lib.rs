@@ -48,6 +48,24 @@ pub trait VisualizerInstance {
         _h: Option<&HI>,
     ) {
     }
+    fn expand_block<'a, HI: HeuristicInstance<'a>>(
+        &mut self,
+        _pos: Pos,
+        _size: Pos,
+        _g: Cost,
+        _f: Cost,
+        _h: Option<&HI>,
+    ) {
+    }
+    fn expand_blocks<'a, HI: HeuristicInstance<'a>>(
+        &mut self,
+        _poss: [Pos; 4],
+        _sizes: [Pos; 4],
+        _g: Cost,
+        _f: Cost,
+        _h: Option<&HI>,
+    ) {
+    }
 
     /// This function should be called after completing each layer
     fn new_layer<'a, HI: HeuristicInstance<'a>>(&mut self, _h: Option<&HI>) {}
@@ -63,6 +81,16 @@ pub trait VisualizerInstance {
         _parent: ParentFn<'_>,
         _h: Option<&HI>,
     ) {
+    }
+
+    fn expand_block_simple<'a>(&mut self, pos: Pos, size: Pos) {
+        self.expand_block::<NoCostI>(pos, size, 0, 0, None)
+    }
+    fn expand_blocks_simple<'a>(&mut self, poss: [Pos; 4], sizes: [Pos; 4]) {
+        self.expand_blocks::<NoCostI>(poss, sizes, 0, 0, None)
+    }
+    fn last_frame_simple<'a>(&mut self) {
+        self.last_frame::<NoCostI>(None, None, None)
     }
 }
 

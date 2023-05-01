@@ -65,6 +65,22 @@ use Type::*;
 
 type CanvasRC = RefCell<CanvasBox>;
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ExpandPos {
+    Single(Pos),
+    Block(Pos, Pos),
+    Blocks(Vec<(Pos, Pos)>),
+}
+
+impl ExpandPos {
+    fn pos(&self) -> Pos {
+        match self {
+            Self::Single(p) => *p,
+            _ => panic!(),
+        }
+    }
+}
+
 pub struct Visualizer {
     config: Config,
 
@@ -100,7 +116,7 @@ pub struct Visualizer {
     drawn_frame_number: usize,
 
     // Type, Pos, g, f
-    pub expanded: Vec<(Type, Pos, Cost, Cost)>,
+    pub expanded: Vec<(Type, ExpandPos, Cost, Cost)>,
     // The current layer
     layer: Option<usize>,
     // Index in expanded where each layer stars.
@@ -114,7 +130,7 @@ impl VisualizerInstance for Visualizer {
         if !(pos <= self.target) {
             return;
         }
-        self.expanded.push((Explored, pos, g, f));
+        self.expanded.push((Explored, ExpandPos::Single(pos), g, f));
         // Only draw a new frame if explored states are actually shown.
         if self.config.style.explored.is_some() {
             self.draw(false, None, false, h, None);
@@ -125,7 +141,7 @@ impl VisualizerInstance for Visualizer {
         if !(pos <= self.target) {
             return;
         }
-        self.expanded.push((Expanded, pos, g, f));
+        self.expanded.push((Expanded, ExpandPos::Single(pos), g, f));
         self.draw(false, None, false, h, None);
     }
 
@@ -133,7 +149,7 @@ impl VisualizerInstance for Visualizer {
         if !(pos <= self.target) {
             return;
         }
-        self.expanded.push((Extended, pos, g, f));
+        self.expanded.push((Extended, ExpandPos::Single(pos), g, f));
         self.draw(false, None, false, h, None);
     }
 
@@ -160,6 +176,36 @@ impl VisualizerInstance for Visualizer {
         h: Option<&H>,
     ) {
         self.draw(true, cigar, false, h, parent);
+    }
+
+    fn expand_block<'a, HI: HeuristicInstance<'a>>(
+        &mut self,
+        pos: Pos,
+        size: Pos,
+        g: Cost,
+        f: Cost,
+        h: Option<&HI>,
+    ) {
+        self.expanded
+            .push((Expanded, ExpandPos::Block(pos, size), g, f));
+        self.draw(false, None, false, h, None);
+    }
+
+    fn expand_blocks<'a, HI: HeuristicInstance<'a>>(
+        &mut self,
+        poss: [Pos; 4],
+        sizes: [Pos; 4],
+        g: Cost,
+        f: Cost,
+        h: Option<&HI>,
+    ) {
+        self.expanded.push((
+            Expanded,
+            ExpandPos::Blocks(poss.into_iter().zip(sizes).collect_vec()),
+            g,
+            f,
+        ));
+        self.draw(false, None, false, h, None);
     }
 }
 
@@ -567,6 +613,29 @@ impl Visualizer {
         canvas.fill_rects(&rects, color);
     }
 
+    fn draw_box(&self, canvas: &mut CanvasBox, start: Pos, size: Pos, color: Color) {
+        canvas.fill_rect(
+            self.cell_begin(start),
+            self.config.cell_size * size.0,
+            self.config.cell_size * size.1,
+            color,
+        );
+    }
+
+    fn draw_boxes(&self, canvas: &mut CanvasBox, boxes: &Vec<(Pos, Pos)>, color: Color) {
+        let rects = boxes
+            .iter()
+            .map(|(pos, size)| {
+                (
+                    self.cell_begin(*pos),
+                    self.config.cell_size * size.0,
+                    self.config.cell_size * size.1,
+                )
+            })
+            .collect_vec();
+        canvas.fill_rects(&rects, color);
+    }
+
     // TODO: Does this work with html canvas? maybe there is a simpler API there.
     fn draw_diag_line(canvas: &mut CanvasBox, from: CPos, to: CPos, color: Color, width: usize) {
         if from == to {
@@ -693,7 +762,11 @@ impl Visualizer {
         // DRAW
         {
             // Draw background.
-            let Some(canvas) = &self.canvas else {return;};
+            let canvas = if let Some(canvas) = &self.canvas {
+                canvas
+            } else {
+                return;
+            };
             let mut canvas = canvas.borrow_mut();
             canvas.fill_rect(
                 CPos(0, 0),
@@ -788,72 +861,74 @@ impl Visualizer {
             if self.config.draw_old_on_top {
                 // Explored
                 if let Some(color) = self.config.style.explored {
-                    for &(t, pos, _, _) in &self.expanded {
-                        if t == Type::Explored {
-                            self.draw_pixel(&mut canvas, pos, color);
+                    for (t, pos, _, _) in &self.expanded {
+                        if *t == Type::Explored {
+                            self.draw_pixel(&mut canvas, pos.pos(), color);
                         }
                     }
                 }
                 // Expanded
                 let mut current_layer = self.layer.unwrap_or(0);
-                for (i, &(t, pos, _, _)) in self.expanded.iter().enumerate().rev() {
-                    if t == Type::Explored {
+                for (i, (t, pos, _, _)) in self.expanded.iter().enumerate().rev() {
+                    if *t == Type::Explored {
                         continue;
                     }
-                    if t == Type::Extended && let Some(c) = self.config.style.extended {
-                            self.draw_pixel(&mut canvas, pos, c);
-                            continue;
-                        }
-                    self.draw_pixel(
-                            &mut canvas,
-                            pos,
-                            self.config.style.expanded.color(
-                                if let Some(layer) = self.layer && layer != 0 {
-                                    if current_layer > 0
-                                        && i < self.expanded_layers[current_layer - 1]
-                                    {
-                                        current_layer -= 1;
-                                    }
-                                    current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                                } else {
-                                        i as f64 / self.expanded.len() as f64
-                                },
-                            ),
-                        );
+                    if *t == Type::Extended && let Some(c) = self.config.style.extended {
+                        self.draw_pixel(&mut canvas, pos.pos(), c);
+                        continue;
+                    }
+                    let color = self.config.style.expanded.color(
+                        if let Some(layer) = self.layer && layer != 0 {
+                            if current_layer > 0
+                                && i < self.expanded_layers[current_layer - 1]
+                            {
+                                current_layer -= 1;
+                            }
+                            current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
+                        } else {
+                            i as f64 / self.expanded.len() as f64
+                        },
+                    );
+                    match pos {
+                        ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
+                        ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
+                        ExpandPos::Blocks(blocks) => self.draw_boxes(&mut canvas, blocks, color),
+                    }
                 }
             } else {
                 // Explored
                 if let Some(color) = self.config.style.explored {
-                    for &(t, pos, _, _) in &self.expanded {
-                        if t == Type::Explored {
-                            self.draw_pixel(&mut canvas, pos, color);
+                    for (t, pos, _, _) in &self.expanded {
+                        if *t == Type::Explored {
+                            self.draw_pixel(&mut canvas, pos.pos(), color);
                         }
                     }
                 }
                 // Expanded
                 let mut current_layer = 0;
-                for (i, &(t, pos, _, _)) in self.expanded.iter().enumerate() {
-                    if t == Type::Explored {
+                for (i, (t, pos, _, _)) in self.expanded.iter().enumerate() {
+                    if *t == Type::Explored {
                         continue;
                     }
-                    if t == Type::Extended && let Some(c) = self.config.style.extended {
-                            self.draw_pixel(&mut canvas, pos, c);
-                            continue;
-                        }
-                    self.draw_pixel(
-                            &mut canvas,
-                            pos,
-                            self.config.style.expanded.color(
-                                if let Some(layer) = self.layer && layer != 0 {
-                                    if current_layer < layer && i >= self.expanded_layers[current_layer] {
-                                        current_layer += 1;
-                                    }
-                                    current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                                } else {
-                                        i as f64 / self.expanded.len() as f64
-                                },
-                            ),
-                        );
+                    if *t == Type::Extended && let Some(c) = self.config.style.extended {
+                        self.draw_pixel(&mut canvas, pos.pos(), c);
+                        continue;
+                    }
+                    let color = self.config.style.expanded.color(
+                        if let Some(layer) = self.layer && layer != 0 {
+                            if current_layer < layer && i >= self.expanded_layers[current_layer] {
+                                current_layer += 1;
+                            }
+                            current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
+                        } else {
+                                i as f64 / self.expanded.len() as f64
+                        },
+                    );
+                    match pos {
+                        ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
+                        ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
+                        ExpandPos::Blocks(blocks) => self.draw_boxes(&mut canvas, blocks, color),
+                    }
                 }
             }
 
@@ -995,7 +1070,8 @@ impl Visualizer {
 
             // Draw tree.
             if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
-                for &(_t, u, _, _) in &self.expanded {
+                for (_t, u, _, _) in &self.expanded {
+                    let u = u.pos();
                     if self.config.style.tree_fr_only {
                         // Only trace if u is the furthest point on this diagonal.
                         let mut v = u;
@@ -1005,7 +1081,7 @@ impl Visualizer {
                             if !(v <= self.target) {
                                 break;
                             }
-                            if self.expanded.iter().filter(|(_, u, _, _)| *u == v).count() > 0 {
+                            if self.expanded.iter().filter(|(_, u, _, _)| u.pos() == v).count() > 0 {
                                 skip = true;
                                 break;
                             }
@@ -1226,8 +1302,18 @@ impl Visualizer {
         let offset = self.dt.start.down(self.dt.size.0 / 2);
         // Cell_size goes down in powers of 2.
         let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
-        let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
-        let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
+        let diagonal_min = self
+            .expanded
+            .iter()
+            .map(|st| st.1.pos().diag())
+            .min()
+            .unwrap();
+        let diagonal_max = self
+            .expanded
+            .iter()
+            .map(|st| st.1.pos().diag())
+            .max()
+            .unwrap();
         let dt_cell_size = min(
             self.dt.size.0 as I / (front_max + 1),
             min(
@@ -1298,9 +1384,9 @@ impl Visualizer {
         };
 
         let draw_state =
-            |canvas: &mut RefMut<CanvasBox>, st: (Type, Pos, Cost, Cost), color: Color| {
+            |canvas: &mut RefMut<CanvasBox>, st: &(Type, ExpandPos, Cost, Cost), color: Color| {
                 canvas.fill_rect(
-                    state_coords((st.1, st.2)),
+                    state_coords((st.1.pos(), st.2)),
                     dt_cell_size,
                     dt_cell_size,
                     color,
@@ -1310,7 +1396,7 @@ impl Visualizer {
         if self.config.draw_old_on_top {
             // Expanded
             let mut current_layer = self.layer.unwrap_or(0);
-            for (i, &st) in self.expanded.iter().enumerate().rev() {
+            for (i, st) in self.expanded.iter().enumerate().rev() {
                 let color = self.config.style.expanded.color(
                             if let Some(layer) = self.layer && layer != 0 {
                                 if current_layer > 0
@@ -1328,7 +1414,7 @@ impl Visualizer {
         } else {
             // Expanded
             let mut current_layer = 0;
-            for (i, &st) in self.expanded.iter().enumerate() {
+            for (i, st) in self.expanded.iter().enumerate() {
                 let color =
                         self.config.style.expanded.color(
                             if let Some(layer) = self.layer && layer != 0 {
@@ -1380,7 +1466,11 @@ impl Visualizer {
                             path_width,
                         );
                     } else {
-                        draw_state(&mut canvas, (Type::Expanded, from.0, from.1, 0), path_color);
+                        draw_state(
+                            &mut canvas,
+                            &(Type::Expanded, ExpandPos::Single(from.0), from.1, 0),
+                            path_color,
+                        );
                     }
                 }
             }
@@ -1401,8 +1491,18 @@ impl Visualizer {
         // Cell size from DT
         // Cell_size goes down in powers of 2.
         let front_max = self.expanded.iter().map(|st| st.2).max().unwrap();
-        let diagonal_min = self.expanded.iter().map(|st| st.1.diag()).min().unwrap();
-        let diagonal_max = self.expanded.iter().map(|st| st.1.diag()).max().unwrap();
+        let diagonal_min = self
+            .expanded
+            .iter()
+            .map(|st| st.1.pos().diag())
+            .min()
+            .unwrap();
+        let diagonal_max = self
+            .expanded
+            .iter()
+            .map(|st| st.1.pos().diag())
+            .max()
+            .unwrap();
         let dt_cell_size = min(
             self.dt.size.0 as I / (front_max + 1),
             min(
@@ -1437,11 +1537,11 @@ impl Visualizer {
 
         // Draw shifted states after pruning.
         if let Some(h) = h {
-            for &(t, pos, g, _) in self.expanded.iter() {
-                if t == Explored {
+            for (t, pos, g, _) in self.expanded.iter() {
+                if *t == Explored {
                     continue;
                 }
-                let f = g + h.h(pos);
+                let f = g + h.h(pos.pos());
                 let rel_f = (f as f64 - f_min as f64) / max(f_max - f_min, 1) as f64;
                 if rel_f > 1.5 {
                     continue;
@@ -1449,7 +1549,7 @@ impl Visualizer {
                 let color = Gradient::Gradient(GRAY..WHITE).color(f64::max(0., 2. * rel_f - 2.));
                 let y = f_y(f);
                 canvas.fill_rect(
-                    CPos((pos.0 * self.config.cell_size) as i32, y),
+                    CPos((pos.pos().0 * self.config.cell_size) as i32, y),
                     self.config.cell_size,
                     1,
                     color,
@@ -1463,21 +1563,21 @@ impl Visualizer {
             }
         }
 
-        for (i, &(t, pos, g, f)) in self.expanded.iter().enumerate() {
-            if t == Explored {
+        for (i, (t, pos, g, f)) in self.expanded.iter().enumerate() {
+            if *t == Explored {
                 continue;
             }
             let color =
                 Gradient::TurboGradient(0.2..0.95).color(i as f64 / self.expanded.len() as f64);
             canvas.fill_rect(
-                CPos((pos.0 * self.config.cell_size) as i32, f_y(f)),
+                CPos((pos.pos().0 * self.config.cell_size) as i32, f_y(*f)),
                 self.config.cell_size,
                 2,
                 color,
             );
             if self.config.style.draw_dt {
                 canvas.fill_rect(
-                    CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, f_y(f)),
+                    CPos(self.nw.size.0 as i32 + (g * dt_cell_size) as i32, f_y(*f)),
                     dt_cell_size,
                     2,
                     color,
