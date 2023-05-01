@@ -22,7 +22,7 @@ resolver = "2"
 [profile.release]
 # 2x smaller file size when 'true', but that takes longer
 lto = "thin"
-#incremental = true
+incremental = true
 opt-level = 3
 debug = true
 # 10x smaller file size without debug symbols.
