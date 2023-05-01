@@ -1,3 +1,5 @@
+pub mod nw_front;
+
 use std::{
     fmt::Debug,
     ops::{Index, IndexMut, Range, RangeInclusive},
@@ -172,6 +174,7 @@ where
         self.fronts.last().unwrap()
     }
 
+    #[allow(unused)]
     #[must_use]
     pub fn split_at(&mut self, index: I) -> (&Front<N, T, I>, &mut Front<N, T, I>) {
         let index = (index + self.buffers.0 - self.range.start()).as_();
