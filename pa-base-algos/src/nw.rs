@@ -6,7 +6,6 @@ use crate::edit_graph::{AffineCigarOps, EditGraph};
 use crate::front::nw_front::{NwFront, NwFronts};
 use crate::Domain;
 use crate::{exponential_search, Strategy};
-use itertools::chain;
 use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
@@ -62,8 +61,8 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
     pub fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H> {
         use Domain::*;
         NWInstance {
-            a: pad(a),
-            b: pad(b),
+            a,
+            b,
             params: self.clone(),
             domain: match self.domain {
                 Full => Full,
@@ -82,13 +81,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> std::fmt::Debug for NW<N, V, 
     }
 }
 
-/// FIXME: Remove or move into NwFronts.
-const PADDING: Pos = Pos(1, 1);
-
 pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
-    pub a: Sequence,
-    pub b: Sequence,
+    pub a: Seq<'a>,
+    pub b: Seq<'a>,
 
     pub params: NW<N, V, H>,
 
@@ -105,7 +101,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
     /// `i_range`: `[start, end)` range of columns, starting at `prev_i+1`,
     /// Can be e.g. `i..i+1` with `prev` the front for column `i-1`,
     /// or `i..i+W` to compute a block of `W` columns i .. i+W.
-    /// Pass `0..1` for the first column.
+    /// Pass `0..1` for the range of the first column. `prev` is not not used.
     fn j_range(
         &self,
         i_range: Range<I>,
@@ -114,7 +110,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
     ) -> RangeInclusive<I> {
         // Without a bound on the distance, we can only return the full range.
         let Some(f_max) = f_max else {
-            return PADDING.1..=self.b.len() as I;
+            return 0..=self.b.len() as I;
         };
 
         // Inclusive start column of the new block.
@@ -123,13 +119,13 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
         let ie = i_range.end - 1;
 
         match &self.domain {
-            Domain::Full => PADDING.1..=self.b.len() as I,
+            Domain::Full => 0..=self.b.len() as I,
             Domain::GapStart => {
                 // range: the max number of diagonals we can move up/down from the start with cost f.
                 let range = -(self.params.cm.max_del_for_cost(f_max) as I)
                     ..=self.params.cm.max_ins_for_cost(f_max) as I;
                 // crop
-                max(is + *range.start(), 1)..=min(ie + *range.end(), self.b.len() as I)
+                max(is + *range.start(), 0)..=min(ie + *range.end(), self.b.len() as I)
             }
             Domain::GapGap => {
                 let d = self.b.len() as I - self.a.len() as I;
@@ -146,70 +142,64 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 let range = min(d, 0) - extra_diagonals as I..=max(d, 0) + extra_diagonals as I;
 
                 // crop
-                max(is + *range.start(), 1)..=min(ie + *range.end(), self.b.len() as I)
+                max(is + *range.start(), 0)..=min(ie + *range.end(), self.b.len() as I)
             }
             Domain::Astar(h) => {
-                if ie == 0 {
-                    // special case for padding.
-                    0..=0
-                } else {
-                    // Instead of computing the start and end exactly, we bound them using the computed values of the previous range.
+                // Instead of computing the start and end exactly, we bound them using the computed values of the previous range.
 
-                    let f = |i, j| prev.m()[j] + h.h(Pos(i, j) - PADDING);
+                let f = |i, j| prev.m()[j] + h.h(Pos(i, j));
 
-                    // Start: increment the start of the previous range until
-                    //        f<=f_max is satisfied in previous column.
-                    // End: decrement the end of the previous range until
-                    //      f<=f_max is satisfied in previous column.
-                    let mut start = max(*prev.range().start(), 1);
-                    let mut end = *prev.range().end();
-                    if is > 1 {
-                        while start <= end + 1 && f(is - 1, start) > f_max {
-                            start += 1;
-                        }
-
-                        while end >= start && f(is - 1, end) > f_max {
-                            end -= 1;
-                        }
+                // Start: increment the start of the previous range until
+                //        f<=f_max is satisfied in previous column.
+                // End: decrement the end of the previous range until
+                //      f<=f_max is satisfied in previous column.
+                let mut start = *prev.range().start();
+                let mut end = *prev.range().end();
+                if is > 0 {
+                    while start <= end + 1 && f(is - 1, start) > f_max {
+                        start += 1;
                     }
 
-                    // Early return for empty range.
-                    if start > end + 1 {
-                        return start..=start - 1;
+                    while end >= start && f(is - 1, end) > f_max {
+                        end -= 1;
                     }
-
-                    let u = Pos(is - 1, end);
-                    let du = prev.m()[end];
-                    let mut v = u;
-
-                    // Extend `v` diagonally one column at a time towards `ie`.
-                    // We have `
-                    // In each column, find the lowest `v` such that
-                    // `f(v) = g(v) + h(v) <= d(u) + extend_cost(u, v) + h(v) <= s`.
-                    //
-                    // NOTE: We can not directly go to the last column, since
-                    // the optimal path could then 'escape' through the bottom.
-                    // Without further reasoning, we must evaluate `h` at least
-                    // once per column.
-
-                    while v.0 < ie {
-                        // Extend diagonally.
-                        v += Pos(1, 1);
-
-                        // TODO: Should we also attempt to decrease `v.1` here? I
-                        // don't think it's needed for typical heuristics.
-
-                        // Check if cell below is out-of-reach.
-                        v.1 += 1;
-                        while v.1 <= self.b.len() as I
-                            && du + self.params.cm.extend_cost(u, v) + h.h(v - PADDING) <= f_max
-                        {
-                            v.1 += 1;
-                        }
-                        v.1 -= 1;
-                    }
-                    start..=min(v.1, self.b.len() as I)
                 }
+
+                // Early return for empty range.
+                if start > end + 1 {
+                    return start..=start - 1;
+                }
+
+                let u = Pos(is - 1, end);
+                let du = if is == 0 { 0 } else { prev.m()[end] };
+                let mut v = u;
+
+                // Extend `v` diagonally one column at a time towards `ie`.
+                // In each column, find the lowest `v` such that
+                // `f(v) = g(v) + h(v) <= d(u) + extend_cost(u, v) + h(v) <= s`.
+                //
+                // NOTE: We can not directly go to the last column, since
+                // the optimal path could then 'escape' through the bottom.
+                // Without further reasoning, we must evaluate `h` at least
+                // once per column.
+
+                while v.0 < ie {
+                    // Extend diagonally.
+                    v += Pos(1, 1);
+
+                    // TODO: Should we also attempt to decrease `v.1` here? I
+                    // don't think it's needed for typical heuristics.
+
+                    // Check if cell below is out-of-reach.
+                    v.1 += 1;
+                    while v.1 <= self.b.len() as I
+                        && du + self.params.cm.extend_cost(u, v) + h.h(v) <= f_max
+                    {
+                        v.1 += 1;
+                    }
+                    v.1 -= 1;
+                }
+                start..=min(v.1, self.b.len() as I)
             }
         }
     }
@@ -363,8 +353,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 // }
                 assert!(!new_range.is_empty());
                 fronts.update_fronts(i..i + 1, new_range.clone(), |pos, g| {
-                    self.v
-                        .expand(pos - Pos(1, 1), g, f_max[i as usize], self.domain.h())
+                    self.v.expand(pos, g, f_max[i as usize], self.domain.h())
                 });
 
                 // for j in new_range.clone() {
@@ -488,23 +477,17 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
     /// Returns None if cost > s, or the actual cost otherwise.
     fn cost_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<Cost> {
         eprintln!("Bound: {f_max:?}");
-        let mut fronts = NwFronts::new(
-            &self.a,
-            &self.b,
-            &self.params.cm,
-            self.j_range(0..1, f_max, &NwFront::default()),
-        );
+        let initial_j_range = self.j_range(0..1, f_max, &NwFront::default());
+        let mut fronts = NwFronts::new(&self.a, &self.b, &self.params.cm, initial_j_range);
 
         for i in (1..=self.a.len() as I).step_by(self.params.block_width as _) {
             let i_range = i..min(i + self.params.block_width, self.a.len() as I + 1);
             let j_range = self.j_range(i_range.clone(), f_max, fronts.last_front());
-            eprintln!("j_range {i_range:?}: {j_range:?}");
             if j_range.is_empty() {
                 return None;
             }
             fronts.rotate_next_fronts(i_range, j_range, |pos, g| {
-                self.v
-                    .expand(pos - Pos(1, 1), g, f_max.unwrap_or(0), self.domain.h())
+                self.v.expand(pos, g, f_max.unwrap_or(0), self.domain.h())
             });
             if self.params.strategy == Strategy::None {
                 self.v.new_layer(self.domain.h());
@@ -525,23 +508,24 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
     // TODO: Pass `h` into this function, instead of re-initializing it repeatedly for exponential search.
     pub fn align_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<(Cost, AffineCigar)> {
         eprintln!("Bound: {f_max:?}");
-        let mut fronts = NwFronts::new(
-            &self.a,
-            &self.b,
-            &self.params.cm,
-            self.j_range(0..1, f_max, &NwFront::default()),
+        let initial_j_range = self.j_range(0..1, f_max, &NwFront::default());
+        self.v.expand_block(
+            Pos(0, 0),
+            Pos(1, *initial_j_range.end() + 1),
+            0,
+            f_max.unwrap_or(0),
+            self.domain.h(),
         );
+        let mut fronts = NwFronts::new(&self.a, &self.b, &self.params.cm, initial_j_range);
 
         for i in (1..=self.a.len() as I).step_by(self.params.block_width as _) {
             let i_range = i..min(i + self.params.block_width, self.a.len() as I + 1);
             let j_range = self.j_range(i_range.clone(), f_max, fronts.last_front());
-            eprintln!("j_range {i_range:?}: {j_range:?}");
             if j_range.is_empty() {
                 return None;
             }
             fronts.push_next_fronts(i_range, j_range, |pos, g| {
-                self.v
-                    .expand(pos - Pos(1, 1), g, f_max.unwrap_or(0), self.domain.h())
+                self.v.expand(pos, g, f_max.unwrap_or(0), self.domain.h())
             });
             if self.params.strategy == Strategy::None {
                 self.v.new_layer(self.domain.h());
@@ -574,10 +558,6 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
         }
         None
     }
-}
-
-fn pad(a: Seq) -> Sequence {
-    chain!(b"^", a).copied().collect()
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {

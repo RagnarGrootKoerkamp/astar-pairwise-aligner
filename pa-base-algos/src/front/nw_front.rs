@@ -46,7 +46,9 @@ impl<'a, const N: usize> NwFronts<'a, N> {
                     LEFT_BUFFER,
                     RIGHT_BUFFER,
                 );
-                fronts[0].m_mut()[0] = 0;
+                for j in initial_j_range {
+                    fronts[0].m_mut()[j] = cm.gap_cost(Pos(0, 0), Pos(0, j));
+                }
                 fronts
             },
         }
