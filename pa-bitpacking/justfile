@@ -1,0 +1,39 @@
+# Run criterion
+run_bench_json:
+    cargo criterion --bench nw --message-format=json --plotting-backend=disabled -- --quick > bench.json
+    jq -s '[.[] | select(.reason == "benchmark-complete") \
+    | { \
+        id: .id, \
+        typical: .typical.estimate, \
+        mean: .mean.estimate, \
+        median: .median.estimate \
+      }]' bench.json > bench_cleaned.json
+    rm bench.json
+
+build:
+    cargo build -r --bench nw
+
+bench bench='Local/B/Col' *args='':
+    cargo bench --bench nw -- --quiet -n --warm-up-time 1 --measurement-time 3 {{bench}} {{args}}
+
+# instructions per cycle
+stat bench='time/Local/B/Col' *args='': build
+    perf stat cargo bench --bench nw -- --profile-time 5 {{bench}} {{args}}
+
+# record time usage
+report bench='time/Local/B/Col' *args='': build
+    perf record cargo bench --bench nw -- --profile-time 1 {{bench}} {{args}}
+    perf report -n
+
+viz:
+    cargo run -r -F small_blocks
+
+perf:
+    sudo cpupower frequency-set --governor performance -d 2.6GHz -u 2.6GHz
+
+allow-profiling:
+    sudo sh -c 'echo 1 >/proc/sys/kernel/perf_event_paranoid'
+
+# 1. bench
+# 2. stat
+# 3. viz
