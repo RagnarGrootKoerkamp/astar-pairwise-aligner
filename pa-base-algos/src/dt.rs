@@ -1382,7 +1382,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
         let v = &RefCell::new(self.v.build(a, b));
         let mut dt = self.build(a, b, v);
         let cost = if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
-            exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
+            exponential_search(0, self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
                 dt.cost_for_bounded_dist(Some(s)).map(|c| (c, c))
             })
             .1
@@ -1417,9 +1417,12 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
                 );
                 cc = dt.align_local_band_doubling();
             } else if self.use_gap_cost_heuristic == GapCostHeuristic::Enable || !H::IS_DEFAULT {
-                cc = exponential_search(self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)), 2., |s| {
-                    dt.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x))
-                })
+                cc = exponential_search(
+                    0,
+                    self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)),
+                    2.,
+                    |s| dt.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x)),
+                )
                 .1;
                 //self.v.borrow_mut().last_frame(Some(&cc.1));
             } else {

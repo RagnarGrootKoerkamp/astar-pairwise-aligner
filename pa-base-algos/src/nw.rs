@@ -579,7 +579,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             }
         }
 
-        if self.params.strategy == Strategy::BandDoubling {
+        if matches!(self.params.strategy, Strategy::BandDoubling(_, _)) {
             self.v.new_layer(self.domain.h());
         }
         None
@@ -591,22 +591,45 @@ fn pad(a: Seq) -> Sequence {
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
+    fn band_doubling_params(
+        &mut self,
+        start: crate::DoublingStart,
+        a: &[u8],
+        b: &[u8],
+        nw: &NWInstance<N, V, H>,
+    ) -> (i32, i32) {
+        let (start_f, start_increment) = match start {
+            crate::DoublingStart::Zero => (0, 1),
+            crate::DoublingStart::Gap => {
+                let x = self.cm.gap_cost(Pos(0, 0), Pos::target(a, b));
+                (x, x)
+            }
+            crate::DoublingStart::H0 => (
+                nw.domain
+                    .h()
+                    .expect("DoublingStart::H0 requires an A* domain with heuristic.")
+                    .h(Pos(0, 0)),
+                1,
+            ),
+        };
+        (start_f, start_increment)
+    }
+
     pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
         let mut nw = self.build(a, b);
         let cost = match self.strategy {
             Strategy::LocalDoubling => {
                 unimplemented!();
             }
-            Strategy::BandDoubling => {
-                exponential_search(
-                    // TODO: Take a max with h(0,0) here.
-                    self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)),
-                    2.,
-                    |s| nw.cost_for_bounded_dist(Some(s)).map(|c| (c, c)),
-                )
+            Strategy::BandDoubling(start, factor) => {
+                let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
+                exponential_search(start_f, start_increment, factor, |s| {
+                    nw.cost_for_bounded_dist(Some(s)).map(|c| (c, c))
+                })
                 .1
             }
             Strategy::None => {
+                // FIXME: Allow single-shot alignment with specified domain and threshold.
                 assert!(matches!(self.domain, Domain::Full));
                 nw.cost_for_bounded_dist(None).unwrap()
             }
@@ -617,23 +640,20 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
 
     pub fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
         let mut nw = self.build(a, b);
-        let cc;
-        match self.strategy {
+        let cc = match self.strategy {
             Strategy::LocalDoubling => {
                 return nw.align_local_band_doubling();
             }
-            Strategy::BandDoubling => {
-                cc = exponential_search(
-                    // TODO: Take a max with h(0,0) here.
-                    self.cm.gap_cost(Pos(0, 0), Pos::target(a, b)),
-                    2.,
-                    |s| nw.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x)),
-                )
-                .1;
+            Strategy::BandDoubling(start, factor) => {
+                let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
+                exponential_search(start_f, start_increment, factor, |s| {
+                    nw.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x))
+                })
+                .1
             }
             Strategy::None => {
                 assert!(matches!(self.domain, Domain::Full));
-                cc = nw.align_for_bounded_dist(None).unwrap();
+                nw.align_for_bounded_dist(None).unwrap()
             }
         };
         nw.v.last_frame::<NoCostI>(Some(&cc.1), None, None);
@@ -660,3 +680,25 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> AffineAligner for NW<N, V, H>
         (cost, Some(cigar))
     }
 }
+
+// Worst case growth factor analysis
+//
+// 1, g, g^2, ...
+//
+// worst-case overshoot: g^k = g*s
+// Assuming O(ng) work per guess (Gap, GapGap)
+//   n(1+g+...+g^k) = n*(g*g^k-1)/(g-1) = n*(g^2 s-1)/(g-1) ~ ns g^2/(g-1)
+//   minimize g^2/(g-1):
+//   derivative 0: 0 = (2g (g-1) - g^2) / (g-1)^2 => 0 = g^2-2g = g(g-2)
+// g=2
+// 4ns
+//
+// Assuming O(g^2) work per guess (Dijkstra, Astar(GapCost), when errors are uniform)
+//   1 + g^2 + g^4 + ... + g^2k ~ g^{2k+2} / (g^2-1) = ns g^4 / (g^2-1)
+//   minimize g^4/(g^2-1)
+//   derivative 0: 0 = 4g^3(g^2-1) - g^4 2g = 2g^5 - 4g^3 = 2 g^3 (g^2-2)
+// g=sqrt(2)
+// 2ns
+// in case all errors are at the end and runtime is O(ng) per guess:
+// 4.8 ns, only slightly worse than 4ns.
+//
