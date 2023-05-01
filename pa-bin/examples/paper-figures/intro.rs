@@ -65,7 +65,11 @@ fn main() {
             GapCostHeuristic::Disable,
             NoCost,
             true,
-            config.with_filename("4_dt-divide-and-conquer"),
+            {
+                let mut c = config.with_filename("4_dt-divide-and-conquer");
+                c.draw_old_on_top = false;
+                c
+            },
         )),
         Box::new(AstarPa {
             h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
