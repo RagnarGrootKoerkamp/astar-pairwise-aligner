@@ -2,7 +2,7 @@
 
 use pa_types::Cost;
 use serde::{Deserialize, Serialize};
-use std::cmp::max;
+use std::cmp::{max, min};
 
 mod edit_graph;
 mod front;
@@ -24,12 +24,19 @@ fn exponential_search<T>(
     mut f: impl FnMut(Cost) -> Option<(Cost, T)>,
 ) -> (Cost, T) {
     let mut s = s0;
+    let mut maxs = Cost::MAX;
     // TODO: Fix the potential infinite loop here.
     loop {
-        if let Some((cost,t)) = f(offset + s) && cost <= s{
-            return (cost, t);
+        if let Some((cost, t)) = f(offset + s) {
+            if cost <= s {
+                return (cost, t);
+            } else {
+                // If some value was returned this is an upper bound on the answer.
+                maxs = min(maxs, cost);
+            }
         }
         s = max((factor * s as f32).ceil() as Cost, 1);
+        s = min(s, maxs);
     }
 }
 
