@@ -55,12 +55,14 @@ impl AstarNwParams {
     }
 
     /// Build a type-erased aligner object from parameters.
+    /// FIXME: Add costmodel support.
     pub fn make_aligner_with_visualizer<V: VisualizerT + 'static>(&self, v: V) -> Box<dyn Aligner> {
-        struct Mapper<V: VisualizerT> {
+        struct Mapper<V: VisualizerT, F: NwFrontsTag<0>> {
             params: AstarNwParams,
             v: V,
+            front: F,
         }
-        impl<V: VisualizerT + 'static> HeuristicMapper for Mapper<V> {
+        impl<V: VisualizerT + 'static, F: NwFrontsTag<0> + 'static> HeuristicMapper for Mapper<V, F> {
             type R = Box<dyn Aligner>;
             fn call<H: Heuristic + 'static>(self, h: H) -> Box<dyn Aligner> {
                 Box::new(NW {
@@ -69,20 +71,35 @@ impl AstarNwParams {
                     strategy: self.params.strategy,
                     block_width: self.params.block_width,
                     v: self.v,
-                    // FIXME: Make generic
-                    front: BitFront,
+                    front: self.front,
                 })
             }
         }
-        match self.domain {
-            Domain::Astar(()) => self.heuristic.map(Mapper { params: *self, v }),
-            d => Box::new(NW {
+        match (self.domain, self.front) {
+            (Domain::Astar(()), FrontType::Affine) => self.heuristic.map(Mapper {
+                params: *self,
+                v,
+                front: AffineFront,
+            }),
+            (Domain::Astar(()), FrontType::Bit) => self.heuristic.map(Mapper {
+                params: *self,
+                v,
+                front: BitFront,
+            }),
+            (d, FrontType::Affine) => Box::new(NW {
                 cm: AffineCost::unit(),
                 domain: d.into(),
                 strategy: self.strategy,
                 block_width: self.block_width,
                 v,
-                // FIXME: Make generic
+                front: AffineFront,
+            }),
+            (d, FrontType::Bit) => Box::new(NW {
+                cm: AffineCost::unit(),
+                domain: d.into(),
+                strategy: self.strategy,
+                block_width: self.block_width,
+                v,
                 front: BitFront,
             }),
         }
