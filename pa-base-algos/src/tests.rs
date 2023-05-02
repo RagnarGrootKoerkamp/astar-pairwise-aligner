@@ -54,7 +54,7 @@ fn test_aligner_on_input<const N: usize, A: AffineAligner>(
     if D {
         eprintln!("a {}\nb {}", seq_to_string(a), seq_to_string(b));
     }
-    let mut nw = NW::new(cm.clone(), false, false);
+    let nw = NW::new(cm.clone(), false, false);
     let nw_cost = nw.cost(a, b);
     let cost = aligner.align_affine(a, b).0;
     // Rerun the alignment with the visualizer enabled.
@@ -292,6 +292,7 @@ mod diagonal_transition_dc {
 mod nw_sh {
 
     use super::*;
+    use crate::nw::AffineFront;
 
     fn test<const N: usize>(cm: AffineCost<N>) {
         test_aligner_on_cost_model(
@@ -305,6 +306,7 @@ mod nw_sh {
                 }),
                 block_width: 1,
                 v: NoVis,
+                front: AffineFront,
             },
             // test `align` as well?
             true,

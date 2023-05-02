@@ -1,6 +1,9 @@
 use astarpa_next::path_pruning::PathHeuristic;
 use pa_affine_types::AffineCost;
-use pa_base_algos::{nw::NW, Domain};
+use pa_base_algos::{
+    nw::{AffineFront, NW},
+    Domain,
+};
 use pa_generate::uniform_fixed;
 use pa_heuristic::{MatchConfig, Pruning, GCSH};
 use pa_vis::visualizer::{self, Gradient, When};
@@ -29,7 +32,7 @@ fn main() {
     config.draw_old_on_top = true;
     config.filepath = PathBuf::from("imgs/slides/");
 
-    let mut aligner = NW {
+    let aligner = NW {
         cm,
         strategy: pa_base_algos::Strategy::LocalDoubling,
         domain: Domain::Astar(PathHeuristic {
@@ -37,6 +40,7 @@ fn main() {
         }),
         block_width: 1,
         v: config.with_filename("path-pruning"),
+        front: AffineFront,
     };
     aligner.align(a, b);
 }

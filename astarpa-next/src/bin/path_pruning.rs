@@ -5,7 +5,10 @@
 use astarpa_next::path_pruning::PathHeuristic;
 use clap::Parser;
 use pa_affine_types::{AffineAligner, AffineCost};
-use pa_base_algos::{nw::NW, Domain};
+use pa_base_algos::{
+    nw::{AffineFront, NW},
+    Domain,
+};
 use pa_bin::cli::Cli;
 use pa_heuristic::{Heuristic, HeuristicMapper};
 use pa_types::*;
@@ -54,6 +57,7 @@ fn make_path_heuristic_aligner(
                 domain: Domain::Astar(PathHeuristic { h }),
                 block_width: 1,
                 v: self.v,
+                front: AffineFront,
             })
         }
     }

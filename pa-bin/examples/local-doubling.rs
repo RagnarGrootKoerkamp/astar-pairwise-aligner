@@ -1,7 +1,10 @@
 #![allow(unused)]
 use astarpa::AstarPa;
 use pa_affine_types::AffineCost;
-use pa_base_algos::{nw::NW, Domain, Strategy};
+use pa_base_algos::{
+    nw::{AffineFront, NW},
+    Domain, Strategy,
+};
 use pa_generate::{uniform_fixed, uniform_seeded};
 use pa_heuristic::{MatchConfig, Pruning, GCSH};
 use pa_types::Sequence;
@@ -78,6 +81,7 @@ fn main() {
         domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::disabled())),
         block_width: 1,
         v: config.with_filename("local-doubling-noprune"),
+        front: AffineFront,
     };
     aligner.align(a, b);
 
@@ -94,6 +98,7 @@ fn main() {
         domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::both())),
         block_width: 1,
         v: config.with_filename("local-doubling"),
+        front: AffineFront,
     };
     aligner.align(a, b);
 }

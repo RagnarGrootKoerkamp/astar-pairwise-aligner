@@ -1,7 +1,7 @@
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
-    nw::NW,
+    nw::{AffineFront, NW},
     Domain,
 };
 use pa_generate::uniform_fixed;
@@ -37,58 +37,63 @@ fn main() {
     let csh = CSH::new(MatchConfig::exact(4), Pruning::disabled());
 
     {
-        let mut nw = NW {
+        let nw = NW {
             cm: cm.clone(),
             strategy: pa_base_algos::Strategy::None,
             domain: Domain::full(),
             block_width: 1,
             v: vis("nw"),
+            front: AffineFront,
         };
         nw.align(a, b);
     }
 
     {
-        let mut nw = NW {
+        let nw = NW {
             cm: cm.clone(),
             strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::gap_gap(),
             block_width: 1,
             v: vis("nw_gapcost"),
+            front: AffineFront,
         };
         nw.align(a, b);
     }
 
     {
-        let mut nw = NW {
+        let nw = NW {
             cm: cm.clone(),
             strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::dist_gap(),
             block_width: 1,
             v: vis("nw_gapcost_h"),
+            front: AffineFront,
         };
 
         nw.align(a, b);
     }
 
     {
-        let mut nw = NW {
+        let nw = NW {
             cm: cm.clone(),
             strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::astar(sh),
             block_width: 1,
             v: vis("nw_sh"),
+            front: AffineFront,
         };
 
         nw.align(a, b);
     }
 
     {
-        let mut nw = NW {
+        let nw = NW {
             cm: cm.clone(),
             strategy: pa_base_algos::Strategy::band_doubling(),
             domain: Domain::astar(csh),
             block_width: 1,
             v: vis("nw_csh"),
+            front: AffineFront,
         };
 
         nw.align(a, b);

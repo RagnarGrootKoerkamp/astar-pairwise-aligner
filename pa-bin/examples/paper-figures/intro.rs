@@ -4,7 +4,7 @@ use astarpa::{astar, AstarPa};
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
-    nw::NW,
+    nw::{AffineFront, NW},
 };
 use pa_generate::uniform_fixed;
 use pa_heuristic::{MatchConfig, NoCost, Pruning, GCSH};
@@ -49,6 +49,7 @@ fn main() {
             domain: pa_base_algos::Domain::gap_gap(),
             block_width: 1,
             v: config.with_filename("1_ukkonen"),
+            front: AffineFront,
         }),
         Box::new(AstarPa {
             dt: false,

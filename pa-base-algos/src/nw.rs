@@ -1,6 +1,7 @@
 //! TODO
 //! - timings
-//! - add reusing computed values when doing A*
+//! - pruning
+//! - reuse computed values when doing A*
 /// - meet in the middle for traceback
 mod affine;
 mod bitpacking;

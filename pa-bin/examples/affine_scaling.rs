@@ -1,5 +1,5 @@
 use pa_affine_types::AffineCost;
-use pa_base_algos::nw::NW;
+use pa_base_algos::nw::{AffineFront, NW};
 use pa_generate::{generate_model, ErrorModel};
 use pa_vis_types::NoVis;
 use rand::{thread_rng, Rng};
@@ -36,6 +36,7 @@ fn main() {
                     domain: pa_base_algos::Domain::gap_start(),
                     block_width: 1,
                     v: NoVis,
+                    front: AffineFront,
                 }
                 .cost(a, b);
                 eprintln!(
