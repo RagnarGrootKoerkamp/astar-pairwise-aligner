@@ -1,4 +1,5 @@
 mod affine;
+mod bitpacking;
 mod front;
 
 /// TODO
