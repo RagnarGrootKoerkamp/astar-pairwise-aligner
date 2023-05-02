@@ -110,25 +110,23 @@ impl EditGraph {
                 // - affine close (insertion or deletion)
 
                 // match / substitution
-                if i > 0 && j > 0 {
-                    let is_match = a[i as usize - 1] == b[j as usize - 1];
-                    if is_match {
-                        f(-1, -1, None, 0, [Some(AffineCigarOp::Match), None]);
-                        if greedy_matching {
-                            return;
-                        }
-                    } else if let Some(cost) = cm.sub {
-                        f(-1, -1, None, cost, [Some(AffineCigarOp::Sub), None]);
+                let is_match = i > 0 && j > 0 && a[i as usize - 1] == b[j as usize - 1];
+                if is_match {
+                    f(-1, -1, None, 0, [Some(AffineCigarOp::Match), None]);
+                    if greedy_matching {
+                        return;
                     }
+                } else if let Some(cost) = cm.sub {
+                    f(-1, -1, None, cost, [Some(AffineCigarOp::Sub), None]);
                 }
 
                 // insertion
-                if let Some(cost) = cm.ins && j > 0 {
+                if let Some(cost) = cm.ins {
                     f(0, -1, None, cost, [Some(AffineCigarOp::Ins), None]);
                 }
 
                 // deletion
-                if let Some(cost) = cm.del && i > 0 {
+                if let Some(cost) = cm.del {
                     f(-1, 0, None, cost, [Some(AffineCigarOp::Del), None]);
                 }
 
