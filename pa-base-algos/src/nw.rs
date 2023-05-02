@@ -1,6 +1,7 @@
 /// TODO
 /// - add bitpacking based implementation + block_height
 /// - add reusing computed values when doing A*
+/// - meet in the middle for traceback
 use crate::dt::Direction;
 use crate::edit_graph::{AffineCigarOps, EditGraph};
 use crate::front::nw_front::{NwFront, NwFronts};
@@ -210,7 +211,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 let mut start = *prev.range().start();
                 let mut end = *prev.range().end();
                 if is > 0 {
-                    while start <= end + 1 && f(is - 1, start) > f_max {
+                    while start <= end && f(is - 1, start) > f_max {
                         start += 1;
                     }
 
@@ -220,12 +221,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 }
 
                 // Early return for empty range.
-                if start > end + 1 {
+                if start > end {
                     return start..=start - 1;
                 }
 
                 let u = Pos(is - 1, end);
-                let du = if is == 0 { 0 } else { prev.m()[end] };
+                let gu = if is == 0 { 0 } else { prev.m()[end] };
                 let mut v = u;
 
                 // Extend `v` diagonally one column at a time towards `ie`.
@@ -247,7 +248,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                     // Check if cell below is out-of-reach.
                     v.1 += 1;
                     while v.1 <= self.b.len() as I
-                        && du + self.params.cm.extend_cost(u, v) + h.h(v) <= f_max
+                        && gu + self.params.cm.extend_cost(u, v) + h.h(v) <= f_max
                     {
                         v.1 += 1;
                     }

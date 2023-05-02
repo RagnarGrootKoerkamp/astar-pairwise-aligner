@@ -18,9 +18,8 @@ pub struct NwFronts<'a, const N: usize> {
     pub fronts: Fronts<N, Cost, I>,
 }
 
-/// NW DP only needs the cell just left and above of the current cell.
-const LEFT_BUFFER: I = 2;
-const RIGHT_BUFFER: I = 2;
+const TOP_BUF: I = 0;
+const BOT_BUF: I = 0;
 
 // TODO: Instead use saturating add everywhere?
 const INF: Cost = Cost::MAX / 2;
@@ -104,9 +103,6 @@ impl<'a, const N: usize> NwFronts<'a, N> {
         }
     }
     /// Computes the next front (front `i`) from the current one.
-    ///
-    /// `a` and `b` must be padded at the start by the same character.
-    /// `i` and `j` will always be > 0.
     fn next_front(
         &self,
         i: I,
