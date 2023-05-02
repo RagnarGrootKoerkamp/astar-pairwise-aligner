@@ -1,6 +1,8 @@
-use crate::{B, D};
+use pa_types::I;
 
-#[derive(Clone)]
+use crate::{B, D, W};
+
+#[derive(Clone, Default, Copy)]
 pub struct V(B, B);
 impl V {
     #[inline(always)]
@@ -10,6 +12,27 @@ impl V {
     #[inline(always)]
     pub fn from(p: B, m: B) -> Self {
         V(p, m)
+    }
+    #[inline(always)]
+    pub fn value(&self) -> D {
+        self.0.count_ones() as D - self.1.count_ones() as D
+    }
+    /// Value of the first `j` bits.
+    #[inline(always)]
+    pub fn value_of_prefix(&self, j: I) -> D {
+        assert!(0 <= j && j < W as I);
+        let mask = (1 << j) - 1;
+        (self.0 & mask).count_ones() as D - (self.1 & mask).count_ones() as D
+    }
+    /// Value of the last `j` bits.
+    #[inline(always)]
+    pub fn value_of_suffix(&self, j: I) -> D {
+        if j == 0 {
+            return 0;
+        }
+        assert!(0 < j && j <= W as I);
+        let mask = !(((1 as B) << (W as I - j)).wrapping_sub(1));
+        (self.0 & mask).count_ones() as D - (self.1 & mask).count_ones() as D
     }
     #[inline(always)]
     pub fn pm(&self) -> (B, B) {
