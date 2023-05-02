@@ -32,6 +32,9 @@ pub struct BitFronts {
     i_range: IRange,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct BitFrontsTag;
+
 impl Default for BitFront {
     fn default() -> Self {
         Self {
@@ -108,20 +111,20 @@ impl BitFront {
     }
 }
 
-impl<'a> NwFronts<'a, 0usize> for BitFronts {
-    type Front = BitFront;
-
-    fn new(
+impl NwFrontsTag<0usize> for BitFrontsTag {
+    type Fronts<'a> = BitFronts;
+    const BLOCKSIZE: I = 64;
+    fn new<'a>(
         trace: bool,
         a: Seq<'a>,
         b: Seq<'a>,
         cm: &'a AffineCost<0>,
         initial_j_range: JRange,
-    ) -> Self {
+    ) -> Self::Fronts<'a> {
         assert_eq!(*cm, AffineCost::unit());
         assert!(initial_j_range.0 == 0);
         let (a, b) = profile(a, b);
-        Self {
+        BitFronts {
             fronts: if trace {
                 // First column front, with more fronts pushed after.
                 vec![BitFront::first_col(initial_j_range)]
@@ -142,6 +145,10 @@ impl<'a> NwFronts<'a, 0usize> for BitFronts {
             i_range: IRange(-1, 0),
         }
     }
+}
+
+impl NwFronts<0usize> for BitFronts {
+    type Front = BitFront;
 
     fn compute_next_block(&mut self, i_range: IRange, j_range: JRange) {
         assert!(i_range.0 == self.i_range.1);

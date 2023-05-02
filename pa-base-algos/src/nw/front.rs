@@ -73,16 +73,21 @@ pub trait NwFront: Default {
     fn get(&self, j: I) -> Option<Cost>;
 }
 
-pub trait NwFronts<'a, const N: usize> {
-    type Front: NwFront;
+pub trait NwFrontsTag<const N: usize>: Copy {
+    type Fronts<'a>: NwFronts<N>;
+    const BLOCKSIZE: I;
     /// Constructs a new front and initializes it for `i=0`.
-    fn new(
+    fn new<'a>(
         trace: bool,
         a: Seq<'a>,
         b: Seq<'a>,
         cm: &'a AffineCost<N>,
         initial_j_range: JRange,
-    ) -> Self;
+    ) -> Self::Fronts<'a>;
+}
+
+pub trait NwFronts<const N: usize> {
+    type Front: NwFront;
     /// Compute the next `i_range` columns for `j_range`.
     /// `i_range` `start .. end` processes characters `start .. end` of `a`, and
     /// give the front at column `i`.

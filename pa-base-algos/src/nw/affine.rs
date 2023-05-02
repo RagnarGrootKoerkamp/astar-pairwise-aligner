@@ -31,6 +31,9 @@ pub struct AffineNwFronts<'a, const N: usize> {
     i_range: IRange,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct AffineNwFrontsTag<const N: usize>;
+
 impl<const N: usize> Default for AffineNwFront<N> {
     fn default() -> Self {
         Self {
@@ -140,17 +143,17 @@ impl<'a, const N: usize> AffineNwFronts<'a, N> {
     }
 }
 
-impl<'a, const N: usize> NwFronts<'a, N> for AffineNwFronts<'a, N> {
-    type Front = AffineNwFront<N>;
-
-    fn new(
+impl<const N: usize> NwFrontsTag<N> for AffineNwFrontsTag<N> {
+    type Fronts<'a> = AffineNwFronts<'a, N>;
+    const BLOCKSIZE: I = 1;
+    fn new<'a>(
         trace: bool,
         a: Seq<'a>,
         b: Seq<'a>,
         cm: &'a AffineCost<N>,
         initial_j_range: JRange,
-    ) -> Self {
-        Self {
+    ) -> Self::Fronts<'a> {
+        Self::Fronts {
             fronts: if trace {
                 // A single vector element that will grow.
                 vec![AffineNwFront::first_col(cm, initial_j_range)]
@@ -168,6 +171,10 @@ impl<'a, const N: usize> NwFronts<'a, N> for AffineNwFronts<'a, N> {
             i_range: IRange(-1, 0),
         }
     }
+}
+
+impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
+    type Front = AffineNwFront<N>;
 
     fn last_front(&self) -> &AffineNwFront<N> {
         &self.fronts.last().unwrap()

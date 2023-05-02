@@ -1,12 +1,11 @@
+//! TODO
+//! - timings
+//! - add reusing computed values when doing A*
+/// - meet in the middle for traceback
 mod affine;
 mod bitpacking;
 mod front;
 
-/// TODO
-/// - add bitpacking based implementation + block_height
-/// - add reusing computed values when doing A*
-/// - meet in the middle for traceback
-use crate::nw::affine::AffineNwFronts;
 use crate::nw::front::{IRange, JRange, NwFront, NwFronts};
 use crate::Domain;
 use crate::{exponential_search, Strategy};
@@ -16,6 +15,18 @@ use pa_types::*;
 use pa_vis_types::*;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
+
+use self::affine::AffineNwFrontsTag;
+use self::front::NwFrontsTag;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum FrontType {
+    Affine,
+    Bit,
+}
+
+pub use affine::AffineNwFrontsTag as AffineFront;
+pub use bitpacking::BitFrontsTag as BitFront;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct AstarNwParams {
@@ -31,6 +42,9 @@ pub struct AstarNwParams {
     /// Compute `block_width` columns at a time, to reduce overhead of metadata
     /// computations.
     pub block_width: I,
+
+    /// The front type to use.
+    pub front: FrontType,
 }
 
 impl AstarNwParams {
@@ -54,6 +68,8 @@ impl AstarNwParams {
                     strategy: self.params.strategy,
                     block_width: self.params.block_width,
                     v: self.v,
+                    // FIXME: Make generic
+                    front: BitFront,
                 })
             }
         }
@@ -65,6 +81,8 @@ impl AstarNwParams {
                 strategy: self.strategy,
                 block_width: self.block_width,
                 v,
+                // FIXME: Make generic
+                front: BitFront,
             }),
         }
     }
@@ -73,8 +91,7 @@ impl AstarNwParams {
 /// Needleman-Wunsch aligner.
 ///
 /// NOTE: Heuristics only support unit cost graph for now.
-#[derive(Clone)]
-pub struct NW<const N: usize, V: VisualizerT, H: Heuristic> {
+pub struct NW<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> {
     /// The cost model to use.
     pub cm: AffineCost<N>,
 
@@ -90,9 +107,12 @@ pub struct NW<const N: usize, V: VisualizerT, H: Heuristic> {
 
     /// The visualizer to use.
     pub v: V,
+
+    /// The type of front to use.
+    pub front: F,
 }
 
-impl<const N: usize> NW<N, NoVis, NoCost> {
+impl<const N: usize> NW<N, NoVis, NoCost, AffineNwFrontsTag<N>> {
     pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
         Self {
             cm,
@@ -110,17 +130,18 @@ impl<const N: usize> NW<N, NoVis, NoCost> {
             // FIXME: Make this more general.
             block_width: 32,
             v: NoVis,
+            front: AffineNwFrontsTag::<N>,
         }
     }
 }
 
-impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
-    pub fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H, F> {
+    pub fn build<'a>(&'a self, a: Seq<'a>, b: Seq<'a>) -> NWInstance<'a, N, V, H, F> {
         use Domain::*;
         NWInstance {
             a,
             b,
-            params: self.clone(),
+            params: self,
             domain: match self.domain {
                 Full => Full,
                 GapStart => GapStart,
@@ -152,11 +173,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
     /// in case all errors are at the end and runtime is O(ng) per guess:
     /// 4.8 ns, only slightly worse than 4ns.
     fn band_doubling_params(
-        &mut self,
+        &self,
         start: crate::DoublingStart,
         a: &[u8],
         b: &[u8],
-        nw: &NWInstance<N, V, H>,
+        nw: &NWInstance<N, V, H, F>,
     ) -> (i32, i32) {
         let (start_f, start_increment) = match start {
             crate::DoublingStart::Zero => (0, 1),
@@ -172,10 +193,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
                 1,
             ),
         };
-        (start_f, start_increment)
+        (start_f, max(start_increment, F::BLOCKSIZE))
     }
 
-    fn cost_or_align(&mut self, a: Seq, b: Seq, trace: bool) -> (Cost, Option<AffineCigar>) {
+    fn cost_or_align(&self, a: Seq, b: Seq, trace: bool) -> (Cost, Option<AffineCigar>) {
         let mut nw = self.build(a, b);
         let (cost, cigar) = match self.strategy {
             Strategy::LocalDoubling => {
@@ -185,7 +206,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
             Strategy::BandDoubling { start, factor } => {
                 let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
                 exponential_search(start_f, start_increment, factor, |s| {
-                    nw.align_for_bounded_dist::<AffineNwFronts<N>>(Some(s), trace)
+                    nw.align_for_bounded_dist(Some(s), trace)
                         .map(|x @ (c, _)| (c, x))
                 })
                 .1
@@ -193,66 +214,69 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
             Strategy::None => {
                 // FIXME: Allow single-shot alignment with bounded dist.
                 assert!(matches!(self.domain, Domain::Full));
-                nw.align_for_bounded_dist::<AffineNwFronts<N>>(None, trace)
-                    .unwrap()
+                nw.align_for_bounded_dist(None, trace).unwrap()
             }
         };
         nw.v.last_frame::<NoCostI>(cigar.as_ref(), None, None);
         (cost, cigar)
     }
 
-    pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+    pub fn cost(&self, a: Seq, b: Seq) -> Cost {
         self.cost_or_align(a, b, false).0
     }
 
-    pub fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
+    pub fn align(&self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
         let (cost, cigar) = self.cost_or_align(a, b, true);
         (cost, cigar.unwrap())
     }
 
-    pub fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
+    pub fn cost_for_bounded_dist(&self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
         self.build(a, b)
-            .align_for_bounded_dist::<AffineNwFronts<N>>(Some(f_max), false)
+            .align_for_bounded_dist(Some(f_max), false)
             .map(|c| c.0)
     }
 
     pub fn align_for_bounded_dist(
-        &mut self,
+        &self,
         a: Seq,
         b: Seq,
         f_max: Cost,
     ) -> Option<(Cost, AffineCigar)> {
         self.build(a, b)
-            .align_for_bounded_dist::<AffineNwFronts<N>>(Some(f_max), true)
+            .align_for_bounded_dist(Some(f_max), true)
             .map(|(c, cigar)| (c, cigar.unwrap()))
     }
 }
 
-impl<const N: usize, V: VisualizerT, H: Heuristic> AffineAligner for NW<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> AffineAligner
+    for NW<N, V, H, F>
+{
     fn align_affine(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
         self.cost_or_align(a, b, true)
     }
 }
 
-impl<V: VisualizerT, H: Heuristic> Aligner for NW<0, V, H> {
+impl<V: VisualizerT, H: Heuristic, F: NwFrontsTag<0>> Aligner for NW<0, V, H, F> {
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
-        let (cost, cigar) = self.align(a, b);
+        let (cost, cigar) = NW::align(self, a, b);
         (cost, Some(cigar.into()))
     }
 }
 
-impl<const N: usize, V: VisualizerT, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
+impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> std::fmt::Debug
+    for NW<N, V, H, F>
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NW").field("domain", &self.domain).finish()
     }
 }
 
-pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
+pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
     pub a: Seq<'a>,
     pub b: Seq<'a>,
 
-    pub params: NW<N, V, H>,
+    pub params: &'a NW<N, V, H, F>,
 
     /// The instantiated heuristic to use.
     pub domain: Domain<H::Instance<'a>>,
@@ -261,7 +285,9 @@ pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     pub v: V::Instance,
 }
 
-impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
+impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
+    NWInstance<'a, N, V, H, F>
+{
     /// The range of rows `j` to consider in column `i`, when the cost is bounded by `f_bound`.
     ///
     /// `i_range`: `[start, end)` range of characters of `a` to process. Ends with column `end` of the DP matrix.
@@ -598,14 +624,31 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
     /// Returns None if no path was found.
     /// It may happen that a path is found, but the cost is larger than s.
     /// In this case no cigar is returned.
-    fn align_for_bounded_dist<'b, F: NwFronts<'b, N>>(
-        &'b mut self,
+    /// TODO: Reuse fronts between iterations.
+    fn align_for_bounded_dist(
+        &mut self,
         f_max: Option<Cost>,
         trace: bool,
     ) -> Option<(Cost, Option<AffineCigar>)> {
-        eprintln!("Bound: {f_max:?}");
-        let initial_j_range = self.j_range(IRange::first_col(), f_max, &F::Front::default());
+        assert!(f_max.unwrap_or(0) >= 0);
+        let initial_j_range = self.j_range(
+            IRange::first_col(),
+            f_max,
+            &<F::Fronts<'a> as NwFronts<N>>::Front::default(),
+        );
+        if initial_j_range.is_empty() {
+            return None;
+        }
+        eprintln!("Bound: {f_max:?} {initial_j_range:?}");
+
         let mut fronts = F::new(trace, self.a, self.b, &self.params.cm, initial_j_range);
+        self.v.expand_block(
+            Pos(0, fronts.last_front().j_range_rounded().0),
+            Pos(1, fronts.last_front().j_range_rounded().len()),
+            0,
+            f_max.unwrap_or(0),
+            self.domain.h(),
+        );
 
         for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
             let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
@@ -615,8 +658,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             }
             fronts.compute_next_block(i_range, j_range);
             self.v.expand_block(
-                Pos(i_range.0 + 1, j_range.0),
-                Pos(i_range.len(), j_range.len()),
+                Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
+                Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
                 0,
                 f_max.unwrap_or(0),
                 self.domain.h(),
