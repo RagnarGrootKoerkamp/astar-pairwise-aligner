@@ -50,13 +50,16 @@ impl Deref for CompressedSequence {
     }
 }
 
+pub type Profile = Vec<[B; 4]>;
+pub type ProfileSlice<'a> = &'a [[B; 4]];
+
 /// RankTransform `a` and `b` to
 #[inline(always)]
-pub fn profile(a: Seq, b: Seq) -> (CompressedSequence, Vec<[B; 4]>) {
+pub fn profile(a: Seq, b: Seq) -> (CompressedSequence, Profile) {
     let r = RankTransform::new(&Alphabet::new(b"ACGT"));
     let a = a.iter().map(|ca| r.get(*ca)).collect_vec();
     let words = num_words(b);
-    let mut pb: Vec<[B; 4]> = vec![[0; 4]; words];
+    let mut pb: Profile = vec![[0; 4]; words];
     for (j, cb) in b.iter().enumerate() {
         pb[j / W][r.get(*cb) as usize] |= 1 << (j % W);
     }
@@ -114,7 +117,7 @@ pub fn compute_block<H: HEncoding>(h0: &mut H, v: &mut V, eq: B) {
 
 /// Convenience function around `compute_block` that computes a larger region at once.
 /// Returns the score difference along the bottom row.
-pub fn compute_rectangle(a: Seq, b: &[[B; 4]], h: &mut [H], v: &mut [V]) -> D {
+pub fn compute_rectangle(a: Seq, b: ProfileSlice, h: &mut [H], v: &mut [V]) -> D {
     assert_eq!(a.len(), h.len());
     assert_eq!(b.len(), v.len());
     for (ca, h) in izip!(a, h.iter_mut()) {
@@ -126,7 +129,7 @@ pub fn compute_rectangle(a: Seq, b: &[[B; 4]], h: &mut [H], v: &mut [V]) -> D {
 }
 
 /// Same as `compute_rectangle`, but does not take or return horizontal differences.
-pub fn compute_columns(a: Seq, b: &[[B; 4]], v: &mut [V]) -> D {
+pub fn compute_columns(a: Seq, b: ProfileSlice, v: &mut [V]) -> D {
     assert_eq!(b.len(), v.len());
     let mut bot_delta = 0;
     for ca in a {
