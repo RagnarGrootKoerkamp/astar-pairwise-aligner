@@ -32,9 +32,9 @@ pub struct Front<const N: usize, T, I> {
     m: Vec<T>,
     /// The affine layer.
     affine: [Vec<T>; N],
-    /// The inclusive range of values (diagonals/rows) this front corresponds to.
+    /// The inclusive range of values (rows/diagonals) this front corresponds to.
     range: RangeInclusive<I>,
-    /// The left and right buffer we add before/after the range starts/ends.
+    /// The top and bottom buffer we add before/after the range starts/ends.
     buffers: (I, I),
 }
 
@@ -67,9 +67,9 @@ pub struct Fronts<const N: usize, T, I> {
     default_value: T,
     /// The inclusive range of values this front corresponds to.
     range: RangeInclusive<I>,
-    /// The top and bottom buffer we add before/after the range of fronts.
+    /// The left and right buffer we add before/after the range of fronts.
     buffers: (I, I),
-    lr_buffers: (I, I),
+    tb_bufs: (I, I),
 }
 
 impl<const N: usize, T, I> Debug for Fronts<N, T, I>
@@ -82,8 +82,8 @@ where
             .field("fronts", &self.fronts)
             .field("value", &self.default_value)
             .field("range", &self.range)
-            .field("buffers", &self.buffers)
-            .field("lr_buffers", &self.lr_buffers)
+            .field("lr_bufs", &self.buffers)
+            .field("tb_bufs", &self.tb_bufs)
             .finish()
     }
 }
@@ -93,28 +93,28 @@ where
     I: IndexType,
     T: Copy,
 {
-    /// Create a new front for the given range, using the given left/right buffer sizes.
+    /// Create a new front for the given range, using the given buffer sizes.
     pub fn new(
         value: T,
         range: RangeInclusive<I>,
         range_fn: impl Fn(I) -> RangeInclusive<I>,
-        top_buffer: I,
-        bottom_buffer: I,
-        left_buffer: I,
-        right_buffer: I,
+        left_buf: I,
+        right_buf: I,
+        top_buf: I,
+        bot_buf: I,
     ) -> Self
     where
         T: Copy,
         for<'l> &'l I: RefNum<I>,
     {
         Self {
-            fronts: (range.start() - top_buffer..=range.end() + bottom_buffer)
-                .map(|i| Front::new(value, range_fn(i), left_buffer, right_buffer))
+            fronts: (range.start() - left_buf..=range.end() + right_buf)
+                .map(|i| Front::new(value, range_fn(i), top_buf, bot_buf))
                 .collect(),
             default_value: value,
             range,
-            buffers: (top_buffer, bottom_buffer),
-            lr_buffers: (left_buffer, right_buffer),
+            buffers: (left_buf, right_buf),
+            tb_bufs: (top_buf, bot_buf),
         }
     }
 
@@ -127,8 +127,8 @@ where
         self.fronts.push(Front::new(
             self.default_value,
             range,
-            self.lr_buffers.0,
-            self.lr_buffers.1,
+            self.tb_bufs.0,
+            self.tb_bufs.1,
         ));
         self.range = *self.range.start()..=*self.range.end() + I::one();
     }
@@ -200,23 +200,23 @@ where
     I: IndexType,
     T: Copy,
 {
-    /// Create a new front for the given range, using the given left/right buffer sizes.
-    pub fn new(value: T, range: RangeInclusive<I>, left_buffer: I, right_buffer: I) -> Self
+    /// Create a new front for the given range, using the given buffer sizes.
+    pub fn new(value: T, range: RangeInclusive<I>, top_buf: I, bot_buf: I) -> Self
     where
         T: Copy,
         for<'l> &'l I: RefNum<I>,
     {
         let new_len: I = if range.is_empty() {
-            left_buffer + right_buffer
+            top_buf + bot_buf
         } else {
-            left_buffer + (range.end() - range.start() + I::one()) + right_buffer
+            top_buf + (range.end() - range.start() + I::one()) + bot_buf
         };
         Self {
             m: vec![value; new_len.as_()],
             // Vec is not Copy, so we use array::map instead.
             affine: [(); N].map(|_| vec![value; new_len.as_()]),
             range,
-            buffers: (left_buffer, right_buffer),
+            buffers: (top_buf, bot_buf),
         }
     }
 
@@ -330,7 +330,7 @@ pub struct Layer<'a, T, I> {
     l: &'a [T],
     /// The index at which the range starts.
     range: RangeInclusive<I>,
-    /// The left and right buffer we add before/after the range starts/ends.
+    /// The top and bot buffer we add before/after the range starts/ends.
     buffers: (I, I),
 }
 
@@ -341,7 +341,7 @@ pub struct MutLayer<'a, T, I> {
     l: &'a mut [T],
     /// The index at which the range starts.
     range: RangeInclusive<I>,
-    /// The left and right buffer we add before/after the range starts/ends.
+    /// The top and bot buffer we add before/after the range starts/ends.
     buffers: (I, I),
 }
 

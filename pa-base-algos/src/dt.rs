@@ -16,9 +16,9 @@
 //! - `d`: iterator over diagonals; `d=0` is the diagonal through the top left.
 //!      `d=1` is above `d=0`. From `d=0` to `d=1` is a deletion.
 //! - `dmin`/`dmax`: the inclusive range of diagonals processed for a given front.
-//! - `{top,left,right}_buffer`: additional allocated fronts/diagonals that remove
+//! - `{left,top,bot}_buffer`: additional allocated fronts/diagonals that remove
 //!   the need for boundary checks.
-//! - `offset`: the index of diagonal `0` in a layer. `offset = left_buffer - dmin`.
+//! - `offset`: the index of diagonal `0` in a layer. `offset = top_buffer - dmin`.
 //!
 //!
 use crate::edit_graph::{AffineCigarOps, EditGraph, StateT};
@@ -123,10 +123,10 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
         v: &'a RefCell<V::Instance>,
     ) -> DTInstance<'a, N, V, H> {
         // The maximum cost we look back:
-        let top_buffer = EditGraph::max_edge_cost(&self.cm) as Fr;
+        let left_buf = EditGraph::max_edge_cost(&self.cm) as Fr;
 
-        // FIXME: left_buffer and right_buffer need updating for the new edit graph, and modification for the backward direction.
-        let left_buffer = max(
+        // FIXME: top_buf and bot_buf need updating for the new edit graph, and modification for the backward direction.
+        let top_buf = max(
             // substitution, if allowed
             self.cm
                 .sub
@@ -136,7 +136,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
             1 + self.cm.max_del_open_extend.div_ceil(self.cm.min_ins_extend),
         ) as Fr;
         // Idem.
-        let right_buffer = max(
+        let bot_buf = max(
             // substitution, if allowed
             self.cm
                 .sub
@@ -152,9 +152,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> DiagonalTransition<N, V, H> {
             params: self.clone(),
             h: self.h.build(a, b),
             v,
-            top_buffer,
-            left_buffer,
-            right_buffer,
+            left_buf,
+            top_buf,
+            bot_buf,
         }
     }
 }
@@ -172,14 +172,14 @@ pub struct DTInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     /// The visualizer to use.
     pub v: &'a RefCell<V::Instance>,
 
-    /// We add a few buffer layers to the top of the table, to avoid the need
+    /// We add a few buffer layers to the left of the table, to avoid the need
     /// to check that e.g. `s` is at least the substitution cost before
     /// making a substitution.
     ///
     /// The value is the max of the substitution cost and all (affine) costs of a gap of size 1.
-    top_buffer: Fr,
-    /// We also add a buffer to the left and right of each wavefront to reduce the need for if-statements.
-    /// The size of the left buffer is the number of insertions that can be done for the cost of one deletion.
+    left_buf: Fr,
+    /// We also add a buffer to the top and bottom of each wavefront to reduce the need for if-statements.
+    /// The size of the top buffer is the number of insertions that can be done for the cost of one deletion.
     /// We also account for high substitution costs.
     ///
     /// Example:
@@ -192,7 +192,7 @@ pub struct DTInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     ///
     ///  --> d
     /// |      x
-    /// v   *..x.*    <- left buffer: ceil(sub/ins) = ceil(5/2) = 3, right buffer: ceil(sub/del) = ceil(5/3) = 2
+    /// v   *..x.*    <- top buffer: ceil(sub/ins) = ceil(5/2) = 3, bot buffer: ceil(sub/del) = ceil(5/3) = 2
     /// s     xx
     ///    *..xxx     <- 1 + ceil(del/ins) = 1 + ceil(3/2) = 3 buffer
     ///      xxxx.*   <- 1 + ceil(ins/del) = 1 + ceil(2/3) = 2 buffer
@@ -201,8 +201,8 @@ pub struct DTInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
     ///
     /// For affine GapOpen costs, we replace the numerator by the maximum open+extend cost, and the numerator by the minimum extend cost.
     /// FIXME: For affine GapClose costs, we add the max open cost to the substitution cost.
-    left_buffer: Fr,
-    right_buffer: Fr,
+    top_buf: Fr,
+    bot_buf: Fr,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -669,11 +669,11 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
             0..=0,
             // The range of the s=0 front is 0..=0.
             |i| if i == 0 { 0..=0 } else { 0..=-1 },
-            // Additionally, we have `top_buffer` fronts before the current front.
-            self.top_buffer,
+            // Additionally, we have `left_buffer` fronts before the current front.
+            self.left_buf,
             0,
-            self.left_buffer,
-            self.right_buffer,
+            self.top_buf,
+            self.bot_buf,
         );
 
         fronts[0].layer_mut(start_layer)[0] = 0;

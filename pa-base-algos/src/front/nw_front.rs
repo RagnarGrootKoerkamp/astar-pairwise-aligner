@@ -43,8 +43,8 @@ impl<'a, const N: usize> NwFronts<'a, N> {
                     |_i| initial_j_range.clone(),
                     0,
                     0,
-                    LEFT_BUFFER,
-                    RIGHT_BUFFER,
+                    TOP_BUF,
+                    BOT_BUF,
                 );
                 for j in initial_j_range {
                     fronts[0].m_mut()[j] = cm.gap_cost(Pos(0, 0), Pos(0, j));
@@ -63,7 +63,7 @@ impl<'a, const N: usize> NwFronts<'a, N> {
         mut expand_callback: impl FnMut(Pos, Cost),
     ) {
         for i in i_range.start..i_range.end {
-            let mut next = Front::new(INF, j_range.clone(), LEFT_BUFFER, RIGHT_BUFFER);
+            let mut next = Front::new(INF, j_range.clone(), TOP_BUF, BOT_BUF);
             self.next_front(i, &self.fronts[i - 1], &mut next, &mut expand_callback);
             self.fronts.fronts.push(next);
         }
