@@ -586,6 +586,13 @@ impl Visualizer {
         )
     }
 
+    fn cell_end(&self, Pos(i, j): Pos) -> CPos {
+        CPos(
+            (i / self.config.downscaler * self.config.cell_size + self.config.cell_size) as i32,
+            (j / self.config.downscaler * self.config.cell_size + self.config.cell_size) as i32,
+        )
+    }
+
     fn draw_pixel(&self, canvas: &mut CanvasBox, pos: Pos, color: Color) {
         if self.config.cell_size == 1 {
             canvas.draw_point(self.cell_begin(pos), color);
@@ -614,23 +621,18 @@ impl Visualizer {
     }
 
     fn draw_box(&self, canvas: &mut CanvasBox, start: Pos, size: Pos, color: Color) {
-        canvas.fill_rect(
-            self.cell_begin(start),
-            self.config.cell_size * size.0,
-            self.config.cell_size * size.1,
-            color,
-        );
+        let end = self.cell_end(start + size - Pos(1, 1));
+        let start = self.cell_begin(start);
+        canvas.fill_rect(start, end.0 - start.0, end.1 - start.1, color);
     }
 
     fn draw_boxes(&self, canvas: &mut CanvasBox, boxes: &Vec<(Pos, Pos)>, color: Color) {
         let rects = boxes
             .iter()
             .map(|(pos, size)| {
-                (
-                    self.cell_begin(*pos),
-                    self.config.cell_size * size.0,
-                    self.config.cell_size * size.1,
-                )
+                let end = self.cell_end(*pos + *size - Pos(1, 1));
+                let start = self.cell_begin(*pos);
+                (start, end.0 - start.0, end.1 - start.1)
             })
             .collect_vec();
         canvas.fill_rects(&rects, color);
