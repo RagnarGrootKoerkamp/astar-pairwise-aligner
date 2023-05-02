@@ -1000,6 +1000,7 @@ dependencies = [
  "itertools",
  "num-traits",
  "pa-affine-types",
+ "pa-bitpacking",
  "pa-generate",
  "pa-heuristic",
  "pa-types",

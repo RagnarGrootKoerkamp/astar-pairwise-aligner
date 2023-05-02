@@ -1,10 +1,12 @@
+mod affine;
+mod front;
+
 /// TODO
 /// - add bitpacking based implementation + block_height
 /// - add reusing computed values when doing A*
 /// - meet in the middle for traceback
-use crate::dt::Direction;
-use crate::edit_graph::{AffineCigarOps, EditGraph};
-use crate::front::nw_front::{NwFront, NwFronts};
+use crate::nw::affine::AffineNwFronts;
+use crate::nw::front::{IRange, JRange, NwFront, NwFronts};
 use crate::Domain;
 use crate::{exponential_search, Strategy};
 use pa_affine_types::*;
@@ -13,7 +15,6 @@ use pa_types::*;
 use pa_vis_types::*;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
-use std::ops::{Range, RangeInclusive};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct AstarNwParams {
@@ -128,6 +129,115 @@ impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
             v: self.v.build(a, b),
         }
     }
+
+    /// Worst case growth factor analysis
+    ///
+    /// 1, g, g^2, ...
+    ///
+    /// worst-case overshoot: g^k = g*s
+    /// Assuming O(ng) work per guess (Gap, GapGap)
+    ///   n(1+g+...+g^k) = n*(g*g^k-1)/(g-1) = n*(g^2 s-1)/(g-1) ~ ns g^2/(g-1)
+    ///   minimize g^2/(g-1):
+    ///   derivative 0: 0 = (2g (g-1) - g^2) / (g-1)^2 => 0 = g^2-2g = g(g-2)
+    /// g=2
+    /// 4ns
+    ///
+    /// Assuming O(g^2) work per guess (Dijkstra, Astar(GapCost), when errors are uniform)
+    ///   1 + g^2 + g^4 + ... + g^2k ~ g^{2k+2} / (g^2-1) = ns g^4 / (g^2-1)
+    ///   minimize g^4/(g^2-1)
+    ///   derivative 0: 0 = 4g^3(g^2-1) - g^4 2g = 2g^5 - 4g^3 = 2 g^3 (g^2-2)
+    /// g=sqrt(2)
+    /// 2ns
+    /// in case all errors are at the end and runtime is O(ng) per guess:
+    /// 4.8 ns, only slightly worse than 4ns.
+    fn band_doubling_params(
+        &mut self,
+        start: crate::DoublingStart,
+        a: &[u8],
+        b: &[u8],
+        nw: &NWInstance<N, V, H>,
+    ) -> (i32, i32) {
+        let (start_f, start_increment) = match start {
+            crate::DoublingStart::Zero => (0, 1),
+            crate::DoublingStart::Gap => {
+                let x = self.cm.gap_cost(Pos(0, 0), Pos::target(a, b));
+                (x, x)
+            }
+            crate::DoublingStart::H0 => (
+                nw.domain
+                    .h()
+                    .expect("DoublingStart::H0 requires an A* domain with heuristic.")
+                    .h(Pos(0, 0)),
+                1,
+            ),
+        };
+        (start_f, start_increment)
+    }
+
+    fn cost_or_align(&mut self, a: Seq, b: Seq, trace: bool) -> (Cost, Option<AffineCigar>) {
+        let mut nw = self.build(a, b);
+        let (cost, cigar) = match self.strategy {
+            Strategy::LocalDoubling => {
+                todo!();
+                //return nw.align_local_band_doubling();
+            }
+            Strategy::BandDoubling { start, factor } => {
+                let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
+                exponential_search(start_f, start_increment, factor, |s| {
+                    nw.align_for_bounded_dist::<AffineNwFronts<N>>(Some(s), trace)
+                        .map(|x @ (c, _)| (c, x))
+                })
+                .1
+            }
+            Strategy::None => {
+                // FIXME: Allow single-shot alignment with bounded dist.
+                assert!(matches!(self.domain, Domain::Full));
+                nw.align_for_bounded_dist::<AffineNwFronts<N>>(None, trace)
+                    .unwrap()
+            }
+        };
+        nw.v.last_frame::<NoCostI>(cigar.as_ref(), None, None);
+        (cost, cigar)
+    }
+
+    pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
+        self.cost_or_align(a, b, false).0
+    }
+
+    pub fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
+        let (cost, cigar) = self.cost_or_align(a, b, true);
+        (cost, cigar.unwrap())
+    }
+
+    pub fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
+        self.build(a, b)
+            .align_for_bounded_dist::<AffineNwFronts<N>>(Some(f_max), false)
+            .map(|c| c.0)
+    }
+
+    pub fn align_for_bounded_dist(
+        &mut self,
+        a: Seq,
+        b: Seq,
+        f_max: Cost,
+    ) -> Option<(Cost, AffineCigar)> {
+        self.build(a, b)
+            .align_for_bounded_dist::<AffineNwFronts<N>>(Some(f_max), true)
+            .map(|(c, cigar)| (c, cigar.unwrap()))
+    }
+}
+
+impl<const N: usize, V: VisualizerT, H: Heuristic> AffineAligner for NW<N, V, H> {
+    fn align_affine(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
+        self.cost_or_align(a, b, true)
+    }
+}
+
+impl<V: VisualizerT, H: Heuristic> Aligner for NW<0, V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
+        let (cost, cigar) = self.align(a, b);
+        (cost, Some(cigar.into()))
+    }
 }
 
 impl<const N: usize, V: VisualizerT, H: Heuristic> std::fmt::Debug for NW<N, V, H> {
@@ -143,44 +253,41 @@ pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic> {
 
     pub params: NW<N, V, H>,
 
-    /// The heuristic to use.
+    /// The instantiated heuristic to use.
     pub domain: Domain<H::Instance<'a>>,
 
-    /// The visualizer to use.
+    /// The instantiated visualizer to use.
     pub v: V::Instance,
 }
 
 impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
     /// The range of rows `j` to consider in column `i`, when the cost is bounded by `f_bound`.
     ///
-    /// `i_range`: `[start, end)` range of columns, starting at `prev_i+1`,
-    /// Can be e.g. `i..i+1` with `prev` the front for column `i-1`,
-    /// or `i..i+W` to compute a block of `W` columns i .. i+W.
-    /// Pass `0..1` for the range of the first column. `prev` is not not used.
-    fn j_range(
-        &self,
-        i_range: Range<I>,
-        f_max: Option<Cost>,
-        prev: &NwFront<N>,
-    ) -> RangeInclusive<I> {
+    /// `i_range`: `[start, end)` range of characters of `a` to process. Ends with column `end` of the DP matrix.
+    /// Pass `-1..0` for the range of the first column. `prev` is not used.
+    /// Pass `i..i+1` to move 1 front, with `prev` the front for column `i`,
+    /// Pass `i..i+W` to compute a block of `W` columns `i .. i+W`.
+    fn j_range<SF: NwFront>(&self, i_range: IRange, f_max: Option<Cost>, prev: &SF) -> JRange {
         // Without a bound on the distance, we can only return the full range.
         let Some(f_max) = f_max else {
-            return 0..=self.b.len() as I;
+            return JRange(0, self.b.len() as I);
         };
 
         // Inclusive start column of the new block.
-        let is = i_range.start;
+        let is = i_range.0 + 1;
         // Inclusive end column of the new block.
-        let ie = i_range.end - 1;
+        let ie = i_range.1;
 
         match &self.domain {
-            Domain::Full => 0..=self.b.len() as I,
+            Domain::Full => JRange(0, self.b.len() as I),
             Domain::GapStart => {
                 // range: the max number of diagonals we can move up/down from the start with cost f.
-                let range = -(self.params.cm.max_del_for_cost(f_max) as I)
-                    ..=self.params.cm.max_ins_for_cost(f_max) as I;
+                let range = JRange(
+                    -(self.params.cm.max_del_for_cost(f_max) as I),
+                    self.params.cm.max_ins_for_cost(f_max) as I,
+                );
                 // crop
-                max(is + *range.start(), 0)..=min(ie + *range.end(), self.b.len() as I)
+                JRange(max(is + range.0, 0), min(ie + range.1, self.b.len() as I))
             }
             Domain::GapGap => {
                 let d = self.b.len() as I - self.a.len() as I;
@@ -194,22 +301,25 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                 let extra_diagonals =
                     s / (self.params.cm.min_ins_extend + self.params.cm.min_del_extend);
                 // NOTE: The range could be reduced slightly further by considering gap open costs.
-                let range = min(d, 0) - extra_diagonals as I..=max(d, 0) + extra_diagonals as I;
+                let range = JRange(
+                    min(d, 0) - extra_diagonals as I,
+                    max(d, 0) + extra_diagonals as I,
+                );
 
                 // crop
-                max(is + *range.start(), 0)..=min(ie + *range.end(), self.b.len() as I)
+                JRange(max(is + range.0, 0), min(ie + range.1, self.b.len() as I))
             }
             Domain::Astar(h) => {
                 // Instead of computing the start and end exactly, we bound them using the computed values of the previous range.
 
-                let f = |i, j| prev.m()[j] + h.h(Pos(i, j));
+                let f = |i, j| prev.index(j) + h.h(Pos(i, j));
 
                 // Start: increment the start of the previous range until
                 //        f<=f_max is satisfied in previous column.
                 // End: decrement the end of the previous range until
                 //      f<=f_max is satisfied in previous column.
-                let mut start = *prev.range().start();
-                let mut end = *prev.range().end();
+                let mut start = prev.j_range().0;
+                let mut end = prev.j_range().1;
                 if is > 0 {
                     while start <= end && f(is - 1, start) > f_max {
                         start += 1;
@@ -222,28 +332,32 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
 
                 // Early return for empty range.
                 if start > end {
-                    return start..=start - 1;
+                    return JRange(start, start - 1);
                 }
 
                 let u = Pos(is - 1, end);
-                let gu = if is == 0 { 0 } else { prev.m()[end] };
+                let gu = if is == 0 { 0 } else { prev.index(end) };
                 let mut v = u;
 
                 // Extend `v` diagonally one column at a time towards `ie`.
                 // In each column, find the lowest `v` such that
-                // `f(v) = g(v) + h(v) <= d(u) + extend_cost(u, v) + h(v) <= s`.
+                // `f(v) = g(v) + h(v) <= gu + extend_cost(u, v) + h(v) <= s`.
                 //
                 // NOTE: We can not directly go to the last column, since
                 // the optimal path could then 'escape' through the bottom.
                 // Without further reasoning, we must evaluate `h` at least
                 // once per column.
+                //
+                // TODO: Instead, we could make sure that `gu + extend + h(v)`
+                // in the last column is larger than `f_max + W/2`. For
+                // consistent `h`, that guarantees that `f` along the bottom row
+                // is always larger than `f_max`.
 
                 while v.0 < ie {
                     // Extend diagonally.
                     v += Pos(1, 1);
 
-                    // TODO: Should we also attempt to decrease `v.1` here? I
-                    // don't think it's needed for typical heuristics.
+                    // NOTE: Shrinking `v.1` may give some small profit.
 
                     // Check if cell below is out-of-reach.
                     v.1 += 1;
@@ -254,11 +368,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
                     }
                     v.1 -= 1;
                 }
-                start..=min(v.1, self.b.len() as I)
+                JRange(start, min(v.1, self.b.len() as I))
             }
         }
     }
 
+    #[cfg(any())]
     pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, AffineCigar) {
         assert!(
             !H::IS_DEFAULT,
@@ -270,7 +385,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
             &self.a,
             &self.b,
             &self.params.cm,
-            self.j_range(0..1, Some(h0), &NwFront::default()),
+            self.j_range(IRange::first_col(), Some(h0), &NwFronts::default()),
         );
 
         // Front i has been computed up to this f.
@@ -290,19 +405,19 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
         loop {
             if i < self.a.len() as I {
                 // Add a new front.
-                i += 1;
                 let mut range;
                 loop {
                     // println!("{i} => {f_tip} try");
-                    range = self.j_range(i..i + 1, Some(f_tip), &fronts.fronts[i - 1]);
+                    range = self.j_range(IRange(i, i + 1), Some(f_tip), &fronts.fronts[i]);
                     if !range.is_empty() {
                         break;
                     }
                     f_tip += 1;
                 }
+                i += 1;
                 f_max.push(f_tip);
                 f_delta.push(DELTA_0);
-                fronts.fronts.push_default_front(range);
+                fronts.fronts.push_default_front(range.into());
             } else {
                 // Only grow the last front.
                 let delta = &mut f_delta[i as usize];
@@ -389,10 +504,13 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
 
             // Recompute all fronts from start_i upwards.
             for i in start_i as I..=i {
-                let range = self.j_range(i..i + 1, Some(f_max[i as usize]), &fronts.fronts[i - 1]);
+                let range = self.j_range(
+                    IRange(i - 1, i),
+                    Some(f_max[i as usize]),
+                    &fronts.fronts[i - 1],
+                );
                 let prev_range = fronts.fronts[i as I].range().clone();
-                let new_range =
-                    min(*range.start(), *prev_range.start())..=max(*range.end(), *prev_range.end());
+                let new_range = min(range.0, *prev_range.start())..=max(range.1, *prev_range.end());
                 // println!(
                 //     "Compute {i} for {} => {new_range:?} (prev {prev_range:?})",
                 //     f_max[i as usize],
@@ -475,262 +593,58 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> NWInstance<'a, N, V, H> {
         (dist, cigar)
     }
 
-    fn parent(
-        &self,
-        fronts: &NwFronts<N>,
-        st: State,
-        direction: Direction,
-    ) -> Option<(State, AffineCigarOps)> {
-        assert!(direction == Direction::Forward);
-        let cur_cost = fronts.fronts[st.i].layer(st.layer)[st.j];
-        let mut parent = None;
-        let mut cigar_ops: AffineCigarOps = [None, None];
-        EditGraph::iterate_parents(
-            &self.a,
-            &self.b,
-            &self.params.cm,
-            /*greedy_matching=*/ false,
-            st,
-            |di, dj, new_layer, cost, ops| {
-                if parent.is_none()
-                        // We use `get` to handle possible out-of-bound lookups.
-                        && let Some(parent_cost) =
-                            fronts.fronts[st.i + di].layer(new_layer).get(st.j + dj)
-                        && cur_cost == parent_cost + cost
-                    {
-                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
-                        cigar_ops = ops;
-                    }
-            },
-        );
-        Some((parent?, cigar_ops))
-    }
-
-    fn trace(
-        &self,
-        fronts: &NwFronts<N>,
-        from: State,
-        mut to: State,
-        direction: Direction,
-    ) -> AffineCigar {
-        let mut cigar = AffineCigar::default();
-
-        while to != from {
-            let (parent, cigar_ops) = self.parent(fronts, to, direction).unwrap();
-            to = parent;
-            for op in cigar_ops {
-                if let Some(op) = op {
-                    cigar.push(op);
-                }
-            }
-        }
-        cigar.reverse();
-        cigar
-    }
-
     /// Test whether the cost is at most s.
-    /// Returns None if cost > s, or the actual cost otherwise.
-    fn cost_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<Cost> {
+    /// Returns None if no path was found.
+    /// It may happen that a path is found, but the cost is larger than s.
+    /// In this case no cigar is returned.
+    fn align_for_bounded_dist<'b, F: NwFronts<'b, N>>(
+        &'b mut self,
+        f_max: Option<Cost>,
+        trace: bool,
+    ) -> Option<(Cost, Option<AffineCigar>)> {
         eprintln!("Bound: {f_max:?}");
-        let initial_j_range = self.j_range(0..1, f_max, &NwFront::default());
-        let mut fronts = NwFronts::new(&self.a, &self.b, &self.params.cm, initial_j_range);
+        let initial_j_range = self.j_range(IRange::first_col(), f_max, &F::Front::default());
+        let mut fronts = F::new(trace, self.a, self.b, &self.params.cm, initial_j_range);
 
-        for i in (1..=self.a.len() as I).step_by(self.params.block_width as _) {
-            let i_range = i..min(i + self.params.block_width, self.a.len() as I + 1);
-            let j_range = self.j_range(i_range.clone(), f_max, fronts.last_front());
+        for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
+            let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
+            let j_range = self.j_range(i_range, f_max, fronts.last_front());
             if j_range.is_empty() {
                 return None;
             }
-            fronts.rotate_next_fronts(i_range, j_range, |pos, g| {
-                self.v.expand(pos, g, f_max.unwrap_or(0), self.domain.h())
-            });
+            fronts.compute_next_block(i_range, j_range);
+            self.v.expand_block(
+                Pos(i_range.0 + 1, j_range.0),
+                Pos(i_range.len(), j_range.len()),
+                0,
+                f_max.unwrap_or(0),
+                self.domain.h(),
+            );
             if self.params.strategy == Strategy::None {
                 self.v.new_layer(self.domain.h());
             }
         }
-        if self.params.strategy == Strategy::None {
-            self.v.new_layer(self.domain.h());
-        }
-        if let Some(&dist) = fronts.last_front().m().get(self.b.len() as I) {
-            Some(dist)
+        self.v.new_layer(self.domain.h());
+
+        let Some(dist) = fronts.last_front().get(self.b.len() as I) else {
+            return None;
+        };
+        if trace && dist <= f_max.unwrap_or(I::MAX) {
+            let cigar = fronts.trace(
+                State {
+                    i: 0,
+                    j: 0,
+                    layer: None,
+                },
+                State {
+                    i: self.a.len() as I,
+                    j: self.b.len() as I,
+                    layer: None,
+                },
+            );
+            Some((dist, Some(cigar)))
         } else {
-            None
+            Some((dist, None))
         }
     }
-
-    /// Tries to find a path with cost <= s.
-    /// Returns None if cost > s, or the actual cost otherwise.
-    // TODO: Pass `h` into this function, instead of re-initializing it repeatedly for exponential search.
-    pub fn align_for_bounded_dist(&mut self, f_max: Option<Cost>) -> Option<(Cost, AffineCigar)> {
-        eprintln!("Bound: {f_max:?}");
-        let initial_j_range = self.j_range(0..1, f_max, &NwFront::default());
-        self.v.expand_block(
-            Pos(0, 0),
-            Pos(1, *initial_j_range.end() + 1),
-            0,
-            f_max.unwrap_or(0),
-            self.domain.h(),
-        );
-        let mut fronts = NwFronts::new(&self.a, &self.b, &self.params.cm, initial_j_range);
-
-        for i in (1..=self.a.len() as I).step_by(self.params.block_width as _) {
-            let i_range = i..min(i + self.params.block_width, self.a.len() as I + 1);
-            let j_range = self.j_range(i_range.clone(), f_max, fronts.last_front());
-            if j_range.is_empty() {
-                return None;
-            }
-            fronts.push_next_fronts(i_range, j_range, |pos, g| {
-                self.v.expand(pos, g, f_max.unwrap_or(0), self.domain.h())
-            });
-            if self.params.strategy == Strategy::None {
-                self.v.new_layer(self.domain.h());
-            }
-        }
-
-        if let Some(&dist) = fronts.fronts[self.a.len() as I].m().get(self.b.len() as I) {
-            // We only track the actual path if `s` is small enough.
-            if dist <= f_max.unwrap_or(I::MAX) {
-                let cigar = self.trace(
-                    &fronts,
-                    State {
-                        i: 1,
-                        j: 1,
-                        layer: None,
-                    },
-                    State {
-                        i: self.a.len() as I,
-                        j: self.b.len() as I,
-                        layer: None,
-                    },
-                    Direction::Forward,
-                );
-                return Some((dist, cigar));
-            }
-        }
-
-        if matches!(self.params.strategy, Strategy::BandDoubling { .. }) {
-            self.v.new_layer(self.domain.h());
-        }
-        None
-    }
 }
-
-impl<const N: usize, V: VisualizerT, H: Heuristic> NW<N, V, H> {
-    fn band_doubling_params(
-        &mut self,
-        start: crate::DoublingStart,
-        a: &[u8],
-        b: &[u8],
-        nw: &NWInstance<N, V, H>,
-    ) -> (i32, i32) {
-        let (start_f, start_increment) = match start {
-            crate::DoublingStart::Zero => (0, 1),
-            crate::DoublingStart::Gap => {
-                let x = self.cm.gap_cost(Pos(0, 0), Pos::target(a, b));
-                (x, x)
-            }
-            crate::DoublingStart::H0 => (
-                nw.domain
-                    .h()
-                    .expect("DoublingStart::H0 requires an A* domain with heuristic.")
-                    .h(Pos(0, 0)),
-                1,
-            ),
-        };
-        (start_f, start_increment)
-    }
-
-    pub fn cost(&mut self, a: Seq, b: Seq) -> Cost {
-        let mut nw = self.build(a, b);
-        let cost = match self.strategy {
-            Strategy::LocalDoubling => {
-                unimplemented!();
-            }
-            Strategy::BandDoubling { start, factor } => {
-                let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
-                exponential_search(start_f, start_increment, factor, |s| {
-                    nw.cost_for_bounded_dist(Some(s)).map(|c| (c, c))
-                })
-                .1
-            }
-            Strategy::None => {
-                // FIXME: Allow single-shot alignment with specified domain and threshold.
-                assert!(matches!(self.domain, Domain::Full));
-                nw.cost_for_bounded_dist(None).unwrap()
-            }
-        };
-        nw.v.last_frame::<NoCostI>(None, None, None);
-        cost
-    }
-
-    pub fn align(&mut self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
-        let mut nw = self.build(a, b);
-        let cc = match self.strategy {
-            Strategy::LocalDoubling => {
-                return nw.align_local_band_doubling();
-            }
-            Strategy::BandDoubling { start, factor } => {
-                let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
-                exponential_search(start_f, start_increment, factor, |s| {
-                    nw.align_for_bounded_dist(Some(s)).map(|x @ (c, _)| (c, x))
-                })
-                .1
-            }
-            Strategy::None => {
-                assert!(matches!(self.domain, Domain::Full));
-                nw.align_for_bounded_dist(None).unwrap()
-            }
-        };
-        nw.v.last_frame::<NoCostI>(Some(&cc.1), None, None);
-        cc
-    }
-
-    pub fn cost_for_bounded_dist(&mut self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
-        self.build(a, b).cost_for_bounded_dist(Some(f_max))
-    }
-
-    pub fn align_for_bounded_dist(
-        &mut self,
-        a: Seq,
-        b: Seq,
-        f_max: Cost,
-    ) -> Option<(Cost, AffineCigar)> {
-        self.build(a, b).align_for_bounded_dist(Some(f_max))
-    }
-}
-
-impl<const N: usize, V: VisualizerT, H: Heuristic> AffineAligner for NW<N, V, H> {
-    fn align_affine(&mut self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
-        let (cost, cigar) = self.align(a, b);
-        (cost, Some(cigar))
-    }
-}
-
-impl<V: VisualizerT, H: Heuristic> Aligner for NW<0, V, H> {
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
-        let (cost, cigar) = self.align(a, b);
-        (cost, Some(cigar.into()))
-    }
-}
-
-// Worst case growth factor analysis
-//
-// 1, g, g^2, ...
-//
-// worst-case overshoot: g^k = g*s
-// Assuming O(ng) work per guess (Gap, GapGap)
-//   n(1+g+...+g^k) = n*(g*g^k-1)/(g-1) = n*(g^2 s-1)/(g-1) ~ ns g^2/(g-1)
-//   minimize g^2/(g-1):
-//   derivative 0: 0 = (2g (g-1) - g^2) / (g-1)^2 => 0 = g^2-2g = g(g-2)
-// g=2
-// 4ns
-//
-// Assuming O(g^2) work per guess (Dijkstra, Astar(GapCost), when errors are uniform)
-//   1 + g^2 + g^4 + ... + g^2k ~ g^{2k+2} / (g^2-1) = ns g^4 / (g^2-1)
-//   minimize g^4/(g^2-1)
-//   derivative 0: 0 = 4g^3(g^2-1) - g^4 2g = 2g^5 - 4g^3 = 2 g^3 (g^2-2)
-// g=sqrt(2)
-// 2ns
-// in case all errors are at the end and runtime is O(ng) per guess:
-// 4.8 ns, only slightly worse than 4ns.
-//

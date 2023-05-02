@@ -1,5 +1,3 @@
-pub mod nw_front;
-
 use std::{
     fmt::Debug,
     ops::{Index, IndexMut, Range, RangeInclusive},
