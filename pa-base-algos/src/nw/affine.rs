@@ -36,7 +36,7 @@ impl<const N: usize> Default for AffineNwFront<N> {
         Self {
             m: vec![],
             affine: from_fn(|_| vec![]),
-            j_range: JRange(0, -1),
+            j_range: JRange(0, 0),
         }
     }
 }
@@ -61,10 +61,32 @@ impl<const N: usize> AffineNwFront<N> {
             j_range,
         }
     }
-    fn first_col(j_range: JRange) -> Self {
-        let mut f = Self::new(j_range);
-        f.m[0] = 0;
-        f
+    fn first_col(cm: &AffineCost<N>, j_range: JRange) -> Self {
+        let mut next = Self::new(j_range);
+        next.m[0] = 0;
+        for j in next.j_range.0..=next.j_range.1 {
+            EditGraph::iterate_layers(cm, |layer| {
+                let mut best = INF;
+                EditGraph::iterate_parents(
+                    b"",
+                    b"",
+                    cm,
+                    /*greedy_matching=*/ false,
+                    State::new(0, j, layer),
+                    |di, dj, layer, edge_cost, _cigar_ops| {
+                        if di == 0 {
+                            if let Some(cost) = next.get(layer, j + dj) {
+                                best = min(best, cost + edge_cost);
+                            }
+                        }
+                    },
+                );
+                if (layer, j) != (None, 0) {
+                    *next.index_mut(layer, j) = best;
+                }
+            });
+        }
+        next
     }
     fn index(&self, layer: Option<usize>, j: I) -> Cost {
         let l = match layer {
@@ -119,6 +141,8 @@ impl<'a, const N: usize> AffineNwFronts<'a, N> {
 }
 
 impl<'a, const N: usize> NwFronts<'a, N> for AffineNwFronts<'a, N> {
+    type Front = AffineNwFront<N>;
+
     fn new(
         trace: bool,
         a: Seq<'a>,
@@ -127,37 +151,69 @@ impl<'a, const N: usize> NwFronts<'a, N> for AffineNwFronts<'a, N> {
         initial_j_range: JRange,
     ) -> Self {
         Self {
-            trace,
-            a,
-            b,
-            cm,
             fronts: if trace {
                 // A single vector element that will grow.
-                vec![AffineNwFront::first_col(initial_j_range)]
+                vec![AffineNwFront::first_col(cm, initial_j_range)]
             } else {
                 // Two vector elements that will be rotated.
                 vec![
                     AffineNwFront::default(),
-                    AffineNwFront::first_col(initial_j_range),
+                    AffineNwFront::first_col(cm, initial_j_range),
                 ]
             },
+            trace,
+            a,
+            b,
+            cm,
             i_range: IRange(-1, 0),
         }
     }
 
+    fn last_front(&self) -> &AffineNwFront<N> {
+        &self.fronts.last().unwrap()
+    }
+
+    fn cm(&self) -> &AffineCost<N> {
+        self.cm
+    }
+
+    fn last_i(&self) -> I {
+        self.i_range.1
+    }
+
+    // TODO: Allow updating/overwriting as well.
     fn compute_next_block(&mut self, i_range: IRange, j_range: JRange) {
+        assert!(i_range.0 == self.i_range.1);
+        self.i_range.1 = i_range.1;
+
         for i in i_range.0..i_range.1 {
             if self.trace {
                 let mut next = AffineNwFront::new(j_range);
-                self.next_front(i, &self.fronts[i as usize - 1], &mut next);
+                self.next_front(i + 1, &self.fronts[i as usize], &mut next);
                 self.fronts.push(next);
             } else {
                 let mut next = std::mem::take(&mut self.fronts[0]);
                 let mut prev = std::mem::take(&mut self.fronts[1]);
-                self.next_front(i, &mut prev, &mut next);
+                self.next_front(i + 1, &mut prev, &mut next);
                 self.fronts[0] = prev;
                 self.fronts[1] = next;
             }
+        }
+    }
+
+    // TODO: Add `update_fronts` for local doubling.
+    /// Compute fronts `i_range.start..i_range.end` with the given `j_range`.
+    #[cfg(any())]
+    fn update_fronts(&mut self, i_range: Range<I>, j_range: RangeInclusive<I>) {
+        for _ in *self.fronts.range.end() + 1..i_range.end {
+            self.fronts.push_default_front(0..=0);
+        }
+        for i in i_range.start..i_range.end {
+            let next = &mut self.fronts[i];
+            next.reset(INF, j_range.clone());
+            let mut next = std::mem::take(&mut self.fronts[i]);
+            self.next_front(i + 1, &self.fronts[i], &mut next);
+            self.fronts[i] = next;
         }
     }
 
@@ -186,33 +242,19 @@ impl<'a, const N: usize> NwFronts<'a, N> for AffineNwFronts<'a, N> {
         Some((parent?, cigar_ops))
     }
 
-    fn last_front(&self) -> &AffineNwFront<N> {
-        &self.fronts.last().unwrap()
-    }
+    fn trace(&self, from: State, mut to: State) -> AffineCigar {
+        let mut cigar = AffineCigar::default();
 
-    type Front = AffineNwFront<N>;
-
-    fn cm(&self) -> &AffineCost<N> {
-        self.cm
-    }
-
-    fn last_i(&self) -> I {
-        self.i_range.1
-    }
-
-    // TODO: Add `update_fronts` for local doubling.
-    /// Compute fronts `i_range.start..i_range.end` with the given `j_range`.
-    #[cfg(any())]
-    fn update_fronts(&mut self, i_range: Range<I>, j_range: RangeInclusive<I>) {
-        for _ in *self.fronts.range.end() + 1..i_range.end {
-            self.fronts.push_default_front(0..=0);
+        while to != from {
+            let (parent, cigar_ops) = self.parent(to).unwrap();
+            to = parent;
+            for op in cigar_ops {
+                if let Some(op) = op {
+                    cigar.push(op);
+                }
+            }
         }
-        for i in i_range.start..i_range.end {
-            let next = &mut self.fronts[i];
-            next.reset(INF, j_range.clone());
-            let mut next = std::mem::take(&mut self.fronts[i]);
-            self.next_front(i, &self.fronts[i - 1], &mut next);
-            self.fronts[i] = next;
-        }
+        cigar.reverse();
+        cigar
     }
 }
