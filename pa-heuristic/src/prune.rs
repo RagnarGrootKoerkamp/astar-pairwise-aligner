@@ -125,7 +125,7 @@ impl MatchPruner {
         // Sort by start, then by  match cost.
         // This ensures that matches are pruned from low cost to high cost.
         let positions = |matches: &mut Vec<Match>, f: fn(&Match) -> Pos| {
-            matches.sort_unstable_by_key(|m| (LexPos(f(m)), m.match_cost));
+            matches.sort_by_key(|m| (LexPos(f(m)), m.match_cost));
             matches
                 .iter()
                 .enumerate()

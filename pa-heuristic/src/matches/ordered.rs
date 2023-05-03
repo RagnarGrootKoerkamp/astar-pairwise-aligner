@@ -287,6 +287,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             }
         }
         let matches_after_seed = matches.len();
+        // NOTE: `sort_unstable_by_key` (quicksort) is slower than `sort_by_key` (mergesort) here.
         matches[matches_before_seed..matches_after_seed]
             .sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
     }
@@ -441,6 +442,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
                 }
             }
         }
+        matches.sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
     }
 
     Matches::new(a, seeds, matches)
