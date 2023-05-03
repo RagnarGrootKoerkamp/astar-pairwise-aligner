@@ -420,6 +420,81 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         }
     }
 
+    /// Test whether the cost is at most s.
+    /// Returns None if no path was found.
+    /// It may happen that a path is found, but the cost is larger than s.
+    /// In this case no cigar is returned.
+    /// TODO: Reuse fronts between iterations.
+    fn align_for_bounded_dist(
+        &mut self,
+        f_max: Option<Cost>,
+        trace: bool,
+    ) -> Option<(Cost, Option<AffineCigar>)> {
+        assert!(f_max.unwrap_or(0) >= 0);
+        let initial_j_range = self.j_range(
+            IRange::first_col(),
+            f_max,
+            &<F::Fronts<'a> as NwFronts<N>>::Front::default(),
+        );
+        if initial_j_range.is_empty() {
+            return None;
+        }
+        eprintln!("Bound: {f_max:?} {initial_j_range:?}");
+
+        let mut fronts =
+            self.params
+                .front
+                .new(trace, self.a, self.b, &self.params.cm, initial_j_range);
+        self.v.expand_block(
+            Pos(0, fronts.last_front().j_range_rounded().0),
+            Pos(1, fronts.last_front().j_range_rounded().len()),
+            0,
+            f_max.unwrap_or(0),
+            self.domain.h(),
+        );
+
+        for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
+            let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
+            let j_range = self.j_range(i_range, f_max, fronts.last_front());
+            if j_range.is_empty() {
+                return None;
+            }
+            fronts.compute_next_block(i_range, j_range);
+            self.v.expand_block(
+                Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
+                Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
+                0,
+                f_max.unwrap_or(0),
+                self.domain.h(),
+            );
+            if self.params.strategy == Strategy::None {
+                self.v.new_layer(self.domain.h());
+            }
+        }
+        self.v.new_layer(self.domain.h());
+
+        let Some(dist) = fronts.last_front().get(self.b.len() as I) else {
+            return None;
+        };
+        if trace && dist <= f_max.unwrap_or(I::MAX) {
+            let cigar = fronts.trace(
+                State {
+                    i: 0,
+                    j: 0,
+                    layer: None,
+                },
+                State {
+                    i: self.a.len() as I,
+                    j: self.b.len() as I,
+                    layer: None,
+                },
+            );
+            Some((dist, Some(cigar)))
+        } else {
+            Some((dist, None))
+        }
+    }
+
     #[cfg(any())]
     pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, AffineCigar) {
         assert!(
@@ -638,77 +713,5 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         self.v
             .last_frame(Some(&cigar), None, Some(self.domain.h().unwrap()));
         (dist, cigar)
-    }
-
-    /// Test whether the cost is at most s.
-    /// Returns None if no path was found.
-    /// It may happen that a path is found, but the cost is larger than s.
-    /// In this case no cigar is returned.
-    /// TODO: Reuse fronts between iterations.
-    fn align_for_bounded_dist(
-        &mut self,
-        f_max: Option<Cost>,
-        trace: bool,
-    ) -> Option<(Cost, Option<AffineCigar>)> {
-        assert!(f_max.unwrap_or(0) >= 0);
-        let initial_j_range = self.j_range(
-            IRange::first_col(),
-            f_max,
-            &<F::Fronts<'a> as NwFronts<N>>::Front::default(),
-        );
-        if initial_j_range.is_empty() {
-            return None;
-        }
-        eprintln!("Bound: {f_max:?} {initial_j_range:?}");
-
-        let mut fronts = F::new(trace, self.a, self.b, &self.params.cm, initial_j_range);
-        self.v.expand_block(
-            Pos(0, fronts.last_front().j_range_rounded().0),
-            Pos(1, fronts.last_front().j_range_rounded().len()),
-            0,
-            f_max.unwrap_or(0),
-            self.domain.h(),
-        );
-
-        for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
-            let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
-            let j_range = self.j_range(i_range, f_max, fronts.last_front());
-            if j_range.is_empty() {
-                return None;
-            }
-            fronts.compute_next_block(i_range, j_range);
-            self.v.expand_block(
-                Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
-                Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
-                0,
-                f_max.unwrap_or(0),
-                self.domain.h(),
-            );
-            if self.params.strategy == Strategy::None {
-                self.v.new_layer(self.domain.h());
-            }
-        }
-        self.v.new_layer(self.domain.h());
-
-        let Some(dist) = fronts.last_front().get(self.b.len() as I) else {
-            return None;
-        };
-        if trace && dist <= f_max.unwrap_or(I::MAX) {
-            let cigar = fronts.trace(
-                State {
-                    i: 0,
-                    j: 0,
-                    layer: None,
-                },
-                State {
-                    i: self.a.len() as I,
-                    j: self.b.len() as I,
-                    layer: None,
-                },
-            );
-            Some((dist, Some(cigar)))
-        } else {
-            Some((dist, None))
-        }
     }
 }
