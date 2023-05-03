@@ -1,6 +1,6 @@
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
-    nw::{AffineFront, BitFront, NW},
+    nw::{BitFront, NW},
     Domain, Strategy,
 };
 use pa_generate::uniform_fixed;
@@ -37,7 +37,7 @@ fn main() {
     config.clear_after_meeting_point = false;
 
     let block_width = 32;
-    let front = BitFront;
+    let front = BitFront { sparse: true };
     let aligners: &mut [Box<dyn Aligner>] = &mut [
         // Box::new(NW {
         //     cm,
