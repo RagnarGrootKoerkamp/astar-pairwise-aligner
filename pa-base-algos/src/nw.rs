@@ -186,26 +186,6 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
         }
     }
 
-    /// Worst case growth factor analysis
-    ///
-    /// 1, g, g^2, ...
-    ///
-    /// worst-case overshoot: g^k = g*s
-    /// Assuming O(ng) work per guess (Gap, GapGap)
-    ///   n(1+g+...+g^k) = n*(g*g^k-1)/(g-1) = n*(g^2 s-1)/(g-1) ~ ns g^2/(g-1)
-    ///   minimize g^2/(g-1):
-    ///   derivative 0: 0 = (2g (g-1) - g^2) / (g-1)^2 => 0 = g^2-2g = g(g-2)
-    /// g=2
-    /// 4ns
-    ///
-    /// Assuming O(g^2) work per guess (Dijkstra, Astar(GapCost), when errors are uniform)
-    ///   1 + g^2 + g^4 + ... + g^2k ~ g^{2k+2} / (g^2-1) = ns g^4 / (g^2-1)
-    ///   minimize g^4/(g^2-1)
-    ///   derivative 0: 0 = 4g^3(g^2-1) - g^4 2g = 2g^5 - 4g^3 = 2 g^3 (g^2-2)
-    /// g=sqrt(2)
-    /// 2ns
-    /// in case all errors are at the end and runtime is O(ng) per guess:
-    /// 4.8 ns, only slightly worse than 4ns.
     fn band_doubling_params(
         &self,
         start: crate::DoublingStart,
