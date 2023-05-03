@@ -236,12 +236,12 @@ impl<C: Contours> CSHI<C> {
             score: m.score(),
         };
 
-        let mut pruner = MatchPruner::new(params.pruning, params.use_gap_cost, &mut matches);
+        let mut pruner = MatchPruner::new(params.pruning, params.use_gap_cost, matches);
 
-        // Sort reversed by start (the order needed to construct contours).
-        matches.sort_by_key(|m| LexPos(m.start));
-
-        let arrows = matches
+        // Matches are sorted by reversed start (the order needed to construct contours).
+        // TODO: Can we get rid of this ugly temporary copy somehow?
+        let copied_matches = pruner.iter().cloned().collect_vec();
+        let arrows = copied_matches
             .iter()
             .rev()
             .map(match_to_arrow)
@@ -431,7 +431,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                 } else {
                     *pt
                 };
-                self.matches.by_start.get(&p).map(|ms| {
+                self.matches.matches_for_start(p).map(|ms| {
                     ms.iter()
                         .filter(|m| m.is_active())
                         .map(match_to_arrow)
@@ -464,7 +464,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn matches(&self) -> Option<Vec<Match>> {
-        Some(self.matches.iter().collect_vec())
+        Some(self.matches.iter().cloned().collect_vec())
     }
 
     fn seeds(&self) -> Option<&Seeds> {

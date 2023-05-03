@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::{matches::Match, prelude::*, seeds::MatchCost};
 use clap::ValueEnum;
 use itertools::Itertools;
@@ -92,55 +94,90 @@ impl Pruning {
     }
 }
 
+/// Datastructure that holds all matches and allows for efficient lookup of
+/// matches by start, end (if needed), and range.
+///
+/// TODO: Memory could be saved by using `Range<u32>` or only the start `u32`.
+/// TODO: More memory could be saved by reusing the sorting by start also to find matches by end.
 pub struct MatchPruner {
     pruning: Pruning,
     check_consistency: bool,
     /// Skip a prune when this reaches 0 and `skip_prune` is set.
     skip: usize,
-    // TODO: Do not use vectors inside a hashmap.
-    // Instead, store a Vec<Array>, and attach a slice to each contour point.
-    pub by_start: HashMap<Pos, Vec<Match>>,
-    pub by_end: HashMap<Pos, Vec<Match>>,
+
+    /// Matches, sorted by `(LexPos(start), match_cost)`.
+    by_start: Vec<Match>,
+    /// For each match start, the index `matches_by_start` where matches start.
+    start_index: HashMap<Pos, Range<usize>>,
+
+    /// Matches, sorted by `(LexPos(end), match_cost)`.
+    by_end: Vec<Match>,
+    /// For each match end, the index `matches_by_end` where matches end.
+    end_index: HashMap<Pos, Range<usize>>,
 }
 
 impl MatchPruner {
-    pub fn new(pruning: Pruning, check_consistency: bool, matches: &mut Vec<Match>) -> MatchPruner {
+    pub fn new(
+        pruning: Pruning,
+        check_consistency: bool,
+        mut matches_by_start: Vec<Match>,
+    ) -> MatchPruner {
         // Sort by start, then by  match cost.
         // This ensures that matches are pruned from low cost to high cost.
-        matches.sort_unstable_by_key(|m| (LexPos(m.start), m.match_cost));
-        let by_start = matches
-            .iter()
-            .cloned()
-            .group_by(|m| m.start)
-            .into_iter()
-            .map(|(start, pos_arrows)| (start, pos_arrows.collect_vec()))
-            .collect();
+        let positions = |matches: &mut Vec<Match>, f: fn(&Match) -> Pos| {
+            matches.sort_unstable_by_key(|m| (LexPos(f(m)), m.match_cost));
+            matches
+                .iter()
+                .enumerate()
+                .group_by(|(_, m)| f(m))
+                .into_iter()
+                .map(|(pos, mut ms)| {
+                    (pos, {
+                        let start = ms.next().unwrap().0;
+                        let end = ms.last().map_or(start, |x| x.0) + 1;
+                        start..end
+                    })
+                })
+                .collect()
+        };
+        let by_start = positions(&mut matches_by_start, |m| m.start);
 
-        // Sort by end, then by *decreasing* match cost.
-        matches.sort_unstable_by_key(|m| (LexPos(m.end), m.match_cost));
-        let by_end = matches
-            .iter()
-            .cloned()
-            .group_by(|m| m.end)
-            .into_iter()
-            .map(|(end, pos_arrows)| (end, pos_arrows.collect_vec()))
-            .collect();
+        let (matches_by_end, by_end) = if pruning.prune_end() {
+            let mut matches_by_end = matches_by_start.clone();
+            let by_end = positions(&mut matches_by_end, |m| m.end);
+            (matches_by_end, by_end)
+        } else {
+            Default::default()
+        };
 
         MatchPruner {
             pruning,
             check_consistency,
             skip: 1,
-            by_start,
-            by_end,
+            by_start: matches_by_start,
+            start_index: by_start,
+            by_end: matches_by_end,
+            end_index: by_end,
         }
+    }
+
+    /// Iterates over all matches starting in the given `pos`.
+    pub fn matches_for_start(&self, pos: Pos) -> Option<&[Match]> {
+        Some(&self.by_start[self.start_index.get(&pos)?.clone()])
+    }
+
+    /// Iterates over all matches sorted by `LexPos(start)`.
+    pub fn iter(&self) -> impl '_ + DoubleEndedIterator<Item = &Match> {
+        self.by_start.iter()
     }
 
     /// Returns number of matches pruned by start (succeeding this pos) and by end (preceding this pos).
     pub fn prune(&mut self, seeds: &Seeds, pos: Pos, mut f: impl FnMut(&Match)) -> (usize, usize) {
         let mut cnt = (0, 0);
         if self.pruning.prune_start() && seeds.is_seed_start(pos) {
-            if let Some(ms) = self.by_start.get(&pos).cloned() {
-                for m in &ms {
+            if let Some(ms) = self.start_index.get(&pos).cloned() {
+                for i in ms {
+                    let m = &self.by_start[i].clone();
                     if m.is_active() && self.check_consistency(m) && self.skip_prune_filter() {
                         self.prune_match(m);
                         cnt.0 += 1;
@@ -150,11 +187,12 @@ impl MatchPruner {
             }
         };
         if self.pruning.prune_end() && seeds.is_seed_end(pos) {
-            if let Some(ms) = self.by_end.get(&pos).cloned() {
-                for m in &ms {
+            if let Some(ms) = self.end_index.get(&pos).cloned() {
+                for i in ms {
+                    let m = &self.by_end[i].clone();
                     if m.is_active() && self.check_consistency(m) && self.skip_prune_filter() {
                         self.prune_match(m);
-                        cnt.1 += 1;
+                        cnt.0 += 1;
                         f(m);
                     }
                 }
@@ -169,24 +207,21 @@ impl MatchPruner {
     }
 
     pub fn mut_match_start(&mut self, m: &Match) -> Option<&mut Match> {
-        self.by_start
-            .get_mut(&m.start)
-            .unwrap()
+        self.by_start[self.start_index.get(&m.start)?.clone()]
             .iter_mut()
             .find(|m2| m2 == &m)
     }
 
     pub fn mut_match_end(&mut self, m: &Match) -> Option<&mut Match> {
-        self.by_end
-            .get_mut(&m.end)
-            .unwrap()
+        self.by_end[self.end_index.get(&m.end)?.clone()]
             .iter_mut()
             .find(|m2| m2 == &m)
     }
 
     fn max_score_for_match(&self, start: Pos, end: Pos) -> MatchCost {
-        let Some(ms) = self.by_start.get(&start) else { return 0; };
-        ms.iter()
+        let Some(ms) = self.start_index.get(&start) else { return 0; };
+        self.by_start[ms.clone()]
+            .iter()
             .filter(|m| m.is_active() && m.end == end)
             .map(|m| m.score())
             .max()
@@ -231,9 +266,5 @@ impl MatchPruner {
         } else {
             true
         }
-    }
-
-    pub fn iter(&self) -> impl '_ + Iterator<Item = Match> {
-        self.by_start.iter().flat_map(|(_start, ms)| ms).cloned()
     }
 }

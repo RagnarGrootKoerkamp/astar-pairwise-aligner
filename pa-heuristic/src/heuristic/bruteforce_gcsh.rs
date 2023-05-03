@@ -80,7 +80,7 @@ where
                 params.pruning,
                 // Ensure consistency with GCSH.
                 params.distance_function.name() == "Gap",
-                &mut matches,
+                matches,
             ),
             h_at_matches: Default::default(),
             stats: Default::default(),
@@ -178,7 +178,7 @@ where
     }
 
     fn matches(&self) -> Option<Vec<Match>> {
-        Some(self.matches.iter().collect_vec())
+        Some(self.matches.iter().cloned().collect_vec())
     }
 
     fn seeds(&self) -> Option<&Seeds> {
