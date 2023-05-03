@@ -80,7 +80,10 @@ impl NwFront for BitFront {
                 val -= self.v[(j1 - WI - self.offset) as usize / W].value() as Cost;
                 j1 -= WI;
             }
-            val - self.v[(j1 - WI - self.offset) as usize / W].value_of_suffix(j1 - j) as Cost
+            if j1 > j {
+                val -= self.v[(j1 - WI - self.offset) as usize / W].value_of_suffix(j1 - j) as Cost
+            }
+            val
         }
     }
 
