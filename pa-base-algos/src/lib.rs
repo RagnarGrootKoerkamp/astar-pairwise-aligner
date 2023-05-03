@@ -23,19 +23,36 @@ fn exponential_search<T>(
     factor: f32,
     mut f: impl FnMut(Cost) -> Option<(Cost, T)>,
 ) -> (Cost, T) {
-    let mut s = s0;
+    let mut last_s = offset + s0;
+    let mut s = offset + s0;
     let mut maxs = Cost::MAX;
     // TODO: Fix the potential infinite loop here.
+    //
+    // Sanity checks:
+    // - Once the answer is found, this should be larger than all previous thresholds.
+    // - Once a value for maxs has been found, all subsequent larger values of s
+    //   should return a value that is smaller.
     loop {
-        if let Some((cost, t)) = f(offset + s) {
+        if let Some((cost, t)) = f(s) {
+            assert!(
+                cost <= maxs,
+                "A solution {maxs} was found for a previous s<={last_s}, but s={s} gives {cost}"
+            );
             if cost <= s {
+                assert!(cost > last_s, "Cost is {cost} was found at s {s} but should already have been found at last_s {last_s}");
                 return (cost, t);
             } else {
                 // If some value was returned this is an upper bound on the answer.
                 maxs = min(maxs, cost);
             }
+        } else {
+            assert!(
+                maxs == Cost::MAX,
+                "A solution {maxs} was found for a previous s<={last_s}, but not for current s={s}"
+            );
         }
-        s = max((factor * s as f32).ceil() as Cost, 1);
+        last_s = s;
+        s = max((factor * (s - offset) as f32).ceil() as Cost, 1) + offset;
         s = min(s, maxs);
     }
 }
