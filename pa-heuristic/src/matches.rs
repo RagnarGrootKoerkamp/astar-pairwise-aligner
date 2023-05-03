@@ -68,7 +68,7 @@ impl Matches {
     /// Matches will be sorted and deduplicated in this function.
     pub fn new(a: Seq, seeds: Vec<Seed>, mut matches: Vec<Match>) -> Self {
         // First sort by start, then by end, then by match cost.
-        matches.sort_unstable_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
+        assert!(matches.is_sorted_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost)));
         // Dedup to only keep the lowest match cost between each start and end.
         matches.dedup_by_key(|m| (m.start, m.end));
 

@@ -192,6 +192,7 @@ pub fn find_matches_qgramindex<'a>(
 }
 
 /// Build a hashset of the kmers in b, and query all mutations of seeds in a.
+/// Returns the set of matches sorted by `(LexPos(start), LexPos(end), cost)`.
 pub fn find_matches_qgram_hash_inexact<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
@@ -228,6 +229,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     }
     let mut matches = Vec::<Match>::new();
     for seed @ &mut Seed { start, qgram, .. } in &mut seeds {
+        let matches_before_seed = matches.len();
         if let Some(js) = m.get(&key_for_sized_qgram(k, qgram)) {
             for &j in js {
                 seed.seed_cost = 0;
@@ -284,8 +286,13 @@ pub fn find_matches_qgram_hash_inexact<'a>(
                 }
             }
         }
+        let matches_after_seed = matches.len();
+        matches[matches_before_seed..matches_after_seed]
+            .sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
     }
 
+    #[cfg(test)]
+    assert!(matches.is_sorted_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost)));
     Matches::new(a, seeds, matches)
 }
 
