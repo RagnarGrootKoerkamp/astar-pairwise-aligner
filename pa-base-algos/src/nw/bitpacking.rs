@@ -1,3 +1,9 @@
+//!
+//! TODO: [fill_block] use a single allocation for all fronts in the block. Takes up to 2% of time.
+//! TODO: SIMD for compute_block
+//! TODO: [fill_block] store horizontal deltas in blocks, so that `parent` is more
+//!       efficient and doesn't have to use relatively slow `front.index` operations.
+//!       (NOTE though that this doesn't actually seem that bad in practice.)
 use std::cmp::min;
 
 use pa_bitpacking::{compute_columns, profile, CompressedSequence, Profile, V, W};
@@ -283,10 +289,6 @@ impl NwFronts<0usize> for BitFronts {
     ///
     /// This requires `self.trace` to be `true`. In case of sparse fronts, this
     /// recomputes fronts as needed.
-    ///
-    /// TODO: Store horizontal deltas in blocks, so that `parent` is more
-    /// efficient and doesn't have to use relatively slow `front.index`
-    /// operations.
     fn trace(&mut self, from: State, mut to: State) -> AffineCigar {
         assert!(self.trace);
         let mut cigar = AffineCigar::default();
