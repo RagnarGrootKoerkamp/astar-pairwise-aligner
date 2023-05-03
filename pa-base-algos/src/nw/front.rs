@@ -60,6 +60,10 @@ impl Into<RangeInclusive<I>> for JRange {
     }
 }
 
+/// Front type for the NW algorithm.
+///
+/// `Default` is only needed to pass an empty and usused front into `j_range`
+/// for the initial column range.
 pub trait NwFront: Default {
     /// The current rows in `0 ..= b.len()`.
     fn j_range(&self) -> JRange;
@@ -73,11 +77,12 @@ pub trait NwFront: Default {
     fn get(&self, j: I) -> Option<Cost>;
 }
 
-pub trait NwFrontsTag<const N: usize>: Copy {
+pub trait NwFrontsTag<const N: usize>: Copy + PartialEq {
     type Fronts<'a>: NwFronts<N>;
     const BLOCKSIZE: I;
     /// Constructs a new front and initializes it for `i=0`.
     fn new<'a>(
+        &self,
         trace: bool,
         a: Seq<'a>,
         b: Seq<'a>,
@@ -102,7 +107,7 @@ pub trait NwFronts<const N: usize> {
 
     fn parent(&self, st: State) -> Option<(State, AffineCigarOps)>;
 
-    fn trace(&self, from: State, mut to: State) -> AffineCigar {
+    fn trace(&mut self, from: State, mut to: State) -> AffineCigar {
         let mut cigar = AffineCigar::default();
 
         while to != from {

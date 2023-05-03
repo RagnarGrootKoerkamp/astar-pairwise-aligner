@@ -24,6 +24,7 @@ pub struct BitFront {
 }
 
 pub struct BitFronts {
+    params: BitFrontsTag,
     trace: bool,
     a: CompressedSequence,
     b: Profile,
@@ -32,8 +33,12 @@ pub struct BitFronts {
     i_range: IRange,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct BitFrontsTag;
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct BitFrontsTag {
+    /// When true, `trace` mode only stores one front per block, instead of all columns.
+    /// `cost` most always stores only the last front.
+    pub sparse: bool,
+}
 
 impl Default for BitFront {
     fn default() -> Self {
@@ -118,6 +123,7 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
     type Fronts<'a> = BitFronts;
     const BLOCKSIZE: I = 64;
     fn new<'a>(
+        &self,
         trace: bool,
         a: Seq<'a>,
         b: Seq<'a>,
@@ -128,6 +134,7 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
         assert!(initial_j_range.0 == 0);
         let (a, b) = profile(a, b);
         BitFronts {
+            params: *self,
             fronts: if trace {
                 // First column front, with more fronts pushed after.
                 vec![BitFront::first_col(initial_j_range)]

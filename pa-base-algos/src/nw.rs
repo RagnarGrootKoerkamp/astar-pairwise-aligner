@@ -2,7 +2,8 @@
 //! - timings
 //! - pruning
 //! - reuse computed values when doing A*
-/// - meet in the middle for traceback
+//! - meet in the middle for traceback
+//! - try jemalloc/mimalloc
 mod affine;
 mod bitpacking;
 mod front;
@@ -23,9 +24,10 @@ use self::front::NwFrontsTag;
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub enum FrontType {
     Affine,
-    Bit,
+    Bit(BitFront),
 }
 
+// TODO: Fix these names to be the same.
 pub use affine::AffineNwFrontsTag as AffineFront;
 pub use bitpacking::BitFrontsTag as BitFront;
 
@@ -88,11 +90,11 @@ impl AstarNwParams {
                 v,
                 front: AffineFront,
             }),
-            (Domain::Astar(()), FrontType::Bit) => self.heuristic.map(Mapper {
+            (Domain::Astar(()), FrontType::Bit(front)) => self.heuristic.map(Mapper {
                 params: *self,
                 trace,
                 v,
-                front: BitFront,
+                front,
             }),
             (d, FrontType::Affine) => Box::new(NW {
                 cm: AffineCost::unit(),
@@ -103,13 +105,13 @@ impl AstarNwParams {
                 front: AffineFront,
                 trace,
             }),
-            (d, FrontType::Bit) => Box::new(NW {
+            (d, FrontType::Bit(front)) => Box::new(NW {
                 cm: AffineCost::unit(),
                 domain: d.into(),
                 strategy: self.strategy,
                 block_width: self.block_width,
                 v,
-                front: BitFront,
+                front,
                 trace,
             }),
         }

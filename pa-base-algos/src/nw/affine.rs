@@ -31,7 +31,7 @@ pub struct AffineNwFronts<'a, const N: usize> {
     i_range: IRange,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AffineNwFrontsTag<const N: usize>;
 
 impl<const N: usize> Default for AffineNwFront<N> {
@@ -147,6 +147,7 @@ impl<const N: usize> NwFrontsTag<N> for AffineNwFrontsTag<N> {
     type Fronts<'a> = AffineNwFronts<'a, N>;
     const BLOCKSIZE: I = 1;
     fn new<'a>(
+        &self,
         trace: bool,
         a: Seq<'a>,
         b: Seq<'a>,
@@ -247,21 +248,5 @@ impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
             },
         );
         Some((parent?, cigar_ops))
-    }
-
-    fn trace(&self, from: State, mut to: State) -> AffineCigar {
-        let mut cigar = AffineCigar::default();
-
-        while to != from {
-            let (parent, cigar_ops) = self.parent(to).unwrap();
-            to = parent;
-            for op in cigar_ops {
-                if let Some(op) = op {
-                    cigar.push(op);
-                }
-            }
-        }
-        cigar.reverse();
-        cigar
     }
 }
