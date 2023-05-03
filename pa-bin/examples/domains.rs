@@ -54,6 +54,7 @@ fn main() {
             block_width,
             v: config.with_filename("gap-start"),
             front,
+            trace: true,
         }),
         Box::new(NW {
             cm,
@@ -62,6 +63,7 @@ fn main() {
             block_width,
             v: config.with_filename("gap-gap"),
             front,
+            trace: true,
         }),
         Box::new(NW {
             cm,
@@ -70,6 +72,7 @@ fn main() {
             block_width,
             v: config.with_filename("dijkstra"),
             front,
+            trace: true,
         }),
         Box::new(NW {
             cm,
@@ -78,6 +81,7 @@ fn main() {
             block_width,
             v: config.with_filename("astar-gap"),
             front,
+            trace: true,
         }),
         Box::new(NW {
             cm,
@@ -86,6 +90,7 @@ fn main() {
             block_width,
             v: config.with_filename("astar-gcsh"),
             front,
+            trace: true,
         }),
     ];
     for aligner in aligners {

@@ -69,7 +69,7 @@ fn test_aligner_on_input<const N: usize, A: AffineAligner>(
         "\n{params}\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\nNW cigar: {}\nAligner\n{aligner:?}",
         seq_to_string(&a),
         seq_to_string(&b),
-        nw.align(a, b).1.to_string()
+        nw.align(a, b).1.unwrap().to_string()
     );
     if test_path {
         let (cost, Some(cigar)) = aligner.align_affine(a, b) else { panic!() };
@@ -80,7 +80,7 @@ fn test_aligner_on_input<const N: usize, A: AffineAligner>(
                 seq_to_string(a),
                 seq_to_string(b),
                 cigar.to_string(),
-                nw.align(a, b).1.to_string()
+                nw.align(a, b).1.unwrap().to_string()
             );
         }
         assert_eq!(cost, nw_cost);
@@ -307,6 +307,7 @@ mod nw_sh {
                 block_width: 1,
                 v: NoVis,
                 front: AffineFront,
+                trace: true,
             },
             // test `align` as well?
             true,

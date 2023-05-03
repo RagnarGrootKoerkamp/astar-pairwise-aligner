@@ -41,6 +41,7 @@ fn main() {
         block_width: 1,
         v: config.with_filename("path-pruning"),
         front: AffineFront,
+        trace: true,
     };
     aligner.align(a, b);
 }

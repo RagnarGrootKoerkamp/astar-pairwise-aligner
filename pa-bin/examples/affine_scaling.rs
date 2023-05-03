@@ -37,6 +37,7 @@ fn main() {
                     block_width: 1,
                     v: NoVis,
                     front: AffineFront,
+                    trace: true,
                 }
                 .cost(a, b);
                 eprintln!(

@@ -44,6 +44,7 @@ fn main() {
             block_width: 1,
             v: vis("nw"),
             front: AffineFront,
+            trace: true,
         };
         nw.align(a, b);
     }
@@ -56,6 +57,7 @@ fn main() {
             block_width: 1,
             v: vis("nw_gapcost"),
             front: AffineFront,
+            trace: true,
         };
         nw.align(a, b);
     }
@@ -68,6 +70,7 @@ fn main() {
             block_width: 1,
             v: vis("nw_gapcost_h"),
             front: AffineFront,
+            trace: true,
         };
 
         nw.align(a, b);
@@ -81,6 +84,7 @@ fn main() {
             block_width: 1,
             v: vis("nw_sh"),
             front: AffineFront,
+            trace: true,
         };
 
         nw.align(a, b);
@@ -94,6 +98,7 @@ fn main() {
             block_width: 1,
             v: vis("nw_csh"),
             front: AffineFront,
+            trace: true,
         };
 
         nw.align(a, b);

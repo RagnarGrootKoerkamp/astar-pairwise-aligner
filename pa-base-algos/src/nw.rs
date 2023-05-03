@@ -50,15 +50,20 @@ pub struct AstarNwParams {
 
 impl AstarNwParams {
     /// Build an `AstarStatsAligner` instance from
-    pub fn make_aligner(&self) -> Box<dyn Aligner> {
-        self.make_aligner_with_visualizer(NoVis)
+    pub fn make_aligner(&self, trace: bool) -> Box<dyn Aligner> {
+        self.make_aligner_with_visualizer(trace, NoVis)
     }
 
     /// Build a type-erased aligner object from parameters.
     /// FIXME: Add costmodel support.
-    pub fn make_aligner_with_visualizer<V: VisualizerT + 'static>(&self, v: V) -> Box<dyn Aligner> {
+    pub fn make_aligner_with_visualizer<V: VisualizerT + 'static>(
+        &self,
+        trace: bool,
+        v: V,
+    ) -> Box<dyn Aligner> {
         struct Mapper<V: VisualizerT, F: NwFrontsTag<0>> {
             params: AstarNwParams,
+            trace: bool,
             v: V,
             front: F,
         }
@@ -72,17 +77,20 @@ impl AstarNwParams {
                     block_width: self.params.block_width,
                     v: self.v,
                     front: self.front,
+                    trace: self.trace,
                 })
             }
         }
         match (self.domain, self.front) {
             (Domain::Astar(()), FrontType::Affine) => self.heuristic.map(Mapper {
                 params: *self,
+                trace,
                 v,
                 front: AffineFront,
             }),
             (Domain::Astar(()), FrontType::Bit) => self.heuristic.map(Mapper {
                 params: *self,
+                trace,
                 v,
                 front: BitFront,
             }),
@@ -93,6 +101,7 @@ impl AstarNwParams {
                 block_width: self.block_width,
                 v,
                 front: AffineFront,
+                trace,
             }),
             (d, FrontType::Bit) => Box::new(NW {
                 cm: AffineCost::unit(),
@@ -101,6 +110,7 @@ impl AstarNwParams {
                 block_width: self.block_width,
                 v,
                 front: BitFront,
+                trace,
             }),
         }
     }
@@ -128,6 +138,11 @@ pub struct NW<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> {
 
     /// The type of front to use.
     pub front: F,
+
+    /// Whether to return a trace.
+    /// `.cost()` always returns cost only, while `.align()` returns a cigar
+    /// depending on this.
+    pub trace: bool,
 }
 
 impl<const N: usize> NW<N, NoVis, NoCost, AffineNwFrontsTag<N>> {
@@ -149,6 +164,7 @@ impl<const N: usize> NW<N, NoVis, NoCost, AffineNwFrontsTag<N>> {
             block_width: 32,
             v: NoVis,
             front: AffineNwFrontsTag::<N>,
+            trace: true,
         }
     }
 }
@@ -243,9 +259,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
         self.cost_or_align(a, b, false).0
     }
 
-    pub fn align(&self, a: Seq, b: Seq) -> (Cost, AffineCigar) {
-        let (cost, cigar) = self.cost_or_align(a, b, true);
-        (cost, cigar.unwrap())
+    pub fn align(&self, a: Seq, b: Seq) -> (Cost, Option<AffineCigar>) {
+        let (cost, cigar) = self.cost_or_align(a, b, self.trace);
+        (cost, cigar)
     }
 
     pub fn cost_for_bounded_dist(&self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
@@ -277,7 +293,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> AffineAlig
 impl<V: VisualizerT, H: Heuristic, F: NwFrontsTag<0>> Aligner for NW<0, V, H, F> {
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
         let (cost, cigar) = NW::align(self, a, b);
-        (cost, Some(cigar.into()))
+        (cost, cigar.map(|c| c.into()))
     }
 }
 

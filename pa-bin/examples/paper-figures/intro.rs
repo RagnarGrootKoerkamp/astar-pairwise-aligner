@@ -50,6 +50,7 @@ fn main() {
             block_width: 1,
             v: config.with_filename("1_ukkonen"),
             front: AffineFront,
+            trace: true,
         }),
         Box::new(AstarPa {
             dt: false,
