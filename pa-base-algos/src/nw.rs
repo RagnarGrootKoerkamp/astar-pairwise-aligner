@@ -373,7 +373,13 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             Domain::Astar(h) => {
                 // Instead of computing the start and end exactly, we bound them using the computed values of the previous range.
 
-                let f = |i, j| prev.index(j) + h.h(Pos(i, j));
+                let mut hint = <H::Instance<'a> as HeuristicInstance>::Hint::default();
+                let mut h = |pos| {
+                    let (h, new_hint) = h.h_with_hint(pos, hint);
+                    hint = new_hint;
+                    h
+                };
+                let mut f = |i, j| prev.index(j) + h(Pos(i, j));
 
                 // Start: increment the start of the previous range until
                 //        f<=f_max is satisfied in previous column.
@@ -423,7 +429,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                     // Check if cell below is out-of-reach.
                     v.1 += 1;
                     while v.1 <= self.b.len() as I
-                        && gu + self.params.cm.extend_cost(u, v) + h.h(v) <= f_max
+                        && gu + self.params.cm.extend_cost(u, v) + h(v) <= f_max
                     {
                         v.1 += 1;
                     }
