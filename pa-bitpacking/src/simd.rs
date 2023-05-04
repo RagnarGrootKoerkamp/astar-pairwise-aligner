@@ -35,12 +35,15 @@ pub fn compute_block_simd(ph0: &mut S, mh0: &mut S, pv: &mut S, mv: &mut S, eq: 
 /// NOTE: This creates a new array with the right alignment.
 #[inline(always)]
 fn slice_to_simd<const N: usize>(slice: &[B; 4 * N]) -> [S; N] {
-    slice
-        .array_chunks::<4>()
-        .map(|&b| b.into())
-        .array_chunks::<N>()
-        .next()
-        .unwrap()
+    // SAFETY:
+    unsafe {
+        slice
+            .array_chunks::<4>()
+            .map(|&b| b.into())
+            .array_chunks::<N>()
+            .next()
+            .unwrap_unchecked()
+    }
 }
 /// NOTE: This is simply a cast.
 #[inline(always)]
@@ -83,14 +86,31 @@ where
 
         // Middle with SIMD.
         // Use a temp local SIMD `pv` and `mv` for vertical difference.
+        // NOTE: This 'unzipping' and 'zipping' of `pv` and `mv` is a bit ugly,
+        // but given that the loop goes over many columns, it doesn't matter for
+        // performance.
         let mut pv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].p()));
         let mut mv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].m()));
         for (i, ca) in a.array_windows::<{ 4 * N }>().enumerate() {
+            // NOTE: The 'gather' operation resulting from this is slow!
             let eqs: [S; N] = slice_to_simd(&from_fn(|i| unsafe {
-                *cb[rev(i)].get_unchecked(ca[i] as usize)
+                *cb.get_unchecked(rev(i)).get_unchecked(ca[i] as usize)
             }));
-            let ph = ph[i..].split_array_mut().0;
-            let mh = mh[i..].split_array_mut().0;
+
+            // SAFETY: By construction, a has the same length as ph and mh, and
+            // i iterates over windows of size L*N of a, so we can take equal
+            // windows of ph and mh.  Would be replaced by `array_windows_mut`
+            // if it existed.
+            let ph: &mut [B; L * N] = unsafe {
+                (ph.get_unchecked_mut(i..i + L * N))
+                    .try_into()
+                    .unwrap_unchecked()
+            };
+            let mh: &mut [B; L * N] = unsafe {
+                (mh.get_unchecked_mut(i..i + L * N))
+                    .try_into()
+                    .unwrap_unchecked()
+            };
             let mut ph_simd = slice_to_simd(ph);
             let mut mh_simd = slice_to_simd(mh);
             for k in 0..N {
