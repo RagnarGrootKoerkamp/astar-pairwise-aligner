@@ -32,74 +32,74 @@ mod simd;
 use scalar::*;
 use simd::*;
 
-fn h_bench<H: HEncoding, M: Measurement>(t: &str, a: Seq, b: Seq, c: &mut BenchmarkGroup<M>) {
-    for d in Order::iter() {
-        c.bench_function(BenchmarkId::new("Local", format!("{t}/{d}")), |bb| {
-            bb.iter(|| nw::<H>(a, b, d, &NoVis))
+fn h_bench<H: HEncoding, M: Measurement>(t: &str, a: Seq, b: Seq, c: &mut BenchmarkGroup<M>, d: D) {
+    for dir in Order::iter() {
+        c.bench_function(BenchmarkId::new("Local", format!("{t}/{dir}")), |bb| {
+            bb.iter(|| assert_eq!(nw::<H>(a, b, dir, &NoVis), d))
         });
     }
-    for d in Direction::iter() {
-        c.bench_function(BenchmarkId::new("Diag", format!("{t}/{d}")), |bb| {
-            bb.iter(|| nw_diag::<H>(a, b, d, &NoVis))
+    for dir in Direction::iter() {
+        c.bench_function(BenchmarkId::new("Diag", format!("{t}/{dir}")), |bb| {
+            bb.iter(|| assert_eq!(nw_diag::<H>(a, b, dir, &NoVis), d))
         });
     }
 
-    for d in Direction::iter() {
-        c.bench_function(BenchmarkId::new("Striped", format!("{t}/{d}/1")), |bb| {
-            bb.iter(|| nw_striped_col::<1, H>(a, b, d, &NoVis))
+    for dir in Direction::iter() {
+        c.bench_function(BenchmarkId::new("Striped", format!("{t}/{dir}/1")), |bb| {
+            bb.iter(|| assert_eq!(nw_striped_col::<1, H>(a, b, dir, &NoVis), d))
         });
-        c.bench_function(BenchmarkId::new("Striped", format!("{t}/{d}/2")), |bb| {
-            bb.iter(|| nw_striped_col::<2, H>(a, b, d, &NoVis))
+        c.bench_function(BenchmarkId::new("Striped", format!("{t}/{dir}/2")), |bb| {
+            bb.iter(|| assert_eq!(nw_striped_col::<2, H>(a, b, dir, &NoVis), d))
         });
-        c.bench_function(BenchmarkId::new("Striped", format!("{t}/{d}/3")), |bb| {
-            bb.iter(|| nw_striped_col::<3, H>(a, b, d, &NoVis))
+        c.bench_function(BenchmarkId::new("Striped", format!("{t}/{dir}/3")), |bb| {
+            bb.iter(|| assert_eq!(nw_striped_col::<3, H>(a, b, dir, &NoVis), d))
         });
-        c.bench_function(BenchmarkId::new("Striped", format!("{t}/{d}/4")), |bb| {
-            bb.iter(|| nw_striped_col::<4, H>(a, b, d, &NoVis))
+        c.bench_function(BenchmarkId::new("Striped", format!("{t}/{dir}/4")), |bb| {
+            bb.iter(|| assert_eq!(nw_striped_col::<4, H>(a, b, dir, &NoVis), d))
         });
     }
 }
 
-fn simd_bench<M: Measurement>(a: CompressedSeq, b: CompressedSeq, c: &mut BenchmarkGroup<M>) {
+fn simd_bench<M: Measurement>(a: Seq, b: Seq, c: &mut BenchmarkGroup<M>, d: D) {
     c.bench_function(BenchmarkId::new("Simd", format!("1")), |bb| {
-        bb.iter(|| nw_simd_striped_col::<1>(a, b, &NoVis))
+        bb.iter(|| assert_eq!(nw_simd_striped_col::<1>(a, b, &NoVis), d))
     });
     c.bench_function(BenchmarkId::new("Simd", format!("2")), |bb| {
-        bb.iter(|| nw_simd_striped_col::<2>(a, b, &NoVis))
+        bb.iter(|| assert_eq!(nw_simd_striped_col::<2>(a, b, &NoVis), d))
     });
     c.bench_function(BenchmarkId::new("Simd", format!("3")), |bb| {
-        bb.iter(|| nw_simd_striped_col::<3>(a, b, &NoVis))
+        bb.iter(|| assert_eq!(nw_simd_striped_col::<3>(a, b, &NoVis), d))
     });
     c.bench_function(BenchmarkId::new("Simd", format!("4")), |bb| {
-        bb.iter(|| nw_simd_striped_col::<4>(a, b, &NoVis))
+        bb.iter(|| assert_eq!(nw_simd_striped_col::<4>(a, b, &NoVis), d))
     });
     c.bench_function(BenchmarkId::new("SimdRow", format!("1")), |bb| {
-        bb.iter(|| nw_simd_striped_row_wrapper::<1>(a, b))
+        bb.iter(|| assert_eq!(nw_simd_striped_row_wrapper::<1>(a, b), d))
     });
     c.bench_function(BenchmarkId::new("SimdRow", format!("2")), |bb| {
-        bb.iter(|| nw_simd_striped_row_wrapper::<2>(a, b))
+        bb.iter(|| assert_eq!(nw_simd_striped_row_wrapper::<2>(a, b), d))
     });
     c.bench_function(BenchmarkId::new("SimdRow", format!("3")), |bb| {
-        bb.iter(|| nw_simd_striped_row_wrapper::<3>(a, b))
+        bb.iter(|| assert_eq!(nw_simd_striped_row_wrapper::<3>(a, b), d))
     });
     c.bench_function(BenchmarkId::new("SimdRow", format!("4")), |bb| {
-        bb.iter(|| nw_simd_striped_row_wrapper::<4>(a, b))
+        bb.iter(|| assert_eq!(nw_simd_striped_row_wrapper::<4>(a, b), d))
     });
 }
 
 fn bench<M: Measurement>(unit: &str, c: &mut Criterion<M>) {
-    let (b, a) = &pa_generate::uniform_fixed(1024, 0.1);
-    let (ref ca, ref cb) = compress(a, b);
+    let (a, _) = &pa_generate::uniform_fixed(256, 0.);
+    let (b, _) = &pa_generate::uniform_fixed(4096, 0.);
     let d = levenshtein(a, b) as D;
 
     let c = &mut c.benchmark_group(unit);
     c.bench_function("TripleAccel", |bb| {
         bb.iter(|| assert_eq!(levenshtein(a, b) as D, d))
     });
-    h_bench::<i8, M>("i8", a, b, c);
-    h_bench::<(u8, u8), M>("u8", a, b, c);
-    h_bench::<(B, B), M>("B", a, b, c);
-    simd_bench(ca, cb, c);
+    h_bench::<i8, M>("i8", a, b, c, d);
+    h_bench::<(u8, u8), M>("u8", a, b, c, d);
+    h_bench::<(B, B), M>("B", a, b, c, d);
+    simd_bench(a, b, c, d);
 }
 
 fn bench_time<M: Measurement>(c: &mut Criterion<M>) {
