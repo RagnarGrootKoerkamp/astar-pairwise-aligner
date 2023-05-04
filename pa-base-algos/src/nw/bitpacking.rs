@@ -6,7 +6,9 @@
 //!       (NOTE though that this doesn't actually seem that bad in practice.)
 use std::cmp::min;
 
-use pa_bitpacking::{compute_columns, profile, CompressedSequence, Profile, V, W};
+use pa_bitpacking::{
+    compute_columns, compute_columns_simd, profile, CompressedSequence, Profile, V, W,
+};
 use pa_types::{Cost, Seq, I};
 
 use crate::edit_graph::AffineCigarOps;
@@ -48,6 +50,8 @@ pub struct BitFrontsTag {
     /// When true, `trace` mode only stores one front per block, instead of all columns.
     /// `cost` most always stores only the last front.
     pub sparse: bool,
+    #[serde(default)]
+    pub simd: bool,
 }
 
 impl Default for BitFront {
@@ -195,11 +199,7 @@ impl NwFronts<0usize> for BitFronts {
             let mut v = initialize_next_v(front, j_range_rounded);
 
             top_val += i_range.len();
-            bot_val += compute_columns(
-                &self.a[i_range.0 as usize..i_range.1 as usize],
-                &self.b[v_range.clone()],
-                &mut v,
-            ) as I;
+            bot_val += self.compute_columns(i_range, v_range.clone(), &mut v);
 
             self.fronts.push(BitFront {
                 v,
@@ -212,11 +212,11 @@ impl NwFronts<0usize> for BitFronts {
         } else {
             // Update the existing `v` vector in the single front.
             top_val += i_range.len();
-            bot_val += compute_columns(
-                &self.a[i_range.0 as usize..i_range.1 as usize],
-                &self.b[v_range.clone()],
-                &mut front.v[v_range.clone()],
-            ) as I;
+            // Ugly rust workaround: have to take out the front and put it back it.
+            let mut v = std::mem::take(&mut front.v);
+            bot_val += self.compute_columns(i_range, v_range.clone(), &mut v[v_range.clone()]);
+            let front = &mut self.fronts.last_mut().unwrap();
+            front.v = v;
             front.i = i_range.1;
             front.j_range = j_range;
             front.top_val = top_val;
@@ -380,11 +380,7 @@ impl BitFronts {
         for i in i_range.0..i_range.1 {
             // Along the top row, horizontal deltas are 1.
             top_val += 1;
-            bot_val += compute_columns(
-                &self.a[i as usize..i as usize + 1],
-                &self.b[v_range.clone()],
-                &mut v,
-            ) as I;
+            bot_val += self.compute_columns(IRange(i, i + 1), v_range.clone(), &mut v);
 
             self.fronts.push(BitFront {
                 // Copy `v`, or take it if this is the last column.
@@ -406,6 +402,27 @@ impl BitFronts {
         assert!(self.i_range.1 == self.fronts.last().unwrap().i);
         self.fronts.pop();
         self.i_range.1 = self.fronts.last().unwrap().i;
+    }
+
+    fn compute_columns(
+        &self,
+        i_range: IRange,
+        v_range: std::ops::Range<usize>,
+        v: &mut [V],
+    ) -> i32 {
+        if self.params.simd {
+            compute_columns_simd(
+                self.a.index(i_range.0 as usize..i_range.1 as usize),
+                &self.b[v_range],
+                v,
+            ) as I
+        } else {
+            compute_columns(
+                self.a.index(i_range.0 as usize..i_range.1 as usize),
+                &self.b[v_range],
+                v,
+            ) as I
+        }
     }
 }
 

@@ -37,7 +37,10 @@ fn main() {
     config.clear_after_meeting_point = false;
 
     let block_width = 32;
-    let front = BitFront { sparse: true };
+    let front = BitFront {
+        sparse: true,
+        simd: true,
+    };
     let aligners: &mut [Box<dyn Aligner>] = &mut [
         // Box::new(NW {
         //     cm,
