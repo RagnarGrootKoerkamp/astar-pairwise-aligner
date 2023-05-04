@@ -291,30 +291,51 @@ impl NwFronts<0usize> for BitFronts {
     /// recomputes fronts as needed.
     fn trace(&mut self, from: State, mut to: State) -> AffineCigar {
         assert!(self.trace);
+        assert!(self.fronts.last().unwrap().i == to.i);
         let mut cigar = AffineCigar::default();
+        let mut g = self.fronts.last().unwrap().index(to.j);
 
         while to != from {
             // Remove fronts to the right of `to`.
             while self.fronts.last().unwrap().i > to.i {
-                self.fronts.pop();
-                self.i_range.1 = self.fronts.last().unwrap().i;
+                self.pop_last_front();
             }
 
             // In case of sparse fronts, fill missing columns by recomputing the
             // block and storing all columns.
-            // NOTE: We only compute up to the row of `st`. More isn't needed,
-            // and this speeds up indexing by being close to the boundary.
-            if self.params.sparse {
+            if self.params.sparse && to.i > 0 {
                 let front = &self.fronts[self.fronts.len() - 1];
                 let prev_front = &self.fronts[self.fronts.len() - 2];
                 assert_eq!(front.i, to.i);
-                let i_range = IRange(prev_front.i, front.i);
-                assert!(front.j_range.0 <= to.j && to.j <= front.j_range.1);
-                let j_range = JRange(front.j_range.0, to.j);
-                // TODO: Reuse this memory
-                self.fronts.pop();
-                self.i_range.1 = self.fronts.last().unwrap().i;
-                self.fill_block(i_range, j_range);
+                // If the previous front is the correct one, no need for further recomputation.
+                if prev_front.i < to.i - 1 {
+                    let i_range = IRange(prev_front.i, front.i);
+                    assert!(front.j_range.0 <= to.j && to.j <= front.j_range.1);
+                    let j_range = JRange(front.j_range.0, to.j);
+                    self.pop_last_front();
+                    // NOTE: It's unlikely the full (large) `j_range` is needed to trace back through the current block.
+                    // 1. We don't need states with `j > to.j`, because the path (in reverse direction) can never go down.
+                    // 2. It's unlikely we'll need all states starting at the (possibly much smaller) `j_range.0`.
+                    //    Instead, we do an exponential search for the start of the `j_range`, starting at `to.j-2*i_range.len()`.
+                    //    The block is large enough once the cost to `to` equals `g`.
+                    let mut height = 2 * i_range.len();
+                    loop {
+                        let j_range = JRange(max(j_range.0, j_range.1 - height), j_range.1);
+                        // TODO: Reuse this memory
+                        self.fill_block(i_range, j_range);
+                        if self.last_front().index(to.j) == g {
+                            break;
+                        }
+                        // Pop all the computed fronts.
+                        for _i in i_range.0..i_range.1 {
+                            self.pop_last_front();
+                        }
+                        // Try again with a larger height.
+                        height *= 2;
+                    }
+
+                    //self.fill_block(i_range, j_range);
+                }
             }
 
             let (parent, cigar_ops) = self.parent(to).unwrap();
@@ -322,9 +343,15 @@ impl NwFronts<0usize> for BitFronts {
             for op in cigar_ops {
                 if let Some(op) = op {
                     cigar.push(op);
+
+                    g -= match op {
+                        AffineCigarOp::Match => 0,
+                        _ => 1,
+                    };
                 }
             }
         }
+        assert_eq!(g, 0);
         cigar.reverse();
         cigar
     }
@@ -333,7 +360,11 @@ impl NwFronts<0usize> for BitFronts {
 impl BitFronts {
     /// Iterate over columns `i_range` for `j_range`, storing a front per column.
     fn fill_block(&mut self, i_range: IRange, j_range: JRange) {
-        assert!(i_range.0 == self.i_range.1);
+        assert_eq!(
+            i_range.0, self.i_range.1,
+            "Current fronts range is {:?}. Computed range {i_range:?} does not fit!",
+            self.i_range
+        );
         self.i_range.1 = i_range.1;
 
         let j_range_rounded = round(j_range);
@@ -369,6 +400,12 @@ impl BitFronts {
                 bot_val,
             });
         }
+    }
+
+    fn pop_last_front(&mut self) {
+        assert!(self.i_range.1 == self.fronts.last().unwrap().i);
+        self.fronts.pop();
+        self.i_range.1 = self.fronts.last().unwrap().i;
     }
 }
 
