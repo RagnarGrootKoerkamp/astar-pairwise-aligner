@@ -33,7 +33,7 @@ pub fn compute_block_simd(ph0: &mut S, mh0: &mut S, pv: &mut S, mv: &mut S, eq: 
 }
 
 /// NOTE: This creates a new array with the right alignment.
-#[inline]
+#[inline(always)]
 fn slice_to_simd<const N: usize>(slice: &[B; 4 * N]) -> [S; N] {
     slice
         .array_chunks::<4>()
@@ -43,7 +43,7 @@ fn slice_to_simd<const N: usize>(slice: &[B; 4 * N]) -> [S; N] {
         .unwrap()
 }
 /// NOTE: This is simply a cast.
-#[inline]
+#[inline(always)]
 fn simd_to_slice<const N: usize>(simd: &[S; N]) -> &[B; 4 * N] {
     unsafe { transmute(simd) }
 }
@@ -54,16 +54,24 @@ fn simd_to_slice<const N: usize>(simd: &[S; N]) -> &[B; 4 * N] {
 ///   - Top-left and bot-right triangle of the 4N row block are done with scalars.
 ///     (4N(4N-1) blocks in total.)
 /// - Last <4*N rows are done with scalars.
-pub fn nw_simd_striped_row<const N: usize>(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D
+/// Returns the difference along the bottom row.
+pub fn compute_columns_simd<const N: usize>(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D
 where
     [(); L * N]: Sized,
 {
+    assert_eq!(b.len(), v.len());
+    if a.len() < 2 * 4 * N || b.len() < 4 * N {
+        return compute_columns(a, b, v);
+    }
+
     let mut ph = vec![1; a.len()];
     let mut mh = vec![0; a.len()];
 
     let b_chunks = b.array_chunks::<{ L * N }>();
     let v_chunks = v.array_chunks_mut::<{ L * N }>();
     let bv_chunks = izip!(b_chunks, v_chunks);
+
+    let rev = |i| 4 * N - 1 - i;
 
     for (cb, v) in bv_chunks {
         // Top-left triangle of block of rows.
@@ -75,14 +83,12 @@ where
 
         // Middle with SIMD.
         // Use a temp local SIMD `pv` and `mv` for vertical difference.
-        let mut pv: [S; N] = slice_to_simd(&from_fn(|i| v[i].p()));
-        let mut mv: [S; N] = slice_to_simd(&from_fn(|i| v[i].m()));
+        let mut pv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].p()));
+        let mut mv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].m()));
         for (i, ca) in a.array_windows::<{ 4 * N }>().enumerate() {
-            let eqs: [S; N] = unsafe {
-                from_fn(|k| {
-                    from_fn(|l| *cb[l].get_unchecked(ca[L * N - 1 - l - k * 4] as usize)).into()
-                })
-            };
+            let eqs: [S; N] = slice_to_simd(&from_fn(|i| unsafe {
+                *cb[rev(i)].get_unchecked(ca[i] as usize)
+            }));
             let ph = ph[i..].split_array_mut().0;
             let mh = mh[i..].split_array_mut().0;
             let mut ph_simd = slice_to_simd(ph);
@@ -91,8 +97,8 @@ where
                 compute_block_simd(
                     &mut ph_simd[k],
                     &mut mh_simd[k],
-                    &mut pv[k],
-                    &mut mv[k],
+                    &mut pv_simd[k],
+                    &mut mv_simd[k],
                     eqs[k],
                 );
             }
@@ -100,9 +106,9 @@ where
             *mh = *simd_to_slice(&mh_simd);
         }
         // Write back the local `pv` and `pv`.
-        let pv = simd_to_slice(&pv);
-        let mv = simd_to_slice(&mv);
-        *v = from_fn(|j| V::from(pv[j], mv[j]));
+        let pv = simd_to_slice(&pv_simd);
+        let mv = simd_to_slice(&mv_simd);
+        *v = from_fn(|i| V::from(pv[rev(i)], mv[rev(i)]));
 
         // Bottom-right triangle of block of rows.
         for j in 1..4 * N {

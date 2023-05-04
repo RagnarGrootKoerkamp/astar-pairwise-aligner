@@ -179,9 +179,8 @@ pub fn compute_columns(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
     bot_delta
 }
 
-/// Same as `compute_columns`, but uses a SIMD-based implementation.
+/// Compute a block of columns using SIMD.
+/// Uses 2 SIMD rows in parallel for better instruction level parallelism.
 pub fn compute_columns_simd(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
-    assert_eq!(b.len(), v.len());
-    // NOTE: A quick experiment shows that 2 SIMD vecs in parallel works best.
-    simd::nw_simd_striped_row::<2>(a, b, v)
+    simd::compute_columns_simd::<2>(a, b, v)
 }
