@@ -60,7 +60,7 @@ fn h_bench<H: HEncoding, M: Measurement>(t: &str, a: Seq, b: Seq, c: &mut Benchm
     }
 }
 
-fn simd_bench<M: Measurement>(a: Seq, b: Seq, c: &mut BenchmarkGroup<M>) {
+fn simd_bench<M: Measurement>(a: CompressedSeq, b: CompressedSeq, c: &mut BenchmarkGroup<M>) {
     c.bench_function(BenchmarkId::new("Simd", format!("1")), |bb| {
         bb.iter(|| nw_simd_striped_col::<1>(a, b, &NoVis))
     });
@@ -73,13 +73,23 @@ fn simd_bench<M: Measurement>(a: Seq, b: Seq, c: &mut BenchmarkGroup<M>) {
     c.bench_function(BenchmarkId::new("Simd", format!("4")), |bb| {
         bb.iter(|| nw_simd_striped_col::<4>(a, b, &NoVis))
     });
+    c.bench_function(BenchmarkId::new("SimdRow", format!("1")), |bb| {
+        bb.iter(|| nw_simd_striped_row_wrapper::<1>(a, b))
+    });
+    c.bench_function(BenchmarkId::new("SimdRow", format!("2")), |bb| {
+        bb.iter(|| nw_simd_striped_row_wrapper::<2>(a, b))
+    });
+    c.bench_function(BenchmarkId::new("SimdRow", format!("3")), |bb| {
+        bb.iter(|| nw_simd_striped_row_wrapper::<3>(a, b))
+    });
+    c.bench_function(BenchmarkId::new("SimdRow", format!("4")), |bb| {
+        bb.iter(|| nw_simd_striped_row_wrapper::<4>(a, b))
+    });
 }
 
 fn bench<M: Measurement>(unit: &str, c: &mut Criterion<M>) {
     let (b, a) = &pa_generate::uniform_fixed(1024, 0.1);
-    //use bio::alphabets::{Alphabet, RankTransform};
-    // let a = &RankTransform::new(&Alphabet::new(b"ACGT")).transform(a);
-    // let b = &RankTransform::new(&Alphabet::new(b"ACGT")).transform(b);
+    let (ref ca, ref cb) = compress(a, b);
     let d = levenshtein(a, b) as D;
 
     let c = &mut c.benchmark_group(unit);
@@ -89,7 +99,7 @@ fn bench<M: Measurement>(unit: &str, c: &mut Criterion<M>) {
     h_bench::<i8, M>("i8", a, b, c);
     h_bench::<(u8, u8), M>("u8", a, b, c);
     h_bench::<(B, B), M>("B", a, b, c);
-    simd_bench(a, b, c);
+    simd_bench(ca, cb, c);
 }
 
 fn bench_time<M: Measurement>(c: &mut Criterion<M>) {

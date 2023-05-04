@@ -1,13 +1,9 @@
 use super::*;
 use itertools::izip;
+use pa_bitpacking::simd::*;
 use pa_types::{Pos, I};
 use pa_vis_types::{VisualizerInstance, VisualizerT};
-use std::{array::from_fn, simd::Simd};
-
-/// The number of lanes in a Simd vector.
-pub const L: usize = 4;
-/// The type for a Simd vector of `L` lanes of `B`.
-pub type S = Simd<B, L>;
+use std::array::from_fn;
 
 /// Pad the profile with `padding` words on each side.
 #[inline(always)]
@@ -21,37 +17,17 @@ pub fn padded_profile(seq: Seq, padding: usize) -> Vec<[B; 4]> {
     p
 }
 
-#[inline(always)]
-pub fn compute_block_simd(ph0: &mut S, mh0: &mut S, pv: &mut S, mv: &mut S, eq: S) {
-    let xv = eq | *mv;
-    let eq = eq | *mh0;
-    // The add here contains the 'folding' magic that makes this algorithm
-    // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
-    let xh = (((eq & *pv) + *pv) ^ *pv) | eq;
-    let ph = *mv | !(xh | *pv);
-    let mh = *pv & xh;
-    // Extract `hw` from `ph` and `mh`.
-    let right_shift = S::splat(W as B - 1);
-    let phw = ph >> right_shift;
-    let mhw = mh >> right_shift;
-
-    // Push `hw` out of `ph` and `mh` and shift in `h0`.
-    let left_shift = S::splat(1);
-    let ph = (ph << left_shift) | *ph0;
-    let mh = (mh << left_shift) | *mh0;
-
-    *pv = mh | !(xv | ph);
-    *mv = ph & xv;
-    *ph0 = phw;
-    *mh0 = mhw;
-}
-
 /// TODO optimizations:
 /// - Reverse a or b in memory, so that anti-diagonals align.
 /// - Reverse ph and pm in memory?
 /// - Reverse for-loop order.
 /// - Skip vectors completely out-of-bounds.
-pub fn nw_simd_striped_col<const N: usize>(a: Seq, b: Seq, viz: &impl VisualizerT) -> D
+/// NOTE: This requires padded profiles, because SIMD vecs can go out-of-bounds.
+pub fn nw_simd_striped_col<const N: usize>(
+    a: CompressedSeq,
+    b: CompressedSeq,
+    viz: &impl VisualizerT,
+) -> D
 where
     [(); L * N]: Sized,
 {
@@ -143,4 +119,14 @@ where
 
     viz.last_frame_simple();
     bottom_row_score
+}
+
+pub fn nw_simd_striped_row_wrapper<const N: usize>(a: CompressedSeq, b: CompressedSeq) -> D
+where
+    [(); L * N]: Sized,
+{
+    let b = padded_profile(b, 0);
+
+    let mut v = vec![V::one(); b.len()];
+    nw_simd_striped_row::<N>(&a, &b, &mut v)
 }

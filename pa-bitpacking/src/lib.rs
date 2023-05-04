@@ -15,6 +15,7 @@
 )]
 
 mod encoding;
+pub mod simd;
 
 use std::ops::Deref;
 
@@ -43,6 +44,7 @@ pub fn num_words(seq: Seq) -> usize {
 
 /// Newtype for compressed sequences that have characters 0,1,2,3.
 pub struct CompressedSequence(Sequence);
+pub type CompressedSeq<'a> = &'a CompressedSequence;
 impl Deref for CompressedSequence {
     type Target = Sequence;
     fn deref(&self) -> &Self::Target {
@@ -53,7 +55,16 @@ impl Deref for CompressedSequence {
 pub type Profile = Vec<[B; 4]>;
 pub type ProfileSlice<'a> = &'a [[B; 4]];
 
-/// RankTransform `a` and `b` to
+/// RankTransform `a` and `b`
+#[inline(always)]
+pub fn compress(a: Seq, b: Seq) -> (CompressedSequence, CompressedSequence) {
+    let r = RankTransform::new(&Alphabet::new(b"ACGT"));
+    let a = a.iter().map(|ca| r.get(*ca)).collect_vec();
+    let b = b.iter().map(|ca| r.get(*ca)).collect_vec();
+    (CompressedSequence(a), CompressedSequence(b))
+}
+
+/// RankTransform `a` and give the profile for `b`.
 #[inline(always)]
 pub fn profile(a: Seq, b: Seq) -> (CompressedSequence, Profile) {
     let r = RankTransform::new(&Alphabet::new(b"ACGT"));
@@ -115,6 +126,15 @@ pub fn compute_block<H: HEncoding>(h0: &mut H, v: &mut V, eq: B) {
     *v = V::from(mh | !(xv | ph), ph & xv);
 }
 
+/// Wrapper that takes an unpacked h
+#[inline(always)]
+pub fn compute_block_split_h(ph0: &mut B, mh0: &mut B, v: &mut V, eq: B) {
+    let h0 = &mut (*ph0, *mh0);
+    compute_block(h0, v, eq);
+    *ph0 = h0.0;
+    *mh0 = h0.1;
+}
+
 /// Convenience function around `compute_block` that computes a larger region at once.
 /// Returns the score difference along the bottom row.
 pub fn compute_rectangle(a: Seq, b: ProfileSlice, h: &mut [H], v: &mut [V]) -> D {
@@ -140,4 +160,11 @@ pub fn compute_columns(a: Seq, b: ProfileSlice, v: &mut [V]) -> D {
         bot_delta += h.value();
     }
     bot_delta
+}
+
+/// Same as `compute_columns`, but uses a SIMD-based implementation.
+pub fn compute_columns_simd(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
+    assert_eq!(b.len(), v.len());
+    // NOTE: A quick experiment shows that 2 SIMD vecs in parallel works best.
+    simd::nw_simd_striped_row::<2>(a, b, v)
 }
