@@ -73,9 +73,6 @@ fn simd_bench<M: Measurement>(a: Seq, b: Seq, c: &mut BenchmarkGroup<M>) {
     c.bench_function(BenchmarkId::new("Simd", format!("4")), |bb| {
         bb.iter(|| nw_simd_striped_col::<4>(a, b, &NoVis))
     });
-    c.bench_function(BenchmarkId::new("SimdCol", format!("1")), |bb| {
-        bb.iter(|| nw_simd_col::<1>(a, b, &NoVis))
-    });
 }
 
 fn bench<M: Measurement>(unit: &str, c: &mut Criterion<M>) {
