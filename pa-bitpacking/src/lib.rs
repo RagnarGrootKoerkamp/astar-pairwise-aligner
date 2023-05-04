@@ -48,22 +48,26 @@ pub struct CompressedSequence(Sequence);
 pub struct CompressedSeq<'a>(Seq<'a>);
 impl Deref for CompressedSequence {
     type Target = Sequence;
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 impl<'a> Deref for CompressedSeq<'a> {
     type Target = Seq<'a>;
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 impl CompressedSequence {
+    #[inline(always)]
     pub fn index(&self, index: Range<usize>) -> CompressedSeq {
         CompressedSeq(&self.0[index])
     }
 }
 impl<'a> Into<CompressedSeq<'a>> for &'a CompressedSequence {
+    #[inline(always)]
     fn into(self) -> CompressedSeq<'a> {
         CompressedSeq(&self.0)
     }

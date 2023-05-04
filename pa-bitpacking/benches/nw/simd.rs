@@ -7,8 +7,8 @@ use std::array::from_fn;
 
 /// Pad the profile with `padding` words on each side.
 #[inline(always)]
-pub fn padded_profile(seq: Seq, padding: usize) -> Vec<[B; 4]> {
-    let words = num_words(seq);
+pub fn padded_profile(seq: CompressedSeq, padding: usize) -> Vec<[B; 4]> {
+    let words = num_words(*seq);
     let mut p: Vec<[B; 4]> = vec![[0; 4]; words + 2 * padding];
     // TODO: Vectorize this, or ensure auto-vectorization.
     for (i, c) in seq.iter().enumerate() {
@@ -24,20 +24,18 @@ pub fn padded_profile(seq: Seq, padding: usize) -> Vec<[B; 4]> {
 /// - Skip vectors completely out-of-bounds.
 /// NOTE: This requires padded profiles, because SIMD vecs can go out-of-bounds.
 pub fn nw_simd_striped_col<const N: usize>(
-    a: CompressedSeq,
-    b: CompressedSeq,
+    ref a: CompressedSeq,
+    b: ProfileSlice,
     viz: &impl VisualizerT,
 ) -> D
 where
     [(); L * N]: Sized,
 {
-    let ref mut viz = viz.build(a, b);
-    assert!(b.len() % W == 0);
+    let ref mut viz = viz.build(a, a); // TODO
 
-    let mut bottom_row_score = b.len() as D;
+    let mut bottom_row_score = 0;
     let padding = L * N - 1;
-    let words = num_words(b);
-    let b = padded_profile(b, padding);
+    let words = b.len();
 
     let mut pv = vec![B::MAX; b.len()];
     let mut mv = vec![0; b.len()];
@@ -109,7 +107,7 @@ where
     // Do simple per-column scan for the remaining cols.
     for c in chunks.remainder() {
         let h = &mut (1u8, 0u8);
-        for (pv, mv, block_profile) in izip!(pv.iter_mut(), mv.iter_mut(), &b) {
+        for (pv, mv, block_profile) in izip!(pv.iter_mut(), mv.iter_mut(), b) {
             let v = &mut V::from(*pv, *mv);
             compute_block(h, v, block_profile[*c as usize]);
             (*pv, *mv) = v.pm();
@@ -121,12 +119,11 @@ where
     bottom_row_score
 }
 
-pub fn nw_simd_striped_row_wrapper<const N: usize>(a: CompressedSeq, b: CompressedSeq) -> D
+/// Returns the difference along the bottom row.
+pub fn nw_simd_striped_row_wrapper<const N: usize>(a: CompressedSeq, bp: ProfileSlice) -> D
 where
     [(); L * N]: Sized,
 {
-    let b = padded_profile(b, 0);
-
-    let mut v = vec![V::one(); b.len()];
-    nw_simd_striped_row::<N>(&a, &b, &mut v)
+    let mut v = vec![V::one(); bp.len()];
+    pa_bitpacking::simd::compute_columns_simd::<N>(a.into(), bp, &mut v)
 }

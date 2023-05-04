@@ -20,12 +20,14 @@ pub enum Direction {
 }
 
 /// Local memory per row/column.
-pub fn nw<H: HEncoding>(a: Seq, b: Seq, order: Order, viz: &impl VisualizerT) -> D {
-    let ref mut viz = viz.build(a, b);
-    let mut bottom_row_score = b.len() as D;
-
-    assert!(b.len() % W == 0);
-    let (a, b) = &profile(a, b);
+pub fn nw<H: HEncoding>(
+    a: CompressedSeq,
+    b: ProfileSlice,
+    order: Order,
+    viz: &impl VisualizerT,
+) -> D {
+    let ref mut viz = viz.build(&a, &a);
+    let mut bottom_row_score = b.len() as D * W as D;
 
     match order {
         Order::Row => {
@@ -56,12 +58,15 @@ pub fn nw<H: HEncoding>(a: Seq, b: Seq, order: Order, viz: &impl VisualizerT) ->
     bottom_row_score
 }
 
-pub fn nw_diag<H: HEncoding>(a: Seq, b: Seq, direction: Direction, viz: &impl VisualizerT) -> D {
-    let ref mut viz = viz.build(a, b);
-    assert!(b.len() % W == 0);
+pub fn nw_diag<H: HEncoding>(
+    a: CompressedSeq,
+    b: ProfileSlice,
+    direction: Direction,
+    viz: &impl VisualizerT,
+) -> D {
+    let ref mut viz = viz.build(&a, &a);
 
-    let mut bottom_row_score = b.len() as D;
-    let (a, b) = &profile(a, b);
+    let mut bottom_row_score = b.len() as D * W as D;
     let n = a.len();
     let m = b.len();
 
@@ -125,17 +130,15 @@ pub fn nw_diag<H: HEncoding>(a: Seq, b: Seq, direction: Direction, viz: &impl Vi
 
 /// Do N columns in parallel at a time.
 pub fn nw_striped_col<const N: usize, H: HEncoding>(
-    a: Seq,
-    b: Seq,
+    a: CompressedSeq,
+    b: ProfileSlice,
     direction: Direction,
     viz: &impl VisualizerT,
 ) -> D {
-    let ref mut viz = viz.build(a, b);
-    assert!(b.len() % W == 0);
+    let ref mut viz = viz.build(&a, &a);
 
-    let mut bottom_row_score = b.len() as D;
+    let mut bottom_row_score = b.len() as D * W as D;
     let padding = N - 1;
-    let b = padded_profile(b, padding);
 
     let mut v = vec![V::one(); b.len()];
 
@@ -190,7 +193,7 @@ pub fn nw_striped_col<const N: usize, H: HEncoding>(
     // Do simple per-column scan for the remaining cols.
     for c in chunks.remainder() {
         let h = &mut H::one();
-        for (v, block_profile) in izip!(v.iter_mut(), &b) {
+        for (v, block_profile) in izip!(v.iter_mut(), b) {
             compute_block(h, v, block_profile[*c as usize]);
         }
         bottom_row_score += h.value();
@@ -202,6 +205,10 @@ pub fn nw_striped_col<const N: usize, H: HEncoding>(
 
 /// Do N rows in parallel at a time.
 #[allow(unused)]
-pub fn nw_striped_row<const N: usize, H: HEncoding>(_a: Seq, _b: Seq, _direction: Direction) -> D {
+pub fn nw_striped_row<const N: usize, H: HEncoding>(
+    _a: CompressedSeq,
+    _b: ProfileSlice,
+    _direction: Direction,
+) -> D {
     todo!();
 }

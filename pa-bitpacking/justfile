@@ -14,7 +14,7 @@ build:
     cargo build -r --bench nw
 
 bench bench='Local/B/Col' *args='':
-    cargo bench --bench nw -- --quiet -n --warm-up-time 1 --measurement-time 3 {{bench}} {{args}}
+    cargo bench --bench nw -- --quiet -n --warm-up-time 0.5 --measurement-time 2 {{bench}} {{args}}
 
 # instructions per cycle
 stat bench='time/Local/B/Col' *args='': build
@@ -28,7 +28,7 @@ report bench='time/Local/B/Col' *args='': build
 viz:
     cargo run -r -F small_blocks
 
-perf:
+cpufreq:
     sudo cpupower frequency-set --governor performance -d 2.6GHz -u 2.6GHz
 
 allow-profiling:
