@@ -14,15 +14,15 @@ build:
     cargo build -r --bench nw
 
 bench bench='Local/B/Col' *args='':
-    cargo bench --bench nw -- --quiet -n --warm-up-time 0.5 --measurement-time 2 {{bench}} {{args}}
+    cargo bench --bench nw -- --quiet -n --warm-up-time 0.2 --measurement-time 1 "{{bench}}" {{args}}
 
 # instructions per cycle
 stat bench='time/Local/B/Col' *args='': build
-    perf stat cargo bench --bench nw -- --profile-time 5 {{bench}} {{args}}
+    perf stat cargo bench --bench nw -- --profile-time 5 "{{bench}}" {{args}}
 
 # record time usage
 report bench='time/Local/B/Col' *args='': build
-    perf record cargo bench --bench nw -- --profile-time 1 {{bench}} {{args}}
+    perf record cargo bench --bench nw -- --profile-time 5 "{{bench}}" {{args}}
     perf report -n
 
 viz:
