@@ -17,7 +17,7 @@
 mod encoding;
 pub mod simd;
 
-use std::ops::Deref;
+use std::ops::{Deref, Range};
 
 use bio::alphabets::{Alphabet, RankTransform};
 pub use encoding::*;
@@ -44,11 +44,28 @@ pub fn num_words(seq: Seq) -> usize {
 
 /// Newtype for compressed sequences that have characters 0,1,2,3.
 pub struct CompressedSequence(Sequence);
-pub type CompressedSeq<'a> = &'a CompressedSequence;
+#[derive(Copy, Clone)]
+pub struct CompressedSeq<'a>(Seq<'a>);
 impl Deref for CompressedSequence {
     type Target = Sequence;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+impl<'a> Deref for CompressedSeq<'a> {
+    type Target = Seq<'a>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl CompressedSequence {
+    pub fn index(&self, index: Range<usize>) -> CompressedSeq {
+        CompressedSeq(&self.0[index])
+    }
+}
+impl<'a> Into<CompressedSeq<'a>> for &'a CompressedSequence {
+    fn into(self) -> CompressedSeq<'a> {
+        CompressedSeq(&self.0)
     }
 }
 
@@ -137,10 +154,10 @@ pub fn compute_block_split_h(ph0: &mut B, mh0: &mut B, v: &mut V, eq: B) {
 
 /// Convenience function around `compute_block` that computes a larger region at once.
 /// Returns the score difference along the bottom row.
-pub fn compute_rectangle(a: Seq, b: ProfileSlice, h: &mut [H], v: &mut [V]) -> D {
+pub fn compute_rectangle(a: CompressedSeq, b: ProfileSlice, h: &mut [H], v: &mut [V]) -> D {
     assert_eq!(a.len(), h.len());
     assert_eq!(b.len(), v.len());
-    for (ca, h) in izip!(a, h.iter_mut()) {
+    for (ca, h) in izip!(a.iter(), h.iter_mut()) {
         for (cb, v) in izip!(b, v.iter_mut()) {
             compute_block(h, v, cb[*ca as usize]);
         }
@@ -149,10 +166,10 @@ pub fn compute_rectangle(a: Seq, b: ProfileSlice, h: &mut [H], v: &mut [V]) -> D
 }
 
 /// Same as `compute_rectangle`, but does not take or return horizontal differences.
-pub fn compute_columns(a: Seq, b: ProfileSlice, v: &mut [V]) -> D {
+pub fn compute_columns(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
     assert_eq!(b.len(), v.len());
     let mut bot_delta = 0;
-    for ca in a {
+    for ca in a.iter() {
         let h = &mut H::one();
         for (cb, v) in izip!(b, v.iter_mut()) {
             compute_block(h, v, cb[*ca as usize]);
