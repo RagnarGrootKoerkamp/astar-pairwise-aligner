@@ -301,3 +301,22 @@ Breakdown:
 Instead of going from two sides, go from one side and keep the middle layer.
 For each position in the front keep the parent in the middle layer, so we can
 restart there.
+
+
+* AFFINE HEURISTIC
+All we need if that lemma 6 holds for some T'.
+** Linear
+gap(x) = ax
+gapcost(u,v) = a * (|(i'-i) - (j'-j)|) <= P(u) - P(v) = seedcost
+T(i,j) = (a(i-j)-P, a(j-i)-P)
+(substitution cost doesn't matter)
+
+** Affine
+gap(x) = ax+b
+2 options:
+- gapcost(u,v) = 0
+- gapcost(u,v) = a * (|(i'-i) - (j'-j)|) + b
+We want T(u) <= T(v) equivalent to
+a((i'-i)-(j'-j)) + b <= P(u) - P(v)
+a(i-j)-P(u) + b <= a(i'-j')-P(v)
+a(j-i)-P(u) + b <= a(j'-i')-P(v)
