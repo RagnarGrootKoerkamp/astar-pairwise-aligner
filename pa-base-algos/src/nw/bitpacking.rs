@@ -24,6 +24,9 @@ pub struct BitFront {
     i: I,
     /// The 'input' range, that is rounded to `W=64` bits in practice.
     j_range: JRange,
+    /// Helper for `NW`: the range of rows in this column with `f(u) <= f_max`.
+    fixed_j_range: Option<JRange>,
+
     /// The `j` of the first element of `v`.
     /// Can be different from `j_range.0` when only a slice of the array corresponds to the `j_range`.
     offset: I,
@@ -40,6 +43,7 @@ impl Clone for BitFront {
             v: self.v.clone(),
             i: self.i,
             j_range: self.j_range,
+            fixed_j_range: self.fixed_j_range,
             offset: self.offset,
             top_val: self.top_val,
             bot_val: self.bot_val,
@@ -50,6 +54,7 @@ impl Clone for BitFront {
         self.v.clone_from(&source.v);
         self.i = source.i;
         self.j_range = source.j_range;
+        self.fixed_j_range = source.fixed_j_range;
         self.offset = source.offset;
         self.top_val = source.top_val;
         self.bot_val = source.bot_val;
@@ -86,7 +91,8 @@ impl Default for BitFront {
         Self {
             v: vec![],
             i: 0,
-            j_range: JRange(0, 0),
+            j_range: JRange(-1, -1),
+            fixed_j_range: Some(JRange(-1, -1)),
             offset: 0,
             top_val: Cost::MAX,
             bot_val: Cost::MAX,
@@ -100,6 +106,9 @@ impl NwFront for BitFront {
     }
     fn j_range_rounded(&self) -> JRange {
         round(self.j_range)
+    }
+    fn fixed_j_range(&self) -> Option<JRange> {
+        self.fixed_j_range
     }
 
     /// Get the value at the given index, by counting bits from the top or bottom.
@@ -155,6 +164,8 @@ impl BitFront {
             v: vec![V::one(); rounded.exclusive_len() as usize / W],
             i: 0,
             j_range,
+            // In the first col, all computed values are correct directly.
+            fixed_j_range: Some(j_range),
             offset: 0,
             top_val: 0,
             bot_val: rounded.exclusive_len(),
@@ -187,6 +198,7 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
                     v: vec![V::one(); b.len()],
                     i: 0,
                     j_range: initial_j_range,
+                    fixed_j_range: None,
                     offset: 0,
                     top_val: 0,
                     bot_val: round(initial_j_range).1,
@@ -239,6 +251,7 @@ impl NwFronts<0usize> for BitFronts {
                 v: Vec::default(),
                 i: i_range.1,
                 j_range,
+                fixed_j_range: None,
                 offset: j_range_rounded.0,
                 top_val: top_val + i_range.len(),
                 bot_val,
@@ -276,7 +289,7 @@ impl NwFronts<0usize> for BitFronts {
     }
 
     fn last_front(&self) -> &Self::Front {
-        self.fronts.last().unwrap()
+        &self.fronts[self.last_front_idx]
     }
 
     /// Find the parent of `st`.
@@ -398,6 +411,10 @@ impl NwFronts<0usize> for BitFronts {
         cigar.reverse();
         cigar
     }
+
+    fn set_last_front_fixed_j_range(&mut self, fixed_j_range: Option<JRange>) {
+        self.fronts[self.last_front_idx].fixed_j_range = fixed_j_range;
+    }
 }
 
 impl BitFronts {
@@ -421,6 +438,7 @@ impl BitFronts {
             i: i_range.0,
             j_range,
             offset: j_range_rounded.0,
+            fixed_j_range: None,
             top_val: front.index(j_range_rounded.0),
             bot_val: front.index(j_range_rounded.1),
         };

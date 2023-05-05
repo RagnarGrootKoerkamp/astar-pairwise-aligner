@@ -322,20 +322,28 @@ pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFro
 impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
     NWInstance<'a, N, V, H, F>
 {
-    /// The range of rows `j` to consider in column `i`, when the cost is bounded by `f_bound`.
+    /// The range of rows `j` to consider for columns `i_range.0 .. i_range.1`, when the cost is bounded by `f_bound`.
+    ///
+    /// For A*, this also returns the range of rows in column `i_range.0` that are 'fixed', ie have `f <= f_max`.
+    /// TODO: We could actually also return such a range in non-A* cases.
     ///
     /// `i_range`: `[start, end)` range of characters of `a` to process. Ends with column `end` of the DP matrix.
     /// Pass `-1..0` for the range of the first column. `prev` is not used.
     /// Pass `i..i+1` to move 1 front, with `prev` the front for column `i`,
     /// Pass `i..i+W` to compute a block of `W` columns `i .. i+W`.
-    fn j_range<SF: NwFront>(&self, i_range: IRange, f_max: Option<Cost>, prev: &SF) -> JRange {
+    fn j_range(
+        &self,
+        i_range: IRange,
+        f_max: Option<Cost>,
+        prev: &<F::Fronts<'a> as NwFronts<N>>::Front,
+    ) -> JRange {
         // Without a bound on the distance, we can only return the full range.
         let Some(f_max) = f_max else {
             return JRange(0, self.b.len() as I);
         };
 
         // Inclusive start column of the new block.
-        let is = i_range.0 + 1;
+        let is = i_range.0;
         // Inclusive end column of the new block.
         let ie = i_range.1;
 
@@ -348,7 +356,10 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                     self.params.cm.max_ins_for_cost(f_max) as I,
                 );
                 // crop
-                JRange(max(is + range.0, 0), min(ie + range.1, self.b.len() as I))
+                JRange(
+                    max(is + 1 + range.0, 0),
+                    min(ie + range.1, self.b.len() as I),
+                )
             }
             Domain::GapGap => {
                 let d = self.b.len() as I - self.a.len() as I;
@@ -368,65 +379,40 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 );
 
                 // crop
-                JRange(max(is + range.0, 0), min(ie + range.1, self.b.len() as I))
+                JRange(
+                    max(is + 1 + range.0, 0),
+                    min(ie + range.1, self.b.len() as I),
+                )
             }
             Domain::Astar(h) => {
-                // Instead of computing the start and end exactly, we bound them using the computed values of the previous range.
+                // Get the range of rows with fixed states `f(u) <= f_max`.
+                let JRange(fixed_start, fixed_end) = prev
+                    .fixed_j_range()
+                    .expect("With A* Domain, fixed_j_range should always be set.");
 
-                let mut hint = <H::Instance<'a> as HeuristicInstance>::Hint::default();
+                // Early return for empty range.
+                if fixed_start > fixed_end {
+                    return JRange(fixed_start, fixed_end);
+                }
+
+                // The start of the j_range we will compute for this block is the `fixed_start` of the previous column.
+                // The end of the j_range is extrapolated from `fixed_end`.
+
+                // `u` is the bottom most fixed state in prev col.
+                let u = Pos(is, fixed_end);
+                let gu = if is < 0 { 0 } else { prev.index(fixed_end) };
+                // in the end, `v` will be the bottom most state in column
+                // i_range.1 that could possibly have `f(v) <= f_max`.
+                let mut v = u;
+
+                let mut hint = Default::default();
                 // Wrapper to use h with hint.
                 let mut h = |pos| {
                     let (h, new_hint) = h.h_with_hint(pos, hint);
                     hint = new_hint;
                     h
                 };
-                let mut f = |i, j| prev.index(j) + h(Pos(i, j));
-
-                // Start: increment the start of the previous range until
-                //        f<=f_max is satisfied in previous column.
-                // End: decrement the end of the previous range until
-                //      f<=f_max is satisfied in previous column.
-                let mut start = prev.j_range().0;
-                let mut end = prev.j_range().1;
-                if is > 0 {
-                    while start <= end {
-                        let fu = f(is - 1, start);
-                        if fu <= f_max {
-                            break;
-                        }
-                        // ALG: Sparse h-calls:
-                        // Set u = (i, start), and compute f(u).
-                        // For v = (i, j), (j>start) we have
-                        // - g(v) >= g(u) - (j - start), by triangle inequality
-                        // - h(u) <= (j - start) + h(v), by consistency
-                        // => f(u) = g(u) + h(u) <= g(v) + h(v) + 2*(j - start) = f(v) + 2*(j - start)
-                        // => f(v) >= f(u) - 2*(j - start)
-                        // We want f(v) <= f_max, so we can stop when f(u) - 2*(j - start) <= f_max, ie
-                        // j >= start + (f(u) - f_max) / 2
-                        if self.params.sparse_h {
-                            start += (fu - f_max).div_ceil(2 * self.params.cm.min_ins_extend);
-                        }
-                        start += 1;
-                    }
-
-                    while end >= start && f(is - 1, end) > f_max {
-                        end -= 1;
-                    }
-                }
-
-                // Early return for empty range.
-                if start > end {
-                    return JRange(start, start - 1);
-                }
-
-                // `u` is the bottom most state in col i_range.0 with `f(u) <= f_max`.
-                let u = Pos(is - 1, end);
-                let gu = if is == 0 { 0 } else { prev.index(end) };
-                // in the end, `v` will be the bottom most state in column
-                // i_range.1 that could possibly have `f(v) <= f_max`.
-                let mut v = u;
-
-                // A lower bound of `f` values estimated from `gu`, for states `v` below the diagonal of `u`.
+                // A lower bound of `f` values estimated from `gu`, valid for states `v` below the diagonal of `u`.
                 let mut f = |v: Pos| {
                     assert!(v.1 - u.1 >= v.0 - u.0);
                     gu + self.params.cm.extend_cost(u, v) + h(v)
@@ -440,11 +426,6 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 // the optimal path could then 'escape' through the bottom.
                 // Without further reasoning, we must evaluate `h` at least
                 // once per column.
-                //
-                // TODO: Instead, we could make sure that `gu + extend + h(v)`
-                // in the last column is larger than `f_max + W/2`. For
-                // consistent `h`, that guarantees that `f` along the bottom row
-                // is always larger than `f_max`.
 
                 if self.params.sparse_h {
                     v += Pos(1, 1);
@@ -496,9 +477,71 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                         v.1 -= 1;
                     }
                 }
-                JRange(start, min(v.1, self.b.len() as I))
+                JRange(max(fixed_start, 0), min(v.1, self.b.len() as I))
             }
         }
+    }
+
+    /// Compute the j_range of `front` `i` with `f(u) <= f_max`.
+    /// BUG: This should take into account potential non-consistency of `h`.
+    /// In particular, with inexact matches, we can only fix states with `f(u) <= f_max - r`.
+    fn fixed_j_range(
+        &self,
+        i: I,
+        f_max: Option<Cost>,
+        front: &<F::Fronts<'a> as NwFronts<N>>::Front,
+    ) -> Option<JRange> {
+        let Domain::Astar(h) = &self.domain else { return None; };
+        let Some(f_max) = f_max else { return None; };
+
+        // Wrapper to use h with hint.
+        let mut hint = Default::default();
+        let mut h = |pos| {
+            let (h, new_hint) = h.h_with_hint(pos, hint);
+            hint = new_hint;
+            h
+        };
+        let mut f = |j| front.index(j) + h(Pos(i, j));
+
+        // Start: increment the start of the range until f<=f_max is satisfied.
+        // End: decrement the end of the range until f<=f_max is satisfied.
+        //
+        // ALG: Sparse h-calls:
+        // Set u = (i, start), and compute f(u).
+        // For v = (i, j), (j>start) we have
+        // - g(v) >= g(u) - (j - start), by triangle inequality
+        // - h(u) <= (j - start) + h(v), by 'column-wise-consistency'
+        // => f(u) = g(u) + h(u) <= g(v) + h(v) + 2*(j - start) = f(v) + 2*(j - start)
+        // => f(v) >= f(u) - 2*(j - start)
+        // We want f(v) <= f_max, so we can stop when f(u) - 2*(j - start) <= f_max, ie
+        // j >= start + (f(u) - f_max) / 2
+        // Thus, both for increasing `start` and decreasing `end`, we can jump ahead if the difference is too large.
+        let mut start = front.j_range().0;
+        let mut end = front.j_range().1;
+        while start <= end {
+            let f = f(start);
+            if f <= f_max {
+                break;
+            }
+            start += if self.params.sparse_h {
+                (f - f_max).div_ceil(2 * self.params.cm.min_ins_extend)
+            } else {
+                1
+            };
+        }
+
+        while end >= start {
+            let f = f(end);
+            if f <= f_max {
+                break;
+            }
+            end -= if self.params.sparse_h {
+                (f - f_max).div_ceil(2 * self.params.cm.min_ins_extend)
+            } else {
+                1
+            };
+        }
+        Some(JRange(start, end))
     }
 
     /// Test whether the cost is at most s.
@@ -512,11 +555,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         trace: bool,
     ) -> Option<(Cost, Option<AffineCigar>)> {
         assert!(f_max.unwrap_or(0) >= 0);
-        let initial_j_range = self.j_range(
-            IRange::first_col(),
-            f_max,
-            &<F::Fronts<'a> as NwFronts<N>>::Front::default(),
-        );
+        let initial_j_range = self.j_range(IRange::first_col(), f_max, &Default::default());
         if initial_j_range.is_empty() {
             return None;
         }
@@ -541,6 +580,13 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 return None;
             }
             fronts.compute_next_block(i_range, j_range);
+            // Compute the range of fixed states.
+            fronts.set_last_front_fixed_j_range(self.fixed_j_range(
+                i_range.1,
+                f_max,
+                fronts.last_front(),
+            ));
+
             self.v.expand_block(
                 Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
                 Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),

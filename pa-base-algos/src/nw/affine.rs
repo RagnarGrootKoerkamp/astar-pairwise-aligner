@@ -20,6 +20,7 @@ pub struct AffineNwFront<const N: usize> {
     /// The affine layers.
     affine: [Vec<Cost>; N],
     j_range: JRange,
+    fixed_j_range: Option<JRange>,
 }
 
 pub struct AffineNwFronts<'a, const N: usize> {
@@ -39,13 +40,17 @@ impl<const N: usize> Default for AffineNwFront<N> {
         Self {
             m: vec![],
             affine: from_fn(|_| vec![]),
-            j_range: JRange(0, 0),
+            j_range: JRange(-1, -1),
+            fixed_j_range: Some(JRange(-1, -1)),
         }
     }
 }
 impl<const N: usize> NwFront for AffineNwFront<N> {
     fn j_range(&self) -> JRange {
         self.j_range
+    }
+    fn fixed_j_range(&self) -> Option<JRange> {
+        self.fixed_j_range
     }
 
     fn index(&self, j: I) -> Cost {
@@ -62,10 +67,12 @@ impl<const N: usize> AffineNwFront<N> {
             m: vec![INF; j_range.len() as usize],
             affine: from_fn(|_| vec![INF; j_range.len() as usize]),
             j_range,
+            fixed_j_range: None,
         }
     }
     fn first_col(cm: &AffineCost<N>, j_range: JRange) -> Self {
         let mut next = Self::new(j_range);
+        next.fixed_j_range = Some(j_range);
         next.m[0] = 0;
         for j in next.j_range.0..=next.j_range.1 {
             EditGraph::iterate_layers(cm, |layer| {
@@ -248,5 +255,9 @@ impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
             },
         );
         Some((parent?, cigar_ops))
+    }
+
+    fn set_last_front_fixed_j_range(&mut self, fixed_j_range: Option<JRange>) {
+        self.fronts.last_mut().unwrap().fixed_j_range = fixed_j_range;
     }
 }

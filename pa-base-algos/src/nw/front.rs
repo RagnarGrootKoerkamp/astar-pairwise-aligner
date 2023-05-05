@@ -68,9 +68,12 @@ pub trait NwFront: Default {
     /// The current rows in `0 ..= b.len()`.
     fn j_range(&self) -> JRange;
     /// The j_range, rounded to blocksize.
+    /// This should only really be used for visualizer purposes.
+    /// The NW algorithm itself should be agnostic to block size in the implementation.
     fn j_range_rounded(&self) -> JRange {
         self.j_range()
     }
+    fn fixed_j_range(&self) -> Option<JRange>;
     /// Get the cost of row `j`.
     fn index(&self, j: I) -> Cost;
     /// Get the cost of row `j`.
@@ -105,8 +108,14 @@ pub trait NwFronts<const N: usize> {
     /// Get the current front.
     fn last_front(&self) -> &Self::Front;
 
+    /// Set the 'fixed' range of rows for the last front, that is, the interval
+    /// `[start, end]` corresponding to the states with `f(u) <= f_max`.
+    /// This isn't used by the front itself, but stored here for convenience.
+    fn set_last_front_fixed_j_range(&mut self, fixed_j_range: Option<JRange>);
+
     fn parent(&self, st: State) -> Option<(State, AffineCigarOps)>;
 
+    // Reusable helper implementation.
     fn trace(&mut self, from: State, mut to: State) -> AffineCigar {
         let mut cigar = AffineCigar::default();
 
