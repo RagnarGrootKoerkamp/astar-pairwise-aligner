@@ -33,8 +33,12 @@ pub enum FrontType {
 pub use affine::AffineNwFrontsTag as AffineFront;
 pub use bitpacking::BitFrontsTag as BitFront;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct AstarNwParams {
+    /// An optional name for the parameter set.
+    #[serde(default)]
+    pub name: String,
+
     /// The domain to compute.
     pub domain: Domain<()>,
 
@@ -92,13 +96,13 @@ impl AstarNwParams {
         }
         match (self.domain, self.front) {
             (Domain::Astar(()), FrontType::Affine) => self.heuristic.map(Mapper {
-                params: *self,
+                params: self.clone(),
                 trace,
                 v,
                 front: AffineFront,
             }),
             (Domain::Astar(()), FrontType::Bit(front)) => self.heuristic.map(Mapper {
-                params: *self,
+                params: self.clone(),
                 trace,
                 v,
                 front,
