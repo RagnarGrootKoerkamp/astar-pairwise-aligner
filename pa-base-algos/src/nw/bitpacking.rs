@@ -33,15 +33,42 @@ pub struct BitFront {
     bot_val: Cost,
 }
 
+/// Custom Clone implementation so we can `clone_from` `v`.
+impl Clone for BitFront {
+    fn clone(&self) -> Self {
+        Self {
+            v: self.v.clone(),
+            i: self.i,
+            j_range: self.j_range,
+            offset: self.offset,
+            top_val: self.top_val,
+            bot_val: self.bot_val,
+        }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        self.v.clone_from(&source.v);
+        self.i = source.i;
+        self.j_range = source.j_range;
+        self.offset = source.offset;
+        self.top_val = source.top_val;
+        self.bot_val = source.bot_val;
+    }
+}
+
 pub struct BitFronts {
+    // Input/parameters.
     params: BitFrontsTag,
     trace: bool,
     a: CompressedSequence,
     b: Profile,
     cm: AffineCost<0>,
+
+    // State.
     /// The list of fronts.
     /// NOTE: When using sparse traceback fronts, indices do not correspond to `i`!
     fronts: Vec<BitFront>,
+    last_front_idx: usize,
     i_range: IRange,
 }
 
@@ -170,6 +197,7 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
             a,
             b,
             i_range: IRange(-1, 0),
+            last_front_idx: 0,
         }
     }
 }
@@ -189,33 +217,48 @@ impl NwFronts<0usize> for BitFronts {
         let j_range_rounded = round(j_range);
         let v_range = j_range_rounded.0 as usize / W..j_range_rounded.1 as usize / W;
         // Get top/bot values in the previous column for the new j_range_rounded.
-        let front = &mut self.fronts.last_mut().unwrap();
+        let front = &mut self.fronts[self.last_front_idx];
         let mut top_val = front.index(j_range_rounded.0);
         let mut bot_val = front.index(j_range_rounded.1);
 
         if self.trace {
             // Compute the new `v` at the end of the `i_range` and push a new front.
             assert!(self.params.sparse);
-            let mut v = initialize_next_v(front, j_range_rounded);
 
-            top_val += i_range.len();
-            bot_val += self.compute_columns(i_range, v_range.clone(), &mut v);
+            // Reuse memory from an existing front if possible.
+            // Otherwise, push a new front.
+            if self.last_front_idx + 1 == self.fronts.len() {
+                self.fronts.push(BitFront::default());
+            };
 
-            self.fronts.push(BitFront {
-                v,
+            // Some trickery two access two elements at the same time.
+            let [front, new_front] = &mut self.fronts[self.last_front_idx..].split_array_mut().0;
+
+            // Assign to new_front, reusing existing memory.
+            new_front.clone_from(&BitFront {
+                v: Vec::default(),
                 i: i_range.1,
                 j_range,
                 offset: j_range_rounded.0,
-                top_val,
+                top_val: top_val + i_range.len(),
                 bot_val,
             });
+
+            initialize_next_v(front, j_range_rounded, &mut new_front.v);
+
+            let mut v = std::mem::take(&mut new_front.v);
+            let bottom_delta = self.compute_columns(i_range, v_range.clone(), &mut v);
+            self.last_front_idx += 1;
+            let new_front = &mut self.fronts[self.last_front_idx];
+            new_front.v = v;
+            new_front.bot_val += bottom_delta;
         } else {
             // Update the existing `v` vector in the single front.
             top_val += i_range.len();
             // Ugly rust workaround: have to take out the front and put it back it.
             let mut v = std::mem::take(&mut front.v);
             bot_val += self.compute_columns(i_range, v_range.clone(), &mut v[v_range.clone()]);
-            let front = &mut self.fronts.last_mut().unwrap();
+            let front = &mut self.fronts[self.last_front_idx];
             front.v = v;
             front.i = i_range.1;
             front.j_range = j_range;
@@ -239,10 +282,10 @@ impl NwFronts<0usize> for BitFronts {
     /// Find the parent of `st`.
     /// NOTE: This assumes that `st.i` is in the last front, and that the front before is for `st.i-1`.
     fn parent(&self, st: State) -> Option<(State, AffineCigarOps)> {
-        let front = &self.fronts[self.fronts.len() - 1];
+        let front = &self.fronts[self.last_front_idx];
         assert!(front.i == st.i);
         let prev_front = if st.i > 0 {
-            let prev_front = &self.fronts[self.fronts.len() - 2];
+            let prev_front = &self.fronts[self.last_front_idx - 1];
             assert!(prev_front.i == st.i - 1);
             prev_front
         } else {
@@ -293,19 +336,19 @@ impl NwFronts<0usize> for BitFronts {
         assert!(self.trace);
         assert!(self.fronts.last().unwrap().i == to.i);
         let mut cigar = AffineCigar::default();
-        let mut g = self.fronts.last().unwrap().index(to.j);
+        let mut g = self.fronts[self.last_front_idx].index(to.j);
 
         while to != from {
             // Remove fronts to the right of `to`.
-            while self.fronts.last().unwrap().i > to.i {
+            while self.fronts[self.last_front_idx].i > to.i {
                 self.pop_last_front();
             }
 
             // In case of sparse fronts, fill missing columns by recomputing the
             // block and storing all columns.
             if self.params.sparse && to.i > 0 {
-                let front = &self.fronts[self.fronts.len() - 1];
-                let prev_front = &self.fronts[self.fronts.len() - 2];
+                let front = &self.fronts[self.last_front_idx];
+                let prev_front = &self.fronts[self.last_front_idx - 1];
                 assert_eq!(front.i, to.i);
                 // If the previous front is the correct one, no need for further recomputation.
                 if prev_front.i < to.i - 1 {
@@ -317,16 +360,16 @@ impl NwFronts<0usize> for BitFronts {
                     // 1. We don't need states with `j > to.j`, because the path (in reverse direction) can never go down.
                     // 2. It's unlikely we'll need all states starting at the (possibly much smaller) `j_range.0`.
                     //    Instead, we do an exponential search for the start of the `j_range`, starting at `to.j-2*i_range.len()`.
-                    //    The block is large enough once the cost to `to` equals `g`.
+                    //    The block is high enough once the cost to `to` equals `g`.
                     let mut height = 2 * i_range.len();
                     loop {
                         let j_range = JRange(max(j_range.0, j_range.1 - height), j_range.1);
-                        // TODO: Reuse this memory
                         self.fill_block(i_range, j_range);
-                        if self.last_front().index(to.j) == g {
+                        if self.fronts[self.last_front_idx].index(to.j) == g {
                             break;
                         }
                         // Pop all the computed fronts.
+                        // TODO: This could be more efficient by merging the fronts for a block.
                         for _i in i_range.0..i_range.1 {
                             self.pop_last_front();
                         }
@@ -370,38 +413,41 @@ impl BitFronts {
         let j_range_rounded = round(j_range);
         let v_range = j_range_rounded.0 as usize / W..j_range_rounded.1 as usize / W;
         // Get top/bot values in the previous column for the new j_range_rounded.
-        let front = &self.fronts.last_mut().unwrap();
+        let front = &self.fronts[self.last_front_idx];
         assert!(front.i == i_range.0);
-        let mut top_val = front.index(j_range_rounded.0);
-        let mut bot_val = front.index(j_range_rounded.1);
 
-        let mut v = initialize_next_v(front, j_range_rounded);
+        let mut next_front = BitFront {
+            v: Vec::default(),
+            i: i_range.0,
+            j_range,
+            offset: j_range_rounded.0,
+            top_val: front.index(j_range_rounded.0),
+            bot_val: front.index(j_range_rounded.1),
+        };
+        // TODO: This allocation in `v` could possibly be removed.
+        initialize_next_v(front, j_range_rounded, &mut next_front.v);
 
         for i in i_range.0..i_range.1 {
             // Along the top row, horizontal deltas are 1.
-            top_val += 1;
-            bot_val += self.compute_columns(IRange(i, i + 1), v_range.clone(), &mut v);
+            next_front.i = i + 1;
+            next_front.top_val += 1;
+            next_front.bot_val +=
+                self.compute_columns(IRange(i, i + 1), v_range.clone(), &mut next_front.v);
 
-            self.fronts.push(BitFront {
-                // Copy `v`, or take it if this is the last column.
-                v: if i < i_range.1 - 1 {
-                    v.clone()
-                } else {
-                    std::mem::take(&mut v)
-                },
-                i: i + 1,
-                j_range,
-                offset: j_range_rounded.0,
-                top_val,
-                bot_val,
-            });
+            self.last_front_idx += 1;
+            if self.last_front_idx == self.fronts.len() {
+                self.fronts.push(next_front.clone());
+            } else {
+                self.fronts[self.last_front_idx].clone_from(&next_front);
+            }
         }
     }
 
+    // TODO: Maybe we should at some point drop the unused fronts?
     fn pop_last_front(&mut self) {
-        assert!(self.i_range.1 == self.fronts.last().unwrap().i);
-        self.fronts.pop();
-        self.i_range.1 = self.fronts.last().unwrap().i;
+        assert!(self.i_range.1 == self.fronts[self.last_front_idx].i);
+        self.last_front_idx -= 1;
+        self.i_range.1 = self.fronts[self.last_front_idx].i;
     }
 
     fn compute_columns(
@@ -426,9 +472,12 @@ impl BitFronts {
     }
 }
 
-fn initialize_next_v(front: &BitFront, j_range_rounded: JRange) -> Vec<V> {
+/// Initialize the input vertical deltas for the given new range, by copying the overlap from the previous front.
+/// Takes `v` as a mutable reference, so memory can be reused.
+fn initialize_next_v(front: &BitFront, j_range_rounded: JRange, v: &mut Vec<V>) {
+    v.clear();
     // Make a 'working vector' with the correct range.
-    let mut v = vec![V::one(); j_range_rounded.exclusive_len() as usize / W];
+    v.resize(j_range_rounded.exclusive_len() as usize / W, V::one());
     // Copy the overlap from the last front.
     let prev_rounded = round(front.j_range);
     for jj in
@@ -436,5 +485,4 @@ fn initialize_next_v(front: &BitFront, j_range_rounded: JRange) -> Vec<V> {
     {
         v[(jj - j_range_rounded.0) as usize / W] = front.v[(jj - front.offset) as usize / W];
     }
-    v
 }
