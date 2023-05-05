@@ -50,6 +50,10 @@ pub struct AstarNwParams {
 
     /// The front type to use.
     pub front: FrontType,
+
+    /// When true, `j_range` skips querying `h` when it can assuming consistency.
+    #[serde(default)]
+    pub sparse_h_calls: bool,
 }
 
 impl AstarNwParams {
@@ -82,6 +86,7 @@ impl AstarNwParams {
                     v: self.v,
                     front: self.front,
                     trace: self.trace,
+                    sparse_h: self.params.sparse_h_calls,
                 })
             }
         }
@@ -106,6 +111,7 @@ impl AstarNwParams {
                 v,
                 front: AffineFront,
                 trace,
+                sparse_h: self.sparse_h_calls,
             }),
             (d, FrontType::Bit(front)) => Box::new(NW {
                 cm: AffineCost::unit(),
@@ -115,6 +121,7 @@ impl AstarNwParams {
                 v,
                 front,
                 trace,
+                sparse_h: self.sparse_h_calls,
             }),
         }
     }
@@ -147,9 +154,13 @@ pub struct NW<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> {
     /// `.cost()` always returns cost only, while `.align()` returns a cigar
     /// depending on this.
     pub trace: bool,
+
+    /// When true, `j_range` skips querying `h` when it can assuming consistency.
+    pub sparse_h: bool,
 }
 
 impl<const N: usize> NW<N, NoVis, NoCost, AffineNwFrontsTag<N>> {
+    // TODO: This is only used in tests.
     pub fn new(cm: AffineCost<N>, use_gap_cost_heuristic: bool, exponential_search: bool) -> Self {
         Self {
             cm,
@@ -159,16 +170,17 @@ impl<const N: usize> NW<N, NoVis, NoCost, AffineNwFrontsTag<N>> {
                 Domain::Full
             },
             strategy: if exponential_search {
-                // FIXME: Make this more general.
+                // TODO: Make this more general.
                 Strategy::band_doubling()
             } else {
                 Strategy::None
             },
-            // FIXME: Make this more general.
+            // TODO: Make this more general.
             block_width: 32,
             v: NoVis,
             front: AffineNwFrontsTag::<N>,
             trace: true,
+            sparse_h: true,
         }
     }
 }
@@ -358,6 +370,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 // Instead of computing the start and end exactly, we bound them using the computed values of the previous range.
 
                 let mut hint = <H::Instance<'a> as HeuristicInstance>::Hint::default();
+                // Wrapper to use h with hint.
                 let mut h = |pos| {
                     let (h, new_hint) = h.h_with_hint(pos, hint);
                     hint = new_hint;
@@ -372,7 +385,23 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 let mut start = prev.j_range().0;
                 let mut end = prev.j_range().1;
                 if is > 0 {
-                    while start <= end && f(is - 1, start) > f_max {
+                    while start <= end {
+                        let fu = f(is - 1, start);
+                        if fu <= f_max {
+                            break;
+                        }
+                        // ALG: Sparse h-calls:
+                        // Set u = (i, start), and compute f(u).
+                        // For v = (i, j), (j>start) we have
+                        // - g(v) >= g(u) - (j - start), by triangle inequality
+                        // - h(u) <= (j - start) + h(v), by consistency
+                        // => f(u) = g(u) + h(u) <= g(v) + h(v) + 2*(j - start) = f(v) + 2*(j - start)
+                        // => f(v) >= f(u) - 2*(j - start)
+                        // We want f(v) <= f_max, so we can stop when f(u) - 2*(j - start) <= f_max, ie
+                        // j >= start + (f(u) - f_max) / 2
+                        if self.params.sparse_h {
+                            start += (fu - f_max).div_ceil(2 * self.params.cm.min_ins_extend);
+                        }
                         start += 1;
                     }
 
@@ -386,9 +415,18 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                     return JRange(start, start - 1);
                 }
 
+                // `u` is the bottom most state in col i_range.0 with `f(u) <= f_max`.
                 let u = Pos(is - 1, end);
                 let gu = if is == 0 { 0 } else { prev.index(end) };
+                // in the end, `v` will be the bottom most state in column
+                // i_range.1 that could possibly have `f(v) <= f_max`.
                 let mut v = u;
+
+                // A lower bound of `f` values estimated from `gu`, for states `v` below the diagonal of `u`.
+                let mut f = |v: Pos| {
+                    assert!(v.1 - u.1 >= v.0 - u.0);
+                    gu + self.params.cm.extend_cost(u, v) + h(v)
+                };
 
                 // Extend `v` diagonally one column at a time towards `ie`.
                 // In each column, find the lowest `v` such that
@@ -404,20 +442,55 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 // consistent `h`, that guarantees that `f` along the bottom row
                 // is always larger than `f_max`.
 
-                while v.0 < ie {
-                    // Extend diagonally.
+                if self.params.sparse_h {
                     v += Pos(1, 1);
-
-                    // NOTE: Shrinking `v.1` may give some small profit.
-
-                    // Check if cell below is out-of-reach.
-                    v.1 += 1;
-                    while v.1 <= self.b.len() as I
-                        && gu + self.params.cm.extend_cost(u, v) + h(v) <= f_max
-                    {
-                        v.1 += 1;
+                    // ALG:
+                    // First go down by block size.
+                    // (This is important; f doesn't work or `v` above the diagonal of `u`.)
+                    // Then, go right, until in-scope using exponential steps.
+                    // Then down until out-of-scope.
+                    // Repeat.
+                    // In the end, go up to in-scope.
+                    v.1 += self.params.block_width;
+                    v.1 = min(v.1, self.b.len() as I);
+                    while v.0 <= ie && v.1 < self.b.len() as I {
+                        let fv = f(v);
+                        if fv <= f_max {
+                            // TODO: Make this number larger. Outside the scope,
+                            // we can make bigger jumps.
+                            v.1 += 1;
+                        } else {
+                            v.0 += (fv - f_max).div_ceil(2 * self.params.cm.min_del_extend);
+                        }
                     }
-                    v.1 -= 1;
+                    v.0 = ie;
+                    loop {
+                        // Stop in the edge case where `f(v)` would be invalid (`v.1<0`)
+                        // or when the bottom of the grid was reached, in which
+                        // case `v` may not be below the diagonal of `u`, and
+                        // simply computing everything won't loose much anyway.
+                        if v.1 < 0 || v.1 == self.b.len() as I {
+                            break;
+                        }
+                        let fv = f(v);
+                        if fv <= f_max {
+                            break;
+                        } else {
+                            v.1 -= (fv - f_max).div_ceil(2 * self.params.cm.min_ins_extend);
+                        }
+                    }
+                } else {
+                    while v.0 < ie {
+                        // Extend diagonally.
+                        v += Pos(1, 1);
+
+                        // Check if cell below is out-of-reach.
+                        v.1 += 1;
+                        while v.1 <= self.b.len() as I && f(v) <= f_max {
+                            v.1 += 1;
+                        }
+                        v.1 -= 1;
+                    }
                 }
                 JRange(start, min(v.1, self.b.len() as I))
             }
@@ -499,6 +572,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         }
     }
 
+    /// FIXME: This is unmaintained at the moment.
     #[cfg(any())]
     pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, AffineCigar) {
         assert!(
