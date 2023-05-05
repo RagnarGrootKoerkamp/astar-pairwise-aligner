@@ -308,6 +308,7 @@ impl<const N: usize> AffineCost<N> {
         }
     }
 
+    #[inline]
     pub fn sub_cost(&self, a: u8, b: u8) -> Option<Cost> {
         if a == b {
             Some(0)
@@ -319,6 +320,7 @@ impl<const N: usize> AffineCost<N> {
         }
     }
 
+    #[inline]
     pub fn sub_or<U, F>(&self, default: U, f: F) -> U
     where
         F: FnOnce(Cost) -> U,
@@ -326,6 +328,7 @@ impl<const N: usize> AffineCost<N> {
         self.sub.map_or(default, f)
     }
 
+    #[inline]
     pub fn sub_cost_or<U, F>(&self, a: u8, b: u8, default: U, f: F) -> U
     where
         F: FnOnce(Cost) -> U,
@@ -337,6 +340,7 @@ impl<const N: usize> AffineCost<N> {
         }
     }
 
+    #[inline]
     pub fn ins_or<U, F>(&self, default: U, f: F) -> U
     where
         F: FnOnce(Cost) -> U,
@@ -344,6 +348,7 @@ impl<const N: usize> AffineCost<N> {
         self.ins.map_or(default, f)
     }
 
+    #[inline]
     pub fn del_or<U, F>(&self, default: U, f: F) -> U
     where
         F: FnOnce(Cost) -> U,
@@ -352,6 +357,7 @@ impl<const N: usize> AffineCost<N> {
     }
 
     /// NOTE: This also includes the linear insert cost.
+    #[inline]
     pub fn for_ins(&self, mut f: impl FnMut(Cost, Cost)) {
         if let Some(ins) = self.ins {
             f(0, ins);
@@ -364,6 +370,7 @@ impl<const N: usize> AffineCost<N> {
     }
 
     /// NOTE: This also includes the linear delete cost.
+    #[inline]
     pub fn for_del(&self, mut f: impl FnMut(Cost, Cost)) {
         if let Some(del) = self.del {
             f(0, del);
@@ -376,6 +383,7 @@ impl<const N: usize> AffineCost<N> {
     }
 
     /// Returns 0 when insertions are not possible.
+    #[inline]
     pub fn max_ins_for_cost(&self, s: Cost) -> I {
         let mut d = 0;
         self.for_ins(|o, e| d = max(d, s.saturating_sub(o) / e));
@@ -383,6 +391,7 @@ impl<const N: usize> AffineCost<N> {
     }
 
     /// Returns 0 when deletions are not possible.
+    #[inline]
     pub fn max_del_for_cost(&self, s: Cost) -> I {
         let mut d = 0;
         self.for_del(|o, e| d = max(d, s.saturating_sub(o) / e));
@@ -390,6 +399,7 @@ impl<const N: usize> AffineCost<N> {
     }
 
     /// The maximum number of inserted characters, where entering an affine layer has cost o.
+    #[inline]
     pub fn max_ins_for_cost_open_only(&self, s: Cost) -> I {
         let mut d = 0;
         if let Some(ins) = self.ins {
@@ -404,6 +414,7 @@ impl<const N: usize> AffineCost<N> {
     }
 
     /// The maximum number of deleted characters, where entering an affine layer has cost o.
+    #[inline]
     pub fn max_del_for_cost_open_only(&self, s: Cost) -> I {
         let mut d = 0;
         if let Some(del) = self.del {
@@ -420,6 +431,7 @@ impl<const N: usize> AffineCost<N> {
     /// d<0: insertion cost
     /// d=0: substitution cost
     /// d>0: deletion cost
+    #[inline]
     pub fn linear_cost_in_direction(&self, d: i32) -> Option<Cost> {
         match d {
             d if d < 0 => self.ins,
@@ -429,6 +441,7 @@ impl<const N: usize> AffineCost<N> {
         }
     }
 
+    #[inline]
     pub fn to_cigar(&self, layer: usize) -> CigarOp {
         match self.affine[layer].affine_type {
             InsertLayer => CigarOp::Ins,
@@ -436,6 +449,7 @@ impl<const N: usize> AffineCost<N> {
         }
     }
 
+    #[inline]
     pub fn gap_cost(&self, s: Pos, t: Pos) -> Cost {
         let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
         match delta {
@@ -472,6 +486,7 @@ impl<const N: usize> AffineCost<N> {
         }
     }
 
+    #[inline]
     pub fn extend_cost(&self, s: Pos, t: Pos) -> Cost {
         let delta = (t.0 - s.0) as isize - (t.1 - s.1) as isize;
         match delta {
