@@ -239,8 +239,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
             }
             Strategy::BandDoubling { start, factor } => {
                 let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
+                let mut fronts = self.front.new(trace, a, b, &self.cm);
                 exponential_search(start_f, start_increment, factor, |s| {
-                    nw.align_for_bounded_dist(Some(s), trace)
+                    nw.align_for_bounded_dist(Some(s), trace, Some(&mut fronts))
                         .map(|x @ (c, _)| (c, x))
                 })
                 .1
@@ -248,7 +249,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
             Strategy::None => {
                 // FIXME: Allow single-shot alignment with bounded dist.
                 assert!(matches!(self.domain, Domain::Full));
-                nw.align_for_bounded_dist(None, trace).unwrap()
+                nw.align_for_bounded_dist(None, trace, None).unwrap()
             }
         };
         nw.v.last_frame::<NoCostI>(cigar.as_ref(), None, None);
@@ -266,7 +267,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
 
     pub fn cost_for_bounded_dist(&self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
         self.build(a, b)
-            .align_for_bounded_dist(Some(f_max), false)
+            .align_for_bounded_dist(Some(f_max), false, None)
             .map(|c| c.0)
     }
 
@@ -277,7 +278,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
         f_max: Cost,
     ) -> Option<(Cost, AffineCigar)> {
         self.build(a, b)
-            .align_for_bounded_dist(Some(f_max), true)
+            .align_for_bounded_dist(Some(f_max), true, None)
             .map(|(c, cigar)| (c, cigar.unwrap()))
     }
 }
@@ -553,18 +554,32 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         &mut self,
         f_max: Option<Cost>,
         trace: bool,
+        fronts: Option<&mut F::Fronts<'a>>,
     ) -> Option<(Cost, Option<AffineCigar>)> {
+        // Make a local front variable if not passed in.
+        let mut local_fronts = if fronts.is_none() {
+            Some(
+                self.params
+                    .front
+                    .new(trace, self.a, self.b, &self.params.cm),
+            )
+        } else {
+            None
+        };
+        let fronts = if let Some(fronts) = fronts {
+            fronts
+        } else {
+            local_fronts.as_mut().unwrap()
+        };
+
         assert!(f_max.unwrap_or(0) >= 0);
         let initial_j_range = self.j_range(IRange::first_col(), f_max, &Default::default());
         if initial_j_range.is_empty() {
             return None;
         }
         eprintln!("Bound: {f_max:?} {initial_j_range:?}");
+        fronts.init(initial_j_range);
 
-        let mut fronts =
-            self.params
-                .front
-                .new(trace, self.a, self.b, &self.params.cm, initial_j_range);
         self.v.expand_block(
             Pos(0, fronts.last_front().j_range_rounded().0),
             Pos(1, fronts.last_front().j_range_rounded().len()),

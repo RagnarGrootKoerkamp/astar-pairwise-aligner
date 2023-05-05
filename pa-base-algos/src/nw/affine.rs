@@ -159,19 +159,9 @@ impl<const N: usize> NwFrontsTag<N> for AffineNwFrontsTag<N> {
         a: Seq<'a>,
         b: Seq<'a>,
         cm: &'a AffineCost<N>,
-        initial_j_range: JRange,
     ) -> Self::Fronts<'a> {
         Self::Fronts {
-            fronts: if trace {
-                // A single vector element that will grow.
-                vec![AffineNwFront::first_col(cm, initial_j_range)]
-            } else {
-                // Two vector elements that will be rotated.
-                vec![
-                    AffineNwFront::default(),
-                    AffineNwFront::first_col(cm, initial_j_range),
-                ]
-            },
+            fronts: vec![],
             trace,
             a,
             b,
@@ -183,6 +173,19 @@ impl<const N: usize> NwFrontsTag<N> for AffineNwFrontsTag<N> {
 
 impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
     type Front = AffineNwFront<N>;
+
+    fn init(&mut self, initial_j_range: JRange) {
+        self.fronts = if self.trace {
+            // A single vector element that will grow.
+            vec![AffineNwFront::first_col(self.cm, initial_j_range)]
+        } else {
+            // Two vector elements that will be rotated.
+            vec![
+                AffineNwFront::default(),
+                AffineNwFront::first_col(self.cm, initial_j_range),
+            ]
+        };
+    }
 
     fn last_front(&self) -> &AffineNwFront<N> {
         &self.fronts.last().unwrap()

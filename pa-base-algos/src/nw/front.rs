@@ -83,19 +83,23 @@ pub trait NwFront: Default {
 pub trait NwFrontsTag<const N: usize>: Copy + PartialEq {
     type Fronts<'a>: NwFronts<N>;
     const BLOCKSIZE: I;
-    /// Constructs a new front and initializes it for `i=0`.
+    /// Constructs a new front.
     fn new<'a>(
         &self,
         trace: bool,
         a: Seq<'a>,
         b: Seq<'a>,
         cm: &'a AffineCost<N>,
-        initial_j_range: JRange,
     ) -> Self::Fronts<'a>;
 }
 
 pub trait NwFronts<const N: usize> {
     type Front: NwFront;
+
+    /// Initialize the front for i=0.
+    /// This can be called multiple times to reuse an existing front.
+    fn init(&mut self, initial_j_range: JRange);
+
     /// Compute the next `i_range` columns for `j_range`.
     /// `i_range` `start .. end` processes characters `start .. end` of `a`, and
     /// give the front at column `i`.

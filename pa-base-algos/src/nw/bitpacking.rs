@@ -182,28 +182,12 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
         a: Seq<'a>,
         b: Seq<'a>,
         cm: &'a AffineCost<0>,
-        initial_j_range: JRange,
     ) -> Self::Fronts<'a> {
         assert_eq!(*cm, AffineCost::unit());
-        assert!(initial_j_range.0 == 0);
         let (a, b) = profile(a, b);
         BitFronts {
             params: *self,
-            fronts: if trace {
-                // First column front, with more fronts pushed after.
-                vec![BitFront::first_col(initial_j_range)]
-            } else {
-                // Front spanning the entire first column.
-                vec![BitFront {
-                    v: vec![V::one(); b.len()],
-                    i: 0,
-                    j_range: initial_j_range,
-                    fixed_j_range: None,
-                    offset: 0,
-                    top_val: 0,
-                    bot_val: round(initial_j_range).1,
-                }]
-            },
+            fronts: vec![],
             trace,
             cm: *cm,
             a,
@@ -216,6 +200,32 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
 
 impl NwFronts<0usize> for BitFronts {
     type Front = BitFront;
+
+    fn init(&mut self, initial_j_range: JRange) {
+        assert!(initial_j_range.0 == 0);
+        self.last_front_idx = 0;
+
+        let front = if self.trace {
+            // First column front, with more fronts pushed after.
+            BitFront::first_col(initial_j_range)
+        } else {
+            // Front spanning the entire first column.
+            BitFront {
+                v: vec![V::one(); self.b.len()],
+                i: 0,
+                j_range: initial_j_range,
+                fixed_j_range: None,
+                offset: 0,
+                top_val: 0,
+                bot_val: round(initial_j_range).1,
+            }
+        };
+        if self.fronts.is_empty() {
+            self.fronts.push(front);
+        } else {
+            self.fronts[0] = front;
+        }
+    }
 
     fn compute_next_block(&mut self, i_range: IRange, j_range: JRange) {
         if self.trace && !self.params.sparse {
