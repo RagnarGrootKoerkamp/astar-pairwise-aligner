@@ -83,6 +83,7 @@ fn main() {
         v: config.with_filename("local-doubling-noprune"),
         front: AffineFront,
         trace: true,
+        sparse_h: true,
     };
     aligner.align(a, b);
 
@@ -101,6 +102,7 @@ fn main() {
         v: config.with_filename("local-doubling"),
         front: AffineFront,
         trace: true,
+        sparse_h: true,
     };
     aligner.align(a, b);
 }

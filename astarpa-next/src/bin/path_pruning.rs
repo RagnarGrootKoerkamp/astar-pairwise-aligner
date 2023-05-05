@@ -59,6 +59,7 @@ fn make_path_heuristic_aligner(
                 v: self.v,
                 front: AffineFront,
                 trace: true,
+                sparse_h: true,
             })
         }
     }
