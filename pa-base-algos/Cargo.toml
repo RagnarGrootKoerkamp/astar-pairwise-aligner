@@ -21,3 +21,4 @@ pa-bitpacking = { version = "0.1.0", path = "../pa-bitpacking" }
 [dev-dependencies]
 pa-generate.workspace = true
 rand = "0.8"
+triple_accel = "0.4.0"
