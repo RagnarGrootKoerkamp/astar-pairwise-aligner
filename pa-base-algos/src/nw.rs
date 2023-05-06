@@ -876,12 +876,37 @@ mod test {
         let d = NW {
             cm: AffineCost::unit(),
             strategy: Strategy::band_doubling(),
-            domain: Domain::Astar(GCSH::new(MatchConfig::inexact(15), Pruning::start())),
+            domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
             block_width: 256,
             v: NoVis,
             front: BitFront {
                 sparse: true,
                 simd: true,
+                incremental_doubling: false,
+            },
+            trace: true,
+            sparse_h: true,
+        }
+        .align(&a, &b)
+        .0;
+        let d2 = triple_accel::levenshtein_exp(&a, &b) as _;
+        assert_eq!(d, d2);
+    }
+
+    #[test]
+    fn incremental_doubling() {
+        let (a, b) =
+            pa_generate::generate_model(10000, 0.1, pa_generate::ErrorModel::Uniform, 31415);
+        let d = NW {
+            cm: AffineCost::unit(),
+            strategy: Strategy::band_doubling(),
+            domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
+            block_width: 256,
+            v: NoVis,
+            front: BitFront {
+                sparse: true,
+                simd: true,
+                incremental_doubling: true,
             },
             trace: true,
             sparse_h: true,

@@ -1,3 +1,7 @@
+//! TODO: Feature parity with BitFront:
+//! - sparse memory/traceback
+//! - reuse memory between runs
+//! - incremental doubling
 use std::{array::from_fn, cmp::min, ops::IndexMut};
 
 use pa_affine_types::{AffineCost, State};

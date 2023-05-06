@@ -40,6 +40,7 @@ fn main() {
     let front = BitFront {
         sparse: true,
         simd: true,
+        incremental_doubling: true,
     };
     let aligners: &mut [Box<dyn Aligner>] = &mut [
         // Box::new(NW {
