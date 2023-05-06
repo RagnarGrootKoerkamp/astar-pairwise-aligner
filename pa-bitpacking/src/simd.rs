@@ -58,17 +58,20 @@ fn simd_to_slice<const N: usize>(simd: &[S; N]) -> &[B; 4 * N] {
 ///     (4N(4N-1) blocks in total.)
 /// - Last <4*N rows are done with scalars.
 /// Returns the difference along the bottom row.
-pub fn compute_columns_simd<const N: usize>(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D
+pub fn compute_columns_simd<const N: usize>(
+    a: CompressedSeq,
+    b: ProfileSlice,
+    ph: &mut [B],
+    mh: &mut [B],
+    v: &mut [V],
+) -> D
 where
     [(); L * N]: Sized,
 {
     assert_eq!(b.len(), v.len());
     if a.len() < 2 * 4 * N || b.len() < 4 * N {
-        return compute_columns(a, b, v);
+        return compute_rectangle(a, b, v);
     }
-
-    let mut ph = vec![1; a.len()];
-    let mut mh = vec![0; a.len()];
 
     let b_chunks = b.array_chunks::<{ L * N }>();
     let v_chunks = v.array_chunks_mut::<{ L * N }>();
@@ -102,12 +105,12 @@ where
             // windows of ph and mh.  Would be replaced by `array_windows_mut`
             // if it existed.
             let ph: &mut [B; L * N] = unsafe {
-                (ph.get_unchecked_mut(i..i + L * N))
+                ph.get_unchecked_mut(i..i + L * N)
                     .try_into()
                     .unwrap_unchecked()
             };
             let mh: &mut [B; L * N] = unsafe {
-                (mh.get_unchecked_mut(i..i + L * N))
+                mh.get_unchecked_mut(i..i + L * N)
                     .try_into()
                     .unwrap_unchecked()
             };

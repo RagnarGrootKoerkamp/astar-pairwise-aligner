@@ -156,22 +156,15 @@ pub fn compute_block_split_h(ph0: &mut B, mh0: &mut B, v: &mut V, eq: B) {
     *mh0 = h0.1;
 }
 
-/// Convenience function around `compute_block` that computes a larger region at once.
-/// Returns the score difference along the bottom row.
-pub fn compute_rectangle(a: CompressedSeq, b: ProfileSlice, h: &mut [H], v: &mut [V]) -> D {
-    assert_eq!(a.len(), h.len());
-    assert_eq!(b.len(), v.len());
-    for (ca, h) in izip!(a.iter(), h.iter_mut()) {
-        for (cb, v) in izip!(b, v.iter_mut()) {
-            compute_block(h, v, cb[*ca as usize]);
-        }
-    }
-    h.iter().map(|h| h.value()).sum()
-}
-
-/// Same as `compute_rectangle`, but does not take or return horizontal differences.
-pub fn compute_columns(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
-    assert_eq!(b.len(), v.len());
+/// Compute a range of columns, assuming horizontal input deltas of 1.
+pub fn compute_rectangle(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
+    assert_eq!(
+        b.len(),
+        v.len(),
+        "Profile length {} must equal v length {}",
+        b.len(),
+        v.len()
+    );
     let mut bot_delta = 0;
     for ca in a.iter() {
         let h = &mut H::one();
@@ -183,8 +176,58 @@ pub fn compute_columns(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
     bot_delta
 }
 
-/// Compute a block of columns using SIMD.
+/// Compute a rectangle, with given horizontal input deltas.
+pub fn compute_rectangle_with_h(
+    a: CompressedSeq,
+    b: ProfileSlice,
+    ph: &mut [B],
+    mh: &mut [B],
+    v: &mut [V],
+) -> D {
+    assert_eq!(a.len(), ph.len());
+    assert_eq!(a.len(), mh.len());
+    assert_eq!(b.len(), v.len());
+    for (ca, ph, mh) in izip!(a.iter(), ph.iter_mut(), mh.iter_mut()) {
+        let h = &mut (*ph, *mh);
+        for (cb, v) in izip!(b, v.iter_mut()) {
+            compute_block(h, v, cb[*ca as usize]);
+        }
+        *ph = h.0;
+        *mh = h.1;
+    }
+    ph.iter().map(|x| *x as D).sum::<D>() - mh.iter().map(|x| *x as D).sum::<D>()
+}
+
+// Number of parellel simd rows.
+const N: usize = 2;
+
+/// Compute a block of columns using SIMD, assuming horizontal input deltas of 1.
 /// Uses 2 SIMD rows in parallel for better instruction level parallelism.
-pub fn compute_columns_simd(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
-    simd::compute_columns_simd::<2>(a, b, v)
+pub fn compute_rectangle_simd(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
+    if a.len() < 2 * 4 * N || b.len() < 4 * N {
+        return compute_rectangle(a, b, v);
+    }
+
+    let ph = &mut vec![1; a.len()];
+    let mh = &mut vec![0; a.len()];
+    simd::compute_columns_simd::<N>(a, b, ph, mh, v)
+}
+
+/// Compute a block of columns using SIMD, assuming horizontal input deltas of 1.
+/// Uses 2 SIMD rows in parallel for better instruction level parallelism.
+pub fn compute_rectangle_simd_with_h(
+    a: CompressedSeq,
+    b: ProfileSlice,
+    ph: &mut [B],
+    mh: &mut [B],
+    v: &mut [V],
+) -> D {
+    if a.len() < 2 * 4 * N || b.len() < 4 * N {
+        return compute_rectangle_with_h(a, b, ph, mh, v);
+    }
+    assert_eq!(a.len(), ph.len());
+    assert_eq!(a.len(), mh.len());
+    assert_eq!(b.len(), v.len());
+
+    simd::compute_columns_simd::<N>(a, b, ph, mh, v)
 }

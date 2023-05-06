@@ -2,7 +2,7 @@ use pa_types::I;
 
 use crate::{B, D, W};
 
-#[derive(Clone, Default, Copy)]
+#[derive(Clone, Default, Copy, PartialEq, Eq, Debug)]
 pub struct V(B, B);
 impl V {
     #[inline(always)]

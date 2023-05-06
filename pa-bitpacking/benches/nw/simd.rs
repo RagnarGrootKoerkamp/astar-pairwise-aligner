@@ -124,6 +124,8 @@ pub fn nw_simd_striped_row_wrapper<const N: usize>(a: CompressedSeq, bp: Profile
 where
     [(); L * N]: Sized,
 {
-    let mut v = vec![V::one(); bp.len()];
-    pa_bitpacking::simd::compute_columns_simd::<N>(a.into(), bp, &mut v)
+    let v = &mut vec![V::one(); bp.len()];
+    let ph = &mut vec![1; a.len()];
+    let mh = &mut vec![0; a.len()];
+    pa_bitpacking::simd::compute_columns_simd::<N>(a.into(), bp, ph, mh, v)
 }
