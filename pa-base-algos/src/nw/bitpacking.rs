@@ -10,7 +10,11 @@
 use std::cmp::min;
 
 use itertools::{izip, Itertools};
-use pa_bitpacking::{profile, CompressedSequence, Profile, B, V, W};
+use pa_bitpacking::{
+    new_profile::Profile,
+    new_profile::{self, profile},
+    CompressedSequence, B, V, W,
+};
 use pa_types::{Cost, Seq, I};
 
 use crate::edit_graph::AffineCigarOps;
@@ -526,9 +530,8 @@ impl NwFronts<0usize> for BitFronts {
         let st_cost = front.index(st.j);
         let is_match = st.i > 0
             && st.j > 0
-            && (self.b[(st.j - 1) as usize / W][self.a[st.i as usize - 1] as usize]
-                & (1 << (st.j - 1) % WI))
-                != 0;
+            //&& s_match((&self.a).into(), &self.b, st.i-1, st.j-1);
+            && new_profile::is_match((&self.a).into(), &self.b, st.i-1, st.j-1);
         for (di, dj, edge, op) in [
             (-1, 0, 1, CigarOp::Del),
             (0, -1, 1, CigarOp::Ins),
@@ -698,7 +701,7 @@ impl BitFronts {
 fn compute_columns(
     params: BitFrontsTag,
     a: &CompressedSequence,
-    b: &Vec<[u64; 4]>,
+    b: &Profile,
     i_range: IRange,
     v_range: std::ops::Range<usize>,
     v: &mut [V],
@@ -709,13 +712,13 @@ fn compute_columns(
         }
     }
     if params.simd {
-        pa_bitpacking::compute_rectangle_simd(
+        pa_bitpacking::new_profile::compute_rectangle_simd(
             a.index(i_range.0 as usize..i_range.1 as usize),
             &b[v_range],
             v,
         ) as I
     } else {
-        pa_bitpacking::compute_rectangle(
+        pa_bitpacking::new_profile::compute_rectangle(
             a.index(i_range.0 as usize..i_range.1 as usize),
             &b[v_range],
             v,
@@ -734,7 +737,7 @@ enum HMode {
 fn compute_columns_with_h(
     params: BitFrontsTag,
     a: &CompressedSequence,
-    b: &Vec<[u64; 4]>,
+    b: &Profile,
     i_range: IRange,
     v_range: std::ops::Range<usize>,
     v: &mut [V],
@@ -750,7 +753,7 @@ fn compute_columns_with_h(
 
     let run = |ph, mh| {
         if params.simd {
-            pa_bitpacking::compute_rectangle_simd_with_h(
+            pa_bitpacking::new_profile::compute_rectangle_simd_with_h(
                 a.index(i_range.0 as usize..i_range.1 as usize),
                 &b[v_range],
                 ph,
@@ -758,7 +761,7 @@ fn compute_columns_with_h(
                 v,
             ) as I
         } else {
-            pa_bitpacking::compute_rectangle_with_h(
+            pa_bitpacking::new_profile::compute_rectangle_with_h(
                 a.index(i_range.0 as usize..i_range.1 as usize),
                 &b[v_range],
                 ph,

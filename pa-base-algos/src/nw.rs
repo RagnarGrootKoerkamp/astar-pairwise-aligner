@@ -1,10 +1,9 @@
 //! TODO
 //! - Store block of fronts in a single allocation. Update `NwFront` to contain multiple columns as once and be reusable.
-//! - Do exponential search for height of the traceback block.
 //! - timings
 //! - pruning
-//! - reuse computed values when doing A*
 //! - meet in the middle for traceback
+//! - meet in the middle with A* and pruning on both sides
 //! - try jemalloc/mimalloc
 mod affine;
 mod bitpacking;
