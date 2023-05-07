@@ -25,6 +25,10 @@ report bench='time/Local/B/Col' *args='': build
     perf record cargo bench --bench nw -- --profile-time 5 "{{bench}}" {{args}}
     perf report -n
 
+# instructions per cycle
+flamegraph bench='time/Local/B/Col' *args='': build
+    cargo flamegraph --bench nw -- --bench --profile-time 5 "{{bench}}" {{args}} && open flamegraph.svg
+
 viz:
     cargo run -r -F small_blocks
 

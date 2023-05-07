@@ -152,3 +152,278 @@ where
 
     ph.iter().sum::<B>() as D - mh.iter().sum::<B>() as D
 }
+
+/// Compute 4*N rows of 64-bit blocks at a time.
+///
+/// - Top/middle rows are with SIMD.
+///   - Top-left and bot-right triangle of the 4N row block are done with scalars.
+///     (4N(4N-1) blocks in total.)
+/// - Last <4*N rows are done with scalars.
+/// Returns the difference along the bottom row.
+pub fn compute_columns_simd_new<const N: usize>(
+    a: CompressedSeq,
+    b: ProfileSlice,
+    ph: &mut [B],
+    mh: &mut [B],
+    v: &mut [V],
+) -> D
+where
+    [(); L * N]: Sized,
+{
+    assert_eq!(b.len(), v.len());
+    if a.len() < 2 * L * N || b.len() < L * N {
+        return compute_rectangle(a, b, v);
+    }
+
+    let b_chunks = b.array_chunks::<{ L * N }>();
+    let v_chunks = v.array_chunks_mut::<{ L * N }>();
+    let bv_chunks = izip!(b_chunks, v_chunks);
+
+    let rev = |i| L * N - 1 - i;
+
+    for (cb, v) in bv_chunks {
+        // Top-left triangle of block of rows.
+        // +1 at the ends because the main loop below skips the first iteration.
+        for j in 0..L * N - 1 + 1 {
+            for i in 0..L * N - 1 - j + 1 {
+                compute_block_split_h(&mut ph[i], &mut mh[i], &mut v[j], cb[j][a[i] as usize]);
+            }
+        }
+
+        // Middle with SIMD.
+        // Use a temp local SIMD `pv` and `mv` for vertical difference.
+        // NOTE: This 'unzipping' and 'zipping' of `pv` and `mv` is a bit ugly,
+        // but given that the loop goes over many columns, it doesn't matter for
+        // performance.
+        let mut pv_simd: [S; N] = slice_to_simd(&from_fn(|k| v[rev(k)].p()));
+        let mut mv_simd: [S; N] = slice_to_simd(&from_fn(|k| v[rev(k)].m()));
+
+        let mut ph_simd: [S; N] = slice_to_simd(&from_fn(|k| ph[k]));
+        let mut mh_simd: [S; N] = slice_to_simd(&from_fn(|k| mh[k]));
+
+        for (i, ca) in a.array_windows::<{ L * N }>().skip(1).enumerate() {
+            // Shifts ph_simd lanes left by one, and read in a new value.
+            let mut carry = unsafe { *ph.get_unchecked(i + L * N) };
+            for k in (0..N).rev() {
+                ph_simd[k] = ph_simd[k].rotate_lanes_left::<1>();
+                let new_carry = ph_simd[k].as_array()[3];
+                ph_simd[k].as_mut_array()[3] = carry;
+                carry = new_carry;
+            }
+            unsafe { *ph.get_unchecked_mut(i) = carry };
+
+            let mut carry = unsafe { *mh.get_unchecked(i + L * N) };
+            for k in (0..N).rev() {
+                mh_simd[k] = mh_simd[k].rotate_lanes_left::<1>();
+                let new_carry = mh_simd[k].as_array()[3];
+                mh_simd[k].as_mut_array()[3] = carry;
+                carry = new_carry;
+            }
+            unsafe { *mh.get_unchecked_mut(i) = carry };
+
+            // NOTE: The 'gather' operation resulting from this is slow!
+            let eqs: [S; N] = slice_to_simd(&from_fn(|i| unsafe {
+                *cb.get_unchecked(rev(i)).get_unchecked(ca[i] as usize)
+            }));
+
+            for k in 0..N {
+                compute_block_simd(
+                    &mut ph_simd[k],
+                    &mut mh_simd[k],
+                    &mut pv_simd[k],
+                    &mut mv_simd[k],
+                    eqs[k],
+                );
+            }
+        }
+        // Write back the remainder of ph_simd and mh simd.
+        let ph_last: &mut [B; L * N] = unsafe {
+            ph.get_unchecked_mut(ph.len() - L * N..ph.len())
+                .try_into()
+                .unwrap_unchecked()
+        };
+        let mh_last: &mut [B; L * N] = unsafe {
+            mh.get_unchecked_mut(mh.len() - L * N..mh.len())
+                .try_into()
+                .unwrap_unchecked()
+        };
+        *ph_last = *simd_to_slice(&ph_simd);
+        *mh_last = *simd_to_slice(&mh_simd);
+
+        // Write back the local `pv` and `pv`.
+        let pv = simd_to_slice(&pv_simd);
+        let mv = simd_to_slice(&mv_simd);
+        *v = from_fn(|i| V::from(pv[rev(i)], mv[rev(i)]));
+
+        // Bottom-right triangle of block of rows.
+        for j in 1..L * N {
+            for i in a.len() - j..a.len() {
+                compute_block_split_h(&mut ph[i], &mut mh[i], &mut v[j], cb[j][a[i] as usize]);
+            }
+        }
+    }
+
+    // TODO: Figure out which order is better for these 2 loops.
+    let b_chunks = b.array_chunks::<{ L * N }>();
+    let v_chunks = v.array_chunks_mut::<{ L * N }>();
+    for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
+        for (ca, ph, mh) in izip!(a.iter(), ph.iter_mut(), mh.iter_mut()) {
+            compute_block_split_h(ph, mh, v, cb[*ca as usize]);
+        }
+    }
+
+    ph.iter().sum::<B>() as D - mh.iter().sum::<B>() as D
+}
+
+pub mod new_profile {
+    use super::*;
+
+    /// Compute 4*N rows of 64-bit blocks at a time.
+    ///
+    /// - Top/middle rows are with SIMD.
+    ///   - Top-left and bot-right triangle of the 4N row block are done with scalars.
+    ///     (4N(4N-1) blocks in total.)
+    /// - Last <4*N rows are done with scalars.
+    /// Returns the difference along the bottom row.
+    pub fn compute_columns_simd<const N: usize>(
+        a: CompressedSeq,
+        b: crate::new_profile::ProfileSlice,
+        ph: &mut [B],
+        mh: &mut [B],
+        v: &mut [V],
+    ) -> D
+    where
+        [(); L * N]: Sized,
+    {
+        assert_eq!(b.len(), v.len());
+        if a.len() <= 2 * L * N || b.len() < L * N {
+            return crate::new_profile::compute_rectangle(a, b, v);
+        }
+
+        let ap0 = a
+            .iter()
+            .map(|ca| 0u64.wrapping_sub(*ca as B & 1))
+            .collect_vec();
+        let ap1 = a
+            .iter()
+            .map(|ca| 0u64.wrapping_sub((*ca as B >> 1) & 1))
+            .collect_vec();
+
+        let b_chunks = b.array_chunks::<{ L * N }>();
+        let v_chunks = v.array_chunks_mut::<{ L * N }>();
+        let bv_chunks = izip!(b_chunks, v_chunks);
+
+        let rev = |i| L * N - 1 - i;
+
+        for (cb, v) in bv_chunks {
+            // Top-left triangle of block of rows.
+            // +1 at the ends because the main loop below skips the first iteration.
+            for j in 0..L * N - 1 + 1 {
+                for i in 0..L * N - 1 - j + 1 {
+                    compute_block_split_h(
+                        &mut ph[i],
+                        &mut mh[i],
+                        &mut v[j],
+                        (cb[j].0 ^ ap0[i]) & (cb[j].1 ^ ap1[i]),
+                    );
+                }
+            }
+
+            // Unzip the (b0, b1) indicators and put them into simd vecs.
+            let b0: [S; N] = slice_to_simd(&from_fn(|i| cb[rev(i)].0));
+            let b1: [S; N] = slice_to_simd(&from_fn(|i| cb[rev(i)].1));
+
+            // Middle with SIMD.
+            // Use a temp local SIMD `pv` and `mv` for vertical difference.
+            // NOTE: This 'unzipping' and 'zipping' of `pv` and `mv` is a bit ugly,
+            // but given that the loop goes over many columns, it doesn't matter for
+            // performance.
+            let mut pv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].p()));
+            let mut mv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].m()));
+
+            let mut ph_simd: [S; N] = slice_to_simd(&from_fn(|i| ph[i]));
+            let mut mh_simd: [S; N] = slice_to_simd(&from_fn(|i| mh[i]));
+
+            for (i, (ca0, ca1)) in izip!(
+                ap0.array_windows::<{ L * N }>().skip(1),
+                ap1.array_windows::<{ L * N }>().skip(1)
+            )
+            .enumerate()
+            {
+                // Shifts ph_simd lanes left by one, and read in a new value.
+                let mut carry = unsafe { *ph.get_unchecked(i + L * N) };
+                for k in (0..N).rev() {
+                    ph_simd[k] = ph_simd[k].rotate_lanes_left::<1>();
+                    let new_carry = ph_simd[k].as_array()[3];
+                    ph_simd[k].as_mut_array()[3] = carry;
+                    carry = new_carry;
+                }
+                unsafe { *ph.get_unchecked_mut(i) = carry };
+
+                let mut carry = unsafe { *mh.get_unchecked(i + L * N) };
+                for k in (0..N).rev() {
+                    mh_simd[k] = mh_simd[k].rotate_lanes_left::<1>();
+                    let new_carry = mh_simd[k].as_array()[3];
+                    mh_simd[k].as_mut_array()[3] = carry;
+                    carry = new_carry;
+                }
+                unsafe { *mh.get_unchecked_mut(i) = carry };
+
+                let a0: [S; N] = slice_to_simd(ca0);
+                let a1: [S; N] = slice_to_simd(ca1);
+                // NOTE: The 'gather' operation resulting from this is slow!
+                let eqs: [S; N] = from_fn(|k| (b0[k] ^ a0[k]) & (b1[k] ^ a1[k]));
+                for k in 0..N {
+                    compute_block_simd(
+                        &mut ph_simd[k],
+                        &mut mh_simd[k],
+                        &mut pv_simd[k],
+                        &mut mv_simd[k],
+                        eqs[k],
+                    );
+                }
+            }
+            // Write back the remainder of ph_simd and mh simd.
+            let ph_last: &mut [B; L * N] = unsafe {
+                ph.get_unchecked_mut(ph.len() - L * N..ph.len())
+                    .try_into()
+                    .unwrap_unchecked()
+            };
+            let mh_last: &mut [B; L * N] = unsafe {
+                mh.get_unchecked_mut(mh.len() - L * N..mh.len())
+                    .try_into()
+                    .unwrap_unchecked()
+            };
+            *ph_last = *simd_to_slice(&ph_simd);
+            *mh_last = *simd_to_slice(&mh_simd);
+
+            // Write back the local `pv` and `pv`.
+            let pv = simd_to_slice(&pv_simd);
+            let mv = simd_to_slice(&mv_simd);
+            *v = from_fn(|k| V::from(pv[rev(k)], mv[rev(k)]));
+
+            // Bottom-right triangle of block of rows.
+            for j in 1..L * N {
+                for i in a.len() - j..a.len() {
+                    compute_block_split_h(
+                        &mut ph[i],
+                        &mut mh[i],
+                        &mut v[j],
+                        (cb[j].0 ^ ap0[i]) & (cb[j].1 ^ ap1[i]),
+                    );
+                }
+            }
+        }
+
+        // TODO: Figure out which order is better for these 2 loops.
+        let b_chunks = b.array_chunks::<{ L * N }>();
+        let v_chunks = v.array_chunks_mut::<{ L * N }>();
+        for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
+            for (ca0, ca1, ph, mh) in izip!(ap0.iter(), ap1.iter(), ph.iter_mut(), mh.iter_mut()) {
+                compute_block_split_h(ph, mh, v, (cb.0 ^ ca0) & (cb.1 ^ ca1));
+            }
+        }
+
+        ph.iter().sum::<B>() as D - mh.iter().sum::<B>() as D
+    }
+}

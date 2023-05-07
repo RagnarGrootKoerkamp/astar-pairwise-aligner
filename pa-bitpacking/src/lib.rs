@@ -23,7 +23,7 @@ use bio::alphabets::{Alphabet, RankTransform};
 pub use encoding::*;
 use itertools::{izip, Itertools};
 pub use pa_types::Seq;
-use pa_types::Sequence;
+use pa_types::{Sequence, I};
 
 /// The type used for all bitvectors.
 #[cfg(feature = "small_blocks")]
@@ -210,7 +210,7 @@ pub fn compute_rectangle_simd(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) ->
 
     let ph = &mut vec![1; a.len()];
     let mh = &mut vec![0; a.len()];
-    simd::compute_columns_simd::<N>(a, b, ph, mh, v)
+    simd::compute_columns_simd_new::<N>(a, b, ph, mh, v)
 }
 
 /// Compute a block of columns using SIMD, assuming horizontal input deltas of 1.
@@ -230,4 +230,120 @@ pub fn compute_rectangle_simd_with_h(
     assert_eq!(b.len(), v.len());
 
     simd::compute_columns_simd::<N>(a, b, ph, mh, v)
+}
+
+pub fn is_match(a: CompressedSeq, b: ProfileSlice, i: I, j: I) -> bool {
+    let i = i as usize;
+    let j = j as usize;
+    ((b[j / W][a[i] as usize] >> (j % W)) & 1) == 1
+}
+
+pub mod new_profile {
+    pub type Profile = Vec<(B, B)>;
+    pub type ProfileSlice<'a> = &'a [(B, B)];
+    use pa_types::I;
+
+    use super::*;
+
+    /// New profile experiment
+    #[inline(always)]
+    pub fn profile(a: Seq, b: Seq) -> (CompressedSequence, Profile) {
+        let r = RankTransform::new(&Alphabet::new(b"ACGT"));
+        let a = a.iter().map(|ca| r.get(*ca)).collect_vec();
+        let words = num_words(b);
+        let mut pb: Profile = vec![(0, 0); words];
+        for (j, &cb) in b.iter().enumerate() {
+            let cb = r.get(cb);
+            // !cb[0]
+            pb[j / W].0 |= ((cb as B & 1) ^ 1) << (j % W);
+            // !cb[1]
+            pb[j / W].1 |= (((cb as B >> 1) & 1) ^ 1) << (j % W);
+        }
+        (CompressedSequence(a), pb)
+    }
+
+    /// Compute a range of columns, assuming horizontal input deltas of 1.
+    pub fn compute_rectangle(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
+        assert_eq!(
+            b.len(),
+            v.len(),
+            "Profile length {} must equal v length {}",
+            b.len(),
+            v.len()
+        );
+        let mut bot_delta = 0;
+        for ca in a.iter() {
+            let a0 = 0u64.wrapping_sub(*ca as B & 1);
+            let a1 = 0u64.wrapping_sub((*ca as B >> 1) & 1);
+            let h = &mut H::one();
+            for (cb, v) in izip!(b, v.iter_mut()) {
+                compute_block(h, v, (cb.0 ^ a0) & (cb.1 ^ a1));
+            }
+            bot_delta += h.value();
+        }
+        bot_delta
+    }
+
+    /// Compute a rectangle, with given horizontal input deltas.
+    pub fn compute_rectangle_with_h(
+        a: CompressedSeq,
+        b: ProfileSlice,
+        ph: &mut [B],
+        mh: &mut [B],
+        v: &mut [V],
+    ) -> D {
+        assert_eq!(a.len(), ph.len());
+        assert_eq!(a.len(), mh.len());
+        assert_eq!(b.len(), v.len());
+        for (ca, ph, mh) in izip!(a.iter(), ph.iter_mut(), mh.iter_mut()) {
+            let a0 = 0u64.wrapping_sub(*ca as B & 1);
+            let a1 = 0u64.wrapping_sub((*ca as B >> 1) & 1);
+            let h = &mut (*ph, *mh);
+            for (cb, v) in izip!(b, v.iter_mut()) {
+                compute_block(h, v, (cb.0 ^ a0) & (cb.1 ^ a1));
+            }
+            *ph = h.0;
+            *mh = h.1;
+        }
+        ph.iter().map(|x| *x as D).sum::<D>() - mh.iter().map(|x| *x as D).sum::<D>()
+    }
+
+    /// Compute a block of columns using SIMD, assuming horizontal input deltas of 1.
+    /// Uses 2 SIMD rows in parallel for better instruction level parallelism.
+    pub fn compute_rectangle_simd(a: CompressedSeq, b: ProfileSlice, v: &mut [V]) -> D {
+        if a.len() < 2 * 4 * N || b.len() < 4 * N {
+            return compute_rectangle(a, b, v);
+        }
+
+        let ph = &mut vec![1; a.len()];
+        let mh = &mut vec![0; a.len()];
+        simd::new_profile::compute_columns_simd::<N>(a, b, ph, mh, v)
+    }
+
+    /// Compute a block of columns using SIMD, assuming horizontal input deltas of 1.
+    /// Uses 2 SIMD rows in parallel for better instruction level parallelism.
+    pub fn compute_rectangle_simd_with_h(
+        a: CompressedSeq,
+        b: ProfileSlice,
+        ph: &mut [B],
+        mh: &mut [B],
+        v: &mut [V],
+    ) -> D {
+        if a.len() < 2 * 4 * N || b.len() < 4 * N {
+            return compute_rectangle_with_h(a, b, ph, mh, v);
+        }
+        assert_eq!(a.len(), ph.len());
+        assert_eq!(a.len(), mh.len());
+        assert_eq!(b.len(), v.len());
+
+        simd::new_profile::compute_columns_simd::<N>(a, b, ph, mh, v)
+    }
+
+    pub fn is_match(a: CompressedSeq, b: ProfileSlice, i: I, j: I) -> bool {
+        let i = i as usize;
+        let j = j as usize;
+        let a0 = 0u64.wrapping_sub(a[i] as B & 1);
+        let a1 = 0u64.wrapping_sub((a[i] as B >> 1) & 1);
+        ((((b[j / W].0 ^ a0) & (b[j / W].1 ^ a1)) >> (j % W)) & 1) != 0
+    }
 }

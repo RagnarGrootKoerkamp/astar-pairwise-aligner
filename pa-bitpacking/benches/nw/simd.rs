@@ -120,7 +120,7 @@ where
 }
 
 /// Returns the difference along the bottom row.
-pub fn nw_simd_striped_row_wrapper<const N: usize>(a: CompressedSeq, bp: ProfileSlice) -> D
+pub fn nw_simd<const N: usize>(a: CompressedSeq, bp: ProfileSlice) -> D
 where
     [(); L * N]: Sized,
 {
@@ -128,4 +128,28 @@ where
     let ph = &mut vec![1; a.len()];
     let mh = &mut vec![0; a.len()];
     pa_bitpacking::simd::compute_columns_simd::<N>(a.into(), bp, ph, mh, v)
+}
+
+/// Returns the difference along the bottom row.
+pub fn nw_simd2<const N: usize>(a: CompressedSeq, bp: ProfileSlice) -> D
+where
+    [(); L * N]: Sized,
+{
+    let v = &mut vec![V::one(); bp.len()];
+    let ph = &mut vec![1; a.len()];
+    let mh = &mut vec![0; a.len()];
+    pa_bitpacking::simd::compute_columns_simd_new::<N>(a.into(), bp, ph, mh, v)
+}
+/// Returns the difference along the bottom row.
+pub fn nw_simd2_profile<const N: usize>(
+    a: CompressedSeq,
+    bp: pa_bitpacking::new_profile::ProfileSlice,
+) -> D
+where
+    [(); L * N]: Sized,
+{
+    let v = &mut vec![V::one(); bp.len()];
+    let ph = &mut vec![1; a.len()];
+    let mh = &mut vec![0; a.len()];
+    pa_bitpacking::simd::new_profile::compute_columns_simd::<N>(a.into(), bp, ph, mh, v)
 }
