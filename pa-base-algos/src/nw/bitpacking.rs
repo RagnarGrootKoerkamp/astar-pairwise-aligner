@@ -10,11 +10,7 @@
 use std::cmp::min;
 
 use itertools::{izip, Itertools};
-use pa_bitpacking::{
-    new_profile::Profile,
-    new_profile::{self, profile},
-    CompressedSequence, B, V, W,
-};
+use pa_bitpacking::{BitProfile, HEncoding, Profile, B, V, W};
 use pa_types::{Cost, Seq, I};
 
 use crate::edit_graph::AffineCigarOps;
@@ -24,6 +20,10 @@ use super::*;
 const DEBUG: bool = false;
 
 const WI: I = W as I;
+
+type PA = <BitProfile as Profile>::A;
+type PB = <BitProfile as Profile>::B;
+type H = (B, B);
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct BitFrontsTag {
@@ -40,8 +40,8 @@ pub struct BitFronts {
     // Input/parameters.
     params: BitFrontsTag,
     trace: bool,
-    a: CompressedSequence,
-    b: Profile,
+    a: Vec<PA>,
+    b: Vec<PA>,
     cm: AffineCost<0>,
 
     // State.
@@ -53,9 +53,7 @@ pub struct BitFronts {
 
     /// Store horizontal differences for row `j_h`.
     /// This allows for incremental band doubling.
-    /// TODO: We could save memory by bitpacking these.
-    ph: Vec<B>,
-    mh: Vec<B>,
+    h: Vec<H>,
 }
 
 pub struct BitFront {
@@ -229,7 +227,7 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
         cm: &'a AffineCost<0>,
     ) -> Self::Fronts<'a> {
         assert_eq!(*cm, AffineCost::unit());
-        let (a, b) = profile(a, b);
+        let (a, b) = BitProfile::build(a, b);
         BitFronts {
             params: *self,
             fronts: vec![],
@@ -237,13 +235,8 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
             cm: *cm,
             i_range: IRange(-1, 0),
             last_front_idx: 0,
-            ph: if self.incremental_doubling {
-                vec![0; a.len()]
-            } else {
-                vec![]
-            },
-            mh: if self.incremental_doubling {
-                vec![0; a.len()]
+            h: if self.incremental_doubling {
+                vec![(0, 0); a.len()]
             } else {
                 vec![]
             },
@@ -360,72 +353,67 @@ impl NwFronts<0usize> for BitFronts {
 
                     assert!(new_range.0 <= next_fixed.0);
                     let v_range_0 = new_range.0 as usize / W..next_fixed.0 as usize / W;
-                    compute_columns_with_h(
+                    compute_columns(
                         self.params,
                         &self.a,
                         &self.b,
                         i_range,
                         v_range_0.clone(),
                         &mut v[v_range_0.start - offset..v_range_0.end - offset],
-                        &mut self.ph,
-                        &mut self.mh,
+                        &mut self.h,
                         HMode::None
                     );
 
                     assert!(old_j_h <= new_j_h);
                     let v_range_1 = old_j_h as usize / W..new_j_h as usize / W;
-                    compute_columns_with_h(
+                    compute_columns(
                         self.params,
                         &self.a,
                         &self.b,
                         i_range,
                         v_range_1.clone(),
                         &mut v[v_range_1.start - offset..v_range_1.end - offset],
-                        &mut self.ph,
-                        &mut self.mh,
+                        &mut self.h,
                         HMode::Update
                     );
 
                     assert!(new_j_h <= new_range.1);
                     let v_range_2 = new_j_h as usize / W..new_range.1 as usize / W;
-                    compute_columns_with_h(
+                    compute_columns(
                         self.params,
                         &self.a,
                         &self.b,
                         i_range,
                         v_range_2.clone(),
                         &mut v[v_range_2.start - offset..v_range_2.end - offset],
-                        &mut self.ph,
-                        &mut self.mh,
+                        &mut self.h,
                         HMode::Input
                     )
                 } else {
                     initialize_next_v(prev_front, j_range_rounded, &mut v);
                     assert!(new_range.0 <= new_j_h);
                     let v_range_01 = new_range.0 as usize / W..new_j_h as usize / W;
-                    compute_columns_with_h(
+                    compute_columns(
                         self.params,
                         &self.a,
                         &self.b,
                         i_range,
                         v_range_01.clone(),
                         &mut v[v_range_01.start - offset..v_range_01.end - offset],
-                        &mut self.ph,
-                        &mut self.mh,
+                        &mut self.h,
                         HMode::Output
                     );
 
                     assert!(new_j_h <= new_range.1);
                     let v_range_2 = new_j_h as usize / W..new_range.1 as usize / W;
-                    compute_columns_with_h(
+                    compute_columns(
                         self.params,
                         &self.a,
                         &self.b,
                         i_range,
                         v_range_2.clone(),
                         &mut v[v_range_2.start - offset..v_range_2.end - offset],
-                        &mut self.ph,
-                        &mut self.mh,
+                        &mut self.h,
                         HMode::Input
                     )
                 };
@@ -443,6 +431,8 @@ impl NwFronts<0usize> for BitFronts {
                         i_range,
                         v_range.clone(),
                         &mut v2,
+                        &mut self.h,
+                        HMode::None
                     );
                     assert_eq!(bottom_delta, bottom_delta_2);
                     assert_eq!(v.len(), v2.len());
@@ -469,6 +459,8 @@ impl NwFronts<0usize> for BitFronts {
                     i_range,
                     v_range.clone(),
                     &mut v,
+                    &mut self.h,
+                    HMode::None
                 );
                 next_front.offset = j_range_rounded.0;
                 bottom_delta
@@ -492,6 +484,8 @@ impl NwFronts<0usize> for BitFronts {
                 i_range,
                 v_range.clone(),
                 &mut v[v_range.clone().clone()],
+                &mut self.h,
+                HMode::None,
             );
             let next_front = &mut self.fronts[self.last_front_idx];
             next_front.v = v;
@@ -531,7 +525,7 @@ impl NwFronts<0usize> for BitFronts {
         let is_match = st.i > 0
             && st.j > 0
             //&& s_match((&self.a).into(), &self.b, st.i-1, st.j-1);
-            && new_profile::is_match((&self.a).into(), &self.b, st.i-1, st.j-1);
+            && BitProfile::is_match(&self.a, &self.b, st.i-1, st.j-1);
         for (di, dj, edge, op) in [
             (-1, 0, 1, CigarOp::Del),
             (0, -1, 1, CigarOp::Ins),
@@ -679,6 +673,8 @@ impl BitFronts {
                 IRange(i, i + 1),
                 v_range.clone(),
                 &mut next_front.v,
+                &mut self.h,
+                HMode::None,
             );
 
             self.last_front_idx += 1;
@@ -698,34 +694,6 @@ impl BitFronts {
     }
 }
 
-fn compute_columns(
-    params: BitFrontsTag,
-    a: &CompressedSequence,
-    b: &Profile,
-    i_range: IRange,
-    v_range: std::ops::Range<usize>,
-    v: &mut [V],
-) -> i32 {
-    if cfg!(test) || DEBUG {
-        if i_range.len() > 1 {
-            eprintln!("Compute i {i_range:?} x j {v_range:?} in mode None");
-        }
-    }
-    if params.simd {
-        pa_bitpacking::new_profile::compute_rectangle_simd(
-            a.index(i_range.0 as usize..i_range.1 as usize),
-            &b[v_range],
-            v,
-        ) as I
-    } else {
-        pa_bitpacking::new_profile::compute_rectangle(
-            a.index(i_range.0 as usize..i_range.1 as usize),
-            &b[v_range],
-            v,
-        ) as I
-    }
-}
-
 #[derive(Debug)]
 enum HMode {
     None,
@@ -734,38 +702,36 @@ enum HMode {
     Output,
 }
 
-fn compute_columns_with_h(
+fn compute_columns(
     params: BitFrontsTag,
-    a: &CompressedSequence,
-    b: &Profile,
+    a: &[PA],
+    b: &[PB],
     i_range: IRange,
     v_range: std::ops::Range<usize>,
     v: &mut [V],
-    ph: &mut [B],
-    mh: &mut [B],
+    h: &mut [H],
     mode: HMode,
 ) -> i32 {
     if cfg!(test) || DEBUG {
         eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
     }
-    let ph = &mut ph[i_range.0 as usize..i_range.1 as usize];
-    let mh = &mut mh[i_range.0 as usize..i_range.1 as usize];
+    let h = &mut h[i_range.0 as usize..i_range.1 as usize];
 
-    let run = |ph, mh| {
+    let run = |h, exact_end| {
         if params.simd {
-            pa_bitpacking::new_profile::compute_rectangle_simd_with_h(
-                a.index(i_range.0 as usize..i_range.1 as usize),
+            // FIXME: Choose the optimal scalar function to use here.
+            pa_bitpacking::simd::compute::<2, H, 4>(
+                &a[i_range.0 as usize..i_range.1 as usize],
                 &b[v_range],
-                ph,
-                mh,
+                h,
                 v,
+                exact_end,
             ) as I
         } else {
-            pa_bitpacking::new_profile::compute_rectangle_with_h(
-                a.index(i_range.0 as usize..i_range.1 as usize),
+            pa_bitpacking::scalar::row::<BitProfile, H>(
+                &a[i_range.0 as usize..i_range.1 as usize],
                 &b[v_range],
-                ph,
-                mh,
+                h,
                 v,
             ) as I
         }
@@ -774,22 +740,19 @@ fn compute_columns_with_h(
     match mode {
         HMode::None => {
             // Just create two temporary vectors that are discarded afterwards.
-            let ph = &mut vec![1; ph.len()];
-            let mh = &mut vec![0; ph.len()];
-            run(ph, mh)
+            let h = &mut vec![H::one(); h.len()];
+            run(h, false)
         }
         HMode::Input => {
             // Make a copy to prevent overwriting.
-            let ph = &mut ph.iter().copied().collect_vec();
-            let mh = &mut mh.iter().copied().collect_vec();
-            run(ph, mh)
+            let h = &mut h.iter().copied().collect_vec();
+            run(h, false)
         }
-        HMode::Update => run(ph, mh),
+        HMode::Update => run(h, true),
         HMode::Output => {
             // Initialize to +1.
-            ph.fill(1);
-            mh.fill(0);
-            run(ph, mh)
+            h.fill(H::one());
+            run(h, true)
         }
     }
 }

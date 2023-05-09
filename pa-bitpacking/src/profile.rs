@@ -47,6 +47,8 @@ pub use bit_profile::BitProfile;
 pub mod bit_profile {
     use std::simd::{LaneCount, SupportedLaneCount};
 
+    use pa_types::I;
+
     use crate::S;
 
     use super::*;
@@ -117,6 +119,9 @@ pub mod bit_profile {
             LaneCount<L>: SupportedLaneCount,
         {
             (ca.0 ^ cb.0) & (ca.1 ^ cb.1)
+        }
+        pub fn is_match(a: &[Bits], b: &[Bits], i: I, j: I) -> bool {
+            (Self::eq(&a[i as usize], &b[j as usize / W]) & (1 << (j as usize % W))) != 0
         }
     }
 }

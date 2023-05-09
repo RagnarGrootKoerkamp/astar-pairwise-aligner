@@ -71,7 +71,7 @@ where
 // If `exact_end` is false, padding rows may be added at the end to speed things
 // up. This means `h` will have a meaningless value at the end that does not
 // correspond to the bottom row of the input range.
-pub fn row<const N: usize, H: HEncoding, const L: usize>(
+pub fn compute<const N: usize, H: HEncoding, const L: usize>(
     a: &[Bits],
     b: &[Bits],
     h: &mut [H],
@@ -86,7 +86,19 @@ where
     assert_eq!(a.len(), h.len());
     assert_eq!(b.len(), v.len());
     if a.len() < 2 * L * N {
-        return 0;
+        // TODO: This could be optimized a bit more.
+        if N > 1 {
+            return compute::<1, H, L>(a, b, h, v, exact_end);
+        }
+        if L > 2 {
+            return compute::<1, H, 2>(a, b, h, v, exact_end);
+        }
+        for i in 0..a.len() {
+            for j in 0..b.len() {
+                block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
+            }
+        }
+        return h.iter().map(|h| h.value()).sum::<Cost>();
     }
 
     // Prevent allocation of unzipped `a` in this case.

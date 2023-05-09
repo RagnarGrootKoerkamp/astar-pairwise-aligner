@@ -28,3 +28,5 @@ __pycache__
 !/imgs/paper/intro
 /imgs/paper/intro/*
 !/imgs/paper/intro/*.gif
+perf.data*
+flamegraph.svg

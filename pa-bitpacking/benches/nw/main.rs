@@ -123,17 +123,17 @@ fn bench_simd<H: HEncoding>(
 
     // test("simd1rowx/1", row::<1, H, 1>, true);
     // test("simd1rowx/2", row::<2, H, 1>, true);
-    test("simd2rowx/1", row::<1, H, 2>, true);
+    test("simd2rowx/1", compute::<1, H, 2>, true);
     // test("simd2rowx/2", row::<2, H, 2>, true);
-    test("simd4rowx/1", row::<1, H, 4>, true);
-    test("simd4rowx/2", row::<2, H, 4>, true);
+    test("simd4rowx/1", compute::<1, H, 4>, true);
+    test("simd4rowx/2", compute::<2, H, 4>, true);
 
     // test("simd1rowp/1", row::<1, H, 1>, false);
     // test("simd1rowp/2", row::<2, H, 1>, false);
-    test("simd2rowp/1", row::<1, H, 2>, false);
+    test("simd2rowp/1", compute::<1, H, 2>, false);
     // test("simd2rowp/2", row::<2, H, 2>, false);
-    test("simd4rowp/1", row::<1, H, 4>, false);
-    test("simd4rowp/2", row::<2, H, 4>, false);
+    test("simd4rowp/1", compute::<1, H, 4>, false);
+    test("simd4rowp/2", compute::<2, H, 4>, false);
 }
 
 fn bench(c: &mut Criterion) {
