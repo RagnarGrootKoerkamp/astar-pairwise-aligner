@@ -1,429 +1,279 @@
-use std::{array::from_fn, mem::transmute, simd::Simd};
-
+//! TODO:
+//! - col-first instead of row-first
+//! - col-first with local-h
+//! - padding instead of manual filling in edges
+//! - N=1 simd for edges before scalar
+//! - try 2-lane simd for bottom edge
+//!
+//! Reading and writing directly into unaligned sliding windows of h and v is inefficient!
+//! We solve this by keeping a local SIMD vector that's rotated one lane at a time.
+//!
+//! Conclusions:
+//! - Inside the inner loop, everything must be unpacked.
+//! - Need to convert a from Vec<(a0, a1)> into (Vec<a0>, Vec<a1>).
+//! - For 256 wide rows, edges are <1% of time and no need to optimize.
+//! - The row version is SIMD instructions only apart from a single loop increment; looks very efficient.
+//! - row::<1> is good
+//! - row::<2> seems best; slightly better IPC
+//! - row::<3> and row::<L> use too many registers probably; almost 2x slower
+//! - local_h for simd doesn't help, since effectively we already create a local h in each iteration anyway.
+//! - row-first is always as good as col-first.
+//! -
 use super::*;
+use crate::bit_profile::Bits;
+use itertools::{izip, Itertools};
+use pa_types::Cost;
+use std::{
+    array::from_fn,
+    mem::transmute,
+    simd::{LaneCount, SupportedLaneCount},
+};
 
-/// The number of lanes in a Simd vector.
-pub const L: usize = 4;
-/// The type for a Simd vector of `L` lanes of `B`.
-pub type S = Simd<B, L>;
-
+/// NOTE: This is simply a cast.
 #[inline(always)]
-pub fn compute_block_simd(ph0: &mut S, mh0: &mut S, pv: &mut S, mv: &mut S, eq: S) {
-    let xv = eq | *mv;
-    let eq = eq | *mh0;
-    // The add here contains the 'folding' magic that makes this algorithm
-    // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
-    let xh = (((eq & *pv) + *pv) ^ *pv) | eq;
-    let ph = *mv | !(xh | *pv);
-    let mh = *pv & xh;
-    // Extract `hw` from `ph` and `mh`.
-    let right_shift = S::splat(W as B - 1);
-    let phw = ph >> right_shift;
-    let mhw = mh >> right_shift;
-
-    // Push `hw` out of `ph` and `mh` and shift in `h0`.
-    let left_shift = S::splat(1);
-    let ph = (ph << left_shift) | *ph0;
-    let mh = (mh << left_shift) | *mh0;
-
-    *pv = mh | !(xv | ph);
-    *mv = ph & xv;
-    *ph0 = phw;
-    *mh0 = mhw;
+fn simd_to_slice<const N: usize, const L: usize>(simd: &[S<L>; N]) -> &[B; L * N]
+where
+    LaneCount<L>: SupportedLaneCount,
+{
+    unsafe { transmute(simd) }
 }
 
 /// NOTE: This creates a new array with the right alignment.
 #[inline(always)]
-fn slice_to_simd<const N: usize>(slice: &[B; 4 * N]) -> [S; N] {
-    // SAFETY:
+fn slice_to_simd<const N: usize, const L: usize>(slice: &[B; L * N]) -> [S<L>; N]
+where
+    LaneCount<L>: SupportedLaneCount,
+{
     unsafe {
         slice
-            .array_chunks::<4>()
+            .array_chunks::<L>()
             .map(|&b| b.into())
             .array_chunks::<N>()
             .next()
             .unwrap_unchecked()
     }
 }
-/// NOTE: This is simply a cast.
+
 #[inline(always)]
-fn simd_to_slice<const N: usize>(simd: &[S; N]) -> &[B; 4 * N] {
-    unsafe { transmute(simd) }
+fn rotate_left<const N: usize, const L: usize>(ph_simd: &mut [S<L>; N], mut carry: B) -> B
+where
+    LaneCount<L>: SupportedLaneCount,
+{
+    for k in (0..N).rev() {
+        ph_simd[k] = ph_simd[k].rotate_lanes_left::<1>();
+        let new_carry = ph_simd[k].as_array()[L - 1];
+        ph_simd[k].as_mut_array()[L - 1] = carry;
+        carry = new_carry;
+    }
+    carry
 }
 
-/// Compute 4*N rows of 64-bit blocks at a time.
-///
-/// - Top/middle rows are with SIMD.
-///   - Top-left and bot-right triangle of the 4N row block are done with scalars.
-///     (4N(4N-1) blocks in total.)
-/// - Last <4*N rows are done with scalars.
-/// Returns the difference along the bottom row.
-pub fn compute_columns_simd<const N: usize>(
-    a: CompressedSeq,
-    b: ProfileSlice,
-    ph: &mut [B],
-    mh: &mut [B],
+// If `exact_end` is false, padding rows may be added at the end to speed things
+// up. This means `h` will have a meaningless value at the end that does not
+// correspond to the bottom row of the input range.
+pub fn row<const N: usize, H: HEncoding, const L: usize>(
+    a: &[Bits],
+    b: &[Bits],
+    h: &mut [H],
     v: &mut [V],
-) -> D
+    exact_end: bool,
+) -> Cost
 where
+    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
+    [(); L * 1]: Sized,
 {
+    assert_eq!(a.len(), h.len());
     assert_eq!(b.len(), v.len());
-    if a.len() < 2 * 4 * N || b.len() < 4 * N {
-        return compute_rectangle(a, b, v);
+    if a.len() < 2 * L * N {
+        return 0;
     }
 
+    // Prevent allocation of unzipped `a` in this case.
+    if b.len() == 1 {
+        for i in 0..a.len() {
+            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
+        }
+        return h.iter().map(|h| h.value()).sum::<Cost>();
+    }
+
+    // Unzip bits of a so we can directly use unaligned reads later.
+    let ap0 = a.iter().map(|ca| ca.0).collect_vec();
+    let ap1 = a.iter().map(|ca| ca.1).collect_vec();
+
+    // Iterate over blocks of L*N rows at a time.
     let b_chunks = b.array_chunks::<{ L * N }>();
     let v_chunks = v.array_chunks_mut::<{ L * N }>();
-    let bv_chunks = izip!(b_chunks, v_chunks);
+    for (cbs, v) in izip!(b_chunks, v_chunks) {
+        compute_block_of_rows(a, &ap0, &ap1, cbs, h, v);
+    }
 
-    let rev = |i| 4 * N - 1 - i;
-
-    for (cb, v) in bv_chunks {
-        // Top-left triangle of block of rows.
-        for j in 0..4 * N - 1 {
-            for i in 0..4 * N - 1 - j {
-                compute_block_split_h(&mut ph[i], &mut mh[i], &mut v[j], cb[j][a[i] as usize]);
+    // Handle the remaining rows.
+    // - With exponential decay in exact mode.
+    // - With padding an a single extra call otherwise.
+    let mut b = b.array_chunks::<{ L * N }>().remainder();
+    let mut v = v.array_chunks_mut::<{ L * N }>().into_remainder();
+    assert_eq!(b.len(), v.len());
+    if exact_end {
+        // b.len() < 8 for N=2, L=4.
+        // - if >=4: N=1, L=4 simd row
+        // - if >=2: N=1, L=2 half-simd row
+        // - if >=1: scalar row
+        while b.len() >= 4 {
+            let (cbs, b_rem) = b.split_array_ref::<4>();
+            b = b_rem;
+            let (v2, v_rem) = v.split_array_mut::<4>();
+            v = v_rem;
+            compute_block_of_rows::<1, H, 4>(a, &ap0, &ap1, cbs, h, v2);
+        }
+        if b.len() >= 2 {
+            let (cbs, b_rem) = b.split_array_ref::<2>();
+            b = b_rem;
+            let (v2, v_rem) = v.split_array_mut::<2>();
+            v = v_rem;
+            compute_block_of_rows::<1, H, 2>(a, &ap0, &ap1, cbs, h, v2);
+        }
+        if b.len() >= 1 {
+            let (cbs, b_rem) = b.split_array_ref::<1>();
+            b = b_rem;
+            let (v2, v_rem) = v.split_array_mut::<1>();
+            v = v_rem;
+            for i in 0..a.len() {
+                block::compute_block::<BitProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);
             }
         }
-
-        // Middle with SIMD.
-        // Use a temp local SIMD `pv` and `mv` for vertical difference.
-        // NOTE: This 'unzipping' and 'zipping' of `pv` and `mv` is a bit ugly,
-        // but given that the loop goes over many columns, it doesn't matter for
-        // performance.
-        let mut pv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].p()));
-        let mut mv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].m()));
-        for (i, ca) in a.array_windows::<{ 4 * N }>().enumerate() {
-            // NOTE: The 'gather' operation resulting from this is slow!
-            let eqs: [S; N] = slice_to_simd(&from_fn(|i| unsafe {
-                *cb.get_unchecked(rev(i)).get_unchecked(ca[i] as usize)
-            }));
-
-            // SAFETY: By construction, a has the same length as ph and mh, and
-            // i iterates over windows of size L*N of a, so we can take equal
-            // windows of ph and mh.  Would be replaced by `array_windows_mut`
-            // if it existed.
-            let ph: &mut [B; L * N] = unsafe {
-                ph.get_unchecked_mut(i..i + L * N)
-                    .try_into()
-                    .unwrap_unchecked()
-            };
-            let mh: &mut [B; L * N] = unsafe {
-                mh.get_unchecked_mut(i..i + L * N)
-                    .try_into()
-                    .unwrap_unchecked()
-            };
-            let mut ph_simd = slice_to_simd(ph);
-            let mut mh_simd = slice_to_simd(mh);
-            for k in 0..N {
-                compute_block_simd(
-                    &mut ph_simd[k],
-                    &mut mh_simd[k],
-                    &mut pv_simd[k],
-                    &mut mv_simd[k],
-                    eqs[k],
+        assert!(b.len() == 0);
+        assert!(v.len() == 0);
+        h.iter().map(|h| h.value()).sum()
+    } else {
+        // Do a 1, 2, 4, or 8 row block.
+        // If needed, add padding: Add some extra v=0 elements to v and random
+        // chars to b and compute a larger block. Then, compute the horizontal
+        // delta, and remove the vertical delta at the end. Lastly, overwrite
+        // vertical deltas with the temporary variable.
+        let mut correction = 0;
+        match b.len() {
+            0 => {}
+            1 => {
+                for i in 0..a.len() {
+                    block::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
+                }
+            }
+            2 => {
+                compute_block_of_rows::<1, H, 2>(
+                    a,
+                    &ap0,
+                    &ap1,
+                    b.split_array_ref().0,
+                    h,
+                    v.split_array_mut().0,
                 );
             }
-            *ph = *simd_to_slice(&ph_simd);
-            *mh = *simd_to_slice(&mh_simd);
-        }
-        // Write back the local `pv` and `pv`.
-        let pv = simd_to_slice(&pv_simd);
-        let mv = simd_to_slice(&mv_simd);
-        *v = from_fn(|i| V::from(pv[rev(i)], mv[rev(i)]));
-
-        // Bottom-right triangle of block of rows.
-        for j in 1..4 * N {
-            for i in a.len() - j..a.len() {
-                compute_block_split_h(&mut ph[i], &mut mh[i], &mut v[j], cb[j][a[i] as usize]);
+            l @ (3 | 4) => {
+                let b_tmp = from_fn(|i| if i < l { b[i] } else { Bits(0, 0) });
+                let mut v_tmp = from_fn(|i| if i < l { v[i] } else { V::default() });
+                compute_block_of_rows::<1, H, 4>(a, &ap0, &ap1, &b_tmp, h, &mut v_tmp);
+                v[0..l].copy_from_slice(&v_tmp[0..l]);
+                correction = v_tmp[l..].iter().map(|v| v.value()).sum::<Cost>();
             }
+            l @ (5 | 6 | 7) => {
+                let b_tmp = from_fn(|i| if i < l { b[i] } else { Bits(0, 0) });
+                let mut v_tmp = from_fn(|i| if i < l { v[i] } else { V::default() });
+                compute_block_of_rows::<2, H, 4>(a, &ap0, &ap1, &b_tmp, h, &mut v_tmp);
+                v[0..l].copy_from_slice(&v_tmp[0..l]);
+                correction = v_tmp[l..].iter().map(|v| v.value()).sum::<Cost>();
+            }
+            _ => panic!(),
         }
+        h.iter().map(|h| h.value()).sum::<Cost>() - correction
     }
-
-    // TODO: Figure out which order is better for these 2 loops.
-    let b_chunks = b.array_chunks::<{ L * N }>();
-    let v_chunks = v.array_chunks_mut::<{ L * N }>();
-    for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
-        for (ca, ph, mh) in izip!(a.iter(), ph.iter_mut(), mh.iter_mut()) {
-            compute_block_split_h(ph, mh, v, cb[*ca as usize]);
-        }
-    }
-
-    ph.iter().sum::<B>() as D - mh.iter().sum::<B>() as D
 }
 
-/// Compute 4*N rows of 64-bit blocks at a time.
-///
-/// - Top/middle rows are with SIMD.
-///   - Top-left and bot-right triangle of the 4N row block are done with scalars.
-///     (4N(4N-1) blocks in total.)
-/// - Last <4*N rows are done with scalars.
-/// Returns the difference along the bottom row.
-pub fn compute_columns_simd_new<const N: usize>(
-    a: CompressedSeq,
-    b: ProfileSlice,
-    ph: &mut [B],
-    mh: &mut [B],
-    v: &mut [V],
-) -> D
-where
+#[inline(always)]
+fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
+    a: &[Bits],
+    ap0: &[B],
+    ap1: &[B],
+    cbs: &[Bits; L * N],
+    h: &mut [H],
+    v: &mut [V; L * N],
+) where
+    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
 {
-    assert_eq!(b.len(), v.len());
-    if a.len() < 2 * L * N || b.len() < L * N {
-        return compute_rectangle(a, b, v);
-    }
+    let rev = |k| L * N - 1 - k;
 
-    let b_chunks = b.array_chunks::<{ L * N }>();
-    let v_chunks = v.array_chunks_mut::<{ L * N }>();
-    let bv_chunks = izip!(b_chunks, v_chunks);
-
-    let rev = |i| L * N - 1 - i;
-
-    for (cb, v) in bv_chunks {
-        // Top-left triangle of block of rows.
-        // +1 at the ends because the main loop below skips the first iteration.
-        for j in 0..L * N - 1 + 1 {
-            for i in 0..L * N - 1 - j + 1 {
-                compute_block_split_h(&mut ph[i], &mut mh[i], &mut v[j], cb[j][a[i] as usize]);
-            }
-        }
-
-        // Middle with SIMD.
-        // Use a temp local SIMD `pv` and `mv` for vertical difference.
-        // NOTE: This 'unzipping' and 'zipping' of `pv` and `mv` is a bit ugly,
-        // but given that the loop goes over many columns, it doesn't matter for
-        // performance.
-        let mut pv_simd: [S; N] = slice_to_simd(&from_fn(|k| v[rev(k)].p()));
-        let mut mv_simd: [S; N] = slice_to_simd(&from_fn(|k| v[rev(k)].m()));
-
-        let mut ph_simd: [S; N] = slice_to_simd(&from_fn(|k| ph[k]));
-        let mut mh_simd: [S; N] = slice_to_simd(&from_fn(|k| mh[k]));
-
-        for (i, ca) in a.array_windows::<{ L * N }>().skip(1).enumerate() {
-            // Shifts ph_simd lanes left by one, and read in a new value.
-            let mut carry = unsafe { *ph.get_unchecked(i + L * N) };
-            for k in (0..N).rev() {
-                ph_simd[k] = ph_simd[k].rotate_lanes_left::<1>();
-                let new_carry = ph_simd[k].as_array()[3];
-                ph_simd[k].as_mut_array()[3] = carry;
-                carry = new_carry;
-            }
-            unsafe { *ph.get_unchecked_mut(i) = carry };
-
-            let mut carry = unsafe { *mh.get_unchecked(i + L * N) };
-            for k in (0..N).rev() {
-                mh_simd[k] = mh_simd[k].rotate_lanes_left::<1>();
-                let new_carry = mh_simd[k].as_array()[3];
-                mh_simd[k].as_mut_array()[3] = carry;
-                carry = new_carry;
-            }
-            unsafe { *mh.get_unchecked_mut(i) = carry };
-
-            // NOTE: The 'gather' operation resulting from this is slow!
-            let eqs: [S; N] = slice_to_simd(&from_fn(|i| unsafe {
-                *cb.get_unchecked(rev(i)).get_unchecked(ca[i] as usize)
-            }));
-
-            for k in 0..N {
-                compute_block_simd(
-                    &mut ph_simd[k],
-                    &mut mh_simd[k],
-                    &mut pv_simd[k],
-                    &mut mv_simd[k],
-                    eqs[k],
-                );
-            }
-        }
-        // Write back the remainder of ph_simd and mh simd.
-        let ph_last: &mut [B; L * N] = unsafe {
-            ph.get_unchecked_mut(ph.len() - L * N..ph.len())
-                .try_into()
-                .unwrap_unchecked()
-        };
-        let mh_last: &mut [B; L * N] = unsafe {
-            mh.get_unchecked_mut(mh.len() - L * N..mh.len())
-                .try_into()
-                .unwrap_unchecked()
-        };
-        *ph_last = *simd_to_slice(&ph_simd);
-        *mh_last = *simd_to_slice(&mh_simd);
-
-        // Write back the local `pv` and `pv`.
-        let pv = simd_to_slice(&pv_simd);
-        let mv = simd_to_slice(&mv_simd);
-        *v = from_fn(|i| V::from(pv[rev(i)], mv[rev(i)]));
-
-        // Bottom-right triangle of block of rows.
-        for j in 1..L * N {
-            for i in a.len() - j..a.len() {
-                compute_block_split_h(&mut ph[i], &mut mh[i], &mut v[j], cb[j][a[i] as usize]);
-            }
+    // Top-left triangle of block of rows.
+    for j in 0..L * N {
+        for i in 0..L * N - j {
+            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
         }
     }
 
-    // TODO: Figure out which order is better for these 2 loops.
-    let b_chunks = b.array_chunks::<{ L * N }>();
-    let v_chunks = v.array_chunks_mut::<{ L * N }>();
-    for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
-        for (ca, ph, mh) in izip!(a.iter(), ph.iter_mut(), mh.iter_mut()) {
-            compute_block_split_h(ph, mh, v, cb[*ca as usize]);
-        }
-    }
+    // Align b.
+    let b0: [S<L>; N] = slice_to_simd(&from_fn(|k| cbs[rev(k)].0));
+    let b1: [S<L>; N] = slice_to_simd(&from_fn(|k| cbs[rev(k)].1));
 
-    ph.iter().sum::<B>() as D - mh.iter().sum::<B>() as D
-}
+    // Align h.
+    let mut ph_simd: [S<L>; N] = slice_to_simd(&from_fn(|k| h[k].p()));
+    let mut mh_simd: [S<L>; N] = slice_to_simd(&from_fn(|k| h[k].m()));
 
-pub mod new_profile {
-    use super::*;
+    // Align v.
+    let mut pv_simd: [S<L>; N] = slice_to_simd(&from_fn(|k| v[rev(k)].p()));
+    let mut mv_simd: [S<L>; N] = slice_to_simd(&from_fn(|k| v[rev(k)].m()));
 
-    /// Compute 4*N rows of 64-bit blocks at a time.
-    ///
-    /// - Top/middle rows are with SIMD.
-    ///   - Top-left and bot-right triangle of the 4N row block are done with scalars.
-    ///     (4N(4N-1) blocks in total.)
-    /// - Last <4*N rows are done with scalars.
-    /// Returns the difference along the bottom row.
-    pub fn compute_columns_simd<const N: usize>(
-        a: CompressedSeq,
-        b: crate::new_profile::ProfileSlice,
-        ph: &mut [B],
-        mh: &mut [B],
-        v: &mut [V],
-    ) -> D
-    where
-        [(); L * N]: Sized,
+    // Loop over horizontal windows of a.
+    // The h windows are updated manually by rotating simd lanes of the
+    // local variable h_simd.
+    assert_eq!(ap0.len(), ap1.len());
+    for (i, (a0, a1)) in izip!(
+        ap0.array_windows::<{ L * N }>().skip(1),
+        ap1.array_windows::<{ L * N }>().skip(1)
+    )
+    .enumerate()
     {
-        assert_eq!(b.len(), v.len());
-        if a.len() <= 2 * L * N || b.len() < L * N {
-            return crate::new_profile::compute_rectangle(a, b, v);
+        // Rotate the lanes of h.
+        unsafe {
+            let (p, m) = h.get_unchecked(i + L * N).pm();
+            let pcarry = rotate_left(&mut ph_simd, p);
+            let mcarry = rotate_left(&mut mh_simd, m);
+            *h.get_unchecked_mut(i) = H::from(pcarry, mcarry);
         }
 
-        let ap0 = a
-            .iter()
-            .map(|ca| 0u64.wrapping_sub(*ca as B & 1))
-            .collect_vec();
-        let ap1 = a
-            .iter()
-            .map(|ca| 0u64.wrapping_sub((*ca as B >> 1) & 1))
-            .collect_vec();
-
-        let b_chunks = b.array_chunks::<{ L * N }>();
-        let v_chunks = v.array_chunks_mut::<{ L * N }>();
-        let bv_chunks = izip!(b_chunks, v_chunks);
-
-        let rev = |i| L * N - 1 - i;
-
-        for (cb, v) in bv_chunks {
-            // Top-left triangle of block of rows.
-            // +1 at the ends because the main loop below skips the first iteration.
-            for j in 0..L * N - 1 + 1 {
-                for i in 0..L * N - 1 - j + 1 {
-                    compute_block_split_h(
-                        &mut ph[i],
-                        &mut mh[i],
-                        &mut v[j],
-                        (cb[j].0 ^ ap0[i]) & (cb[j].1 ^ ap1[i]),
-                    );
-                }
-            }
-
-            // Unzip the (b0, b1) indicators and put them into simd vecs.
-            let b0: [S; N] = slice_to_simd(&from_fn(|i| cb[rev(i)].0));
-            let b1: [S; N] = slice_to_simd(&from_fn(|i| cb[rev(i)].1));
-
-            // Middle with SIMD.
-            // Use a temp local SIMD `pv` and `mv` for vertical difference.
-            // NOTE: This 'unzipping' and 'zipping' of `pv` and `mv` is a bit ugly,
-            // but given that the loop goes over many columns, it doesn't matter for
-            // performance.
-            let mut pv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].p()));
-            let mut mv_simd: [S; N] = slice_to_simd(&from_fn(|i| v[rev(i)].m()));
-
-            let mut ph_simd: [S; N] = slice_to_simd(&from_fn(|i| ph[i]));
-            let mut mh_simd: [S; N] = slice_to_simd(&from_fn(|i| mh[i]));
-
-            for (i, (ca0, ca1)) in izip!(
-                ap0.array_windows::<{ L * N }>().skip(1),
-                ap1.array_windows::<{ L * N }>().skip(1)
-            )
-            .enumerate()
-            {
-                // Shifts ph_simd lanes left by one, and read in a new value.
-                let mut carry = unsafe { *ph.get_unchecked(i + L * N) };
-                for k in (0..N).rev() {
-                    ph_simd[k] = ph_simd[k].rotate_lanes_left::<1>();
-                    let new_carry = ph_simd[k].as_array()[3];
-                    ph_simd[k].as_mut_array()[3] = carry;
-                    carry = new_carry;
-                }
-                unsafe { *ph.get_unchecked_mut(i) = carry };
-
-                let mut carry = unsafe { *mh.get_unchecked(i + L * N) };
-                for k in (0..N).rev() {
-                    mh_simd[k] = mh_simd[k].rotate_lanes_left::<1>();
-                    let new_carry = mh_simd[k].as_array()[3];
-                    mh_simd[k].as_mut_array()[3] = carry;
-                    carry = new_carry;
-                }
-                unsafe { *mh.get_unchecked_mut(i) = carry };
-
-                let a0: [S; N] = slice_to_simd(ca0);
-                let a1: [S; N] = slice_to_simd(ca1);
-                // NOTE: The 'gather' operation resulting from this is slow!
-                let eqs: [S; N] = from_fn(|k| (b0[k] ^ a0[k]) & (b1[k] ^ a1[k]));
-                for k in 0..N {
-                    compute_block_simd(
-                        &mut ph_simd[k],
-                        &mut mh_simd[k],
-                        &mut pv_simd[k],
-                        &mut mv_simd[k],
-                        eqs[k],
-                    );
-                }
-            }
-            // Write back the remainder of ph_simd and mh simd.
-            let ph_last: &mut [B; L * N] = unsafe {
-                ph.get_unchecked_mut(ph.len() - L * N..ph.len())
-                    .try_into()
-                    .unwrap_unchecked()
-            };
-            let mh_last: &mut [B; L * N] = unsafe {
-                mh.get_unchecked_mut(mh.len() - L * N..mh.len())
-                    .try_into()
-                    .unwrap_unchecked()
-            };
-            *ph_last = *simd_to_slice(&ph_simd);
-            *mh_last = *simd_to_slice(&mh_simd);
-
-            // Write back the local `pv` and `pv`.
-            let pv = simd_to_slice(&pv_simd);
-            let mv = simd_to_slice(&mv_simd);
-            *v = from_fn(|k| V::from(pv[rev(k)], mv[rev(k)]));
-
-            // Bottom-right triangle of block of rows.
-            for j in 1..L * N {
-                for i in a.len() - j..a.len() {
-                    compute_block_split_h(
-                        &mut ph[i],
-                        &mut mh[i],
-                        &mut v[j],
-                        (cb[j].0 ^ ap0[i]) & (cb[j].1 ^ ap1[i]),
-                    );
-                }
-            }
+        // Read the unaligned lanes of a.
+        let a0 = slice_to_simd(a0);
+        let a1 = slice_to_simd(a1);
+        // The .rev() here makes things marginally faster.
+        for k in (0..N).rev() {
+            block::compute_block_simd(
+                &mut ph_simd[k],
+                &mut mh_simd[k],
+                &mut pv_simd[k],
+                &mut mv_simd[k],
+                (&a0[k], &a1[k]),
+                (&b0[k], &b1[k]),
+            );
         }
+    }
 
-        // TODO: Figure out which order is better for these 2 loops.
-        let b_chunks = b.array_chunks::<{ L * N }>();
-        let v_chunks = v.array_chunks_mut::<{ L * N }>();
-        for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
-            for (ca0, ca1, ph, mh) in izip!(ap0.iter(), ap1.iter(), ph.iter_mut(), mh.iter_mut()) {
-                compute_block_split_h(ph, mh, v, (cb.0 ^ ca0) & (cb.1 ^ ca1));
-            }
+    // Write back h to unaligned slice.
+    unsafe {
+        let ph = simd_to_slice(&ph_simd);
+        let mh = simd_to_slice(&mh_simd);
+        for i in 0..L * N {
+            *h.get_unchecked_mut(h.len() - L * N + i) = H::from(ph[i], mh[i]);
         }
+    }
 
-        ph.iter().sum::<B>() as D - mh.iter().sum::<B>() as D
+    // Write back v to unaligned slice.
+    let pv = simd_to_slice(&pv_simd);
+    let mv = simd_to_slice(&mv_simd);
+    *v = from_fn(|k| V::from(pv[rev(k)], mv[rev(k)]));
+
+    // Bottom-right triangle of block of rows.
+    for j in 0..L * N {
+        for i in a.len() - j..a.len() {
+            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+        }
     }
 }

@@ -1,6 +1,5 @@
-use pa_types::I;
-
-use crate::{B, D, W};
+use crate::{B, W};
+use pa_types::{Cost, I};
 
 #[derive(Clone, Default, Copy, PartialEq, Eq, Debug)]
 pub struct V(B, B);
@@ -14,24 +13,24 @@ impl V {
         V(p, m)
     }
     #[inline(always)]
-    pub fn value(&self) -> D {
-        self.0.count_ones() as D - self.1.count_ones() as D
+    pub fn value(&self) -> Cost {
+        self.0.count_ones() as Cost - self.1.count_ones() as Cost
     }
     /// Value of the first `j` bits.
     /// NOTE: Requires `j < W`.
     #[inline(always)]
-    pub fn value_of_prefix(&self, j: I) -> D {
+    pub fn value_of_prefix(&self, j: I) -> Cost {
         assert!(0 <= j && j < W as I);
         let mask = (1 << j) - 1;
-        (self.0 & mask).count_ones() as D - (self.1 & mask).count_ones() as D
+        (self.0 & mask).count_ones() as Cost - (self.1 & mask).count_ones() as Cost
     }
     /// Value of the last `j` bits.
     /// NOTE: Requires `j > 0`.
     #[inline(always)]
-    pub fn value_of_suffix(&self, j: I) -> D {
+    pub fn value_of_suffix(&self, j: I) -> Cost {
         assert!(0 < j && j <= W as I);
         let mask = !(((1 as B) << (W as I - j)).wrapping_sub(1));
-        (self.0 & mask).count_ones() as D - (self.1 & mask).count_ones() as D
+        (self.0 & mask).count_ones() as Cost - (self.1 & mask).count_ones() as Cost
     }
     #[inline(always)]
     pub fn pm(&self) -> (B, B) {
@@ -50,9 +49,13 @@ impl V {
 pub trait HEncoding: Copy {
     fn one() -> Self;
     fn from(p: B, m: B) -> Self;
-    fn value(&self) -> D;
+    fn value(&self) -> Cost;
     fn p(&self) -> B;
     fn m(&self) -> B;
+    #[inline(always)]
+    fn pm(&self) -> (B, B) {
+        (self.p(), self.m())
+    }
 }
 
 impl HEncoding for i8 {
@@ -65,8 +68,8 @@ impl HEncoding for i8 {
         p as i8 - m as i8
     }
     #[inline(always)]
-    fn value(&self) -> D {
-        *self as D
+    fn value(&self) -> Cost {
+        *self as Cost
     }
     #[inline(always)]
     fn p(&self) -> B {
@@ -88,8 +91,8 @@ impl HEncoding for (u8, u8) {
         (p as u8, m as u8)
     }
     #[inline(always)]
-    fn value(&self) -> D {
-        self.0 as D - self.1 as D
+    fn value(&self) -> Cost {
+        self.0 as Cost - self.1 as Cost
     }
     #[inline(always)]
     fn p(&self) -> B {
@@ -112,8 +115,8 @@ impl HEncoding for (B, B) {
         (p, m)
     }
     #[inline(always)]
-    fn value(&self) -> D {
-        self.0 as D - self.1 as D
+    fn value(&self) -> Cost {
+        self.0 as Cost - self.1 as Cost
     }
     #[inline(always)]
     fn p(&self) -> B {

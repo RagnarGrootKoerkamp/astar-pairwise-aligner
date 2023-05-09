@@ -1,6 +1,6 @@
 # Run criterion
-run_bench_json:
-    cargo criterion --bench nw --message-format=json --plotting-backend=disabled -- --quick > bench.json
+bench_json:
+    cargo criterion --bench nw --message-format=json --plotting-backend=disabled -- --quiet --quick > bench.json
     jq -s '[.[] | select(.reason == "benchmark-complete") \
     | { \
         id: .id, \
@@ -13,20 +13,22 @@ run_bench_json:
 build:
     cargo build -r --bench nw
 
-bench bench='Local/B/Col' *args='':
-    cargo bench --bench nw -- --quiet -n --warm-up-time 0.2 --measurement-time 1 "{{bench}}" {{args}}
+bench bench='' *args='':
+    cargo bench --bench nw -- --quiet -n "{{bench}}" {{args}}
 
 # instructions per cycle
-stat bench='time/Local/B/Col' *args='': build
+stat bench='' *args='': build
     perf stat cargo bench --bench nw -- --profile-time 5 "{{bench}}" {{args}}
 
 # record time usage
-report bench='time/Local/B/Col' *args='': build
-    perf record cargo bench --bench nw -- --profile-time 5 "{{bench}}" {{args}}
+record bench='' *args='': build
+    perf record cargo bench --bench nw -- --profile-time 2 "{{bench}}" {{args}}
+    perf report -n
+report:
     perf report -n
 
 # instructions per cycle
-flamegraph bench='time/Local/B/Col' *args='': build
+flamegraph bench='' *args='': build
     cargo flamegraph --bench nw -- --bench --profile-time 5 "{{bench}}" {{args}} && open flamegraph.svg
 
 viz:

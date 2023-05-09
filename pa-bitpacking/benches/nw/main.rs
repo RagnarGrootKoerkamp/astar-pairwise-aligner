@@ -1,200 +1,169 @@
-//! TODO:
-//! - Apply `profile` once at the start, instead of inside each benchmarked function.
-#![allow(incomplete_features)]
-#![feature(
-    let_chains,
-    int_roundings,
-    test,
-    array_chunks,
-    iter_array_chunks,
-    array_windows,
-    split_array,
-    portable_simd,
-    generic_const_exprs,
-    concat_idents,
-    bigint_helper_methods,
-    core_intrinsics
-)]
-
+#![feature(portable_simd)]
 use bio::alignment::distance::simd::levenshtein;
-use criterion::measurement::Measurement;
-use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion};
-use criterion_perf_events::Perf;
-use pa_types::Sequence;
-use pa_vis_types::NoVis;
-use perfcnt::linux::HardwareEventType as Hardware;
-use perfcnt::linux::PerfCounterBuilderLinux as Builder;
+use criterion::{
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+};
+use pa_generate::{get_rng, random_sequence};
+use pa_types::Cost;
+use std::time::Duration;
 
-use pa_bitpacking::*;
-use strum::IntoEnumIterator;
+use pa_bitpacking::{bit_profile::Bits, *};
 
-mod scalar;
-mod simd;
-use scalar::*;
-use simd::*;
+const TEST: bool = true;
 
-fn profiles<M: Measurement>(a: &Sequence, b: &Sequence, c: &mut BenchmarkGroup<M>, d: D) {
-    let d = d - b.len() as D;
-    let (ref ap, ref bp) = profile(a, b);
-    c.bench_function(BenchmarkId::new("OldProfile", ""), |bb| {
-        bb.iter(|| {
-            let mut v = vec![V::one(); bp.len()];
-            let d2 = compute_rectangle((ap).into(), &bp, &mut v);
-            assert_eq!(d2, d)
-        })
-    });
-    let (ap, bp) = new_profile::profile(a, b);
-    c.bench_function(BenchmarkId::new("NewProfile", ""), |bb| {
-        bb.iter(|| {
-            let mut v = vec![V::one(); bp.len()];
-            let d2 = new_profile::compute_rectangle((&ap).into(), &bp, &mut v);
-            assert_eq!(d2, d)
-        })
-    });
-    c.bench_function(BenchmarkId::new("SimdRowProfile", format!("1")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd2_profile::<1>((&ap).into(), &bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRowProfile", format!("2")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd2_profile::<2>((&ap).into(), &bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRowProfile", format!("3")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd2_profile::<3>((&ap).into(), &bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRowProfile", format!("4")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd2_profile::<4>((&ap).into(), &bp), d))
-    });
-}
-
-fn h_bench<H: HEncoding, M: Measurement>(
-    t: &str,
-    a: CompressedSeq,
-    bp: ProfileSlice,
-    c: &mut BenchmarkGroup<M>,
-    d: D,
+fn bench_scalar<P: Profile, H: HEncoding>(
+    c: &mut BenchmarkGroup<WallTime>,
+    pa: &[P::A],
+    pb: &[P::B],
+    d: Cost,
+    prefix: &str,
 ) {
-    for dir in Order::iter() {
-        c.bench_function(BenchmarkId::new("Local", format!("{t}/{dir}")), |bb| {
-            bb.iter(|| assert_eq!(nw::<H>(a, bp, dir, &NoVis), d))
+    let mut h = vec![H::one(); pa.len()];
+    let mut v = vec![V::one(); pb.len()];
+    let mut test = |name: &str, f: fn(&[P::A], &[P::B], &mut [H], &mut [V]) -> Cost| {
+        h.fill(H::one());
+        v.fill(V::one());
+        let d2 = f(pa, pb, &mut h, &mut v);
+        if d2 == 0 {
+            return;
+        }
+        c.bench_function(&format!("{prefix}/{name}"), |bb| {
+            bb.iter(|| {
+                h.fill(H::one());
+                v.fill(V::one());
+                let d2 = f(pa, pb, &mut h, &mut v);
+                if TEST && d2 != d && d2 != 0 {
+                    panic!("{} != {}", d, d2)
+                }
+            })
         });
-    }
+    };
 
-    if false {
-        for dir in Direction::iter() {
-            c.bench_function(BenchmarkId::new("Diag", format!("{t}/{dir}")), |bb| {
-                bb.iter(|| assert_eq!(nw_diag::<H>(a, bp, dir, &NoVis), d))
-            });
-        }
+    use scalar::*;
+    test("col", col::<P, H>);
+    test("row", row::<P, H>);
+    // test("diagru", diag_ru::<P, H>);
+    // test("diagld", diag_ld::<P, H>);
+    // test("colsru/1", cols_ru::<1, P, H>);
+    // test("colsru/2", cols_ru::<2, P, H>);
+    // test("colsru/3", cols_ru::<3, P, H>);
+    // test("colsru/4", cols_ru::<4, P, H>);
+    // test("colsld/1", cols_ld::<1, P, H>);
+    // test("colsld/2", cols_ld::<2, P, H>);
+    // test("colsld/3", cols_ld::<3, P, H>);
+    // test("colsld/4", cols_ld::<4, P, H>);
+    // test("rowsru/1", rows_ru::<1, P, H>);
+    // test("rowsru/2", rows_ru::<2, P, H>);
+    // test("rowsru/3", rows_ru::<3, P, H>);
+    // test("rowsru/4", rows_ru::<4, P, H>);
+    // test("rowsld/1", rows_ld::<1, P, H>);
+    // test("rowsld/2", rows_ld::<2, P, H>);
+    // test("rowsld/3", rows_ld::<3, P, H>);
+    // test("rowsld/4", rows_ld::<4, P, H>);
 
-        for dir in Direction::iter() {
-            c.bench_function(BenchmarkId::new("Striped", format!("{t}/{dir}/1")), |bb| {
-                bb.iter(|| assert_eq!(nw_striped_col::<1, H>(a, bp, dir, &NoVis), d))
-            });
-            c.bench_function(BenchmarkId::new("Striped", format!("{t}/{dir}/2")), |bb| {
-                bb.iter(|| assert_eq!(nw_striped_col::<2, H>(a, bp, dir, &NoVis), d))
-            });
-            c.bench_function(BenchmarkId::new("Striped", format!("{t}/{dir}/3")), |bb| {
-                bb.iter(|| assert_eq!(nw_striped_col::<3, H>(a, bp, dir, &NoVis), d))
-            });
-            c.bench_function(BenchmarkId::new("Striped", format!("{t}/{dir}/4")), |bb| {
-                bb.iter(|| assert_eq!(nw_striped_col::<4, H>(a, bp, dir, &NoVis), d))
-            });
-        }
-    }
+    // let mut test_local = |name: &str, f: fn(&[P::A], &[P::B], &mut [V]) -> Cost| {
+    //     v.fill(V::one());
+    //     let d2 = f(pa, pb, &mut v);
+    //     if d2 == 0 {
+    //         return;
+    //     }
+    //     c.bench_function(&format!("{prefix}/{name}"), |bb| {
+    //         bb.iter(|| {
+    //             h.fill(H::one());
+    //             v.fill(V::one());
+    //             let d2 = f(pa, pb, &mut v);
+    //             if TEST && d2 != d && d2 != 0 {
+    //                 panic!("{} != {}", d, d2)
+    //             }
+    //         })
+    //     });
+    // };
+
+    // test_local("col/lh", col_local_h::<P, H>);
+    // test_local("colsru/lh/1", cols_ru_local_h::<1, P, H>);
+    // test_local("colsru/lh/2", cols_ru_local_h::<2, P, H>);
+    // test_local("colsru/lh/3", cols_ru_local_h::<3, P, H>);
+    // test_local("colsru/lh/4", cols_ru_local_h::<4, P, H>);
+    // test_local("colsld/lh/1", cols_ld_local_h::<1, P, H>);
+    // test_local("colsld/lh/2", cols_ld_local_h::<2, P, H>);
+    // test_local("colsld/lh/3", cols_ld_local_h::<3, P, H>);
+    // test_local("colsld/lh/4", cols_ld_local_h::<4, P, H>);
 }
 
-fn simd_bench<M: Measurement>(
-    a: CompressedSeq,
-    b: CompressedSeq,
-    bp: ProfileSlice,
-    c: &mut BenchmarkGroup<M>,
-    d: D,
+fn bench_simd<H: HEncoding>(
+    c: &mut BenchmarkGroup<WallTime>,
+    pa: &[Bits],
+    pb: &[Bits],
+    d: Cost,
+    prefix: &str,
 ) {
-    // Functions only output the difference along the bottom row, so we correct
-    // for that here.
-    let d = d - b.len() as D;
+    let mut h = vec![H::one(); pa.len()];
+    let mut v = vec![V::one(); pb.len()];
+    let mut test =
+        |name: &str, f: fn(&[Bits], &[Bits], &mut [H], &mut [V], bool) -> Cost, exact: bool| {
+            h.fill(H::one());
+            v.fill(V::one());
+            let d2 = f(pa, pb, &mut h, &mut v, exact);
+            if d2 == 0 {
+                return;
+            }
+            c.bench_function(&format!("{prefix}/{name}"), |bb| {
+                bb.iter(|| {
+                    h.fill(H::one());
+                    v.fill(V::one());
+                    let d2 = f(pa, pb, &mut h, &mut v, exact);
+                    if TEST && d2 != d && d2 != 0 {
+                        panic!("{} != {}", d, d2)
+                    }
+                })
+            });
+        };
 
-    //let bp = padded_profile(b, 1 * 4 - 1);
-    c.bench_function(BenchmarkId::new("Simd", format!("1")), |bb| {
-        let bp = padded_profile(b, 1 * 4 - 1);
-        bb.iter(|| assert_eq!(nw_simd_striped_col::<1>(a, &bp, &NoVis), d))
-    });
-    c.bench_function(BenchmarkId::new("Simd", format!("2")), |bb| {
-        let bp = padded_profile(b, 2 * 4 - 1);
-        bb.iter(|| assert_eq!(nw_simd_striped_col::<2>(a, &bp, &NoVis), d))
-    });
-    c.bench_function(BenchmarkId::new("Simd", format!("3")), |bb| {
-        let bp = padded_profile(b, 3 * 4 - 1);
-        bb.iter(|| assert_eq!(nw_simd_striped_col::<3>(a, &bp, &NoVis), d))
-    });
-    c.bench_function(BenchmarkId::new("Simd", format!("4")), |bb| {
-        let bp = padded_profile(b, 4 * 4 - 1);
-        bb.iter(|| assert_eq!(nw_simd_striped_col::<4>(a, &bp, &NoVis), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRow", format!("1")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd::<1>(a, bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRow", format!("2")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd::<2>(a, bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRow", format!("3")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd::<3>(a, bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRow", format!("4")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd::<4>(a, bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRow2", format!("1")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd2::<1>(a, bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRow2", format!("2")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd2::<2>(a, bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRow2", format!("3")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd2::<3>(a, bp), d))
-    });
-    c.bench_function(BenchmarkId::new("SimdRow2", format!("4")), |bb| {
-        bb.iter(|| assert_eq!(nw_simd2::<4>(a, bp), d))
-    });
+    use simd::*;
+
+    // test("simd1rowx/1", row::<1, H, 1>, true);
+    // test("simd1rowx/2", row::<2, H, 1>, true);
+    test("simd2rowx/1", row::<1, H, 2>, true);
+    // test("simd2rowx/2", row::<2, H, 2>, true);
+    test("simd4rowx/1", row::<1, H, 4>, true);
+    test("simd4rowx/2", row::<2, H, 4>, true);
+
+    // test("simd1rowp/1", row::<1, H, 1>, false);
+    // test("simd1rowp/2", row::<2, H, 1>, false);
+    test("simd2rowp/1", row::<1, H, 2>, false);
+    // test("simd2rowp/2", row::<2, H, 2>, false);
+    test("simd4rowp/1", row::<1, H, 4>, false);
+    test("simd4rowp/2", row::<2, H, 4>, false);
 }
 
-fn bench<M: Measurement>(unit: &str, c: &mut Criterion<M>) {
-    let (a, _) = &pa_generate::uniform_fixed(256, 0.);
-    let (b, _) = &pa_generate::uniform_fixed(4096, 0.);
+fn bench(c: &mut Criterion) {
+    for height in (64..=512).step_by(64) {
+        let c = &mut c.benchmark_group(&format!("{}", height));
+        let rng = &mut get_rng(Some(31415));
+        let a = &random_sequence(256, rng);
+        let b = &random_sequence(height, rng);
+        let d = if TEST {
+            levenshtein(a, b) as Cost - b.len() as Cost
+        } else {
+            0
+        };
 
-    let (_, bp) = profile(a, b);
-    let (ref ac, ref bc) = compress(a, b);
+        let (ref pa, ref pb) = ScatterProfile::build(a, b);
+        bench_scalar::<ScatterProfile, (u8, u8)>(c, pa, pb, d, "scat/u8");
+        bench_scalar::<ScatterProfile, (u64, u64)>(c, pa, pb, d, "scat/u64");
 
-    let d = levenshtein(ac, bc) as D;
+        let (ref pa, ref pb) = BitProfile::build(a, b);
+        bench_scalar::<BitProfile, (u8, u8)>(c, pa, pb, d, "bit/u8");
+        bench_scalar::<BitProfile, (u64, u64)>(c, pa, pb, d, "bit/u64");
 
-    let c = &mut c.benchmark_group(unit);
-    profiles(a, b, c, d);
-    // c.bench_function("TripleAccel", |bb| {
-    //     bb.iter(|| assert_eq!(levenshtein(ac, bc) as D, d))
-    // });
-    // h_bench::<i8, M>("i8", ac.into(), &bp, c, d);
-    h_bench::<(u8, u8), M>("u8", ac.into(), &bp, c, d);
-    h_bench::<(B, B), M>("B", ac.into(), &bp, c, d);
-    simd_bench(ac.into(), bc.into(), &bp, c, d);
+        // bench_simd::<(u8, u8)>(c, pa, pb, d, "bit/u8");
+        bench_simd::<(u64, u64)>(c, pa, pb, d, "bit/u64");
+    }
 }
 
-fn bench_time<M: Measurement>(c: &mut Criterion<M>) {
-    bench("time", c);
-}
-fn bench_instr<M: Measurement>(c: &mut Criterion<M>) {
-    bench("instr", c);
-}
-fn bench_cycles<M: Measurement>(c: &mut Criterion<M>) {
-    bench("cycles", c);
-}
-
-criterion_group!(benches, bench_time);
 criterion_group!(
-    name = instructions_bench;
-    config = Criterion::default().with_measurement(Perf::new(Builder::from_hardware_event(Hardware::Instructions)));
-    targets = bench_instr
+    name = benches;
+    config = Criterion::default().measurement_time(Duration::from_millis(500)).warm_up_time(Duration::from_millis(100));
+    targets = bench
 );
-criterion_group!(
-    name = cycles_bench;
-    config = Criterion::default().with_measurement(Perf::new(Builder::from_hardware_event(Hardware::CPUCycles)));
-    targets = bench_cycles
-);
-criterion_main!(benches, cycles_bench, instructions_bench);
+criterion_main!(benches);
