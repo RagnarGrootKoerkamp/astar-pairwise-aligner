@@ -94,6 +94,13 @@ impl Pruning {
     }
 }
 
+#[derive(Default, Clone, Debug)]
+struct ActiveRange {
+    col: I,
+    before: Range<usize>,
+    after: Option<Range<usize>>,
+}
+
 /// Datastructure that holds all matches and allows for efficient lookup of
 /// matches by start, end (if needed), and range.
 ///
@@ -114,6 +121,11 @@ pub struct MatchPruner {
     by_end: Vec<Match>,
     /// For each match end, the index `matches_by_end` where matches end.
     end_index: HashMap<Pos, Range<usize>>,
+
+    /// For start column `I`, the range of active matches.
+    // TODO: The binary search to find the first seed in the range could be removed.
+    // Initially the second range is empty when the interval hasn't been split yet.
+    active_range: Vec<ActiveRange>,
 }
 
 impl MatchPruner {
@@ -121,6 +133,7 @@ impl MatchPruner {
         pruning: Pruning,
         check_consistency: bool,
         mut matches_by_start: Vec<Match>,
+        seeds: &Seeds,
     ) -> MatchPruner {
         // Sort by start, then by  match cost.
         // This ensures that matches are pruned from low cost to high cost.
@@ -150,6 +163,30 @@ impl MatchPruner {
             Default::default()
         };
 
+        let mut mi = matches_by_start.iter().peekable();
+        let mut idx = 0;
+        let active_range = if pruning.prune_start() {
+            seeds
+                .seeds
+                .iter()
+                .map(|s| {
+                    let mut ar = ActiveRange {
+                        col: s.start,
+                        before: idx..idx,
+                        after: None,
+                    };
+                    while mi.peek().is_some_and(|m| m.start.0 == s.start) {
+                        idx += 1;
+                        ar.before.end = idx;
+                        mi.next();
+                    }
+                    ar
+                })
+                .collect_vec()
+        } else {
+            vec![]
+        };
+
         MatchPruner {
             pruning,
             check_consistency,
@@ -158,6 +195,7 @@ impl MatchPruner {
             start_index: by_start,
             by_end: matches_by_end,
             end_index: by_end,
+            active_range,
         }
     }
 
@@ -199,6 +237,52 @@ impl MatchPruner {
             }
         };
         cnt
+    }
+
+    /// Prune all matches starting in the given block.
+    /// Both ranges are *inclusive*.
+    /// Note that if for some `i` the `j_range` is disjoint from the previous range, all matches in between are also pruned.
+    pub fn prune_block(&mut self, i_range: Range<I>, j_range: Range<I>, mut f: impl FnMut(&Match)) {
+        // eprintln!("prune_block: i_range={i_range:?}, j_range={j_range:?}");
+        assert_eq!(self.pruning.enabled, Prune::Start);
+        assert!(j_range.start <= j_range.end);
+        let mut seed_idx = self
+            .active_range
+            .binary_search_by_key(&(i_range.start + 1), |ar| ar.col)
+            .unwrap_or_else(|idx| idx);
+        while let Some(ar) = self.active_range.get_mut(seed_idx) && ar.col <= i_range.end {
+            // eprintln!("range: {ar:?}");
+            let after = if let Some(after) = ar.after.as_mut() {
+                after
+            } else {
+                // Split the full range into the part before (and including) the j_range and the rest.
+                let mut after = ar.before.end..ar.before.end;
+                while after.start >= ar.before.start+1 && self.by_start[after.start-1].start.1 > j_range.end {
+                    ar.before.end -= 1;
+                    after.start -= 1;
+                    // eprintln!("Index {} is after", after.start);
+                }
+                ar.after = Some(after);
+                // eprintln!("range: {ar:?}");
+                ar.after.as_mut().unwrap()
+            };
+
+            // Prune the matches at the end of `before` and the start of `after` whose start falls in `j_range`.
+            while ar.before.end > ar.before.start && self.by_start[ar.before.end - 1].start.1 >= j_range.start {
+                let m = &mut self.by_start[ar.before.end - 1];
+                m.prune();
+                f(m);
+                ar.before.end -= 1;
+            }
+            while after.start < after.end && self.by_start[after.start].start.1 <= j_range.end {
+                let m = &mut self.by_start[after.start];
+                m.prune();
+                f(m);
+                after.start += 1;
+            }
+
+            seed_idx += 1;
+        }
     }
 
     fn prune_match(&mut self, m: &Match) {

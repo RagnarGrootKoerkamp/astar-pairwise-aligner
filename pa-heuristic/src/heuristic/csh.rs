@@ -236,7 +236,7 @@ impl<C: Contours> CSHI<C> {
             score: m.score(),
         };
 
-        let mut pruner = MatchPruner::new(params.pruning, params.use_gap_cost, matches);
+        let mut pruner = MatchPruner::new(params.pruning, params.use_gap_cost, matches, &seeds);
 
         // Matches are sorted by reversed start (the order needed to construct contours).
         // TODO: Can we get rid of this ugly temporary copy somehow?

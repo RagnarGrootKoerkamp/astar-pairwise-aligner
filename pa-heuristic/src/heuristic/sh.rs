@@ -62,8 +62,8 @@ impl SHI {
             params,
             max_explored_pos: Pos(0, 0),
             stats,
+            matches: MatchPruner::new(params.pruning, false, matches, &seeds),
             seeds,
-            matches: MatchPruner::new(params.pruning, false, matches),
             contours,
         };
         h.stats.h0 = h.h(Pos(0, 0));

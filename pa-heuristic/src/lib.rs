@@ -1,4 +1,10 @@
-#![feature(is_sorted, associated_type_defaults, drain_filter, int_roundings)]
+#![feature(
+    is_sorted,
+    associated_type_defaults,
+    drain_filter,
+    int_roundings,
+    let_chains
+)]
 
 mod cli;
 mod config;
