@@ -309,6 +309,7 @@ mod nw_sh {
                 front: AffineFront,
                 trace: true,
                 sparse_h: true,
+                prune: true,
             },
             // test `align` as well?
             true,

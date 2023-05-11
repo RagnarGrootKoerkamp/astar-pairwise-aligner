@@ -84,6 +84,7 @@ fn main() {
         front: AffineFront,
         trace: true,
         sparse_h: true,
+        prune: true,
     };
     aligner.align(a, b);
 
@@ -103,6 +104,7 @@ fn main() {
         front: AffineFront,
         trace: true,
         sparse_h: true,
+        prune: true,
     };
     aligner.align(a, b);
 }

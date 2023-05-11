@@ -45,7 +45,8 @@ fn main() {
             v: vis("nw"),
             front: AffineFront,
             trace: true,
-            sparse_h: true,
+            sparse_h: false,
+            prune: false,
         };
         nw.align(a, b);
     }
@@ -59,7 +60,8 @@ fn main() {
             v: vis("nw_gapcost"),
             front: AffineFront,
             trace: true,
-            sparse_h: true,
+            sparse_h: false,
+            prune: false,
         };
         nw.align(a, b);
     }
@@ -73,7 +75,8 @@ fn main() {
             v: vis("nw_gapcost_h"),
             front: AffineFront,
             trace: true,
-            sparse_h: true,
+            sparse_h: false,
+            prune: false,
         };
 
         nw.align(a, b);
@@ -88,7 +91,8 @@ fn main() {
             v: vis("nw_sh"),
             front: AffineFront,
             trace: true,
-            sparse_h: true,
+            sparse_h: false,
+            prune: false,
         };
 
         nw.align(a, b);
@@ -103,7 +107,8 @@ fn main() {
             v: vis("nw_csh"),
             front: AffineFront,
             trace: true,
-            sparse_h: true,
+            sparse_h: false,
+            prune: false,
         };
 
         nw.align(a, b);

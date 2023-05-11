@@ -38,7 +38,8 @@ fn main() {
                     v: NoVis,
                     front: AffineFront,
                     trace: true,
-                    sparse_h: true,
+                    sparse_h: false,
+                    prune: false,
                 }
                 .cost(a, b);
                 eprintln!(

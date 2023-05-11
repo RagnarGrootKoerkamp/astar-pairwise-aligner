@@ -51,7 +51,8 @@ fn main() {
             v: config.with_filename("1_ukkonen"),
             front: AffineFront,
             trace: true,
-            sparse_h: true,
+            sparse_h: false,
+            prune: false,
         }),
         Box::new(AstarPa {
             dt: false,
