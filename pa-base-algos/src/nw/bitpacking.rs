@@ -54,6 +54,9 @@ pub struct BitFronts {
     /// Store horizontal differences for row `j_h`.
     /// This allows for incremental band doubling.
     h: Vec<H>,
+
+    /// The distribution of number of rows in `compute` calls.
+    computed_rows: Vec<usize>,
 }
 
 pub struct BitFront {
@@ -242,7 +245,26 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
             },
             a,
             b,
+            computed_rows: vec![],
         }
+    }
+}
+
+impl Drop for BitFronts {
+    fn drop(&mut self) {
+        let mut cnt = 0;
+        let mut total = 0;
+        for (i, c) in self.computed_rows.iter().enumerate() {
+            cnt += i;
+            total += i * c;
+            if i % 10 == 0 {
+                eprint!("\n{i:>4}");
+            }
+            eprint!("{c:>7}");
+        }
+        eprintln!();
+        eprintln!("Num blocks: {cnt}");
+        eprintln!("Total rows: {total}");
     }
 }
 
@@ -275,6 +297,7 @@ impl NwFronts<0usize> for BitFronts {
         } else {
             self.fronts[0] = front;
         }
+        self.computed_rows.fill(0);
     }
 
     fn compute_next_block(&mut self, i_range: IRange, j_range: JRange) {
@@ -361,6 +384,7 @@ impl NwFronts<0usize> for BitFronts {
                         v_range_0.clone(),
                         &mut v[v_range_0.start - offset..v_range_0.end - offset],
                         &mut self.h,
+                        &mut self.computed_rows,
                         HMode::None
                     );
 
@@ -374,6 +398,7 @@ impl NwFronts<0usize> for BitFronts {
                         v_range_1.clone(),
                         &mut v[v_range_1.start - offset..v_range_1.end - offset],
                         &mut self.h,
+                        &mut self.computed_rows,
                         HMode::Update
                     );
 
@@ -387,11 +412,13 @@ impl NwFronts<0usize> for BitFronts {
                         v_range_2.clone(),
                         &mut v[v_range_2.start - offset..v_range_2.end - offset],
                         &mut self.h,
+                        &mut self.computed_rows,
                         HMode::Input
                     )
                 } else {
                     initialize_next_v(prev_front, j_range_rounded, &mut v);
                     assert!(new_range.0 <= new_j_h);
+                    //new_j_h = new_range.0 + (new_j_h - new_range.0) / (8*WI) * (8*WI);
                     let v_range_01 = new_range.0 as usize / W..new_j_h as usize / W;
                     compute_columns(
                         self.params,
@@ -401,6 +428,7 @@ impl NwFronts<0usize> for BitFronts {
                         v_range_01.clone(),
                         &mut v[v_range_01.start - offset..v_range_01.end - offset],
                         &mut self.h,
+                        &mut self.computed_rows,
                         HMode::Output
                     );
 
@@ -414,6 +442,7 @@ impl NwFronts<0usize> for BitFronts {
                         v_range_2.clone(),
                         &mut v[v_range_2.start - offset..v_range_2.end - offset],
                         &mut self.h,
+                        &mut self.computed_rows,
                         HMode::Input
                     )
                 };
@@ -432,6 +461,7 @@ impl NwFronts<0usize> for BitFronts {
                         v_range.clone(),
                         &mut v2,
                         &mut self.h,
+                        &mut self.computed_rows,
                         HMode::None
                     );
                     assert_eq!(bottom_delta, bottom_delta_2);
@@ -460,6 +490,7 @@ impl NwFronts<0usize> for BitFronts {
                     v_range.clone(),
                     &mut v,
                     &mut self.h,
+                    &mut self.computed_rows,
                     HMode::None
                 );
                 next_front.offset = j_range_rounded.0;
@@ -485,6 +516,7 @@ impl NwFronts<0usize> for BitFronts {
                 v_range.clone(),
                 &mut v[v_range.clone().clone()],
                 &mut self.h,
+                &mut self.computed_rows,
                 HMode::None,
             );
             let next_front = &mut self.fronts[self.last_front_idx];
@@ -674,6 +706,7 @@ impl BitFronts {
                 v_range.clone(),
                 &mut next_front.v,
                 &mut self.h,
+                &mut self.computed_rows,
                 HMode::None,
             );
 
@@ -710,9 +743,14 @@ fn compute_columns(
     v_range: std::ops::Range<usize>,
     v: &mut [V],
     h: &mut [H],
+    computed_rows: &mut Vec<usize>,
     mode: HMode,
 ) -> i32 {
     if cfg!(test) || DEBUG {
+    if !(v_range.len() < computed_rows.len()) {
+        computed_rows.resize(v_range.len() + 1, 0);
+    }
+    computed_rows[v_range.len()] += 1;
         eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
     }
     let h = &mut h[i_range.0 as usize..i_range.1 as usize];
