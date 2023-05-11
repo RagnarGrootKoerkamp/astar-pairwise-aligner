@@ -1,4 +1,5 @@
 pub mod bruteforce;
+
 pub mod hint_contours;
 pub mod sh_contours;
 
@@ -134,6 +135,16 @@ pub trait Contours: Default + Debug {
         // TODO: Consider giving ownership to Contours, and add a getter to access it from the heuristic.
         arrows: F,
     ) -> (bool, Cost);
+
+    /// Update layers starting at layer `v`, continuing at least to layer `last_change`.
+    fn update_layers<R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
+        &mut self,
+        _v: u32,
+        _last_change: u32,
+        _arrows: &F,
+    ) {
+        unimplemented!();
+    }
 
     /// Returns some statistics.
     fn print_stats(&mut self) {}

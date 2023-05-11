@@ -352,7 +352,7 @@ impl<C: Contour> Contours for HintContours<C> {
         // Work contour by contour.
         let v = self.score_with_hint(p, hint).0 as Layer;
         // NOTE: The chain score of the point can actually be anywhere in v-max_len+1..=v.
-        let mut v = 'v: {
+        let v = 'v: {
             // TODO: Figure out why not v - self.max_len + 1. The layer v - self.max_len is really needed sometimes.
             for w in (v.saturating_sub(self.max_len)..=v).rev() {
                 if self.contours[w].contains_equal(p) {
@@ -375,16 +375,14 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // Returns the max score of any arrow starting in the giving
         // position, and the maximum length of these arrows.
-        let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Layer| -> Option<Layer> {
-            chain_score(&arrows, pos, v, contours)
-        };
 
-        let (new_p_score, mut first_to_check) = if let Some(s) = chain_score(&self.contours, p, v) {
-            assert!(s <= v);
-            (Some(s), s + 1)
-        } else {
-            (None, v + 1)
-        };
+        let (new_p_score, mut first_to_check) =
+            if let Some(s) = chain_score(&arrows, p, v, &self.contours) {
+                assert!(s <= v);
+                (Some(s), s + 1)
+            } else {
+                (None, v + 1)
+            };
 
         // In case the longer arrows were not relevant, the value does not change.
         if new_p_score == Some(v) {
@@ -451,15 +449,35 @@ impl<C: Contour> Contours for HintContours<C> {
         }
 
         // Loop over the matches in the next layer, and repeatedly prune while needed.
-        let mut last_change = v;
-        v = first_to_check - 1;
+        self.update_layers(first_to_check, v, &arrows);
+        self.check_consistency(&arrows);
+        (true, initial_shift as _)
+    }
+
+    /// Update layers starting at layer `v`, continuing at least to layer `last_change`.
+    fn update_layers<R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
+        &mut self,
+        mut v: u32,
+        mut last_change: u32,
+        arrows: &F,
+    ) {
+        //eprintln!("update_layers({v}, {last_change})");
+        last_change = max(last_change, v);
+        let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Layer| -> Option<Layer> {
+            chain_score(arrows, pos, v, contours)
+        };
         let mut fully_shifted_layers = 0;
         let mut rolling_shift = Shift::None;
+
+        // Compensate for +1 below.
+        v -= 1;
         loop {
             v += 1;
             if v >= self.contours.len() as Layer {
+                // eprintln!("Ran out of contours");
                 break;
             }
+            // eprintln!("Udate layer {v}");
             self.stats.borrow_mut().contours += 1;
             // Extract the current layer so we can modify it while reading the other layers.
             // We need to make a reference here to help rust understand we borrow disjoint parts of self.
@@ -518,12 +536,12 @@ impl<C: Contour> Contours for HintContours<C> {
             self.contours[v] = current;
 
             if changes {
-                last_change = v;
+                last_change = max(last_change, v);
             } else {
                 assert!(current_shift == Shift::None || current_shift == Shift::Inconsistent);
             }
 
-            if v >= last_change + self.max_len as Layer {
+            if v >= last_change.saturating_add(self.max_len as Layer) {
                 // No further changes can happen.
                 self.stats.borrow_mut().no_change += 1;
                 break;
@@ -558,7 +576,7 @@ impl<C: Contour> Contours for HintContours<C> {
             //     last_change, current_shift, self.contours[v ].len()
             // );
 
-            if let Shift::Layers(shift) = rolling_shift {
+            if let Shift::Layers(shift) = rolling_shift && v >= last_change {
                 assert!(fully_shifted_layers > 0);
                 // NOTE: this used to be `>= self.max_len`, but that does not work for arrows of length >= 2:
                 // There are some tests that cover this.
@@ -582,8 +600,6 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             }
         }
-        self.check_consistency(&arrows);
-        (true, initial_shift as _)
     }
 
     #[allow(unreachable_code)]
