@@ -113,7 +113,7 @@ impl Default for BitFront {
             v: vec![],
             i: 0,
             j_range: JRange(-1, -1),
-            fixed_j_range: Some(JRange(-1, -1)),
+            fixed_j_range: None,
             offset: 0,
             top_val: Cost::MAX,
             bot_val: Cost::MAX,
@@ -271,10 +271,19 @@ impl Drop for BitFronts {
 impl NwFronts<0usize> for BitFronts {
     type Front = BitFront;
 
-    fn init(&mut self, initial_j_range: JRange) {
+    fn init(&mut self, mut initial_j_range: JRange) {
         assert!(initial_j_range.0 == 0);
         self.last_front_idx = 0;
         self.i_range = IRange(-1, 0);
+
+        // eprintln!("Init first front for {:?}", initial_j_range);
+        if let Some(front) = self.fronts.get(0) {
+            initial_j_range = JRange(
+                min(front.j_range.0, initial_j_range.0),
+                max(front.j_range.1, initial_j_range.1),
+            );
+            // eprintln!("Upated initial range to {:?}", initial_j_range);
+        }
 
         let front = if self.trace {
             // First column front, with more fronts pushed after.
@@ -285,7 +294,7 @@ impl NwFronts<0usize> for BitFronts {
                 v: vec![V::one(); self.b.len()],
                 i: 0,
                 j_range: initial_j_range,
-                fixed_j_range: None,
+                fixed_j_range: Some(initial_j_range),
                 offset: 0,
                 top_val: 0,
                 bot_val: round(initial_j_range).1,
@@ -300,7 +309,25 @@ impl NwFronts<0usize> for BitFronts {
         self.computed_rows.fill(0);
     }
 
-    fn compute_next_block(&mut self, i_range: IRange, j_range: JRange) {
+    fn reuse_next_block(&mut self, i_range: IRange, j_range: JRange) {
+        assert_eq!(i_range.0, self.i_range.1);
+        self.i_range.1 = i_range.1;
+
+        self.last_front_idx += 1;
+        assert!(self.last_front_idx < self.fronts.len());
+        assert!(self.fronts[self.last_front_idx].i == i_range.1);
+        assert!(self.fronts[self.last_front_idx].j_range == j_range);
+    }
+
+    fn compute_next_block(&mut self, i_range: IRange, mut j_range: JRange) {
+        // Ensure that the j_range only grows.
+        if let Some(next_front) = self.fronts.get(self.last_front_idx + 1) {
+            j_range = JRange(
+                min(j_range.0, next_front.j_range.0),
+                max(j_range.1, next_front.j_range.1),
+            );
+        }
+
         if self.trace && !self.params.sparse {
             // This is extracted to a separate function for reuse during traceback.
             return self.fill_block(i_range, j_range);
@@ -357,6 +384,8 @@ impl NwFronts<0usize> for BitFronts {
                 // New range of next front.
                 let new_range = round(j_range);
                 // New j_h.
+                // TODO: This is mutable and can be modified below to ensure
+                // that the j_range before new_j_h has size a multiple of 8*W.
                 let new_j_h = prev_fixed.1;
 
                 let offset = new_range.0 as usize / W;
@@ -388,7 +417,8 @@ impl NwFronts<0usize> for BitFronts {
                         HMode::None
                     );
 
-                    assert!(old_j_h <= new_j_h);
+                    assert!(old_j_h <= new_j_h, "j_h may only increase! i {i_range:?} old_j_h: {}, new_j_h: {}", old_j_h, new_j_h);
+                    //new_j_h = old_j_h + (new_j_h - old_j_h) / (8*WI) * (8*WI);
                     let v_range_1 = old_j_h as usize / W..new_j_h as usize / W;
                     compute_columns(
                         self.params,
@@ -501,8 +531,8 @@ impl NwFronts<0usize> for BitFronts {
             next_front.v = v;
             next_front.bot_val += bottom_delta;
             next_front.j_range = j_range;
-            // Will be set later.
-            next_front.fixed_j_range = None;
+            // Will be updated later.
+            //next_front.fixed_j_range = None;
         } else {
             // Update the existing `v` vector in the single front.
             top_val += i_range.len();
@@ -538,6 +568,10 @@ impl NwFronts<0usize> for BitFronts {
 
     fn last_front(&self) -> &Self::Front {
         &self.fronts[self.last_front_idx]
+    }
+
+    fn next_front_j_range(&self) -> Option<JRange> {
+        self.fronts.get(self.last_front_idx + 1).map(|f| f.j_range)
     }
 
     /// Find the parent of `st`.
@@ -659,8 +693,20 @@ impl NwFronts<0usize> for BitFronts {
         cigar
     }
 
+    // Update the fixed range, and make sure it only grows.
     fn set_last_front_fixed_j_range(&mut self, fixed_j_range: Option<JRange>) {
-        self.fronts[self.last_front_idx].fixed_j_range = fixed_j_range;
+        assert!(fixed_j_range.is_some());
+        if let Some(old) = self.fronts[self.last_front_idx].fixed_j_range
+            && let Some(new) = fixed_j_range {
+            // eprintln!("Update fixed_j_range from {:?}", self.fronts[self.last_front_idx].fixed_j_range);
+            self.fronts[self.last_front_idx].fixed_j_range = Some(JRange(
+                min(old.0, new.0),
+                max(old.1, new.1),
+            ));
+            // eprintln!("Update fixed_j_range to {:?}", self.fronts[self.last_front_idx].fixed_j_range);
+        } else {
+            self.fronts[self.last_front_idx].fixed_j_range = fixed_j_range;
+        }
     }
 }
 
@@ -746,14 +792,14 @@ fn compute_columns(
     computed_rows: &mut Vec<usize>,
     mode: HMode,
 ) -> i32 {
-    if cfg!(test) || DEBUG {
     if !(v_range.len() < computed_rows.len()) {
         computed_rows.resize(v_range.len() + 1, 0);
     }
     computed_rows[v_range.len()] += 1;
+
+    if i_range.len() > 1 && (cfg!(test) || DEBUG || true) {
         eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
     }
-    let h = &mut h[i_range.0 as usize..i_range.1 as usize];
 
     let run = |h, exact_end| {
         if params.simd {
@@ -774,21 +820,23 @@ fn compute_columns(
             ) as I
         }
     };
+    let i_slice = i_range.0 as usize..i_range.1 as usize;
 
     match mode {
         HMode::None => {
             // Just create two temporary vectors that are discarded afterwards.
-            let h = &mut vec![H::one(); h.len()];
+            let h = &mut vec![H::one(); i_slice.len()];
             run(h, false)
         }
         HMode::Input => {
             // Make a copy to prevent overwriting.
-            let h = &mut h.iter().copied().collect_vec();
+            let h = &mut h[i_slice].iter().copied().collect_vec();
             run(h, false)
         }
-        HMode::Update => run(h, true),
+        HMode::Update => run(&mut h[i_slice], true),
         HMode::Output => {
             // Initialize to +1.
+            let h = &mut h[i_slice];
             h.fill(H::one());
             run(h, true)
         }

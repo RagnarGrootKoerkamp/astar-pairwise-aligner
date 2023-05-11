@@ -5,6 +5,7 @@
 //! - meet in the middle for traceback
 //! - meet in the middle with A* and pruning on both sides
 //! - try jemalloc/mimalloc
+//! - instead of updating contours contour-by-contour, rebuilding completely up to current i may be faster.
 mod affine;
 mod bitpacking;
 mod front;
@@ -57,6 +58,10 @@ pub struct AstarNwParams {
     /// When true, `j_range` skips querying `h` when it can assuming consistency.
     #[serde(default)]
     pub sparse_h_calls: bool,
+
+    /// Whether pruning is enabled.
+    #[serde(default)]
+    pub prune: bool,
 }
 
 impl AstarNwParams {
@@ -90,6 +95,7 @@ impl AstarNwParams {
                     front: self.front,
                     trace: self.trace,
                     sparse_h: self.params.sparse_h_calls,
+                    prune: self.params.prune,
                 })
             }
         }
@@ -115,6 +121,7 @@ impl AstarNwParams {
                 front: AffineFront,
                 trace,
                 sparse_h: self.sparse_h_calls,
+                prune: self.prune,
             }),
             (d, FrontType::Bit(front)) => Box::new(NW {
                 cm: AffineCost::unit(),
@@ -125,6 +132,7 @@ impl AstarNwParams {
                 front,
                 trace,
                 sparse_h: self.sparse_h_calls,
+                prune: self.prune,
             }),
         }
     }
@@ -160,6 +168,9 @@ pub struct NW<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> {
 
     /// When true, `j_range` skips querying `h` when it can assuming consistency.
     pub sparse_h: bool,
+
+    /// Whether pruning is enabled.
+    pub prune: bool,
 }
 
 impl<const N: usize> NW<N, NoVis, NoCost, AffineNwFrontsTag<N>> {
@@ -184,6 +195,7 @@ impl<const N: usize> NW<N, NoVis, NoCost, AffineNwFrontsTag<N>> {
             front: AffineNwFrontsTag::<N>,
             trace: true,
             sparse_h: true,
+            prune: true,
         }
     }
 }
@@ -331,6 +343,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
     /// Pass `-1..0` for the range of the first column. `prev` is not used.
     /// Pass `i..i+1` to move 1 front, with `prev` the front for column `i`,
     /// Pass `i..i+W` to compute a block of `W` columns `i .. i+W`.
+    ///
+    ///
+    /// `old_range`: The old j_range at the end of the current interval, to ensure it only grows.
     fn j_range(
         &self,
         i_range: IRange,
@@ -386,9 +401,14 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             }
             Domain::Astar(h) => {
                 // Get the range of rows with fixed states `f(u) <= f_max`.
-                let JRange(fixed_start, fixed_end) = prev
-                    .fixed_j_range()
-                    .expect("With A* Domain, fixed_j_range should always be set.");
+                let JRange(fixed_start, fixed_end) = if i_range.1 == 0 {
+                    JRange(-1, -1)
+                } else {
+                    prev.fixed_j_range()
+                        .expect("With A* Domain, fixed_j_range should always be set.")
+                };
+
+                // eprintln!("Fixed j_range for {i_range:?}\t prev fixed {fixed_start}..{fixed_end}");
 
                 // Early return for empty range.
                 if fixed_start > fixed_end {
@@ -462,6 +482,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                             break;
                         } else {
                             v.1 -= (fv - f_max).div_ceil(2 * self.params.cm.min_ins_extend);
+                            // Don't go above the diagonal.
+                            // This could happen after pruning we if don't check explicitly.
+                            if v.1 < v.0 - u.0 + u.1 {
+                                v.1 = v.0 - u.0 + u.1;
+                                break;
+                            }
                         }
                     }
                 } else {
@@ -555,6 +581,11 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         trace: bool,
         fronts: Option<&mut F::Fronts<'a>>,
     ) -> Option<(Cost, Option<AffineCigar>)> {
+        // Update contours for any pending prunes.
+        if self.params.prune && let Domain::Astar(h) = &mut self.domain {
+            h.update_contours();
+        }
+
         // Make a local front variable if not passed in.
         let mut local_fronts = if fronts.is_none() {
             Some(
@@ -578,6 +609,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         }
         eprintln!("Bound: {f_max:?} {initial_j_range:?}");
         fronts.init(initial_j_range);
+        fronts.set_last_front_fixed_j_range(Some(initial_j_range));
 
         self.v.expand_block(
             Pos(0, fronts.last_front().j_range_rounded().0),
@@ -589,17 +621,42 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
 
         for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
             let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
-            let j_range = self.j_range(i_range, f_max, fronts.last_front());
-            if j_range.is_empty() {
+            let mut j_range = self.j_range(i_range, f_max, fronts.last_front());
+            if j_range.is_empty() && fronts.next_front_j_range().is_none() {
+                eprintln!("Empty range at i {i}");
                 return None;
             }
+            if let Some(old_j_range) = fronts.next_front_j_range() {
+                j_range = JRange(min(j_range.0, old_j_range.0), max(j_range.1, old_j_range.1));
+                if j_range == old_j_range {
+                    fronts.reuse_next_block(i_range, j_range);
+                    continue;
+                }
+            }
+            let prev_fixed_j_range = fronts.last_front().fixed_j_range();
+            // eprintln!("{i}: Prev fixed range {prev_fixed_j_range:?}");
+            // eprintln!("{i}: compute block {i_range:?} {j_range:?}");
             fronts.compute_next_block(i_range, j_range);
             // Compute the range of fixed states.
-            fronts.set_last_front_fixed_j_range(self.fixed_j_range(
-                i_range.1,
-                f_max,
-                fronts.last_front(),
-            ));
+            let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, fronts.last_front());
+            // eprintln!("{i}: New fixed range {next_fixed_j_range:?}");
+            fronts.set_last_front_fixed_j_range(next_fixed_j_range);
+            let next_fixed_j_range = fronts.last_front().fixed_j_range();
+
+            // Prune matches in the fixed range.
+            if self.params.prune
+                && let Domain::Astar(h) = &mut self.domain
+                && let Some(prev_fixed_j_range) = prev_fixed_j_range
+                && let Some(next_fixed_j_range) = next_fixed_j_range
+            {
+                let fixed_j_range = max(prev_fixed_j_range.0, next_fixed_j_range.0)..min(
+                    prev_fixed_j_range.1,
+                    next_fixed_j_range.1,
+                );
+                if fixed_j_range.start < fixed_j_range.end {
+                    h.prune_block(i_range.0..i_range.1, fixed_j_range);
+                }
+            }
 
             self.v.expand_block(
                 Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
@@ -885,6 +942,7 @@ mod test {
             },
             trace: true,
             sparse_h: true,
+            prune: false,
         }
         .align(&a, &b)
         .0;
@@ -909,6 +967,32 @@ mod test {
             },
             trace: true,
             sparse_h: true,
+            prune: true,
+        }
+        .align(&a, &b)
+        .0;
+        let d2 = triple_accel::levenshtein_exp(&a, &b) as _;
+        assert_eq!(d, d2);
+    }
+
+    #[test]
+    fn nw_prune() {
+        let (a, b) =
+            pa_generate::generate_model(10000, 0.1, pa_generate::ErrorModel::Uniform, 31415);
+        let d = NW {
+            cm: AffineCost::unit(),
+            strategy: Strategy::band_doubling(),
+            domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
+            block_width: 256,
+            v: NoVis,
+            front: BitFront {
+                sparse: true,
+                simd: true,
+                incremental_doubling: false,
+            },
+            trace: true,
+            sparse_h: true,
+            prune: true,
         }
         .align(&a, &b)
         .0;

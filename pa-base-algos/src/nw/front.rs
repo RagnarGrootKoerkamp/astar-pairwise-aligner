@@ -33,7 +33,7 @@ impl Into<Range<I>> for IRange {
 }
 
 /// Inclusive range of rows to compute.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct JRange(pub I, pub I);
 
 impl JRange {
@@ -106,11 +106,20 @@ pub trait NwFronts<const N: usize> {
     // TODO: Pass in a visualizer.
     fn compute_next_block(&mut self, i_range: IRange, j_range: JRange);
 
+    fn reuse_next_block(&mut self, _i_range: IRange, _j_range: JRange) {
+        unimplemented!();
+    }
+
     fn cm(&self) -> &AffineCost<N>;
     /// The current column in `0 ..= a.len()`.
     fn last_i(&self) -> I;
     /// Get the current front.
     fn last_front(&self) -> &Self::Front;
+
+    /// Get the old range for the next front, if one exists.
+    fn next_front_j_range(&self) -> Option<JRange> {
+        unimplemented!();
+    }
 
     /// Set the 'fixed' range of rows for the last front, that is, the interval
     /// `[start, end]` corresponding to the states with `f(u) <= f_max`.
