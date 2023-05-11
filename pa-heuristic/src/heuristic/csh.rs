@@ -8,6 +8,7 @@ use crate::util::Timer;
 use crate::*;
 use crate::{contour::*, wrappers::EqualHeuristic};
 use std::marker::PhantomData;
+use std::ops::Range;
 
 pub struct CSH<C: Contours> {
     pub match_config: MatchConfig,
@@ -165,6 +166,9 @@ pub struct CSHI<C: Contours> {
     max_transformed_pos: Pos,
     contours: C,
 
+    /// For block-based pruning, the lowest contour that was modified.
+    lowest_modified_contour: Layer,
+
     stats: HeuristicStats,
 }
 
@@ -291,6 +295,7 @@ impl<C: Contours> CSHI<C> {
             max_transformed_pos: Pos(I::MIN, I::MIN),
 
             contours,
+            lowest_modified_contour: Layer::MAX,
         };
         h.stats.h0 = h.h(Pos(0, 0));
         h.stats.num_seeds = h.seeds.seeds.len() as _;
@@ -305,6 +310,15 @@ impl<C: Contours> CSHI<C> {
     fn transform(&self, pos: Pos) -> Pos {
         if self.params.use_gap_cost {
             self.seeds.transform(pos)
+        } else {
+            pos
+        }
+    }
+
+    /// Same as `transform`, but doesn't take `self` for better borrowing.
+    fn transform_2(params: &CSH<C>, seeds: &Seeds, pos: Pos) -> Pos {
+        if params.use_gap_cost {
+            seeds.transform(pos)
         } else {
             pos
         }
@@ -449,6 +463,67 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         timer.end(&mut self.stats.contours_duration);
 
         (change, pos)
+    }
+
+    /// Prune all matches in a block.
+    /// NOTE that this does not update `h` or the contours yet; call `update_contours` for that.
+    fn prune_block(&mut self, i_range: Range<I>, j_range: Range<I>) {
+        let start = instant::Instant::now();
+        let mut hint = Self::Hint::default();
+        let mut lowest_modified_contour = self.lowest_modified_contour;
+        self.matches.prune_block(i_range, j_range, |m| {
+            let (layer, new_hint) = self
+                .contours
+                .score_with_hint(Self::transform_2(&self.params, &self.seeds, m.start), hint);
+            // eprintln!("Prune match {m:?} in layer {layer}");
+            lowest_modified_contour = min(lowest_modified_contour, layer as Layer + 1);
+            hint = new_hint;
+        });
+        self.lowest_modified_contour = lowest_modified_contour;
+
+        self.stats.prune_duration += start.elapsed().as_secs_f64();
+    }
+
+    /// Update contours from `lowest_modified_contour` onward.
+    fn update_contours(&mut self) {
+        let start = instant::Instant::now();
+
+        let match_to_arrow = |m: &Match| Arrow {
+            start: if self.params.use_gap_cost {
+                self.seeds.transform(m.start)
+            } else {
+                m.start
+            },
+            end: if self.params.use_gap_cost {
+                self.seeds.transform(m.end)
+            } else {
+                m.end
+            },
+            score: m.score(),
+        };
+
+        eprintln!("h0 before update: {}", self.h(Pos(0, 0)));
+        self.contours.update_layers(
+            self.lowest_modified_contour,
+            // FIXME: Put a better upper bound here, especially with local doubling.
+            Layer::MAX,
+            //self.lowest_modified_contour,
+            &|pt: &Pos| {
+                let p = if self.params.use_gap_cost {
+                    self.seeds.transform_back(*pt)
+                } else {
+                    *pt
+                };
+                self.matches.matches_for_start(p).map(|ms| {
+                    ms.iter()
+                        .filter(|m| m.is_active())
+                        .map(match_to_arrow)
+                        .filter(|a| a.end <= self.t_target)
+                })
+            },
+        );
+        eprintln!("h0 after  update: {}", self.h(Pos(0, 0)));
+        self.stats.contours_duration += start.elapsed().as_secs_f64();
     }
 
     /// Update the max_explored_pos, so we know when the priority queue can be shifted after a prune.

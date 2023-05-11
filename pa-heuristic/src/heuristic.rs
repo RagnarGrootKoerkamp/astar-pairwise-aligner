@@ -4,6 +4,8 @@ pub mod distances;
 pub mod sh;
 pub mod wrappers;
 
+use std::ops::Range;
+
 use crate::matches::*;
 use crate::prelude::*;
 use crate::seeds::Seeds;
@@ -144,6 +146,12 @@ pub trait HeuristicInstance<'a> {
     /// `seed_cost`: The cost made in the seed ending at pos.
     fn prune(&mut self, _pos: Pos, _hint: Self::Hint) -> (Cost, Self::Order) {
         (0, Default::default())
+    }
+    fn prune_block(&mut self, _i_range: Range<I>, _j_range: Range<I>) {
+        unimplemented!();
+    }
+    fn update_contours(&mut self) {
+        unimplemented!();
     }
 
     /// Tells the heuristic that the position was explored, so it knows which
