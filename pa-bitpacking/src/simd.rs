@@ -244,6 +244,12 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     )
     .enumerate()
     {
+        // Read the unaligned lanes of a.
+        let a0 = slice_to_simd(a0);
+        let a1 = slice_to_simd(a1);
+
+        let eq: [S<L>; N] = from_fn(|k| BitProfile::eq_simd((&a0[k], &a1[k]), (&b0[k], &b1[k])));
+
         // Rotate the lanes of h.
         unsafe {
             let (p, m) = h.get_unchecked(i + L * N).pm();
@@ -251,19 +257,13 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
             let mcarry = rotate_left(&mut mh_simd, m);
             *h.get_unchecked_mut(i) = H::from(pcarry, mcarry);
         }
-
-        // Read the unaligned lanes of a.
-        let a0 = slice_to_simd(a0);
-        let a1 = slice_to_simd(a1);
-        // The .rev() here makes things marginally faster.
-        for k in (0..N).rev() {
+        for k in 0..N {
             block::compute_block_simd(
                 &mut ph_simd[k],
                 &mut mh_simd[k],
                 &mut pv_simd[k],
                 &mut mv_simd[k],
-                (&a0[k], &a1[k]),
-                (&b0[k], &b1[k]),
+                eq[k],
             );
         }
     }
