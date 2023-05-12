@@ -4,9 +4,14 @@
 #![feature(let_chains)]
 use astarpa::{AstarPa, AstarStatsAligner};
 use bio::alignment::distance::simd::levenshtein;
+use pa_affine_types::AffineCost;
+use pa_base_algos::{
+    nw::{BitFront, NW},
+    Domain,
+};
 use pa_generate::{generate_model, uniform_fixed, ErrorModel};
 use pa_heuristic::{Heuristic, MatchConfig, Prune, Pruning, CSH, GCSH};
-use pa_types::{seq_to_string, Aligner, Cost, Pos, Sequence, I};
+use pa_types::{seq_to_string, Aligner, Cost, CostModel, Pos, Sequence, I};
 use pa_vis::visualizer::{self, When};
 use pa_vis_types::{NoVis, VisualizerT};
 use std::{
@@ -15,22 +20,22 @@ use std::{
 };
 
 #[allow(unused)]
-fn fuzz<V: VisualizerT, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Sequence) {
-    for n in (5..).step_by(1) {
-        for r in 0..1000 {
-            for e in [0.1, 0.2, 0.4] {
+fn fuzz(aligner: &mut dyn Aligner) -> (Sequence, Sequence) {
+    for n in (640..).step_by(640) {
+        for r in 0..10 {
+            for e in [0.05, 0.08, 0.1, 0.15, 0.2, 0.3, 0.4] {
                 for m in [
                     ErrorModel::Uniform,
                     ErrorModel::NoisyInsert,
-                    ErrorModel::SymmetricRepeat,
+                    ErrorModel::NoisyDelete,
                 ] {
                     println!("n={n} r={r} e={e} m={m:?}");
                     let (ref a, ref b) = generate_model(n, e, m, r);
-                    let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
+                    //let dist = bio::alignment::distance::simd::levenshtein(&a, &b) as Cost;
                     let d = std::panic::catch_unwind(AssertUnwindSafe(|| -> Cost {
-                        aligner.align(a, b).0 .0
+                        aligner.align(a, b).0
                     }));
-                    if let Ok(d) = d && d == dist {
+                    if let Ok(d) = d {
                         continue;
                     }
                     return (a.to_vec(), b.to_vec());
@@ -42,18 +47,34 @@ fn fuzz<V: VisualizerT, H: Heuristic>(aligner: &AstarPa<V, H>) -> (Sequence, Seq
 }
 
 fn main() {
-    let dt = true;
-    let k = 3;
+    let dt = false;
+    let k = 15;
     let max_match_cost = 1;
-    let pruning = Prune::Both;
+    let pruning = Prune::Start;
 
-    let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning))
-        .equal_to_bruteforce_gcsh();
-    let ref mut aligner = AstarPa { dt, h, v: NoVis };
+    let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning));
 
     let a = "TTGGGTCAATCAGCCAGTTTTTA".as_bytes();
     let b = "TTTGAGTGGGTCATCACCGATTTTAT".as_bytes();
-    //let (ref a, ref b) = fuzz(aligner);
+    let mut aligner = NW {
+        cm: AffineCost::unit(),
+        domain: Domain::Astar(h),
+        strategy: pa_base_algos::Strategy::BandDoubling {
+            start: pa_base_algos::DoublingStart::H0,
+            factor: 2.,
+        },
+        block_width: 64,
+        v: NoVis,
+        front: BitFront {
+            sparse: true,
+            simd: true,
+            incremental_doubling: true,
+        },
+        trace: true,
+        sparse_h: true,
+        prune: true,
+    };
+    let (ref a, ref b) = fuzz(&mut aligner);
     //let (ref a, ref b) = uniform_fixed(40, 0.3);
 
     let a = "AGTTTTAT".as_bytes();
@@ -61,10 +82,23 @@ fn main() {
 
     //let (ref a, ref b) = shrink(a, b, aligner, k);
 
-    let mut aligner = AstarPa {
-        dt: aligner.dt,
-        h: aligner.h, //h.equal_to_bruteforce_gcsh(),
+    let mut aligner = NW {
+        cm: AffineCost::unit(),
+        domain: Domain::Astar(h),
+        strategy: pa_base_algos::Strategy::BandDoubling {
+            start: pa_base_algos::DoublingStart::H0,
+            factor: 2.,
+        },
+        block_width: 256,
         v: visualizer::Config::new(visualizer::VisualizerStyle::Debug),
+        front: BitFront {
+            sparse: true,
+            simd: true,
+            incremental_doubling: true,
+        },
+        trace: true,
+        sparse_h: true,
+        prune: true,
     };
     aligner.v.draw = When::All;
     //aligner.v.style.draw_heuristic = false;
