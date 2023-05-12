@@ -217,6 +217,21 @@ impl BitFront {
             j_h: None,
         }
     }
+
+    /// Assert that the vertical difference between the top and bottom values is correct.
+    fn check_top_bot_val(&self) {
+        if !DEBUG {
+            return;
+        }
+        let mut val = self.top_val;
+        let rounded = round(self.j_range);
+        for v in
+            &self.v[(rounded.0 - self.offset) as usize / W..(rounded.1 - self.offset) as usize / W]
+        {
+            val += v.value();
+        }
+        assert_eq!(val, self.bot_val);
+    }
 }
 
 impl NwFrontsTag<0usize> for BitFrontsTag {
@@ -306,17 +321,18 @@ impl NwFronts<0usize> for BitFronts {
         } else {
             self.fronts[0] = front;
         }
-        self.computed_rows.fill(0);
+        //self.computed_rows.fill(0);
     }
 
     fn reuse_next_block(&mut self, i_range: IRange, j_range: JRange) {
-        assert_eq!(i_range.0, self.i_range.1);
+        assert_eq!(self.i_range.1, i_range.0);
         self.i_range.1 = i_range.1;
 
         self.last_front_idx += 1;
         assert!(self.last_front_idx < self.fronts.len());
-        assert!(self.fronts[self.last_front_idx].i == i_range.1);
-        assert!(self.fronts[self.last_front_idx].j_range == j_range);
+        let front = &mut self.fronts[self.last_front_idx];
+        assert!(front.i == i_range.1);
+        assert!(front.j_range == j_range);
     }
 
     fn compute_next_block(&mut self, i_range: IRange, mut j_range: JRange) {
@@ -531,6 +547,7 @@ impl NwFronts<0usize> for BitFronts {
             next_front.v = v;
             next_front.bot_val += bottom_delta;
             next_front.j_range = j_range;
+            next_front.check_top_bot_val();
             // Will be updated later.
             //next_front.fixed_j_range = None;
         } else {
@@ -555,6 +572,7 @@ impl NwFronts<0usize> for BitFronts {
             next_front.j_range = j_range;
             next_front.top_val = top_val;
             next_front.bot_val = bot_val;
+            next_front.check_top_bot_val();
         }
     }
 
@@ -607,6 +625,10 @@ impl NwFronts<0usize> for BitFronts {
             ),
         ] {
             if let Some(parent_cost) = (if di == 0 { front } else { prev_front }).get(st.j + dj) {
+                // eprintln!(
+                //     "Candidate parent of {st:?} @ {st_cost}: {:?} @ {parent_cost} edge {edge}",
+                //     (st.i + di, st.j + dj),
+                // );
                 if st_cost == parent_cost + edge {
                     return Some((
                         State {
@@ -658,6 +680,7 @@ impl NwFronts<0usize> for BitFronts {
                     let mut height = 2 * i_range.len();
                     loop {
                         let j_range = JRange(max(j_range.0, j_range.1 - height), j_range.1);
+                        // eprintln!("TRACE: Fill block {:?} {:?}", i_range, j_range);
                         self.fill_block(i_range, j_range);
                         if self.fronts[self.last_front_idx].index(to.j) == g {
                             break;
@@ -675,6 +698,10 @@ impl NwFronts<0usize> for BitFronts {
                 }
             }
 
+            // eprintln!(
+            //     "Parent of {to:?} at distance {g} with range {:?}",
+            //     self.fronts[self.last_front_idx].j_range
+            // );
             let (parent, cigar_ops) = self.parent(to).unwrap();
             to = parent;
             for op in cigar_ops {
@@ -792,12 +819,15 @@ fn compute_columns(
     computed_rows: &mut Vec<usize>,
     mode: HMode,
 ) -> i32 {
-    if !(v_range.len() < computed_rows.len()) {
-        computed_rows.resize(v_range.len() + 1, 0);
+    // Do not count computed rows during traceback.
+    if i_range.len() > 1 {
+        if !(v_range.len() < computed_rows.len()) {
+            computed_rows.resize(v_range.len() + 1, 0);
+        }
+        computed_rows[v_range.len()] += 1;
     }
-    computed_rows[v_range.len()] += 1;
 
-    if i_range.len() > 1 && (cfg!(test) || DEBUG || true) {
+    if i_range.len() > 1 && (cfg!(test) || DEBUG) {
         eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
     }
 
@@ -893,7 +923,13 @@ fn resize_v_with_fixed(
     let stored_h = next_front.j_h.unwrap();
     assert!(new_offset <= old_offset);
     assert!(fixed_rounded.0 <= stored_h);
+    // NOTE: Moving existing fixed values is done before overwriting the prefix and suffix with 1.
     if new_offset < old_offset {
+        // eprintln!(
+        //     "Copy over fixed range from {} to {}",
+        //     fixed_rounded.0 / WI,
+        //     stored_h / WI
+        // );
         for j in (fixed_rounded.0..stored_h).step_by(W).rev() {
             v[(j - new_offset) as usize / W] = v[(j - old_offset) as usize / W];
         }
