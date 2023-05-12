@@ -55,7 +55,7 @@ fn exponential_search<T>(
     factor: f32,
     mut f: impl FnMut(Cost) -> Option<(Cost, T)>,
 ) -> (Cost, T) {
-    let mut last_s = offset + s0;
+    let mut last_s = -1;
     let mut s = offset + s0;
     let mut maxs = Cost::MAX;
     // TODO: Fix the potential infinite loop here.
