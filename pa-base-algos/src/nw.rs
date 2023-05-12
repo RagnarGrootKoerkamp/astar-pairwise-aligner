@@ -619,6 +619,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             self.domain.h(),
         );
 
+        let mut all_fronts_reused = true;
+
         for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
             let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
             let mut j_range = self.j_range(i_range, f_max, fronts.last_front());
@@ -626,17 +628,24 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 eprintln!("Empty range at i {i}");
                 return None;
             }
+            let mut reuse = false;
             if let Some(old_j_range) = fronts.next_front_j_range() {
                 j_range = JRange(min(j_range.0, old_j_range.0), max(j_range.1, old_j_range.1));
-                if j_range == old_j_range {
-                    fronts.reuse_next_block(i_range, j_range);
-                    continue;
+                // If this front doesn't grow, and previous fronts also didn't grow, reuse this front.
+                if all_fronts_reused && j_range == old_j_range {
+                    reuse = true;
                 }
+                all_fronts_reused = false;
             }
             let prev_fixed_j_range = fronts.last_front().fixed_j_range();
             // eprintln!("{i}: Prev fixed range {prev_fixed_j_range:?}");
-            // eprintln!("{i}: compute block {i_range:?} {j_range:?}");
-            fronts.compute_next_block(i_range, j_range);
+            if reuse {
+                // eprintln!("{i}: Reuse block for {i_range:?} x {j_range:?}");
+                fronts.reuse_next_block(i_range, j_range);
+            } else {
+                // eprintln!("{i}: compute block {i_range:?} {j_range:?}");
+                fronts.compute_next_block(i_range, j_range);
+            }
             // Compute the range of fixed states.
             let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, fronts.last_front());
             // eprintln!("{i}: New fixed range {next_fixed_j_range:?}");
@@ -658,15 +667,18 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 }
             }
 
-            self.v.expand_block(
-                Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
-                Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
-                0,
-                f_max.unwrap_or(0),
-                self.domain.h(),
-            );
-            if self.params.strategy == Strategy::None {
-                self.v.new_layer(self.domain.h());
+            // Only draw a new expanded block if the front was actually recomputed.
+            if !reuse {
+                self.v.expand_block(
+                    Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
+                    Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
+                    0,
+                    f_max.unwrap_or(0),
+                    self.domain.h(),
+                );
+                if self.params.strategy == Strategy::None {
+                    self.v.new_layer(self.domain.h());
+                }
             }
         }
         self.v.new_layer(self.domain.h());
