@@ -76,6 +76,7 @@ impl ExpandPos {
     fn pos(&self) -> Pos {
         match self {
             Self::Single(p) => *p,
+            Self::Block(p, _) => *p,
             _ => panic!(),
         }
     }

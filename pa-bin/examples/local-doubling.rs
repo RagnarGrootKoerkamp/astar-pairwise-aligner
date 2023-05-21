@@ -2,7 +2,7 @@
 use astarpa::AstarPa;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
-    nw::{AffineFront, NW},
+    nw::{AffineFront, BitFront, NW},
     Domain, Strategy,
 };
 use pa_generate::{uniform_fixed, uniform_seeded};
@@ -49,62 +49,53 @@ fn main() {
     let n = 50000;
     let e = 0.20;
     let (ref a, ref b) = uniform_fixed(n, e);
-    let (ref a, ref b) = complex_ab(1);
+    let (ref a, ref b) = complex_ab(16);
+    eprintln!("a: {}\nb: {}", a.len(), b.len());
 
     let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
-    config.draw = When::LayersStepBy(10);
+    config.draw = When::LayersStepBy(1);
     config.save = When::None; //When::LayersStepBy(30);
     config.save_last = false;
     config.delay = Duration::from_secs_f32(0.0001);
     config.cell_size = 1;
-    config.downscaler = 1;
+    config.downscaler = 16;
     config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
     config.style.path_width = None;
     config.layer_drawing = false;
     config.style.draw_dt = false;
-    config.style.draw_heuristic = true;
-    config.style.draw_f = true;
+    config.style.draw_heuristic = false;
+    config.style.draw_f = false;
     config.style.draw_labels = false;
     config.transparent_bmp = true;
     config.draw_old_on_top = true;
+    config.paused = true;
     config.filepath = PathBuf::from("imgs/slides/");
 
     config.style.pruned_match = RED;
-    config.style.match_width = 3;
+    config.style.match_width = 1;
     config.style.draw_matches = true;
 
     let mut aligner = NW {
         cm,
-        strategy: Strategy::LocalDoubling,
-        domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::disabled())),
-        block_width: 1,
-        v: config.with_filename("local-doubling-noprune"),
-        front: AffineFront,
+        strategy: Strategy::BandDoubling {
+            start: pa_base_algos::DoublingStart::H0,
+            factor: 2.,
+        },
+        domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::start())),
+        block_width: 256,
+        v: config.with_filename("local-doubling"),
+        front: BitFront {
+            sparse: true,
+            simd: true,
+            incremental_doubling: true,
+        },
         trace: true,
         sparse_h: true,
         prune: true,
     };
     aligner.align(a, b);
-
-    let aligner = AstarPa {
-        h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
-        v: config.with_filename("local-doubling"),
-        dt: false,
-    };
-    aligner.align(a, b);
-
-    let mut aligner = NW {
-        cm,
-        strategy: Strategy::LocalDoubling,
-        domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::both())),
-        block_width: 1,
-        v: config.with_filename("local-doubling"),
-        front: AffineFront,
-        trace: true,
-        sparse_h: true,
-        prune: true,
-    };
+    aligner.strategy = Strategy::LocalDoubling;
     aligner.align(a, b);
 }

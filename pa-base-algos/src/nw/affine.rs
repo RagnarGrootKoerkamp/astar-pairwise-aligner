@@ -2,7 +2,11 @@
 //! - sparse memory/traceback
 //! - reuse memory between runs
 //! - incremental doubling
-use std::{array::from_fn, cmp::min, ops::IndexMut};
+use std::{
+    array::from_fn,
+    cmp::min,
+    ops::{Index, IndexMut},
+};
 
 use pa_affine_types::{AffineCost, State};
 use pa_types::{Cost, Seq, I};
@@ -34,6 +38,20 @@ pub struct AffineNwFronts<'a, const N: usize> {
     cm: &'a AffineCost<N>,
     fronts: Vec<AffineNwFront<N>>,
     i_range: IRange,
+}
+
+impl<'a, const N: usize> IndexMut<usize> for AffineNwFronts<'a, N> {
+    fn index_mut(&mut self, _index: usize) -> &mut Self::Output {
+        todo!()
+    }
+}
+
+impl<'a, const N: usize> Index<usize> for AffineNwFronts<'a, N> {
+    type Output = AffineNwFront<N>;
+
+    fn index(&self, _index: usize) -> &Self::Output {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

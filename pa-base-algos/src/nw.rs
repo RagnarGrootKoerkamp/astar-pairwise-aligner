@@ -211,7 +211,11 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
                 Full => Full,
                 GapStart => GapStart,
                 GapGap => GapGap,
-                Astar(h) => Astar(h.build(a, b)),
+                Astar(h) => {
+                    let h = h.build(a, b);
+                    eprintln!("h0: {}", h.h(Pos(0, 0)));
+                    Astar(h)
+                }
             },
             v: self.v.build(a, b),
         }
@@ -245,8 +249,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
         let mut nw = self.build(a, b);
         let (cost, cigar) = match self.strategy {
             Strategy::LocalDoubling => {
-                todo!();
-                //return nw.align_local_band_doubling();
+                assert!(self.prune, "Local doubling requires pruning.");
+                let (cost, cigar) = nw.local_doubling();
+                (cost, Some(cigar))
             }
             Strategy::BandDoubling { start, factor } => {
                 let (start_f, start_increment) = self.band_doubling_params(start, a, b, &nw);
@@ -338,6 +343,16 @@ pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFro
 
     /// The instantiated visualizer to use.
     pub v: V::Instance,
+}
+
+impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> Drop
+    for NWInstance<'a, N, V, H, F>
+{
+    fn drop(&mut self) {
+        if let Domain::Astar(h) = &mut self.domain {
+            eprintln!("h0: {}", h.h(Pos(0, 0)));
+        }
+    }
 }
 
 impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
@@ -635,6 +650,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             let mut j_range = self.j_range(i_range, f_max, fronts.last_front());
             if j_range.is_empty() && fronts.next_front_j_range().is_none() {
                 eprintln!("Empty range at i {i}");
+                self.v.new_layer(self.domain.h());
                 return None;
             }
             let mut reuse = false;
@@ -644,8 +660,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 if all_fronts_reused && j_range == old_j_range {
                     reuse = true;
                 }
-                all_fronts_reused = false;
             }
+            all_fronts_reused &= reuse;
             let prev_fixed_j_range = fronts.last_front().fixed_j_range();
             // eprintln!("{i}: Prev fixed range {prev_fixed_j_range:?}");
             if reuse {
@@ -654,6 +670,17 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             } else {
                 // eprintln!("{i}: compute block {i_range:?} {j_range:?}");
                 fronts.compute_next_block(i_range, j_range);
+
+                self.v.expand_block(
+                    Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
+                    Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
+                    0,
+                    f_max.unwrap_or(0),
+                    self.domain.h(),
+                );
+                if self.params.strategy == Strategy::None {
+                    self.v.new_layer(self.domain.h());
+                }
             }
             // Compute the range of fixed states.
             let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, fronts.last_front());
@@ -671,24 +698,13 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                     prev_fixed_j_range.1,
                     next_fixed_j_range.1,
                 );
-                if fixed_j_range.start < fixed_j_range.end {
+                if !fixed_j_range.is_empty() {
                     h.prune_block(i_range.0..i_range.1, fixed_j_range);
                 }
             }
 
             // Only draw a new expanded block if the front was actually recomputed.
-            if !reuse {
-                self.v.expand_block(
-                    Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
-                    Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
-                    0,
-                    f_max.unwrap_or(0),
-                    self.domain.h(),
-                );
-                if self.params.strategy == Strategy::None {
-                    self.v.new_layer(self.domain.h());
-                }
-            }
+            if !reuse {}
         }
         self.v.new_layer(self.domain.h());
 
@@ -714,213 +730,189 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         }
     }
 
-    /// FIXME: This is unmaintained at the moment.
-    #[cfg(any())]
-    pub fn align_local_band_doubling<'b>(&mut self) -> (Cost, AffineCigar) {
-        assert!(
-            !H::IS_DEFAULT,
-            "Local doubling needs a heuristic. Use -H zero to disable."
-        );
+    pub fn local_doubling(&mut self) -> (Cost, AffineCigar) {
+        let h = self.domain.h().unwrap();
+        let h0 = h.h(Pos(0, 0));
 
-        let h0 = self.domain.h().unwrap().h(Pos(0, 0));
-        let mut fronts = NwFronts::new(
-            &self.a,
-            &self.b,
-            &self.params.cm,
-            self.j_range(IRange::first_col(), Some(h0), &NwFronts::default()),
-        );
+        // For block-width B:
+        // idx 0: i_range 0 .. 0
+        // idx i: i_range (B-1)*i .. B*i
+        // idx max: i_range (B-1)*max .. a.len()
+        let mut fronts = self.params.front.new(true, self.a, self.b, &self.params.cm);
 
-        // Front i has been computed up to this f.
+        // Add the front for i_range 0..0
+        {
+            let initial_j_range = self.j_range(IRange::first_col(), Some(h0), &Default::default());
+            fronts.init(initial_j_range);
+            fronts.set_last_front_fixed_j_range(Some(initial_j_range));
+        }
+
+        // Fronts have been computed up to this f.
+        // TODO: Move f_max and f_delta into the front datastructure.
         let mut f_max = vec![h0];
+
         // Each time a front is grown, it grows to the least multiple of delta that is large enough.
         // Delta doubles after each grow.
-        const DELTA_0: Cost = 2;
-        let mut f_delta = vec![2];
+        // TODO: Make this customizable.
+        let delta0: Cost = self.params.block_width * 2;
+        let delta_growth = 2;
+        let mut f_delta = vec![delta0];
 
-        // The value of f at the tip. When going to the next front, this is
-        // incremented until the range is non-empty.
-        let mut f_tip = self.domain.h().unwrap().h(Pos(0, 0));
-
+        // The end of the current front.
         let mut i = 0;
+        // The index into f_max and f_delta of the current front.
+        let mut last_idx = 0;
+
+        let grow = |f: &mut Cost, delta: &mut Cost| {
+            *f = (*f + 1).next_multiple_of(*delta);
+            *delta *= delta_growth;
+        };
+        let grow_to = |f: &mut Cost, f_target: Cost, delta: &mut Cost| {
+            // *f = max(*f + *delta, f_target);
+            *f = (f_target).next_multiple_of(*delta);
+            *delta *= delta_growth;
+            assert!(*f >= f_target);
+            // eprintln!("Grow front idx {start_idx} to f {}", f_max[start_idx]);
+        };
+
         // This is a for loop over `i`, but once `i` reaches `a.len()`, the last
         // front is grown instead of increasing `i`.
         loop {
-            if i < self.a.len() as I {
+            if fronts.last_front().fixed_j_range().unwrap().is_empty() {
+                // Fixed_j_range is empty; grow last front.
+                let delta = &mut f_delta[last_idx];
+                f_max[last_idx] = (f_max[last_idx] + 1).next_multiple_of(*delta);
+                *delta *= delta_growth;
+                // eprintln!("Grow last front idx {last_idx} f {}", f_max[last_idx]);
+                fronts.pop_last_front();
+            } else if i < self.a.len() as I {
+                let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
+
+                // The value of f at the tip. When going to the next front, this is
+                // incremented until the range is non-empty.
+                let mut next_f = f_max[last_idx];
                 // Add a new front.
-                let mut range;
                 loop {
-                    // println!("{i} => {f_tip} try");
-                    range = self.j_range(IRange(i, i + 1), Some(f_tip), &fronts.fronts[i]);
-                    if !range.is_empty() {
+                    let j_range = self.j_range(i_range, Some(next_f), fronts.last_front());
+                    if !j_range.is_empty() {
                         break;
                     }
-                    f_tip += 1;
+                    // TODO: Make the growth of f_tip customizable.
+                    next_f += self.params.block_width;
+                    // eprintln!("Grow next_f to {next_f}");
                 }
-                i += 1;
-                f_max.push(f_tip);
-                f_delta.push(DELTA_0);
-                fronts.fronts.push_default_front(range.into());
-            } else {
-                // Only grow the last front.
-                let delta = &mut f_delta[i as usize];
-                // print!("Double last front from {} by {delta}", f_max[i as usize]);
-                f_max[i as usize] = (f_max[i as usize] / *delta + 1) * *delta;
-                // println!("to {}", f_max[i as usize]);
-                *delta *= 2;
-            }
-
-            // Double previous front sizes as long as their f_max is not large enough.
-            let mut start_i = i as usize;
-            while start_i > 1 && f_max[start_i - 1] < f_max[start_i] {
-                // Check if (after pruning) the range for start_i needs to grow at all.
-                start_i -= 1;
-                {
-                    let front = &fronts.fronts[start_i as I];
-                    let js = *front.range().start();
-                    let je = *front.range().end();
-                    // println!(
-                    //     "Row {js}\t g {} + h {} > f_next {} (f_cur {})",
-                    //     front.m()[js as Idx],
-                    //     h.h(Pos(start_i as I - 1, js as I - 1)),
-                    //     f_max[start_i + 1],
-                    //     f_max[start_i]
-                    // );
-                    // println!(
-                    //     "Row {je}\t g {} + h {} > f_next {} (f_cur {})",
-                    //     front.m()[je as Idx],
-                    //     h.h(Pos(start_i as I - 1, je as I - 1)),
-                    //     f_max[start_i + 1],
-                    //     f_max[start_i]
-                    // );
-                    // FIXME: Generalize to more layers.
-                    // NOTE: -1's are to correct for sequence padding.
-                    // NOTE: equality isn't good enough: in that case there
-                    // could be adjacent states that also have equality.
-                    if front.m()[js as I]
-                        + self
-                            .domain
-                            .h()
-                            .unwrap()
-                            .h(Pos(start_i as I - 1, js as I - 1))
-                        > f_max[start_i + 1]
-                        && front.m()[je as I]
-                            + self
-                                .domain
-                                .h()
-                                .unwrap()
-                                .h(Pos(start_i as I - 1, je as I - 1))
-                            > f_max[start_i + 1]
-                    {
-                        start_i += 1;
-                        // println!(
-                        //     "Stop. Col {} is last to reuse. Col {start_i} is recomputed",
-                        //     start_i - 1
-                        // );
-                        break;
-                    }
-                }
-
-                let before = f_max[start_i];
-                let delta = &mut f_delta[start_i];
-                f_max[start_i] = f_max[start_i + 1].next_multiple_of(*delta);
-                // println!("{start_i} => {before} -> {} \t ({delta})", f_max[start_i]);
-                assert!(
-                    f_max[start_i] >= f_max[start_i + 1],
-                    "Doubling not enough!? From {before} to {} by {delta} target {}",
-                    f_max[start_i],
-                    f_max[start_i + 1]
-                );
-                *delta *= 2;
-            }
-
-            if start_i > 1 {
-                // for j in fronts[start_i as Idx - 1].range().clone() {
-                //     let i = start_i - 1;
-                //     println!(
-                //         "row {j} \t g-prev {:10} \t h-new {}",
-                //         fronts[i as Idx].m().get(j).unwrap_or(&Cost::MAX),
-                //         h.h(Pos(i as I - 1, j as I - 1))
-                //     )
-                // }
-            }
-
-            // Recompute all fronts from start_i upwards.
-            for i in start_i as I..=i {
-                let range = self.j_range(
-                    IRange(i - 1, i),
-                    Some(f_max[i as usize]),
-                    &fronts.fronts[i - 1],
-                );
-                let prev_range = fronts.fronts[i as I].range().clone();
-                let new_range = min(range.0, *prev_range.start())..=max(range.1, *prev_range.end());
-                // println!(
-                //     "Compute {i} for {} => {new_range:?} (prev {prev_range:?})",
-                //     f_max[i as usize],
+                i = i_range.1;
+                last_idx += 1;
+                f_max.push(next_f);
+                f_delta.push(delta0);
+                assert!(f_max.len() == last_idx + 1);
+                assert!(f_delta.len() == last_idx + 1);
+                // eprintln!(
+                // "Push new front idx {last_idx} i {i_range:?} f {}",
+                // f_max[last_idx]
                 // );
-                // if range.is_empty() || true {
-                //     for j in new_range.clone() {
-                //         println!(
-                //             "row {j} \t g-prev {:10} \t h-new {}",
-                //             fronts[i as Idx].m().get(j).unwrap_or(&Cost::MAX),
-                //             h.h(Pos(i as I - 1, j as I - 1))
-                //         )
-                //     }
-                // }
-                assert!(!new_range.is_empty());
-                fronts.update_fronts(i..i + 1, new_range.clone(), |pos, g| {
-                    self.v.expand(pos, g, f_max[i as usize], self.domain.h())
-                });
-
-                // for j in new_range.clone() {
-                //     println!(
-                //         "row {j} \t g-prev {:10} \t h-new {}",
-                //         fronts[i as Idx].m().get(j).unwrap_or(&Cost::MAX),
-                //         h.h(Pos(i as I - 1, j as I - 1))
-                //     )
-                // }
-
-                // Prune matches
-                if self
-                    .domain
-                    .h()
-                    .unwrap()
-                    .is_seed_start_or_end(Pos(i as I - 1, 0))
-                {
-                    let hint = self
-                        .domain
-                        .h()
-                        .unwrap()
-                        .h_with_hint(Pos(i as I - 1, *new_range.start() as I), Default::default())
-                        .1;
-                    for j in new_range {
-                        self.domain
-                            .h_mut()
-                            .unwrap()
-                            .prune(Pos(i as I - 1, j as I), hint);
-                    }
-                }
-
-                self.v.new_layer(Some(self.domain.h().unwrap()));
+            } else {
+                // Grow the last front.
+                grow(&mut f_max[last_idx], &mut f_delta[last_idx]);
+                // eprintln!("Grow last front idx {last_idx} f {}", f_max[last_idx]);
+                fronts.pop_last_front();
             }
 
-            if i == self.a.len() as I
-                && fronts.fronts[self.a.len() as I]
-                    .range()
-                    .contains(&(self.b.len() as I))
-            {
+            // Grow previous front sizes as long as their f_max is not large enough.
+            let mut start_idx = last_idx;
+            while start_idx > 0 && f_max[start_idx - 1] < f_max[start_idx] {
+                start_idx -= 1;
+
+                let f_target = f_max[start_idx + 1];
+                grow_to(&mut f_max[start_idx], f_target, &mut f_delta[start_idx]);
+
+                fronts.pop_last_front();
+            }
+
+            // FIXME: Recompute contours only to start i.
+            let h = self.domain.h_mut().unwrap();
+            h.update_contours();
+
+            if start_idx == 0 {
+                let initial_j_range =
+                    self.j_range(IRange::first_col(), Some(h0), &Default::default());
+                fronts.init(initial_j_range);
+                fronts.set_last_front_fixed_j_range(Some(initial_j_range));
+                // eprintln!("Reset front idx 0 to {initial_j_range:?}");
+
+                start_idx += 1;
+            }
+
+            // Recompute all fronts from start_idx upwards for their new f_max.
+            // As long as j_range doesn't grow, existing results are reused.
+            let mut all_fronts_reused = true;
+            for idx in start_idx..=last_idx {
+                // eprintln!("Compute front idx {}", idx);
+                let f_max = Some(f_max[idx]);
+
+                let i_range = IRange(
+                    (idx as I - 1) * self.params.block_width,
+                    min(idx as I * self.params.block_width, self.a.len() as I),
+                );
+                let mut j_range = self.j_range(i_range, f_max, fronts.last_front());
+                assert!(!j_range.is_empty());
+
+                let mut reuse = false;
+                if let Some(old_j_range) = fronts.next_front_j_range() {
+                    j_range = JRange(min(j_range.0, old_j_range.0), max(j_range.1, old_j_range.1));
+                    // If this front doesn't grow, and previous fronts also didn't grow, reuse this front.
+                    if all_fronts_reused && j_range == old_j_range {
+                        reuse = true;
+                    }
+                }
+                all_fronts_reused &= reuse;
+
+                let prev_fixed_j_range = fronts.last_front().fixed_j_range().unwrap();
+                if reuse {
+                    // eprintln!("Reuse   front idx {idx} i {i_range:?} j {j_range:?} f {f_max:?}");
+                    fronts.reuse_next_block(i_range, j_range);
+                } else {
+                    // eprintln!("Compute front idx {idx} i {i_range:?} j {j_range:?} f {f_max:?}");
+                    fronts.compute_next_block(i_range, j_range);
+
+                    self.v.expand_block(
+                        Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
+                        Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
+                        0,
+                        f_max.unwrap_or(0),
+                        self.domain.h(),
+                    );
+                }
+                // Compute the range of fixed states.
+                let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, fronts.last_front());
+                // eprintln!("{i}: New fixed range {next_fixed_j_range:?}");
+                fronts.set_last_front_fixed_j_range(next_fixed_j_range);
+                let next_fixed_j_range = fronts.last_front().fixed_j_range().unwrap();
+
+                // eprintln!("Prune matches..");
+
+                // Prune matches in the fixed range.
+                let fixed_j_range = max(prev_fixed_j_range.0, next_fixed_j_range.0)
+                    ..min(prev_fixed_j_range.1, next_fixed_j_range.1);
+                if !fixed_j_range.is_empty() {
+                    let h = self.domain.h_mut().unwrap();
+                    h.prune_block(i_range.0..i_range.1, fixed_j_range);
+                }
+                // eprintln!("Prune matches done");
+            }
+
+            self.v.new_layer(self.domain.h());
+            if i == self.a.len() as I && fronts[last_idx].j_range().contains(self.b.len() as I) {
                 break;
             }
-        } // end loop
+        } // end loop over i
 
-        let dist = *fronts.fronts[self.a.len() as I]
-            .m()
-            .get(self.b.len() as I)
-            .unwrap();
-        let cigar = self.trace(
-            &fronts,
+        // eprintln!("TRACE..");
+        let dist = fronts.last_front().get(self.b.len() as I).unwrap();
+        let cigar = fronts.trace(
             State {
-                i: 1,
-                j: 1,
+                i: 0,
+                j: 0,
                 layer: None,
             },
             State {
@@ -928,10 +920,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 j: self.b.len() as I,
                 layer: None,
             },
-            Direction::Forward,
         );
-        self.v
-            .last_frame(Some(&cigar), None, Some(self.domain.h().unwrap()));
         (dist, cigar)
     }
 }
@@ -1003,6 +992,31 @@ mod test {
         let d = NW {
             cm: AffineCost::unit(),
             strategy: Strategy::band_doubling(),
+            domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
+            block_width: 256,
+            v: NoVis,
+            front: BitFront {
+                sparse: true,
+                simd: true,
+                incremental_doubling: false,
+            },
+            trace: true,
+            sparse_h: true,
+            prune: true,
+        }
+        .align(&a, &b)
+        .0;
+        let d2 = triple_accel::levenshtein_exp(&a, &b) as _;
+        assert_eq!(d, d2);
+    }
+
+    #[test]
+    fn local_doubling() {
+        let (a, b) =
+            pa_generate::generate_model(10000, 0.1, pa_generate::ErrorModel::Uniform, 31415);
+        let d = NW {
+            cm: AffineCost::unit(),
+            strategy: Strategy::LocalDoubling,
             domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
             block_width: 256,
             v: NoVis,

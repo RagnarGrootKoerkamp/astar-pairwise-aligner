@@ -502,10 +502,11 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             score: m.score(),
         };
 
-        eprintln!("h0 before update: {}", self.h(Pos(0, 0)));
+        // eprintln!("h0 before update: {}", self.h(Pos(0, 0)));
         self.contours.update_layers(
             self.lowest_modified_contour,
             // FIXME: Put a better upper bound here, especially with local doubling.
+            // self.lowest_modified_contour + 4,
             Layer::MAX,
             //self.lowest_modified_contour,
             &|pt: &Pos| {
@@ -522,7 +523,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                 })
             },
         );
-        eprintln!("h0 after  update: {}", self.h(Pos(0, 0)));
+        // eprintln!("h0 after  update: {}", self.h(Pos(0, 0)));
         self.stats.contours_duration += start.elapsed().as_secs_f64();
     }
 

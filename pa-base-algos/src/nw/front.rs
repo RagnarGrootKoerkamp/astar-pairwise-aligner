@@ -1,4 +1,4 @@
-use std::ops::{Range, RangeInclusive};
+use std::ops::{IndexMut, Range, RangeInclusive};
 
 use pa_affine_types::{AffineCigar, AffineCost, State};
 use pa_types::*;
@@ -45,6 +45,9 @@ impl JRange {
     }
     pub fn exclusive_len(&self) -> I {
         self.1 - self.0
+    }
+    pub fn contains(&self, j: I) -> bool {
+        self.0 <= j && j <= self.1
     }
 }
 
@@ -93,7 +96,7 @@ pub trait NwFrontsTag<const N: usize>: Copy + PartialEq {
     ) -> Self::Fronts<'a>;
 }
 
-pub trait NwFronts<const N: usize> {
+pub trait NwFronts<const N: usize>: IndexMut<usize, Output = Self::Front> {
     type Front: NwFront;
 
     /// Initialize the front for i=0.
@@ -108,6 +111,11 @@ pub trait NwFronts<const N: usize> {
 
     fn reuse_next_block(&mut self, _i_range: IRange, _j_range: JRange) {
         unimplemented!();
+    }
+
+    /// Pop the last front.
+    fn pop_last_front(&mut self) {
+        todo!();
     }
 
     fn cm(&self) -> &AffineCost<N>;

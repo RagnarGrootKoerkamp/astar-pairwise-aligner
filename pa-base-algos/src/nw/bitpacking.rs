@@ -7,7 +7,10 @@
 //! TODO: 256-wide profile to prevent SIMD Gather ops.
 //! TODO: Store a and b as bit-encoded for each separate bit, and & them.
 //! TODO: Separate strong types for row `I` and 'block-row' `I*64`.
-use std::cmp::min;
+use std::{
+    cmp::min,
+    ops::{Index, IndexMut},
+};
 
 use itertools::{izip, Itertools};
 use pa_bitpacking::{BitProfile, HEncoding, Profile, B, V, W};
@@ -272,14 +275,28 @@ impl Drop for BitFronts {
         for (i, c) in self.computed_rows.iter().enumerate() {
             cnt += i;
             total += i * c;
-            if i % 10 == 0 {
-                eprint!("\n{i:>4}");
-            }
-            eprint!("{c:>7}");
+            // if i % 10 == 0 {
+            //     eprint!("\n{i:>4}");
+            // }
+            // eprint!("{c:>7}");
         }
         eprintln!();
         eprintln!("Num blocks: {cnt}");
         eprintln!("Total rows: {total}");
+    }
+}
+
+impl IndexMut<usize> for BitFronts {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.fronts[index]
+    }
+}
+
+impl Index<usize> for BitFronts {
+    type Output = BitFront;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.fronts[index]
     }
 }
 
@@ -322,6 +339,13 @@ impl NwFronts<0usize> for BitFronts {
             self.fronts[0] = front;
         }
         //self.computed_rows.fill(0);
+    }
+
+    // TODO: Maybe we should at some point drop the unused fronts?
+    fn pop_last_front(&mut self) {
+        assert!(self.i_range.1 == self.fronts[self.last_front_idx].i);
+        self.last_front_idx -= 1;
+        self.i_range.1 = self.fronts.get(self.last_front_idx).map_or(-1, |f| f.i);
     }
 
     fn reuse_next_block(&mut self, i_range: IRange, j_range: JRange) {
@@ -790,13 +814,6 @@ impl BitFronts {
                 self.fronts[self.last_front_idx].clone_from(&next_front);
             }
         }
-    }
-
-    // TODO: Maybe we should at some point drop the unused fronts?
-    fn pop_last_front(&mut self) {
-        assert!(self.i_range.1 == self.fronts[self.last_front_idx].i);
-        self.last_front_idx -= 1;
-        self.i_range.1 = self.fronts[self.last_front_idx].i;
     }
 }
 
