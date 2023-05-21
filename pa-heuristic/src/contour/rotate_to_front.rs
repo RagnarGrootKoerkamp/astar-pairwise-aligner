@@ -1,45 +1,59 @@
 use crate::prelude::*;
 use itertools::Itertools;
 use smallvec::SmallVec;
-use std::mem;
+use std::{cell::UnsafeCell, mem};
 
 use super::*;
 
 /// A contour implementation that does all operations in O(r).
-#[derive(Default, Debug, Clone)]
-pub struct BruteForceContour {
+#[derive(Default, Debug)]
+pub struct RotateToFrontContour {
     /// In typical cases the average size of contours is 1.5 at the start (before pruning).
-    pub points: SmallVec<[Pos; 2]>,
+    pub points: UnsafeCell<SmallVec<[Pos; 2]>>,
+}
+impl Clone for RotateToFrontContour {
+    fn clone(&self) -> Self {
+        unsafe {
+            Self {
+                points: UnsafeCell::new((*self.points.get()).clone()),
+            }
+        }
+    }
 }
 
-impl Contour for BruteForceContour {
+impl Contour for RotateToFrontContour {
     fn push(&mut self, p: Pos) {
-        #[cfg(debug_assertions)]
-        {
-            let contains = self.points.contains(&p);
-            assert!(!contains);
-        }
-        self.points.push(p);
+        self.points.get_mut().push(p);
     }
     fn contains_equal(&self, q: Pos) -> bool {
-        self.points.contains(&q)
+        unsafe { (*self.points.get()).contains(&q) }
     }
 
     fn contains(&self, q: Pos) -> bool {
-        self.points.iter().any(|s| q <= *s)
+        unsafe {
+            let points = &mut *self.points.get();
+            if let Some(idx) = points.iter().position(|s| q <= *s) {
+                if idx > 0 {
+                    points[0..=idx].rotate_right(1);
+                }
+                true
+            } else {
+                false
+            }
+        }
     }
 
     fn parent(&self, q: Pos) -> Pos {
-        *self.points.iter().find(|s| q <= **s).unwrap()
+        unsafe { *(*self.points.get()).iter().find(|s| q <= **s).unwrap() }
     }
 
     fn is_dominant(&self, q: Pos) -> bool {
-        !self.points.iter().any(|s| q < *s)
+        unsafe { !(*self.points.get()).iter().any(|s| q < *s) }
     }
 
     fn prune_filter<F: FnMut(Pos) -> bool>(&mut self, f: &mut F) -> bool {
         let mut change = false;
-        self.points.retain(|&mut s| {
+        self.points.get_mut().retain(|&mut s| {
             let prune = f(s);
             if prune {
                 change = true;
@@ -50,29 +64,34 @@ impl Contour for BruteForceContour {
     }
 
     fn len(&self) -> usize {
-        self.points.len()
+        unsafe { (*self.points.get()).len() }
     }
 
     fn num_dominant(&self) -> usize {
-        let mut x = self
-            .points
-            .iter()
-            .filter(|p| self.is_dominant(**p))
-            .collect_vec();
-        x.sort_by_key(|p| LexPos(**p));
-        x.dedup();
-        x.len()
+        unsafe {
+            let mut x = (*self.points.get())
+                .iter()
+                .filter(|p| self.is_dominant(**p))
+                .collect_vec();
+            x.sort_by_key(|p| LexPos(**p));
+            x.dedup();
+            x.len()
+        }
     }
 
     fn iterate_points<F: FnMut(Pos)>(&self, mut f: F) {
-        for p in &self.points {
-            f(*p);
+        unsafe {
+            for p in &*self.points.get() {
+                f(*p);
+            }
         }
     }
 
     fn print_points(&self) {
-        for p in &self.points {
-            println!("{p}");
+        unsafe {
+            for p in &*self.points.get() {
+                println!("{p}");
+            }
         }
     }
 }

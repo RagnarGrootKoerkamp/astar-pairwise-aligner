@@ -2,6 +2,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use super::*;
+use crate::contour::rotate_to_front::RotateToFrontContour;
 use crate::prune::MatchPruner;
 use crate::seeds::Seeds;
 use crate::util::Timer;
@@ -18,7 +19,7 @@ pub struct CSH<C: Contours> {
     c: PhantomData<C>,
 }
 
-impl CSH<HintContours<BruteForceContour>> {
+impl CSH<HintContours<RotateToFrontContour>> {
     pub fn new(match_config: MatchConfig, pruning: Pruning) -> Self {
         Self {
             match_config,
@@ -48,7 +49,7 @@ impl GCSH {
     pub fn new(
         match_config: MatchConfig,
         pruning: Pruning,
-    ) -> CSH<HintContours<BruteForceContour>> {
+    ) -> CSH<HintContours<RotateToFrontContour>> {
         CSH {
             match_config,
             pruning,
