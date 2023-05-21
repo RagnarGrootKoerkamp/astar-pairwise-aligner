@@ -262,6 +262,15 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
                 assert!(matches!(self.domain, Domain::Full));
                 nw.align_for_bounded_dist(None, trace, None).unwrap()
             }
+            Strategy::LinearSearch { start, delta } => {
+                let start_f = self.band_doubling_params(start, a, b, &nw).0;
+                let mut fronts = self.front.new(trace, a, b, &self.cm);
+                linear_search(start_f, delta as Cost, |s| {
+                    nw.align_for_bounded_dist(Some(s), trace, Some(&mut fronts))
+                        .map(|x @ (c, _)| (c, x))
+                })
+                .1
+            }
         };
         nw.v.last_frame::<NoCostI>(cigar.as_ref(), None, None);
         (cost, cigar)

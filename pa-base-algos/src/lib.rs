@@ -89,6 +89,44 @@ fn exponential_search<T>(
     }
 }
 
+fn linear_search<T>(
+    s0: Cost,
+    delta: Cost,
+    mut f: impl FnMut(Cost) -> Option<(Cost, T)>,
+) -> (Cost, T) {
+    let mut last_s = -1;
+    let mut s = s0;
+    let mut maxs = Cost::MAX;
+    // TODO: Fix the potential infinite loop here.
+    //
+    // Sanity checks:
+    // - Once the answer is found, this should be larger than all previous thresholds.
+    // - Once a value for maxs has been found, all subsequent larger values of s
+    //   should return a value that is smaller.
+    loop {
+        if let Some((cost, t)) = f(s) {
+            assert!(
+                cost <= maxs,
+                "A solution {maxs} was found for a previous s<={last_s}, but s={s} gives {cost}"
+            );
+            if cost <= s {
+                assert!(cost > last_s, "Cost {cost} was found at s {s} but should already have been found at last_s {last_s}");
+                return (cost, t);
+            } else {
+                // If some value was returned this is an upper bound on the answer.
+                maxs = min(maxs, cost);
+            }
+        } else {
+            assert!(
+                maxs == Cost::MAX,
+                "A solution {maxs} was found for a previous s<={last_s}, but not for current s={s}"
+            );
+        }
+        last_s = s;
+        s = min(s + delta, maxs);
+    }
+}
+
 use pa_heuristic::{GapCost, NoCost};
 
 /// Enum for the various computational domain types.
@@ -174,6 +212,7 @@ pub enum DoublingStart {
 pub enum Strategy {
     None,
     BandDoubling { start: DoublingStart, factor: f32 },
+    LinearSearch { start: DoublingStart, delta: f32 },
     LocalDoubling,
 }
 impl Strategy {
