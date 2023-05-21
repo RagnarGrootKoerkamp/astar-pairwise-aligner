@@ -359,7 +359,12 @@ impl NwFronts<0usize> for BitFronts {
         assert!(front.j_range == j_range);
     }
 
-    fn compute_next_block(&mut self, i_range: IRange, mut j_range: JRange) {
+    fn compute_next_block(
+        &mut self,
+        i_range: IRange,
+        mut j_range: JRange,
+        viz: &mut impl VisualizerInstance,
+    ) {
         // Ensure that the j_range only grows.
         if let Some(next_front) = self.fronts.get(self.last_front_idx + 1) {
             j_range = JRange(
@@ -454,7 +459,8 @@ impl NwFronts<0usize> for BitFronts {
                         &mut v[v_range_0.start - offset..v_range_0.end - offset],
                         &mut self.h,
                         &mut self.computed_rows,
-                        HMode::None
+                        HMode::None,
+                            viz,
                     );
 
                     assert!(old_j_h <= new_j_h, "j_h may only increase! i {i_range:?} old_j_h: {}, new_j_h: {}", old_j_h, new_j_h);
@@ -469,7 +475,8 @@ impl NwFronts<0usize> for BitFronts {
                         &mut v[v_range_1.start - offset..v_range_1.end - offset],
                         &mut self.h,
                         &mut self.computed_rows,
-                        HMode::Update
+                        HMode::Update,
+                        viz
                     );
 
                     assert!(new_j_h <= new_range.1);
@@ -483,7 +490,8 @@ impl NwFronts<0usize> for BitFronts {
                         &mut v[v_range_2.start - offset..v_range_2.end - offset],
                         &mut self.h,
                         &mut self.computed_rows,
-                        HMode::Input
+                        HMode::Input,
+                        viz
                     )
                 } else {
                     initialize_next_v(prev_front, j_range_rounded, &mut v);
@@ -499,7 +507,8 @@ impl NwFronts<0usize> for BitFronts {
                         &mut v[v_range_01.start - offset..v_range_01.end - offset],
                         &mut self.h,
                         &mut self.computed_rows,
-                        HMode::Output
+                        HMode::Output,
+                        viz
                     );
 
                     assert!(new_j_h <= new_range.1);
@@ -513,7 +522,8 @@ impl NwFronts<0usize> for BitFronts {
                         &mut v[v_range_2.start - offset..v_range_2.end - offset],
                         &mut self.h,
                         &mut self.computed_rows,
-                        HMode::Input
+                        HMode::Input,
+                        viz
                     )
                 };
                 next_front.j_h = Some(new_j_h);
@@ -532,7 +542,8 @@ impl NwFronts<0usize> for BitFronts {
                         &mut v2,
                         &mut self.h,
                         &mut self.computed_rows,
-                        HMode::None
+                        HMode::None,
+                        viz
                     );
                     assert_eq!(bottom_delta, bottom_delta_2);
                     assert_eq!(v.len(), v2.len());
@@ -561,7 +572,8 @@ impl NwFronts<0usize> for BitFronts {
                     &mut v,
                     &mut self.h,
                     &mut self.computed_rows,
-                    HMode::None
+                    HMode::None,
+                    viz
                 );
                 next_front.offset = j_range_rounded.0;
                 bottom_delta
@@ -589,6 +601,7 @@ impl NwFronts<0usize> for BitFronts {
                 &mut self.h,
                 &mut self.computed_rows,
                 HMode::None,
+                viz,
             );
             let next_front = &mut self.fronts[self.last_front_idx];
             next_front.v = v;
@@ -805,6 +818,7 @@ impl BitFronts {
                 &mut self.h,
                 &mut self.computed_rows,
                 HMode::None,
+                &mut NoVis,
             );
 
             self.last_front_idx += 1;
@@ -835,7 +849,13 @@ fn compute_columns(
     h: &mut [H],
     computed_rows: &mut Vec<usize>,
     mode: HMode,
+    viz: &mut impl VisualizerInstance,
 ) -> i32 {
+    viz.expand_block_simple(
+        Pos(i_range.0 + 1, v_range.start as I * WI),
+        Pos(i_range.len(), v_range.len() as I * WI),
+    );
+
     // Do not count computed rows during traceback.
     if i_range.len() > 1 {
         if !(v_range.len() < computed_rows.len()) {

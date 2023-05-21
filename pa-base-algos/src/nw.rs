@@ -669,15 +669,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 fronts.reuse_next_block(i_range, j_range);
             } else {
                 // eprintln!("{i}: compute block {i_range:?} {j_range:?}");
-                fronts.compute_next_block(i_range, j_range);
-
-                self.v.expand_block(
-                    Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
-                    Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
-                    0,
-                    f_max.unwrap_or(0),
-                    self.domain.h(),
-                );
+                fronts.compute_next_block(i_range, j_range, &mut self.v);
                 if self.params.strategy == Strategy::None {
                     self.v.new_layer(self.domain.h());
                 }
@@ -873,15 +865,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                     fronts.reuse_next_block(i_range, j_range);
                 } else {
                     // eprintln!("Compute front idx {idx} i {i_range:?} j {j_range:?} f {f_max:?}");
-                    fronts.compute_next_block(i_range, j_range);
-
-                    self.v.expand_block(
-                        Pos(i_range.0 + 1, fronts.last_front().j_range_rounded().0),
-                        Pos(i_range.len(), fronts.last_front().j_range_rounded().len()),
-                        0,
-                        f_max.unwrap_or(0),
-                        self.domain.h(),
-                    );
+                    fronts.compute_next_block(i_range, j_range, &mut self.v);
                 }
                 // Compute the range of fixed states.
                 let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, fronts.last_front());

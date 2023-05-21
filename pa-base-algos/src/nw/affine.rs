@@ -222,7 +222,13 @@ impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
     }
 
     // TODO: Allow updating/overwriting as well.
-    fn compute_next_block(&mut self, i_range: IRange, j_range: JRange) {
+    fn compute_next_block(
+        &mut self,
+        i_range: IRange,
+        j_range: JRange,
+        v: &mut impl VisualizerInstance,
+    ) {
+        v.expand_block_simple(Pos(i_range.0, j_range.0), Pos(i_range.len(), j_range.len()));
         assert!(i_range.0 == self.i_range.1);
         self.i_range.1 = i_range.1;
 

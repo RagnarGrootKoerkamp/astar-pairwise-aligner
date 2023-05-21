@@ -2,6 +2,7 @@ use std::ops::{IndexMut, Range, RangeInclusive};
 
 use pa_affine_types::{AffineCigar, AffineCost, State};
 use pa_types::*;
+use pa_vis_types::VisualizerInstance;
 
 use crate::edit_graph::AffineCigarOps;
 
@@ -107,7 +108,12 @@ pub trait NwFronts<const N: usize>: IndexMut<usize, Output = Self::Front> {
     /// `i_range` `start .. end` processes characters `start .. end` of `a`, and
     /// give the front at column `i`.
     // TODO: Pass in a visualizer.
-    fn compute_next_block(&mut self, i_range: IRange, j_range: JRange);
+    fn compute_next_block(
+        &mut self,
+        i_range: IRange,
+        j_range: JRange,
+        v: &mut impl VisualizerInstance,
+    );
 
     fn reuse_next_block(&mut self, _i_range: IRange, _j_range: JRange) {
         unimplemented!();
