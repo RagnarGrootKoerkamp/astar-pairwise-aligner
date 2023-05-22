@@ -140,14 +140,14 @@ pub trait NwFronts<const N: usize>: IndexMut<usize, Output = Self::Front> {
     /// This isn't used by the front itself, but stored here for convenience.
     fn set_last_front_fixed_j_range(&mut self, fixed_j_range: Option<JRange>);
 
-    fn parent(&self, st: State) -> Option<(State, AffineCigarOps)>;
+    fn parent(&self, st: State, g: &mut Cost) -> Option<(State, AffineCigarOps)>;
 
     // Reusable helper implementation.
     fn trace(&mut self, from: State, mut to: State) -> AffineCigar {
         let mut cigar = AffineCigar::default();
 
         while to != from {
-            let (parent, cigar_ops) = self.parent(to).unwrap();
+            let (parent, cigar_ops) = self.parent(to, &mut 0).unwrap();
             to = parent;
             for op in cigar_ops {
                 if let Some(op) = op {

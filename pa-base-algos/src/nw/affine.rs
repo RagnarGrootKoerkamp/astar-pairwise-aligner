@@ -263,7 +263,7 @@ impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
         }
     }
 
-    fn parent(&self, st: State) -> Option<(State, AffineCigarOps)> {
+    fn parent(&self, st: State, _g: &mut Cost) -> Option<(State, AffineCigarOps)> {
         let cur_cost = self.fronts[st.i as usize].index(st.layer, st.j);
         let mut parent = None;
         let mut cigar_ops: AffineCigarOps = [None, None];

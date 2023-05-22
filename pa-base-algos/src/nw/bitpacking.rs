@@ -236,6 +236,20 @@ impl BitFront {
         }
         assert_eq!(val, self.bot_val);
     }
+
+    /// Get the difference from row `j` to `j+1`.
+    fn get_diff(&self, j: I) -> Option<Cost> {
+        if j < self.offset {
+            return None;
+        }
+        let idx = (j - self.offset) as usize / W;
+        if idx >= self.v.len() {
+            return None;
+        }
+        let bit = (j - self.offset) as usize % W;
+
+        Some(((self.v[idx].p() >> bit) & 1) as Cost - ((self.v[idx].m() >> bit) & 1) as Cost)
+    }
 }
 
 impl NwFrontsTag<0usize> for BitFrontsTag {
@@ -637,7 +651,8 @@ impl NwFronts<0usize> for BitFronts {
 
     /// Find the parent of `st`.
     /// NOTE: This assumes that `st.i` is in the last front, and that the front before is for `st.i-1`.
-    fn parent(&self, st: State) -> Option<(State, AffineCigarOps)> {
+    /// `g`: distance to `st`.
+    fn parent(&self, st: State, g: &mut Cost) -> Option<(State, AffineCigarOps)> {
         let front = &self.fronts[self.last_front_idx];
         assert!(front.i == st.i);
         let prev_front = if st.i > 0 {
@@ -648,18 +663,28 @@ impl NwFronts<0usize> for BitFronts {
             front
         };
 
-        let st_cost = front.index(st.j);
+        // vertical, horizontal, diagonal delta
+        let vd = front.get_diff(st.j - 1);
+        let hd = prev_front.get(st.j).map(|x| *g - x);
+        let dd = if
+            let Some(hd) = hd && let Some(vd) = prev_front.get_diff(st.j - 1) {
+                Some(hd + vd)
+            } else {
+                None
+            };
+
         let is_match = st.i > 0
             && st.j > 0
             //&& s_match((&self.a).into(), &self.b, st.i-1, st.j-1);
             && BitProfile::is_match(&self.a, &self.b, st.i-1, st.j-1);
-        for (di, dj, edge, op) in [
-            (-1, 0, 1, CigarOp::Del),
-            (0, -1, 1, CigarOp::Ins),
+        for (di, dj, edge, delta, op) in [
+            (-1, 0, 1, hd, CigarOp::Del),
+            (0, -1, 1, vd, CigarOp::Ins),
             (
                 -1,
                 -1,
                 if is_match { 0 } else { 1 },
+                dd,
                 if is_match {
                     CigarOp::Match
                 } else {
@@ -667,21 +692,16 @@ impl NwFronts<0usize> for BitFronts {
                 },
             ),
         ] {
-            if let Some(parent_cost) = (if di == 0 { front } else { prev_front }).get(st.j + dj) {
-                // eprintln!(
-                //     "Candidate parent of {st:?} @ {st_cost}: {:?} @ {parent_cost} edge {edge}",
-                //     (st.i + di, st.j + dj),
-                // );
-                if st_cost == parent_cost + edge {
-                    return Some((
-                        State {
-                            i: st.i + di,
-                            j: st.j + dj,
-                            layer: None,
-                        },
-                        [Some(op.into()), None],
-                    ));
-                }
+            if let Some(delta) = delta && edge == delta{
+                *g -= delta;
+                return Some((
+                    State {
+                        i: st.i + di,
+                        j: st.j + dj,
+                        layer: None,
+                    },
+                    [Some(op.into()), None],
+                ));
             }
         }
         None
@@ -724,6 +744,7 @@ impl NwFronts<0usize> for BitFronts {
                     loop {
                         let j_range = JRange(max(j_range.0, j_range.1 - height), j_range.1);
                         // eprintln!("TRACE: Fill block {:?} {:?}", i_range, j_range);
+                        // FIXME: USE SIMD FOR THIS.
                         self.fill_block(i_range, j_range);
                         if self.fronts[self.last_front_idx].index(to.j) == g {
                             break;
@@ -745,16 +766,13 @@ impl NwFronts<0usize> for BitFronts {
             //     "Parent of {to:?} at distance {g} with range {:?}",
             //     self.fronts[self.last_front_idx].j_range
             // );
-            let (parent, cigar_ops) = self.parent(to).unwrap();
+            let (parent, cigar_ops) = self
+                .parent(to, &mut g)
+                .expect("ERROR: PARENT NOT FOUND IN TRACEBACK");
             to = parent;
             for op in cigar_ops {
                 if let Some(op) = op {
                     cigar.push(op);
-
-                    g -= match op {
-                        AffineCigarOp::Match => 0,
-                        _ => 1,
-                    };
                 }
             }
         }
