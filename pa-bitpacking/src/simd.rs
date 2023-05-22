@@ -315,7 +315,16 @@ where
     assert_eq!(values.len(), h.len());
     assert_eq!(b.len(), v.len());
     for vv in values.iter_mut() {
-        vv.resize(v.len(), V::default());
+        // Grow `vv`, but do not initialize its elements since they will be overwritten anyway.
+        if vv.capacity() < v.len() {
+            vv.resize(v.len(), V::default());
+        } else {
+            // SAFETY: We check above that the capacity is at least `v.len()`.
+            // No initialization is needed for (tuples of) ints.
+            unsafe {
+                vv.set_len(v.len());
+            }
+        }
     }
     if a.len() < 2 * L * N {
         // TODO: This could be optimized a bit more.
