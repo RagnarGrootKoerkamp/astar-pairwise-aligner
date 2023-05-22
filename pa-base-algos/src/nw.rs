@@ -732,6 +732,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                     j: self.b.len() as I,
                     layer: None,
                 },
+                &mut self.v,
             );
             Some((dist, Some(cigar)))
         } else {
@@ -922,6 +923,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 j: self.b.len() as I,
                 layer: None,
             },
+            &mut self.v,
         );
         (dist, cigar)
     }

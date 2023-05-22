@@ -18,7 +18,14 @@
 //! - row::<3> and row::<L> use too many registers probably; almost 2x slower
 //! - local_h for simd doesn't help, since effectively we already create a local h in each iteration anyway.
 //! - row-first is always as good as col-first.
-//! -
+//!
+//! Timings for 256 wide block:
+//! - 1       row  (scalar) : 1.4
+//! - 2       rows (simd2)  : 1.8
+//! - 3/4     rows (simd4)  : 2.0
+//! - 5/6/7/8 rows (2xsimd4): 3.2
+//! => Doing a 4 high SIMD block is better than 2 individual rows.
+//!
 use super::*;
 use crate::bit_profile::Bits;
 use itertools::{izip, Itertools};
@@ -286,6 +293,207 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     for j in 0..L * N {
         for i in a.len() - j..a.len() {
             block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+        }
+    }
+}
+
+/// Same as `compute`, but returns all computed value.
+pub fn fill<const N: usize, H: HEncoding, const L: usize>(
+    a: &[Bits],
+    b: &[Bits],
+    h: &mut [H],
+    v: &mut [V],
+    exact_end: bool,
+    values: &mut [Vec<V>],
+) -> Cost
+where
+    LaneCount<L>: SupportedLaneCount,
+    [(); L * N]: Sized,
+    [(); L * 1]: Sized,
+{
+    assert_eq!(a.len(), h.len());
+    assert_eq!(values.len(), h.len());
+    assert_eq!(b.len(), v.len());
+    for vv in values.iter_mut() {
+        vv.resize(v.len(), V::default());
+    }
+    if a.len() < 2 * L * N {
+        // TODO: This could be optimized a bit more.
+        if N > 1 {
+            return fill::<1, H, L>(a, b, h, v, exact_end, values);
+        }
+        if L > 2 {
+            return fill::<1, H, 2>(a, b, h, v, exact_end, values);
+        }
+        for i in 0..a.len() {
+            for j in 0..b.len() {
+                block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
+            }
+            values[i].copy_from_slice(v);
+        }
+        return h.iter().map(|h| h.value()).sum::<Cost>();
+    }
+
+    // Prevent allocation of unzipped `a` in this case.
+    if b.len() == 1 {
+        for i in 0..a.len() {
+            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
+            values[i].copy_from_slice(v);
+        }
+        return h.iter().map(|h| h.value()).sum::<Cost>();
+    }
+
+    // Unzip bits of a so we can directly use unaligned reads later.
+    let ap0 = a.iter().map(|ca| ca.0).collect_vec();
+    let ap1 = a.iter().map(|ca| ca.1).collect_vec();
+
+    // Iterate over blocks of L*N rows at a time.
+    let b_chunks = b.array_chunks::<{ L * N }>();
+    let v_chunks = v.array_chunks_mut::<{ L * N }>();
+    let mut offset = 0;
+    for (cbs, v) in izip!(b_chunks, v_chunks) {
+        fill_block_of_rows(a, &ap0, &ap1, cbs, h, v, values, offset);
+        offset += L * N;
+    }
+
+    // Handle the remaining rows.
+    // - With exponential decay in exact mode.
+    // - With padding an a single extra call otherwise.
+    let mut b = b.array_chunks::<{ L * N }>().remainder();
+    let mut v = v.array_chunks_mut::<{ L * N }>().into_remainder();
+    assert_eq!(b.len(), v.len());
+    if exact_end {
+        // b.len() < 8 for N=2, L=4.
+        // - if >=4: N=1, L=4 simd row
+        // - if >=2: N=1, L=2 half-simd row
+        // - if >=1: scalar row
+        while b.len() >= 4 {
+            let (cbs, b_rem) = b.split_array_ref::<4>();
+            b = b_rem;
+            let (v2, v_rem) = v.split_array_mut::<4>();
+            v = v_rem;
+            fill_block_of_rows::<1, H, 4>(a, &ap0, &ap1, cbs, h, v2, values, offset);
+            offset += 4;
+        }
+        if b.len() >= 2 {
+            let (cbs, b_rem) = b.split_array_ref::<2>();
+            b = b_rem;
+            let (v2, v_rem) = v.split_array_mut::<2>();
+            v = v_rem;
+            fill_block_of_rows::<1, H, 2>(a, &ap0, &ap1, cbs, h, v2, values, offset);
+            offset += 2;
+        }
+        if b.len() >= 1 {
+            let (cbs, b_rem) = b.split_array_ref::<1>();
+            b = b_rem;
+            let (v2, v_rem) = v.split_array_mut::<1>();
+            v = v_rem;
+            for i in 0..a.len() {
+                block::compute_block::<BitProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);
+                values[i][offset] = v2[0];
+            }
+            //offset += 1;
+        }
+        assert!(b.len() == 0);
+        assert!(v.len() == 0);
+        h.iter().map(|h| h.value()).sum()
+    } else {
+        panic!("Use exact mode for filling");
+    }
+}
+
+#[inline(always)]
+fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
+    a: &[Bits],
+    ap0: &[B],
+    ap1: &[B],
+    cbs: &[Bits; L * N],
+    h: &mut [H],
+    v: &mut [V; L * N],
+    values: &mut [Vec<V>],
+    offset: usize,
+) where
+    LaneCount<L>: SupportedLaneCount,
+    [(); L * N]: Sized,
+{
+    let rev = |k| L * N - 1 - k;
+
+    // Top-left triangle of block of rows.
+    for j in 0..L * N {
+        for i in 0..L * N - j {
+            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+            values[i][offset + j] = v[j];
+        }
+    }
+
+    // Align b.
+    let b0: [S<L>; N] = slice_to_simd(&from_fn(|k| cbs[rev(k)].0));
+    let b1: [S<L>; N] = slice_to_simd(&from_fn(|k| cbs[rev(k)].1));
+
+    // Align h.
+    let mut ph_simd: [S<L>; N] = slice_to_simd(&from_fn(|k| h[k].p()));
+    let mut mh_simd: [S<L>; N] = slice_to_simd(&from_fn(|k| h[k].m()));
+
+    // Align v.
+    let mut pv_simd: [S<L>; N] = slice_to_simd(&from_fn(|k| v[rev(k)].p()));
+    let mut mv_simd: [S<L>; N] = slice_to_simd(&from_fn(|k| v[rev(k)].m()));
+
+    // Loop over horizontal windows of a.
+    // The h windows are updated manually by rotating simd lanes of the
+    // local variable h_simd.
+    assert_eq!(ap0.len(), ap1.len());
+    for (i, (a0, a1)) in izip!(
+        ap0.array_windows::<{ L * N }>().skip(1),
+        ap1.array_windows::<{ L * N }>().skip(1)
+    )
+    .enumerate()
+    {
+        // Read the unaligned lanes of a.
+        let a0 = slice_to_simd(a0);
+        let a1 = slice_to_simd(a1);
+
+        let eq: [S<L>; N] = from_fn(|k| BitProfile::eq_simd((&a0[k], &a1[k]), (&b0[k], &b1[k])));
+
+        // Rotate the lanes of h.
+        unsafe {
+            let (p, m) = h.get_unchecked(i + L * N).pm();
+            let pcarry = rotate_left(&mut ph_simd, p);
+            let mcarry = rotate_left(&mut mh_simd, m);
+            *h.get_unchecked_mut(i) = H::from(pcarry, mcarry);
+        }
+        for k in 0..N {
+            block::compute_block_simd(
+                &mut ph_simd[k],
+                &mut mh_simd[k],
+                &mut pv_simd[k],
+                &mut mv_simd[k],
+                eq[k],
+            );
+        }
+        for (k, (pv, mv)) in izip!(simd_to_slice(&pv_simd), simd_to_slice(&mv_simd)).enumerate() {
+            values[i + 1 + k][offset + rev(k)] = V::from(*pv, *mv);
+        }
+    }
+
+    // Write back h to unaligned slice.
+    unsafe {
+        let ph = simd_to_slice(&ph_simd);
+        let mh = simd_to_slice(&mh_simd);
+        for i in 0..L * N {
+            *h.get_unchecked_mut(h.len() - L * N + i) = H::from(ph[i], mh[i]);
+        }
+    }
+
+    // Write back v to unaligned slice.
+    let pv = simd_to_slice(&pv_simd);
+    let mv = simd_to_slice(&mv_simd);
+    *v = from_fn(|k| V::from(pv[rev(k)], mv[rev(k)]));
+
+    // Bottom-right triangle of block of rows.
+    for j in 0..L * N {
+        for i in a.len() - j..a.len() {
+            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+            values[i][offset + j] = v[j];
         }
     }
 }

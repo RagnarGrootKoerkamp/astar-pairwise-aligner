@@ -402,3 +402,26 @@ pub fn rows_ld<const N: usize, P: Profile, H: HEncoding>(
 
     h.iter().map(|h| h.value()).sum::<Cost>()
 }
+
+/// Same as `compute`, but returns all computed value.
+pub fn fill<P: Profile, H: HEncoding>(
+    a: &[P::A],
+    b: &[P::B],
+    h: &mut [H],
+    v: &mut [V],
+    values: &mut [Vec<V>],
+) -> Cost {
+    assert_eq!(a.len(), h.len());
+    assert_eq!(values.len(), h.len());
+    assert_eq!(b.len(), v.len());
+    for vv in values.iter_mut() {
+        vv.resize(v.len(), V::default());
+    }
+    for i in 0..a.len() {
+        for j in 0..b.len() {
+            block::compute_block::<P, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
+        }
+        values[i].copy_from_slice(v);
+    }
+    return h.iter().map(|h| h.value()).sum::<Cost>();
+}

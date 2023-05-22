@@ -143,7 +143,12 @@ pub trait NwFronts<const N: usize>: IndexMut<usize, Output = Self::Front> {
     fn parent(&self, st: State, g: &mut Cost) -> Option<(State, AffineCigarOps)>;
 
     // Reusable helper implementation.
-    fn trace(&mut self, from: State, mut to: State) -> AffineCigar {
+    fn trace(
+        &mut self,
+        from: State,
+        mut to: State,
+        _viz: &mut impl VisualizerInstance,
+    ) -> AffineCigar {
         let mut cigar = AffineCigar::default();
 
         while to != from {

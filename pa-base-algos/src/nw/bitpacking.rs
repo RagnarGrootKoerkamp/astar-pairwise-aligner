@@ -394,7 +394,7 @@ impl NwFronts<0usize> for BitFronts {
 
         if self.trace && !self.params.sparse {
             // This is extracted to a separate function for reuse during traceback.
-            return self.fill_block(i_range, j_range);
+            return self.fill_block(i_range, j_range, viz);
         }
 
         assert_eq!(i_range.0, self.i_range.1);
@@ -516,6 +516,7 @@ impl NwFronts<0usize> for BitFronts {
                 } else {
                     initialize_next_v(prev_front, j_range_rounded, &mut v);
                     assert!(new_range.0 <= new_j_h);
+                    // Round new_j_h down to a multiple of 8*WI for better SIMD.
                     //new_j_h = new_range.0 + (new_j_h - new_range.0) / (8*WI) * (8*WI);
                     let v_range_01 = new_range.0 as usize / W..new_j_h as usize / W;
                     compute_columns(
@@ -711,7 +712,12 @@ impl NwFronts<0usize> for BitFronts {
     ///
     /// This requires `self.trace` to be `true`. In case of sparse fronts, this
     /// recomputes fronts as needed.
-    fn trace(&mut self, from: State, mut to: State) -> AffineCigar {
+    fn trace(
+        &mut self,
+        from: State,
+        mut to: State,
+        viz: &mut impl VisualizerInstance,
+    ) -> AffineCigar {
         assert!(self.trace);
         assert!(self.fronts.last().unwrap().i == to.i);
         let mut cigar = AffineCigar::default();
@@ -745,7 +751,7 @@ impl NwFronts<0usize> for BitFronts {
                         let j_range = JRange(max(j_range.0, j_range.1 - height), j_range.1);
                         // eprintln!("TRACE: Fill block {:?} {:?}", i_range, j_range);
                         // FIXME: USE SIMD FOR THIS.
-                        self.fill_block(i_range, j_range);
+                        self.fill_block(i_range, j_range, viz);
                         if self.fronts[self.last_front_idx].index(to.j) == g {
                             break;
                         }
@@ -800,7 +806,7 @@ impl NwFronts<0usize> for BitFronts {
 
 impl BitFronts {
     /// Iterate over columns `i_range` for `j_range`, storing a front per column.
-    fn fill_block(&mut self, i_range: IRange, j_range: JRange) {
+    fn fill_block(&mut self, i_range: IRange, j_range: JRange, viz: &mut impl VisualizerInstance) {
         assert_eq!(
             i_range.0, self.i_range.1,
             "Current fronts range is {:?}. Computed range {i_range:?} does not fit!",
@@ -810,47 +816,95 @@ impl BitFronts {
 
         let j_range_rounded = round(j_range);
         let v_range = j_range_rounded.0 as usize / W..j_range_rounded.1 as usize / W;
+
         // Get top/bot values in the previous column for the new j_range_rounded.
         let prev_front = &self.fronts[self.last_front_idx];
         assert!(prev_front.i == i_range.0);
 
+        let mut v = Vec::default();
+        initialize_next_v(prev_front, j_range_rounded, &mut v);
+
+        // 1. Push fronts for all upcoming columns.
+        // 2. Take the vectors.
+        // 3. Fill
+        // 4. Put the vectors back.
+        // 5. Compute bot values.
+
         let mut next_front = BitFront {
-            v: Vec::default(),
+            // Will be resized in fill().
+            v: vec![],
             i: i_range.0,
             j_range,
             offset: j_range_rounded.0,
             fixed_j_range: None,
             top_val: prev_front.index(j_range_rounded.0),
-            bot_val: prev_front.index(j_range_rounded.1),
-            // During traceback, we ignore horizontal deltas.
+            // Will be set later.
+            bot_val: 0,
+            // bot_val: prev_front.index(j_range_rounded.1),
+            // During traceback, we ignore any stored horizontal deltas.
             j_h: None,
         };
-        // TODO: This allocation in `v` could possibly be removed.
-        initialize_next_v(prev_front, j_range_rounded, &mut next_front.v);
 
+        // 1.
         for i in i_range.0..i_range.1 {
             // Along the top row, horizontal deltas are 1.
             next_front.i = i + 1;
             next_front.top_val += 1;
-            next_front.bot_val += compute_columns(
-                self.params,
-                &self.a,
-                &self.b,
-                IRange(i, i + 1),
-                v_range.clone(),
-                &mut next_front.v,
-                &mut self.h,
-                &mut self.computed_rows,
-                HMode::None,
-                &mut NoVis,
-            );
-
             self.last_front_idx += 1;
             if self.last_front_idx == self.fronts.len() {
                 self.fronts.push(next_front.clone());
             } else {
                 self.fronts[self.last_front_idx].clone_from(&next_front);
             }
+        }
+
+        // 2.
+        let mut values = vec![vec![]; i_range.len() as usize];
+        for (front, vv) in izip!(
+            &mut self.fronts
+                [self.last_front_idx + 1 - i_range.len() as usize..=self.last_front_idx],
+            values.iter_mut()
+        ) {
+            *vv = std::mem::take(&mut front.v);
+        }
+        let h = &mut vec![H::one(); i_range.len() as usize];
+
+        // 3.
+        viz.expand_block_simple(
+            Pos(i_range.0 + 1, j_range_rounded.0),
+            Pos(i_range.len(), j_range_rounded.exclusive_len()),
+        );
+        if self.params.simd {
+            pa_bitpacking::simd::fill::<2, H, 4>(
+                &self.a[i_range.0 as usize..i_range.1 as usize],
+                &self.b[v_range],
+                h,
+                &mut v,
+                true,
+                &mut values[..],
+            );
+        } else {
+            pa_bitpacking::scalar::fill::<BitProfile, H>(
+                &self.a[i_range.0 as usize..i_range.1 as usize],
+                &self.b[v_range],
+                h,
+                &mut v,
+                &mut values[..],
+            );
+        }
+
+        // 4. 5.
+        let mut bot_val =
+            self.fronts[self.last_front_idx - i_range.len() as usize].index(j_range_rounded.1);
+        for (front, vv, h) in izip!(
+            &mut self.fronts
+                [self.last_front_idx + 1 - i_range.len() as usize..=self.last_front_idx],
+            values.iter_mut(),
+            h.iter(),
+        ) {
+            front.v = std::mem::take(vv);
+            bot_val += h.value();
+            front.bot_val = bot_val;
         }
     }
 }
