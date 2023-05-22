@@ -971,11 +971,12 @@ impl Visualizer {
                             continue;
                         }
                         let mut b = self.cell_center(m.start);
-                        b.0 += self.config.style.match_shrink as i32;
-                        b.1 += self.config.style.match_shrink as i32;
+                        let shrink = min(self.config.style.match_shrink as i32, self.config.cell_size -1);
+                        b.0 += shrink;
+                        b.1 += shrink;
                         let mut e = self.cell_center(m.end);
-                        e.0 -= self.config.style.match_shrink as i32;
-                        e.1 -= self.config.style.match_shrink as i32;
+                        e.0 -= shrink;
+                        e.1 -= shrink;
                         let mut color = match m.pruned {
                                 MatchStatus::Active => self.config.style.active_match,
                                 MatchStatus::Pruned => self.config.style.pruned_match,
