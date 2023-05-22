@@ -123,7 +123,7 @@ impl AffineCigar {
         }
     }
 
-    pub fn push(&mut self, op: AffineCigarOp) {
+    pub fn push_op(&mut self, op: AffineCigarOp) {
         // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
         if let Some(s) = self.ops.last_mut() {
             if s.op == op {
@@ -132,6 +132,17 @@ impl AffineCigar {
             }
         }
         self.ops.push(AffineCigarElem { op, cnt: 1 });
+    }
+
+    pub fn push_elem(&mut self, elem: AffineCigarElem) {
+        // TODO: Make sure that Affine{Insert,Delete} can only come after an Open/Close.
+        if let Some(s) = self.ops.last_mut() {
+            if s.op == elem.op {
+                s.cnt += elem.cnt;
+                return;
+            }
+        }
+        self.ops.push(elem);
     }
 
     /// Extend the cigar by the given number of matches.

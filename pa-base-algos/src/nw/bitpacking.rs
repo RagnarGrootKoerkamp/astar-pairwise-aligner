@@ -16,8 +16,6 @@ use itertools::{izip, Itertools};
 use pa_bitpacking::{BitProfile, HEncoding, Profile, B, V, W};
 use pa_types::{Cost, Seq, I};
 
-use crate::edit_graph::AffineCigarOps;
-
 use super::*;
 
 const DEBUG: bool = false;
@@ -650,64 +648,6 @@ impl NwFronts<0usize> for BitFronts {
         self.fronts.get(self.last_front_idx + 1).map(|f| f.j_range)
     }
 
-    /// Find the parent of `st`.
-    /// NOTE: This assumes that `st.i` is in the last front, and that the front before is for `st.i-1`.
-    /// `g`: distance to `st`.
-    fn parent(&self, st: State, g: &mut Cost) -> Option<(State, AffineCigarOps)> {
-        let front = &self.fronts[self.last_front_idx];
-        assert!(front.i == st.i);
-        let prev_front = if st.i > 0 {
-            let prev_front = &self.fronts[self.last_front_idx - 1];
-            assert!(prev_front.i == st.i - 1);
-            prev_front
-        } else {
-            front
-        };
-
-        // vertical, horizontal, diagonal delta
-        let vd = front.get_diff(st.j - 1);
-        let hd = prev_front.get(st.j).map(|x| *g - x);
-        let dd = if
-            let Some(hd) = hd && let Some(vd) = prev_front.get_diff(st.j - 1) {
-                Some(hd + vd)
-            } else {
-                None
-            };
-
-        let is_match = st.i > 0
-            && st.j > 0
-            //&& s_match((&self.a).into(), &self.b, st.i-1, st.j-1);
-            && BitProfile::is_match(&self.a, &self.b, st.i-1, st.j-1);
-        for (di, dj, edge, delta, op) in [
-            (-1, 0, 1, hd, CigarOp::Del),
-            (0, -1, 1, vd, CigarOp::Ins),
-            (
-                -1,
-                -1,
-                if is_match { 0 } else { 1 },
-                dd,
-                if is_match {
-                    CigarOp::Match
-                } else {
-                    CigarOp::Sub
-                },
-            ),
-        ] {
-            if let Some(delta) = delta && edge == delta{
-                *g -= delta;
-                return Some((
-                    State {
-                        i: st.i + di,
-                        j: st.j + dj,
-                        layer: None,
-                    },
-                    [Some(op.into()), None],
-                ));
-            }
-        }
-        None
-    }
-
     /// Traceback the back from `from` to `to`.
     ///
     /// This requires `self.trace` to be `true`. In case of sparse fronts, this
@@ -723,6 +663,7 @@ impl NwFronts<0usize> for BitFronts {
         let mut cigar = AffineCigar::default();
         let mut g = self.fronts[self.last_front_idx].index(to.j);
 
+        let mut block_start = to.i - 1;
         while to != from {
             // Remove fronts to the right of `to`.
             while self.fronts[self.last_front_idx].i > to.i {
@@ -738,6 +679,7 @@ impl NwFronts<0usize> for BitFronts {
                 // If the previous front is the correct one, no need for further recomputation.
                 if prev_front.i < to.i - 1 {
                     let i_range = IRange(prev_front.i, front.i);
+                    block_start = prev_front.i;
                     assert!(front.j_range.0 <= to.j && to.j <= front.j_range.1);
                     let j_range = JRange(front.j_range.0, to.j);
                     self.pop_last_front();
@@ -760,8 +702,6 @@ impl NwFronts<0usize> for BitFronts {
                         // Try again with a larger height.
                         height *= 2;
                     }
-
-                    //self.fill_block(i_range, j_range);
                 }
             }
 
@@ -769,15 +709,9 @@ impl NwFronts<0usize> for BitFronts {
             //     "Parent of {to:?} at distance {g} with range {:?}",
             //     self.fronts[self.last_front_idx].j_range
             // );
-            let (parent, cigar_ops) = self
-                .parent(to, &mut g)
-                .expect("ERROR: PARENT NOT FOUND IN TRACEBACK");
+            let (parent, cigar_elem) = self.parent(to, &mut g, block_start);
             to = parent;
-            for op in cigar_ops {
-                if let Some(op) = op {
-                    cigar.push(op);
-                }
-            }
+            cigar.push_elem(cigar_elem);
         }
         assert_eq!(g, 0);
         cigar.reverse();
@@ -802,6 +736,106 @@ impl NwFronts<0usize> for BitFronts {
 }
 
 impl BitFronts {
+    /// Find the parent of `st`.
+    /// NOTE: This assumes that `st.i` is in the last front, and that the front before is for `st.i-1`.
+    /// `g`: distance to `st`.
+    fn parent(&self, mut st: State, g: &mut Cost, block_start: I) -> (State, AffineCigarElem) {
+        let front = &self.fronts[self.last_front_idx];
+        assert!(front.i == st.i);
+        let prev_front = if st.i > 0 {
+            let prev_front = &self.fronts[self.last_front_idx - 1];
+            assert!(prev_front.i == st.i - 1);
+            Some(prev_front)
+        } else {
+            None
+        };
+
+        // MATCH.
+        // Go up to the beginning of the j_range of the previous front.
+        // This does not cross block boundaries to prevent going out-of-range.
+        // TODO: SIMD
+        let mut cnt = 0;
+        while st.i > 0 && st.j > round(prev_front.unwrap().j_range).0 {
+            if BitProfile::is_match(&self.a, &self.b, st.i - 1, st.j - 1) {
+                cnt += 1;
+            } else {
+                break;
+            }
+            st.i -= 1;
+            st.j -= 1;
+            if st.i == block_start {
+                break;
+            }
+        }
+        if cnt > 0 {
+            // eprintln!("Match of len {cnt} ending at {st:?}");
+            return (
+                st,
+                AffineCigarElem {
+                    op: AffineCigarOp::Match,
+                    cnt,
+                },
+            );
+        }
+
+        // We have no match.
+        *g -= 1;
+
+        // Vertical insert.
+        // (This is first since it only needs a single delta bit, instead of an index() call.)
+        let vd = front.get_diff(st.j - 1);
+        if vd == Some(1) {
+            return (
+                State {
+                    i: st.i,
+                    j: st.j - 1,
+                    layer: None,
+                },
+                AffineCigarElem {
+                    op: AffineCigarOp::Ins,
+                    cnt: 1,
+                },
+            );
+        }
+
+        let prev_front = prev_front.expect("No vertical edge, but also no previous front");
+
+        // Horizontal delete.
+        // Correct for the already-updated g.
+        let hd = (*g + 1) - prev_front.index(st.j);
+        if hd == 1 {
+            return (
+                State {
+                    i: st.i - 1,
+                    j: st.j,
+                    layer: None,
+                },
+                AffineCigarElem {
+                    op: AffineCigarOp::Del,
+                    cnt: 1,
+                },
+            );
+        }
+
+        // Substitution.
+        let dd = prev_front.get_diff(st.j - 1).unwrap() + hd;
+        if dd == 1 {
+            return (
+                State {
+                    i: st.i - 1,
+                    j: st.j - 1,
+                    layer: None,
+                },
+                AffineCigarElem {
+                    op: AffineCigarOp::Sub,
+                    cnt: 1,
+                },
+            );
+        }
+
+        panic!("ERROR: PARENT NOT FOUND IN TRACEBACK");
+    }
+
     /// Iterate over columns `i_range` for `j_range`, storing a front per column.
     fn fill_block(&mut self, i_range: IRange, j_range: JRange, viz: &mut impl VisualizerInstance) {
         assert_eq!(
@@ -896,10 +930,10 @@ impl BitFronts {
         for (front, vv, h) in izip!(
             &mut self.fronts
                 [self.last_front_idx + 1 - i_range.len() as usize..=self.last_front_idx],
-            values.iter_mut(),
+            values.into_iter(),
             h.iter(),
         ) {
-            front.v = std::mem::take(vv);
+            front.v = vv;
             bot_val += h.value();
             front.bot_val = bot_val;
         }

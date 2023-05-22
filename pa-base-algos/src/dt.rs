@@ -1368,7 +1368,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
             to = parent;
             for op in cigar_ops {
                 if let Some(op) = op {
-                    cigar.push(op);
+                    cigar.push_op(op);
                 }
             }
         }

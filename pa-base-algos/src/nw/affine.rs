@@ -170,6 +170,31 @@ impl<'a, const N: usize> AffineNwFronts<'a, N> {
             });
         }
     }
+
+    fn parent(&self, st: State, _g: &mut Cost) -> Option<(State, AffineCigarOps)> {
+        let cur_cost = self.fronts[st.i as usize].index(st.layer, st.j);
+        let mut parent = None;
+        let mut cigar_ops: AffineCigarOps = [None, None];
+        EditGraph::iterate_parents(
+            &self.a,
+            &self.b,
+            &self.cm,
+            /*greedy_matching=*/ false,
+            st,
+            |di, dj, new_layer, cost, ops| {
+                if parent.is_none()
+                        // We use `get` to handle possible out-of-bound lookups.
+                        && let Some(parent_cost) =
+                            self.fronts[(st.i + di) as usize].get(new_layer, st.j + dj)
+                        && cur_cost == parent_cost + cost
+                    {
+                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
+                        cigar_ops = ops;
+                    }
+            },
+        );
+        Some((parent?, cigar_ops))
+    }
 }
 
 impl<const N: usize> NwFrontsTag<N> for AffineNwFrontsTag<N> {
@@ -263,32 +288,29 @@ impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
         }
     }
 
-    fn parent(&self, st: State, _g: &mut Cost) -> Option<(State, AffineCigarOps)> {
-        let cur_cost = self.fronts[st.i as usize].index(st.layer, st.j);
-        let mut parent = None;
-        let mut cigar_ops: AffineCigarOps = [None, None];
-        EditGraph::iterate_parents(
-            &self.a,
-            &self.b,
-            &self.cm,
-            /*greedy_matching=*/ false,
-            st,
-            |di, dj, new_layer, cost, ops| {
-                if parent.is_none()
-                        // We use `get` to handle possible out-of-bound lookups.
-                        && let Some(parent_cost) =
-                            self.fronts[(st.i + di) as usize].get(new_layer, st.j + dj)
-                        && cur_cost == parent_cost + cost
-                    {
-                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
-                        cigar_ops = ops;
-                    }
-            },
-        );
-        Some((parent?, cigar_ops))
-    }
-
     fn set_last_front_fixed_j_range(&mut self, fixed_j_range: Option<JRange>) {
         self.fronts.last_mut().unwrap().fixed_j_range = fixed_j_range;
+    }
+
+    // Reusable helper implementation.
+    fn trace(
+        &mut self,
+        from: State,
+        mut to: State,
+        _viz: &mut impl VisualizerInstance,
+    ) -> AffineCigar {
+        let mut cigar = AffineCigar::default();
+
+        while to != from {
+            let (parent, cigar_ops) = self.parent(to, &mut 0).unwrap();
+            to = parent;
+            for op in cigar_ops {
+                if let Some(op) = op {
+                    cigar.push_op(op);
+                }
+            }
+        }
+        cigar.reverse();
+        cigar
     }
 }

@@ -4,8 +4,6 @@ use pa_affine_types::{AffineCigar, AffineCost, State};
 use pa_types::*;
 use pa_vis_types::VisualizerInstance;
 
-use crate::edit_graph::AffineCigarOps;
-
 /// Left-exclusive range of columns to compute.
 /// (-1, 0): the first column
 /// (i, i+W): Compute column W given column i.
@@ -140,27 +138,10 @@ pub trait NwFronts<const N: usize>: IndexMut<usize, Output = Self::Front> {
     /// This isn't used by the front itself, but stored here for convenience.
     fn set_last_front_fixed_j_range(&mut self, fixed_j_range: Option<JRange>);
 
-    fn parent(&self, st: State, g: &mut Cost) -> Option<(State, AffineCigarOps)>;
-
-    // Reusable helper implementation.
     fn trace(
         &mut self,
-        from: State,
-        mut to: State,
+        _from: State,
+        _to: State,
         _viz: &mut impl VisualizerInstance,
-    ) -> AffineCigar {
-        let mut cigar = AffineCigar::default();
-
-        while to != from {
-            let (parent, cigar_ops) = self.parent(to, &mut 0).unwrap();
-            to = parent;
-            for op in cigar_ops {
-                if let Some(op) = op {
-                    cigar.push(op);
-                }
-            }
-        }
-        cigar.reverse();
-        cigar
-    }
+    ) -> AffineCigar;
 }
