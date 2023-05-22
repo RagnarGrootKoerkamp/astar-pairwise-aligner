@@ -746,17 +746,14 @@ impl NwFronts<0usize> for BitFronts {
                     // 2. It's unlikely we'll need all states starting at the (possibly much smaller) `j_range.0`.
                     //    Instead, we do an exponential search for the start of the `j_range`, starting at `to.j-2*i_range.len()`.
                     //    The block is high enough once the cost to `to` equals `g`.
-                    let mut height = 2 * i_range.len();
+                    let mut height = i_range.len() * 5 / 4;
                     loop {
                         let j_range = JRange(max(j_range.0, j_range.1 - height), j_range.1);
-                        // eprintln!("TRACE: Fill block {:?} {:?}", i_range, j_range);
-                        // FIXME: USE SIMD FOR THIS.
                         self.fill_block(i_range, j_range, viz);
                         if self.fronts[self.last_front_idx].index(to.j) == g {
                             break;
                         }
                         // Pop all the computed fronts.
-                        // TODO: This could be more efficient by merging the fronts for a block.
                         for _i in i_range.0..i_range.1 {
                             self.pop_last_front();
                         }
