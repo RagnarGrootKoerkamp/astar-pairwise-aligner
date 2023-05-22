@@ -60,6 +60,7 @@ pub struct BitFronts {
 
     /// The distribution of number of rows in `compute` calls.
     computed_rows: Vec<usize>,
+    unique_rows: usize,
 }
 
 pub struct BitFront {
@@ -264,6 +265,7 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
             a,
             b,
             computed_rows: vec![],
+            unique_rows: 0,
         }
     }
 }
@@ -273,7 +275,7 @@ impl Drop for BitFronts {
         let mut cnt = 0;
         let mut total = 0;
         for (i, c) in self.computed_rows.iter().enumerate() {
-            cnt += i;
+            cnt += c;
             total += i * c;
             // if i % 10 == 0 {
             //     eprint!("\n{i:>4}");
@@ -283,6 +285,7 @@ impl Drop for BitFronts {
         eprintln!();
         eprintln!("Num blocks: {cnt}");
         eprintln!("Total rows: {total}");
+        eprintln!("Uniq. rows: {}", self.unique_rows);
     }
 }
 
@@ -371,6 +374,8 @@ impl NwFronts<0usize> for BitFronts {
                 min(j_range.0, next_front.j_range.0),
                 max(j_range.1, next_front.j_range.1),
             );
+
+            self.unique_rows -= (round(next_front.j_range).len() - 1) as usize / W;
         }
 
         if self.trace && !self.params.sparse {
@@ -383,6 +388,7 @@ impl NwFronts<0usize> for BitFronts {
 
         let j_range_rounded = round(j_range);
         let v_range = j_range_rounded.0 as usize / W..j_range_rounded.1 as usize / W;
+        self.unique_rows += v_range.len();
         // Get top/bot values in the previous column for the new j_range_rounded.
         let front = &mut self.fronts[self.last_front_idx];
         let mut top_val = front.index(j_range_rounded.0);
