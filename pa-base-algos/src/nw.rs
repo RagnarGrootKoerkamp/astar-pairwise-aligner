@@ -5,7 +5,18 @@
 //! - meet in the middle for traceback
 //! - meet in the middle with A* and pruning on both sides
 //! - try jemalloc/mimalloc
-//! - instead of updating contours contour-by-contour, rebuilding completely up to current i may be faster.
+//! - Trace:
+//!   - SIMD to fill block
+//!   - reduce calls to index() from 3 to 1
+//! - Matches:
+//!   - Merge smaller (k/2) r=1 matches to find r=2 matches.
+//!   - Recursively merge matches to find r=2^k matches.
+//!     - possibly reduce until no more spurious matches
+//!     - tricky: requires many 'shadow' matches. Handle in cleaner way?
+//!   - LOCAL PRUNING: When a match is preceded/succeeded by 'noise', we can
+//!     effectively pre-prune it, since it can never actually be used.
+//!  - Figure out why pruning up to Layer::MAX gives errors, but pruning up to highest_modified_contour does not.
+//! BUG: Figure out why the delta=64 is broken in fixed_j_range.
 mod affine;
 mod bitpacking;
 mod front;
@@ -217,6 +228,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
                     Astar(h)
                 }
             },
+            hint: Default::default(),
             v: self.v.build(a, b),
         }
     }
@@ -333,16 +345,19 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> std::fmt::
 
 pub struct NWInstance<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
-    pub a: Seq<'a>,
-    pub b: Seq<'a>,
+    a: Seq<'a>,
+    b: Seq<'a>,
 
-    pub params: &'a NW<N, V, H, F>,
+    params: &'a NW<N, V, H, F>,
 
     /// The instantiated heuristic to use.
-    pub domain: Domain<H::Instance<'a>>,
+    domain: Domain<H::Instance<'a>>,
+
+    /// Hint for the heuristic, cached between `j_range` calls.
+    hint: <H::Instance<'a> as HeuristicInstance<'a>>::Hint,
 
     /// The instantiated visualizer to use.
-    pub v: V::Instance,
+    v: V::Instance,
 }
 
 impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> Drop
@@ -350,7 +365,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> Drop
 {
     fn drop(&mut self) {
         if let Domain::Astar(h) = &mut self.domain {
-            eprintln!("h0: {}", h.h(Pos(0, 0)));
+            eprintln!("h0 end: {}", h.h(Pos(0, 0)));
         }
     }
 }
@@ -371,7 +386,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
     ///
     /// `old_range`: The old j_range at the end of the current interval, to ensure it only grows.
     fn j_range(
-        &self,
+        &mut self,
         i_range: IRange,
         f_max: Option<Cost>,
         prev: &<F::Fronts<'a> as NwFronts<N>>::Front,
@@ -449,16 +464,16 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 // i_range.1 that could possibly have `f(v) <= f_max`.
                 let mut v = u;
 
-                let mut hint = Default::default();
                 // Wrapper to use h with hint.
                 let mut h = |pos| {
-                    let (h, new_hint) = h.h_with_hint(pos, hint);
-                    hint = new_hint;
+                    let (h, new_hint) = h.h_with_hint(pos, self.hint);
+                    self.hint = new_hint;
                     h
                 };
                 // A lower bound of `f` values estimated from `gu`, valid for states `v` below the diagonal of `u`.
                 let mut f = |v: Pos| {
                     assert!(v.1 - u.1 >= v.0 - u.0);
+                    // eprintln!("f({})", v);
                     gu + self.params.cm.extend_cost(u, v) + h(v)
                 };
 
@@ -480,7 +495,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                     // Then down until out-of-scope.
                     // Repeat.
                     // In the end, go up to in-scope.
-                    v.1 += self.params.block_width;
+                    // NOTE: We add a small additional buffer to prevent doing v.1 += 1 in the loop below.
+                    v.1 += self.params.block_width + 8;
                     v.1 = min(v.1, self.b.len() as I);
                     while v.0 <= ie && v.1 < self.b.len() as I {
                         let fv = f(v);
@@ -536,7 +552,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
     /// BUG: This should take into account potential non-consistency of `h`.
     /// In particular, with inexact matches, we can only fix states with `f(u) <= f_max - r`.
     fn fixed_j_range(
-        &self,
+        &mut self,
         i: I,
         f_max: Option<Cost>,
         front: &<F::Fronts<'a> as NwFronts<N>>::Front,
@@ -545,10 +561,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         let Some(f_max) = f_max else { return None; };
 
         // Wrapper to use h with hint.
-        let mut hint = Default::default();
         let mut h = |pos| {
-            let (h, new_hint) = h.h_with_hint(pos, hint);
-            hint = new_hint;
+            let (h, new_hint) = h.h_with_hint(pos, self.hint);
+            self.hint = new_hint;
             h
         };
         let mut f = |j| front.index(j) + h(Pos(i, j));
@@ -574,6 +589,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 break;
             }
             start += if self.params.sparse_h {
+                // TODO: Increase by steps of 64.
                 (f - f_max).div_ceil(2 * self.params.cm.min_ins_extend)
             } else {
                 1
@@ -586,6 +602,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 break;
             }
             end -= if self.params.sparse_h {
+                // TODO: Decrease by steps of 64.
                 (f - f_max).div_ceil(2 * self.params.cm.min_ins_extend)
             } else {
                 1
@@ -631,7 +648,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         if initial_j_range.is_empty() {
             return None;
         }
-        eprintln!("Bound: {f_max:?} {initial_j_range:?}");
+        // eprintln!("Bound: {f_max:?} {initial_j_range:?}");
         fronts.init(initial_j_range);
         fronts.set_last_front_fixed_j_range(Some(initial_j_range));
 
@@ -649,7 +666,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
             let mut j_range = self.j_range(i_range, f_max, fronts.last_front());
             if j_range.is_empty() && fronts.next_front_j_range().is_none() {
-                eprintln!("Empty range at i {i}");
+                // eprintln!("Empty range at i {i}");
                 self.v.new_layer(self.domain.h());
                 return None;
             }
@@ -747,7 +764,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         // Delta doubles after each grow.
         // TODO: Make this customizable.
         let delta0: Cost = self.params.block_width * 2;
-        let delta_growth = 2;
+        let delta_growth = 2.;
         let mut f_delta = vec![delta0];
 
         // The end of the current front.
@@ -757,12 +774,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
 
         let grow = |f: &mut Cost, delta: &mut Cost| {
             *f = (*f + 1).next_multiple_of(*delta);
-            *delta *= delta_growth;
+            *delta = (*delta as f32 * delta_growth) as _;
         };
         let grow_to = |f: &mut Cost, f_target: Cost, delta: &mut Cost| {
             // *f = max(*f + *delta, f_target);
             *f = (f_target).next_multiple_of(*delta);
-            *delta *= delta_growth;
+            *delta = (*delta as f32 * delta_growth) as _;
             assert!(*f >= f_target);
             // eprintln!("Grow front idx {start_idx} to f {}", f_max[start_idx]);
         };
@@ -774,7 +791,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 // Fixed_j_range is empty; grow last front.
                 let delta = &mut f_delta[last_idx];
                 f_max[last_idx] = (f_max[last_idx] + 1).next_multiple_of(*delta);
-                *delta *= delta_growth;
+                *delta = (*delta as f32 * delta_growth) as _;
                 // eprintln!("Grow last front idx {last_idx} f {}", f_max[last_idx]);
                 fronts.pop_last_front();
             } else if i < self.a.len() as I {
