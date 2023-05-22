@@ -150,7 +150,9 @@ pub trait HeuristicInstance<'a> {
     fn prune_block(&mut self, _i_range: Range<I>, _j_range: Range<I>) {
         unimplemented!();
     }
-    fn update_contours(&mut self) {
+
+    /// Update contours from the current minimum changed layer up to the given `_pos`.
+    fn update_contours(&mut self, _pos: Pos) {
         unimplemented!();
     }
 

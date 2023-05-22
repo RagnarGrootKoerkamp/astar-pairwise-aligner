@@ -53,7 +53,6 @@ pub trait Contour: Default + Debug + Clone {
 
     // Arguments:
     // - Point in contour
-    // - True when the point is dominant
     fn iterate_points<F: FnMut(Pos)>(&self, _f: F) {}
 }
 
@@ -137,11 +136,13 @@ pub trait Contours: Default + Debug {
     ) -> (bool, Cost);
 
     /// Update layers starting at layer `v`, continuing at least to layer `last_change`.
+    /// Stop when contours are fully left of `right_of`.
     fn update_layers<R: Iterator<Item = Arrow>, F: Fn(&Pos) -> Option<R>>(
         &mut self,
         _v: u32,
         _last_change: u32,
         _arrows: &F,
+        _right_of: Option<(I, impl Fn(Pos) -> Pos)>,
     ) {
         unimplemented!();
     }

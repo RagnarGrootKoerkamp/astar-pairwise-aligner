@@ -607,7 +607,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
     ) -> Option<(Cost, Option<AffineCigar>)> {
         // Update contours for any pending prunes.
         if self.params.prune && let Domain::Astar(h) = &mut self.domain {
-            h.update_contours();
+            h.update_contours(Pos(0,0));
         }
 
         // Make a local front variable if not passed in.
@@ -821,9 +821,10 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 fronts.pop_last_front();
             }
 
-            // FIXME: Recompute contours only to start i.
-            let h = self.domain.h_mut().unwrap();
-            h.update_contours();
+            if start_idx < last_idx {
+                let h = self.domain.h_mut().unwrap();
+                h.update_contours(Pos((start_idx as I - 1) * self.params.block_width, 0));
+            }
 
             if start_idx == 0 {
                 let initial_j_range =

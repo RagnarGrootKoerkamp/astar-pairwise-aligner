@@ -167,8 +167,9 @@ pub struct CSHI<C: Contours> {
     max_transformed_pos: Pos,
     contours: C,
 
-    /// For block-based pruning, the lowest contour that was modified.
+    /// For block-based pruning, the lowest and highest contour/layer from which matches were removed.
     lowest_modified_contour: Layer,
+    highest_modified_contour: Layer,
 
     stats: HeuristicStats,
 }
@@ -297,11 +298,18 @@ impl<C: Contours> CSHI<C> {
 
             contours,
             lowest_modified_contour: Layer::MAX,
+            highest_modified_contour: Layer::MIN,
         };
         h.stats.h0 = h.h(Pos(0, 0));
         h.stats.num_seeds = h.seeds.seeds.len() as _;
         h.stats.num_matches = num_matches;
         h.stats.num_filtered_matches = num_filtered_matches;
+        // eprintln!("#matches:          {}", num_matches);
+        // eprintln!("#filtered matches: {}", num_filtered_matches);
+        // eprintln!(
+        //     "#flt matches/seed: {}",
+        //     num_filtered_matches as f32 / h.seeds.seeds.len() as f32
+        // );
         h.contours.print_stats();
         h
     }
@@ -472,21 +480,25 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         let start = instant::Instant::now();
         let mut hint = Self::Hint::default();
         let mut lowest_modified_contour = self.lowest_modified_contour;
+        let mut highest_modified_contour = self.highest_modified_contour;
         self.matches.prune_block(i_range, j_range, |m| {
             let (layer, new_hint) = self
                 .contours
                 .score_with_hint(Self::transform_2(&self.params, &self.seeds, m.start), hint);
             // eprintln!("Prune match {m:?} in layer {layer}");
-            lowest_modified_contour = min(lowest_modified_contour, layer as Layer + 1);
+            lowest_modified_contour = min(lowest_modified_contour, layer as Layer);
+            highest_modified_contour = max(highest_modified_contour, layer as Layer);
             hint = new_hint;
         });
         self.lowest_modified_contour = lowest_modified_contour;
+        self.highest_modified_contour = highest_modified_contour;
 
         self.stats.prune_duration += start.elapsed().as_secs_f64();
     }
 
-    /// Update contours from `lowest_modified_contour` onward.
-    fn update_contours(&mut self) {
+    /// Update contours from `lowest_modified_contour` to `highest_modified_contour`.
+    /// Stop when the entire contour is *left of* `_pos.0`.
+    fn update_contours(&mut self, pos: Pos) {
         let start = instant::Instant::now();
 
         let match_to_arrow = |m: &Match| Arrow {
@@ -503,13 +515,18 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             score: m.score(),
         };
 
-        // eprintln!("h0 before update: {}", self.h(Pos(0, 0)));
+        // eprintln!(
+        //     "Prune contours from {} to {} right of {}",
+        //     self.lowest_modified_contour, self.highest_modified_contour, pos.0
+        // );
+        // FIXME Figure out why pruning up to Layer::MAX gives errors.
+        // Pruning up to highest_modified_contour also errors, which is
+        // explained by leaving the heuristic in an inconsistent state.
         self.contours.update_layers(
             self.lowest_modified_contour,
-            // FIXME: Put a better upper bound here, especially with local doubling.
-            // self.lowest_modified_contour + 4,
+            // continue to exactly the highest modified contour.
+            // self.highest_modified_contour,
             Layer::MAX,
-            //self.lowest_modified_contour,
             &|pt: &Pos| {
                 let p = if self.params.use_gap_cost {
                     self.seeds.transform_back(*pt)
@@ -523,7 +540,17 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                         .filter(|a| a.end <= self.t_target)
                 })
             },
+            // None::<(_, fn(_) -> _)>,
+            Some((pos.0, |pt: Pos| {
+                if self.params.use_gap_cost {
+                    self.seeds.transform_back(pt)
+                } else {
+                    pt
+                }
+            })),
         );
+        // self.lowest_modified_contour = Layer::MAX;
+        self.highest_modified_contour = Layer::MIN;
         // eprintln!("h0 after  update: {}", self.h(Pos(0, 0)));
         self.stats.contours_duration += start.elapsed().as_secs_f64();
     }

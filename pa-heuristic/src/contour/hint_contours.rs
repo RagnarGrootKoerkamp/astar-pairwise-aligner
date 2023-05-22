@@ -141,7 +141,8 @@ impl<C: Contour> HintContours<C> {
             return;
         }
         for layer in 1..self.contours.len() as Layer {
-            self.contours[layer].iterate_points(|p: Pos| {
+            let contour_layer = std::mem::take(&mut self.contours[layer]);
+            contour_layer.iterate_points(|p: Pos| {
                 let max_len = arrows(&p).map_or(0, |arrows| {
                     arrows.map(|a| a.score).max().expect("Empty arrows")
                 });
@@ -151,7 +152,8 @@ impl<C: Contour> HintContours<C> {
                     target_layer == Some(layer),
                     "BAD CONSISTENCY: {p} in layer {layer} should be in layer {target_layer:?}"
                 );
-            })
+            });
+            self.contours[layer] = contour_layer;
         }
     }
 }
@@ -316,7 +318,7 @@ impl<C: Contour> Contours for HintContours<C> {
             // Go down.
             self.stats.borrow_mut().contains_calls += 1;
             // NOTE: this iterates in reverse.
-            for w in (v.saturating_sub(SEARCH_RANGE)..=v - 1).rev() {
+            for w in (v.saturating_sub(SEARCH_RANGE)..=v.saturating_sub(1)).rev() {
                 if self.contours[w].contains(q) {
                     return (
                         w as Cost,
@@ -449,7 +451,7 @@ impl<C: Contour> Contours for HintContours<C> {
         }
 
         // Loop over the matches in the next layer, and repeatedly prune while needed.
-        self.update_layers(first_to_check, v, &arrows);
+        self.update_layers(first_to_check, v, &arrows, None::<(_, fn(_) -> _)>);
         self.check_consistency(&arrows);
         (true, initial_shift as _)
     }
@@ -460,7 +462,10 @@ impl<C: Contour> Contours for HintContours<C> {
         mut v: u32,
         mut last_change: u32,
         arrows: &F,
+        right_of: Option<(I, impl Fn(Pos) -> Pos)>,
     ) {
+        self.stats.borrow_mut().prunes += 1;
+
         //eprintln!("update_layers({v}, {last_change})");
         last_change = max(last_change, v);
         let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Layer| -> Option<Layer> {
@@ -599,6 +604,22 @@ impl<C: Contour> Contours for HintContours<C> {
                     break;
                 }
             }
+            if let Some((right_of, back_transform)) = &right_of {
+                let mut stop = true;
+                for v in v + 1..min(v + 1 + self.max_len, self.contours.len() as _) {
+                    self.contours[v].iterate_points(|p| {
+                        if back_transform(p).0 >= *right_of {
+                            stop = false
+                        }
+                    });
+                    if !stop {
+                        break;
+                    }
+                }
+                if stop {
+                    break;
+                }
+            }
         }
     }
 
@@ -607,10 +628,13 @@ impl<C: Contour> Contours for HintContours<C> {
         // TODO: MAKE A FLAG FOR THIS.
         return;
         eprintln!("----------------------------");
-        let num = self.contours.len();
+        let mut num = 0;
         let mut total_len = 0;
         let mut total_dom = 0;
         for c in &self.contours {
+            if c.len() > 0 {
+                num += 1;
+            }
             total_len += c.len();
             total_dom += c.num_dominant();
         }
@@ -668,7 +692,7 @@ impl<C: Contour> Contours for HintContours<C> {
         eprintln!("");
         eprintln!("score_hint calls         {}", score_with_hint_calls);
         eprintln!(
-            "%binary search fallback  {}",
+            "binary search flbck/call {}",
             binary_search_fallback as f32 / score_with_hint_calls as f32
         );
         eprintln!(
