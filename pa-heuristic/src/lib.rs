@@ -3,7 +3,9 @@
     associated_type_defaults,
     drain_filter,
     int_roundings,
-    let_chains
+    let_chains,
+    split_array,
+    portable_simd
 )]
 
 mod cli;
