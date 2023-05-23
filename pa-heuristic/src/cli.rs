@@ -34,6 +34,9 @@ fn default_match_cost() -> MatchCost {
 fn default_seed_length() -> I {
     15
 }
+fn default_local_prune() -> usize {
+    0
+}
 fn default_prune() -> Prune {
     Prune::Start
 }
@@ -58,6 +61,11 @@ pub struct HeuristicParams {
     #[clap(short, value_name = "k", default_value_t = 15)]
     #[serde(default = "default_seed_length")]
     pub k: I,
+
+    /// Local-pruning length.
+    #[clap(short, value_name = "p", default_value_t = 0)]
+    #[serde(default = "default_local_prune")]
+    pub p: usize,
 
     #[clap(long)]
     #[clap(long, action = clap::ArgAction::Set, default_value = "start")]
@@ -93,6 +101,7 @@ impl Default for HeuristicParams {
             heuristic: HeuristicType::GCSH,
             r: 2,
             k: 15,
+            p: 0,
             prune: Prune::Start,
             kmin: None,
             kmax: None,
@@ -164,6 +173,7 @@ impl HeuristicParams {
                 LengthConfig::Fixed(self.k)
             },
             max_match_cost: self.r - 1,
+            local_pruning: self.p,
         };
         let pruning = Pruning {
             enabled: self.prune,

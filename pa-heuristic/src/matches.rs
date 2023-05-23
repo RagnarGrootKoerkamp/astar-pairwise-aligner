@@ -1,8 +1,12 @@
+pub mod local_pruning;
 mod ordered;
 mod qgrams;
 pub mod suffix_array;
 
-use crate::{config::SKIP_INEXACT_INSERT_START_END, prelude::*, seeds::*};
+use crate::{
+    config::SKIP_INEXACT_INSERT_START_END, matches::local_pruning::local_pruning, prelude::*,
+    seeds::*,
+};
 use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,
@@ -66,16 +70,18 @@ pub struct Matches {
 impl Matches {
     /// Seeds must be sorted by start.
     /// Matches will be sorted and deduplicated in this function.
-    pub fn new(a: Seq, seeds: Vec<Seed>, mut matches: Vec<Match>) -> Self {
+    pub fn new(a: Seq, b: Seq, seeds: Vec<Seed>, mut matches: Vec<Match>, p: usize) -> Self {
         // First sort by start, then by end, then by match cost.
         assert!(matches.is_sorted_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost)));
         // Dedup to only keep the lowest match cost between each start and end.
         matches.dedup_by_key(|m| (m.start, m.end));
 
-        Matches {
+        let mut matches = Matches {
             seeds: Seeds::new(a, seeds),
             matches,
-        }
+        };
+        local_pruning(a, b, &mut matches, p);
+        matches
     }
 }
 
@@ -124,10 +130,15 @@ impl LengthConfig {
 
 #[derive(Clone, Copy, Debug)]
 pub struct MatchConfig {
+    /// The length of each seed, either a fixed `k`, or variable such that the
+    /// number of matches per seed is limited.
     // TODO: Add settings for variable length matches in here.
     pub length: LengthConfig,
+    /// The maximal cost per match, i.e. `r-1`.
     // TODO: Move the max_match_cost into MatchLength.
     pub max_match_cost: MatchCost,
+    /// The number of seeds to 'look ahead' in local pruning.
+    pub local_pruning: usize,
 }
 
 impl MatchConfig {
@@ -135,18 +146,21 @@ impl MatchConfig {
         Self {
             length: Fixed(k),
             max_match_cost,
+            local_pruning: 0,
         }
     }
     pub fn exact(k: I) -> Self {
         Self {
             length: Fixed(k),
             max_match_cost: 0,
+            local_pruning: 0,
         }
     }
     pub fn inexact(k: I) -> Self {
         Self {
             length: Fixed(k),
             max_match_cost: 1,
+            local_pruning: 0,
         }
     }
 }
@@ -156,6 +170,7 @@ impl Default for MatchConfig {
         Self {
             length: Fixed(0),
             max_match_cost: 0,
+            local_pruning: 0,
         }
     }
 }

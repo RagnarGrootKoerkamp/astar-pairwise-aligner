@@ -12,7 +12,7 @@ pub fn find_matches_qgramindex<'a>(
     MatchConfig {
         length,
         max_match_cost,
-        ..
+        local_pruning,
     }: MatchConfig,
     gapcost: bool,
 ) -> Matches {
@@ -188,7 +188,7 @@ pub fn find_matches_qgramindex<'a>(
         }
     }
 
-    Matches::new(a, seeds, matches)
+    Matches::new(a, b, seeds, matches, local_pruning)
 }
 
 /// Build a hashset of the kmers in b, and query all mutations of seeds in a.
@@ -199,7 +199,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     MatchConfig {
         length,
         max_match_cost,
-        ..
+        local_pruning,
     }: MatchConfig,
     gapcost: bool,
 ) -> Matches {
@@ -294,7 +294,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
 
     #[cfg(test)]
     assert!(matches.is_sorted_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost)));
-    Matches::new(a, seeds, matches)
+    Matches::new(a, b, seeds, matches, local_pruning)
 }
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
@@ -304,7 +304,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
     MatchConfig {
         length,
         max_match_cost,
-        ..
+        local_pruning,
     }: MatchConfig,
 ) -> Matches {
     if length.kmin() != length.kmax() {
@@ -445,7 +445,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
         matches.sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
     }
 
-    Matches::new(a, seeds, matches)
+    Matches::new(a, b, seeds, matches, local_pruning)
 }
 
 pub fn find_matches<'a>(
@@ -455,7 +455,13 @@ pub fn find_matches<'a>(
     gapcost: bool,
 ) -> Matches {
     if let Some(max_matches) = match_config.length.max_matches() {
-        return minimal_unique_matches(a, b, match_config.max_match_cost + 1, max_matches);
+        return minimal_unique_matches(
+            a,
+            b,
+            match_config.max_match_cost + 1,
+            max_matches,
+            match_config.local_pruning,
+        );
     }
     if FIND_MATCHES_HASH {
         return match match_config.max_match_cost {

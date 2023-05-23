@@ -60,7 +60,7 @@ impl FmIndex {
 /// - Keep a list of 'current' intervals, and prepend each char to each interval.
 /// - Also allow mutations for intervals that still have leftover cost.
 
-pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize) -> Matches {
+pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize, local_pruning: usize) -> Matches {
     let fm = FmIndex::new(b);
     assert!(
         r == 1 || r == 2,
@@ -179,5 +179,5 @@ pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize) -> Matches {
     //     eprintln!("Match {m:?}");
     // }
 
-    Matches::new(a, seeds, matches)
+    Matches::new(a, b, seeds, matches, local_pruning)
 }
