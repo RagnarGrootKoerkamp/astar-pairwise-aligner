@@ -285,7 +285,7 @@ fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
 //             &b,
 //             MatchConfig {
 //                 length: Fixed(K),
-//                 max_match_cost: 1,
+//                 r: 2,
 //                 ..Default::default()
 //             },
 //         )
@@ -302,7 +302,7 @@ fn lookup_bm_in_a_hashmap(a: Seq, b: Seq, k: I) -> usize {
 //             &b,
 //             MatchConfig {
 //                 length: Fixed(K),
-//                 max_match_cost: 1,
+//                 r: 2,
 //                 ..Default::default()
 //             },
 //         )

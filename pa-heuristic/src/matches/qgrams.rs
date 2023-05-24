@@ -40,19 +40,14 @@ pub fn iterate_fixed_qgrams<'a>(
         .map(move |(i, seed)| (k * i as I, to_qgram(&rank_transform, width, seed)))
 }
 
-pub fn fixed_seeds(
-    rank_transform: &RankTransform,
-    max_match_cost: MatchCost,
-    a: Seq,
-    k: I,
-) -> Vec<Seed> {
+pub fn fixed_seeds(rank_transform: &RankTransform, r: MatchCost, a: Seq, k: I) -> Vec<Seed> {
     iterate_fixed_qgrams(rank_transform, a, k)
         .map(|(i, qgram)| Seed {
             start: i as I,
             end: i as I + k,
-            seed_potential: max_match_cost + 1,
+            seed_potential: r,
             qgram,
-            seed_cost: max_match_cost + 1,
+            seed_cost: r,
         })
         .collect_vec()
 }

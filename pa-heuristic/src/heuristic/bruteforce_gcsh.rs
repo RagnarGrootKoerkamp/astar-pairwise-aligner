@@ -20,8 +20,7 @@ where
 
     fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
         assert!(
-            self.match_config.max_match_cost
-                <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
+            self.match_config.r <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
         BruteForceGCSHI::new(a, b, *self)
     }

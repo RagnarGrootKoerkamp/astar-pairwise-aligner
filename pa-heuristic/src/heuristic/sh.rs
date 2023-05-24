@@ -51,7 +51,7 @@ impl SHI {
         let contours = ShContours::new(
             &seeds,
             matches.iter().map(match_to_arrow).rev(),
-            params.match_config.max_match_cost as I + 1,
+            params.match_config.r as I,
         );
 
         let mut stats = HeuristicStats::default();

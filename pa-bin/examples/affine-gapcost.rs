@@ -39,7 +39,7 @@ fn main() {
     let (ref a, ref b) = pa_generate::uniform_fixed(n, 0.3);
 
     let h = BruteForceGCSH {
-        match_config: MatchConfig::new(k, 0),
+        match_config: MatchConfig::new(k, 1),
         distance_function: ZeroCost,
         pruning: Pruning::both(),
     };
@@ -52,7 +52,7 @@ fn main() {
     .align(a, b);
 
     let h = BruteForceGCSH {
-        match_config: MatchConfig::new(k, 0),
+        match_config: MatchConfig::new(k, 1),
         distance_function: GapCost,
         pruning: Pruning::both(),
     };
@@ -65,7 +65,7 @@ fn main() {
     .align(a, b);
 
     let h = BruteForceGCSH {
-        match_config: MatchConfig::new(k, 0),
+        match_config: MatchConfig::new(k, 1),
         distance_function: AffineGapCost { k },
         pruning: Pruning::both(),
     };

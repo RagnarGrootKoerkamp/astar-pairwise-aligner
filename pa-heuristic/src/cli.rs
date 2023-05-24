@@ -172,7 +172,7 @@ impl HeuristicParams {
             } else {
                 LengthConfig::Fixed(self.k)
             },
-            max_match_cost: self.r - 1,
+            r: self.r,
             local_pruning: self.p,
         };
         let pruning = Pruning {

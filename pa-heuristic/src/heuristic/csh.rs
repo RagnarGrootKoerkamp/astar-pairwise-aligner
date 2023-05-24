@@ -143,8 +143,7 @@ impl<C: Contours> Heuristic for CSH<C> {
     ) -> Self::Instance<'a> {
         // TODO: Warning
         assert!(
-            self.match_config.max_match_cost
-                <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
+            self.match_config.r <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
         );
         CSHI::new(a, b, filter, *self)
     }
@@ -253,35 +252,31 @@ impl<C: Contours> CSHI<C> {
             .map(match_to_arrow)
             .filter(|a| a.end <= t_target);
         let contours = if let Some(mut filter) = filter {
-            C::new_with_filter(
-                arrows,
-                params.match_config.max_match_cost as I + 1,
-                |arrow, layer| {
-                    let m = Match {
-                        start: if params.use_gap_cost {
-                            seeds.transform_back(arrow.start)
-                        } else {
-                            arrow.start
-                        },
-                        end: if params.use_gap_cost {
-                            seeds.transform_back(arrow.end)
-                        } else {
-                            arrow.start
-                        },
-                        match_cost: params.match_config.max_match_cost + 1 - arrow.score,
-                        seed_potential: params.match_config.max_match_cost + 1,
-                        pruned: MatchStatus::Active,
-                    };
-                    let f = filter(&m, seeds.potential(m.start) - layer);
-                    if !f {
-                        pruner.mut_match_start(&m).unwrap().filter();
-                        pruner.mut_match_end(&m).unwrap().filter();
-                    }
-                    f
-                },
-            )
+            C::new_with_filter(arrows, params.match_config.r as I, |arrow, layer| {
+                let m = Match {
+                    start: if params.use_gap_cost {
+                        seeds.transform_back(arrow.start)
+                    } else {
+                        arrow.start
+                    },
+                    end: if params.use_gap_cost {
+                        seeds.transform_back(arrow.end)
+                    } else {
+                        arrow.start
+                    },
+                    match_cost: params.match_config.r - arrow.score,
+                    seed_potential: params.match_config.r,
+                    pruned: MatchStatus::Active,
+                };
+                let f = filter(&m, seeds.potential(m.start) - layer);
+                if !f {
+                    pruner.mut_match_start(&m).unwrap().filter();
+                    pruner.mut_match_end(&m).unwrap().filter();
+                }
+                f
+            })
         } else {
-            C::new(arrows, params.match_config.max_match_cost as I + 1)
+            C::new(arrows, params.match_config.r as I)
         };
 
         let mut h = CSHI {
@@ -304,8 +299,8 @@ impl<C: Contours> CSHI<C> {
         h.stats.num_seeds = h.seeds.seeds.len() as _;
         h.stats.num_matches = num_matches;
         h.stats.num_filtered_matches = num_filtered_matches;
-        // eprintln!("#matches:          {}", num_matches);
-        // eprintln!("#filtered matches: {}", num_filtered_matches);
+        eprintln!("#matches:          {}", num_matches);
+        eprintln!("#filtered matches: {}", num_filtered_matches);
         // eprintln!(
         //     "#flt matches/seed: {}",
         //     num_filtered_matches as f32 / h.seeds.seeds.len() as f32

@@ -74,7 +74,7 @@ pub fn astarpa_gcsh(a: Seq, b: Seq, r: MatchCost, k: I, pruning: Prune) -> (Cost
     astar_dt::astar_dt(
         a,
         b,
-        &GCSH::new(MatchConfig::new(k, r - 1), Pruning::new(pruning)),
+        &GCSH::new(MatchConfig::new(k, r), Pruning::new(pruning)),
         &NoVis,
     )
     .0

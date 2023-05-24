@@ -135,31 +135,31 @@ pub struct MatchConfig {
     // TODO: Add settings for variable length matches in here.
     pub length: LengthConfig,
     /// The maximal cost per match, i.e. `r-1`.
-    // TODO: Move the max_match_cost into MatchLength.
-    pub max_match_cost: MatchCost,
+    // TODO: Move r into MatchLength.
+    pub r: MatchCost,
     /// The number of seeds to 'look ahead' in local pruning.
     pub local_pruning: usize,
 }
 
 impl MatchConfig {
-    pub fn new(k: I, max_match_cost: MatchCost) -> Self {
+    pub fn new(k: I, r: MatchCost) -> Self {
         Self {
             length: Fixed(k),
-            max_match_cost,
+            r,
             local_pruning: 0,
         }
     }
     pub fn exact(k: I) -> Self {
         Self {
             length: Fixed(k),
-            max_match_cost: 0,
+            r: 1,
             local_pruning: 0,
         }
     }
     pub fn inexact(k: I) -> Self {
         Self {
             length: Fixed(k),
-            max_match_cost: 1,
+            r: 2,
             local_pruning: 0,
         }
     }
@@ -169,7 +169,7 @@ impl Default for MatchConfig {
     fn default() -> Self {
         Self {
             length: Fixed(0),
-            max_match_cost: 0,
+            r: 1,
             local_pruning: 0,
         }
     }

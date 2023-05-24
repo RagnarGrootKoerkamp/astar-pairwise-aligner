@@ -11,12 +11,12 @@ pub fn find_matches_qgramindex<'a>(
     b: Seq<'a>,
     MatchConfig {
         length,
-        max_match_cost,
+        r,
         local_pruning,
     }: MatchConfig,
     gapcost: bool,
 ) -> Matches {
-    assert!(max_match_cost == 0 || max_match_cost == 1);
+    assert!(r == 1 || r == 2);
 
     // Qgrams of B.
     // TODO: Profile this index and possibly use something more efficient for large k.
@@ -41,7 +41,7 @@ pub fn find_matches_qgramindex<'a>(
         if cnt >= max_count {
             return max_count;
         }
-        if max_match_cost == 1 {
+        if r == 2 {
             let mutations = mutations(k, qgram, true, gapcost);
             for (v, k) in [
                 (mutations.deletions, k - 1),
@@ -112,9 +112,9 @@ pub fn find_matches_qgramindex<'a>(
             v.push(Seed {
                 start: i,
                 end: i + seed_len,
-                seed_potential: max_match_cost + 1,
+                seed_potential: r,
                 qgram: to_qgram(&rank_transform, width, seed),
-                seed_cost: max_match_cost + 1,
+                seed_cost: r,
             });
             i += seed_len;
         }
@@ -198,7 +198,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     b: Seq<'a>,
     MatchConfig {
         length,
-        max_match_cost,
+        r,
         local_pruning,
     }: MatchConfig,
     gapcost: bool,
@@ -207,11 +207,11 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         Fixed(k) => k,
         _ => unimplemented!("QGram Hashing only works for fixed k for now."),
     };
-    assert!(max_match_cost == 1);
+    assert!(r == 2);
 
     let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
 
-    let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
+    let mut seeds = fixed_seeds(&rank_transform, r, a, k);
 
     // type of Qgrams
     type Q = usize;
@@ -303,7 +303,7 @@ pub fn find_matches_qgram_hash_exact<'a>(
     b: Seq<'a>,
     MatchConfig {
         length,
-        max_match_cost,
+        r,
         local_pruning,
     }: MatchConfig,
 ) -> Matches {
@@ -312,12 +312,12 @@ pub fn find_matches_qgram_hash_exact<'a>(
     }
     let k = length.kmin();
 
-    assert!(max_match_cost == 0);
+    assert!(r == 1);
 
     let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     let width = rank_transform.get_width();
 
-    let mut seeds = fixed_seeds(&rank_transform, max_match_cost, a, k);
+    let mut seeds = fixed_seeds(&rank_transform, r, a, k);
 
     type Key = u64;
 
@@ -343,12 +343,10 @@ pub fn find_matches_qgram_hash_exact<'a>(
             // Do computation as usize because Cost can overflow.
             let j = j as usize;
             let k = k as usize;
-            let max_match_cost = max_match_cost as usize;
+            let r = r as usize;
             (
-                ((j.saturating_sub(t.1 as usize)) * (max_match_cost + 1) * k / (k - 1))
-                    .saturating_sub(max_match_cost + 2) as Cost,
-                ((t.0 as usize + j) * (max_match_cost + 1) * k / (k + 1) + max_match_cost + 2)
-                    as Cost,
+                ((j.saturating_sub(t.1 as usize)) * r * k / (k - 1)).saturating_sub(r + 1) as Cost,
+                ((t.0 as usize + j) * r * k / (k + 1) + r + 1) as Cost,
             )
         };
 
@@ -458,16 +456,16 @@ pub fn find_matches<'a>(
         return minimal_unique_matches(
             a,
             b,
-            match_config.max_match_cost + 1,
+            match_config.r,
             max_matches,
             match_config.local_pruning,
         );
     }
     if FIND_MATCHES_HASH {
-        return match match_config.max_match_cost {
-            0 => find_matches_qgram_hash_exact(a, b, match_config),
-            1 => find_matches_qgram_hash_inexact(a, b, match_config, gapcost),
-            _ => unimplemented!("FIND_MATCHES with HashMap only works for max match cost 0 or 1"),
+        return match match_config.r {
+            1 => find_matches_qgram_hash_exact(a, b, match_config),
+            2 => find_matches_qgram_hash_inexact(a, b, match_config, gapcost),
+            _ => unimplemented!("FIND_MATCHES with HashMap only works for r = 1 or r = 2"),
         };
     } else {
         return find_matches_qgramindex(a, b, match_config, gapcost);
@@ -483,29 +481,29 @@ mod test {
     #[test]
     fn hash_matches_exact() {
         // TODO: Replace max match distance from 0 to 1 here once supported.
-        for (k, max_match_cost) in [(4, 0), (5, 0), (6, 0), (7, 0)] {
+        for (k, r) in [(4, 1), (5, 1), (6, 1), (7, 1)] {
             for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b) = uniform_fixed(n, e);
-                    let matchconfig = MatchConfig::new(k, max_match_cost);
-                    let r = find_matches_qgramindex(&a, &b, matchconfig, false);
+                    let matchconfig = MatchConfig::new(k, r);
+                    let qi = find_matches_qgramindex(&a, &b, matchconfig, false);
                     let h = find_matches_qgram_hash_exact(&a, &b, matchconfig);
                     if !SLIDING_WINDOW_MATCHES {
-                        if r.matches == h.matches {
+                        if qi.matches == h.matches {
                             continue;
                         }
                         println!("{}\n{}", seq_to_string(&a), seq_to_string(&b));
                         println!("-----------------------");
-                        println!("n={n} e={e} k={k} mmc={max_match_cost}");
+                        println!("n={n} e={e} k={k} r={r}");
                         println!("-----------------------");
-                        for x in &r.matches {
+                        for x in &qi.matches {
                             println!("{x:?}");
                         }
                         println!("-----------------------");
                         for x in &h.matches {
                             println!("{x:?}");
                         }
-                        assert_eq!(r.matches, h.matches);
+                        assert_eq!(qi.matches, h.matches);
                     }
                 }
             }
@@ -515,14 +513,14 @@ mod test {
     #[test]
     fn hash_matches_inexact() {
         // TODO: Replace max match distance from 0 to 1 here once supported.
-        for (k, max_match_cost) in [(6, 1), (7, 1), (10, 1)] {
+        for (k, r) in [(6, 2), (7, 2), (10, 2)] {
             for n in [40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b) = uniform_fixed(n, e);
                     println!("{}\n{}", seq_to_string(&a), seq_to_string(&b));
-                    let matchconfig = MatchConfig::new(k, max_match_cost);
+                    let matchconfig = MatchConfig::new(k, r);
                     println!("-----------------------");
-                    println!("n={n} e={e} k={k} mmc={max_match_cost}");
+                    println!("n={n} e={e} k={k} r={r}");
                     let mut r = find_matches_qgramindex(&a, &b, matchconfig, false);
                     let mut k = find_matches_qgram_hash_inexact(&a, &b, matchconfig, false);
                     assert!(r

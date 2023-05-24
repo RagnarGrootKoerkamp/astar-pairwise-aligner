@@ -22,7 +22,6 @@ them: $n \cdot s = n ^2 e = n^2 / \lg n$
 us: $n$
 
 * Code
-** TODO Rename max_match_cost to something that includes the +1 that's present everywhere.
 ** TODO Make a separate type for transformed positions
 ** TODO Check code coverage
 ** TODO Test if ~dyn Contour~ is as fast as ~C: Contour~, and if so simplify the code this way.
@@ -113,7 +112,7 @@ Similar, but does all kmers instead of disjoint kmers.
 
 * Seeds
 ** TODO Dynamic seeding, either greedy or using some DP[i, j, distance].
-- Maximize h(0,0) or (max_match_cost+1)/k
+- Maximize h(0,0) or r/k
 - Minimize number of extra seeds.
 ** TODO choosing seeds bases on guessed alignment
 ** DONE Strategies for choosing seeds:

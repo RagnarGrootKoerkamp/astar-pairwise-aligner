@@ -49,10 +49,10 @@ fn fuzz(aligner: &mut dyn Aligner) -> (Sequence, Sequence) {
 fn main() {
     let dt = false;
     let k = 15;
-    let max_match_cost = 1;
+    let r = 2;
     let pruning = Prune::Start;
 
-    let h = GCSH::new(MatchConfig::new(k, max_match_cost), Pruning::new(pruning));
+    let h = GCSH::new(MatchConfig::new(k, r), Pruning::new(pruning));
 
     let a = "TTGGGTCAATCAGCCAGTTTTTA".as_bytes();
     let b = "TTTGAGTGGGTCATCACCGATTTTAT".as_bytes();
