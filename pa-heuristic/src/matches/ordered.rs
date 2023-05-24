@@ -14,7 +14,7 @@ pub fn find_matches_qgramindex<'a>(
         r,
         local_pruning,
     }: MatchConfig,
-    gapcost: bool,
+    _gapcost: bool,
 ) -> Matches {
     assert!(r == 1 || r == 2);
 
@@ -42,7 +42,7 @@ pub fn find_matches_qgramindex<'a>(
             return max_count;
         }
         if r == 2 {
-            let mutations = mutations(k, qgram, true, gapcost);
+            let mutations = mutations(k, qgram, true);
             for (v, k) in [
                 (mutations.deletions, k - 1),
                 (mutations.substitutions, k),
@@ -148,7 +148,7 @@ pub fn find_matches_qgramindex<'a>(
         }
         // Inexact matches.
         if seed_potential > 1 {
-            let mutations = mutations(len, qgram, true, gapcost);
+            let mutations = mutations(len, qgram, true);
             for mutation in mutations.deletions {
                 for &j in get_matches(qgrams, b, len - 1, mutation) {
                     seed.seed_cost = min(seed.seed_cost, 1);
@@ -201,7 +201,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         r,
         local_pruning,
     }: MatchConfig,
-    gapcost: bool,
+    _gapcost: bool,
 ) -> Matches {
     let k: I = match length {
         Fixed(k) => k,
@@ -243,7 +243,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
             }
         }
         // We don't dedup here, since we'll be sorting and deduplicating the list of all matches anyway.
-        let ms = mutations(k, qgram, false, gapcost);
+        let ms = mutations(k, qgram, false);
         for w in ms.deletions {
             if let Some(js) = m.get(&key_for_sized_qgram(k - 1, w)) {
                 for &j in js {

@@ -3,10 +3,7 @@ mod ordered;
 mod qgrams;
 pub mod suffix_array;
 
-use crate::{
-    config::SKIP_INEXACT_INSERT_START_END, matches::local_pruning::local_pruning, prelude::*,
-    seeds::*,
-};
+use crate::{matches::local_pruning::local_pruning, prelude::*, seeds::*};
 use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,
@@ -185,7 +182,7 @@ pub struct Mutations {
 // TODO: Do not generate insertions at the end. (Also do not generate similar
 // sequences by inserting elsewhere.)
 // TODO: Move to seeds.rs.
-fn mutations(k: I, qgram: usize, dedup: bool, insert_at_start: bool) -> Mutations {
+fn mutations(k: I, qgram: usize, dedup: bool) -> Mutations {
     // This assumes the alphabet size is 4.
     let mut deletions = Vec::with_capacity(k as usize);
     let mut substitutions = Vec::with_capacity(4 * k as usize);
@@ -201,37 +198,15 @@ fn mutations(k: I, qgram: usize, dedup: bool, insert_at_start: bool) -> Mutation
         }
     }
     // Insertions
-    // TODO: Test that excluding insertions at the start and end doesn't matter.
-    // NOTE: Apparently skipping insertions at the end is fine, but with gapcost, skipping at the start is not.
-    // 1: skip insert at end (vs 0)
-    // ..k: skip insert at start (vs ..=k)
-    // NOTE: start (low order bits) correspond to the end of the kmer.
-    let mut forbidden_duplicate_head = usize::MAX;
-    let mut forbidden_duplicate_tail = usize::MAX;
-    let start = if SKIP_INEXACT_INSERT_START_END {
-        forbidden_duplicate_tail = (qgram << 2) | (qgram & 3);
-        1
-    } else {
-        0
-    };
-    // NOTE: end (high order bits) correspond to the start of the kmer.
-    let end = if insert_at_start || !SKIP_INEXACT_INSERT_START_END {
-        k + 1
-    } else {
-        forbidden_duplicate_head = qgram | ((qgram >> (2 * k - 2)) << 2 * k);
-        k
-    };
-    for i in start..end {
+    for i in 0..=k {
         let mask = (1 << (2 * i)) - 1;
         for s in 0..4 {
             let candidate = (qgram & mask) | (s << (2 * i)) | ((qgram & !mask) << 2);
-            if candidate != forbidden_duplicate_head && candidate != forbidden_duplicate_tail {
-                insertions.push(candidate);
-            }
+            insertions.push(candidate);
         }
     }
     // Deletions
-    for i in 0..=k - 1 {
+    for i in 0..k {
         let mask = (1 << (2 * i)) - 1;
         deletions.push((qgram & mask) | ((qgram & (!mask << 2)) >> 2));
     }
@@ -257,7 +232,7 @@ mod test {
     fn test_mutations() {
         let kmer = 0b00011011usize;
         let k = 4;
-        let ms = mutations(k, kmer, true, true);
+        let ms = mutations(k, kmer, true);
         // substitution
         assert!(ms.substitutions.contains(&0b11011011));
         // insertion
@@ -269,14 +244,10 @@ mod test {
             Mutations {
                 deletions: [6, 7, 11, 27].to_vec(),
                 substitutions: [11, 19, 23, 24, 25, 26, 31, 43, 59, 91, 155, 219].to_vec(),
-                insertions: if SKIP_INEXACT_INSERT_START_END {
-                    [27, 75, 91, 99, 103, 107, 123, 155, 219, 283, 539, 795].to_vec()
-                } else {
-                    [
-                        27, 75, 91, 99, 103, 107, 108, 109, 110, 111, 123, 155, 219, 283, 539, 795,
-                    ]
-                    .to_vec()
-                }
+                insertions: [
+                    27, 75, 91, 99, 103, 107, 108, 109, 110, 111, 123, 155, 219, 283, 539, 795,
+                ]
+                .to_vec()
             }
         );
     }
@@ -285,7 +256,7 @@ mod test {
     fn kmer_removal() {
         let kmer = 0b00011011usize;
         let k = 4;
-        let ms = mutations(k, kmer, true, true);
+        let ms = mutations(k, kmer, true);
         assert!(!ms.substitutions.contains(&kmer));
         assert!(ms.deletions.contains(&kmer));
         assert!(ms.insertions.contains(&kmer));

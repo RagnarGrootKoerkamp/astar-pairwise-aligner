@@ -15,8 +15,5 @@ pub const FIND_MATCHES_HASH: bool = true;
 /// Only for CSH with gap-cost.
 pub const SLIDING_WINDOW_MATCHES: bool = false;
 
-/// When true, inexact matches with an insertion at the start/end are skipped.
-pub const SKIP_INEXACT_INSERT_START_END: bool = false;
-
 /// Disable to disable timers.
 pub const TIME: bool = true;
