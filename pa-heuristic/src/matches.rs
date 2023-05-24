@@ -3,7 +3,7 @@ mod ordered;
 mod qgrams;
 pub mod suffix_array;
 
-use crate::{matches::local_pruning::local_pruning, prelude::*, seeds::*};
+use crate::{prelude::*, seeds::*};
 use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,
@@ -56,30 +56,123 @@ impl Match {
     }
 }
 
+/// Helper for constructing and filtering matches.
+///
+/// Note that this requires the seeds to be already determined, since they are
+/// required for the transform filter.
+struct MatchBuilder<'a> {
+    a: Seq<'a>,
+    b: Seq<'a>,
+    config: MatchConfig,
+    transform_filter: bool,
+    transform_target: Pos,
+    seeds: Seeds,
+    matches: Vec<Match>,
+
+
+    local_pruning_cache: [Vec<I>; 3],
+    stats: MatchStats,
+}
+
 #[derive(Default)]
+struct MatchStats {
+    pushed: usize,
+    after_transform: usize,
+    after_local_pruning: usize,
+}
+
+impl<'a> MatchBuilder<'a> {
+    fn new(
+        a: Seq<'a>,
+        b: Seq<'a>,
+        config: MatchConfig,
+        seeds: Vec<Seed>,
+        transform_filter: bool,
+    ) -> Self {
+        let seeds = Seeds::new(a, seeds);
+        let transform_target = seeds.transform(Pos::target(a, b));
+        Self {
+            a,
+            b,
+            config,
+            transform_filter,
+            transform_target,
+            seeds,
+            matches: Vec::new(),
+            local_pruning_cache: Default::default(),
+            stats: MatchStats::default(),
+        }
+    }
+
+    /// Add a new match. If enabled, filters for m.start <=_T end and/or local pruning.
+    /// Returns whether the match was added.
+    fn push(&mut self, m: Match) -> bool {
+        self.stats.pushed += 1;
+        if self.transform_filter && !(self.seeds.transform(m.start) <= self.transform_target) {
+            return false;
+        }
+        self.stats.after_transform += 1;
+        if !preserve_for_local_pruning(
+            self.a,
+            self.b,
+            &self.seeds,
+            &m,
+            self.config.local_pruning,
+            &mut self.local_pruning_cache,
+        ) {
+            return false;
+        }
+        self.stats.after_local_pruning += 1;
+
+        let sc = &mut self.seeds.seed_at_mut(m.start).unwrap().seed_cost;
+        *sc = min(*sc, m.match_cost);
+
+        self.matches.push(m);
+
+        true
+    }
+
+    fn finish(mut self) -> Matches {
+        // First sort by start, then by end, then by match cost.
+        assert!(self
+            .matches
+            .is_sorted_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost)));
+        // Dedup to only keep the lowest match cost between each start and end.
+        self.matches.dedup_by_key(|m| (m.start, m.end));
+
+        eprintln!(
+            "Matches after:
+  pushed        {:>8}
+  transform     {:>8}
+  local pruning {:>8}",
+            self.stats.pushed, self.stats.after_transform, self.stats.after_local_pruning
+        );
+
+        if self.config.local_pruning > 0 {
+            eprintln!("Local pruning up to");
+            for (g, cnt) in self.local_pruning_cache[2].iter().enumerate() {
+                eprint!("{g:>0$} ", format!("{cnt}").len());
+            }
+            eprintln!();
+            for cnt in &self.local_pruning_cache[2] {
+                eprint!("{cnt} ");
+            }
+            eprintln!();
+        }
+
+        Matches {
+            seeds: self.seeds,
+            matches: self.matches,
+        }
+    }
+}
+
+/// A wrapper to contain all seed and match information.
 pub struct Matches {
     pub seeds: Seeds,
     /// Sorted by start (i, j).
     /// Empty for unordered matching.
     pub matches: Vec<Match>,
-}
-
-impl Matches {
-    /// Seeds must be sorted by start.
-    /// Matches will be sorted and deduplicated in this function.
-    pub fn new(a: Seq, b: Seq, seeds: Vec<Seed>, mut matches: Vec<Match>, p: usize) -> Self {
-        // First sort by start, then by end, then by match cost.
-        assert!(matches.is_sorted_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost)));
-        // Dedup to only keep the lowest match cost between each start and end.
-        matches.dedup_by_key(|m| (m.start, m.end));
-
-        let mut matches = Matches {
-            seeds: Seeds::new(a, seeds),
-            matches,
-        };
-        local_pruning(a, b, &mut matches, p);
-        matches
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -97,6 +190,8 @@ pub enum LengthConfig {
     Max(MaxMatches),
 }
 use LengthConfig::*;
+
+use self::local_pruning::preserve_for_local_pruning;
 
 impl LengthConfig {
     pub fn k(&self) -> Option<I> {

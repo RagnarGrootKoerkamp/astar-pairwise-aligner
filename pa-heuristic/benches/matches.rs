@@ -224,14 +224,14 @@ fn n10000_exact_qgramindex(bench: &mut Bencher) {
 fn n100_exact_hash(bench: &mut Bencher) {
     let n = 100;
     let (a, b) = uniform_fixed(n, E);
-    bench.iter(|| find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K)));
+    bench.iter(|| find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K), false));
 }
 
 #[bench]
 fn n10000_exact_hash(bench: &mut Bencher) {
     let n = 10000;
     let (a, b) = uniform_fixed(n, E);
-    bench.iter(|| find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K)));
+    bench.iter(|| find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K), false));
 }
 
 #[bench]

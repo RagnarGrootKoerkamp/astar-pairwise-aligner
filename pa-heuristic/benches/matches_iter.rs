@@ -20,7 +20,12 @@ fn n100(bench: &mut Bencher) {
     let (a, b) = uniform_fixed(n, E);
     bench.iter(|| {
         for _ in 0..1000000 {
-            black_box(find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K)));
+            black_box(find_matches_qgram_hash_exact(
+                &a,
+                &b,
+                MatchConfig::exact(K),
+                false,
+            ));
         }
     });
 }
@@ -31,7 +36,12 @@ fn n10k(bench: &mut Bencher) {
     let (a, b) = uniform_fixed(n, E);
     bench.iter(|| {
         for _ in 0..10000 {
-            black_box(find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K)));
+            black_box(find_matches_qgram_hash_exact(
+                &a,
+                &b,
+                MatchConfig::exact(K),
+                false,
+            ));
         }
     });
 }
@@ -43,7 +53,12 @@ fn n1M(bench: &mut Bencher) {
     let (a, b) = uniform_fixed(n, E);
     bench.iter(|| {
         for _ in 0..100 {
-            black_box(find_matches_qgram_hash_exact(&a, &b, MatchConfig::exact(K)));
+            black_box(find_matches_qgram_hash_exact(
+                &a,
+                &b,
+                MatchConfig::exact(K),
+                false,
+            ));
         }
     });
 }

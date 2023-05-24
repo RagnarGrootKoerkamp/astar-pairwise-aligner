@@ -17,7 +17,7 @@ use std::{
     simd::{Simd, SimdPartialEq, ToBitMask},
 };
 
-use super::{Match, Matches};
+use super::Match;
 use crate::seeds::Seeds;
 use pa_types::{Cost, Seq, I};
 
@@ -69,14 +69,15 @@ fn extend_simd(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
 /// After covering `i <= p` additional seeds, the cost should be less than `(i+1)*r`.
 /// For an optimal path from `s = start(match)` to `t=end of path after covering i seeds`, we should have
 /// g(t) + p(t) <= p(s) to keep the match.
-fn preserve_match(
+///
+/// The last argument is a reusable buffer for the DT fronts that can simply be `&mut Default::default()`.
+pub fn preserve_for_local_pruning(
     a: Seq,
     b: Seq,
     seeds: &Seeds,
     m: &Match,
     p: usize,
-    fr: &mut Vec<I>,
-    next_fr: &mut Vec<I>,
+    [fr, next_fr, stats]: &mut [Vec<I>; 3],
 ) -> bool {
     let s = m.start;
     let start_pot = seeds.potential(s);
@@ -103,7 +104,13 @@ fn preserve_match(
     let mut d_range = pd..pd + 1;
     // Initialize the first front.
     fr[pd] = s.0;
+
+    if pd >= stats.len() {
+        stats.resize(pd, 0);
+    }
+
     if extend_simd(a, b, &mut fr[pd], s.1, end_i) {
+        stats[0] += 1;
         // eprintln!("Reached end_i at cost 0");
         return true;
     }
@@ -133,7 +140,9 @@ fn preserve_match(
             let i = &mut fr[d];
             let j = s.1 - s.0 + *i + (d as I - pd as I);
 
+            // If reached end of range => KEEP MATCH.
             if extend_simd(a, b, i, j, end_i) {
+                stats[g as usize] += 1;
                 // eprintln!("Front {g}: {} => Reached {end_i}", d as I - pd as I);
                 return true;
             }
@@ -159,24 +168,10 @@ fn preserve_match(
             d_range.end -= 1;
         }
         if d_range.is_empty() {
+            stats[g as usize] += 1;
             // eprintln!("Empty fronts at cost {}", g);
             return false;
         }
     }
     unreachable!();
-}
-
-pub fn local_pruning(a: Seq, b: Seq, matches: &mut Matches, p: usize) {
-    if p == 0 {
-        return;
-    }
-    eprintln!("Matches before local pruning: {}", matches.matches.len());
-
-    let fr = &mut vec![];
-    let next_fr = &mut vec![];
-
-    matches
-        .matches
-        .retain(|m| preserve_match(a, b, &matches.seeds, m, p, fr, next_fr));
-    eprintln!("Matches  after local pruning: {}", matches.matches.len());
 }

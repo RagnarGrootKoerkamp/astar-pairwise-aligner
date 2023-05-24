@@ -96,6 +96,15 @@ impl Seeds {
         }
     }
 
+    /// The seed covering a given position.
+    #[inline]
+    pub fn seed_at_mut(&mut self, Pos(i, _): Pos) -> Option<&mut Seed> {
+        match self.seed_at[i as usize] {
+            Some(idx) => Some(&mut self.seeds[idx as usize]),
+            None => None,
+        }
+    }
+
     /// The seed ending in the given position.
     #[inline]
     pub fn seed_ending_at(&self, Pos(i, _): Pos) -> Option<&Seed> {

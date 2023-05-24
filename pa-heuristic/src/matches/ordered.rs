@@ -9,12 +9,8 @@ use crate::prelude::*;
 pub fn find_matches_qgramindex<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    MatchConfig {
-        length,
-        r,
-        local_pruning,
-    }: MatchConfig,
-    _gapcost: bool,
+    config @ MatchConfig { length, r, .. }: MatchConfig,
+    transform_filter: bool,
 ) -> Matches {
     assert!(r == 1 || r == 2);
 
@@ -63,7 +59,7 @@ pub fn find_matches_qgramindex<'a>(
     let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     let width = rank_transform.get_width();
 
-    let mut seeds = {
+    let seeds = {
         let mut v: Vec<Seed> = Vec::default();
         let mut a = &a[..];
         let mut i = 0 as I;
@@ -121,23 +117,20 @@ pub fn find_matches_qgramindex<'a>(
         v
     };
 
-    // Find matches of the seeds of a in b.
-    // NOTE: This uses O(alphabet^k) memory.
-    let mut matches = Vec::<Match>::new();
+    let mut matches = MatchBuilder::new(a, b, config, seeds, transform_filter);
 
-    for seed @ &mut Seed {
-        start,
-        end,
-        seed_potential,
-        qgram,
-        ..
-    } in &mut seeds
-    {
+    for i in 0..matches.seeds.seeds.len() {
+        let Seed {
+            start,
+            end,
+            seed_potential,
+            qgram,
+            ..
+        } = matches.seeds.seeds[i];
         let len = end - start;
 
         // Exact matches
         for &j in get_matches(qgrams, b, len, qgram) {
-            seed.seed_cost = 0;
             matches.push(Match {
                 start: Pos(start, j as I),
                 end: Pos(end, j as I + len),
@@ -151,7 +144,6 @@ pub fn find_matches_qgramindex<'a>(
             let mutations = mutations(len, qgram, true);
             for mutation in mutations.deletions {
                 for &j in get_matches(qgrams, b, len - 1, mutation) {
-                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len - 1),
@@ -163,7 +155,6 @@ pub fn find_matches_qgramindex<'a>(
             }
             for mutation in mutations.substitutions {
                 for &j in get_matches(qgrams, b, len, mutation) {
-                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len),
@@ -175,7 +166,6 @@ pub fn find_matches_qgramindex<'a>(
             }
             for mutation in mutations.insertions {
                 for &j in get_matches(qgrams, b, len + 1, mutation) {
-                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len + 1),
@@ -188,7 +178,7 @@ pub fn find_matches_qgramindex<'a>(
         }
     }
 
-    Matches::new(a, b, seeds, matches, local_pruning)
+    matches.finish()
 }
 
 /// Build a hashset of the kmers in b, and query all mutations of seeds in a.
@@ -196,12 +186,8 @@ pub fn find_matches_qgramindex<'a>(
 pub fn find_matches_qgram_hash_inexact<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    MatchConfig {
-        length,
-        r,
-        local_pruning,
-    }: MatchConfig,
-    _gapcost: bool,
+    config @ MatchConfig { length, r, .. }: MatchConfig,
+    transform_filter: bool,
 ) -> Matches {
     let k: I = match length {
         Fixed(k) => k,
@@ -211,7 +197,13 @@ pub fn find_matches_qgram_hash_inexact<'a>(
 
     let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
 
-    let mut seeds = fixed_seeds(&rank_transform, r, a, k);
+    let mut matches = MatchBuilder::new(
+        a,
+        b,
+        config,
+        fixed_seeds(&rank_transform, r, a, k),
+        transform_filter,
+    );
 
     // type of Qgrams
     type Q = usize;
@@ -227,12 +219,11 @@ pub fn find_matches_qgram_hash_inexact<'a>(
                 .push(j as Cost);
         }
     }
-    let mut matches = Vec::<Match>::new();
-    for seed @ &mut Seed { start, qgram, .. } in &mut seeds {
-        let matches_before_seed = matches.len();
+    for i in 0..matches.seeds.seeds.len() {
+        let Seed { start, qgram, .. } = matches.seeds.seeds[i];
+        let matches_before_seed = matches.matches.len();
         if let Some(js) = m.get(&key_for_sized_qgram(k, qgram)) {
             for &j in js {
-                seed.seed_cost = 0;
                 matches.push(Match {
                     start: Pos(start, j),
                     end: Pos(start + k, j + k),
@@ -247,7 +238,6 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         for w in ms.deletions {
             if let Some(js) = m.get(&key_for_sized_qgram(k - 1, w)) {
                 for &j in js {
-                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(start + k, j + k - 1),
@@ -261,7 +251,6 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         for w in ms.substitutions {
             if let Some(js) = m.get(&key_for_sized_qgram(k, w)) {
                 for &j in js {
-                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(start + k, j + k),
@@ -275,7 +264,6 @@ pub fn find_matches_qgram_hash_inexact<'a>(
         for w in ms.insertions {
             if let Some(js) = m.get(&key_for_sized_qgram(k + 1, w)) {
                 for &j in js {
-                    seed.seed_cost = min(seed.seed_cost, 1);
                     matches.push(Match {
                         start: Pos(start, j),
                         end: Pos(start + k, j + k + 1),
@@ -286,26 +274,20 @@ pub fn find_matches_qgram_hash_inexact<'a>(
                 }
             }
         }
-        let matches_after_seed = matches.len();
         // NOTE: `sort_unstable_by_key` (quicksort) is slower than `sort_by_key` (mergesort) here.
-        matches[matches_before_seed..matches_after_seed]
+        matches.matches[matches_before_seed..]
             .sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
     }
 
-    #[cfg(test)]
-    assert!(matches.is_sorted_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost)));
-    Matches::new(a, b, seeds, matches, local_pruning)
+    matches.finish()
 }
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
 pub fn find_matches_qgram_hash_exact<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
-    MatchConfig {
-        length,
-        r,
-        local_pruning,
-    }: MatchConfig,
+    config @ MatchConfig { length, r, .. }: MatchConfig,
+    transform_filter: bool,
 ) -> Matches {
     if length.kmin() != length.kmax() {
         unimplemented!("QGram Hashing only works for fixed k for now.");
@@ -317,13 +299,18 @@ pub fn find_matches_qgram_hash_exact<'a>(
     let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
     let width = rank_transform.get_width();
 
-    let mut seeds = fixed_seeds(&rank_transform, r, a, k);
+    let mut matches = MatchBuilder::new(
+        a,
+        b,
+        config,
+        fixed_seeds(&rank_transform, r, a, k),
+        transform_filter,
+    );
 
     type Key = u64;
 
     // TODO: See if we can get rid of the Vec alltogether.
     let mut m = HashMap::<Key, SmallVec<[I; 4]>>::default();
-    let mut matches = Vec::<Match>::new();
 
     if SLIDING_WINDOW_MATCHES {
         let capacity = a.len() / k as usize / (k - 1) as usize / 2;
@@ -405,7 +392,6 @@ pub fn find_matches_qgram_hash_exact<'a>(
             }
             if let Some(is) = m.get(&(qb as Key)) {
                 for &i in is {
-                    seeds[(i / k) as usize].seed_cost = 0;
                     matches.push(Match {
                         start: Pos(i, j as I),
                         end: Pos(i + k, j as I + k),
@@ -429,7 +415,6 @@ pub fn find_matches_qgram_hash_exact<'a>(
         for (j, w) in rank_transform.qgrams(k as _, b).enumerate() {
             if let Some(is) = m.get(&(w as Key)) {
                 for &i in is {
-                    seeds[(i / k) as usize].seed_cost = 0;
                     matches.push(Match {
                         start: Pos(i, j as I),
                         end: Pos(i + k, j as I + k),
@@ -440,35 +425,33 @@ pub fn find_matches_qgram_hash_exact<'a>(
                 }
             }
         }
-        matches.sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
+        matches
+            .matches
+            .sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
     }
 
-    Matches::new(a, b, seeds, matches, local_pruning)
+    matches.finish()
 }
 
+/// Find all matches between `a` and `b` with the given match configuration.
+/// If `transform_filter` is true, then only matches with T(m.start) <= target are kept.
 pub fn find_matches<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
     match_config: MatchConfig,
-    gapcost: bool,
+    transform_filter: bool,
 ) -> Matches {
-    if let Some(max_matches) = match_config.length.max_matches() {
-        return minimal_unique_matches(
-            a,
-            b,
-            match_config.r,
-            max_matches,
-            match_config.local_pruning,
-        );
+    if let LengthConfig::Max(_) = match_config.length {
+        return minimal_unique_matches(a, b, match_config);
     }
     if FIND_MATCHES_HASH {
         return match match_config.r {
-            1 => find_matches_qgram_hash_exact(a, b, match_config),
-            2 => find_matches_qgram_hash_inexact(a, b, match_config, gapcost),
+            1 => find_matches_qgram_hash_exact(a, b, match_config, transform_filter),
+            2 => find_matches_qgram_hash_inexact(a, b, match_config, transform_filter),
             _ => unimplemented!("FIND_MATCHES with HashMap only works for r = 1 or r = 2"),
         };
     } else {
-        return find_matches_qgramindex(a, b, match_config, gapcost);
+        return find_matches_qgramindex(a, b, match_config, transform_filter);
     }
 }
 
@@ -487,7 +470,7 @@ mod test {
                     let (a, b) = uniform_fixed(n, e);
                     let matchconfig = MatchConfig::new(k, r);
                     let qi = find_matches_qgramindex(&a, &b, matchconfig, false);
-                    let h = find_matches_qgram_hash_exact(&a, &b, matchconfig);
+                    let h = find_matches_qgram_hash_exact(&a, &b, matchconfig, false);
                     if !SLIDING_WINDOW_MATCHES {
                         if qi.matches == h.matches {
                             continue;

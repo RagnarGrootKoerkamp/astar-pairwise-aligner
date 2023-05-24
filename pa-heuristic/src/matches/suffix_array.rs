@@ -9,7 +9,10 @@ use bio::{
 };
 use pa_types::{Base, Pos, Seq};
 
-use crate::matches::{qgrams::to_qgram, Match, MatchStatus, Matches, Seed};
+use crate::{
+    matches::{qgrams::to_qgram, Match, MatchBuilder, MatchStatus, Matches, MaxMatches, Seed},
+    LengthConfig, MatchConfig,
+};
 
 type SaRange = Range<usize>;
 
@@ -60,7 +63,16 @@ impl FmIndex {
 /// - Keep a list of 'current' intervals, and prepend each char to each interval.
 /// - Also allow mutations for intervals that still have leftover cost.
 
-pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize, local_pruning: usize) -> Matches {
+pub fn minimal_unique_matches(
+    a: Seq,
+    b: Seq,
+    config @ MatchConfig { length, r, .. }: MatchConfig,
+) -> Matches {
+    // TODO: Use `k_min` and `k_max`.
+    let LengthConfig::Max(MaxMatches { max_matches, ..}) = length else {
+        panic!("This function requires a maximum number of matches.")
+    };
+
     let fm = FmIndex::new(b);
     assert!(
         r == 1 || r == 2,
@@ -68,7 +80,7 @@ pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize, local_pruning: us
     );
 
     let mut seeds = vec![];
-    let mut matches = vec![];
+    let mut matches = MatchBuilder::new(a, b, config, vec![], false);
 
     let chars = b"ACGT";
     let alphabet = Alphabet::new(chars);
@@ -141,7 +153,7 @@ pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize, local_pruning: us
 
         let total_matches: usize = ranges.iter().map(|(range, ..)| range.len()).sum();
 
-        if total_matches <= x {
+        if total_matches <= max_matches {
             let seed_start = i;
             seeds.push(Seed {
                 start: seed_start as _,
@@ -160,7 +172,7 @@ pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize, local_pruning: us
                         match_cost: cost,
                         seed_potential: r as _,
                         pruned: MatchStatus::Active,
-                    })
+                    });
                 }
             }
 
@@ -169,8 +181,8 @@ pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize, local_pruning: us
             ranges = init_ranges(&fm);
         }
     }
-    seeds.reverse();
-    matches.reverse();
+    matches.seeds.seeds.reverse();
+    matches.matches.reverse();
 
     // for s in &seeds {
     //     eprintln!("Seed {s:?}");
@@ -179,5 +191,5 @@ pub fn minimal_unique_matches(a: Seq, b: Seq, r: u8, x: usize, local_pruning: us
     //     eprintln!("Match {m:?}");
     // }
 
-    Matches::new(a, b, seeds, matches, local_pruning)
+    matches.finish()
 }
