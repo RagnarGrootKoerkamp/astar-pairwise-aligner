@@ -157,8 +157,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "bio"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e07645dcc036557a09cf078268b4666f0ce737bd797b0ee554de29ea81981ab2"
+source = "git+https://github.com/ragnargrootkoerkamp/rust-bio?branch=rev_qgrams#c94f6d8495c5767f2bf34627d96c8e5afc4bc194"
 dependencies = [
  "anyhow",
  "approx",
@@ -956,6 +955,7 @@ dependencies = [
  "pa-generate",
  "pa-heuristic",
  "pa-types",
+ "pa-vis",
  "pa-vis-types",
  "rand",
  "serde",

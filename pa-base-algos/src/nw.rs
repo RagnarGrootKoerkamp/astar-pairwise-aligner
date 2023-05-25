@@ -22,14 +22,17 @@ mod bitpacking;
 mod front;
 
 use crate::nw::front::{IRange, JRange, NwFront, NwFronts};
-use crate::Domain;
 use crate::{exponential_search, Strategy};
+use crate::{linear_search, Domain};
 use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
+use pa_vis::visualizer::{Gradient, When};
+use pa_vis_types::canvas::RED;
 use pa_vis_types::*;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
+use std::time::Duration;
 
 use self::affine::AffineNwFrontsTag;
 use self::front::NwFrontsTag;
@@ -73,12 +76,43 @@ pub struct AstarNwParams {
     /// Whether pruning is enabled.
     #[serde(default)]
     pub prune: bool,
+
+    /// Whether the visualizer is enabled.
+    #[serde(default)]
+    pub viz: bool,
 }
 
 impl AstarNwParams {
     /// Build an `AstarStatsAligner` instance from
     pub fn make_aligner(&self, trace: bool) -> Box<dyn Aligner> {
-        self.make_aligner_with_visualizer(trace, NoVis)
+        if self.viz {
+            let mut config = pa_vis::visualizer::Config::default();
+            config.draw = When::LayersStepBy(1);
+            config.save = When::None; //When::LayersStepBy(30);
+            config.save_last = false;
+            config.delay = Duration::from_secs_f32(0.0001);
+            config.cell_size = 0;
+            config.downscaler = 0;
+            config.style.bg_color = (255, 255, 255, 128);
+            config.style.expanded = Gradient::TurboGradient(0.25..0.90);
+            config.style.path_width = None;
+            config.layer_drawing = false;
+            config.style.draw_dt = false;
+            config.style.draw_heuristic = false;
+            config.style.draw_f = false;
+            config.style.draw_labels = false;
+            config.transparent_bmp = true;
+            config.draw_old_on_top = true;
+            config.paused = true;
+
+            config.style.pruned_match = RED;
+            config.style.match_width = 1;
+            config.style.draw_matches = true;
+            config.filepath = self.name.clone().into();
+            self.make_aligner_with_visualizer(trace, config)
+        } else {
+            self.make_aligner_with_visualizer(trace, NoVis)
+        }
     }
 
     /// Build a type-erased aligner object from parameters.
