@@ -286,8 +286,12 @@ impl MatchPruner {
     }
 
     fn prune_match(&mut self, m: &Match) {
-        self.mut_match_start(m).unwrap().prune();
-        self.mut_match_end(m).unwrap().prune();
+        if self.pruning.prune_start() {
+            self.mut_match_start(m).unwrap().prune();
+        }
+        if self.pruning.prune_end() {
+            self.mut_match_end(m).unwrap().prune();
+        }
     }
 
     pub fn mut_match_start(&mut self, m: &Match) -> Option<&mut Match> {
