@@ -1,6 +1,7 @@
 //! `ordered` matches return the positions of all matches.  There used to be
 //! also a module `unordered` that only returns counts, but it has been moved to
 //! the graveyard since it is not in use.
+use itertools::izip;
 use smallvec::SmallVec;
 
 use super::{suffix_array::minimal_unique_matches, *};
@@ -411,8 +412,12 @@ pub fn find_matches_qgram_hash_exact<'a>(
         {
             m.entry(w as Key).or_default().push(i as I);
         }
-
-        for (j, w) in rank_transform.qgrams(k as _, b).enumerate() {
+        // Iterate over the k-grams of b in reverse.
+        // Manually count them since qgrams is not a DoubleEndedIterator.
+        for (j, w) in izip!(
+            (0..b.len() as I - k + 1).rev(),
+            rank_transform.rev_qgrams(k as _, b)
+        ) {
             if let Some(is) = m.get(&(w as Key)) {
                 for &i in is {
                     matches.push(Match {

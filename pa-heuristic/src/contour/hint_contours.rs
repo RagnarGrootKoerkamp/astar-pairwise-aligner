@@ -623,11 +623,13 @@ impl<C: Contour> Contours for HintContours<C> {
         }
     }
 
-    #[allow(unreachable_code)]
+    #[allow(unreachable_code, unused_variables)]
     fn print_stats(&mut self) {
         // TODO: MAKE A FLAG FOR THIS.
-        return;
-        eprintln!("----------------------------");
+        // eprintln!("----------------------------");
+        // if self.stats.borrow().prunes > 0 {
+        //     return;
+        // }
         let mut num = 0;
         let mut total_len = 0;
         let mut total_dom = 0;

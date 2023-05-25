@@ -1,9 +1,9 @@
-pub mod local_pruning;
+mod local_pruning;
 mod ordered;
 mod qgrams;
 pub mod suffix_array;
 
-use crate::{prelude::*, seeds::*};
+use crate::{matches::local_pruning::preserve_for_local_pruning, prelude::*, seeds::*};
 use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,
@@ -56,6 +56,42 @@ impl Match {
     }
 }
 
+/// A vector that is centered around 0.
+struct CenteredVec<T> {
+    vec: Vec<T>,
+
+    default: T,
+}
+
+impl<T: Copy> CenteredVec<T> {
+    fn new(center: I, default: T) -> Self {
+        Self {
+            vec: vec![default; 2 * center.abs() as usize + 1],
+            default,
+        }
+    }
+    fn index(&self, index: I) -> T {
+        self.vec
+            .get((index + self.vec.len() as I / 2) as usize)
+            .copied()
+            .unwrap_or(self.default)
+    }
+    fn index_mut(&mut self, index: I) -> &mut T {
+        if index.abs() > self.vec.len() as I / 2 {
+            // Grow to contain the index and at least double in size.
+            let old_mid = self.vec.len() / 2;
+            let new_mid = max(index.abs() as usize, self.vec.len());
+            let grow = new_mid - old_mid;
+            self.vec
+                .splice(0..0, std::iter::repeat(self.default).take(grow));
+            self.vec.extend(std::iter::repeat(self.default).take(grow));
+            assert_eq!(self.vec.len() / 2, new_mid);
+        }
+        let mid = self.vec.len() as I / 2;
+        &mut self.vec[(index + mid) as usize]
+    }
+}
+
 /// Helper for constructing and filtering matches.
 ///
 /// Note that this requires the seeds to be already determined, since they are
@@ -64,13 +100,17 @@ struct MatchBuilder<'a> {
     a: Seq<'a>,
     b: Seq<'a>,
     config: MatchConfig,
-    transform_filter: bool,
-    transform_target: Pos,
     seeds: Seeds,
     matches: Vec<Match>,
 
+    transform_filter: bool,
+    transform_target: Pos,
 
     local_pruning_cache: [Vec<I>; 3],
+
+    /// The i of the next (left/topmost) match on each diagonal.
+    next_match_per_diag: CenteredVec<I>,
+
     stats: MatchStats,
 }
 
@@ -91,16 +131,19 @@ impl<'a> MatchBuilder<'a> {
     ) -> Self {
         let seeds = Seeds::new(a, seeds);
         let transform_target = seeds.transform(Pos::target(a, b));
+        let d = transform_target.0 - transform_target.1;
         Self {
             a,
             b,
             config,
-            transform_filter,
-            transform_target,
             seeds,
             matches: Vec::new(),
+            transform_target,
+            transform_filter,
             local_pruning_cache: Default::default(),
             stats: MatchStats::default(),
+            // Make space for the 0 and target diagonal, and 10 padding on each side.
+            next_match_per_diag: CenteredVec::new(d, I::MAX),
         }
     }
 
@@ -119,13 +162,24 @@ impl<'a> MatchBuilder<'a> {
             &m,
             self.config.local_pruning,
             &mut self.local_pruning_cache,
+            &mut self.next_match_per_diag,
         ) {
             return false;
         }
         self.stats.after_local_pruning += 1;
 
+        // Checks have passed; add the match.
+
         let sc = &mut self.seeds.seed_at_mut(m.start).unwrap().seed_cost;
         *sc = min(*sc, m.match_cost);
+
+        let d = m.start.0 - m.start.1;
+        let old = self.next_match_per_diag.index_mut(d);
+        assert!(
+            *old >= m.start.0,
+            "Matches should be added in reverse order (right-to-left or bot-to-top) on each diagonal."
+        );
+        *old = m.start.0;
 
         self.matches.push(m);
 
@@ -190,8 +244,6 @@ pub enum LengthConfig {
     Max(MaxMatches),
 }
 use LengthConfig::*;
-
-use self::local_pruning::preserve_for_local_pruning;
 
 impl LengthConfig {
     pub fn k(&self) -> Option<I> {

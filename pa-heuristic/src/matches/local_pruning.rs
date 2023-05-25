@@ -17,7 +17,7 @@ use std::{
     simd::{Simd, SimdPartialEq, ToBitMask},
 };
 
-use super::Match;
+use super::{CenteredVec, Match};
 use crate::seeds::Seeds;
 use pa_types::{Cost, Seq, I};
 
@@ -71,13 +71,14 @@ fn extend_simd(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
 /// g(t) + p(t) <= p(s) to keep the match.
 ///
 /// The last argument is a reusable buffer for the DT fronts that can simply be `&mut Default::default()`.
-pub fn preserve_for_local_pruning(
+pub(super) fn preserve_for_local_pruning(
     a: Seq,
     b: Seq,
     seeds: &Seeds,
     m: &Match,
     p: usize,
     [fr, next_fr, stats]: &mut [Vec<I>; 3],
+    next_match_per_diag: &mut CenteredVec<I>,
 ) -> bool {
     let s = m.start;
     let start_pot = seeds.potential(s);
@@ -87,39 +88,32 @@ pub fn preserve_for_local_pruning(
     let end_i = last_seed.end;
     let end_pot = seeds.potential[end_i as usize];
 
-    // eprintln!(
-    //     "Match from {s} to {} end_i: {end_i} pot: {start_pot}/{end_pot}",
-    //     m.end
-    // );
-
     let pd = (start_pot - end_pot) as usize;
 
     // Reinitialize the fronts.
     // They are reused between calls to save allocations.
     fr.resize(2 * pd + 1, I::MIN);
     next_fr.resize(2 * pd + 1, I::MIN);
+    if pd > stats.len() {
+        stats.resize(pd, 0);
+    }
 
     // d: the diagonal relative to s.
     // d=1: the diagonal above s.
     let mut d_range = pd..pd + 1;
     // Initialize the first front.
     fr[pd] = s.0;
-
-    if pd >= stats.len() {
-        stats.resize(pd, 0);
-    }
+    next_fr[pd] = I::MIN;
 
     if extend_simd(a, b, &mut fr[pd], s.1, end_i) {
         stats[0] += 1;
-        // eprintln!("Reached end_i at cost 0");
         return true;
     }
-    // eprintln!(
-    //     "Front 0: 0 => {} @ 0 + {}",
-    //     fr[pd], seeds.potential[fr[pd] as usize]
-    // );
+    if next_match_per_diag.index(s.0 - s.1) <= fr[pd] {
+        stats[0] += 1;
+        return true;
+    }
 
-    next_fr[pd] = I::MIN;
     for g in 1..pd as Cost {
         fr[d_range.start - 1] = I::MIN;
         fr[d_range.end] = I::MIN;
@@ -135,43 +129,47 @@ pub fn preserve_for_local_pruning(
 
         d_range = (d_range.start - 1)..(d_range.end + 1);
 
-        // extend
-        for d in d_range.clone() {
-            let i = &mut fr[d];
-            let j = s.1 - s.0 + *i + (d as I - pd as I);
-
-            // If reached end of range => KEEP MATCH.
-            if extend_simd(a, b, i, j, end_i) {
-                stats[g as usize] += 1;
-                // eprintln!("Front {g}: {} => Reached {end_i}", d as I - pd as I);
-                return true;
-            }
-
-            // eprintln!(
-            //     "Front {}: {} => {} @ {g} + {}",
-            //     g,
-            //     d as I - pd as I,
-            //     i,
-            //     seeds.potential[*i as usize]
-            // );
-        }
+        // for d in d_range.clone() {
+        //     assert!(fr[d] <= end_i);
+        // }
 
         // check & shrink
         while !d_range.is_empty()
-            && g + seeds.potential[fr[d_range.start as usize] as usize] >= start_pot - 1
+            && g + seeds.potential[fr[d_range.start as usize] as usize] >= start_pot
         {
             d_range.start += 1;
         }
         while !d_range.is_empty()
-            && g + seeds.potential[fr[d_range.end as usize - 1] as usize] >= start_pot - 1
+            && g + seeds.potential[fr[d_range.end as usize - 1] as usize] >= start_pot
         {
             d_range.end -= 1;
         }
         if d_range.is_empty() {
             stats[g as usize] += 1;
-            // eprintln!("Empty fronts at cost {}", g);
             return false;
         }
+
+        // extend
+        for d in d_range.clone() {
+            let i = &mut fr[d];
+            let dd = s.0 - s.1 + (d as I - pd as I);
+            let j = *i - dd;
+            let old_i = *i;
+
+            // If reached end of range => KEEP MATCH.
+            if extend_simd(a, b, i, j, end_i) {
+                stats[g as usize] += 1;
+                return true;
+            }
+
+            // If reached *the start* of an existing match => KEEP MATCH.
+            // We check that the start is covered by the current extend.
+            if old_i <= next_match_per_diag.index(dd) && next_match_per_diag.index(dd) <= *i {
+                stats[g as usize] += 1;
+                return true;
+            }
+        }
     }
-    unreachable!();
+    // Did not find a path with cost < pd to `end_i`.
+    false
 }

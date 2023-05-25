@@ -252,6 +252,7 @@ impl<C: Contours> CSHI<C> {
             .map(match_to_arrow)
             .filter(|a| a.end <= t_target);
         let contours = if let Some(mut filter) = filter {
+            // NOTE: This `filter` is only used an path-pruning experiment.
             C::new_with_filter(arrows, params.match_config.r as I, |arrow, layer| {
                 let m = Match {
                     start: if params.use_gap_cost {
@@ -299,8 +300,8 @@ impl<C: Contours> CSHI<C> {
         h.stats.num_seeds = h.seeds.seeds.len() as _;
         h.stats.num_matches = num_matches;
         h.stats.num_filtered_matches = num_filtered_matches;
-        eprintln!("#matches:          {}", num_matches);
-        eprintln!("#filtered matches: {}", num_filtered_matches);
+        // eprintln!("#matches:          {}", num_matches);
+        // eprintln!("#filtered matches: {}", num_filtered_matches);
         // eprintln!(
         //     "#flt matches/seed: {}",
         //     num_filtered_matches as f32 / h.seeds.seeds.len() as f32
