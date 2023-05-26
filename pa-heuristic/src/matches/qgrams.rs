@@ -14,7 +14,6 @@ const W: u32 = 2;
 
 impl<'a> QGrams<'a> {
     pub fn new(a: Seq<'a>, b: Seq<'a>) -> Self {
-        eprintln!("Sequence lengths: {}", Pos::target(a, b));
         #[cfg(test)]
         {
             for c in a.iter() {

@@ -156,6 +156,90 @@ fn hash_to_single_vec(
     }
 }
 
+/// Build a hashset of the seeds in a, and query all kmers in b.
+pub fn hash_a_qgram_index<'a>(
+    a: Seq<'a>,
+    b: Seq<'a>,
+    config: MatchConfig,
+    transform_filter: bool,
+) -> Matches {
+    assert!(config.r == 1);
+    let k = config.length.k().unwrap();
+    let q = QGrams::new(a, b);
+    let mut matches = MatchBuilder::new(&q, config, transform_filter);
+    qgram_index(q.a_qgrams(k), q.b_qgrams_rev(k), &mut matches, k, Pos);
+    matches.sort();
+    matches.finish()
+}
+
+/// Build a hashset of the seeds in a, and query all kmers in b.
+pub fn hash_b_qgram_index<'a>(
+    a: Seq<'a>,
+    b: Seq<'a>,
+    config: MatchConfig,
+    transform_filter: bool,
+) -> Matches {
+    assert!(config.r == 1);
+    let k = config.length.k().unwrap();
+    let q = QGrams::new(a, b);
+    let mut matches = MatchBuilder::new(&q, config, transform_filter);
+    qgram_index(q.b_qgrams(k), q.a_qgrams_rev(k), &mut matches, k, |j, i| {
+        Pos(i, j)
+    });
+    matches.sort();
+    matches.finish()
+}
+
+fn qgram_index(
+    qgrams_hashed: impl Iterator<Item = (i32, usize)> + Clone,
+    qgrams_lookup: impl Iterator<Item = (i32, usize)>,
+    matches: &mut MatchBuilder,
+    k: i32,
+    to_pos: impl Fn(I, I) -> Pos,
+) {
+    // TODO: See if we can get rid of the Vec alltogether.
+    // maps qgram `q` to (idx, cnt). `idx..idx+cnt` is the range of `pos` for `q`.
+    let mut idx = vec![(0u32, 0u32); 1 << (2 * k)];
+
+    // Count qgrams.
+    for (_i, q) in qgrams_hashed.clone() {
+        idx[q].1 += 1;
+    }
+
+    // Accumulate
+    let mut acc = 0;
+    for cnt in &mut idx {
+        cnt.0 = acc;
+        acc += cnt.1;
+    }
+
+    // Positions in qgrams_hashed where qgrams occur.
+    let mut pos = vec![0; acc as usize];
+
+    // Fill the pos vector.
+    for (i, q) in qgrams_hashed {
+        let (idx, _cnt) = &mut idx[q];
+        pos[*idx as usize] = i as I;
+        *idx += 1;
+    }
+    // `idx` now points to the end of the range.
+
+    // Do the lookups.
+    for (j, q) in qgrams_lookup {
+        let (idx, cnt) = idx[q];
+        for &i in &pos[(idx - cnt) as usize..idx as usize] {
+            let start = to_pos(i, j);
+            matches.push(Match {
+                start,
+                end: start + Pos(k, k),
+                match_cost: 0,
+                seed_potential: 1,
+                pruned: MatchStatus::Active,
+            });
+        }
+    }
+}
+
 // =============================================================
 // BELOW HERE ARE MORE COMPLEX METHODS.
 

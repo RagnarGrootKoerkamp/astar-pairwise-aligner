@@ -20,10 +20,16 @@ fn bench(c: &mut Criterion) {
                     };
 
                     let config = MatchConfig::exact(k);
-                    test("a_hv", &|| hash_a(a, b, config, transform_filter));
-                    test("b_hv", &|| hash_b(a, b, config, transform_filter));
-                    test("a_v", &|| hash_a_single(a, b, config, transform_filter));
-                    test("b_v", &|| hash_b_single(a, b, config, transform_filter));
+                    test("a_1", &|| hash_a(a, b, config, transform_filter));
+                    test("b_1", &|| hash_b(a, b, config, transform_filter));
+                    test("a_2", &|| hash_a_single(a, b, config, transform_filter));
+                    test("b_2", &|| hash_b_single(a, b, config, transform_filter));
+                    test("a_3", &|| {
+                        hash_a_qgram_index(a, b, config, transform_filter)
+                    });
+                    test("b_3", &|| {
+                        hash_b_qgram_index(a, b, config, transform_filter)
+                    });
                 }
             }
         }
