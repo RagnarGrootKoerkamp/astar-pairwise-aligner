@@ -298,6 +298,10 @@ impl Drop for BitFronts {
         eprintln!("Num blocks: {cnt}");
         eprintln!("Total rows: {total}");
         eprintln!("Uniq. rows: {}", self.unique_rows);
+        // FIXME: Hardcoded blocksize.
+        let num_blocks = self.a.len() / 256;
+        eprintln!("Total band: {}", total / num_blocks);
+        eprintln!("Uniq. band: {}", self.unique_rows / num_blocks);
     }
 }
 
@@ -751,24 +755,23 @@ impl BitFronts {
         };
 
         // MATCH.
-        // Go up to the beginning of the j_range of the previous front.
-        // This does not cross block boundaries to prevent going out-of-range.
+        // NOTE: We ensure that this stay within the block bounds, which turns out to be quite tricky.
         // TODO: SIMD
         let mut cnt = 0;
-        while st.i > 0 && st.j > round(prev_front.unwrap().j_range).0 {
-            if BitProfile::is_match(&self.a, &self.b, st.i - 1, st.j - 1) {
-                cnt += 1;
-            } else {
+        while st.i > 0 && st.j > 0 && BitProfile::is_match(&self.a, &self.b, st.i - 1, st.j - 1) {
+            // Make sure to not go outside the previous block.
+            if st.i - 1 == block_start && st.j - 1 > prev_front.unwrap().j_range.1 {
                 break;
             }
+            cnt += 1;
             st.i -= 1;
             st.j -= 1;
-            if st.i == block_start {
+            if st.i <= block_start + 1 {
                 break;
             }
         }
         if cnt > 0 {
-            // eprintln!("Match of len {cnt} ending at {st:?}");
+            // eprintln!("Match of len {cnt} ending at {st:?} block_start {block_start}");
             return (
                 st,
                 AffineCigarElem {
@@ -818,7 +821,14 @@ impl BitFronts {
         }
 
         // Substitution.
-        let dd = prev_front.get_diff(st.j - 1).unwrap() + hd;
+        // This edge case happens when entering the previous front exactly in
+        // the bottom-most row, where no vertical delta is available.
+        let dd = if st.j > prev_front.j_range.1 {
+            assert_eq!(st.j, prev_front.j_range.1 + 1);
+            1
+        } else {
+            prev_front.get_diff(st.j - 1).unwrap() + hd
+        };
         if dd == 1 {
             return (
                 State {
