@@ -190,6 +190,8 @@ pub fn hash_b_qgram_index<'a>(
     matches.finish()
 }
 
+/// A qgram index first stores the count per kmer in a list of size 4^k.
+/// If 4^k is more than the size of the input (typically the case for us), this is slower than hashmap-based algorithms.
 fn qgram_index(
     qgrams_hashed: impl Iterator<Item = (i32, usize)> + Clone,
     qgrams_lookup: impl Iterator<Item = (i32, usize)>,
@@ -355,12 +357,13 @@ pub fn find_matches_qgramindex<'a>(
 }
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
-pub fn find_matches_qgram_hash_exact_sliding_window<'a>(
+pub fn hash_a_sliding_window<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
     config @ MatchConfig { length, r, .. }: MatchConfig,
     transform_filter: bool,
 ) -> Matches {
+    assert!(transform_filter);
     if length.kmin() != length.kmax() {
         unimplemented!("QGram Hashing only works for fixed k for now.");
     }
@@ -387,11 +390,12 @@ pub fn find_matches_qgram_hash_exact_sliding_window<'a>(
     // Target position.
     let p = Pos::target(a, b);
     // Target in transformed domain.
-    let t = Pos(
-        ((p.0 - 1) / k + p.0).saturating_sub(p.1),
-        ((p.0 - 1) / k + p.1).saturating_sub(p.0),
-    );
+    let t = matches.seeds.transform(p);
     // Given a j, the range of i values where we want to find matches.
+    // T: u(i,j) -> Pos(i - j - pot[u], j - i - pot[u])
+    // P = pot[u]
+    // j-i-P <= p.1 => i >= j+p.1-P
+    // i-j-P <= p.0 => i <= j+p.0+P
     let i_range_for_j = |j: Cost| -> (Cost, Cost) {
         // Do computation as usize because Cost can overflow.
         let j = j as usize;
@@ -467,6 +471,7 @@ pub fn find_matches_qgram_hash_exact_sliding_window<'a>(
             }
         }
     }
+    matches.sort();
     matches.finish()
 }
 
@@ -485,14 +490,15 @@ mod test {
                     let (a, b) = uniform_fixed(n, e);
                     let mut matchconfig = MatchConfig::new(k, 1);
                     matchconfig.local_pruning = 1;
-                    // this one is broken :/
-                    //let m = find_matches_qgramindex(&a, &b, matchconfig, false);
-                    let a1 = hash_a(&a, &b, matchconfig, false);
-                    let a2 = hash_a_single(&a, &b, matchconfig, false);
-                    let a3 = hash_a_qgram_index(&a, &b, matchconfig, false);
-                    let b1 = hash_b(&a, &b, matchconfig, false);
-                    let b2 = hash_b_single(&a, &b, matchconfig, false);
-                    let b3 = hash_b_qgram_index(&a, &b, matchconfig, false);
+                    // These are broken :/
+                    // let m = find_matches_qgramindex(&a, &b, matchconfig, true);
+                    // let a_sw = hash_a_sliding_window(&a, &b, matchconfig, true);
+                    let a1 = hash_a(&a, &b, matchconfig, true);
+                    let a2 = hash_a_single(&a, &b, matchconfig, true);
+                    let a3 = hash_a_qgram_index(&a, &b, matchconfig, true);
+                    let b1 = hash_b(&a, &b, matchconfig, true);
+                    let b2 = hash_b_single(&a, &b, matchconfig, true);
+                    let b3 = hash_b_qgram_index(&a, &b, matchconfig, true);
                     let m = &a1;
                     assert_eq!(
                         a1.matches,
