@@ -1,22 +1,18 @@
 //! TODO
 //! - Store block of fronts in a single allocation. Update `NwFront` to contain multiple columns as once and be reusable.
 //! - timings
-//! - pruning
-//! - meet in the middle for traceback
 //! - meet in the middle with A* and pruning on both sides
 //! - try jemalloc/mimalloc
-//! - Trace:
-//!   - SIMD to fill block
-//!   - reduce calls to index() from 3 to 1
 //! - Matches:
-//!   - Merge smaller (k/2) r=1 matches to find r=2 matches.
 //!   - Recursively merge matches to find r=2^k matches.
 //!     - possibly reduce until no more spurious matches
 //!     - tricky: requires many 'shadow' matches. Handle in cleaner way?
-//!   - LOCAL PRUNING: When a match is preceded/succeeded by 'noise', we can
-//!     effectively pre-prune it, since it can never actually be used.
 //!  - Figure out why pruning up to Layer::MAX gives errors, but pruning up to highest_modified_contour does not.
 //! BUG: Figure out why the delta=64 is broken in fixed_j_range.
+//! TODO: Traceback using DT
+//! TODO: QgramIndex for short k.
+//! TODO: Analyze local doubling better
+//! TODO: Speed up j_range more???
 mod affine;
 mod bitpacking;
 mod front;
@@ -801,7 +797,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         // Delta doubles after each grow.
         // TODO: Make this customizable.
         let delta0: Cost = self.params.block_width * 2;
-        let delta_growth = 2.;
+        let delta_growth = 2;
         let mut f_delta = vec![delta0];
 
         // The end of the current front.
@@ -811,12 +807,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
 
         let grow = |f: &mut Cost, delta: &mut Cost| {
             *f = (*f + 1).next_multiple_of(*delta);
-            *delta = (*delta as f32 * delta_growth) as _;
+            *delta *= delta_growth;
         };
         let grow_to = |f: &mut Cost, f_target: Cost, delta: &mut Cost| {
             // *f = max(*f + *delta, f_target);
             *f = (f_target).next_multiple_of(*delta);
-            *delta = (*delta as f32 * delta_growth) as _;
+            *delta *= delta_growth;
             assert!(*f >= f_target);
             // eprintln!("Grow front idx {start_idx} to f {}", f_max[start_idx]);
         };
@@ -866,16 +862,29 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
 
             // Grow previous front sizes as long as their f_max is not large enough.
             let mut start_idx = last_idx;
+            let mut last_grow = 0;
             while start_idx > 0 && f_max[start_idx - 1] < f_max[start_idx] {
                 start_idx -= 1;
 
                 let f_target = f_max[start_idx + 1];
+                let old_f = f_max[start_idx];
+                let old_delta = f_delta[start_idx];
                 grow_to(&mut f_max[start_idx], f_target, &mut f_delta[start_idx]);
+                if f_max[start_idx] > last_grow {
+                    eprintln!(
+                        "Grow  front idx {start_idx:>5} to {:>6} by {:>6} for {old_delta:>5} and shortage {:>6}",
+                        f_max[start_idx],
+                        f_max[start_idx] - old_f,
+                        f_target - old_f
+                    );
+                    last_grow = f_max[start_idx];
+                }
 
                 fronts.pop_last_front();
             }
 
             if start_idx < last_idx {
+                eprintln!("START front idx {start_idx:>5} to {:>6}", f_max[start_idx]);
                 let h = self.domain.h_mut().unwrap();
                 h.update_contours(Pos((start_idx as I - 1) * self.params.block_width, 0));
             }
