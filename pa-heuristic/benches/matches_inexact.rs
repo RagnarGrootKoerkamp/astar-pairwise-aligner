@@ -3,7 +3,10 @@
 //! - am is 2.5x larger than b, so build a datastructure over b
 #![feature(test)]
 #![cfg(test)]
-use pa_heuristic::matches::{find_matches_qgram_hash_inexact, MatchConfig, Mutations};
+use pa_heuristic::matches::{
+    inexact::{find_matches_qgram_hash_inexact, Mutations},
+    *,
+};
 use pa_types::*;
 use rustc_hash::FxHashMap as HashMap;
 

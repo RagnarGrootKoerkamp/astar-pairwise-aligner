@@ -1,11 +1,61 @@
 //! `ordered` matches return the positions of all matches.  There used to be
 //! also a module `unordered` that only returns counts, but it has been moved to
 //! the graveyard since it is not in use.
-use itertools::izip;
+use super::*;
+use crate::prelude::*;
 use smallvec::SmallVec;
 
-use super::{suffix_array::minimal_unique_matches, *};
-use crate::prelude::*;
+#[derive(Debug, PartialEq, Eq)]
+pub struct Mutations {
+    pub deletions: Vec<usize>,
+    pub substitutions: Vec<usize>,
+    pub insertions: Vec<usize>,
+}
+
+// TODO: Do not generate insertions at the end. (Also do not generate similar
+// sequences by inserting elsewhere.)
+// TODO: Move to seeds.rs.
+fn mutations(k: I, qgram: usize, dedup: bool) -> Mutations {
+    // This assumes the alphabet size is 4.
+    let mut deletions = Vec::with_capacity(k as usize);
+    let mut substitutions = Vec::with_capacity(4 * k as usize);
+    let mut insertions = Vec::with_capacity(4 * (k + 1) as usize);
+    // Substitutions
+    for i in 0..k {
+        let mask = !(3 << (2 * i));
+        for s in 0..4 {
+            let q = (qgram & mask) | s << (2 * i);
+            if q != qgram {
+                substitutions.push(q);
+            }
+        }
+    }
+    // Insertions
+    for i in 0..=k {
+        let mask = (1 << (2 * i)) - 1;
+        for s in 0..4 {
+            let candidate = (qgram & mask) | (s << (2 * i)) | ((qgram & !mask) << 2);
+            insertions.push(candidate);
+        }
+    }
+    // Deletions
+    for i in 0..k {
+        let mask = (1 << (2 * i)) - 1;
+        deletions.push((qgram & mask) | ((qgram & (!mask << 2)) >> 2));
+    }
+    if dedup {
+        for v in [&mut deletions, &mut substitutions, &mut insertions] {
+            // TODO: This sorting is slow; maybe we can work around it.
+            v.sort_unstable();
+            v.dedup();
+        }
+    }
+    Mutations {
+        deletions,
+        substitutions,
+        insertions,
+    }
+}
 
 pub fn find_matches_qgramindex<'a>(
     a: Seq<'a>,
@@ -13,7 +63,7 @@ pub fn find_matches_qgramindex<'a>(
     config @ MatchConfig { length, r, .. }: MatchConfig,
     transform_filter: bool,
 ) -> Matches {
-    assert!(r == 1 || r == 2);
+    assert!(r == 2);
 
     // Qgrams of B.
     // TODO: Profile this index and possibly use something more efficient for large k.
@@ -283,183 +333,6 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     matches.finish()
 }
 
-/// Build a hashset of the seeds in a, and query all kmers in b.
-pub fn find_matches_qgram_hash_exact<'a>(
-    a: Seq<'a>,
-    b: Seq<'a>,
-    config @ MatchConfig { length, r, .. }: MatchConfig,
-    transform_filter: bool,
-) -> Matches {
-    if length.kmin() != length.kmax() {
-        unimplemented!("QGram Hashing only works for fixed k for now.");
-    }
-    let k = length.kmin();
-
-    assert!(r == 1);
-
-    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
-    let width = rank_transform.get_width();
-
-    let mut matches = MatchBuilder::new(
-        a,
-        b,
-        config,
-        fixed_seeds(&rank_transform, r, a, k),
-        transform_filter,
-    );
-
-    type Key = u64;
-
-    // TODO: See if we can get rid of the Vec alltogether.
-    let mut m = HashMap::<Key, SmallVec<[I; 4]>>::default();
-
-    if SLIDING_WINDOW_MATCHES {
-        let capacity = a.len() / k as usize / (k - 1) as usize / 2;
-        m.reserve(capacity);
-
-        const CHECK_EACH_J_LAYERS: Cost = 6;
-
-        // Target position.
-        let p = Pos::target(a, b);
-        // Target in transformed domain.
-        let t = Pos(
-            ((p.0 - 1) / k + p.0).saturating_sub(p.1),
-            ((p.0 - 1) / k + p.1).saturating_sub(p.0),
-        );
-        // Given a j, the range of i values where we want to find matches.
-        let i_range_for_j = |j: Cost| -> (Cost, Cost) {
-            // Do computation as usize because Cost can overflow.
-            let j = j as usize;
-            let k = k as usize;
-            let r = r as usize;
-            (
-                ((j.saturating_sub(t.1 as usize)) * r * k / (k - 1)).saturating_sub(r + 1) as Cost,
-                ((t.0 as usize + j) * r * k / (k + 1) + r + 1) as Cost,
-            )
-        };
-
-        // Iterators pointing to the next i to be inserted to/removed from the hashmap.
-        let mut to_remove = (0..a.len() + 1 - k as usize)
-            .step_by(k as usize)
-            .rev()
-            .peekable();
-        let mut to_insert = (0..a.len() + 1 - k as usize)
-            .step_by(k as usize)
-            .rev()
-            .peekable();
-        let mut qb = 0usize;
-        let prepend_qgram_b = |j: usize, qb: &mut usize| {
-            *qb =
-                (*qb >> width) | ((rank_transform.get(b[j]) as usize) << ((k - 1) as usize * width))
-        };
-
-        for j in (0..b.len()).rev() {
-            if (b.len() - 1 - j) as Cost & ((1 << CHECK_EACH_J_LAYERS) - 1) == 0 {
-                let (new_start, new_end) = i_range_for_j(j as Cost);
-                // Remove elements after new_end.
-                while let Some(&i) = to_remove.peek() {
-                    if (i as Cost) > new_end {
-                        let wi = to_qgram(&rank_transform, width, &a[i..i + k as usize]);
-                        to_remove.next();
-                        let v = m.get_mut(&(wi as Key)).unwrap();
-                        assert!(!v.is_empty());
-                        // If last element in the smallvec, remove entirely. Else only remove from vector.
-                        if v.len() == 1 {
-                            assert_eq!(v[0], i as Cost);
-                            m.remove(&(wi as Key)).unwrap();
-                        } else {
-                            // NOTE: This removes in O(1), but changes the order of the elements.
-                            v.swap_remove(v.iter().position(|x| *x == i as Cost).unwrap());
-                            assert!(v.len() > 0);
-                        }
-                    } else {
-                        break;
-                    }
-                }
-                // Insert new elements after new_start
-                while let Some(&i) = to_insert.peek() {
-                    if (i as Cost) >= new_start.saturating_sub(2 * (1 << CHECK_EACH_J_LAYERS)) {
-                        to_insert.next();
-                        let wi = to_qgram(&rank_transform, width, &a[i..i + k as usize]);
-                        m.entry(wi as Key).or_default().push(i as I);
-                    } else {
-                        break;
-                    }
-                }
-            }
-            prepend_qgram_b(j, &mut qb);
-            if j + k as usize > b.len() {
-                continue;
-            }
-            if let Some(is) = m.get(&(qb as Key)) {
-                for &i in is {
-                    matches.push(Match {
-                        start: Pos(i, j as I),
-                        end: Pos(i + k, j as I + k),
-                        match_cost: 0,
-                        seed_potential: 1,
-                        pruned: MatchStatus::Active,
-                    });
-                }
-            }
-        }
-    } else {
-        m.reserve(a.len() / k as usize + 1);
-        for (i, w) in rank_transform
-            .qgrams(k as _, a)
-            .enumerate()
-            .step_by(k as usize)
-        {
-            m.entry(w as Key).or_default().push(i as I);
-        }
-        // Iterate over the k-grams of b in reverse.
-        // Manually count them since qgrams is not a DoubleEndedIterator.
-        for (j, w) in izip!(
-            (0..b.len() as I - k + 1).rev(),
-            rank_transform.rev_qgrams(k as _, b)
-        ) {
-            if let Some(is) = m.get(&(w as Key)) {
-                for &i in is {
-                    matches.push(Match {
-                        start: Pos(i, j as I),
-                        end: Pos(i + k, j as I + k),
-                        match_cost: 0,
-                        seed_potential: 1,
-                        pruned: MatchStatus::Active,
-                    });
-                }
-            }
-        }
-        matches
-            .matches
-            .sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
-    }
-
-    matches.finish()
-}
-
-/// Find all matches between `a` and `b` with the given match configuration.
-/// If `transform_filter` is true, then only matches with T(m.start) <= target are kept.
-pub fn find_matches<'a>(
-    a: Seq<'a>,
-    b: Seq<'a>,
-    match_config: MatchConfig,
-    transform_filter: bool,
-) -> Matches {
-    if let LengthConfig::Max(_) = match_config.length {
-        return minimal_unique_matches(a, b, match_config);
-    }
-    if FIND_MATCHES_HASH {
-        return match match_config.r {
-            1 => find_matches_qgram_hash_exact(a, b, match_config, transform_filter),
-            2 => find_matches_qgram_hash_inexact(a, b, match_config, transform_filter),
-            _ => unimplemented!("FIND_MATCHES with HashMap only works for r = 1 or r = 2"),
-        };
-    } else {
-        return find_matches_qgramindex(a, b, match_config, transform_filter);
-    }
-}
-
 #[cfg(test)]
 mod test {
     use pa_generate::uniform_fixed;
@@ -467,35 +340,37 @@ mod test {
     use super::*;
 
     #[test]
-    fn hash_matches_exact() {
-        // TODO: Replace max match distance from 0 to 1 here once supported.
-        for (k, r) in [(4, 1), (5, 1), (6, 1), (7, 1)] {
-            for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
-                for e in [0.01, 0.1, 0.3, 1.0] {
-                    let (a, b) = uniform_fixed(n, e);
-                    let matchconfig = MatchConfig::new(k, r);
-                    let qi = find_matches_qgramindex(&a, &b, matchconfig, false);
-                    let h = find_matches_qgram_hash_exact(&a, &b, matchconfig, false);
-                    if !SLIDING_WINDOW_MATCHES {
-                        if qi.matches == h.matches {
-                            continue;
-                        }
-                        println!("{}\n{}", seq_to_string(&a), seq_to_string(&b));
-                        println!("-----------------------");
-                        println!("n={n} e={e} k={k} r={r}");
-                        println!("-----------------------");
-                        for x in &qi.matches {
-                            println!("{x:?}");
-                        }
-                        println!("-----------------------");
-                        for x in &h.matches {
-                            println!("{x:?}");
-                        }
-                        assert_eq!(qi.matches, h.matches);
-                    }
-                }
+    fn test_mutations() {
+        let kmer = 0b00011011usize;
+        let k = 4;
+        let ms = mutations(k, kmer, true);
+        // substitution
+        assert!(ms.substitutions.contains(&0b11011011));
+        // insertion
+        assert!(ms.insertions.contains(&0b0011011011));
+        // deletion
+        assert!(ms.deletions.contains(&0b000111));
+        assert_eq!(
+            ms,
+            Mutations {
+                deletions: [6, 7, 11, 27].to_vec(),
+                substitutions: [11, 19, 23, 24, 25, 26, 31, 43, 59, 91, 155, 219].to_vec(),
+                insertions: [
+                    27, 75, 91, 99, 103, 107, 108, 109, 110, 111, 123, 155, 219, 283, 539, 795,
+                ]
+                .to_vec()
             }
-        }
+        );
+    }
+
+    #[test]
+    fn kmer_removal() {
+        let kmer = 0b00011011usize;
+        let k = 4;
+        let ms = mutations(k, kmer, true);
+        assert!(!ms.substitutions.contains(&kmer));
+        assert!(ms.deletions.contains(&kmer));
+        assert!(ms.insertions.contains(&kmer));
     }
 
     #[test]
@@ -505,10 +380,7 @@ mod test {
             for n in [40, 100, 200, 500, 1000, 10000] {
                 for e in [0.01, 0.1, 0.3, 1.0] {
                     let (a, b) = uniform_fixed(n, e);
-                    println!("{}\n{}", seq_to_string(&a), seq_to_string(&b));
                     let matchconfig = MatchConfig::new(k, r);
-                    println!("-----------------------");
-                    println!("n={n} e={e} k={k} r={r}");
                     let mut r = find_matches_qgramindex(&a, &b, matchconfig, false);
                     let mut k = find_matches_qgram_hash_inexact(&a, &b, matchconfig, false);
                     assert!(r
@@ -533,16 +405,6 @@ mod test {
                              ..
                          }| { (LexPos(start), LexPos(end), match_cost) },
                     );
-                    if r.matches != k.matches {
-                        println!("-----------------------");
-                        for x in &r.matches {
-                            println!("{x:?}");
-                        }
-                        println!("-----------------------");
-                        for x in &k.matches {
-                            println!("{x:?}");
-                        }
-                    }
                     assert_eq!(r.matches, k.matches);
                 }
             }

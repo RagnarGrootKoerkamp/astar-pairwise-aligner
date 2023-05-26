@@ -1,17 +1,43 @@
+// Modules are pub for benchmarking.
+pub mod exact;
+pub mod inexact;
 mod local_pruning;
-mod ordered;
 mod qgrams;
-pub mod suffix_array;
+mod suffix_array;
 
-use crate::{matches::local_pruning::preserve_for_local_pruning, prelude::*, seeds::*};
+use crate::{prelude::*, seeds::*};
 use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,
 };
-
-pub use ordered::*;
-pub use qgrams::fixed_seeds;
+use local_pruning::preserve_for_local_pruning;
 use qgrams::*;
+
+/// Find all matches between `a` and `b` with the given match configuration.
+/// If `transform_filter` is true, then only matches with T(m.start) <= target are kept.
+pub fn find_matches<'a>(
+    a: Seq<'a>,
+    b: Seq<'a>,
+    match_config: MatchConfig,
+    transform_filter: bool,
+) -> Matches {
+    if let LengthConfig::Max(_) = match_config.length {
+        return suffix_array::minimal_unique_matches(a, b, match_config);
+    }
+    if FIND_MATCHES_HASH {
+        return match match_config.r {
+            1 => exact::exact_matches_hashmap(a, b, match_config, transform_filter),
+            2 => inexact::find_matches_qgram_hash_inexact(a, b, match_config, transform_filter),
+            _ => unimplemented!("FIND_MATCHES with HashMap only works for r = 1 or r = 2"),
+        };
+    } else {
+        return match match_config.r {
+            1 => exact::find_matches_qgramindex(a, b, match_config, transform_filter),
+            2 => inexact::find_matches_qgramindex(a, b, match_config, transform_filter),
+            _ => unimplemented!(),
+        };
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MatchStatus {
@@ -316,96 +342,5 @@ impl Default for MatchConfig {
             r: 1,
             local_pruning: 0,
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Mutations {
-    pub deletions: Vec<usize>,
-    pub substitutions: Vec<usize>,
-    pub insertions: Vec<usize>,
-}
-
-// TODO: Do not generate insertions at the end. (Also do not generate similar
-// sequences by inserting elsewhere.)
-// TODO: Move to seeds.rs.
-fn mutations(k: I, qgram: usize, dedup: bool) -> Mutations {
-    // This assumes the alphabet size is 4.
-    let mut deletions = Vec::with_capacity(k as usize);
-    let mut substitutions = Vec::with_capacity(4 * k as usize);
-    let mut insertions = Vec::with_capacity(4 * (k + 1) as usize);
-    // Substitutions
-    for i in 0..k {
-        let mask = !(3 << (2 * i));
-        for s in 0..4 {
-            let q = (qgram & mask) | s << (2 * i);
-            if q != qgram {
-                substitutions.push(q);
-            }
-        }
-    }
-    // Insertions
-    for i in 0..=k {
-        let mask = (1 << (2 * i)) - 1;
-        for s in 0..4 {
-            let candidate = (qgram & mask) | (s << (2 * i)) | ((qgram & !mask) << 2);
-            insertions.push(candidate);
-        }
-    }
-    // Deletions
-    for i in 0..k {
-        let mask = (1 << (2 * i)) - 1;
-        deletions.push((qgram & mask) | ((qgram & (!mask << 2)) >> 2));
-    }
-    if dedup {
-        for v in [&mut deletions, &mut substitutions, &mut insertions] {
-            // TODO: This sorting is slow; maybe we can work around it.
-            v.sort_unstable();
-            v.dedup();
-        }
-    }
-    Mutations {
-        deletions,
-        substitutions,
-        insertions,
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_mutations() {
-        let kmer = 0b00011011usize;
-        let k = 4;
-        let ms = mutations(k, kmer, true);
-        // substitution
-        assert!(ms.substitutions.contains(&0b11011011));
-        // insertion
-        assert!(ms.insertions.contains(&0b0011011011));
-        // deletion
-        assert!(ms.deletions.contains(&0b000111));
-        assert_eq!(
-            ms,
-            Mutations {
-                deletions: [6, 7, 11, 27].to_vec(),
-                substitutions: [11, 19, 23, 24, 25, 26, 31, 43, 59, 91, 155, 219].to_vec(),
-                insertions: [
-                    27, 75, 91, 99, 103, 107, 108, 109, 110, 111, 123, 155, 219, 283, 539, 795,
-                ]
-                .to_vec()
-            }
-        );
-    }
-
-    #[test]
-    fn kmer_removal() {
-        let kmer = 0b00011011usize;
-        let k = 4;
-        let ms = mutations(k, kmer, true);
-        assert!(!ms.substitutions.contains(&kmer));
-        assert!(ms.deletions.contains(&kmer));
-        assert!(ms.insertions.contains(&kmer));
     }
 }

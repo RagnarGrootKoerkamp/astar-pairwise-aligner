@@ -4,7 +4,10 @@
 #![cfg(test)]
 use lazy_static::*;
 use pa_generate::uniform_fixed;
-use pa_heuristic::matches::{find_matches_qgram_hash_exact, find_matches_qgramindex, MatchConfig};
+use pa_heuristic::matches::{
+    exact::{find_matches_qgram_hash_exact, find_matches_qgramindex},
+    MatchConfig,
+};
 use pa_types::*;
 use rustc_hash::FxHashMap as HashMap;
 
