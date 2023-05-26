@@ -36,3 +36,7 @@ example = []
 [[bench]]
 name = "qgrams"
 harness = false
+
+[[bench]]
+name = "matches"
+harness = false

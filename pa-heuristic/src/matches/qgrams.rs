@@ -31,7 +31,7 @@ impl<'a> QGrams<'a> {
         q
     }
 
-    pub fn a_qgrams(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> {
+    pub fn a_qgrams(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> + Clone {
         // NOTE: Computing each k-mer separately is 3x faster than doing a rolling window with `step_by(k)`.
         (0..).step_by(k as _).zip(
             self.a
@@ -40,7 +40,7 @@ impl<'a> QGrams<'a> {
         )
     }
 
-    pub fn a_qgrams_rev(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> {
+    pub fn a_qgrams_rev(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> + Clone {
         self.a
             .chunks_exact(k as _)
             .enumerate()
@@ -48,11 +48,11 @@ impl<'a> QGrams<'a> {
             .rev()
     }
 
-    pub fn b_qgrams(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> {
+    pub fn b_qgrams(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> + Clone {
         (0..).zip(self.rt.qgrams(k as _, self.b))
     }
 
-    pub fn b_qgrams_rev(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> {
+    pub fn b_qgrams_rev(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> + Clone {
         izip!(
             (0..self.b.len() as I - k + 1).rev(),
             self.rt.rev_qgrams(k as _, self.b)

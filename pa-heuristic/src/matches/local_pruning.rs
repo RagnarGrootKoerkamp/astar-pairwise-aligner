@@ -80,6 +80,10 @@ pub(super) fn preserve_for_local_pruning(
     [fr, next_fr, stats]: &mut [Vec<I>; 3],
     next_match_per_diag: &mut CenteredVec<I>,
 ) -> bool {
+    if p == 0 {
+        return true;
+    }
+
     let s = m.start;
     let start_pot = seeds.potential(s);
     let seed_idx = seeds.seed_at[s.0 as usize].unwrap();

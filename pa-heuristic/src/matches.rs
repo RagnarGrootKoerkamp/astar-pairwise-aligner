@@ -25,7 +25,7 @@ pub fn find_matches<'a>(
     }
     if FIND_MATCHES_HASH {
         return match match_config.r {
-            1 => exact::exact_matches_hashmap(a, b, match_config, transform_filter),
+            1 => exact::hash_a(a, b, match_config, transform_filter),
             2 => inexact::find_matches_qgram_hash_inexact(a, b, match_config, transform_filter),
             _ => unimplemented!("FIND_MATCHES with HashMap only works for r = 1 or r = 2"),
         };
@@ -199,15 +199,17 @@ impl<'a> MatchBuilder<'a> {
             return false;
         }
         self.stats.after_transform += 1;
-        if !preserve_for_local_pruning(
-            self.qgrams.a,
-            self.qgrams.b,
-            &self.seeds,
-            &m,
-            self.config.local_pruning,
-            &mut self.local_pruning_cache,
-            &mut self.next_match_per_diag,
-        ) {
+        if self.config.local_pruning != 0
+            && !preserve_for_local_pruning(
+                self.qgrams.a,
+                self.qgrams.b,
+                &self.seeds,
+                &m,
+                self.config.local_pruning,
+                &mut self.local_pruning_cache,
+                &mut self.next_match_per_diag,
+            )
+        {
             return false;
         }
         self.stats.after_local_pruning += 1;
@@ -217,13 +219,15 @@ impl<'a> MatchBuilder<'a> {
         let sc = &mut self.seeds.seed_at_mut(m.start).unwrap().seed_cost;
         *sc = min(*sc, m.match_cost);
 
-        let d = m.start.0 - m.start.1;
-        let old = self.next_match_per_diag.index_mut(d);
-        assert!(
-            *old >= m.start.0,
-            "Matches should be added in reverse order (right-to-left or bot-to-top) on each diagonal."
-        );
-        *old = m.start.0;
+        if self.config.local_pruning != 0 {
+            let d = m.start.0 - m.start.1;
+            let old = self.next_match_per_diag.index_mut(d);
+            assert!(
+                *old >= m.start.0,
+                "Matches should be added in reverse order (right-to-left or bot-to-top) on each diagonal."
+            );
+            *old = m.start.0;
+        }
 
         self.matches.push(m);
 
@@ -243,13 +247,13 @@ impl<'a> MatchBuilder<'a> {
         // Dedup to only keep the lowest match cost between each start and end.
         self.matches.dedup_by_key(|m| (m.start, m.end));
 
-        eprintln!(
-            "Matches after:
-  pushed        {:>8}
-  transform     {:>8}
-  local pruning {:>8}",
-            self.stats.pushed, self.stats.after_transform, self.stats.after_local_pruning
-        );
+        //       eprintln!(
+        //           "Matches after:
+        // pushed        {:>8}
+        // transform     {:>8}
+        // local pruning {:>8}",
+        //           self.stats.pushed, self.stats.after_transform, self.stats.after_local_pruning
+        //       );
 
         if self.config.local_pruning > 0 {
             eprintln!("Local pruning up to");

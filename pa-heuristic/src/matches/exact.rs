@@ -1,11 +1,163 @@
-//! `ordered` matches return the positions of all matches.  There used to be
-//! also a module `unordered` that only returns counts, but it has been moved to
-//! the graveyard since it is not in use.
+//! Methods to find all (filtered) exact k-mer matches between sequences a and b.
+//!
+//! Sequence `a` is *split* into disjoint k-mers, while for sequence `b` we consider *all* (sliding-window) k-mers.
+//! Thus, `b` contains `k` times more `k-mers`.
+//! Typically it's 2-3x faster to build a smaller hashmap over `a` and query
+//! that more often with the k-mers of `b` than the reverse.
+//!
+//! We implement the algorithms in terms of two iterators that can be
+//! swapped to reverse the roles of a (sparse chunks) and b (dense windows).
+use super::*;
+use crate::prelude::*;
 use smallvec::SmallVec;
 
-use crate::prelude::*;
+/// Build a hashset of the seeds in a, and query all kmers in b.
+pub fn hash_a<'a>(a: Seq<'a>, b: Seq<'a>, config: MatchConfig, transform_filter: bool) -> Matches {
+    assert!(config.r == 1);
+    let k = config.length.k().unwrap();
+    let q = QGrams::new(a, b);
+    let mut matches = MatchBuilder::new(&q, config, transform_filter);
+    hash_to_smallvec(q.a_qgrams(k), q.b_qgrams_rev(k), &mut matches, k, |i, j| {
+        Pos(i, j)
+    });
+    matches.sort();
+    matches.finish()
+}
 
-use super::*;
+/// Build a hashset of the seeds in a, and query all kmers in b.
+pub fn hash_b<'a>(a: Seq<'a>, b: Seq<'a>, config: MatchConfig, transform_filter: bool) -> Matches {
+    assert!(config.r == 1);
+    let k = config.length.k().unwrap();
+    let q = QGrams::new(a, b);
+    let mut matches = MatchBuilder::new(&q, config, transform_filter);
+    hash_to_smallvec(q.b_qgrams(k), q.a_qgrams_rev(k), &mut matches, k, |j, i| {
+        Pos(i, j)
+    });
+    matches.sort();
+    matches.finish()
+}
+
+fn hash_to_smallvec(
+    qgrams_hashed: impl Iterator<Item = (i32, usize)>,
+    qgrams_lookup: impl Iterator<Item = (i32, usize)>,
+    matches: &mut MatchBuilder,
+    k: i32,
+    to_pos: impl Fn(I, I) -> Pos,
+) {
+    type Key = u32;
+
+    // TODO: See if we can get rid of the Vec alltogether.
+    let mut h = HashMap::<Key, SmallVec<[I; 4]>>::default();
+    h.reserve(qgrams_hashed.size_hint().0);
+    for (i, q) in qgrams_hashed {
+        h.entry(q as Key).or_default().push(i as I);
+    }
+    for (j, q) in qgrams_lookup {
+        if let Some(is) = h.get(&(q as Key)) {
+            for &i in is {
+                let start = to_pos(i as I, j);
+                matches.push(Match {
+                    start,
+                    end: start + Pos(k, k),
+                    match_cost: 0,
+                    seed_potential: 1,
+                    pruned: MatchStatus::Active,
+                });
+            }
+        }
+    }
+}
+
+/// Build a hashset of the seeds in a, and query all kmers in b.
+pub fn hash_a_single<'a>(
+    a: Seq<'a>,
+    b: Seq<'a>,
+    config: MatchConfig,
+    transform_filter: bool,
+) -> Matches {
+    assert!(config.r == 1);
+    let k = config.length.k().unwrap();
+    let q = QGrams::new(a, b);
+    let mut matches = MatchBuilder::new(&q, config, transform_filter);
+    hash_to_single_vec(q.a_qgrams(k), q.b_qgrams_rev(k), &mut matches, k, Pos);
+    matches.sort();
+    matches.finish()
+}
+
+/// Build a hashset of the seeds in a, and query all kmers in b.
+pub fn hash_b_single<'a>(
+    a: Seq<'a>,
+    b: Seq<'a>,
+    config: MatchConfig,
+    transform_filter: bool,
+) -> Matches {
+    assert!(config.r == 1);
+    let k = config.length.k().unwrap();
+    let q = QGrams::new(a, b);
+    let mut matches = MatchBuilder::new(&q, config, transform_filter);
+    hash_to_single_vec(q.b_qgrams(k), q.a_qgrams_rev(k), &mut matches, k, |j, i| {
+        Pos(i, j)
+    });
+    matches.sort();
+    matches.finish()
+}
+
+fn hash_to_single_vec(
+    qgrams_hashed: impl Iterator<Item = (i32, usize)> + Clone,
+    qgrams_lookup: impl Iterator<Item = (i32, usize)>,
+    matches: &mut MatchBuilder,
+    k: i32,
+    to_pos: impl Fn(I, I) -> Pos,
+) {
+    type Key = u32;
+
+    // TODO: See if we can get rid of the Vec alltogether.
+    // maps qgram `q` to (idx, cnt). `idx..idx+cnt` is the range of `pos` for `q`.
+    let mut idx = HashMap::<Key, (u32, u32)>::default();
+
+    // Count qgrams.
+    idx.reserve(qgrams_hashed.size_hint().0);
+    for (_i, q) in qgrams_hashed.clone() {
+        idx.entry(q as Key).or_default().1 += 1;
+    }
+
+    // Accumulate
+    let mut acc = 0;
+    for cnt in idx.values_mut() {
+        cnt.0 = acc;
+        acc += cnt.1;
+    }
+
+    // Positions in qgrams_hashed where qgrams occur.
+    let mut pos = vec![0; acc as usize];
+
+    // Fill the pos vector.
+    for (i, q) in qgrams_hashed {
+        let (idx, _cnt) = idx.get_mut(&(q as Key)).unwrap();
+        pos[*idx as usize] = i as I;
+        *idx += 1;
+    }
+    // `idx` now points to the end of the range.
+
+    // Do the lookups.
+    for (j, q) in qgrams_lookup {
+        if let Some(&(idx, cnt)) = idx.get(&(q as Key)) {
+            for &i in &pos[(idx - cnt) as usize..idx as usize] {
+                let start = to_pos(i, j);
+                matches.push(Match {
+                    start,
+                    end: start + Pos(k, k),
+                    match_cost: 0,
+                    seed_potential: 1,
+                    pruned: MatchStatus::Active,
+                });
+            }
+        }
+    }
+}
+
+// =============================================================
+// BELOW HERE ARE MORE COMPLEX METHODS.
 
 pub fn find_matches_qgramindex<'a>(
     a: Seq<'a>,
@@ -117,46 +269,6 @@ pub fn find_matches_qgramindex<'a>(
         }
     }
 
-    matches.finish()
-}
-
-/// Build a hashset of the seeds in a, and query all kmers in b.
-pub fn exact_matches_hashmap<'a>(
-    a: Seq<'a>,
-    b: Seq<'a>,
-    config @ MatchConfig { length, r, .. }: MatchConfig,
-    transform_filter: bool,
-) -> Matches {
-    assert!(r == 1);
-    let k = length.k().unwrap();
-
-    let qgrams = QGrams::new(a, b);
-    let mut matches = MatchBuilder::new(&qgrams, config, transform_filter);
-
-    type Key = u32;
-
-    // TODO: See if we can get rid of the Vec alltogether.
-    let mut m = HashMap::<Key, SmallVec<[I; 4]>>::default();
-
-    m.reserve(a.len() / k as usize + 1);
-    for (i, q) in qgrams.a_qgrams(k) {
-        m.entry(q as Key).or_default().push(i as I);
-    }
-    for (j, q) in qgrams.b_qgrams_rev(k) {
-        if let Some(is) = m.get(&(q as Key)) {
-            for &i in is {
-                matches.push(Match {
-                    start: Pos(i, j as I),
-                    end: Pos(i + k, j as I + k),
-                    match_cost: 0,
-                    seed_potential: 1,
-                    pruned: MatchStatus::Active,
-                });
-            }
-        }
-    }
-
-    matches.sort();
     matches.finish()
 }
 
@@ -291,7 +403,7 @@ mod test {
                     let (a, b) = uniform_fixed(n, e);
                     let matchconfig = MatchConfig::new(k, r);
                     let qi = find_matches_qgramindex(&a, &b, matchconfig, false);
-                    let h = exact_matches_hashmap(&a, &b, matchconfig, false);
+                    let h = hash_a(&a, &b, matchconfig, false);
                     assert_eq!(qi.matches, h.matches);
                 }
             }
