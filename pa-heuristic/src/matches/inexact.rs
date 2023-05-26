@@ -152,7 +152,7 @@ pub fn find_matches_qgramindex<'a>(
                         let mut k = k_min as I;
                         while k <= a.len() as I
                             && k <= k_max
-                            && count_matches(k, qgrams.to_qgram(&a[..k as usize]), max_matches + 1)
+                            && count_matches(k, QGrams::to_qgram(&a[..k as usize]), max_matches + 1)
                                 > max_matches
                         {
                             k += 1;
@@ -198,7 +198,7 @@ pub fn find_matches_qgramindex<'a>(
             ..
         } = matches.seeds.seeds[i];
         let len = end - start;
-        let qgram = qgrams.to_qgram(&qgrams.a[start as usize..end as usize]);
+        let qgram = QGrams::to_qgram(&qgrams.a[start as usize..end as usize]);
 
         // Exact matches
         for &j in get_matches(qgram_map, b, len, qgram) {
@@ -285,7 +285,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     }
     for i in 0..matches.seeds.seeds.len() {
         let Seed { start, end, .. } = matches.seeds.seeds[i];
-        let qgram = qgrams.to_qgram(&qgrams.a[start as usize..end as usize]);
+        let qgram = QGrams::to_qgram(&qgrams.a[start as usize..end as usize]);
         let matches_before_seed = matches.matches.len();
         if let Some(js) = m.get(&key_for_sized_qgram(k, qgram)) {
             for &j in js {

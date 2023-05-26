@@ -10,7 +10,7 @@ fn bench(c: &mut Criterion) {
     for n in [100000] {
         let mut c = c.benchmark_group(format!("{n}"));
         for k in [8, 10, 12, 14] {
-            for e in [0.1] {
+            for e in [0.05] {
                 let (a, b) = &uniform_fixed(n, e);
                 for transform_filter in [true] {
                     let mut test = |name: &str, f: &dyn Fn() -> Matches| {

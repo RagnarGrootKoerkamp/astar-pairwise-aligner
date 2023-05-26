@@ -33,11 +33,10 @@ impl Seeds {
     /// Seeds must be sorted by start.
     pub fn new(a: Seq, seeds: Vec<Seed>) -> Self {
         // Check that seeds are sorted and non-overlapping.
-        assert!(seeds.is_sorted_by_key(|seed| seed.start));
         assert!(seeds
             .iter()
             .tuple_windows()
-            .all(|(seed1, seed2)| seed1.end <= seed2.start));
+            .all(|(seed1, seed2)| seed1.start <= seed1.end && seed1.end <= seed2.start));
 
         let n = a.len();
         let mut potential = vec![0; n + 1];
@@ -45,7 +44,7 @@ impl Seeds {
         let mut cur_potential = 0;
         let mut next_seed = seeds.iter().enumerate().rev().peekable();
         let mut start_of_potential = vec![n as I];
-        for i in (0..=n).rev() {
+        for i in (0..n + 1).rev() {
             if let Some((seed_idx, ns)) = next_seed.peek() {
                 if i < ns.end as usize {
                     seed_at[i] = Some(*seed_idx as I);

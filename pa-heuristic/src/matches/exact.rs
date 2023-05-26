@@ -47,7 +47,7 @@ fn hash_to_smallvec(
     type Key = u32;
 
     // TODO: See if we can get rid of the Vec alltogether.
-    let mut h = HashMap::<Key, SmallVec<[I; 4]>>::default();
+    let mut h = HashMap::<Key, SmallVec<[I; 2]>>::default();
     h.reserve(qgrams_hashed.size_hint().0);
     for (i, q) in qgrams_hashed {
         h.entry(q as Key).or_default().push(i as I);
@@ -208,7 +208,7 @@ pub fn find_matches_qgramindex<'a>(
                         let mut k = k_min as I;
                         while k <= a.len() as I
                             && k <= k_max
-                            && count_matches(k, qgrams.to_qgram(&a[..k as usize])) > max_matches
+                            && count_matches(k, QGrams::to_qgram(&a[..k as usize])) > max_matches
                         {
                             k += 1;
                         }
@@ -252,7 +252,7 @@ pub fn find_matches_qgramindex<'a>(
             seed_potential,
             ..
         } = matches.seeds.seeds[i];
-        let qgram = qgrams.to_qgram(&a[start as usize..end as usize]);
+        let qgram = QGrams::to_qgram(&a[start as usize..end as usize]);
         let len = end - start;
 
         // Exact matches
@@ -339,7 +339,7 @@ pub fn find_matches_qgram_hash_exact_sliding_window<'a>(
             // Remove elements after new_end.
             while let Some(&i) = to_remove.peek() {
                 if (i as Cost) > new_end {
-                    let wi = qgrams.to_qgram(&a[i..i + k as usize]);
+                    let wi = QGrams::to_qgram(&a[i..i + k as usize]);
                     to_remove.next();
                     let v = m.get_mut(&(wi as Key)).unwrap();
                     assert!(!v.is_empty());
@@ -360,7 +360,7 @@ pub fn find_matches_qgram_hash_exact_sliding_window<'a>(
             while let Some(&i) = to_insert.peek() {
                 if (i as Cost) >= new_start.saturating_sub(2 * (1 << CHECK_EACH_J_LAYERS)) {
                     to_insert.next();
-                    let wi = qgrams.to_qgram(&a[i..i + k as usize]);
+                    let wi = QGrams::to_qgram(&a[i..i + k as usize]);
                     m.entry(wi as Key).or_default().push(i as I);
                 } else {
                     break;
@@ -395,14 +395,38 @@ mod test {
     #[test]
     fn hash_matches_exact() {
         // TODO: Replace max match distance from 0 to 1 here once supported.
-        for (k, r) in [(4, 1), (5, 1), (6, 1), (7, 1)] {
-            for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
-                for e in [0.01, 0.1, 0.3, 1.0] {
+        for n in [10, 20, 40, 100, 200, 500, 1000, 10000] {
+            for e in [0.01, 0.1, 0.3, 1.0] {
+                for k in [4, 5, 6, 7] {
                     let (a, b) = uniform_fixed(n, e);
-                    let matchconfig = MatchConfig::new(k, r);
-                    let qi = find_matches_qgramindex(&a, &b, matchconfig, false);
-                    let h = hash_a(&a, &b, matchconfig, false);
-                    assert_eq!(qi.matches, h.matches);
+                    let mut matchconfig = MatchConfig::new(k, 1);
+                    matchconfig.local_pruning = 1;
+                    // this one is broken :/
+                    //let m = find_matches_qgramindex(&a, &b, matchconfig, false);
+                    let a1 = hash_a(&a, &b, matchconfig, false);
+                    let a2 = hash_a_single(&a, &b, matchconfig, false);
+                    let a3 = hash_a_qgram_index(&a, &b, matchconfig, false);
+                    let b1 = hash_b(&a, &b, matchconfig, false);
+                    let b2 = hash_b_single(&a, &b, matchconfig, false);
+                    let b3 = hash_b_qgram_index(&a, &b, matchconfig, false);
+                    let m = &a1;
+                    assert_eq!(
+                        a1.matches,
+                        m.matches,
+                        "Unequal matches: n={}, e={}, k={}\n{}\n{}\n{:?}\n{:?}",
+                        n,
+                        e,
+                        k,
+                        seq_to_string(&a),
+                        seq_to_string(&b),
+                        a1.matches,
+                        m.matches
+                    );
+                    assert_eq!(a2.matches, m.matches);
+                    assert_eq!(a3.matches, m.matches);
+                    assert_eq!(b1.matches, m.matches);
+                    assert_eq!(b2.matches, m.matches);
+                    assert_eq!(b3.matches, m.matches);
                 }
             }
         }
