@@ -230,14 +230,12 @@ pub fn find_matches_qgramindex<'a>(
                 break;
             }
 
-            let (seed, tail) = a.split_at(seed_len as usize);
-            a = tail;
+            a = &a[seed_len as usize..];
 
             v.push(Seed {
                 start: i,
                 end: i + seed_len,
                 seed_potential: r,
-                qgram: qgrams.to_qgram(seed),
                 seed_cost: r,
             });
             i += seed_len;
@@ -252,9 +250,9 @@ pub fn find_matches_qgramindex<'a>(
             start,
             end,
             seed_potential,
-            qgram,
             ..
         } = matches.seeds.seeds[i];
+        let qgram = qgrams.to_qgram(&a[start as usize..end as usize]);
         let len = end - start;
 
         // Exact matches

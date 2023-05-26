@@ -158,7 +158,6 @@ pub fn minimal_unique_matches(
                 end: seed_end as _,
                 seed_potential: r as _,
                 seed_cost: 0,
-                qgram: qgrams.to_qgram(&a[seed_start..seed_end]),
             });
             for (range, cost, l) in ranges {
                 for sa_idx in range {

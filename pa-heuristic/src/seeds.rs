@@ -14,7 +14,6 @@ pub struct Seed {
     /// A lower bound on the cost of crossing this seed.
     /// For unordered matches, if this is < seed_potential there must be exactly one such seed.
     pub seed_cost: MatchCost,
-    pub qgram: usize,
 }
 
 #[derive(Default)]

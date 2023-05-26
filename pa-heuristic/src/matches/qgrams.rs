@@ -61,12 +61,12 @@ impl<'a> QGrams<'a> {
     }
 
     pub fn fixed_length_seeds(&self, k: I, r: MatchCost) -> Vec<Seed> {
-        self.a_qgrams(k)
-            .map(|(i, qgram)| Seed {
+        (0..self.a.len() as I)
+            .step_by(k as _)
+            .map(|i| Seed {
                 start: i as I,
                 end: i as I + k,
                 seed_potential: r,
-                qgram,
                 seed_cost: r,
             })
             .collect()
