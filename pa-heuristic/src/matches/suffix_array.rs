@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use bio::{
-    alphabets::{Alphabet, RankTransform},
+    alphabets::Alphabet,
     data_structures::{
         bwt::{bwt, less, Less, Occ, BWT},
         suffix_array::{suffix_array, RawSuffixArray},
@@ -10,7 +10,7 @@ use bio::{
 use pa_types::{Base, Pos, Seq};
 
 use crate::{
-    matches::{qgrams::to_qgram, Match, MatchBuilder, MatchStatus, Matches, MaxMatches, Seed},
+    matches::{qgrams::QGrams, Match, MatchBuilder, MatchStatus, Matches, MaxMatches, Seed},
     LengthConfig, MatchConfig,
 };
 
@@ -80,12 +80,10 @@ pub fn minimal_unique_matches(
     );
 
     let mut seeds = vec![];
-    let mut matches = MatchBuilder::new(a, b, config, vec![], false);
+    let qgrams = QGrams::new(a, b);
+    let mut matches = MatchBuilder::new(&qgrams, config, false);
 
     let chars = b"ACGT";
-    let alphabet = Alphabet::new(chars);
-    let rank_transform = RankTransform::new(&alphabet);
-    let width = rank_transform.get_width();
 
     // The end of the current seed.
     let mut seed_end = a.len();
@@ -160,7 +158,7 @@ pub fn minimal_unique_matches(
                 end: seed_end as _,
                 seed_potential: r as _,
                 seed_cost: 0,
-                qgram: to_qgram(&rank_transform, width, &a[seed_start..seed_end]),
+                qgram: qgrams.to_qgram(&a[seed_start..seed_end]),
             });
             for (range, cost, l) in ranges {
                 for sa_idx in range {

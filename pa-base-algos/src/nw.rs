@@ -796,7 +796,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         // Each time a front is grown, it grows to the least multiple of delta that is large enough.
         // Delta doubles after each grow.
         // TODO: Make this customizable.
-        let delta0: Cost = self.params.block_width * 2;
+        type Delta = (Cost, u8);
+        let delta0 = (self.params.block_width * 2, 0);
         let delta_growth = 2;
         let mut f_delta = vec![delta0];
 
@@ -805,15 +806,20 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         // The index into f_max and f_delta of the current front.
         let mut last_idx = 0;
 
-        let grow = |f: &mut Cost, delta: &mut Cost| {
-            *f = (*f + 1).next_multiple_of(*delta);
-            *delta *= delta_growth;
+        let update_delta = |delta: &mut Delta| match delta.1 {
+            0 => delta.1 += 1,
+            1 => {
+                delta.0 *= delta_growth;
+                delta.0 = min(delta.0, 4 * 1024);
+                delta.1 = 0;
+            }
+            _ => panic!(),
         };
-        let grow_to = |f: &mut Cost, f_target: Cost, delta: &mut Cost| {
+        let grow_to = |f: &mut Cost, f_target: Cost, delta: &mut Delta| {
             // *f = max(*f + *delta, f_target);
-            *f = (f_target).next_multiple_of(*delta);
-            *delta *= delta_growth;
+            *f = (f_target).next_multiple_of(delta.0);
             assert!(*f >= f_target);
+            update_delta(delta);
             // eprintln!("Grow front idx {start_idx} to f {}", f_max[start_idx]);
         };
 
@@ -823,8 +829,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             if fronts.last_front().fixed_j_range().unwrap().is_empty() {
                 // Fixed_j_range is empty; grow last front.
                 let delta = &mut f_delta[last_idx];
-                f_max[last_idx] = (f_max[last_idx] + 1).next_multiple_of(*delta);
-                *delta = (*delta as f32 * delta_growth) as _;
+                f_max[last_idx] = (f_max[last_idx] + 1).next_multiple_of(delta.0);
+                update_delta(delta);
                 // eprintln!("Grow last front idx {last_idx} f {}", f_max[last_idx]);
                 fronts.pop_last_front();
             } else if i < self.a.len() as I {
@@ -855,7 +861,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 // );
             } else {
                 // Grow the last front.
-                grow(&mut f_max[last_idx], &mut f_delta[last_idx]);
+                let f = &mut f_max[last_idx];
+                let f_target = *f + 1;
+                grow_to(f, f_target, &mut f_delta[last_idx]);
                 // eprintln!("Grow last front idx {last_idx} f {}", f_max[last_idx]);
                 fronts.pop_last_front();
             }
@@ -872,7 +880,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 grow_to(&mut f_max[start_idx], f_target, &mut f_delta[start_idx]);
                 if f_max[start_idx] > last_grow {
                     eprintln!(
-                        "Grow  front idx {start_idx:>5} to {:>6} by {:>6} for {old_delta:>5} and shortage {:>6}",
+                        "Grow  front idx {start_idx:>5} to {:>6} by {:>6} for {old_delta:>5?} and shortage {:>6}",
                         f_max[start_idx],
                         f_max[start_idx] - old_f,
                         f_target - old_f

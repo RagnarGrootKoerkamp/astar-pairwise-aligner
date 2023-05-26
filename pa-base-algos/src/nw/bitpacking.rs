@@ -296,8 +296,6 @@ impl Drop for BitFronts {
         }
         eprintln!();
         eprintln!("Num blocks: {cnt}");
-        eprintln!("Total rows: {total}");
-        eprintln!("Uniq. rows: {}", self.unique_rows);
         // FIXME: Hardcoded blocksize.
         let num_blocks = self.a.len() / 256;
         eprintln!("Total band: {}", total / num_blocks);

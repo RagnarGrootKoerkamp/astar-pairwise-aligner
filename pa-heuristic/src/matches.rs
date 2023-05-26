@@ -2,7 +2,7 @@
 pub mod exact;
 pub mod inexact;
 mod local_pruning;
-mod qgrams;
+pub mod qgrams;
 mod suffix_array;
 
 use crate::{prelude::*, seeds::*};
@@ -11,7 +11,6 @@ use bio::{
     data_structures::qgram_index::QGramIndex,
 };
 use local_pruning::preserve_for_local_pruning;
-use qgrams::*;
 
 /// Find all matches between `a` and `b` with the given match configuration.
 /// If `transform_filter` is true, then only matches with T(m.start) <= target are kept.
@@ -123,8 +122,7 @@ impl<T: Copy> CenteredVec<T> {
 /// Note that this requires the seeds to be already determined, since they are
 /// required for the transform filter.
 struct MatchBuilder<'a> {
-    a: Seq<'a>,
-    b: Seq<'a>,
+    qgrams: &'a QGrams<'a>,
     config: MatchConfig,
     seeds: Seeds,
     matches: Vec<Match>,
@@ -148,19 +146,39 @@ struct MatchStats {
 }
 
 impl<'a> MatchBuilder<'a> {
-    fn new(
-        a: Seq<'a>,
-        b: Seq<'a>,
-        config: MatchConfig,
-        seeds: Vec<Seed>,
-        transform_filter: bool,
-    ) -> Self {
-        let seeds = Seeds::new(a, seeds);
-        let transform_target = seeds.transform(Pos::target(a, b));
+    /// New MatchBuilder with fixed length seeds.
+    fn new(qgrams: &'a QGrams<'a>, config: MatchConfig, transform_filter: bool) -> Self {
+        let seeds = Seeds::new(
+            qgrams.a,
+            qgrams.fixed_length_seeds(config.length.k().unwrap(), config.r),
+        );
+        let transform_target = seeds.transform(Pos::target(qgrams.a, qgrams.b));
         let d = transform_target.0 - transform_target.1;
         Self {
-            a,
-            b,
+            qgrams,
+            config,
+            seeds,
+            matches: Vec::new(),
+            transform_target,
+            transform_filter,
+            local_pruning_cache: Default::default(),
+            stats: MatchStats::default(),
+            // Make space for the 0 and target diagonal, and 10 padding on each side.
+            next_match_per_diag: CenteredVec::new(d, I::MAX),
+        }
+    }
+
+    fn new_with_seeds(
+        qgrams: &'a QGrams<'a>,
+        config: MatchConfig,
+        transform_filter: bool,
+        seeds: Vec<Seed>,
+    ) -> Self {
+        let seeds = Seeds::new(qgrams.a, seeds);
+        let transform_target = seeds.transform(Pos::target(qgrams.a, qgrams.b));
+        let d = transform_target.0 - transform_target.1;
+        Self {
+            qgrams,
             config,
             seeds,
             matches: Vec::new(),
@@ -182,8 +200,8 @@ impl<'a> MatchBuilder<'a> {
         }
         self.stats.after_transform += 1;
         if !preserve_for_local_pruning(
-            self.a,
-            self.b,
+            self.qgrams.a,
+            self.qgrams.b,
             &self.seeds,
             &m,
             self.config.local_pruning,
@@ -210,6 +228,11 @@ impl<'a> MatchBuilder<'a> {
         self.matches.push(m);
 
         true
+    }
+
+    fn sort(&mut self) {
+        self.matches
+            .sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
     }
 
     fn finish(mut self) -> Matches {
@@ -270,6 +293,8 @@ pub enum LengthConfig {
     Max(MaxMatches),
 }
 use LengthConfig::*;
+
+use self::qgrams::QGrams;
 
 impl LengthConfig {
     pub fn k(&self) -> Option<I> {

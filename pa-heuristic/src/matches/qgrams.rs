@@ -1,79 +1,74 @@
-use itertools::Itertools;
+use itertools::izip;
 
 use super::*;
 use crate::prelude::*;
 
-// NOTE: qgrams have their first character in the high-order bits.
-pub fn to_qgram(rank_transform: &RankTransform, width: usize, seed: &[u8]) -> usize {
-    let mut q = 0;
-    for &c in seed {
-        q <<= width;
-        q |= rank_transform.get(c) as usize;
-    }
-    q
+pub struct QGrams<'a> {
+    pub a: Seq<'a>,
+    pub b: Seq<'a>,
+    pub rt: RankTransform,
+    pub width: usize,
 }
 
-#[allow(unused)]
-pub fn qgrams_overlap(mut k: I, mut q: usize, mut k2: I, mut q2: usize) -> bool {
-    if k > k2 {
-        std::mem::swap(&mut k, &mut k2);
-        std::mem::swap(&mut q, &mut q2);
-    }
-
-    let mut has_match = false;
-    for i in 0..=k2 - k {
-        if ((q2 >> (2 * i)) ^ q) & ((1 << (2 * k)) - 1) == 0 {
-            has_match = true;
+impl<'a> QGrams<'a> {
+    pub fn new(a: Seq<'a>, b: Seq<'a>) -> Self {
+        let rt = RankTransform::new(&Alphabet::new(b"ACGT"));
+        Self {
+            a,
+            b,
+            width: rt.get_width(),
+            rt,
         }
     }
-    has_match
-}
 
-pub fn iterate_fixed_qgrams<'a>(
-    rank_transform: &'a RankTransform,
-    a: Seq<'a>,
-    k: I,
-) -> impl Iterator<Item = (I, usize)> + 'a {
-    let width = rank_transform.get_width();
-    a.chunks_exact(k as usize)
-        .enumerate()
-        .map(move |(i, seed)| (k * i as I, to_qgram(&rank_transform, width, seed)))
-}
+    // NOTE: qgrams have their first character in the high-order bits.
+    pub fn to_qgram(&self, seed: &[u8]) -> usize {
+        let mut q = 0;
+        for &c in seed {
+            q <<= self.width;
+            q |= self.rt.get(c) as usize;
+        }
+        q
+    }
 
-pub fn fixed_seeds(rank_transform: &RankTransform, r: MatchCost, a: Seq, k: I) -> Vec<Seed> {
-    iterate_fixed_qgrams(rank_transform, a, k)
-        .map(|(i, qgram)| Seed {
-            start: i as I,
-            end: i as I + k,
-            seed_potential: r,
-            qgram,
-            seed_cost: r,
-        })
-        .collect_vec()
-}
+    pub fn a_qgrams(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> {
+        // NOTE: Computing each k-mer separately is 3x faster than doing a rolling window with `step_by(k)`.
+        (0..).step_by(k as _).zip(
+            self.a
+                .chunks_exact(k as _)
+                .map(move |seed| self.to_qgram(seed)),
+        )
+    }
 
-// FIXME: Just hardcode T to u64 here.
-// For T=u32, k can be at most 15 (or 14 with r=2).
-pub fn key_for_sized_qgram<
-    T: num_traits::Bounded
-        + num_traits::Zero
-        + num_traits::AsPrimitive<usize>
-        + std::ops::Shl<usize, Output = T>
-        + std::ops::BitOr<Output = T>,
->(
-    k: I,
-    qgram: T,
-) -> T {
-    let size = 8 * std::mem::size_of::<T>();
-    assert!(
-        (2 * k as usize) < 8 * size,
-        "kmer size {k} does not leave spare bits in base type of size {size}"
-    );
-    let shift = 2 * k as usize + 2;
-    let mask = if shift == size {
-        T::zero()
-    } else {
-        T::max_value() << shift
-    };
-    qgram | mask
+    pub fn a_qgrams_rev(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> {
+        self.a
+            .chunks_exact(k as _)
+            .enumerate()
+            .map(move |(i, seed)| (k * i as I, self.to_qgram(seed)))
+            .rev()
+    }
+
+    pub fn b_qgrams(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> {
+        (0..).zip(self.rt.qgrams(k as _, self.b))
+    }
+
+    pub fn b_qgrams_rev(&self, k: I) -> impl '_ + Iterator<Item = (I, usize)> {
+        izip!(
+            (0..self.b.len() as I - k + 1).rev(),
+            self.rt.rev_qgrams(k as _, self.b)
+        )
+        .into_iter()
+    }
+
+    pub fn fixed_length_seeds(&self, k: I, r: MatchCost) -> Vec<Seed> {
+        self.a_qgrams(k)
+            .map(|(i, qgram)| Seed {
+                start: i as I,
+                end: i as I + k,
+                seed_potential: r,
+                qgram,
+                seed_cost: r,
+            })
+            .collect()
+    }
 }

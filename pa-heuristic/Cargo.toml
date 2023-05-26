@@ -22,11 +22,17 @@ smallvec = { version = "1", features = ["union"] }
 rand = "0.8"
 
 [dev-dependencies]
-pa-generate = { git = "https://github.com/pairwise-alignment/pa-generate" }
+pa-generate.workspace = true
 aho-corasick = "0.7"
 lazy_static = "1"
 suffix = "1"
+criterion = { version = "0.4.0" }
 
 [features]
 # Enable marking matches as pruned in SH.
 example = []
+
+
+[[bench]]
+name = "qgrams"
+harness = false

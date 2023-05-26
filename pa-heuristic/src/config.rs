@@ -10,10 +10,5 @@ pub const FIND_MATCHES_HASH: bool = true;
 
 // ========= FLAGS NOT IN THE PAPER (default false) =========
 
-/// Whether to use a sliding window approach for finding exact matches for fixed k.
-/// This reduces the size of the hashmap by a factor k.
-/// Only for CSH with gap-cost.
-pub const SLIDING_WINDOW_MATCHES: bool = false;
-
 /// Disable to disable timers.
 pub const TIME: bool = true;

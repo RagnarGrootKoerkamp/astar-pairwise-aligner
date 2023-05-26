@@ -57,6 +57,32 @@ fn mutations(k: I, qgram: usize, dedup: bool) -> Mutations {
     }
 }
 
+// FIXME: Just hardcode T to u64 here.
+// For T=u32, k can be at most 15 (or 14 with r=2).
+pub fn key_for_sized_qgram<
+    T: num_traits::Bounded
+        + num_traits::Zero
+        + num_traits::AsPrimitive<usize>
+        + std::ops::Shl<usize, Output = T>
+        + std::ops::BitOr<Output = T>,
+>(
+    k: I,
+    qgram: T,
+) -> T {
+    let size = 8 * std::mem::size_of::<T>();
+    assert!(
+        (2 * k as usize) < 8 * size,
+        "kmer size {k} does not leave spare bits in base type of size {size}"
+    );
+    let shift = 2 * k as usize + 2;
+    let mask = if shift == size {
+        T::zero()
+    } else {
+        T::max_value() << shift
+    };
+    qgram | mask
+}
+
 pub fn find_matches_qgramindex<'a>(
     a: Seq<'a>,
     b: Seq<'a>,
@@ -67,7 +93,7 @@ pub fn find_matches_qgramindex<'a>(
 
     // Qgrams of B.
     // TODO: Profile this index and possibly use something more efficient for large k.
-    let qgrams = &mut HashMap::<I, QGramIndex>::default();
+    let qgram_map = &mut HashMap::<I, QGramIndex>::default();
     // TODO: This should return &[I] instead.
     fn get_matches<'a, 'c>(
         qgrams: &'c mut HashMap<I, QGramIndex>,
@@ -84,7 +110,7 @@ pub fn find_matches_qgramindex<'a>(
     // Stops counting when max_count is reached.
     let mut count_matches = |k: I, qgram, max_count: usize| -> usize {
         // exact matches
-        let mut cnt = get_matches(qgrams, b, k, qgram).len();
+        let mut cnt = get_matches(qgram_map, b, k, qgram).len();
         if cnt >= max_count {
             return max_count;
         }
@@ -96,7 +122,7 @@ pub fn find_matches_qgramindex<'a>(
                 (mutations.insertions, k + 1),
             ] {
                 for qgram in v {
-                    cnt += get_matches(qgrams, b, k, qgram).len();
+                    cnt += get_matches(qgram_map, b, k, qgram).len();
                     if cnt >= max_count {
                         return max_count;
                     }
@@ -107,8 +133,7 @@ pub fn find_matches_qgramindex<'a>(
     };
 
     // Convert to a binary sequences.
-    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
-    let width = rank_transform.get_width();
+    let qgrams = QGrams::new(a, b);
 
     let seeds = {
         let mut v: Vec<Seed> = Vec::default();
@@ -127,11 +152,8 @@ pub fn find_matches_qgramindex<'a>(
                         let mut k = k_min as I;
                         while k <= a.len() as I
                             && k <= k_max
-                            && count_matches(
-                                k,
-                                to_qgram(&rank_transform, width, &a[..k as usize]),
-                                max_matches + 1,
-                            ) > max_matches
+                            && count_matches(k, qgrams.to_qgram(&a[..k as usize]), max_matches + 1)
+                                > max_matches
                         {
                             k += 1;
                         }
@@ -160,7 +182,7 @@ pub fn find_matches_qgramindex<'a>(
                 start: i,
                 end: i + seed_len,
                 seed_potential: r,
-                qgram: to_qgram(&rank_transform, width, seed),
+                qgram: qgrams.to_qgram(seed),
                 seed_cost: r,
             });
             i += seed_len;
@@ -168,7 +190,7 @@ pub fn find_matches_qgramindex<'a>(
         v
     };
 
-    let mut matches = MatchBuilder::new(a, b, config, seeds, transform_filter);
+    let mut matches = MatchBuilder::new_with_seeds(&qgrams, config, transform_filter, seeds);
 
     for i in 0..matches.seeds.seeds.len() {
         let Seed {
@@ -181,7 +203,7 @@ pub fn find_matches_qgramindex<'a>(
         let len = end - start;
 
         // Exact matches
-        for &j in get_matches(qgrams, b, len, qgram) {
+        for &j in get_matches(qgram_map, b, len, qgram) {
             matches.push(Match {
                 start: Pos(start, j as I),
                 end: Pos(end, j as I + len),
@@ -194,7 +216,7 @@ pub fn find_matches_qgramindex<'a>(
         if seed_potential > 1 {
             let mutations = mutations(len, qgram, true);
             for mutation in mutations.deletions {
-                for &j in get_matches(qgrams, b, len - 1, mutation) {
+                for &j in get_matches(qgram_map, b, len - 1, mutation) {
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len - 1),
@@ -205,7 +227,7 @@ pub fn find_matches_qgramindex<'a>(
                 }
             }
             for mutation in mutations.substitutions {
-                for &j in get_matches(qgrams, b, len, mutation) {
+                for &j in get_matches(qgram_map, b, len, mutation) {
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len),
@@ -216,7 +238,7 @@ pub fn find_matches_qgramindex<'a>(
                 }
             }
             for mutation in mutations.insertions {
-                for &j in get_matches(qgrams, b, len + 1, mutation) {
+                for &j in get_matches(qgram_map, b, len + 1, mutation) {
                     matches.push(Match {
                         start: Pos(start, j as I),
                         end: Pos(end, j as I + len + 1),
@@ -246,15 +268,8 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     };
     assert!(r == 2);
 
-    let rank_transform = RankTransform::new(&Alphabet::new(b"ACGT"));
-
-    let mut matches = MatchBuilder::new(
-        a,
-        b,
-        config,
-        fixed_seeds(&rank_transform, r, a, k),
-        transform_filter,
-    );
+    let qgrams = QGrams::new(a, b);
+    let mut matches = MatchBuilder::new(&qgrams, config, transform_filter);
 
     // type of Qgrams
     type Q = usize;
@@ -264,7 +279,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
     let mut m = HashMap::<Q, SmallVec<[Cost; 4]>>::default();
     m.reserve(3 * b.len());
     for k in k - 1..=k + 1 {
-        for (j, w) in rank_transform.qgrams(k as _, b).enumerate() {
+        for (j, w) in qgrams.b_qgrams(k) {
             m.entry(key_for_sized_qgram(k, w))
                 .or_default()
                 .push(j as Cost);

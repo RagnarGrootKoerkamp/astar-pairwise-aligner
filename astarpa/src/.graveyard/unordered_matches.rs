@@ -76,6 +76,22 @@ where
     }
 }
 
+#[allow(unused)]
+pub fn qgrams_overlap(mut k: I, mut q: usize, mut k2: I, mut q2: usize) -> bool {
+    if k > k2 {
+        std::mem::swap(&mut k, &mut k2);
+        std::mem::swap(&mut q, &mut q2);
+    }
+
+    let mut has_match = false;
+    for i in 0..=k2 - k {
+        if ((q2 >> (2 * i)) ^ q) & ((1 << (2 * k)) - 1) == 0 {
+            has_match = true;
+        }
+    }
+    has_match
+}
+
 /// Counts the number of times a mutation of qgram occurs in m.
 /// Returns the seed_cost if at most one match was found.
 fn count_inexact_matches(

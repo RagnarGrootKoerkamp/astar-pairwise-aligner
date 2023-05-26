@@ -661,6 +661,7 @@ impl<C: Contour> Contours for HintContours<C> {
             score_with_hint_calls,
         }: HintContourStats = *self.stats.borrow();
 
+        return;
         if prunes == 0 {
             return;
         }
