@@ -22,7 +22,7 @@ use crate::seeds::Seeds;
 use pa_types::{Cost, Seq, I};
 
 /// Returns true when `end_i` is reached.
-fn extend(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
+fn extend_right(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
     while *i < end_i && j < b.len() as I && a[*i as usize] == b[j as usize] {
         *i += 1;
         j += 1;
@@ -32,15 +32,11 @@ fn extend(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
 
 /// Same as `extend` but uses SIMD.
 /// TODO: We can also try a version that does 8 chars at a time using `u64`s.
-fn extend_simd(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
+fn extend_right_simd(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
     // Do the first char manually to throw away some easy bad cases before going into SIMD.
-    if *i < a.len() as I && j < b.len() as I {
-        if a[*i as usize] == b[j as usize] {
-            *i += 1;
-            j += 1;
-        } else {
-            return *i >= end_i;
-        }
+    if *i < a.len() as I && j < b.len() as I && a[*i as usize] == b[j as usize] {
+        *i += 1;
+        j += 1;
     } else {
         return *i >= end_i;
     }
@@ -62,7 +58,7 @@ fn extend_simd(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
             return true;
         }
     }
-    extend(a, b, i, j, end_i)
+    extend_right(a, b, i, j, end_i)
 }
 
 /// Returns `false` for matches that should be removed by local pruning.
@@ -109,7 +105,7 @@ pub(super) fn preserve_for_local_pruning(
     fr[pd] = s.0;
     next_fr[pd] = I::MIN;
 
-    if extend_simd(a, b, &mut fr[pd], s.1, end_i) {
+    if extend_right_simd(a, b, &mut fr[pd], s.1, end_i) {
         stats[0] += 1;
         return true;
     }
@@ -161,7 +157,7 @@ pub(super) fn preserve_for_local_pruning(
             let old_i = *i;
 
             // If reached end of range => KEEP MATCH.
-            if extend_simd(a, b, i, j, end_i) {
+            if extend_right_simd(a, b, i, j, end_i) {
                 stats[g as usize] += 1;
                 return true;
             }

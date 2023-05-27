@@ -295,6 +295,8 @@ impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
     // Reusable helper implementation.
     fn trace(
         &mut self,
+        _a: Seq,
+        _b: Seq,
         from: State,
         mut to: State,
         _viz: &mut impl VisualizerInstance,

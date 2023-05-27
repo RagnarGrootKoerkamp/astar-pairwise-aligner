@@ -754,6 +754,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         };
         if trace && dist <= f_max.unwrap_or(I::MAX) {
             let cigar = fronts.trace(
+                self.a,
+                self.b,
                 State {
                     i: 0,
                     j: 0,
@@ -966,6 +968,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         // eprintln!("TRACE..");
         let dist = fronts.last_front().get(self.b.len() as I).unwrap();
         let cigar = fronts.trace(
+            self.a,
+            self.b,
             State {
                 i: 0,
                 j: 0,
@@ -1002,39 +1006,10 @@ mod test {
             domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
             block_width: 256,
             v: NoVis,
-            front: BitFront {
-                sparse: true,
-                simd: true,
-                incremental_doubling: false,
-            },
+            front: BitFront::default(),
             trace: true,
             sparse_h: true,
             prune: false,
-        }
-        .align(&a, &b)
-        .0;
-        let d2 = triple_accel::levenshtein_exp(&a, &b) as _;
-        assert_eq!(d, d2);
-    }
-
-    #[test]
-    fn incremental_doubling() {
-        let (a, b) =
-            pa_generate::generate_model(10000, 0.1, pa_generate::ErrorModel::Uniform, 31415);
-        let d = NW {
-            cm: AffineCost::unit(),
-            strategy: Strategy::band_doubling(),
-            domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
-            block_width: 256,
-            v: NoVis,
-            front: BitFront {
-                sparse: true,
-                simd: true,
-                incremental_doubling: true,
-            },
-            trace: true,
-            sparse_h: true,
-            prune: true,
         }
         .align(&a, &b)
         .0;
@@ -1052,11 +1027,7 @@ mod test {
             domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
             block_width: 256,
             v: NoVis,
-            front: BitFront {
-                sparse: true,
-                simd: true,
-                incremental_doubling: false,
-            },
+            front: BitFront::default(),
             trace: true,
             sparse_h: true,
             prune: true,
@@ -1077,10 +1048,31 @@ mod test {
             domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
             block_width: 256,
             v: NoVis,
-            front: BitFront {
-                sparse: true,
-                simd: true,
-                incremental_doubling: false,
+            front: BitFront::default(),
+            trace: true,
+            sparse_h: true,
+            prune: true,
+        }
+        .align(&a, &b)
+        .0;
+        let d2 = triple_accel::levenshtein_exp(&a, &b) as _;
+        assert_eq!(d, d2);
+    }
+
+    #[test]
+    fn dt_trace() {
+        let (a, b) =
+            pa_generate::generate_model(10000, 0.1, pa_generate::ErrorModel::Uniform, 31415);
+        let d = NW {
+            cm: AffineCost::unit(),
+            strategy: Strategy::LocalDoubling,
+            domain: Domain::Astar(GCSH::new(MatchConfig::exact(15), Pruning::start())),
+            block_width: 256,
+            v: NoVis,
+            front: {
+                let mut f = BitFront::default();
+                f.dt_trace = true;
+                f
             },
             trace: true,
             sparse_h: true,

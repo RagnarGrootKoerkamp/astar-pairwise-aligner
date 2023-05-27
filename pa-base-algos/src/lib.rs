@@ -1,4 +1,4 @@
-#![feature(let_chains, step_trait, int_roundings, split_array)]
+#![feature(let_chains, step_trait, int_roundings, split_array, portable_simd)]
 
 use pa_types::Cost;
 use serde::{Deserialize, Serialize};

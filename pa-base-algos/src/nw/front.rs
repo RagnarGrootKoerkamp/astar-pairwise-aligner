@@ -140,6 +140,8 @@ pub trait NwFronts<const N: usize>: IndexMut<usize, Output = Self::Front> {
 
     fn trace(
         &mut self,
+        _a: Seq,
+        _b: Seq,
         _from: State,
         _to: State,
         _viz: &mut impl VisualizerInstance,

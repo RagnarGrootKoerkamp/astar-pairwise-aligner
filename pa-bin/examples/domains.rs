@@ -37,11 +37,7 @@ fn main() {
     config.clear_after_meeting_point = false;
     config.paused = true;
 
-    let front = BitFront {
-        sparse: true,
-        simd: true,
-        incremental_doubling: true,
-    };
+    let front = BitFront::default();
     let trace = true;
     let aligners: &mut [Box<dyn Aligner>] = &mut [
         // Box::new(NW {

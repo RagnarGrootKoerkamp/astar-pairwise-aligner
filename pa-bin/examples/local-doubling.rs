@@ -86,11 +86,7 @@ fn main() {
         domain: Domain::Astar(GCSH::new(MatchConfig::exact(5), Pruning::start())),
         block_width: 256,
         v: config.with_filename("local-doubling"),
-        front: BitFront {
-            sparse: true,
-            simd: true,
-            incremental_doubling: true,
-        },
+        front: BitFront::default(),
         trace: true,
         sparse_h: true,
         prune: true,

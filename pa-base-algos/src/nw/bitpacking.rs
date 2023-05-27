@@ -1,11 +1,8 @@
 //!
 //! TODO: [fill_block] use a single allocation for all fronts in the block. Takes up to 2% of time.
-//! TODO: SIMD for compute_block
 //! TODO: [fill_block] store horizontal deltas in blocks, so that `parent` is more
 //!       efficient and doesn't have to use relatively slow `front.index` operations.
 //!       (NOTE though that this doesn't actually seem that bad in practice.)
-//! TODO: 256-wide profile to prevent SIMD Gather ops.
-//! TODO: Store a and b as bit-encoded for each separate bit, and & them.
 //! TODO: Separate strong types for row `I` and 'block-row' `I*64`.
 use std::{
     cmp::min,
@@ -27,6 +24,7 @@ type PB = <BitProfile as Profile>::B;
 type H = (B, B);
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[non_exhaustive]
 pub struct BitFrontsTag {
     /// When true, `trace` mode only stores one front per block, instead of all columns.
     /// `cost` most always stores only the last front.
@@ -35,6 +33,26 @@ pub struct BitFrontsTag {
     pub simd: bool,
     #[serde(default)]
     pub incremental_doubling: bool,
+    #[serde(default)]
+    pub dt_trace: bool,
+    /// Do traceback up to this g. 0 disables the limit.
+    #[serde(default)]
+    pub max_g: Cost,
+    #[serde(default)]
+    pub drop: I,
+}
+
+impl Default for BitFrontsTag {
+    fn default() -> Self {
+        Self {
+            sparse: true,
+            simd: true,
+            incremental_doubling: true,
+            dt_trace: false,
+            max_g: 10,
+            drop: 5,
+        }
+    }
 }
 
 pub struct BitFronts {
@@ -656,6 +674,8 @@ impl NwFronts<0usize> for BitFronts {
     /// recomputes fronts as needed.
     fn trace(
         &mut self,
+        a: Seq,
+        b: Seq,
         from: State,
         mut to: State,
         viz: &mut impl VisualizerInstance,
@@ -665,8 +685,46 @@ impl NwFronts<0usize> for BitFronts {
         let mut cigar = AffineCigar::default();
         let mut g = self.fronts[self.last_front_idx].index(to.j);
 
+        let mut dt_trace_tries = 0;
+        let mut dt_trace_success = 0;
+        let mut dt_trace_fallback = 0;
+
         let mut block_start = to.i - 1;
+
+        let cached_dt_fronts =
+            &mut vec![FrontElem::default(); (self.params.max_g + 1).pow(2) as usize];
+
         while to != from {
+            // Try a Diagonal Transition based traceback first which should be faster for small distances.
+            if self.params.dt_trace {
+                while self.fronts[self.last_front_idx].i > to.i {
+                    self.pop_last_front();
+                }
+                assert_eq!(self.fronts[self.last_front_idx].i, to.i);
+
+                let prev_front = &self.fronts[self.last_front_idx - 1];
+                if prev_front.i < to.i - 1 {
+                    dt_trace_tries += 1;
+                    if let Some(new_to) = self.dt_trace_block(
+                        a,
+                        b,
+                        to,
+                        &mut g,
+                        prev_front,
+                        &mut cigar,
+                        cached_dt_fronts,
+                    ) {
+                        dt_trace_success += 1;
+                        // eprintln!("To from {:?} to {:?}", to, new_to);
+                        to = new_to;
+                        continue;
+                    }
+                    dt_trace_fallback += 1;
+                }
+            }
+
+            // Fall back to DP based traceback.
+
             // Remove fronts to the right of `to`.
             while self.fronts[self.last_front_idx].i > to.i {
                 self.pop_last_front();
@@ -715,6 +773,9 @@ impl NwFronts<0usize> for BitFronts {
             to = parent;
             cigar.push_elem(cigar_elem);
         }
+        eprintln!("dt_trace_tries:    {:>7}", dt_trace_tries);
+        eprintln!("dt_trace_success:  {:>7}", dt_trace_success);
+        eprintln!("dt_trace_fallback: {:>7}", dt_trace_fallback);
         assert_eq!(g, 0);
         cigar.reverse();
         cigar
@@ -735,6 +796,107 @@ impl NwFronts<0usize> for BitFronts {
             self.fronts[self.last_front_idx].fixed_j_range = fixed_j_range;
         }
     }
+}
+
+#[derive(Clone, Copy)]
+struct FrontElem {
+    /// The current column.
+    i: I,
+    /// The length of the extension to get here.
+    ext: I,
+    /// The diagonal of the parent relative to this one.
+    parent_d: I,
+}
+impl Default for FrontElem {
+    fn default() -> Self {
+        FrontElem {
+            i: I::MAX,
+            ext: 0,
+            parent_d: 0,
+        }
+    }
+}
+impl FrontElem {
+    fn reset(&mut self) {
+        *self = FrontElem::default();
+    }
+}
+fn extend_left(
+    a: Seq,
+    b: Seq,
+    elem: &mut FrontElem,
+    mut j: I,
+    target_g: Cost,
+    prev_front: &BitFront,
+) -> bool {
+    let i = &mut elem.i;
+    while *i > prev_front.i && j > 0 && a[*i as usize - 1] == b[j as usize - 1] {
+        *i -= 1;
+        j -= 1;
+        elem.ext += 1;
+    }
+
+    *i == prev_front.i && prev_front.get(j) == Some(target_g)
+}
+
+/// Same as `extend_left` above but uses SIMD.
+/// TODO: We can also try a version that does 8 chars at a time using `u64`s.
+fn extend_left_simd(
+    a: Seq,
+    b: Seq,
+    elem: &mut FrontElem,
+    mut j: I,
+    target_g: Cost,
+    prev_front: &BitFront,
+) -> bool {
+    // Do the first char manually to throw away some easy bad cases before going into SIMD.
+    let i = &mut elem.i;
+    'ret: {
+        if *i > prev_front.i && j > 0 && a[*i as usize - 1] == b[j as usize - 1] {
+            *i -= 1;
+            j -= 1;
+            elem.ext += 1;
+        } else {
+            break 'ret;
+        }
+        while *i >= 8 && j >= 8 {
+            // let simd_a: Simd<u8, 32> = Simd::from_array(*a[*i as usize - 32..].split_array_ref().0);
+            // let simd_b: Simd<u8, 32> = Simd::from_array(*b[j as usize - 32..].split_array_ref().0);
+            // let eq = simd_a.simd_eq(simd_b).to_bitmask();
+            // let cnt = if cfg!(target_endian = "little") {
+            //     eq.leading_ones() as I
+            // } else {
+            //     eq.trailing_ones() as I
+            // };
+
+            let cmp = unsafe {
+                *(a[*i as usize - 8..].as_ptr() as *const usize)
+                    ^ *(b[j as usize - 8..].as_ptr() as *const usize)
+            };
+            let cnt = if cmp == 0 {
+                8
+            } else {
+                (cmp.leading_zeros() / u8::BITS) as I
+            };
+
+            *i -= cnt;
+            j -= cnt;
+            elem.ext += cnt;
+            if *i <= prev_front.i {
+                let overshoot = prev_front.i - *i;
+                *i += overshoot;
+                j += overshoot;
+                elem.ext -= overshoot;
+                break 'ret;
+            }
+            if cnt < 8 {
+                break 'ret;
+            }
+        }
+
+        return extend_left(a, b, elem, j, target_g, prev_front);
+    }
+    *i == prev_front.i && prev_front.get(j) == Some(target_g)
 }
 
 impl BitFronts {
@@ -841,7 +1003,191 @@ impl BitFronts {
             );
         }
 
-        panic!("ERROR: PARENT NOT FOUND IN TRACEBACK");
+        // Edge cases where greedy extension took the path outside the blocks.
+        if st.j - 1 > front.j_range_rounded().1 {
+            return (
+                State {
+                    i: st.i,
+                    j: st.j - 1,
+                    layer: None,
+                },
+                AffineCigarElem {
+                    op: AffineCigarOp::Ins,
+                    cnt: 1,
+                },
+            );
+        }
+
+        // Horizontal delete.
+        // Correct for the already-updated g.
+        let hd = (*g + 1) - prev_front.index(st.j);
+        if hd == 1 {
+            return (
+                State {
+                    i: st.i - 1,
+                    j: st.j,
+                    layer: None,
+                },
+                AffineCigarElem {
+                    op: AffineCigarOp::Del,
+                    cnt: 1,
+                },
+            );
+        }
+
+        panic!("ERROR: PARENT OF {st:?} NOT FOUND IN TRACEBACK");
+    }
+
+    /// Trace a path backwards from `st` until `i=block_start`.
+    fn dt_trace_block(
+        &self,
+        a: Seq,
+        b: Seq,
+        st: State,
+        g_st: &mut Cost,
+        prev_front: &BitFront,
+        cigar: &mut AffineCigar,
+        fronts: &mut Vec<FrontElem>,
+    ) -> Option<State> {
+        // eprintln!(
+        //     "DT Trace from {st:?} with g={g_st} back to {}",
+        //     prev_front.i
+        // );
+        let block_start = prev_front.i;
+        // Returns true when `end_i` is reached.
+        // The front stores the leftmost reachable column at distance g in diagonal d relative to st.
+        // The element for (g,d) is at position g*g+g+d.
+        fronts[0] = FrontElem {
+            i: st.i,
+            ext: 0,
+            parent_d: 0,
+        };
+
+        fn index(g: Cost, d: I) -> usize {
+            (g * g + g + d) as usize
+        }
+        fn get(fronts: &Vec<FrontElem>, g: Cost, d: I) -> FrontElem {
+            fronts[index(g, d)]
+        }
+        fn get_mut(fronts: &mut Vec<FrontElem>, g: Cost, d: I) -> &mut FrontElem {
+            &mut fronts[index(g, d)]
+        }
+
+        fn trace(
+            fronts: &Vec<FrontElem>,
+            mut g: Cost,
+            mut d: I,
+            st: State,
+            g_st: &mut Cost,
+            block_start: I,
+            cigar: &mut AffineCigar,
+        ) -> State {
+            //eprintln!("TRACE");
+            let new_st = State {
+                i: block_start,
+                j: st.j - (st.i - block_start) - d,
+                layer: None,
+            };
+            *g_st -= g;
+            let mut ops = vec![];
+            loop {
+                let fr = get(fronts, g, d);
+                if fr.ext > 0 {
+                    //eprintln!("Ext: {}", fr.ext);
+                    ops.push(AffineCigarElem {
+                        op: AffineCigarOp::Match,
+                        cnt: fr.ext,
+                    })
+                }
+                if g == 0 {
+                    break;
+                }
+                g -= 1;
+                d += fr.parent_d;
+                let op = match fr.parent_d {
+                    -1 => AffineCigarOp::Ins,
+                    0 => AffineCigarOp::Sub,
+                    1 => AffineCigarOp::Del,
+                    _ => panic!(),
+                };
+                //eprintln!("Op: {:?}", op);
+                ops.push(AffineCigarElem { op, cnt: 1 });
+            }
+            for e in ops.into_iter().rev() {
+                cigar.push_elem(e);
+            }
+            new_st
+        }
+
+        let mut g = 0 as Cost;
+
+        if extend_left_simd(a, b, &mut fronts[0], st.j, 0, prev_front) {
+            return Some(trace(&fronts, 0, 0, st, g_st, block_start, cigar));
+        }
+        //eprintln!("extend d=0 from {:?} to {}", st, fronts[0][0].i);
+
+        let mut d_range = (0, 0);
+        loop {
+            let ng = g + 1;
+            // Init next front
+            for fe in &mut fronts[index(ng, d_range.0 - 1)..=index(ng, d_range.1 + 1)] {
+                fe.reset();
+            }
+
+            // EXPAND.
+            //eprintln!("expand");
+            for d in d_range.0..=d_range.1 {
+                let fr = get(fronts, g, d);
+                //eprintln!("Expand g={} d={} i={}", g, d, fr.i);
+                fn update(x: &mut FrontElem, y: I, d: I) {
+                    if y < x.i {
+                        //eprintln!("update d={d} from {} to {}", x.i, y);
+                        x.i = y;
+                        x.parent_d = d;
+                    }
+                }
+                update(&mut get_mut(fronts, ng, d - 1), fr.i - 1, 1);
+                update(&mut get_mut(fronts, ng, d), fr.i - 1, 0);
+                update(&mut get_mut(fronts, ng, d + 1), fr.i, -1);
+            }
+            g += 1;
+            d_range.0 -= 1;
+            d_range.1 += 1;
+
+            // Extend.
+            let mut min_i = I::MAX;
+            for d in d_range.0..=d_range.1 {
+                let fr = get_mut(fronts, g, d);
+                if fr.i == I::MAX {
+                    continue;
+                }
+                let j = st.j - (st.i - fr.i) - d;
+                // let old_i = fr.i;
+                if extend_left_simd(a, b, fr, j, *g_st - g, prev_front) {
+                    return Some(trace(&fronts, g, d, st, g_st, block_start, cigar));
+                }
+                // eprintln!("extend d={d} from {} to {}", Pos(old_i, j), fr.i);
+                min_i = min(min_i, fr.i);
+            }
+
+            if g == self.params.max_g {
+                return None;
+            }
+
+            // Shrink diagonals more than 5 behind.
+            if self.params.drop > 0 {
+                while d_range.0 < d_range.1
+                    && get(fronts, g, d_range.0).i > min_i + self.params.drop
+                {
+                    d_range.0 += 1;
+                }
+                while d_range.0 < d_range.1
+                    && get(fronts, g, d_range.1).i > min_i + self.params.drop
+                {
+                    d_range.1 -= 1;
+                }
+            }
+        }
     }
 
     /// Iterate over columns `i_range` for `j_range`, storing a front per column.
