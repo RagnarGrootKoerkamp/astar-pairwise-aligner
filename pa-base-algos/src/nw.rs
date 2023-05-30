@@ -39,11 +39,17 @@ pub enum FrontType {
     Bit(BitFront),
 }
 
+impl Default for FrontType {
+    fn default() -> Self {
+        FrontType::Bit(BitFront::default())
+    }
+}
+
 // TODO: Fix these names to be the same.
 pub use affine::AffineNwFrontsTag as AffineFront;
 pub use bitpacking::BitFrontsTag as BitFront;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct AstarNwParams {
     /// An optional name for the parameter set.
     #[serde(default)]

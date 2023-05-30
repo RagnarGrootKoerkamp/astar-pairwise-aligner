@@ -49,8 +49,8 @@ impl Default for BitFrontsTag {
             simd: true,
             incremental_doubling: true,
             dt_trace: false,
-            max_g: 10,
-            drop: 5,
+            max_g: 40,
+            drop: 20,
         }
     }
 }

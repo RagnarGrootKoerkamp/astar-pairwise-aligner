@@ -150,6 +150,12 @@ pub enum Domain<H> {
 
 use Domain::*;
 
+impl Default for Domain<()> {
+    fn default() -> Self {
+        Astar(())
+    }
+}
+
 impl Domain<()> {
     pub fn into(self) -> Domain<NoCost> {
         match self {
@@ -220,6 +226,14 @@ impl Strategy {
         Self::BandDoubling {
             start: DoublingStart::Gap,
             factor: 2.0,
+        }
+    }
+}
+impl Default for Strategy {
+    fn default() -> Self {
+        Strategy::BandDoubling {
+            start: DoublingStart::H0,
+            factor: 2.,
         }
     }
 }
