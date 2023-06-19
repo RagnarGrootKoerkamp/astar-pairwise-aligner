@@ -21,8 +21,9 @@
     is_sorted,
     exclusive_range_pattern,
     associated_type_defaults,
-    hash_drain_filter,
-    drain_filter
+    // If you get compile errors here, make sure to be on at least rust 1.72.
+    // Before, this was called `drain_filter`.
+    extract_if
 )]
 
 mod alignment_graph;
