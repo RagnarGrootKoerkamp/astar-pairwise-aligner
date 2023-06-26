@@ -466,7 +466,10 @@ impl<C: Contour> Contours for HintContours<C> {
     ) {
         self.stats.borrow_mut().prunes += 1;
 
-        //eprintln!("update_layers({v}, {last_change})");
+        // ALG: Ensure v is at least 1. Some matches needed for consistency are
+        // in layer 0, but layer 0 should never be removed, since the fake
+        // 'match at the end' is needed.
+        v = max(v, 1);
 
         if PRINT {
             eprintln!("update_layers({v}, {last_change})");
