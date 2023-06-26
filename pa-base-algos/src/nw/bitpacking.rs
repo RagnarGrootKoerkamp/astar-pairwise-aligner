@@ -840,82 +840,63 @@ impl FrontElem {
         *self = FrontElem::default();
     }
 }
-fn extend_left(
-    a: Seq,
-    b: Seq,
-    elem: &mut FrontElem,
-    mut j: I,
-    target_g: Cost,
-    prev_front: &BitFront,
-) -> bool {
-    let i = &mut elem.i;
-    while *i > prev_front.i && j > 0 && a[*i as usize - 1] == b[j as usize - 1] {
-        *i -= 1;
-        j -= 1;
-        elem.ext += 1;
-    }
 
-    *i == prev_front.i && prev_front.get(j) == Some(target_g)
+fn extend_left(i: &mut i32, i0: i32, j: &mut i32, a: &[u8], b: &[u8]) -> I {
+    let mut cnt = 0;
+    while *i > i0 && *j > 0 && a[*i as usize - 1] == b[*j as usize - 1] {
+        *i -= 1;
+        *j -= 1;
+        cnt += 1;
+    }
+    cnt
 }
 
-/// Same as `extend_left` above but uses SIMD.
-/// TODO: We can also try a version that does 8 chars at a time using `u64`s.
-fn extend_left_simd(
-    a: Seq,
-    b: Seq,
-    elem: &mut FrontElem,
-    mut j: I,
-    target_g: Cost,
-    prev_front: &BitFront,
-) -> bool {
+fn extend_left_simd(i: &mut i32, i0: i32, j: &mut i32, a: &[u8], b: &[u8]) -> I {
+    let mut cnt = 0;
     // Do the first char manually to throw away some easy bad cases before going into SIMD.
-    let i = &mut elem.i;
-    'ret: {
-        if *i > prev_front.i && j > 0 && a[*i as usize - 1] == b[j as usize - 1] {
-            *i -= 1;
-            j -= 1;
-            elem.ext += 1;
-        } else {
-            break 'ret;
-        }
-        while *i >= 8 && j >= 8 {
-            // let simd_a: Simd<u8, 32> = Simd::from_array(*a[*i as usize - 32..].split_array_ref().0);
-            // let simd_b: Simd<u8, 32> = Simd::from_array(*b[j as usize - 32..].split_array_ref().0);
-            // let eq = simd_a.simd_eq(simd_b).to_bitmask();
-            // let cnt = if cfg!(target_endian = "little") {
-            //     eq.leading_ones() as I
-            // } else {
-            //     eq.trailing_ones() as I
-            // };
-
-            let cmp = unsafe {
-                *(a[*i as usize - 8..].as_ptr() as *const usize)
-                    ^ *(b[j as usize - 8..].as_ptr() as *const usize)
-            };
-            let cnt = if cmp == 0 {
-                8
-            } else {
-                (cmp.leading_zeros() / u8::BITS) as I
-            };
-
-            *i -= cnt;
-            j -= cnt;
-            elem.ext += cnt;
-            if *i <= prev_front.i {
-                let overshoot = prev_front.i - *i;
-                *i += overshoot;
-                j += overshoot;
-                elem.ext -= overshoot;
-                break 'ret;
-            }
-            if cnt < 8 {
-                break 'ret;
-            }
-        }
-
-        return extend_left(a, b, elem, j, target_g, prev_front);
+    if *i > i0 && *j > 0 && a[*i as usize - 1] == b[*j as usize - 1] {
+        *i -= 1;
+        *j -= 1;
+        cnt += 1;
+    } else {
+        return cnt;
     }
-    *i == prev_front.i && prev_front.get(j) == Some(target_g)
+    while *i >= 8 && *j >= 8 {
+        // let simd_a: Simd<u8, 32> = Simd::from_array(*a[*i as usize - 32..].split_array_ref().0);
+        // let simd_b: Simd<u8, 32> = Simd::from_array(*b[j as usize - 32..].split_array_ref().0);
+        // let eq = simd_a.simd_eq(simd_b).to_bitmask();
+        // let cnt2 = if cfg!(target_endian = "little") {
+        //     eq.leading_ones() as I
+        // } else {
+        //     eq.trailing_ones() as I
+        // };
+
+        let cmp = unsafe {
+            *(a[*i as usize - 8..].as_ptr() as *const usize)
+                ^ *(b[*j as usize - 8..].as_ptr() as *const usize)
+        };
+        let cnt2 = if cmp == 0 {
+            8
+        } else {
+            (cmp.leading_zeros() / u8::BITS) as I
+        };
+
+        *i -= cnt2;
+        *j -= cnt2;
+        cnt += cnt2;
+        if *i <= i0 {
+            let overshoot = i0 - *i;
+            *i += overshoot;
+            *j += overshoot;
+            cnt -= overshoot;
+            return cnt;
+        }
+        if cnt2 < 8 {
+            return cnt;
+        }
+    }
+    cnt += extend_left(i, i0, j, a, b);
+    cnt
 }
 
 impl BitFronts {
@@ -1140,7 +1121,13 @@ impl BitFronts {
 
         let mut g = 0 as Cost;
 
-        if extend_left_simd(a, b, &mut fronts[0], st.j, 0, prev_front) {
+        // Extend up to the start of the previous front and check if the distance is correct.
+        let extend_left_simd_and_check = |elem: &mut FrontElem, mut j: I, target_g: Cost| -> bool {
+            elem.ext += extend_left_simd(&mut elem.i, prev_front.i, &mut j, a, b);
+            *(&mut elem.i) == prev_front.i && prev_front.get(j) == Some(target_g)
+        };
+
+        if extend_left_simd_and_check(&mut fronts[0], st.j, 0) {
             return Some(trace(&fronts, 0, 0, st, g_st, block_start, cigar));
         }
         //eprintln!("extend d=0 from {:?} to {}", st, fronts[0][0].i);
@@ -1182,7 +1169,7 @@ impl BitFronts {
                 }
                 let j = st.j - (st.i - fr.i) - d;
                 // let old_i = fr.i;
-                if extend_left_simd(a, b, fr, j, *g_st - g, prev_front) {
+                if extend_left_simd_and_check(fr, j, *g_st - g) {
                     return Some(trace(&fronts, g, d, st, g_st, block_start, cigar));
                 }
                 // eprintln!("extend d={d} from {} to {}", Pos(old_i, j), fr.i);
