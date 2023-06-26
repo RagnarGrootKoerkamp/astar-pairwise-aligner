@@ -427,11 +427,18 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
     ///
     ///
     /// `old_range`: The old j_range at the end of the current interval, to ensure it only grows.
+    ///
+    /// ALG: We must continue from the old_j_range to ensure things work well after pruning:
+    /// Pruning is only allowed if we guarantee that the range never shrinks,
+    /// and it can happen that we 'run out' of `f(u) <= f_max` states inside the
+    /// `old_range`, while extending the `old_range` from the bottom could grow
+    /// more.
     fn j_range(
         &mut self,
         i_range: IRange,
         f_max: Option<Cost>,
         prev: &<F::Fronts<'a> as NwFronts<N>>::Front,
+        old_range: Option<JRange>,
     ) -> JRange {
         // Without a bound on the distance, we can only return the full range.
         let Some(f_max) = f_max else {
@@ -482,7 +489,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             }
             Domain::Astar(h) => {
                 // Get the range of rows with fixed states `f(u) <= f_max`.
-                let JRange(fixed_start, fixed_end) = if i_range.1 == 0 {
+                let JRange(mut fixed_start, mut fixed_end) = if i_range.1 == 0 {
                     JRange(-1, -1)
                 } else {
                     prev.fixed_j_range()
@@ -490,12 +497,17 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 };
 
                 if PRINT {
-                    // eprintln!("j_range for {i_range:?}\t\told {old_range:?}\t\t fixed @ {is}\t {fixed_start}..{fixed_end}");
+                    eprintln!("j_range for {i_range:?}\t\told {old_range:?}\t\t fixed @ {is}\t {fixed_start}..{fixed_end}");
                 }
 
                 // Early return for empty range.
                 if fixed_start > fixed_end {
                     return JRange(fixed_start, fixed_end);
+                }
+
+                if let Some(old_range) = old_range {
+                    fixed_start = min(fixed_start, old_range.0);
+                    fixed_end = max(fixed_end, old_range.1);
                 }
 
                 // The start of the j_range we will compute for this block is the `fixed_start` of the previous column.
@@ -691,7 +703,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         };
 
         assert!(f_max.unwrap_or(0) >= 0);
-        let initial_j_range = self.j_range(IRange::first_col(), f_max, &Default::default());
+        let initial_j_range = self.j_range(
+            IRange::first_col(),
+            f_max,
+            &Default::default(),
+            fronts.next_front_j_range(),
+        );
         if initial_j_range.is_empty() {
             return None;
         }
@@ -711,7 +728,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
 
         for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
             let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
-            let mut j_range = self.j_range(i_range, f_max, fronts.last_front());
+            let mut j_range = self.j_range(
+                i_range,
+                f_max,
+                fronts.last_front(),
+                fronts.next_front_j_range(),
+            );
             if j_range.is_empty() && fronts.next_front_j_range().is_none() {
                 // eprintln!("Empty range at i {i}");
                 self.v.new_layer(self.domain.h());
@@ -803,7 +825,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
 
         // Add the front for i_range 0..0
         {
-            let initial_j_range = self.j_range(IRange::first_col(), Some(h0), &Default::default());
+            let initial_j_range = self.j_range(
+                IRange::first_col(),
+                Some(h0),
+                &Default::default(),
+                fronts.next_front_j_range(),
+            );
             fronts.init(initial_j_range);
             fronts.set_last_front_fixed_j_range(Some(initial_j_range));
         }
@@ -860,7 +887,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 let mut next_f = f_max[last_idx];
                 // Add a new front.
                 loop {
-                    let j_range = self.j_range(i_range, Some(next_f), fronts.last_front());
+                    let j_range = self.j_range(
+                        i_range,
+                        Some(next_f),
+                        fronts.last_front(),
+                        fronts.next_front_j_range(),
+                    );
                     if !j_range.is_empty() {
                         break;
                     }
@@ -917,8 +949,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             }
 
             if start_idx == 0 {
-                let initial_j_range =
-                    self.j_range(IRange::first_col(), Some(h0), &Default::default());
+                let initial_j_range = self.j_range(
+                    IRange::first_col(),
+                    Some(h0),
+                    &Default::default(),
+                    fronts.next_front_j_range(),
+                );
                 fronts.init(initial_j_range);
                 fronts.set_last_front_fixed_j_range(Some(initial_j_range));
                 // eprintln!("Reset front idx 0 to {initial_j_range:?}");
@@ -937,7 +973,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                     (idx as I - 1) * self.params.block_width,
                     min(idx as I * self.params.block_width, self.a.len() as I),
                 );
-                let mut j_range = self.j_range(i_range, f_max, fronts.last_front());
+                let mut j_range = self.j_range(
+                    i_range,
+                    f_max,
+                    fronts.last_front(),
+                    fronts.next_front_j_range(),
+                );
                 assert!(!j_range.is_empty());
 
                 let mut reuse = false;
