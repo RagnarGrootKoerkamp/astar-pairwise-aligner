@@ -159,7 +159,13 @@ impl NwFront for BitFront {
     /// For `j` larger than the range, vertical deltas of `1` are assumed.
     fn index(&self, j: I) -> Cost {
         let rounded = round(self.j_range);
-        assert!(rounded.0 <= j);
+        assert!(
+            rounded.0 <= j,
+            "Cannot index front {} with range {:?} by {}",
+            self.i,
+            rounded,
+            j
+        );
         // All of rounded must be indexable.
         assert!(
             rounded.0 - self.offset >= 0,
@@ -736,7 +742,13 @@ impl NwFronts<0usize> for BitFronts {
             // Fall back to DP based traceback.
 
             // Remove fronts to the right of `to`.
-            while self.fronts[self.last_front_idx].i > to.i {
+            while self.last_front_idx > 0 && self.fronts[self.last_front_idx - 1].i >= to.i {
+                if PRINT {
+                    eprintln!(
+                        "to {to:?} Pop front at i={}",
+                        self.fronts[self.last_front_idx].i
+                    );
+                }
                 self.pop_last_front();
             }
 
@@ -745,14 +757,13 @@ impl NwFronts<0usize> for BitFronts {
             if self.params.sparse && to.i > 0 {
                 let front = &self.fronts[self.last_front_idx];
                 let prev_front = &self.fronts[self.last_front_idx - 1];
-                assert_eq!(front.i, to.i);
+                assert!(prev_front.i < to.i && to.i <= front.i);
                 // If the previous front is the correct one, no need for further recomputation.
-                if prev_front.i < to.i - 1 {
-                    // if PRINT {
-                    //     eprintln!("Expand previous front from {} to {}", prev_front.i, to.i);
-                    // }
-                    let i_range = IRange(prev_front.i, front.i);
-                    assert!(front.j_range.0 <= to.j && to.j <= front.j_range.1);
+                if prev_front.i < to.i - 1 || front.i > to.i {
+                    if PRINT {
+                        eprintln!("Expand previous front from {} to {}", prev_front.i, to.i);
+                    }
+                    let i_range = IRange(prev_front.i, to.i);
                     let j_range = JRange(front.j_range.0, to.j);
                     self.pop_last_front();
                     // NOTE: It's unlikely the full (large) `j_range` is needed to trace back through the current block.
@@ -760,9 +771,12 @@ impl NwFronts<0usize> for BitFronts {
                     // 2. It's unlikely we'll need all states starting at the (possibly much smaller) `j_range.0`.
                     //    Instead, we do an exponential search for the start of the `j_range`, starting at `to.j-2*i_range.len()`.
                     //    The block is high enough once the cost to `to` equals `g`.
-                    let mut height = i_range.len() * 5 / 4;
+                    let mut height = max(j_range.exclusive_len(), i_range.len() * 5 / 4);
                     loop {
-                        let j_range = JRange(max(j_range.0, j_range.1 - height), j_range.1);
+                        let j_range = JRange(max(j_range.1 - height, 0), j_range.1);
+                        if PRINT {
+                            eprintln!("Fill block {:?} {:?}", i_range, j_range);
+                        }
                         self.fill_block(i_range, j_range, viz);
                         if self.fronts[self.last_front_idx].index(to.j) == g {
                             break;
@@ -907,7 +921,11 @@ impl BitFronts {
     /// deletions as needed to get back.
     fn parent(&self, mut st: State, g: &mut Cost) -> (State, AffineCigarElem) {
         let front = &self.fronts[self.last_front_idx];
-        assert!(front.i == st.i);
+        assert!(
+            front.i == st.i,
+            "Parent of state {st:?} but front.i is {}",
+            front.i
+        );
 
         // Greedy matching.
         let mut cnt = 0;
