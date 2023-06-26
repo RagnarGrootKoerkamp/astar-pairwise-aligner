@@ -13,6 +13,8 @@ use itertools::{izip, Itertools};
 use pa_bitpacking::{BitProfile, HEncoding, Profile, B, V, W};
 use pa_types::{Cost, Seq, I};
 
+use crate::PRINT;
+
 use super::*;
 
 const DEBUG: bool = false;
@@ -302,15 +304,18 @@ impl NwFrontsTag<0usize> for BitFrontsTag {
 
 impl Drop for BitFronts {
     fn drop(&mut self) {
+        if !PRINT {
+            return;
+        }
         let mut cnt = 0;
         let mut total = 0;
         for (i, c) in self.computed_rows.iter().enumerate() {
             cnt += c;
             total += i * c;
-            // if i % 10 == 0 {
-            //     eprint!("\n{i:>4}");
-            // }
-            // eprint!("{c:>7}");
+            if i % 10 == 0 {
+                eprint!("\n{i:>4}");
+            }
+            eprint!("{c:>7}");
         }
         eprintln!();
         eprintln!("Num blocks: {cnt}");
@@ -419,6 +424,9 @@ impl NwFronts<0usize> for BitFronts {
         self.i_range.1 = i_range.1;
 
         let j_range_rounded = round(j_range);
+        if PRINT {
+            // eprintln!("Compute block {:?} {:?}", i_range, j_range);
+        }
         let v_range = j_range_rounded.0 as usize / W..j_range_rounded.1 as usize / W;
         self.unique_rows += v_range.len();
         // Get top/bot values in the previous column for the new j_range_rounded.
@@ -685,6 +693,10 @@ impl NwFronts<0usize> for BitFronts {
         let mut cigar = AffineCigar::default();
         let mut g = self.fronts[self.last_front_idx].index(to.j);
 
+        if PRINT {
+            eprintln!("Trace from distance {g}");
+        }
+
         let mut dt_trace_tries = 0;
         let mut dt_trace_success = 0;
         let mut dt_trace_fallback = 0;
@@ -738,6 +750,9 @@ impl NwFronts<0usize> for BitFronts {
                 assert_eq!(front.i, to.i);
                 // If the previous front is the correct one, no need for further recomputation.
                 if prev_front.i < to.i - 1 {
+                    // if PRINT {
+                    //     eprintln!("Expand previous front from {} to {}", prev_front.i, to.i);
+                    // }
                     let i_range = IRange(prev_front.i, front.i);
                     block_start = prev_front.i;
                     assert!(front.j_range.0 <= to.j && to.j <= front.j_range.1);
@@ -765,17 +780,21 @@ impl NwFronts<0usize> for BitFronts {
                 }
             }
 
-            // eprintln!(
-            //     "Parent of {to:?} at distance {g} with range {:?}",
-            //     self.fronts[self.last_front_idx].j_range
-            // );
+            if PRINT && to.i % 256 == 0 {
+                eprintln!(
+                    "Parent of {to:?} at distance {g} with range {:?}",
+                    self.fronts[self.last_front_idx].j_range
+                );
+            }
             let (parent, cigar_elem) = self.parent(to, &mut g, block_start);
             to = parent;
             cigar.push_elem(cigar_elem);
         }
-        eprintln!("dt_trace_tries:    {:>7}", dt_trace_tries);
-        eprintln!("dt_trace_success:  {:>7}", dt_trace_success);
-        eprintln!("dt_trace_fallback: {:>7}", dt_trace_fallback);
+        if PRINT {
+            eprintln!("dt_trace_tries:    {:>7}", dt_trace_tries);
+            eprintln!("dt_trace_success:  {:>7}", dt_trace_success);
+            eprintln!("dt_trace_fallback: {:>7}", dt_trace_fallback);
+        }
         assert_eq!(g, 0);
         cigar.reverse();
         cigar

@@ -481,6 +481,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
             let (layer, new_hint) = self
                 .contours
                 .score_with_hint(Self::transform_2(&self.params, &self.seeds, m.start), hint);
+            if PRINT {
+                eprintln!("Prune match {m:?} in layer {layer}");
+            }
             // eprintln!("Prune match {m:?} in layer {layer}");
             lowest_modified_contour = min(lowest_modified_contour, layer as Layer);
             highest_modified_contour = max(highest_modified_contour, layer as Layer);
@@ -547,7 +550,9 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         );
         // self.lowest_modified_contour = Layer::MAX;
         self.highest_modified_contour = Layer::MIN;
-        // eprintln!("h0 after  update: {}", self.h(Pos(0, 0)));
+        if PRINT {
+            eprintln!("h0 after  update: {}", self.h(Pos(0, 0)));
+        }
         self.stats.contours_duration += start.elapsed().as_secs_f64();
     }
 

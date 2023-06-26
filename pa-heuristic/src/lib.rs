@@ -32,3 +32,5 @@ mod prelude {
     pub use rustc_hash::FxHashMap as HashMap;
     pub use std::cmp::{max, min};
 }
+
+const PRINT: bool = false;

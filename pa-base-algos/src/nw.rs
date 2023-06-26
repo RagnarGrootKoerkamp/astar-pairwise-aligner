@@ -18,7 +18,7 @@ mod bitpacking;
 mod front;
 
 use crate::nw::front::{IRange, JRange, NwFront, NwFronts};
-use crate::{exponential_search, Strategy};
+use crate::{exponential_search, Strategy, PRINT};
 use crate::{linear_search, Domain};
 use pa_affine_types::*;
 use pa_heuristic::*;
@@ -260,7 +260,9 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
                 GapGap => GapGap,
                 Astar(h) => {
                     let h = h.build(a, b);
-                    eprintln!("h0: {}", h.h(Pos(0, 0)));
+                    if PRINT {
+                        eprintln!("h0: {}", h.h(Pos(0, 0)));
+                    }
                     Astar(h)
                 }
             },
@@ -402,8 +404,10 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> Drop
     for NWInstance<'a, N, V, H, F>
 {
     fn drop(&mut self) {
-        if let Domain::Astar(h) = &mut self.domain {
-            eprintln!("h0 end: {}", h.h(Pos(0, 0)));
+        if PRINT {
+            if let Domain::Astar(h) = &mut self.domain {
+                eprintln!("h0 end: {}", h.h(Pos(0, 0)));
+            }
         }
     }
 }
@@ -485,7 +489,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                         .expect("With A* Domain, fixed_j_range should always be set.")
                 };
 
-                // eprintln!("Fixed j_range for {i_range:?}\t prev fixed {fixed_start}..{fixed_end}");
+                if PRINT {
+                    eprintln!("j_range for {i_range:?}\t\told {old_range:?}\t\t fixed @ {is}\t {fixed_start}..{fixed_end}");
+                }
 
                 // Early return for empty range.
                 if fixed_start > fixed_end {
@@ -663,6 +669,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         // Update contours for any pending prunes.
         if self.params.prune && let Domain::Astar(h) = &mut self.domain {
             h.update_contours(Pos(0,0));
+            if PRINT {
+                eprintln!("Test dist {} h0 {}", f_max.unwrap_or(0), h.h(Pos(0,0)));
+            }
         }
 
         // Make a local front variable if not passed in.
@@ -731,7 +740,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             }
             // Compute the range of fixed states.
             let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, fronts.last_front());
-            // eprintln!("{i}: New fixed range {next_fixed_j_range:?}");
+            // if PRINT {
+            //     eprintln!("{i}: New fixed range {next_fixed_j_range:?}");
+            // }
             fronts.set_last_front_fixed_j_range(next_fixed_j_range);
             let next_fixed_j_range = fronts.last_front().fixed_j_range();
 

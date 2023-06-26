@@ -14,6 +14,8 @@ pub mod nw;
 #[cfg(test)]
 mod tests;
 
+const PRINT: bool = false;
+
 /// Find the cost using exponential search based on `f`.
 ///
 /// Tries values `offset + s0 * f^i`.

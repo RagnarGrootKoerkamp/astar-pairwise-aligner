@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use itertools::Itertools;
 
 use super::*;
-use crate::{prelude::*, split_vec::SplitVec};
+use crate::{prelude::*, split_vec::SplitVec, PRINT};
 
 const D: bool = false;
 
@@ -467,6 +467,10 @@ impl<C: Contour> Contours for HintContours<C> {
         self.stats.borrow_mut().prunes += 1;
 
         //eprintln!("update_layers({v}, {last_change})");
+
+        if PRINT {
+            eprintln!("update_layers({v}, {last_change})");
+        }
         last_change = max(last_change, v);
         let chain_score = |contours: &SplitVec<C>, pos: Pos, v: Layer| -> Option<Layer> {
             chain_score(arrows, pos, v, contours)
@@ -522,7 +526,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 current_shift.merge(Shift::Layers(v - new_layer));
 
                 // Either no arrows left (position already pruned), or none of its arrows yields value v.
-                if D{
+                if D {
                     eprintln!("f: Push {pos} from {v} to {new_layer} shift {current_shift:?}");
                 }
                 self.contours[new_layer].push(pos);
@@ -621,10 +625,14 @@ impl<C: Contour> Contours for HintContours<C> {
                 }
             }
         }
+        self.print_stats();
     }
 
     #[allow(unreachable_code, unused_variables)]
     fn print_stats(&mut self) {
+        if !PRINT {
+            return;
+        }
         // TODO: MAKE A FLAG FOR THIS.
         // eprintln!("----------------------------");
         // if self.stats.borrow().prunes > 0 {

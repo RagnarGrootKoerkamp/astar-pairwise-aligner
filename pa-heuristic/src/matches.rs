@@ -5,7 +5,7 @@ mod local_pruning;
 pub mod qgrams;
 mod suffix_array;
 
-use crate::{prelude::*, seeds::*};
+use crate::{prelude::*, seeds::*, PRINT};
 use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,
@@ -247,15 +247,15 @@ impl<'a> MatchBuilder<'a> {
         // Dedup to only keep the lowest match cost between each start and end.
         self.matches.dedup_by_key(|m| (m.start, m.end));
 
-        //       eprintln!(
-        //           "Matches after:
-        // pushed        {:>8}
-        // transform     {:>8}
-        // local pruning {:>8}",
-        //           self.stats.pushed, self.stats.after_transform, self.stats.after_local_pruning
-        //       );
+        if PRINT && self.config.local_pruning > 0 {
+            eprintln!(
+                "Matches after:
+        pushed        {:>8}
+        transform     {:>8}
+        local pruning {:>8}",
+                self.stats.pushed, self.stats.after_transform, self.stats.after_local_pruning
+            );
 
-        if self.config.local_pruning > 0 {
             eprintln!("Local pruning up to");
             for (g, cnt) in self.local_pruning_cache[2].iter().enumerate() {
                 eprint!("{g:>0$} ", format!("{cnt}").len());
