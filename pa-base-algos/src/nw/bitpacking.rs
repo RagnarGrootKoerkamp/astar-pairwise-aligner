@@ -701,8 +701,6 @@ impl NwFronts<0usize> for BitFronts {
         let mut dt_trace_success = 0;
         let mut dt_trace_fallback = 0;
 
-        let mut block_start = to.i - 1;
-
         let cached_dt_fronts =
             &mut vec![FrontElem::default(); (self.params.max_g + 1).pow(2) as usize];
 
@@ -754,7 +752,6 @@ impl NwFronts<0usize> for BitFronts {
                     //     eprintln!("Expand previous front from {} to {}", prev_front.i, to.i);
                     // }
                     let i_range = IRange(prev_front.i, front.i);
-                    block_start = prev_front.i;
                     assert!(front.j_range.0 <= to.j && to.j <= front.j_range.1);
                     let j_range = JRange(front.j_range.0, to.j);
                     self.pop_last_front();
@@ -786,7 +783,7 @@ impl NwFronts<0usize> for BitFronts {
                     self.fronts[self.last_front_idx].j_range
                 );
             }
-            let (parent, cigar_elem) = self.parent(to, &mut g, block_start);
+            let (parent, cigar_elem) = self.parent(to, &mut g);
             to = parent;
             cigar.push_elem(cigar_elem);
         }
@@ -903,35 +900,24 @@ impl BitFronts {
     /// Find the parent of `st`.
     /// NOTE: This assumes that `st.i` is in the last front, and that the front before is for `st.i-1`.
     /// `g`: distance to `st`.
-    fn parent(&self, mut st: State, g: &mut Cost, block_start: I) -> (State, AffineCigarElem) {
+    /// `block_start`: the IRange.0 of the previous block.
+    /// ALG: NOTE: Greedy backward matching is OK (it is guaranteed that all
+    /// computed cells reached this way have the same score). But note that this
+    /// may end up outside the computed area. In that case we use insertions or
+    /// deletions as needed to get back.
+    fn parent(&self, mut st: State, g: &mut Cost) -> (State, AffineCigarElem) {
         let front = &self.fronts[self.last_front_idx];
         assert!(front.i == st.i);
-        let prev_front = if st.i > 0 {
-            let prev_front = &self.fronts[self.last_front_idx - 1];
-            assert!(prev_front.i == st.i - 1);
-            Some(prev_front)
-        } else {
-            None
-        };
 
-        // MATCH.
-        // NOTE: We ensure that this stay within the block bounds, which turns out to be quite tricky.
-        // TODO: SIMD
+        // Greedy matching.
         let mut cnt = 0;
+        // TODO: SIMD using raw A and B.
         while st.i > 0 && st.j > 0 && BitProfile::is_match(&self.a, &self.b, st.i - 1, st.j - 1) {
-            // Make sure to not go outside the previous block.
-            if st.i - 1 == block_start && st.j - 1 > prev_front.unwrap().j_range.1 {
-                break;
-            }
             cnt += 1;
             st.i -= 1;
             st.j -= 1;
-            if st.i <= block_start + 1 {
-                break;
-            }
         }
         if cnt > 0 {
-            // eprintln!("Match of len {cnt} ending at {st:?} block_start {block_start}");
             return (
                 st,
                 AffineCigarElem {
@@ -941,13 +927,11 @@ impl BitFronts {
             );
         }
 
-        // We have no match.
-        *g -= 1;
-
-        // Vertical insert.
+        // Vertical delta (insert).
         // (This is first since it only needs a single delta bit, instead of an index() call.)
         let vd = front.get_diff(st.j - 1);
         if vd == Some(1) {
+            *g -= 1;
             return (
                 State {
                     i: st.i,
@@ -961,12 +945,13 @@ impl BitFronts {
             );
         }
 
-        let prev_front = prev_front.expect("No vertical edge, but also no previous front");
+        let prev_front = &self.fronts[self.last_front_idx - 1];
+        assert!(prev_front.i == st.i - 1);
 
-        // Horizontal delete.
-        // Correct for the already-updated g.
-        let hd = (*g + 1) - prev_front.index(st.j);
+        // Horizontal delta (delete).
+        let hd = *g - prev_front.index(st.j);
         if hd == 1 {
+            *g -= 1;
             return (
                 State {
                     i: st.i - 1,
@@ -980,7 +965,7 @@ impl BitFronts {
             );
         }
 
-        // Substitution.
+        // Diagonal delta (substitution).
         // This edge case happens when entering the previous front exactly in
         // the bottom-most row, where no vertical delta is available.
         let dd = if st.j > prev_front.j_range.1 {
@@ -990,6 +975,7 @@ impl BitFronts {
             prev_front.get_diff(st.j - 1).unwrap() + hd
         };
         if dd == 1 {
+            *g -= 1;
             return (
                 State {
                     i: st.i - 1,
@@ -998,38 +984,6 @@ impl BitFronts {
                 },
                 AffineCigarElem {
                     op: AffineCigarOp::Sub,
-                    cnt: 1,
-                },
-            );
-        }
-
-        // Edge cases where greedy extension took the path outside the blocks.
-        if st.j - 1 > front.j_range_rounded().1 {
-            return (
-                State {
-                    i: st.i,
-                    j: st.j - 1,
-                    layer: None,
-                },
-                AffineCigarElem {
-                    op: AffineCigarOp::Ins,
-                    cnt: 1,
-                },
-            );
-        }
-
-        // Horizontal delete.
-        // Correct for the already-updated g.
-        let hd = (*g + 1) - prev_front.index(st.j);
-        if hd == 1 {
-            return (
-                State {
-                    i: st.i - 1,
-                    j: st.j,
-                    layer: None,
-                },
-                AffineCigarElem {
-                    op: AffineCigarOp::Del,
                     cnt: 1,
                 },
             );
