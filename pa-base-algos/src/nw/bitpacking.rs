@@ -711,13 +711,19 @@ impl NwFronts<0usize> for BitFronts {
             &mut vec![FrontElem::default(); (self.params.max_g + 1).pow(2) as usize];
 
         while to != from {
-            // Try a Diagonal Transition based traceback first which should be faster for small distances.
-            if self.params.dt_trace {
-                while self.fronts[self.last_front_idx].i > to.i {
-                    self.pop_last_front();
+            // Remove fronts to the right of `to`.
+            while self.last_front_idx > 0 && self.fronts[self.last_front_idx - 1].i >= to.i {
+                if PRINT {
+                    eprintln!(
+                        "to {to:?} Pop front at i={}",
+                        self.fronts[self.last_front_idx].i
+                    );
                 }
-                assert_eq!(self.fronts[self.last_front_idx].i, to.i);
+                self.pop_last_front();
+            }
 
+            // Try a Diagonal Transition based traceback first which should be faster for small distances.
+            if self.params.dt_trace && to.i > 0 {
                 let prev_front = &self.fronts[self.last_front_idx - 1];
                 if prev_front.i < to.i - 1 {
                     dt_trace_tries += 1;
@@ -740,17 +746,6 @@ impl NwFronts<0usize> for BitFronts {
             }
 
             // Fall back to DP based traceback.
-
-            // Remove fronts to the right of `to`.
-            while self.last_front_idx > 0 && self.fronts[self.last_front_idx - 1].i >= to.i {
-                if PRINT {
-                    eprintln!(
-                        "to {to:?} Pop front at i={}",
-                        self.fronts[self.last_front_idx].i
-                    );
-                }
-                self.pop_last_front();
-            }
 
             // In case of sparse fronts, fill missing columns by recomputing the
             // block and storing all columns.
