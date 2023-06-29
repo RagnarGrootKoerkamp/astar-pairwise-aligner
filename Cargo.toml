@@ -43,4 +43,4 @@ pa-bin.path = "pa-bin"
 clap = { version = "4", features = ["derive", "wrap_help"] }
 serde = { version = "1", features = ["derive"] }
 itertools = "0.10"
-bio = { version = "1", git = "https://github.com/ragnargrootkoerkamp/rust-bio", branch = "rev_qgrams" }
+bio = "1"
