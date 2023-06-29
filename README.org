@@ -9,7 +9,10 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   ~cargo run --release -- -i <input>.{seq,txt,fasta} -o output.csv~
 
   This globally aligns sequence pairs from the input and writes a csv with lines of
-  ~{cost},{score}~. Rust nightly is needed.
+  ~{cost},{score}~. *You will need Rust nightly!*
+
+  If you run into any kind of problem, please (/please/ 🥺) make an issue or
+  reach out on matrix (@curious_coding:matrix.org).
 - Citation ::
   *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
   "Exact pairwise alignment using A* with seed heuristic and match pruning".
