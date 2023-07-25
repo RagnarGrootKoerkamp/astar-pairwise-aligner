@@ -37,7 +37,9 @@ Here's an A*PA alignment of two sequences of length $500$ with $30\%$ error rate
 
 - [[https://rustup.rs/][Install rustup]], enable ~nightly~ (~rustup install nightly~ ~rustup default nightly~), and clone this repo.
 - ~cargo run --release -- -n 100000~ should already work and run on some randomly generated sequences.
-- To disable the visualizer and not need ~sdl2~: ~cargo run --release --no-default-features~.
+- If you get build errors related to ~sdl2~ and/or missing ~ttf~ files, disable
+  the visualizer by passing ~--no-default-features~ to ~cargo~: ~cargo run
+  --release --no-default-features -- <flags>~. Alternatively, install ~sdl2~ using e.g. ~apt-get install libsdl2-ttf-dev~.
 
 #+begin_src shell :exports both :results verbatim
 cargo run --release -- -h
