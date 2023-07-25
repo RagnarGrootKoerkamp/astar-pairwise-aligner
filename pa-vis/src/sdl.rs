@@ -18,9 +18,14 @@ lazy_static! {
 
 thread_local! {
     static SDL_CONTEXT: Sdl = sdl2::init().unwrap();
-    static FONT: Font<'static, 'static> = TTF_CONTEXT
-        .load_font("/usr/share/fonts/TTF/OpenSans-Regular.ttf", 24)
-        .unwrap();
+    static FONT: Font<'static, 'static> = 'font: {
+        for path in ["/usr/share/fonts/ttf/opensans-regular.ttf", "/usr/share/fonts/truetype/open-sans/OpenSans-Regular.ttf"] {
+            if let Ok(font) = TTF_CONTEXT.load_font(path, 24) {
+                break 'font font;
+            }
+        }
+        panic!("Could not find font opensans-regular.ttf needed for visualizations. Please run without visualizations.");
+    }
 }
 
 fn to_point(CPos(x, y): CPos) -> Point {
