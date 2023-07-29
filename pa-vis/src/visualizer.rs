@@ -118,6 +118,8 @@ pub struct Visualizer {
 
     // Type, Pos, g, f
     pub expanded: Vec<(Type, ExpandPos, Cost, Cost)>,
+    // Calls to the heuristic.
+    h_calls: Vec<Pos>,
     // The current layer
     layer: Option<usize>,
     // Index in expanded where each layer stars.
@@ -152,6 +154,12 @@ impl VisualizerInstance for Visualizer {
         }
         self.expanded.push((Extended, ExpandPos::Single(pos), g, f));
         self.draw(false, None, false, h, None);
+    }
+
+    fn h_call<'a>(&mut self, pos: Pos) {
+        if pos <= self.target {
+            self.h_calls.push(pos);
+        }
     }
 
     fn new_layer<'a, H: HeuristicInstance<'a>>(&mut self, h: Option<&H>) {
@@ -269,6 +277,8 @@ pub struct Style {
     pub draw_parents: bool,
     pub draw_dt: bool,
     pub draw_f: bool,
+    pub draw_h_calls: bool,
+    pub h_call: Color,
     pub draw_labels: bool,
     pub heuristic: Gradient,
     pub layer: Gradient,
@@ -356,6 +366,8 @@ impl Config {
                 draw_parents: false,
                 draw_dt: true,
                 draw_f: false,
+                draw_h_calls: false,
+                h_call: RED,
                 draw_labels: true,
                 heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
                 layer: Gradient::Gradient((250, 250, 250, 0)..(100, 100, 100, 0)),
@@ -557,6 +569,7 @@ impl Visualizer {
             },
             config: config.clone(),
             expanded: vec![],
+            h_calls: vec![],
             target: Pos::target(a, b),
             frame_number: 0,
             layer_number: 0,
@@ -999,6 +1012,13 @@ impl Visualizer {
                 }
             }
 
+            // Draw h calls.
+            if self.config.style.draw_h_calls {
+                for &p in &self.h_calls {
+                    self.draw_pixel(&mut canvas, p, self.config.style.h_call);
+                }
+            }
+
             // Draw contours.
             if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
                 let draw_right_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
@@ -1230,7 +1250,9 @@ impl Visualizer {
         self.draw_dt(cigar);
         self.draw_f(cigar, h);
 
-        let Some(canvas) = &self.canvas else {return;};
+        let Some(canvas) = &self.canvas else {
+            return;
+        };
         let mut canvas = canvas.borrow_mut();
 
         // SAVE
@@ -1300,7 +1322,9 @@ impl Visualizer {
         if !self.config.style.draw_dt || self.expanded.is_empty() {
             return;
         }
-        let Some(canvas) = &self.canvas else {return;};
+        let Some(canvas) = &self.canvas else {
+            return;
+        };
         let mut canvas = canvas.borrow_mut();
 
         let offset = self.dt.start.down(self.dt.size.0 / 2);
@@ -1485,7 +1509,9 @@ impl Visualizer {
         if !self.config.style.draw_f || self.expanded.is_empty() {
             return;
         }
-        let Some(canvas) = &self.canvas else {return;};
+        let Some(canvas) = &self.canvas else {
+            return;
+        };
         let mut canvas = canvas.borrow_mut();
 
         // Soft red

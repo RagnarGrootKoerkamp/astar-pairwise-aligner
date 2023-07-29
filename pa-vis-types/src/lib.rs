@@ -67,6 +67,8 @@ pub trait VisualizerInstance {
     ) {
     }
 
+    fn h_call<'a>(&mut self, _pos: Pos) {}
+
     /// This function should be called after completing each layer
     fn new_layer<'a, HI: HeuristicInstance<'a>>(&mut self, _h: Option<&HI>) {}
 
