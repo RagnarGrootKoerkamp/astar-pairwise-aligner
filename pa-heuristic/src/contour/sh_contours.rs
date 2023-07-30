@@ -46,7 +46,7 @@ impl ShContours {
 
         // Count number of matches per seed of each length.
         // The max length is r.
-        let mut num_arrows_per_length = vec![vec![0; seeds.seeds.len()]; max_len as usize];
+        let mut num_arrows_per_length = vec![vec![0; seeds.seeds.len()]; max_len as usize + 1];
 
         for a in arrows {
             num_arrows_per_length[a.score as usize]
