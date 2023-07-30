@@ -23,12 +23,9 @@ use crate::{linear_search, Domain};
 use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
-use pa_vis::visualizer::{Gradient, When};
-use pa_vis_types::canvas::RED;
 use pa_vis_types::*;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
-use std::time::Duration;
 
 use self::affine::AffineNwFrontsTag;
 use self::front::NwFrontsTag;
@@ -87,7 +84,11 @@ pub struct AstarNwParams {
 impl AstarNwParams {
     /// Build an `AstarStatsAligner` instance from
     pub fn make_aligner(&self, trace: bool) -> Box<dyn Aligner> {
+        #[cfg(feature = "pa-vis")]
         if self.viz {
+            use pa_vis::visualizer::{Gradient, When};
+            use pa_vis_types::canvas::RED;
+            use std::time::Duration;
             let mut config = pa_vis::visualizer::Config::default();
             config.draw = When::LayersStepBy(1);
             config.save = When::None; //When::LayersStepBy(30);
@@ -115,6 +116,8 @@ impl AstarNwParams {
         } else {
             self.make_aligner_with_visualizer(trace, NoVis)
         }
+        #[cfg(not(feature = "pa-vis"))]
+        self.make_aligner_with_visualizer(trace, NoVis)
     }
 
     /// Build a type-erased aligner object from parameters.
@@ -613,8 +616,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         f_max: Option<Cost>,
         front: &<F::Fronts<'a> as NwFronts<N>>::Front,
     ) -> Option<JRange> {
-        let Domain::Astar(h) = &self.domain else { return None; };
-        let Some(f_max) = f_max else { return None; };
+        let Domain::Astar(h) = &self.domain else {
+            return None;
+        };
+        let Some(f_max) = f_max else {
+            return None;
+        };
 
         // Wrapper to use h with hint.
         let mut h = |pos| {

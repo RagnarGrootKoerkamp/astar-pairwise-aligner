@@ -28,7 +28,6 @@ debug = false
 # 10x smaller file size without debug symbols.
 # Breaks backtrace printing.
 strip = false
-panick = 'abort'
 
 [workspace.dependencies]
 pa-types.git = "https://github.com/pairwise-alignment/pa-types"
