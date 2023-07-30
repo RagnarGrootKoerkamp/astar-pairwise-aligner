@@ -141,10 +141,6 @@ impl<C: Contours> Heuristic for CSH<C> {
         b: Seq<'a>,
         filter: Option<impl FnMut(&Match, Cost) -> bool>,
     ) -> Self::Instance<'a> {
-        // TODO: Warning
-        assert!(
-            self.match_config.r <= self.match_config.length.k().unwrap_or(I::MAX) as MatchCost / 3
-        );
         CSHI::new(a, b, filter, *self)
     }
 
