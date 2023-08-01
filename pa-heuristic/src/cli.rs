@@ -26,6 +26,8 @@ pub enum HeuristicType {
     GapCost,
     /// Affine gap costs
     Affine,
+    /// Bruteforce GapCost
+    Frequency,
 }
 
 fn default_match_cost() -> MatchCost {
@@ -119,6 +121,7 @@ impl ToString for HeuristicParams {
             HeuristicType::None => "".into(),
             HeuristicType::Zero => "Zero".into(),
             HeuristicType::Gap => "Gap-cost to end".into(),
+            HeuristicType::Frequency => "Frequency".into(),
             HeuristicType::SH => {
                 let mut s = format!("Seed Heuristic (r={}, k={})", self.r, self.k);
                 if self.prune.is_enabled() {
@@ -183,6 +186,7 @@ impl HeuristicParams {
             HeuristicType::None => f.call(NoCost),
             HeuristicType::Zero => f.call(ZeroCost),
             HeuristicType::Gap => f.call(GapCost),
+            HeuristicType::Frequency => f.call(CountCost),
             HeuristicType::SH => f.call(SH::new(match_config, pruning)),
             HeuristicType::CSH => f.call(CSH::new(match_config, pruning)),
             HeuristicType::GCSH => f.call(GCSH::new(match_config, pruning)),
