@@ -13,6 +13,8 @@ pub enum HeuristicType {
     Zero,
     /// Gap-cost to the target.
     Gap,
+    /// Char frequencies to the target.
+    Frequency,
     /// Seed heuristic.
     SH,
     /// Chaining seed heuristic.
@@ -26,8 +28,6 @@ pub enum HeuristicType {
     GapCost,
     /// Affine gap costs
     Affine,
-    /// Bruteforce GapCost
-    Frequency,
 }
 
 fn default_match_cost() -> MatchCost {

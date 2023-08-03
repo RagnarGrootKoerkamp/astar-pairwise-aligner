@@ -148,12 +148,12 @@ pub trait HeuristicInstance<'a> {
         (0, Default::default())
     }
     fn prune_block(&mut self, _i_range: Range<I>, _j_range: Range<I>) {
-        unimplemented!();
+        //unimplemented!();
     }
 
     /// Update contours from the current minimum changed layer up to the given `_pos`.
     fn update_contours(&mut self, _pos: Pos) {
-        unimplemented!();
+        //unimplemented!();
     }
 
     /// Tells the heuristic that the position was explored, so it knows which
