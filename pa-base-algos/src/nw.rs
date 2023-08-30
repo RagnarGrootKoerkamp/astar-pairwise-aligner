@@ -90,7 +90,7 @@ impl AstarNwParams {
             use pa_vis_types::canvas::RED;
             use std::time::Duration;
             let mut config = pa_vis::visualizer::Config::default();
-            config.draw = When::LayersStepBy(1);
+            config.draw = When::StepBy(1);
             config.save = When::None; //When::LayersStepBy(30);
             config.save_last = false;
             config.delay = Duration::from_secs_f32(0.0001);
@@ -103,9 +103,10 @@ impl AstarNwParams {
             config.style.draw_dt = false;
             config.style.draw_heuristic = false;
             config.style.draw_f = false;
+            config.style.draw_h_calls = true;
             config.style.draw_labels = false;
             config.transparent_bmp = true;
-            config.draw_old_on_top = true;
+            config.draw_old_on_top = false;
             config.paused = true;
 
             config.style.pruned_match = RED;
@@ -527,6 +528,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 let mut h = |pos| {
                     let (h, new_hint) = h.h_with_hint(pos, self.hint);
                     self.hint = new_hint;
+                    self.v.h_call(pos);
                     h
                 };
                 // A lower bound of `f` values estimated from `gu`, valid for states `v` below the diagonal of `u`.
@@ -937,12 +939,14 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 let old_delta = f_delta[start_idx];
                 grow_to(&mut f_max[start_idx], f_target, &mut f_delta[start_idx]);
                 if f_max[start_idx] > last_grow {
-                    eprintln!(
-                        "Grow  front idx {start_idx:>5} to {:>6} by {:>6} for {old_delta:>5?} and shortage {:>6}",
-                        f_max[start_idx],
-                        f_max[start_idx] - old_f,
-                        f_target - old_f
-                    );
+                    if PRINT {
+                        eprintln!(
+                            "Grow  front idx {start_idx:>5} to {:>6} by {:>6} for {old_delta:>5?} and shortage {:>6}",
+                            f_max[start_idx],
+                            f_max[start_idx] - old_f,
+                            f_target - old_f
+                        );
+                    }
                     last_grow = f_max[start_idx];
                 }
 
@@ -950,7 +954,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
             }
 
             if start_idx < last_idx {
-                eprintln!("START front idx {start_idx:>5} to {:>6}", f_max[start_idx]);
+                if PRINT {
+                    eprintln!("START front idx {start_idx:>5} to {:>6}", f_max[start_idx]);
+                }
                 let h = self.domain.h_mut().unwrap();
                 h.update_contours(Pos((start_idx as I - 1) * self.params.block_width, 0));
             }
@@ -1029,6 +1035,16 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 break;
             }
         } // end loop over i
+
+        if PRINT {
+            let mut delta = 0;
+            for (idx, d) in f_delta.iter().enumerate() {
+                if delta != d.0 {
+                    delta = d.0;
+                    eprintln!("Delta {idx:>6} => {delta:>5}");
+                }
+            }
+        }
 
         // eprintln!("TRACE..");
         let dist = fronts.last_front().get(self.b.len() as I).unwrap();
