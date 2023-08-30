@@ -1103,7 +1103,12 @@ impl BitFronts {
         loop {
             let ng = g + 1;
             // Init next front
-            for fe in &mut fronts[index(ng, d_range.0 - 1)..=index(ng, d_range.1 + 1)] {
+
+            let end_idx = index(ng, d_range.1 + 1);
+            if fronts.len() <= end_idx {
+                fronts.resize(end_idx + 1, FrontElem::default());
+            }
+            for fe in &mut fronts[index(ng, d_range.0 - 1)..=end_idx] {
                 fe.reset();
             }
 
