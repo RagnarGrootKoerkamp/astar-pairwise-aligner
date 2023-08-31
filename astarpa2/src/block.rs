@@ -34,7 +34,7 @@ impl Default for Block {
         Self {
             v: vec![],
             i: 0,
-            j_range: JRange(-1, -1).round_out(),
+            j_range: JRange(-WI, -WI).round_out(),
             fixed_j_range: None,
             offset: 0,
             top_val: Cost::MAX,
@@ -64,40 +64,40 @@ impl Block {
     /// Get the value at the given index, by counting bits from the top or bottom.
     /// For `j` larger than the range, vertical deltas of `1` are assumed.
     pub fn index(&self, j: I) -> Cost {
-        let rounded = self.j_range.round_out();
+        let j_range = self.j_range;
         assert!(
-            rounded.0 <= j,
+            j_range.0 <= j,
             "Cannot index block {} with range {:?} by {}",
             self.i,
-            rounded,
+            j_range,
             j
         );
         // All of rounded must be indexable.
         assert!(
-            rounded.0 - self.offset >= 0,
+            j_range.0 - self.offset >= 0,
             "Offset too large: {} - {} = {}, jrange {:?}",
-            rounded.0,
+            j_range.0,
             self.offset,
-            rounded.0 - self.offset,
+            j_range.0 - self.offset,
             self.j_range
         );
         assert!(
-            rounded.1 - self.offset <= self.v.len() as I * WI,
+            j_range.1 - self.offset <= self.v.len() as I * WI,
             "v not long enough: {} - {} = {}, v len {}, jrange {:?}",
-            rounded.1,
+            j_range.1,
             self.offset,
-            rounded.1 - self.offset,
+            j_range.1 - self.offset,
             self.v.len() * W,
             self.j_range
         );
 
-        if j > rounded.1 {
-            return self.bot_val + (j - rounded.1) as Cost;
+        if j > j_range.1 {
+            return self.bot_val + (j - j_range.1) as Cost;
         }
-        if j - rounded.0 < rounded.1 - j {
+        if j - j_range.0 < j_range.1 - j {
             // go from top
             let mut val = self.top_val;
-            let mut j0 = rounded.0;
+            let mut j0 = j_range.0;
             while j0 + WI <= j {
                 val += self.v[(j0 - self.offset) as usize / W].value() as Cost;
                 j0 += WI;
@@ -106,7 +106,7 @@ impl Block {
         } else {
             // go from bottom
             let mut val = self.bot_val;
-            let mut j1 = rounded.1;
+            let mut j1 = j_range.1;
             while j1 - WI > j {
                 val -= self.v[(j1 - WI - self.offset) as usize / W].value() as Cost;
                 j1 -= WI;
@@ -118,9 +118,10 @@ impl Block {
         }
     }
 
+    /// Get the value at the given index, by counting bits from the top or bottom.
+    /// For `j` outside the range, `None` is returned.
     pub fn get(&self, j: I) -> Option<Cost> {
-        let rounded = self.j_range.round_out();
-        if j < rounded.0 || j > rounded.1 {
+        if j < self.j_range.0 || j > self.j_range.1 {
             return None;
         }
         Some(self.index(j))
@@ -146,9 +147,8 @@ impl Block {
             return;
         }
         let mut val = self.top_val;
-        let rounded = self.j_range.round_out();
-        for v in
-            &self.v[(rounded.0 - self.offset) as usize / W..(rounded.1 - self.offset) as usize / W]
+        for v in &self.v[(self.j_range.0 - self.offset) as usize / W
+            ..(self.j_range.1 - self.offset) as usize / W]
         {
             val += v.value();
         }

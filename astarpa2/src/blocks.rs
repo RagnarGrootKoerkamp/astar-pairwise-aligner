@@ -177,7 +177,7 @@ impl Blocks {
                 fixed_j_range: Some(initial_j_range.round_in()),
                 offset: 0,
                 top_val: 0,
-                bot_val: initial_j_range.round_out().1,
+                bot_val: initial_j_range.1,
                 j_h: None,
             }
         };
@@ -304,10 +304,10 @@ impl Blocks {
             // Old fixed range of next block.
             && let Some(next_fixed) = next_block.fixed_j_range
         {
-            let prev_fixed = prev_fixed.round_in();
-            let next_fixed = next_fixed.round_in();
+            let prev_fixed = prev_fixed;
+            let next_fixed = next_fixed;
             // New range of next block.
-            let new_range = j_range.round_out();
+            let new_range = j_range;
             // New j_h.
             // TODO: This is mutable and can be modified below to ensure
             // that the j_range before new_j_h has size a multiple of 8*W.
@@ -964,7 +964,7 @@ impl Blocks {
         );
         self.i_range.1 = i_range.1;
 
-        let j_range_rounded = j_range.round_out();
+        let j_range_rounded = j_range;
         let v_range = j_range_rounded.0 as usize / W..j_range_rounded.1 as usize / W;
 
         // Get top/bot values in the previous column for the new j_range_rounded.
@@ -1145,8 +1145,9 @@ fn initialize_next_v(prev_block: &Block, j_range: RoundedOutJRange, v: &mut Vec<
     // Make a 'working vector' with the correct range.
     v.resize(j_range.exclusive_len() as usize / W, V::one());
     // Copy the overlap from the last block.
-    let prev_rounded = prev_block.j_range.round_out();
-    for target_idx in (max(j_range.0, prev_rounded.0)..min(j_range.1, prev_rounded.1)).step_by(W) {
+    for target_idx in
+        (max(j_range.0, prev_block.j_range.0)..min(j_range.1, prev_block.j_range.1)).step_by(W)
+    {
         v[(target_idx - j_range.0) as usize / W] =
             prev_block.v[(target_idx - prev_block.offset) as usize / W];
     }
@@ -1162,19 +1163,17 @@ fn resize_v_with_fixed(
     new_j_range: RoundedOutJRange,
     v: &mut Vec<V>,
 ) {
-    // Simplifying assumption.
-    let new_rounded = new_j_range.round_out();
-    let fixed_rounded = next_block.fixed_j_range.unwrap().round_in();
+    let fixed = next_block.fixed_j_range.unwrap();
     assert!(
-        new_rounded.0 <= next_block.j_range.0 && next_block.j_range.1 <= new_rounded.1,
+        new_j_range.0 <= next_block.j_range.0 && next_block.j_range.1 <= new_j_range.1,
         "New range must contain old range. old: {:?} new: {:?}",
         next_block.j_range,
-        new_rounded
+        new_j_range
     );
     // 1. Resize the v array.
-    v.resize(new_rounded.exclusive_len() as usize / W, V::one());
+    v.resize(new_j_range.exclusive_len() as usize / W, V::one());
     let old_offset = next_block.offset;
-    let new_offset = new_rounded.0;
+    let new_offset = new_j_range.0;
 
     // 2. Move the fixed range for `next_block` to the right place.
     // NOTE: ALG:
@@ -1185,7 +1184,7 @@ fn resize_v_with_fixed(
     // these values are still guaranteed to be correct.
     let stored_h = next_block.j_h.unwrap();
     assert!(new_offset <= old_offset);
-    assert!(fixed_rounded.0 <= stored_h);
+    assert!(fixed.0 <= stored_h);
     // NOTE: Moving existing fixed values is done before overwriting the prefix and suffix with 1.
     if new_offset < old_offset {
         // eprintln!(
@@ -1193,18 +1192,18 @@ fn resize_v_with_fixed(
         //     fixed_rounded.0 / WI,
         //     stored_h / WI
         // );
-        for j in (fixed_rounded.0..stored_h).step_by(W).rev() {
+        for j in (fixed.0..stored_h).step_by(W).rev() {
             v[(j - new_offset) as usize / W] = v[(j - old_offset) as usize / W];
         }
     }
 
     // 3. Initialize the prefix and suffix with values from `prev_block`.
     // prefix: new.0..fixed.0
-    for j in (new_rounded.0..fixed_rounded.0).step_by(W) {
+    for j in (new_j_range.0..fixed.0).step_by(W) {
         v[(j - new_offset) as usize / W] = prev_block.v[(j - prev_block.offset) as usize / W];
     }
     // suffix: from old j_h to the end.
-    for j in (stored_h..new_rounded.1).step_by(W) {
+    for j in (stored_h..new_j_range.1).step_by(W) {
         v[(j - new_offset) as usize / W] = prev_block
             .v
             .get((j - prev_block.offset) as usize / W)
