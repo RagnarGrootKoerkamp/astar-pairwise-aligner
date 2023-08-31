@@ -78,7 +78,7 @@ impl Into<RangeInclusive<I>> for JRange {
 
 impl RoundedOutJRange {
     pub fn round_out(&self) -> Self {
-        *self
+        panic!("Already rounded out")
     }
     pub fn round_in(&self) -> RoundedInJRange {
         RoundedInJRange(self.0)
@@ -90,7 +90,7 @@ impl RoundedInJRange {
         RoundedOutJRange(self.0)
     }
     pub fn round_in(&self) -> Self {
-        *self
+        panic!("Already rounded in")
     }
 }
 
