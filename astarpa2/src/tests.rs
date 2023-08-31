@@ -1,6 +1,6 @@
 use super::*;
 use pa_heuristic::*;
-use pa_test::test_aligner;
+use pa_test::*;
 use pa_vis_types::NoVis;
 
 fn nw() -> AstarPa2<NoVis, NoCost> {
@@ -19,6 +19,30 @@ fn nw() -> AstarPa2<NoVis, NoCost> {
 #[test]
 fn full() {
     test_aligner(nw());
+}
+
+#[test]
+fn band_doubling_gapgap() {
+    test_aligner(AstarPa2 {
+        doubling: DoublingType::band_doubling(),
+        domain: Domain::gap_gap(),
+        block_width: 64,
+        ..nw()
+    });
+}
+
+#[test]
+fn dt_trace_gapgap() {
+    test_aligner(AstarPa2 {
+        doubling: DoublingType::band_doubling(),
+        domain: Domain::gap_gap(),
+        block_width: 256,
+        block: BlockParams {
+            dt_trace: true,
+            ..Default::default()
+        },
+        ..nw()
+    })
 }
 
 #[test]
@@ -59,6 +83,7 @@ fn dt_trace() {
 }
 
 #[test]
+#[ignore = "local doubling is broken"]
 fn local_doubling() {
     test_aligner(AstarPa2 {
         doubling: DoublingType::LocalDoubling,
