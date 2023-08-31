@@ -15,7 +15,7 @@ pub struct Block {
     pub j_range: RoundedOutJRange,
     /// The range of rows with `f(u) <= f_max`.
     /// Always rounded in (we underestimate fixed cells).
-    pub fixed_j_range: Option<RoundedInJRange>,
+    pub fixed_j_range: Option<JRange>,
 
     /// The `j` of the first element of `v`.
     /// Can be different from `j_range.0` when only a slice of the array corresponds to the `j_range`.
@@ -53,7 +53,7 @@ impl Block {
             i: 0,
             j_range,
             // In the first col, all computed values are correct directly.
-            fixed_j_range: Some(j_range.round_in()),
+            fixed_j_range: Some(*j_range),
             offset: 0,
             top_val: 0,
             bot_val: j_range.exclusive_len(),

@@ -129,7 +129,7 @@ impl Drop for Blocks {
         eprintln!();
         eprintln!("Num blocks: {cnt}");
         // FIXME: Hardcoded blocksize.
-        let num_blocks = self.a.len() / 256;
+        let num_blocks = max(self.a.len().div_ceil(256), 1);
         eprintln!("Total band: {}", total / num_blocks);
         eprintln!("Uniq. band: {}", self.unique_rows / num_blocks);
     }
@@ -174,7 +174,7 @@ impl Blocks {
                 v: vec![V::one(); self.b.len()],
                 i: 0,
                 j_range: initial_j_range,
-                fixed_j_range: Some(initial_j_range.round_in()),
+                fixed_j_range: Some(*initial_j_range),
                 offset: 0,
                 top_val: 0,
                 bot_val: initial_j_range.1,
@@ -304,8 +304,8 @@ impl Blocks {
             // Old fixed range of next block.
             && let Some(next_fixed) = next_block.fixed_j_range
         {
-            let prev_fixed = prev_fixed;
-            let next_fixed = next_fixed;
+            let prev_fixed = prev_fixed.round_in();
+            let next_fixed = next_fixed.round_in();
             // New range of next block.
             let new_range = j_range;
             // New j_h.
@@ -575,6 +575,9 @@ impl Blocks {
                         if self.blocks[self.last_block_idx].index(to.1) == g {
                             break;
                         }
+                        if j_range.0 == 0 {
+                            panic!("No trace found through block {i_range:?} {j_range:?}");
+                        }
                         // Pop all the computed blocks.
                         for _i in i_range.0..i_range.1 {
                             self.pop_last_block();
@@ -613,10 +616,10 @@ impl Blocks {
             self.blocks[self.last_block_idx].fixed_j_range = Some(JRange(
                 min(old.0, new.0),
                 max(old.1, new.1),
-            ).round_in());
+            ));
             // eprintln!("Update fixed_j_range to {:?}", self.blocks[self.last_block_idx].fixed_j_range);
         } else {
-            self.blocks[self.last_block_idx].fixed_j_range = fixed_j_range.map(|r| r.round_in());
+            self.blocks[self.last_block_idx].fixed_j_range = fixed_j_range;
         }
     }
 }

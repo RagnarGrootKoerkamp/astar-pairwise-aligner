@@ -131,9 +131,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 let JRange(mut fixed_start, mut fixed_end) = if i_range.1 == 0 {
                     JRange(-1, -1)
                 } else {
-                    *prev
-                        .fixed_j_range
-                        .as_deref()
+                    prev.fixed_j_range
                         .expect("With A* Domain, fixed_j_range should always be set.")
                 };
 
@@ -304,6 +302,9 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             } else {
                 1
             };
+        }
+        if DEBUG {
+            eprintln!("fixed_j_range for {i} {:?}", JRange(start, end));
         }
         Some(JRange(start, end))
     }
