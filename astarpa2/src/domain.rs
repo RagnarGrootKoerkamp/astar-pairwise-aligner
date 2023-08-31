@@ -92,7 +92,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         // Inclusive end column of the new block.
         let ie = i_range.1;
 
-        let range = match &self.domain {
+        let mut range = match &self.domain {
             Full => JRange(0, self.b.len() as I),
             GapStart => {
                 // range: the max number of diagonals we can move up/down from the start with cost f.
@@ -117,19 +117,16 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             }
             Astar(h) => {
                 // Get the range of rows with fixed states `f(u) <= f_max`.
-                let JRange(mut fixed_start, mut fixed_end) = if i_range.1 == 0 {
-                    JRange(-1, -1)
-                } else {
-                    prev.fixed_j_range
-                        .expect("With A* Domain, fixed_j_range should always be set.")
-                };
-
+                let JRange(mut fixed_start, mut fixed_end) = prev
+                    .fixed_j_range
+                    .expect("With A* Domain, fixed_j_range should always be set.");
                 if DEBUG {
                     eprintln!("j_range for {i_range:?}\t\told {old_range:?}\t\t fixed @ {is}\t {fixed_start}..{fixed_end}");
                 }
-
                 assert!(fixed_start <= fixed_end, "Fixed range must not be empty");
 
+                // Make sure we do not leave out states computed in previous iterations.
+                // The domain may never shrink!
                 if let Some(old_range) = old_range {
                     fixed_start = min(fixed_start, old_range.0);
                     fixed_end = max(fixed_end, old_range.1);
@@ -155,7 +152,6 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 // A lower bound of `f` values estimated from `gu`, valid for states `v` below the diagonal of `u`.
                 let mut f = |v: Pos| {
                     assert!(v.1 - u.1 >= v.0 - u.0);
-                    // eprintln!("f({})", v);
                     gu + AffineCost::unit().extend_cost(u, v) + h(v)
                 };
 
@@ -173,7 +169,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                         // Extend diagonally.
                         v += Pos(1, 1);
 
-                        // Check if cell below is out-of-reach.
+                        // Extend down while cell below is in-reach.
                         v.1 += 1;
                         while v.1 <= self.b.len() as I && f(v) <= f_max {
                             v.1 += 1;
@@ -183,22 +179,22 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 } else {
                     v += Pos(1, 1);
                     // ALG:
-                    // First go down by block size.
-                    // (This is important; f doesn't work or `v` above the diagonal of `u`.)
-                    // Then, go right, until in-scope using exponential steps.
-                    // Then down until out-of-scope.
-                    // Repeat.
-                    // In the end, go up to in-scope.
-                    // NOTE: We add a small additional buffer to prevent doing v.1 += 1 in the loop below.
+                    // First go down by block width, anticipating that extending diagonally will not increase f.
+                    // (This is important; f doesn't work for `v` above the diagonal of `u`.)
+                    // Then repeat:
+                    // - Go right until in-scope using exponential steps.
+                    // - Go down until out-of-scope using steps of size 8.
+                    // Finally, go up to in-scope.
+                    // NOTE: We start with a small additional buffer to prevent doing v.1 += 1 in the loop below.
                     v.1 += self.params.block_width + 8;
                     v.1 = min(v.1, self.b.len() as I);
                     while v.0 <= ie && v.1 < self.b.len() as I {
                         let fv = f(v);
                         if fv <= f_max {
-                            // TODO: Make this number larger. Outside the scope,
-                            // we can make bigger jumps.
-                            v.1 += 1;
+                            v.1 += 8;
                         } else {
+                            // By consistency of `f`, it can only change value by at most `2` per step in the unit cost setting.
+                            // When `f(v) > f_max`, this means we have to make at least `ceil((fv - f_max)/2)` steps to possibly get at a cell with `f(v) <= f_max`.
                             v.0 += (fv - f_max).div_ceil(2 * AffineCost::unit().min_del_extend);
                         }
                     }
@@ -228,6 +224,10 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 JRange(fixed_start, v.1)
             }
         };
+        // Size at least old_range.
+        if let Some(old_range) = old_range {
+            range = JRange(min(range.0, old_range.0), max(range.1, old_range.1));
+        }
         // crop
         JRange(max(range.0, 0), min(range.1, self.b.len() as I))
     }
@@ -264,6 +264,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         // We want f(v) <= f_max, so we can stop when f(u) - 2*(j - start) <= f_max, ie
         // j >= start + (f(u) - f_max) / 2
         // Thus, both for increasing `start` and decreasing `end`, we can jump ahead if the difference is too large.
+        // TODO: It may be sufficient to only compute this with rounded-to-64 precision.
         let mut start = block.j_range.0;
         let mut end = block.j_range.1;
         while start <= end {
@@ -272,7 +273,6 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 break;
             }
             start += if self.params.sparse_h {
-                // TODO: Increase by steps of 64.
                 (f - f_max).div_ceil(2 * AffineCost::unit().min_ins_extend)
             } else {
                 1
@@ -285,7 +285,6 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 break;
             }
             end -= if self.params.sparse_h {
-                // TODO: Decrease by steps of 64.
                 (f - f_max).div_ceil(2 * AffineCost::unit().min_ins_extend)
             } else {
                 1
@@ -301,7 +300,6 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
     /// Returns None if no path was found.
     /// It may happen that a path is found, but the cost is larger than s.
     /// In this case no cigar is returned.
-    /// TODO: Reuse blocks between iterations.
     pub fn align_for_bounded_dist(
         &mut self,
         f_max: Option<Cost>,
@@ -329,6 +327,8 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         };
 
         assert!(f_max.unwrap_or(0) >= 0);
+
+        // Set up initial block for column 0.
         let initial_j_range = self.j_range(
             IRange::first_col(),
             f_max,
@@ -338,7 +338,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         if initial_j_range.is_empty() {
             return None;
         }
-        // eprintln!("Bound: {f_max:?} {initial_j_range:?}");
+
         blocks.init(initial_j_range);
         blocks.set_last_block_fixed_j_range(Some(initial_j_range));
 
@@ -353,71 +353,80 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         let mut all_blocks_reused = true;
 
         for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
+            // The i_range of the new block.
             let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
-            let mut j_range = self.j_range(
+            // The j_range of the new block.
+            let j_range = self.j_range(
                 i_range,
                 f_max,
+                // The last block is needed to query `g(u)` in the last column.
                 blocks.last_block(),
+                // An existing `j_range` for a previous iteration may be
+                // present, in which case we ensure the `j_range` does not
+                // shrink.
                 blocks.next_block_j_range(),
             );
-            if j_range.is_empty() && blocks.next_block_j_range().is_none() {
-                // eprintln!("Empty range at i {i}");
+
+            if j_range.is_empty() {
+                assert!(blocks.next_block_j_range().is_none());
                 self.v.new_layer(self.domain.h());
                 return None;
             }
+
+            // If the new `j_range` is the same as the old one, and all previous
+            // blocks were reused, we can also reuse this new block.
             let mut reuse = false;
-            if let Some(old_j_range) = blocks.next_block_j_range() {
-                j_range = JRange(min(j_range.0, old_j_range.0), max(j_range.1, old_j_range.1));
-                // If this block doesn't grow, and previous blocks also didn't grow, reuse this block.
-                if all_blocks_reused && j_range == old_j_range {
-                    reuse = true;
-                }
+            if blocks.next_block_j_range() == Some(j_range) && all_blocks_reused {
+                reuse = true;
             }
             all_blocks_reused &= reuse;
+
+            // Store before appending a new block.
             let prev_fixed_j_range = blocks.last_block().fixed_j_range;
-            // eprintln!("{i}: Prev fixed range {prev_fixed_j_range:?}");
+
+            // Reuse or compute the next block.
             if reuse {
-                // eprintln!("{i}: Reuse block for {i_range:?} x {j_range:?}");
                 blocks.reuse_next_block(i_range, j_range);
             } else {
-                // eprintln!("{i}: compute block {i_range:?} {j_range:?}");
                 blocks.compute_next_block(i_range, j_range, &mut self.v);
                 if self.params.doubling == DoublingType::None {
                     self.v.new_layer(self.domain.h());
                 }
             }
-            // Compute the range of fixed states.
+
+            // Compute the new range of fixed states.
             let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, blocks.last_block());
+
+            // If there are not fixed states, break.
             if next_fixed_j_range.is_some_and(|r| r.is_empty()) {
-                // eprintln!("Empty range at i {i}");
                 self.v.new_layer(self.domain.h());
                 return None;
             }
             blocks.set_last_block_fixed_j_range(next_fixed_j_range);
 
-            // Prune matches in the fixed range.
+            // Prune matches in the intersection of the previous and next fixed range.
             if self.params.prune
                 && let Astar(h) = &mut self.domain
-                && let Some(prev_fixed_j_range) = prev_fixed_j_range
-                && let Some(next_fixed_j_range) = next_fixed_j_range
             {
-                let fixed_j_range = max(prev_fixed_j_range.0, next_fixed_j_range.0)..min(
+                let prev_fixed_j_range = prev_fixed_j_range.unwrap();
+                let next_fixed_j_range = next_fixed_j_range.unwrap();
+                let intersection = max(prev_fixed_j_range.0, next_fixed_j_range.0)..min(
                     prev_fixed_j_range.1,
                     next_fixed_j_range.1,
                 );
-                if !fixed_j_range.is_empty() {
-                    h.prune_block(i_range.0..i_range.1, fixed_j_range);
+                if !intersection.is_empty() {
+                    h.prune_block(i_range.0..i_range.1, intersection);
                 }
             }
-
-            // Only draw a new expanded block if the block was actually recomputed.
-            if !reuse {}
         }
+
         self.v.new_layer(self.domain.h());
 
         let Some(dist) = blocks.last_block().get(self.b.len() as I) else {
             return None;
         };
+
+        // If dist is at most the assumed bound, do a traceback.
         if trace && dist <= f_max.unwrap_or(I::MAX) {
             let cigar = blocks.trace(
                 self.a,
@@ -428,6 +437,9 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             );
             Some((dist, Some(cigar)))
         } else {
+            // NOTE: A distance is always returned, even if it is larger than
+            // the assumed bound, since this can be used as an upper bound on the
+            // distance in further iterations.
             Some((dist, None))
         }
     }

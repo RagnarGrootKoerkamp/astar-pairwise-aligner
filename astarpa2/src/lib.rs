@@ -100,18 +100,18 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
             }
             DoublingType::LinearSearch { start, delta } => {
                 let start_f = start.initial_values(a, b, h0).0;
-                let mut fronts = self.block.new(trace, a, b);
+                let mut blocks = self.block.new(trace, a, b);
                 band::linear_search(start_f, delta as Cost, |s| {
-                    nw.align_for_bounded_dist(Some(s), trace, Some(&mut fronts))
+                    nw.align_for_bounded_dist(Some(s), trace, Some(&mut blocks))
                         .map(|x @ (c, _)| (c, x))
                 })
                 .1
             }
             DoublingType::BandDoubling { start, factor } => {
                 let (start_f, start_increment) = start.initial_values(a, b, h0);
-                let mut fronts = self.block.new(trace, a, b);
+                let mut blocks = self.block.new(trace, a, b);
                 band::exponential_search(start_f, start_increment, factor, |s| {
-                    nw.align_for_bounded_dist(Some(s), trace, Some(&mut fronts))
+                    nw.align_for_bounded_dist(Some(s), trace, Some(&mut blocks))
                         .map(|x @ (c, _)| (c, x))
                 })
                 .1

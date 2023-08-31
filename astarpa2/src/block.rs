@@ -35,7 +35,7 @@ impl Default for Block {
             v: vec![],
             i: 0,
             j_range: JRange(-WI, -WI).round_out(),
-            fixed_j_range: None,
+            fixed_j_range: Some(JRange(-1, -1)),
             offset: 0,
             top_val: Cost::MAX,
             bot_val: Cost::MAX,
