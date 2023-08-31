@@ -46,6 +46,26 @@ fn dt_trace_gapgap() {
 }
 
 #[test]
+fn band_doubling_dijkstra() {
+    test_aligner(AstarPa2 {
+        doubling: DoublingType::band_doubling(),
+        domain: Domain::dijkstra(),
+        block_width: 64,
+        ..nw()
+    });
+}
+
+#[test]
+fn band_doubling_edlib() {
+    test_aligner(AstarPa2 {
+        doubling: DoublingType::band_doubling(),
+        domain: Domain::dist_gap(),
+        block_width: 64,
+        ..nw()
+    });
+}
+
+#[test]
 fn band_doubling() {
     test_aligner(AstarPa2 {
         doubling: DoublingType::band_doubling(),
@@ -80,6 +100,21 @@ fn dt_trace() {
         },
         ..nw()
     })
+}
+
+#[test]
+fn incremental_doubling() {
+    test_aligner(AstarPa2 {
+        doubling: DoublingType::band_doubling(),
+        domain: Domain::dist_gap(),
+        block_width: 64,
+        block: BlockParams {
+            dt_trace: true,
+            incremental_doubling: true,
+            ..Default::default()
+        },
+        ..nw()
+    });
 }
 
 #[test]
