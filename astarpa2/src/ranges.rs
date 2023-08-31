@@ -74,10 +74,6 @@ impl JRange {
     pub fn round_in(&self) -> RoundedInJRange {
         RoundedInJRange(JRange(self.0.next_multiple_of(WI), self.1 / WI * WI))
     }
-    /// v_range is the vertical exclusive range of height-W blocks to compute.
-    pub fn v_range(&self) -> Range<usize> {
-        (self.0 / WI) as usize..(self.1 / WI) as usize
-    }
 }
 
 impl RoundedOutJRange {
@@ -87,6 +83,13 @@ impl RoundedOutJRange {
     pub fn round_in(&self) -> RoundedInJRange {
         RoundedInJRange(self.0)
     }
+    pub fn intersection(self, other: Self) -> Self {
+        Self(JRange::intersection(self.0, other.0))
+    }
+    /// v_range is the vertical exclusive range of height-W blocks to compute.
+    pub fn v_range(&self) -> Range<usize> {
+        (self.0 .0 / WI) as usize..(self.0 .1 / WI) as usize
+    }
 }
 
 impl RoundedInJRange {
@@ -95,6 +98,10 @@ impl RoundedInJRange {
     }
     pub fn round_in(&self) -> Self {
         panic!("Already rounded in")
+    }
+    /// v_range is the vertical exclusive range of height-W blocks to compute.
+    pub fn v_range(&self) -> Range<usize> {
+        (self.0 .0 / WI) as usize..(self.0 .1 / WI) as usize
     }
 }
 

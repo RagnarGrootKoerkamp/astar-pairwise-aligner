@@ -73,6 +73,7 @@ fn band_doubling() {
             match_config: MatchConfig::exact(5),
             pruning: Pruning::disabled(),
         }),
+        block_width: 1,
         ..nw()
     });
 }

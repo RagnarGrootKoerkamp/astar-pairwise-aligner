@@ -323,7 +323,6 @@ impl Blocks {
                     && next_fixed.0 < old_j_h {
                         eprintln!("IC: {i_range:?} {j_range:?} old {:?} fixed {:?}", next_block.j_range, next_block.fixed_j_range);
                 init_v_with_overlap_preserve_fixed(prev_block, next_block, j_range, &mut v);
-                        assert!( j_range.0 == 0 );
 
                 assert!(new_range.0 <= next_fixed.0);
                 let v_range_0 = new_range.0 as usize / W..next_fixed.0 as usize / W;
@@ -1156,7 +1155,7 @@ fn init_v_with_overlap(prev_block: &Block, j_range: RoundedOutJRange, v: &mut Ve
     v.clear();
     v.resize(j_range.exclusive_len() as usize / W, V::one());
     // Copy the overlap from the last block.
-    for idx in JRange::intersection(*j_range, *prev_block.j_range).v_range() {
+    for idx in RoundedOutJRange::intersection(j_range, prev_block.j_range).v_range() {
         v[idx - (j_range.0 / WI) as usize] = prev_block.v[idx - (prev_block.offset / WI) as usize];
     }
 }
@@ -1168,21 +1167,27 @@ fn init_v_with_overlap(prev_block: &Block, j_range: RoundedOutJRange, v: &mut Ve
 /// Unlike `init_v_with_overlap`, this preserves the existing `fixed_j_range` of the block.
 fn init_v_with_overlap_preserve_fixed(
     prev_block: &Block,
-    next_block: &mut Block,
-    new_j_range: RoundedOutJRange,
+    next_block: &Block,
+    j_range: RoundedOutJRange,
     v: &mut Vec<V>,
 ) {
-    let fixed = next_block.fixed_j_range.unwrap();
-    assert!(
-        new_j_range.0 <= next_block.j_range.0 && next_block.j_range.1 <= new_j_range.1,
-        "New range must contain old range. old: {:?} new: {:?}",
-        next_block.j_range,
-        new_j_range
-    );
+    // Some simplifying assumptions.
+    assert!(next_block.offset == next_block.j_range.0);
+    assert!(prev_block.offset == prev_block.j_range.0);
+    assert!(j_range.contains_range(*next_block.j_range));
+
+    let prev_v_range = prev_block.j_range.v_range();
+    let old_v_range = next_block.j_range.v_range();
+    let v_range = j_range.v_range();
+    assert!(prev_v_range.start <= v_range.start);
+    assert!(v_range.start <= old_v_range.start);
+    let preserve = JRange(next_block.fixed_j_range.unwrap().0, next_block.j_h.unwrap())
+        .round_in()
+        .v_range();
+    assert!(!preserve.is_empty());
+
     // 1. Resize the v array.
-    v.resize(new_j_range.exclusive_len() as usize / W, V::one());
-    let old_offset = next_block.offset;
-    let new_offset = new_j_range.0;
+    v.resize(v_range.len(), V::one());
 
     // 2. Move the fixed range for `next_block` to the right place.
     // NOTE: ALG:
@@ -1191,32 +1196,25 @@ fn init_v_with_overlap_preserve_fixed(
     // That's OK though, since in this case, the end of the fixed range has
     // shrunk from the previous block. While that means some values there have f(u) > f_max,
     // these values are still guaranteed to be correct.
-    let stored_h = next_block.j_h.unwrap();
-    assert!(new_offset <= old_offset);
-    assert!(fixed.0 <= stored_h);
-    // NOTE: Moving existing fixed values is done before overwriting the prefix and suffix with 1.
-    if new_offset < old_offset {
-        // eprintln!(
-        //     "Copy over fixed range from {} to {}",
-        //     fixed_rounded.0 / WI,
-        //     stored_h / WI
-        // );
-        for j in (fixed.0..stored_h).step_by(W).rev() {
-            v[(j - new_offset) as usize / W] = v[(j - old_offset) as usize / W];
-        }
+    assert!(v_range.start <= old_v_range.start);
+    if v_range.start != old_v_range.start {
+        v.copy_within(
+            preserve.start - old_v_range.start..preserve.end - old_v_range.start,
+            preserve.start - v_range.start,
+        );
     }
 
-    // 3. Initialize the prefix and suffix with values from `prev_block`.
-    // prefix: new.0..fixed.0
-    for j in (new_j_range.0..fixed.0).step_by(W) {
-        v[(j - new_offset) as usize / W] = prev_block.v[(j - prev_block.offset) as usize / W];
-    }
-    // suffix: from old j_h to the end.
-    for j in (stored_h..new_j_range.1).step_by(W) {
-        v[(j - new_offset) as usize / W] = prev_block
-            .v
-            .get((j - prev_block.offset) as usize / W)
-            .copied()
-            .unwrap_or(V::one());
-    }
+    // 3. Copy the prefix and suffix with values from `prev_block`.
+    // prefix
+    v[..preserve.start - v_range.start].copy_from_slice(
+        &prev_block.v[v_range.start - prev_v_range.start..preserve.start - prev_v_range.start],
+    );
+    // suffix
+    let copy_end = min(v_range.end, prev_block.j_range.v_range().end);
+    v[preserve.end - v_range.start..copy_end - v_range.start].copy_from_slice(
+        &prev_block.v[preserve.end - prev_v_range.start..copy_end - prev_v_range.start],
+    );
+
+    // 4. Fill the remainder with 1s.
+    v[copy_end - v_range.start..].fill(V::one());
 }
