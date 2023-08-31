@@ -74,6 +74,10 @@ impl JRange {
     pub fn round_in(&self) -> RoundedInJRange {
         RoundedInJRange(JRange(self.0.next_multiple_of(WI), self.1 / WI * WI))
     }
+    pub fn assert_rounded(self) -> RoundedOutJRange {
+        assert!(self.0 % WI == 0 && self.1 % WI == 0);
+        RoundedOutJRange(self)
+    }
 }
 
 impl RoundedOutJRange {
