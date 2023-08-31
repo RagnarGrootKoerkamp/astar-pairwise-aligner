@@ -400,11 +400,12 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             }
             // Compute the range of fixed states.
             let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, blocks.last_block());
-            // if PRINT {
-            //     eprintln!("{i}: New fixed range {next_fixed_j_range:?}");
-            // }
+            if next_fixed_j_range.is_some_and(|r| r.is_empty()) {
+                // eprintln!("Empty range at i {i}");
+                self.v.new_layer(self.domain.h());
+                return None;
+            }
             blocks.set_last_block_fixed_j_range(next_fixed_j_range);
-            let next_fixed_j_range = blocks.last_block().fixed_j_range;
 
             // Prune matches in the fixed range.
             if self.params.prune
