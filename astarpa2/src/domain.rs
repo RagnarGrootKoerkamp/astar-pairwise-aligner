@@ -332,7 +332,10 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         let initial_j_range = self.j_range(
             IRange::first_col(),
             f_max,
-            &Block::default(), // unused
+            &Block {
+                fixed_j_range: Some(JRange(-1, -1)),
+                ..Block::default()
+            },
             blocks.next_block_j_range(),
         );
         if initial_j_range.is_empty() {
