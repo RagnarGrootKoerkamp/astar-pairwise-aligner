@@ -7,6 +7,7 @@ members = [
 
     "astarpa",
     "astarpa-c",
+    "astarpa2",
 
     "pa-vis",
 
