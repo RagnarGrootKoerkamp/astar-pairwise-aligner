@@ -1,5 +1,5 @@
 use pa_types::I;
-use std::ops::Deref;
+use std::ops::{Deref, Range};
 
 use crate::WI;
 
@@ -59,19 +59,24 @@ impl JRange {
     pub fn contains(&self, j: I) -> bool {
         self.0 <= j && j <= self.1
     }
+    pub fn contains_range(&self, other: Self) -> bool {
+        self.0 <= other.0 && other.1 <= self.1
+    }
     pub fn union(self, other: Self) -> Self {
         Self(self.0.min(other.0), self.1.max(other.1))
     }
     pub fn intersection(self, other: Self) -> Self {
         Self(self.0.max(other.0), self.1.min(other.1))
     }
-
     pub fn round_out(&self) -> RoundedOutJRange {
         RoundedOutJRange(JRange(self.0 / WI * WI, self.1.next_multiple_of(WI)))
     }
-
     pub fn round_in(&self) -> RoundedInJRange {
         RoundedInJRange(JRange(self.0.next_multiple_of(WI), self.1 / WI * WI))
+    }
+    /// v_range is the vertical exclusive range of height-W blocks to compute.
+    pub fn v_range(&self) -> Range<usize> {
+        (self.0 / WI) as usize..(self.1 / WI) as usize
     }
 }
 

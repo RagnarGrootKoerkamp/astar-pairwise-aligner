@@ -184,81 +184,84 @@ impl Blocks {
         }
     }
 
+    /// Remove the last block and update the i_range.
     pub fn pop_last_block(&mut self) {
         self.i_range.pop(self.blocks[self.last_block_idx].i_range);
         self.last_block_idx -= 1;
     }
 
+    /// The next block can be reused from an earlier iteration.
+    /// Simply increment the last_block_idx, update the i_range, and check that
+    /// the reused block indeed has the same ranges.
     pub fn reuse_next_block(&mut self, i_range: IRange, j_range: JRange) {
-        let j_range = j_range.round_out();
-        assert_eq!(self.i_range.1, i_range.0);
-        self.i_range.1 = i_range.1;
-
+        self.i_range.push(i_range);
         self.last_block_idx += 1;
-        assert!(self.last_block_idx < self.blocks.len());
-        let block = &mut self.blocks[self.last_block_idx];
-        assert!(block.i_range == i_range);
-        assert!(block.j_range == j_range);
+
+        let block = &mut self.blocks.get(self.last_block_idx).unwrap();
+        assert_eq!(block.i_range, i_range);
+        assert_eq!(block.j_range, j_range.round_out());
     }
 
+    /// The main function to compute the next block.
+    ///
+    /// Contains the implementation for incremental doubling (which is tedious
+    /// and needs to maintain a lot of indices).  Dispatches to various lower
+    /// level calls of `compute_columns` based on whether incremental doubling
+    /// is used and whether traceback is enabled.
     pub fn compute_next_block(
         &mut self,
         i_range: IRange,
-        mut j_range: JRange,
+        j_range: JRange,
         viz: &mut impl VisualizerInstance,
     ) {
-        // Ensure that the j_range only grows.
-        if let Some(next_block) = self.blocks.get(self.last_block_idx + 1) {
-            j_range = JRange(
-                min(j_range.0, next_block.j_range.0),
-                max(j_range.1, next_block.j_range.1),
-            );
+        let j_range = j_range.round_out();
 
+        if let Some(next_block) = self.blocks.get(self.last_block_idx + 1) {
+            assert!(
+                j_range.contains_range(*next_block.j_range),
+                "j_range must grow"
+            );
             self.unique_rows -= next_block.j_range.exclusive_len() as usize / W;
         }
-        let j_range = j_range.round_out();
 
         if self.trace && !self.params.sparse {
             // This is extracted to a separate function for reuse during traceback.
-            return self.fill_block(i_range, j_range, viz);
+            return self.fill_with_blocks(i_range, j_range, viz);
         }
 
-        assert_eq!(i_range.0, self.i_range.1);
-        self.i_range.1 = i_range.1;
+        self.i_range.push(i_range);
 
         if DEBUG {
             eprintln!("Compute block {:?} {:?}", i_range, j_range);
         }
-        let v_range = j_range.0 as usize / W..j_range.1 as usize / W;
+
+        let v_range = j_range.v_range();
         self.unique_rows += v_range.len();
+
         // Get top/bot values in the previous column for the new j_range.
-        let block = &mut self.blocks[self.last_block_idx];
-        let mut top_val = block.index(j_range.0);
-        let mut bot_val = block.index(j_range.1);
+        let mut prev_top_val = self.last_block().index(j_range.0);
+        let mut prev_bot_val = self.last_block().index(j_range.1);
 
         if !self.trace && !self.params.incremental_doubling {
             // Update the existing `v` vector in the single block.
-            top_val += i_range.len();
-            // Ugly rust workaround: have to take out the block and put it back it.
-            let mut v = std::mem::take(&mut block.v);
-            bot_val += compute_columns(
+            prev_top_val += i_range.len();
+            prev_bot_val += compute_columns(
                 self.params,
                 &self.a,
                 &self.b,
                 i_range,
                 v_range.clone(),
-                &mut v[v_range.clone().clone()],
+                &mut self.blocks[self.last_block_idx].v[v_range.clone().clone()],
                 &mut self.h,
                 &mut self.computed_rows,
                 HMode::None,
                 viz,
             );
             let next_block = &mut self.blocks[self.last_block_idx];
-            next_block.v = v;
             next_block.i_range = i_range;
             next_block.j_range = j_range;
-            next_block.top_val = top_val;
-            next_block.bot_val = bot_val;
+            next_block.top_val = prev_top_val;
+            next_block.bot_val = prev_bot_val;
             next_block.check_top_bot_val();
             return;
         }
@@ -284,8 +287,8 @@ impl Blocks {
 
         // Update the block properties.
         next_block.i_range = i_range;
-        next_block.bot_val = bot_val;
-        next_block.top_val = top_val + i_range.len();
+        next_block.bot_val = prev_bot_val;
+        next_block.top_val = prev_top_val + i_range.len();
 
         let mut v = std::mem::take(&mut next_block.v);
         // If no fixed_j_range was set, just compute everything.
@@ -316,10 +319,11 @@ impl Blocks {
             // Otherwise, do a 2-range split:
             // range 01: everything before the new j_h.    h is output.
             // range  2: from new j_h to end.              h is output.
-            let bottom_delta = if next_block.fixed_j_range.is_some()
-                    && let Some(old_j_h) = next_block.j_h
+            let bottom_delta = if let Some(old_j_h) = next_block.j_h
                     && next_fixed.0 < old_j_h {
-                resize_v_with_fixed(prev_block, next_block, j_range, &mut v);
+                        eprintln!("IC: {i_range:?} {j_range:?} old {:?} fixed {:?}", next_block.j_range, next_block.fixed_j_range);
+                init_v_with_overlap_preserve_fixed(prev_block, next_block, j_range, &mut v);
+                        assert!( j_range.0 == 0 );
 
                 assert!(new_range.0 <= next_fixed.0);
                 let v_range_0 = new_range.0 as usize / W..next_fixed.0 as usize / W;
@@ -367,7 +371,7 @@ impl Blocks {
                     viz
                 )
             } else {
-                initialize_next_v(prev_block, j_range, &mut v);
+                init_v_with_overlap(prev_block, j_range, &mut v);
                 assert!(new_range.0 <= new_j_h);
                 // Round new_j_h down to a multiple of 8*WI for better SIMD.
                 //new_j_h = new_range.0 + (new_j_h - new_range.0) / (8*WI) * (8*WI);
@@ -404,9 +408,10 @@ impl Blocks {
             next_block.offset = new_range.0;
 
             if cfg!(test) || DEBUG {
-                // Redo the computation without the fixed range and test if they give the same results.
+                // Test incremental doubling: Redo the computation without the
+                // fixed range and test if they give the same results.
                 let mut v2 = Vec::default();
-                initialize_next_v(prev_block, j_range, &mut v2);
+                init_v_with_overlap(prev_block, j_range, &mut v2);
                 let bottom_delta_2 = compute_columns(
                     self.params,
                     &self.a,
@@ -436,7 +441,7 @@ impl Blocks {
             bottom_delta
         } else {
             // Incremental doubling disabled; just compute the entire `j_range`.
-            initialize_next_v(prev_block, j_range, &mut v);
+            init_v_with_overlap(prev_block, j_range, &mut v);
             let bottom_delta = compute_columns(
                 self.params,
                 &self.a,
@@ -462,12 +467,12 @@ impl Blocks {
         //next_block.fixed_j_range = None;
     }
 
-    pub fn last_i(&self) -> I {
-        self.i_range.1
-    }
-
     pub fn last_block(&self) -> &Block {
         &self.blocks[self.last_block_idx]
+    }
+
+    pub fn last_block_mut(&mut self) -> &mut Block {
+        &mut self.blocks[self.last_block_idx]
     }
 
     pub fn next_block_j_range(&self) -> Option<JRange> {
@@ -568,7 +573,7 @@ impl Blocks {
                         if DEBUG {
                             eprintln!("Fill block {:?} {:?}", i_range, j_range);
                         }
-                        self.fill_block(i_range, j_range, viz);
+                        self.fill_with_blocks(i_range, j_range, viz);
                         if self.blocks[self.last_block_idx].index(to.1) == g {
                             break;
                         }
@@ -950,8 +955,8 @@ impl Blocks {
         }
     }
 
-    /// Iterate over columns `i_range` for `j_range`, storing a block per column.
-    fn fill_block(
+    /// Store a single block for each column in `i_range`.
+    fn fill_with_blocks(
         &mut self,
         i_range: IRange,
         j_range: RoundedOutJRange,
@@ -967,7 +972,7 @@ impl Blocks {
         assert!(IRange::consecutive(prev_block.i_range, i_range));
 
         let mut v = Vec::default();
-        initialize_next_v(prev_block, j_range_rounded, &mut v);
+        init_v_with_overlap(prev_block, j_range_rounded, &mut v);
 
         // 1. Push blocks for all upcoming columns.
         // 2. Take the vectors.
@@ -1062,6 +1067,19 @@ enum HMode {
     Output,
 }
 
+/// The main function to compute the right column of a block `i_range` x `v_range`.
+/// Uses `v_range` of `v` as input vertical differences on the left and updates it with vertical differences.
+/// Does some checks and logging and dispatches to (SIMD) functions in `pa_bitpacking`.
+///
+/// Returns the sum of vertical differences in the computed output column.
+///
+/// Can run in 4 modes regarding horizontal differences at the top/bottom of the block:
+/// - None: assume +1 differences on the top, do not output bottom differences.
+/// - Output: assume +1 differences on the top, output bottom differences.
+/// - Input: use given horizontal differences on the top, do not output bottom differences.
+/// - Update: use given horizontal differences on the top, and update them.
+///
+/// This is a free function to allow passing in mutable references.
 fn compute_columns(
     params: BlockParams,
     a: &[PA],
@@ -1079,21 +1097,19 @@ fn compute_columns(
         Pos(i_range.len(), v_range.len() as I * WI),
     );
 
-    // Do not count computed rows during traceback.
+    // Keep statistics on how many rows are computed at a time.
+    // Skipped during traceback.
     if i_range.len() > 1 {
+        eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
+
         if !(v_range.len() < computed_rows.len()) {
             computed_rows.resize(v_range.len() + 1, 0);
         }
         computed_rows[v_range.len()] += 1;
     }
 
-    if i_range.len() > 1 && (cfg!(test) || DEBUG) {
-        eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
-    }
-
     let run = |h, exact_end| {
         if params.simd {
-            // FIXME: Choose the optimal scalar function to use here.
             pa_bitpacking::simd::compute::<2, H, 4>(
                 &a[i_range.0 as usize..i_range.1 as usize],
                 &b[v_range],
@@ -1133,26 +1149,24 @@ fn compute_columns(
     }
 }
 
-/// Initialize the input vertical deltas for the given new range, by copying the overlap from the previous block.
-/// Takes `v` as a mutable reference, so memory can be reused.
-fn initialize_next_v(prev_block: &Block, j_range: RoundedOutJRange, v: &mut Vec<V>) {
+/// This prepares the `v` vector of vertical differences for a new block.
+///
+/// It copies the overlap with the previous block, and fills the rest with +1.
+fn init_v_with_overlap(prev_block: &Block, j_range: RoundedOutJRange, v: &mut Vec<V>) {
     v.clear();
-    // Make a 'working vector' with the correct range.
     v.resize(j_range.exclusive_len() as usize / W, V::one());
     // Copy the overlap from the last block.
-    for target_idx in
-        (max(j_range.0, prev_block.j_range.0)..min(j_range.1, prev_block.j_range.1)).step_by(W)
-    {
-        v[(target_idx - j_range.0) as usize / W] =
-            prev_block.v[(target_idx - prev_block.offset) as usize / W];
+    for idx in JRange::intersection(*j_range, *prev_block.j_range).v_range() {
+        v[idx - (j_range.0 / WI) as usize] = prev_block.v[idx - (prev_block.offset / WI) as usize];
     }
-    assert_eq!(v.len(), j_range.exclusive_len() as usize / W);
 }
 
-/// Resize the `v` array to the `new_j_range_rounded`.
-/// - Keep `new_block.fixed_j_range` intact.
-/// - Copy over the rest from the previous block.
-fn resize_v_with_fixed(
+/// This prepares the `v` vector of vertical differences for a new block.
+///
+/// It copies the overlap with the previous block, and fills the rest with +1.
+///
+/// Unlike `init_v_with_overlap`, this preserves the existing `fixed_j_range` of the block.
+fn init_v_with_overlap_preserve_fixed(
     prev_block: &Block,
     next_block: &mut Block,
     new_j_range: RoundedOutJRange,
