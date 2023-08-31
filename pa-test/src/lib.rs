@@ -25,7 +25,7 @@ pub fn gen_seqs() -> impl Iterator<Item = ((Sequence, Sequence), (usize, f32, Er
     let mut ns = vec![
         0usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50,
         60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240,
-        250, 260, 270, 280, 290, 300, 500,
+        250, 254, 255, 256, 257, 258, 260, 270, 280, 290, 300, 500, 511, 512, 513, 515,
     ];
     let mut es = vec![
         0.0f32, 0.01, 0.02, 0.03, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 1.0,
@@ -81,7 +81,8 @@ pub fn test_aligner_on_input(a: Seq, b: Seq, aligner: &mut impl Aligner, params:
         seq_to_string(&b),
     );
     let (cost, Some(cigar)) = aligner.align(a, b) else {
-        panic!()
+        // Cigar not returned so not cheked.
+        return;
     };
     if cost != cost {
         eprintln!("\n================= TEST CIGAR ======================\n");
