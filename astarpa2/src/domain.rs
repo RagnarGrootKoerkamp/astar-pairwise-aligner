@@ -42,7 +42,7 @@ pub struct AstarPa2Instance<'a, V: VisualizerT, H: Heuristic> {
 
 impl<V: VisualizerT, H: Heuristic> Aligner for AstarPa2<V, H> {
     fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
-        self.cost_or_align(a, b, true)
+        self.cost_or_align(a, b, self.trace)
     }
 }
 
