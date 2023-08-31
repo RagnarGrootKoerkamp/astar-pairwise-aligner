@@ -92,18 +92,13 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         // Inclusive end column of the new block.
         let ie = i_range.1;
 
-        match &self.domain {
+        let range = match &self.domain {
             Full => JRange(0, self.b.len() as I),
             GapStart => {
                 // range: the max number of diagonals we can move up/down from the start with cost f.
-                let range = JRange(
-                    -(AffineCost::unit().max_del_for_cost(f_max) as I),
-                    AffineCost::unit().max_ins_for_cost(f_max) as I,
-                );
-                // crop
                 JRange(
-                    max(is + 1 + range.0, 0),
-                    min(ie + range.1, self.b.len() as I),
+                    is + 1 + -(AffineCost::unit().max_del_for_cost(f_max) as I),
+                    ie + AffineCost::unit().max_ins_for_cost(f_max) as I,
                 )
             }
             GapGap => {
@@ -115,15 +110,9 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 let extra_diagonals =
                     s / (AffineCost::unit().min_ins_extend + AffineCost::unit().min_del_extend);
                 // NOTE: The range could be reduced slightly further by considering gap open costs.
-                let range = JRange(
-                    min(d, 0) - extra_diagonals as I,
-                    max(d, 0) + extra_diagonals as I,
-                );
-
-                // crop
                 JRange(
-                    max(is + 1 + range.0, 0),
-                    min(ie + range.1, self.b.len() as I),
+                    is + 1 + min(d, 0) - extra_diagonals as I,
+                    ie + max(d, 0) + extra_diagonals as I,
                 )
             }
             Astar(h) => {
@@ -139,10 +128,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                     eprintln!("j_range for {i_range:?}\t\told {old_range:?}\t\t fixed @ {is}\t {fixed_start}..{fixed_end}");
                 }
 
-                // Early return for empty range.
-                if fixed_start > fixed_end {
-                    return JRange(fixed_start, fixed_end);
-                }
+                assert!(fixed_start <= fixed_end, "Fixed range must not be empty");
 
                 if let Some(old_range) = old_range {
                     fixed_start = min(fixed_start, old_range.0);
@@ -182,7 +168,19 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 // Without further reasoning, we must evaluate `h` at least
                 // once per column.
 
-                if self.params.sparse_h {
+                if !self.params.sparse_h {
+                    while v.0 < ie {
+                        // Extend diagonally.
+                        v += Pos(1, 1);
+
+                        // Check if cell below is out-of-reach.
+                        v.1 += 1;
+                        while v.1 <= self.b.len() as I && f(v) <= f_max {
+                            v.1 += 1;
+                        }
+                        v.1 -= 1;
+                    }
+                } else {
                     v += Pos(1, 1);
                     // ALG:
                     // First go down by block size.
@@ -226,22 +224,12 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                             }
                         }
                     }
-                } else {
-                    while v.0 < ie {
-                        // Extend diagonally.
-                        v += Pos(1, 1);
-
-                        // Check if cell below is out-of-reach.
-                        v.1 += 1;
-                        while v.1 <= self.b.len() as I && f(v) <= f_max {
-                            v.1 += 1;
-                        }
-                        v.1 -= 1;
-                    }
                 }
-                JRange(max(fixed_start, 0), min(v.1, self.b.len() as I))
+                JRange(fixed_start, v.1)
             }
-        }
+        };
+        // crop
+        JRange(max(range.0, 0), min(range.1, self.b.len() as I))
     }
 
     /// Compute the j_range of `block` `i` with `f(u) <= f_max`.
