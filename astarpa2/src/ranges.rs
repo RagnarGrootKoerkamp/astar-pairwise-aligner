@@ -1,23 +1,23 @@
 use pa_types::I;
-use std::ops::{Deref, Range, RangeInclusive};
+use std::ops::Deref;
 
 use crate::WI;
 
 /// Left-exclusive range of columns to compute.
 /// (-1, 0): the first column
 /// (i, i+W): Compute column W given column i.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct IRange(pub I, pub I);
 
 /// Inclusive range of rows to compute.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct JRange(pub I, pub I);
 
 /// JRange that is guaranteed to be rounded out.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct RoundedOutJRange(JRange);
 /// JRange that is guaranteed to be rounded in.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct RoundedInJRange(JRange);
 
 impl IRange {
@@ -26,6 +26,23 @@ impl IRange {
     }
     pub fn len(&self) -> I {
         self.1 - self.0
+    }
+
+    pub fn push(&mut self, other: Self) {
+        assert!(self.1 == other.0);
+        self.1 = other.1;
+    }
+
+    pub fn pop(&mut self, other: Self) {
+        assert!(
+            self.1 == other.1,
+            "Can not pop range {other:?} from {self:?}"
+        );
+        self.1 = other.0;
+    }
+
+    pub fn consecutive(self, other: Self) -> bool {
+        self.1 == other.0
     }
 }
 
@@ -42,6 +59,12 @@ impl JRange {
     pub fn contains(&self, j: I) -> bool {
         self.0 <= j && j <= self.1
     }
+    pub fn union(self, other: Self) -> Self {
+        Self(self.0.min(other.0), self.1.max(other.1))
+    }
+    pub fn intersection(self, other: Self) -> Self {
+        Self(self.0.max(other.0), self.1.min(other.1))
+    }
 
     pub fn round_out(&self) -> RoundedOutJRange {
         RoundedOutJRange(JRange(self.0 / WI * WI, self.1.next_multiple_of(WI)))
@@ -49,30 +72,6 @@ impl JRange {
 
     pub fn round_in(&self) -> RoundedInJRange {
         RoundedInJRange(JRange(self.0.next_multiple_of(WI), self.1 / WI * WI))
-    }
-}
-
-impl From<Range<I>> for IRange {
-    fn from(r: Range<I>) -> Self {
-        Self(r.start, r.end)
-    }
-}
-
-impl Into<Range<I>> for IRange {
-    fn into(self) -> Range<I> {
-        self.0..self.1
-    }
-}
-
-impl From<RangeInclusive<I>> for JRange {
-    fn from(r: RangeInclusive<I>) -> Self {
-        Self(*r.start(), *r.end())
-    }
-}
-
-impl Into<RangeInclusive<I>> for JRange {
-    fn into(self) -> RangeInclusive<I> {
-        self.0..=self.1
     }
 }
 

@@ -226,10 +226,10 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         };
         // Size at least old_range.
         if let Some(old_range) = old_range {
-            range = JRange(min(range.0, old_range.0), max(range.1, old_range.1));
+            range = range.union(old_range);
         }
         // crop
-        JRange(max(range.0, 0), min(range.1, self.b.len() as I))
+        range.intersection(JRange(0, self.b.len() as I))
     }
 
     /// Compute the j_range of `block` `i` with `f(u) <= f_max`.
@@ -408,14 +408,9 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             if self.params.prune
                 && let Astar(h) = &mut self.domain
             {
-                let prev_fixed_j_range = prev_fixed_j_range.unwrap();
-                let next_fixed_j_range = next_fixed_j_range.unwrap();
-                let intersection = max(prev_fixed_j_range.0, next_fixed_j_range.0)..min(
-                    prev_fixed_j_range.1,
-                    next_fixed_j_range.1,
-                );
+                let intersection = JRange::intersection(prev_fixed_j_range.unwrap(), next_fixed_j_range.unwrap());
                 if !intersection.is_empty() {
-                    h.prune_block(i_range.0..i_range.1, intersection);
+                    h.prune_block(i_range.0..i_range.1, intersection.0..intersection.1);
                 }
             }
         }

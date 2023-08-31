@@ -111,6 +111,7 @@ impl BlockParams {
     }
 }
 
+/// Print some statistics.
 impl Drop for Blocks {
     fn drop(&mut self) {
         if !DEBUG {
@@ -155,13 +156,8 @@ impl Blocks {
         self.last_block_idx = 0;
         self.i_range = IRange(-1, 0);
 
-        // eprintln!("Init first block for {:?}", initial_j_range);
         if let Some(block) = self.blocks.get(0) {
-            initial_j_range = JRange(
-                min(block.j_range.0, initial_j_range.0),
-                max(block.j_range.1, initial_j_range.1),
-            );
-            // eprintln!("Upated initial range to {:?}", initial_j_range);
+            initial_j_range = initial_j_range.union(*block.j_range);
         }
         let initial_j_range = initial_j_range.round_out();
 
@@ -172,7 +168,7 @@ impl Blocks {
             // Block spanning the entire first column.
             Block {
                 v: vec![V::one(); self.b.len()],
-                i: 0,
+                i_range: IRange(-1, 0),
                 j_range: initial_j_range,
                 fixed_j_range: Some(*initial_j_range),
                 offset: 0,
@@ -186,14 +182,11 @@ impl Blocks {
         } else {
             self.blocks[0] = block;
         }
-        //self.computed_rows.fill(0);
     }
 
-    // TODO: Maybe we should at some point drop the unused blocks?
     pub fn pop_last_block(&mut self) {
-        assert!(self.i_range.1 == self.blocks[self.last_block_idx].i);
+        self.i_range.pop(self.blocks[self.last_block_idx].i_range);
         self.last_block_idx -= 1;
-        self.i_range.1 = self.blocks.get(self.last_block_idx).map_or(-1, |f| f.i);
     }
 
     pub fn reuse_next_block(&mut self, i_range: IRange, j_range: JRange) {
@@ -204,7 +197,7 @@ impl Blocks {
         self.last_block_idx += 1;
         assert!(self.last_block_idx < self.blocks.len());
         let block = &mut self.blocks[self.last_block_idx];
-        assert!(block.i == i_range.1);
+        assert!(block.i_range == i_range);
         assert!(block.j_range == j_range);
     }
 
@@ -262,7 +255,7 @@ impl Blocks {
             );
             let next_block = &mut self.blocks[self.last_block_idx];
             next_block.v = v;
-            next_block.i = i_range.1;
+            next_block.i_range = i_range;
             next_block.j_range = j_range;
             next_block.top_val = top_val;
             next_block.bot_val = bot_val;
@@ -280,9 +273,9 @@ impl Blocks {
         } else {
             let next_block = &mut self.blocks[self.last_block_idx + 1];
             assert_eq!(
-                next_block.i, i_range.1,
-                "Reused block for {} actually used to be for {}",
-                next_block.i, i_range.1
+                next_block.i_range, i_range,
+                "Reused block for {:?} actually used to be for {:?}",
+                next_block.i_range, i_range
             );
         };
 
@@ -290,7 +283,7 @@ impl Blocks {
         let [prev_block, next_block] = &mut self.blocks[self.last_block_idx..].split_array_mut().0;
 
         // Update the block properties.
-        next_block.i = i_range.1;
+        next_block.i_range = i_range;
         next_block.bot_val = bot_val;
         next_block.top_val = top_val + i_range.len();
 
@@ -494,7 +487,7 @@ impl Blocks {
         viz: &mut impl VisualizerInstance,
     ) -> Cigar {
         assert!(self.trace);
-        assert!(self.blocks.last().unwrap().i == to.0);
+        assert!(self.blocks.last().unwrap().i_range.1 == to.0);
         let mut cigar = Cigar { ops: vec![] };
         let mut g = self.blocks[self.last_block_idx].index(to.1);
 
@@ -511,11 +504,12 @@ impl Blocks {
 
         while to != from {
             // Remove blocks to the right of `to`.
-            while self.last_block_idx > 0 && self.blocks[self.last_block_idx - 1].i >= to.0 {
+            while self.last_block_idx > 0 && self.blocks[self.last_block_idx - 1].i_range.1 >= to.0
+            {
                 if DEBUG {
                     eprintln!(
-                        "to {to:?} Pop block at i={}",
-                        self.blocks[self.last_block_idx].i
+                        "to {to:?} Pop block at i={:?}",
+                        self.blocks[self.last_block_idx].i_range
                     );
                 }
                 self.pop_last_block();
@@ -524,7 +518,7 @@ impl Blocks {
             // Try a Diagonal Transition based traceback first which should be faster for small distances.
             if self.params.dt_trace && to.0 > 0 {
                 let prev_block = &self.blocks[self.last_block_idx - 1];
-                if prev_block.i < to.0 - 1 {
+                if prev_block.i_range.1 < to.0 - 1 {
                     dt_trace_tries += 1;
                     if let Some(new_to) = self.dt_trace_block(
                         a,
@@ -551,13 +545,16 @@ impl Blocks {
             if self.params.sparse && to.0 > 0 {
                 let block = &self.blocks[self.last_block_idx];
                 let prev_block = &self.blocks[self.last_block_idx - 1];
-                assert!(prev_block.i < to.0 && to.0 <= block.i);
+                assert!(prev_block.i_range.1 < to.0 && to.0 <= block.i_range.1);
                 // If the previous block is the correct one, no need for further recomputation.
-                if prev_block.i < to.0 - 1 || block.i > to.0 {
+                if prev_block.i_range.1 < to.0 - 1 || block.i_range.1 > to.0 {
                     if DEBUG {
-                        eprintln!("Expand previous block from {} to {}", prev_block.i, to.0);
+                        eprintln!(
+                            "Expand previous block from {:?} to {}",
+                            prev_block.i_range, to.0
+                        );
                     }
-                    let i_range = IRange(prev_block.i, to.0);
+                    let i_range = IRange(prev_block.i_range.1, to.0);
                     let j_range = JRange(block.j_range.0, to.1);
                     self.pop_last_block();
                     // NOTE: It's unlikely the full (large) `j_range` is needed to trace back through the current block.
@@ -718,9 +715,9 @@ impl Blocks {
     fn parent(&self, mut st: Pos, g: &mut Cost) -> (Pos, CigarElem) {
         let block = &self.blocks[self.last_block_idx];
         assert!(
-            block.i == st.0,
-            "Parent of state {st:?} but block.i is {}",
-            block.i
+            block.i_range.1 == st.0,
+            "Parent of state {st:?} but block.i is {:?}",
+            block.i_range
         );
 
         // Greedy matching.
@@ -756,7 +753,7 @@ impl Blocks {
         }
 
         let prev_block = &self.blocks[self.last_block_idx - 1];
-        assert!(prev_block.i == st.0 - 1);
+        assert!(prev_block.i_range.1 == st.0 - 1);
 
         // Horizontal delta (delete).
         let hd = *g - prev_block.index(st.1);
@@ -809,7 +806,7 @@ impl Blocks {
         //     "DT Trace from {st:?} with g={g_st} back to {}",
         //     prev_block.i
         // );
-        let block_start = prev_block.i;
+        let block_start = prev_block.i_range.1;
         // Returns true when `end_i` is reached.
         // The block stores the leftmost reachable column at distance g in diagonal d relative to st.
         // The element for (g,d) is at position g*g+g+d.
@@ -875,8 +872,8 @@ impl Blocks {
 
         // Extend up to the start of the previous block and check if the distance is correct.
         let extend_left_simd_and_check = |elem: &mut BlockElem, mut j: I, target_g: Cost| -> bool {
-            elem.ext += extend_left_simd(&mut elem.i, prev_block.i, &mut j, a, b);
-            *(&mut elem.i) == prev_block.i && prev_block.get(j) == Some(target_g)
+            elem.ext += extend_left_simd(&mut elem.i, prev_block.i_range.1, &mut j, a, b);
+            *(&mut elem.i) == prev_block.i_range.1 && prev_block.get(j) == Some(target_g)
         };
 
         if extend_left_simd_and_check(&mut blocks[0], st.1, 0) {
@@ -960,19 +957,14 @@ impl Blocks {
         j_range: RoundedOutJRange,
         viz: &mut impl VisualizerInstance,
     ) {
-        assert_eq!(
-            i_range.0, self.i_range.1,
-            "Current blocks range is {:?}. Computed range {i_range:?} does not fit!",
-            self.i_range
-        );
-        self.i_range.1 = i_range.1;
+        self.i_range.push(i_range);
 
         let j_range_rounded = j_range;
         let v_range = j_range_rounded.0 as usize / W..j_range_rounded.1 as usize / W;
 
         // Get top/bot values in the previous column for the new j_range_rounded.
         let prev_block = &self.blocks[self.last_block_idx];
-        assert!(prev_block.i == i_range.0);
+        assert!(IRange::consecutive(prev_block.i_range, i_range));
 
         let mut v = Vec::default();
         initialize_next_v(prev_block, j_range_rounded, &mut v);
@@ -986,7 +978,7 @@ impl Blocks {
         let mut next_block = Block {
             // Will be resized in fill().
             v: vec![],
-            i: i_range.0,
+            i_range: IRange(i_range.0, i_range.0),
             j_range,
             offset: j_range_rounded.0,
             fixed_j_range: None,
@@ -1001,7 +993,7 @@ impl Blocks {
         // 1.
         for i in i_range.0..i_range.1 {
             // Along the top row, horizontal deltas are 1.
-            next_block.i = i + 1;
+            next_block.i_range = IRange(i, i + 1);
             next_block.top_val += 1;
             self.last_block_idx += 1;
             if self.last_block_idx == self.blocks.len() {

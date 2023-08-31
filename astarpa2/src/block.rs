@@ -9,7 +9,7 @@ pub struct Block {
     /// The vertical differences at the end of block.
     pub v: Vec<V>,
     /// The column of this block.
-    pub i: I,
+    pub i_range: IRange,
     /// The range of rows to be computed.
     /// Always rounded out (we overdo the computation).
     pub j_range: RoundedOutJRange,
@@ -33,7 +33,7 @@ impl Default for Block {
     fn default() -> Self {
         Self {
             v: vec![],
-            i: 0,
+            i_range: IRange(-1, 0),
             j_range: JRange(-WI, -WI).round_out(),
             fixed_j_range: Some(JRange(-1, -1)),
             offset: 0,
@@ -50,7 +50,7 @@ impl Block {
         assert!(j_range.0 == 0);
         Self {
             v: vec![V::one(); j_range.exclusive_len() as usize / W],
-            i: 0,
+            i_range: IRange(-1, 0),
             j_range,
             // In the first col, all computed values are correct directly.
             fixed_j_range: Some(*j_range),
@@ -67,8 +67,8 @@ impl Block {
         let j_range = self.j_range;
         assert!(
             j_range.0 <= j,
-            "Cannot index block {} with range {:?} by {}",
-            self.i,
+            "Cannot index block {:?} with range {:?} by {}",
+            self.i_range,
             j_range,
             j
         );
