@@ -18,6 +18,7 @@ itertools.workspace = true
 num-traits = "0.2"
 pa-bitpacking = { version = "0.1.0", path = "../pa-bitpacking" }
 pa-vis = { workspace = true, optional = true }
+pa-test = { version = "0.1.0", path = "../pa-test" }
 
 [dev-dependencies]
 pa-generate.workspace = true

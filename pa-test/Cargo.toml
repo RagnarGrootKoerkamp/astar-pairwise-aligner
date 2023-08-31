@@ -1,0 +1,13 @@
+[package]
+name = "pa-test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+itertools.workspace = true
+pa-generate.workspace = true
+pa-types.workspace = true
+rand = "0.8.5"
+triple_accel = "0.4.0"

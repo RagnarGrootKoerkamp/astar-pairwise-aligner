@@ -3,6 +3,7 @@ members = [
     "pa-affine-types",
     "pa-heuristic",
     "pa-vis-types",
+    "pa-test",
 
     "astarpa",
     "astarpa-c",

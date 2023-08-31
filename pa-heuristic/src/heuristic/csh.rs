@@ -19,6 +19,8 @@ pub struct CSH<C: Contours> {
     c: PhantomData<C>,
 }
 
+pub type DefaultCSH = CSH<HintContours<RotateToFrontContour>>;
+
 impl CSH<HintContours<RotateToFrontContour>> {
     pub fn new(match_config: MatchConfig, pruning: Pruning) -> Self {
         Self {

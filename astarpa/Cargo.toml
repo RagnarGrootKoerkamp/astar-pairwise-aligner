@@ -24,6 +24,7 @@ rustc-hash = "1"
 num-traits = "0.2"
 derive_more = { version = "0.99", default-features = false, features = ["add_assign"] }
 smallvec = { version = "1", features = ["union"] }
+pa-test = { version = "0.1.0", path = "../pa-test" }
 
 [dev-dependencies]
 # For benchmarking only.

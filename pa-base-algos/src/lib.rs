@@ -11,8 +11,8 @@ pub mod cli;
 pub mod dt;
 pub mod nw;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 const PRINT: bool = false;
 
