@@ -22,33 +22,36 @@ use std::simd::{LaneCount, SupportedLaneCount};
 /// H and V are wrapper types to encode the horizontal and vertical differences
 /// using a + and - indicator bit.
 ///
-/// 20 operations.
+/// 20 operations, excluding `eq`.
 #[inline(always)]
 pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A, cb: &P::B) {
-    let eq = P::eq(ca, cb);
-    let (pv, mv) = v.pm();
-    let xv = eq | mv;
+    let eq = P::eq(ca, cb); // this one is not counted as an operation
+    let (vp, vm) = v.pm();
+    let vx = eq | vm;
+    // NOTE: This is not in Myers' original code because he assumes the input delta can never be -1.
     let eq = eq | h0.m();
     // The add here contains the 'folding' magic that makes this algorithm
     // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
-    let xh = (((eq & pv).wrapping_add(pv)) ^ pv) | eq;
-    let ph = mv | !(xh | pv);
-    let mh = pv & xh;
+    let hx = (((eq & vp).wrapping_add(vp)) ^ vp) | eq;
+    let hp = vm | !(hx | vp);
+    let hm = vp & hx;
     // Extract `hw` from `ph` and `mh`.
     // TODO: Use carry-bit from shit-left operation.
-    // TODO: Use 63-bit vectors to save some operations.
+    // - The problem with carry bits is that they block pipelining, hence
+    //   incurring a bit performance hit.
+    // TODO: Could we save ops with 63-bit vectors?
 
     // Push `hw` out of `ph` and `mh` and shift in `h0`.
     // NOTE: overflowing_add uses the carry bit, but is slow because reading the
     // carry bit right after this instruction interrupts pipelining.
     // NOTE: overflowing_shl returns whether the shift is too large, not the shifted out bit.
-    let phw = ph >> (W - 1);
-    let mhw = mh >> (W - 1);
-    let ph = (ph << 1) | h0.p();
-    let mh = (mh << 1) | h0.m();
+    let hpw = hp >> (W - 1);
+    let hmw = hm >> (W - 1);
+    let hp = (hp << 1) | h0.p();
+    let hm = (hm << 1) | h0.m();
 
-    *h0 = H::from(phw as B, mhw);
-    *v = V::from(mh | !(xv | ph), ph & xv);
+    *h0 = H::from(hpw as B, hmw);
+    *v = V::from(hm | !(vx | hp), hp & vx);
 }
 
 /// Simd version of `compute_block`.
@@ -56,33 +59,33 @@ pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A,
 /// This assumes HEncoding of `(u64,u64)`.
 #[inline(always)]
 pub fn compute_block_simd<const L: usize>(
-    ph0: &mut S<L>,
-    mh0: &mut S<L>,
-    pv: &mut S<L>,
-    mv: &mut S<L>,
+    hp0: &mut S<L>,
+    hm0: &mut S<L>,
+    vp: &mut S<L>,
+    vm: &mut S<L>,
     eq: S<L>,
 ) where
     LaneCount<L>: SupportedLaneCount,
 {
-    let xv = eq | *mv;
-    let eq = eq | *mh0;
+    let vx = eq | *vm;
+    let eq = eq | *hm0;
     // The add here contains the 'folding' magic that makes this algorithm
     // 'non-local' and prevents simple SIMDification. See Myers'99 for details.
-    let xh = (((eq & *pv) + *pv) ^ *pv) | eq;
-    let ph = *mv | !(xh | *pv);
-    let mh = *pv & xh;
+    let hx = (((eq & *vp) + *vp) ^ *vp) | eq;
+    let hp = *vm | !(hx | *vp);
+    let hm = *vp & hx;
     // Extract `hw` from `ph` and `mh`.
     let right_shift = S::splat(W as B - 1);
-    let phw = ph >> right_shift;
-    let mhw = mh >> right_shift;
+    let hpw = hp >> right_shift;
+    let hmw = hm >> right_shift;
 
     // Push `hw` out of `ph` and `mh` and shift in `h0`.
     let left_shift = S::splat(1);
-    let ph = (ph << left_shift) | *ph0;
-    let mh = (mh << left_shift) | *mh0;
+    let hp = (hp << left_shift) | *hp0;
+    let hm = (hm << left_shift) | *hm0;
 
-    *pv = mh | !(xv | ph);
-    *mv = ph & xv;
-    *ph0 = phw;
-    *mh0 = mhw;
+    *hp0 = hpw;
+    *hm0 = hmw;
+    *vp = hm | !(vx | hp);
+    *vm = hp & vx;
 }
