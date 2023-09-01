@@ -403,6 +403,7 @@ fn extend_left(i: &mut i32, i0: i32, j: &mut i32, a: &[u8], b: &[u8]) -> I {
 fn extend_left_simd(i: &mut i32, i0: i32, j: &mut i32, a: &[u8], b: &[u8]) -> I {
     let mut cnt = 0;
     // Do the first char manually to throw away some easy bad cases before going into SIMD.
+    // TODO: Compare performance.
     if *i > i0 && *j > 0 && a[*i as usize - 1] == b[*j as usize - 1] {
         *i -= 1;
         *j -= 1;
