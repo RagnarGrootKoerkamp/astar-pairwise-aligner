@@ -3,7 +3,7 @@ use std::cmp::min;
 use itertools::izip;
 use pa_types::Cost;
 
-use crate::{block, profile::Profile, HEncoding, V};
+use crate::{myers, profile::Profile, HEncoding, V};
 
 /// Compute a rectangle column by column.
 pub fn col<P: Profile, H: HEncoding>(a: &[P::A], b: &[P::B], h: &mut [H], v: &mut [V]) -> Cost {
@@ -11,7 +11,7 @@ pub fn col<P: Profile, H: HEncoding>(a: &[P::A], b: &[P::B], h: &mut [H], v: &mu
     assert_eq!(b.len(), v.len());
     for (ca, h) in izip!(a.iter(), h.iter_mut()) {
         for (cb, v) in izip!(b, v.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
     }
     h.iter().map(|h| h.value()).sum::<Cost>()
@@ -26,7 +26,7 @@ pub fn col_local_h<P: Profile, H: HEncoding>(a: &[P::A], b: &[P::B], v: &mut [V]
     for ca in a.iter() {
         let h = &mut H::one();
         for (cb, v) in izip!(b, v.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
         bot_delta += h.value();
     }
@@ -39,7 +39,7 @@ pub fn row<P: Profile, H: HEncoding>(a: &[P::A], b: &[P::B], h: &mut [H], v: &mu
     assert_eq!(b.len(), v.len());
     for (cb, v) in izip!(b, v.iter_mut()) {
         for (ca, h) in izip!(a.iter(), h.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
     }
     h.iter().map(|h| h.value()).sum::<Cost>()
@@ -67,7 +67,7 @@ pub fn diag_ru<P: Profile, H: HEncoding>(a: &[P::A], b: &[P::B], h: &mut [H], v:
         let h = &mut h[i];
         let v = &mut v[j];
         for (ca, cb, h, v) in izip!(a, b.iter().rev(), h, v.iter_mut().rev()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
     }
 
@@ -91,7 +91,7 @@ pub fn diag_ld<P: Profile, H: HEncoding>(a: &[P::A], b: &[P::B], h: &mut [H], v:
         let h = &mut h[i];
         let v = &mut v[j];
         for (ca, cb, h, v) in izip!(a, b.iter().rev(), h, v.iter_mut().rev()).rev() {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
     }
 
@@ -120,19 +120,19 @@ pub fn cols_ru<const N: usize, P: Profile, H: HEncoding>(
         // Do the top-left triangle.
         for i in 0..N {
             for j in 0..N - i - 1 {
-                block::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
+                myers::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
             }
         }
         // NOTE: array_windows_mut would be nice to avoid the manual index.
         for (j, cbs) in b.array_windows::<N>().enumerate() {
             for k in 0..N {
-                block::compute_block::<P, H>(&mut hs[k], &mut v[j + rev(k)], &cas[k], &cbs[rev(k)]);
+                myers::compute_block::<P, H>(&mut hs[k], &mut v[j + rev(k)], &cas[k], &cbs[rev(k)]);
             }
         }
         // Do the top-left triangle.
         for i in 0..N {
             for j in b.len() - i..b.len() {
-                block::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
+                myers::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
             }
         }
     }
@@ -142,7 +142,7 @@ pub fn cols_ru<const N: usize, P: Profile, H: HEncoding>(
     let h_chunks = h.array_chunks_mut::<N>();
     for (ca, h) in izip!(a_chunks.remainder(), h_chunks.into_remainder()) {
         for (cb, v) in izip!(b, v.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
     }
 
@@ -171,19 +171,19 @@ pub fn cols_ld<const N: usize, P: Profile, H: HEncoding>(
         // Do the top-left triangle.
         for i in 0..N {
             for j in 0..N - i - 1 {
-                block::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
+                myers::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
             }
         }
         // NOTE: array_windows_mut would be nice to avoid the manual index.
         for (j, cbs) in b.array_windows::<N>().enumerate() {
             for k in (0..N).rev() {
-                block::compute_block::<P, H>(&mut hs[k], &mut v[j + rev(k)], &cas[k], &cbs[rev(k)]);
+                myers::compute_block::<P, H>(&mut hs[k], &mut v[j + rev(k)], &cas[k], &cbs[rev(k)]);
             }
         }
         // Do the top-left triangle.
         for i in 0..N {
             for j in b.len() - i..b.len() {
-                block::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
+                myers::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
             }
         }
     }
@@ -193,7 +193,7 @@ pub fn cols_ld<const N: usize, P: Profile, H: HEncoding>(
     let h_chunks = h.array_chunks_mut::<N>();
     for (ca, h) in izip!(a_chunks.remainder(), h_chunks.into_remainder()) {
         for (cb, v) in izip!(b, v.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
     }
 
@@ -221,19 +221,19 @@ pub fn cols_ru_local_h<const N: usize, P: Profile, H: HEncoding>(
         // Do the top-left triangle.
         for i in 0..N {
             for j in 0..N - i - 1 {
-                block::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
+                myers::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
             }
         }
         // NOTE: array_windows_mut would be nice to avoid the manual index.
         for (j, cbs) in b.array_windows::<N>().enumerate() {
             for k in 0..N {
-                block::compute_block::<P, H>(&mut hs[k], &mut v[j + rev(k)], &cas[k], &cbs[rev(k)]);
+                myers::compute_block::<P, H>(&mut hs[k], &mut v[j + rev(k)], &cas[k], &cbs[rev(k)]);
             }
         }
         // Do the top-left triangle.
         for i in 0..N {
             for j in b.len() - i..b.len() {
-                block::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
+                myers::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
             }
         }
         bot_delta += hs.iter().map(|h| h.value()).sum::<Cost>()
@@ -243,7 +243,7 @@ pub fn cols_ru_local_h<const N: usize, P: Profile, H: HEncoding>(
     for ca in a.array_chunks::<N>().remainder() {
         let h = &mut H::one();
         for (cb, v) in izip!(b, v.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
         bot_delta += h.value();
     }
@@ -272,19 +272,19 @@ pub fn cols_ld_local_h<const N: usize, P: Profile, H: HEncoding>(
         // Do the top-left triangle.
         for i in 0..N {
             for j in 0..N - i - 1 {
-                block::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
+                myers::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
             }
         }
         // NOTE: array_windows_mut would be nice to avoid the manual index.
         for (j, cbs) in b.array_windows::<N>().enumerate() {
             for k in (0..N).rev() {
-                block::compute_block::<P, H>(&mut hs[k], &mut v[j + rev(k)], &cas[k], &cbs[rev(k)]);
+                myers::compute_block::<P, H>(&mut hs[k], &mut v[j + rev(k)], &cas[k], &cbs[rev(k)]);
             }
         }
         // Do the top-left triangle.
         for i in 0..N {
             for j in b.len() - i..b.len() {
-                block::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
+                myers::compute_block::<P, H>(&mut hs[i], &mut v[j], &cas[i], &b[j]);
             }
         }
         bot_delta += hs.iter().map(|h| h.value()).sum::<Cost>()
@@ -294,7 +294,7 @@ pub fn cols_ld_local_h<const N: usize, P: Profile, H: HEncoding>(
     for ca in a.array_chunks::<N>().remainder() {
         let h = &mut H::one();
         for (cb, v) in izip!(b, v.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
         bot_delta += h.value();
     }
@@ -323,19 +323,19 @@ pub fn rows_ru<const N: usize, P: Profile, H: HEncoding>(
         // Do the top-left triangle.
         for j in 0..N {
             for i in 0..N - j - 1 {
-                block::compute_block::<P, H>(&mut h[i], &mut vs[j], &a[i], &cbs[j]);
+                myers::compute_block::<P, H>(&mut h[i], &mut vs[j], &a[i], &cbs[j]);
             }
         }
         // NOTE: array_windows_mut would be nice to avoid the manual index.
         for (i, cas) in a.array_windows::<N>().enumerate() {
             for k in 0..N {
-                block::compute_block::<P, H>(&mut h[i + k], &mut vs[rev(k)], &cas[k], &cbs[rev(k)]);
+                myers::compute_block::<P, H>(&mut h[i + k], &mut vs[rev(k)], &cas[k], &cbs[rev(k)]);
             }
         }
         // Do the bot-right triangle.
         for j in 0..N {
             for i in a.len() - j..a.len() {
-                block::compute_block::<P, H>(&mut h[i], &mut vs[j], &a[i], &cbs[j]);
+                myers::compute_block::<P, H>(&mut h[i], &mut vs[j], &a[i], &cbs[j]);
             }
         }
     }
@@ -345,7 +345,7 @@ pub fn rows_ru<const N: usize, P: Profile, H: HEncoding>(
     let v_chunks = v.array_chunks_mut::<N>();
     for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
         for (ca, h) in izip!(a, h.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
     }
 
@@ -374,19 +374,19 @@ pub fn rows_ld<const N: usize, P: Profile, H: HEncoding>(
         // Do the top-left triangle.
         for j in 0..N {
             for i in 0..N - j - 1 {
-                block::compute_block::<P, H>(&mut h[i], &mut vs[j], &a[i], &cbs[j]);
+                myers::compute_block::<P, H>(&mut h[i], &mut vs[j], &a[i], &cbs[j]);
             }
         }
         // NOTE: array_windows_mut would be nice to avoid the manual index.
         for (i, cas) in a.array_windows::<N>().enumerate() {
             for k in (0..N).rev() {
-                block::compute_block::<P, H>(&mut h[i + k], &mut vs[rev(k)], &cas[k], &cbs[rev(k)]);
+                myers::compute_block::<P, H>(&mut h[i + k], &mut vs[rev(k)], &cas[k], &cbs[rev(k)]);
             }
         }
         // Do the top-left triangle.
         for j in 0..N {
             for i in a.len() - j..a.len() {
-                block::compute_block::<P, H>(&mut h[i], &mut vs[j], &a[i], &cbs[j]);
+                myers::compute_block::<P, H>(&mut h[i], &mut vs[j], &a[i], &cbs[j]);
             }
         }
     }
@@ -396,7 +396,7 @@ pub fn rows_ld<const N: usize, P: Profile, H: HEncoding>(
     let v_chunks = v.array_chunks_mut::<N>();
     for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
         for (ca, h) in izip!(a, h.iter_mut()) {
-            block::compute_block::<P, H>(h, v, ca, cb);
+            myers::compute_block::<P, H>(h, v, ca, cb);
         }
     }
 
@@ -419,7 +419,7 @@ pub fn fill<P: Profile, H: HEncoding>(
     }
     for i in 0..a.len() {
         for j in 0..b.len() {
-            block::compute_block::<P, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
+            myers::compute_block::<P, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
         }
         values[i].copy_from_slice(v);
     }

@@ -1,5 +1,5 @@
 //! The basic bitpacked algorithm from Myers'99.
-use crate::{HEncoding, Profile, B, S, V, W};
+use crate::{bitpal::compute_block_wrapper, HEncoding, Profile, B, S, V, W};
 use std::simd::{LaneCount, SupportedLaneCount};
 
 /// Implements Myers '99 bitpacking based algorithm. Terminology is as in the
@@ -25,7 +25,14 @@ use std::simd::{LaneCount, SupportedLaneCount};
 /// 20 operations, excluding `eq`.
 #[inline(always)]
 pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A, cb: &P::B) {
+    // let h0_in = &mut h0.clone();
+    // let v_in = &mut v.clone();
+    // let h0_copy = &mut h0.clone();
+    // let v_copy = &mut v.clone();
+
     let eq = P::eq(ca, cb); // this one is not counted as an operation
+                            // let eq_in = eq;
+
     let (vp, vm) = v.pm();
     let vx = eq | vm;
     // NOTE: This is not in Myers' original code because he assumes the input delta can never be -1.
@@ -52,6 +59,27 @@ pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A,
 
     *h0 = H::from(hpw as B, hmw);
     *v = V::from(hm | !(vx | hp), hp & vx);
+
+    // compute_block_wrapper::<P, H>(h0_copy, v_copy, ca, cb);
+
+    // if *v != *v_copy {
+    //     eprintln!("h : {}", h0_in.value());
+    //     eprintln!("vp: {:064b}", v_in.p());
+    //     eprintln!("vm: {:064b}", v_in.m());
+    //     eprintln!("eq: {:064b}", eq_in);
+    //     eprintln!("myers");
+    //     eprintln!("h : {}", h0.value());
+    //     eprintln!("vp: {:064b}", v.p());
+    //     eprintln!("vm: {:064b}", v.m());
+
+    //     eprintln!("bitpal");
+    //     eprintln!("h : {}", h0_copy.value());
+    //     eprintln!("vp: {:064b}", v_copy.p());
+    //     eprintln!("vm: {:064b}", v_copy.m());
+    //     assert_eq!(h0.p(), h0_copy.p());
+    //     assert_eq!(h0.m(), h0_copy.m());
+    //     assert_eq!(*v, *v_copy);
+    // }
 }
 
 /// Simd version of `compute_block`.

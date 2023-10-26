@@ -102,7 +102,7 @@ where
         }
         for i in 0..a.len() {
             for j in 0..b.len() {
-                block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
+                myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
             }
         }
         return h.iter().map(|h| h.value()).sum::<Cost>();
@@ -111,7 +111,7 @@ where
     // Prevent allocation of unzipped `a` in this case.
     if b.len() == 1 {
         for i in 0..a.len() {
-            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
+            myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
         }
         return h.iter().map(|h| h.value()).sum::<Cost>();
     }
@@ -158,7 +158,7 @@ where
             let (v2, v_rem) = v.split_array_mut::<1>();
             v = v_rem;
             for i in 0..a.len() {
-                block::compute_block::<BitProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);
+                myers::compute_block::<BitProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);
             }
         }
         assert!(b.len() == 0);
@@ -175,7 +175,7 @@ where
             0 => {}
             1 => {
                 for i in 0..a.len() {
-                    block::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
+                    myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
                 }
             }
             2 => {
@@ -225,7 +225,7 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     // Top-left triangle of block of rows.
     for j in 0..L * N {
         for i in 0..L * N - j {
-            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+            myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
         }
     }
 
@@ -265,7 +265,7 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
             *h.get_unchecked_mut(i) = H::from(pcarry, mcarry);
         }
         for k in 0..N {
-            block::compute_block_simd(
+            myers::compute_block_simd(
                 &mut ph_simd[k],
                 &mut mh_simd[k],
                 &mut pv_simd[k],
@@ -292,7 +292,7 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     // Bottom-right triangle of block of rows.
     for j in 0..L * N {
         for i in a.len() - j..a.len() {
-            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+            myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
         }
     }
 }
@@ -336,7 +336,7 @@ where
         }
         for i in 0..a.len() {
             for j in 0..b.len() {
-                block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
+                myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
             }
             values[i].copy_from_slice(v);
         }
@@ -346,7 +346,7 @@ where
     // Prevent allocation of unzipped `a` in this case.
     if b.len() == 1 {
         for i in 0..a.len() {
-            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
+            myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
             values[i].copy_from_slice(v);
         }
         return h.iter().map(|h| h.value()).sum::<Cost>();
@@ -398,7 +398,7 @@ where
             let (v2, v_rem) = v.split_array_mut::<1>();
             v = v_rem;
             for i in 0..a.len() {
-                block::compute_block::<BitProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);
+                myers::compute_block::<BitProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);
                 values[i][offset] = v2[0];
             }
             //offset += 1;
@@ -430,7 +430,7 @@ fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     // Top-left triangle of block of rows.
     for j in 0..L * N {
         for i in 0..L * N - j {
-            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+            myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
             values[i][offset + j] = v[j];
         }
     }
@@ -471,7 +471,7 @@ fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
             *h.get_unchecked_mut(i) = H::from(pcarry, mcarry);
         }
         for k in 0..N {
-            block::compute_block_simd(
+            myers::compute_block_simd(
                 &mut ph_simd[k],
                 &mut mh_simd[k],
                 &mut pv_simd[k],
@@ -501,7 +501,7 @@ fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     // Bottom-right triangle of block of rows.
     for j in 0..L * N {
         for i in a.len() - j..a.len() {
-            block::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+            myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
             values[i][offset + j] = v[j];
         }
     }
