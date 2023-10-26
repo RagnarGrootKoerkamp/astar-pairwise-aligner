@@ -19,7 +19,7 @@ lazy_static! {
 thread_local! {
     static SDL_CONTEXT: Sdl = sdl2::init().unwrap();
     static FONT: Font<'static, 'static> = 'font: {
-        for path in ["/usr/share/fonts/ttf/opensans-regular.ttf", "/usr/share/fonts/truetype/open-sans/OpenSans-Regular.ttf"] {
+        for path in ["/usr/share/fonts/TTF/OpenSans-Regular.ttf", "/usr/share/fonts/ttf/opensans-regular.ttf", "/usr/share/fonts/truetype/open-sans/OpenSans-Regular.ttf"] {
             if let Ok(font) = TTF_CONTEXT.load_font(path, 24) {
                 break 'font font;
             }
