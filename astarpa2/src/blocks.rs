@@ -32,6 +32,7 @@ type H = (B, B);
 pub struct BlockParams {
     /// When true, `trace` mode only stores the last column of each block, instead of all columns.
     /// `cost` mode always stores only the last column.
+    /// FIXME: REMOVE AND ALWAYS SET TO TRUE?
     pub sparse: bool,
     #[serde(default)]
     pub simd: bool,
@@ -622,7 +623,9 @@ fn compute_block(
     // Keep statistics on how many rows are computed at a time.
     // Skipped during traceback.
     if i_range.len() > 1 {
-        eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
+        if DEBUG | cfg!(test) {
+            eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
+        }
 
         if !(v_range.len() < computed_rows.len()) {
             computed_rows.resize(v_range.len() + 1, 0);
