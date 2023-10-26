@@ -81,10 +81,10 @@ pub fn test_aligner_on_input(a: Seq, b: Seq, aligner: &mut impl Aligner, params:
         seq_to_string(&b),
     );
     let (cost, Some(cigar)) = aligner.align(a, b) else {
-        // Cigar not returned so not cheked.
+        // Cigar not returned so not checked.
         return;
     };
-    if cost != cost {
+    if cost != aligner_cost {
         eprintln!("\n================= TEST CIGAR ======================\n");
         eprintln!(
             "{params}\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\ncigar: {}",
@@ -93,7 +93,7 @@ pub fn test_aligner_on_input(a: Seq, b: Seq, aligner: &mut impl Aligner, params:
             cigar.to_string(),
         );
     }
-    assert_eq!(cost, cost);
+    assert_eq!(cost, aligner_cost);
     cigar.verify(&CostModel::unit(), a, b);
 }
 
