@@ -28,6 +28,7 @@ pub enum HeuristicType {
     GapCost,
     /// Affine gap costs
     Affine,
+    MultipleAffine,
 }
 
 fn default_match_cost() -> MatchCost {
@@ -201,6 +202,7 @@ impl HeuristicParams {
                 pruning,
                 distance_function: AffineGapCost { k: self.k },
             }),
+            HeuristicType::MultipleAffine => f.call(AffineBruteGCSH::new(match_config, pruning)),
         }
     }
 }

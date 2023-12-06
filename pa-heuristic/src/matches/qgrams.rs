@@ -102,8 +102,8 @@ impl<'a> QGrams<'a> {
             .map(|i| Seed {
                 start: i as I,
                 end: i as I + k,
-                seed_potential: r,
-                seed_cost: r,
+                seed_potential: 2 * r,
+                seed_cost: 2 * r,
             })
             .collect()
     }

@@ -61,6 +61,18 @@ impl GCSH {
     }
 }
 
+pub struct AffineBruteGCSH;
+impl AffineBruteGCSH {
+    pub fn new(match_config: MatchConfig, pruning: Pruning) -> CSH<AffineBruteForceContours> {
+        CSH {
+            match_config,
+            pruning,
+            use_gap_cost: true,
+            c: PhantomData,
+        }
+    }
+}
+
 impl<C: Contours> CSH<C> {
     pub fn to_bruteforce_gcsh(&self) -> BruteForceGCSH<GapCost> {
         assert!(self.use_gap_cost);

@@ -60,7 +60,7 @@ fn hash_to_smallvec(
                     start,
                     end: start + Pos(k, k),
                     match_cost: 0,
-                    seed_potential: 1,
+                    seed_potential: 2,
                     pruned: MatchStatus::Active,
                 });
             }

@@ -32,15 +32,15 @@ impl Edge {
             Edge::Match => DtPos { diagonal, g },
             Edge::Substitution => DtPos {
                 diagonal,
-                g: g.checked_sub(1)?,
+                g: g.checked_sub(2)?,
             },
             Edge::Right => DtPos {
                 diagonal: diagonal - 1,
-                g: g.checked_sub(1)?,
+                g: g.checked_sub(2)?,
             },
             Edge::Down => DtPos {
                 diagonal: diagonal + 1,
-                g: g.checked_sub(1)?,
+                g: g.checked_sub(2)?,
             },
         })
     }
@@ -49,7 +49,7 @@ impl Edge {
         match self {
             Edge::Match => 0,
             Edge::None => panic!("Cost of None!"),
-            _ => 1,
+            _ => 2,
         }
     }
 

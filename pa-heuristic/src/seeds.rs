@@ -137,7 +137,7 @@ impl Seeds {
     #[inline]
     pub fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
         let p = self.potential(pos);
-        Pos(i - j - p, j - i - p)
+        Pos(2 * (i - j) - p, 2 * (j - i) - p)
     }
 
     /// Invert the transformation for GCSH.
@@ -147,7 +147,7 @@ impl Seeds {
         }
         let p = -(x + y) / 2;
         let i = self.start_of_potential[p as usize];
-        let diff = (x - y) / 2;
+        let diff = (x - y) / (2 * 2);
         let j = i - diff;
         debug_assert_eq!(pos, self.transform(Pos(i, j)));
         Pos(i, j)

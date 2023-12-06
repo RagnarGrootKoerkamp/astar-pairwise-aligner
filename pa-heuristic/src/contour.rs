@@ -1,8 +1,10 @@
+pub mod affine_bruteforce;
 pub mod bruteforce;
 pub mod hint_contours;
 pub mod rotate_to_front;
 pub mod sh_contours;
 
+pub use affine_bruteforce::*;
 pub use bruteforce::*;
 pub use hint_contours::*;
 

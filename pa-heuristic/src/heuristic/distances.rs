@@ -163,7 +163,7 @@ impl HeuristicInstance<'_> for GapCostI {
 }
 impl DistanceInstance<'_> for GapCostI {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
-        abs_diff(to.0 - from.0, to.1 - from.1) as Cost
+        2 * abs_diff(to.0 - from.0, to.1 - from.1) as Cost
     }
 }
 
