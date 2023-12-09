@@ -6,6 +6,8 @@ use crate::prelude::*;
 
 use super::*;
 
+const INDEL_COST: Cost = 10;
+
 // TODO: Can we get away with only one of these two traits?
 pub trait Distance: Heuristic + Default {
     // TODO: Provide default implementations for these.
@@ -163,7 +165,7 @@ impl HeuristicInstance<'_> for GapCostI {
 }
 impl DistanceInstance<'_> for GapCostI {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
-        2 * abs_diff(to.0 - from.0, to.1 - from.1) as Cost
+        INDEL_COST * abs_diff(to.0 - from.0, to.1 - from.1) as Cost
     }
 }
 

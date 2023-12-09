@@ -2,6 +2,9 @@
 use pa_types::*;
 use std::fmt::{Debug, Display};
 
+const INDEL_COST: Cost = 10;
+const SUB_COST: Cost = 9;
+
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Edge {
     // The root, or an unvisited state.
@@ -32,15 +35,15 @@ impl Edge {
             Edge::Match => DtPos { diagonal, g },
             Edge::Substitution => DtPos {
                 diagonal,
-                g: g.checked_sub(2)?,
+                g: g.checked_sub(SUB_COST)?,
             },
             Edge::Right => DtPos {
                 diagonal: diagonal - 1,
-                g: g.checked_sub(2)?,
+                g: g.checked_sub(INDEL_COST)?,
             },
             Edge::Down => DtPos {
                 diagonal: diagonal + 1,
-                g: g.checked_sub(2)?,
+                g: g.checked_sub(INDEL_COST)?,
             },
         })
     }
@@ -49,7 +52,8 @@ impl Edge {
         match self {
             Edge::Match => 0,
             Edge::None => panic!("Cost of None!"),
-            _ => 2,
+            Edge::Substitution => SUB_COST,
+            Edge::Right | Edge::Down => INDEL_COST,
         }
     }
 
