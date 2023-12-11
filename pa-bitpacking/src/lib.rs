@@ -30,8 +30,8 @@
     test
 )]
 
-pub mod block;
 mod encoding;
+pub mod myers;
 pub mod profile;
 pub mod scalar;
 pub mod simd;
