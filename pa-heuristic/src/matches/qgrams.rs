@@ -3,8 +3,8 @@ use itertools::izip;
 use super::*;
 use crate::prelude::*;
 
-const INDEL_COST: MatchCost = 10;
-const SUB_COST: MatchCost = 9;
+const INDEL_COST: MatchCost = 3;
+const SUB_COST: MatchCost = 2;
 
 // NOTE: This assumes an alphabet of 'ACGT'.
 pub struct QGrams<'a> {

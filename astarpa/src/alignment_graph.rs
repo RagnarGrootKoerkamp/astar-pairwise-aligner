@@ -2,8 +2,8 @@
 use pa_types::*;
 use std::fmt::{Debug, Display};
 
-const INDEL_COST: Cost = 10;
-const SUB_COST: Cost = 9;
+const INDEL_COST: Cost = 3;
+const SUB_COST: Cost = 2;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Edge {

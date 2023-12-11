@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 use super::*;
 
-const INDEL_COST: Cost = 10;
+const INDEL_COST: Cost = 3;
 
 // TODO: Can we get away with only one of these two traits?
 pub trait Distance: Heuristic + Default {
