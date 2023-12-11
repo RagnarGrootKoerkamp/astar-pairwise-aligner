@@ -30,7 +30,7 @@ pa-vis-types.workspace = true
 # Needed to correctly show pruned matches in visualizations.
 example = ["pa-heuristic/example"]
 # Visualizer features can be disabled.
-vis = ["dep:pa-vis"]
+vis = ["dep:pa-vis", "pa-vis/sdl"]
 default = ["vis"]
 
 [[example]]
