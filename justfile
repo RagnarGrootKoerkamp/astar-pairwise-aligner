@@ -5,3 +5,6 @@ codecoverage:
    grcov . --binary-path ./target/debug/deps/ -s . -t html --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o target/coverage
    rm *.profraw **/*.profraw
    open target/coverage/html/index.html
+
+visualize:
+   cargo run -r --example aligners_vis --features sdl
