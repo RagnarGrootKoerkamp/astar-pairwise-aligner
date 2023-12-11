@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
-#![feature(let_chains)]
+#![feature(let_chains, type_changing_struct_update)]
 use astarpa::{AstarPa, AstarStatsAligner};
 use bio::alignment::distance::simd::levenshtein;
 use pa_affine_types::AffineCost;
@@ -10,7 +10,7 @@ use pa_base_algos::{
     Domain,
 };
 use pa_generate::{generate_model, uniform_fixed, ErrorModel};
-use pa_heuristic::{Heuristic, MatchConfig, Prune, Pruning, CSH, GCSH};
+use pa_heuristic::{AffineBruteGCSH, Heuristic, MatchConfig, Prune, Pruning, CSH, GCSH};
 use pa_types::{seq_to_string, Aligner, Cost, CostModel, Pos, Sequence, I};
 use pa_vis::visualizer::{self, When};
 use pa_vis_types::{NoVis, VisualizerT};
@@ -21,7 +21,7 @@ use std::{
 
 #[allow(unused)]
 fn fuzz(aligner: &mut dyn Aligner) -> (Sequence, Sequence) {
-    for n in (640..).step_by(640) {
+    for n in (2..).step_by(1) {
         for r in 0..10 {
             for e in [0.05, 0.08, 0.1, 0.15, 0.2, 0.3, 0.4] {
                 for m in [
@@ -48,49 +48,32 @@ fn fuzz(aligner: &mut dyn Aligner) -> (Sequence, Sequence) {
 
 fn main() {
     let dt = false;
-    let k = 15;
-    let r = 2;
+    let k = 2;
+    let r = 1;
     let pruning = Prune::Start;
 
     let h = GCSH::new(MatchConfig::new(k, r), Pruning::new(pruning));
 
     let a = "TTGGGTCAATCAGCCAGTTTTTA".as_bytes();
     let b = "TTTGAGTGGGTCATCACCGATTTTAT".as_bytes();
-    let mut aligner = NW {
-        cm: AffineCost::unit(),
-        domain: Domain::Astar(h),
-        strategy: pa_base_algos::Strategy::BandDoubling {
-            start: pa_base_algos::DoublingStart::H0,
-            factor: 2.,
-        },
-        block_width: 64,
+    let aligner = &mut AstarPa {
+        dt: false,
+        h: AffineBruteGCSH::new(MatchConfig::new(2, 1), Pruning::disabled()),
         v: NoVis,
-        front: BitFront::default(),
-        trace: true,
-        sparse_h: true,
-        prune: true,
+        // v: visualizer::Config::new(visualizer::VisualizerStyle::Debug),
     };
-    let (ref a, ref b) = fuzz(&mut aligner);
-    //let (ref a, ref b) = uniform_fixed(40, 0.3);
+    let (ref a, ref b) = fuzz(aligner);
+    println!(
+        "\n\nSequences:\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n\n",
+        seq_to_string(a),
+        seq_to_string(b)
+    );
 
-    let a = "AGTTTTAT".as_bytes();
-    let b = "ACCGATTTTTA".as_bytes();
+    // let (ref a, ref b) = shrink(a, b, aligner, k);
 
-    //let (ref a, ref b) = shrink(a, b, aligner, k);
-
-    let mut aligner = NW {
-        cm: AffineCost::unit(),
-        domain: Domain::Astar(h),
-        strategy: pa_base_algos::Strategy::BandDoubling {
-            start: pa_base_algos::DoublingStart::H0,
-            factor: 2.,
-        },
-        block_width: 256,
+    let mut aligner = AstarPa {
         v: visualizer::Config::new(visualizer::VisualizerStyle::Debug),
-        front: BitFront::default(),
-        trace: true,
-        sparse_h: true,
-        prune: true,
+        ..*aligner
     };
     aligner.v.draw = When::All;
     //aligner.v.style.draw_heuristic = false;
@@ -105,12 +88,6 @@ fn shrink<A>(a: &[u8], b: &[u8], aligner: &mut A, k: i32) -> (Vec<u8>, Vec<u8>)
 where
     A: AstarStatsAligner + std::fmt::Debug,
 {
-    println!(
-        "\n\nShrinking sequences:\nlet a = \"{}\".as_bytes();\nlet b = \"{}\".as_bytes();\n\n",
-        seq_to_string(a),
-        seq_to_string(b)
-    );
-
     // True on success.
     let test = |start: I, end: I| {
         let Pos(n, m) = Pos::target(a, b);
