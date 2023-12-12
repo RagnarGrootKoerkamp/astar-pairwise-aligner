@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "pa-affine-constants",
     "pa-affine-types",
     "pa-heuristic",
     "pa-vis-types",
@@ -34,6 +35,7 @@ strip = false
 [workspace.dependencies]
 pa-types.git = "https://github.com/pairwise-alignment/pa-types"
 pa-generate.git = "https://github.com/pairwise-alignment/pa-generate"
+pa-affine-constants.path = "pa-affine-constants"
 pa-affine-types.path = "pa-affine-types"
 pa-heuristic.path = "pa-heuristic"
 pa-vis-types.path = "pa-vis-types"

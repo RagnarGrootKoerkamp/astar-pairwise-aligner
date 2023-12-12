@@ -168,19 +168,4 @@ mod edge_cases {
         let b = "GTCTCTCTTCTG".as_bytes();
         test_aligner_on_input(a, b, aligner, "");
     }
-
-    #[test]
-    fn indel_cost_in_transform() {
-        let aligner = &mut AstarPa {
-            dt: true,
-            h: AffineBruteGCSH::new(MatchConfig::new(2, 1), Pruning::start()),
-            v: NoVis,
-        };
-
-        let a = "TGGAACCCCATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTACGGTACCCCTTCTGCGATAGAGATGGT"
-            .as_bytes();
-        let b = "TTGGAACCCACATCGCAAATCACCCCACAGGTAACGTCATAACTACCGCATGGTTCGGGTACCCCTTCGTGCGATAGAGA"
-            .as_bytes();
-        test_aligner_on_input(a, b, aligner, "");
-    }
 }

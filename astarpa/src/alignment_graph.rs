@@ -1,9 +1,8 @@
 //! Types related to the pairwise alignment graph.
+use pa_affine_constants::{INDEL_COST, SUB_COST};
 use pa_types::*;
 use std::fmt::{Debug, Display};
 
-const INDEL_COST: Cost = 3;
-const SUB_COST: Cost = 2;
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Edge {
@@ -35,15 +34,15 @@ impl Edge {
             Edge::Match => DtPos { diagonal, g },
             Edge::Substitution => DtPos {
                 diagonal,
-                g: g.checked_sub(SUB_COST)?,
+                g: g.checked_sub(SUB_COST.with(|sub_cost| *sub_cost.borrow()))?,
             },
             Edge::Right => DtPos {
                 diagonal: diagonal - 1,
-                g: g.checked_sub(INDEL_COST)?,
+                g: g.checked_sub(INDEL_COST.with(|indel_cost| *indel_cost.borrow()))?,
             },
             Edge::Down => DtPos {
                 diagonal: diagonal + 1,
-                g: g.checked_sub(INDEL_COST)?,
+                g: g.checked_sub(INDEL_COST.with(|indel_cost| *indel_cost.borrow()))?,
             },
         })
     }
@@ -52,8 +51,8 @@ impl Edge {
         match self {
             Edge::Match => 0,
             Edge::None => panic!("Cost of None!"),
-            Edge::Substitution => SUB_COST,
-            Edge::Right | Edge::Down => INDEL_COST,
+            Edge::Substitution => SUB_COST.with(|sub_cost| *sub_cost.borrow()),
+            Edge::Right | Edge::Down => INDEL_COST.with(|indel_cost| *indel_cost.borrow()),
         }
     }
 

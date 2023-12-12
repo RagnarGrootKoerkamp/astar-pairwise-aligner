@@ -26,6 +26,8 @@
     extract_if
 )]
 
+#[cfg(test)]
+mod affine_tests;
 mod alignment_graph;
 mod astar;
 mod astar_dt;

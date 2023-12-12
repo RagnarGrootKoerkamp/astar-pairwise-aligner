@@ -11,6 +11,7 @@ readme = "README.org"
 categories = ["science"]
 
 [dependencies]
+pa-affine-constants.workspace = true
 pa-types.workspace = true
 pa-heuristic.workspace = true
 pa-vis-types.workspace = true

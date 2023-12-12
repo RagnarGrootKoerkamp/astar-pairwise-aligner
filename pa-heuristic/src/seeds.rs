@@ -2,8 +2,7 @@ use itertools::Itertools;
 
 use crate::prelude::*;
 
-const INDEL_COST: Cost = 3;
-const SUB_COST: Cost = 2;
+use pa_affine_constants::{INDEL_COST, SUB_COST};
 
 /// Type for the cost of a single match/mutation.
 pub type MatchCost = u8;
@@ -140,7 +139,14 @@ impl Seeds {
     #[inline]
     pub fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
         let p = self.potential(pos);
-        Pos(INDEL_COST * (i - j) - p, INDEL_COST * (j - i) - p)
+        INDEL_COST.with(|indel_cost| {
+            SUB_COST.with(|sub_cost| {
+                Pos(
+                    min(*indel_cost.borrow(), *sub_cost.borrow()) * (i - j) - p,
+                    min(*indel_cost.borrow(), *sub_cost.borrow()) * (j - i) - p,
+                )
+            })
+        })
     }
 
     /// Invert the transformation for GCSH.
@@ -150,7 +156,9 @@ impl Seeds {
         }
         let p = -(x + y) / 2;
         let i = self.start_of_potential[p as usize];
-        let diff = (x - y) / (INDEL_COST * 2);
+        let diff = INDEL_COST.with(|indel_cost| {
+            SUB_COST.with(|sub_cost| (x - y) / (min(*indel_cost.borrow(), *sub_cost.borrow()) * 2))
+        });
         let j = i - diff;
         debug_assert_eq!(pos, self.transform(Pos(i, j)));
         Pos(i, j)

@@ -99,6 +99,7 @@ dependencies = [
  "instant",
  "itertools 0.10.5",
  "num-traits",
+ "pa-affine-constants",
  "pa-generate",
  "pa-heuristic",
  "pa-test",
@@ -979,6 +980,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d5d9eb14b174ee9aa2ef96dc2b94637a2d4b6e7cb873c7e171f0c20c6cf3eac"
 
 [[package]]
+name = "pa-affine-constants"
+version = "0.1.0"
+dependencies = [
+ "pa-types",
+]
+
+[[package]]
 name = "pa-affine-types"
 version = "0.1.0"
 dependencies = [
@@ -1067,6 +1075,7 @@ dependencies = [
  "itertools 0.10.5",
  "lazy_static",
  "num-traits",
+ "pa-affine-constants",
  "pa-generate",
  "pa-types",
  "rand",
