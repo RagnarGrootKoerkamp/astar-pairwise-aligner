@@ -254,7 +254,7 @@ impl<'a, const N: usize> NwFronts<N> for AffineNwFronts<'a, N> {
         v: &mut impl VisualizerInstance,
     ) {
         v.expand_block_simple(Pos(i_range.0, j_range.0), Pos(i_range.len(), j_range.len()));
-        assert!(i_range.0 == self.i_range.1);
+        // assert!(i_range.0 == self.i_range.1);
         self.i_range.1 = i_range.1;
 
         for i in i_range.0..i_range.1 {

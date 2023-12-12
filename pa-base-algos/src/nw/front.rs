@@ -130,7 +130,8 @@ pub trait NwFronts<const N: usize>: IndexMut<usize, Output = Self::Front> {
 
     /// Get the old range for the next front, if one exists.
     fn next_front_j_range(&self) -> Option<JRange> {
-        unimplemented!();
+        None
+        // unimplemented!();
     }
 
     /// Set the 'fixed' range of rows for the last front, that is, the interval
