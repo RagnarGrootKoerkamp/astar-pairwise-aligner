@@ -6,6 +6,5 @@ codecoverage:
    rm *.profraw **/*.profraw
    open target/coverage/html/index.html
 
-
 vis:
-   cargo run -r --features sdl --example aligners_vis
+   cargo run -r --example aligners_vis --features sdl
