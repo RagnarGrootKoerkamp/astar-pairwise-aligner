@@ -187,10 +187,10 @@ impl<'a, const N: usize> AffineNwFronts<'a, N> {
                         && let Some(parent_cost) =
                             self.fronts[(st.i + di) as usize].get(new_layer, st.j + dj)
                         && cur_cost == parent_cost + cost
-                    {
-                        parent = Some(State::new(st.i + di, st.j + dj, new_layer));
-                        cigar_ops = ops;
-                    }
+                {
+                    parent = Some(State::new(st.i + di, st.j + dj, new_layer));
+                    cigar_ops = ops;
+                }
             },
         );
         Some((parent?, cigar_ops))

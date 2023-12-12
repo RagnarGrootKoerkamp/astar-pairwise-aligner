@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use astarpa::AstarPa;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
