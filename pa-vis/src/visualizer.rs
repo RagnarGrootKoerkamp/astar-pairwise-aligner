@@ -769,10 +769,11 @@ impl Visualizer {
 
         // Filter out non-target frames if only drawing a single frame.
         if let Some(target_frame) = self.config.draw_single_frame
-                && self.drawn_frame_number != target_frame {
-                self.drawn_frame_number += 1;
-                return;
-            }
+            && self.drawn_frame_number != target_frame
+        {
+            self.drawn_frame_number += 1;
+            return;
+        }
         self.drawn_frame_number += 1;
 
         // DRAW
@@ -792,12 +793,14 @@ impl Visualizer {
             );
 
             // Draw heuristic values.
-            if self.config.style.draw_heuristic && let Some(h) = h {
+            if self.config.style.draw_heuristic
+                && let Some(h) = h
+            {
                 let mut hint = Default::default();
-                let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0,0)));
+                let h_max = self.config.style.max_heuristic.unwrap_or(h.h(Pos(0, 0)));
                 let mut value_pos_map = HashMap::<I, Vec<Pos>>::default();
                 for i in 0..=self.target.0 {
-                    hint = h.h_with_hint(Pos(i,0), hint).1;
+                    hint = h.h_with_hint(Pos(i, 0), hint).1;
                     let mut hint = hint;
                     for j in 0..=self.target.1 {
                         let pos = Pos(i, j);
@@ -826,7 +829,9 @@ impl Visualizer {
             };
 
             // Draw parents
-            if self.config.style.draw_parents && let Some(h) = h {
+            if self.config.style.draw_parents
+                && let Some(h) = h
+            {
                 let mut parent_pos_map = HashMap::<Pos, Vec<Pos>>::default();
                 for i in 0..=self.target.0 {
                     for j in 0..=self.target.1 {
@@ -836,26 +841,28 @@ impl Visualizer {
                     }
                 }
 
-
                 for (_i, (parent, poss)) in parent_pos_map.iter().enumerate() {
                     self.draw_pixels(
                         &mut canvas,
                         poss,
-                        color_for_pos(parent)
-                        //self.config.style.heuristic.color(i as f64 / parent_pos_map.len() as f64),
+                        color_for_pos(parent), //self.config.style.heuristic.color(i as f64 / parent_pos_map.len() as f64),
                     );
                 }
             }
 
             // Draw layer values.
-            if self.config.style.draw_layers && let Some(h) = h {
-                if let Some((mut l_max, mut hint)) = h.layer_with_hint(Pos(0,0), Default::default()) {
+            if self.config.style.draw_layers
+                && let Some(h) = h
+            {
+                if let Some((mut l_max, mut hint)) =
+                    h.layer_with_hint(Pos(0, 0), Default::default())
+                {
                     if let Some(m) = self.config.style.max_layer {
                         l_max = m;
                     }
                     let mut value_pos_map = HashMap::<I, Vec<Pos>>::default();
                     for i in 0..=self.target.0 {
-                        hint = h.layer_with_hint(Pos(i,0), hint).unwrap().1;
+                        hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
                         let mut hint = hint;
                         for j in 0..=self.target.1 {
                             let pos = Pos(i, j);
@@ -868,7 +875,10 @@ impl Visualizer {
                         self.draw_pixels(
                             &mut canvas,
                             &poss,
-                            self.config.style.layer.color(l as f64 / max(l_max, 1) as f64),
+                            self.config
+                                .style
+                                .layer
+                                .color(l as f64 / max(l_max, 1) as f64),
                         );
                     }
                 }
@@ -889,15 +899,17 @@ impl Visualizer {
                     if *t == Type::Explored {
                         continue;
                     }
-                    if *t == Type::Extended && let Some(c) = self.config.style.extended {
+                    if *t == Type::Extended
+                        && let Some(c) = self.config.style.extended
+                    {
                         self.draw_pixel(&mut canvas, pos.pos(), c);
                         continue;
                     }
                     let color = self.config.style.expanded.color(
-                        if let Some(layer) = self.layer && layer != 0 {
-                            if current_layer > 0
-                                && i < self.expanded_layers[current_layer - 1]
-                            {
+                        if let Some(layer) = self.layer
+                            && layer != 0
+                        {
+                            if current_layer > 0 && i < self.expanded_layers[current_layer - 1] {
                                 current_layer -= 1;
                             }
                             current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
@@ -926,18 +938,22 @@ impl Visualizer {
                     if *t == Type::Explored {
                         continue;
                     }
-                    if *t == Type::Extended && let Some(c) = self.config.style.extended {
+                    if *t == Type::Extended
+                        && let Some(c) = self.config.style.extended
+                    {
                         self.draw_pixel(&mut canvas, pos.pos(), c);
                         continue;
                     }
                     let color = self.config.style.expanded.color(
-                        if let Some(layer) = self.layer && layer != 0 {
+                        if let Some(layer) = self.layer
+                            && layer != 0
+                        {
                             if current_layer < layer && i >= self.expanded_layers[current_layer] {
                                 current_layer += 1;
                             }
                             current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
                         } else {
-                                i as f64 / self.expanded.len() as f64
+                            i as f64 / self.expanded.len() as f64
                         },
                     );
                     match pos {
@@ -955,9 +971,47 @@ impl Visualizer {
                 }
             }
 
+            // Draw matches.
+            if self.config.style.draw_matches
+                && let Some(h) = h
+                && let Some(matches) = h.matches()
+            {
+                // first draw inexact matches, then exact ones on top.
+                for exact in [false, true] {
+                    for m in &matches {
+                        if (m.match_cost == 0) != exact {
+                            continue;
+                        }
+                        let mut b = self.cell_center(m.start);
+                        let shrink = min(
+                            self.config.style.match_shrink as i32,
+                            self.config.cell_size - 1,
+                        );
+                        b.0 += shrink;
+                        b.1 += shrink;
+                        let mut e = self.cell_center(m.end);
+                        e.0 -= shrink;
+                        e.1 -= shrink;
+                        let mut color = match m.pruned {
+                            MatchStatus::Active => self.config.style.active_match,
+                            MatchStatus::Pruned => self.config.style.pruned_match,
+                            MatchStatus::Filtered => self.config.style.filtered_match,
+                        };
+                        let width = self.config.style.match_width;
+                        if m.match_cost > 0 {
+                            if m.pruned == MatchStatus::Active {
+                                color = GRAY;
+                            }
+                        }
+                        Self::draw_diag_line(&mut canvas, b, e, color, width);
+                    }
+                }
+            }
+
             // Draw path.
-            if let Some(cigar) = cigar &&
-                let Some(path_color) = self.config.style.path {
+            if let Some(cigar) = cigar
+                && let Some(path_color) = self.config.style.path
+            {
                 if let Some(path_width) = self.config.style.path_width {
                     for (from, to) in cigar.to_path().iter().tuple_windows() {
                         Self::draw_diag_line(
@@ -975,43 +1029,6 @@ impl Visualizer {
                 }
             }
 
-            // Draw matches.
-            if self.config.style.draw_matches && let  Some(h) = h && let Some(matches) = h.matches() {
-                // first draw inexact matches, then exact ones on top.
-                for exact in [false, true] {
-                    for m in &matches {
-                        if (m.match_cost == 0) != exact {
-                            continue;
-                        }
-                        let mut b = self.cell_center(m.start);
-                        let shrink = min(self.config.style.match_shrink as i32, self.config.cell_size -1);
-                        b.0 += shrink;
-                        b.1 += shrink;
-                        let mut e = self.cell_center(m.end);
-                        e.0 -= shrink;
-                        e.1 -= shrink;
-                        let mut color = match m.pruned {
-                                MatchStatus::Active => self.config.style.active_match,
-                                MatchStatus::Pruned => self.config.style.pruned_match,
-                                MatchStatus::Filtered => self.config.style.filtered_match,
-                            };
-                        let mut width = self.config.style.match_width;
-                        if m.match_cost > 0 {
-                            if m.pruned == MatchStatus::Active {
-                                color = GRAY;
-                            }
-                            width = max(1, width-1);
-                        }
-                        Self::draw_diag_line(
-                            &mut canvas,
-                            b, e,
-                            color,
-                            width,
-                        );
-                    }
-                }
-            }
-
             // Draw h calls.
             if self.config.style.draw_h_calls {
                 for &p in &self.h_calls {
@@ -1020,20 +1037,28 @@ impl Visualizer {
             }
 
             // Draw contours.
-            if self.config.style.draw_contours && let Some(h) = h && h.layer(Pos(0,0)).is_some() {
+            if self.config.style.draw_contours
+                && let Some(h) = h
+                && h.layer(Pos(0, 0)).is_some()
+            {
                 let draw_right_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
-                    canvas
-                        .draw_line(self.cell_begin(Pos(i + 1, j)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
+                    canvas.draw_line(
+                        self.cell_begin(Pos(i + 1, j)),
+                        self.cell_begin(Pos(i + 1, j + 1)),
+                        self.config.style.contour,
+                    );
                 };
                 let draw_bottom_border = |canvas: &mut CanvasBox, Pos(i, j): Pos| {
-                    canvas
-                        .draw_line(self.cell_begin(Pos(i, j + 1)), self.cell_begin(Pos(i + 1, j + 1)), self.config.style.contour);
+                    canvas.draw_line(
+                        self.cell_begin(Pos(i, j + 1)),
+                        self.cell_begin(Pos(i + 1, j + 1)),
+                        self.config.style.contour,
+                    );
                 };
-
 
                 // Right borders
                 let mut hint = Default::default();
-                let mut top_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                let mut top_borders = vec![(0, h.layer(Pos(0, 0)).unwrap())];
                 for i in 0..self.target.0 {
                     hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
                     let mut hint = hint;
@@ -1048,16 +1073,16 @@ impl Visualizer {
                             draw_right_border(&mut canvas, pos);
 
                             if j == 0 {
-                                top_borders.push((i+1, v_r));
+                                top_borders.push((i + 1, v_r));
                             }
                         }
                     }
                 }
-                top_borders.push((self.target.0+1, 0));
+                top_borders.push((self.target.0 + 1, 0));
 
                 // Bottom borders
                 let mut hint = Default::default();
-                let mut left_borders = vec![(0, h.layer(Pos(0,0)).unwrap())];
+                let mut left_borders = vec![(0, h.layer(Pos(0, 0)).unwrap())];
                 for i in 0..=self.target.0 {
                     hint = h.layer_with_hint(Pos(i, 0), hint).unwrap().1;
                     let mut hint = hint;
@@ -1072,7 +1097,7 @@ impl Visualizer {
                             draw_bottom_border(&mut canvas, pos);
 
                             if i == 0 {
-                                left_borders.push((j+1, v_l));
+                                left_borders.push((j + 1, v_l));
                             }
                         }
                     }
@@ -1081,19 +1106,37 @@ impl Visualizer {
 
                 // Draw numbers at the top and left.
                 for (&(_left, layer), &(right, _)) in top_borders.iter().tuple_windows() {
-                    if right < 3 { continue; }
-                    let x = (right * self.config.cell_size -1 ).saturating_sub(1);
-                    canvas.write_text(CPos(x as i32, -6), HAlign::Right, VAlign::Top, &layer.to_string(), BLACK);
+                    if right < 3 {
+                        continue;
+                    }
+                    let x = (right * self.config.cell_size - 1).saturating_sub(1);
+                    canvas.write_text(
+                        CPos(x as i32, -6),
+                        HAlign::Right,
+                        VAlign::Top,
+                        &layer.to_string(),
+                        BLACK,
+                    );
                 }
-                for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows(){
-                    if bottom < 3 || bottom == self.target.1 { continue; }
-                    let y = bottom * self.config.cell_size +5;
-                    canvas.write_text(CPos(3, y as i32), HAlign::Left, VAlign::Bottom, &layer.to_string(), BLACK);
+                for (&(_top, layer), &(bottom, _)) in left_borders.iter().tuple_windows() {
+                    if bottom < 3 || bottom == self.target.1 {
+                        continue;
+                    }
+                    let y = bottom * self.config.cell_size + 5;
+                    canvas.write_text(
+                        CPos(3, y as i32),
+                        HAlign::Left,
+                        VAlign::Bottom,
+                        &layer.to_string(),
+                        BLACK,
+                    );
                 }
             }
 
             // Draw tree.
-            if let Some(parent) = parent && let Some(tree_color) = self.config.style.tree {
+            if let Some(parent) = parent
+                && let Some(tree_color) = self.config.style.tree
+            {
                 for (_t, u, _, _) in &self.expanded {
                     let u = u.pos();
                     if self.config.style.tree_fr_only {
@@ -1101,11 +1144,17 @@ impl Visualizer {
                         let mut v = u;
                         let mut skip = false;
                         loop {
-                            v = v + Pos(1,1);
+                            v = v + Pos(1, 1);
                             if !(v <= self.target) {
                                 break;
                             }
-                            if self.expanded.iter().filter(|(_, u, _, _)| u.pos() == v).count() > 0 {
+                            if self
+                                .expanded
+                                .iter()
+                                .filter(|(_, u, _, _)| u.pos() == v)
+                                .count()
+                                > 0
+                            {
                                 skip = true;
                                 break;
                             }
@@ -1114,20 +1163,26 @@ impl Visualizer {
                             continue;
                         }
                     }
-                    let mut st = State{i: u.0, j: u.1, layer: None};
+                    let mut st = State {
+                        i: u.0,
+                        j: u.1,
+                        layer: None,
+                    };
                     let mut path = vec![];
-                    while let Some((p, op)) = parent(st){
+                    while let Some((p, op)) = parent(st) {
                         path.push((st, p, op));
                         let color = if let Some(AffineCigarOp::AffineOpen(_)) = op[1]
-                            && let Some(c) = self.config.style.tree_affine_open {
-                                c
-                            } else {
-                                match op[0].unwrap() {
-                                    AffineCigarOp::Match => self.config.style.tree_match,
-                                    AffineCigarOp::Sub => self.config.style.tree_substitution,
-                                    _ => None,
-                                }.unwrap_or(tree_color)
-                            };
+                            && let Some(c) = self.config.style.tree_affine_open
+                        {
+                            c
+                        } else {
+                            match op[0].unwrap() {
+                                AffineCigarOp::Match => self.config.style.tree_match,
+                                AffineCigarOp::Sub => self.config.style.tree_substitution,
+                                _ => None,
+                            }
+                            .unwrap_or(tree_color)
+                        };
                         Self::draw_diag_line(
                             &mut canvas,
                             self.cell_center(p.pos()),
@@ -1140,7 +1195,7 @@ impl Visualizer {
                     }
                     if let Some(c) = self.config.style.tree_direction_change {
                         let mut last = AffineCigarOp::Match;
-                        for &(u, p, op)  in path.iter().rev() {
+                        for &(u, p, op) in path.iter().rev() {
                             let op = op[0].unwrap();
                             match op {
                                 AffineCigarOp::Ins => {
@@ -1170,8 +1225,7 @@ impl Visualizer {
                                 AffineCigarOp::Sub => {
                                     last = op;
                                 }
-                                _ => {
-                                }
+                                _ => {}
                             }
                         }
                     }
@@ -1191,21 +1245,27 @@ impl Visualizer {
                     );
                     row += 1;
                 }
-                if let Some(params) = &self.params && !params.is_empty(){
+                if let Some(params) = &self.params
+                    && !params.is_empty()
+                {
                     canvas.write_text(
                         self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
                         VAlign::Top,
-                        params,(50, 50, 50, 0)
+                        params,
+                        (50, 50, 50, 0),
                     );
                     row += 1;
                 }
-                if let Some(comment) = &self.comment && !comment.is_empty(){
+                if let Some(comment) = &self.comment
+                    && !comment.is_empty()
+                {
                     canvas.write_text(
                         self.nw.start.right(self.nw.size.0 / 2).down(30 * row),
                         HAlign::Center,
                         VAlign::Top,
-                        comment,(50, 50, 50, 0)
+                        comment,
+                        (50, 50, 50, 0),
                     );
                     row += 1;
                 }
@@ -1426,34 +1486,35 @@ impl Visualizer {
             let mut current_layer = self.layer.unwrap_or(0);
             for (i, st) in self.expanded.iter().enumerate().rev() {
                 let color = self.config.style.expanded.color(
-                            if let Some(layer) = self.layer && layer != 0 {
-                                if current_layer > 0
-                                    && i < self.expanded_layers[current_layer - 1]
-                                {
-                                    current_layer -= 1;
-                                }
-                                current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                            } else {
-                                    i as f64 / self.expanded.len() as f64
-                            },
-                        );
+                    if let Some(layer) = self.layer
+                        && layer != 0
+                    {
+                        if current_layer > 0 && i < self.expanded_layers[current_layer - 1] {
+                            current_layer -= 1;
+                        }
+                        current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
+                    } else {
+                        i as f64 / self.expanded.len() as f64
+                    },
+                );
                 draw_state(&mut canvas, st, color);
             }
         } else {
             // Expanded
             let mut current_layer = 0;
             for (i, st) in self.expanded.iter().enumerate() {
-                let color =
-                        self.config.style.expanded.color(
-                            if let Some(layer) = self.layer && layer != 0 {
-                                if current_layer < layer && i >= self.expanded_layers[current_layer] {
-                                    current_layer += 1;
-                                }
-                                current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                            } else {
-                                    i as f64 / self.expanded.len() as f64
-                            },
-                        );
+                let color = self.config.style.expanded.color(
+                    if let Some(layer) = self.layer
+                        && layer != 0
+                    {
+                        if current_layer < layer && i >= self.expanded_layers[current_layer] {
+                            current_layer += 1;
+                        }
+                        current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
+                    } else {
+                        i as f64 / self.expanded.len() as f64
+                    },
+                );
                 draw_state(&mut canvas, st, color);
             }
         }
