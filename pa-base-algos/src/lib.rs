@@ -226,7 +226,7 @@ pub enum Strategy {
 impl Strategy {
     pub fn band_doubling() -> Strategy {
         Self::BandDoubling {
-            start: DoublingStart::Gap,
+            start: DoublingStart::H0,
             factor: 2.0,
         }
     }

@@ -288,13 +288,14 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
                 let x = self.cm.gap_cost(Pos(0, 0), Pos::target(a, b));
                 (x, x)
             }
-            crate::DoublingStart::H0 => (
-                nw.domain
-                    .h()
-                    .expect("DoublingStart::H0 requires an A* domain with heuristic.")
-                    .h(Pos(0, 0)),
-                1,
-            ),
+            crate::DoublingStart::H0 => match nw.domain {
+                Domain::Full => (0, 1),
+                Domain::GapStart | Domain::GapGap => {
+                    let x = self.cm.gap_cost(Pos(0, 0), Pos::target(a, b));
+                    (x, x)
+                }
+                Domain::Astar(_) => (nw.domain.h().unwrap().h(Pos(0, 0)), 1),
+            },
         };
         (start_f, max(start_increment, F::BLOCKSIZE))
     }
@@ -688,10 +689,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
         fronts: Option<&mut F::Fronts<'a>>,
     ) -> Option<(Cost, Option<AffineCigar>)> {
         // Update contours for any pending prunes.
-        if self.params.prune && let Domain::Astar(h) = &mut self.domain {
-            h.update_contours(Pos(0,0));
+        if self.params.prune
+            && let Domain::Astar(h) = &mut self.domain
+        {
+            h.update_contours(Pos(0, 0));
             if PRINT {
-                eprintln!("Test dist {} h0 {}", f_max.unwrap_or(0), h.h(Pos(0,0)));
+                eprintln!("Test dist {} h0 {}", f_max.unwrap_or(0), h.h(Pos(0, 0)));
             }
         }
 
@@ -783,10 +786,8 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 && let Some(prev_fixed_j_range) = prev_fixed_j_range
                 && let Some(next_fixed_j_range) = next_fixed_j_range
             {
-                let fixed_j_range = max(prev_fixed_j_range.0, next_fixed_j_range.0)..min(
-                    prev_fixed_j_range.1,
-                    next_fixed_j_range.1,
-                );
+                let fixed_j_range = max(prev_fixed_j_range.0, next_fixed_j_range.0)
+                    ..min(prev_fixed_j_range.1, next_fixed_j_range.1);
                 if !fixed_j_range.is_empty() {
                     h.prune_block(i_range.0..i_range.1, fixed_j_range);
                 }
