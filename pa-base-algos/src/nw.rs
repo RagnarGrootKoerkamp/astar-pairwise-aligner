@@ -333,7 +333,7 @@ impl<const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>> NW<N, V, H
                 .1
             }
         };
-        nw.v.last_frame::<NoCostI>(cigar.as_ref(), None, None);
+        nw.v.last_frame(cigar.as_ref(), None, nw.domain.h());
         assert!(h0 <= cost, "Heuristic at start {h0} > final cost {cost}.");
         (cost, cigar)
     }
