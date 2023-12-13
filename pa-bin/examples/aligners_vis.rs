@@ -3,13 +3,13 @@ use astarpa::AstarPa;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
-    nw::{AffineFront, NW},
+    nw::{AffineFront, BitFront, NW},
     Domain,
 };
 use pa_generate::uniform_fixed;
 use pa_heuristic::{GapCost, MatchConfig, NoCost, Pruning, CSH, GCSH, SH};
 use pa_types::seq_to_string;
-use pa_vis::visualizer::{self, Gradient, When};
+use pa_vis::visualizer::{self, Config, Gradient, When};
 use std::{path::PathBuf, time::Duration};
 
 fn main() {
@@ -33,6 +33,12 @@ fn main() {
     config.style.draw_dt = false;
     config.style.draw_f = false;
     config.style.draw_labels = false;
+    config.style.draw_matches = true;
+    config.style.draw_contours = true;
+    config.style.draw_heuristic = false;
+    config.style.max_heuristic = Some(100);
+    config.style.heuristic = Gradient::Gradient((255, 255, 255, 255)..(100, 100, 100, 255));
+    config.style.match_width = 2;
     config.transparent_bmp = true;
     config.draw_old_on_top = true;
     config.clear_after_meeting_point = false;
@@ -47,9 +53,18 @@ fn main() {
         match_config: MatchConfig::exact(4),
         pruning: Pruning::disabled(),
     };
-    let csh = CSH::new(MatchConfig::exact(4), Pruning::disabled());
-    let gcsh = GCSH::new(MatchConfig::exact(4), Pruning::disabled());
+    let sh_prune = SH::new(MatchConfig::exact(4), Pruning::start());
+    let csh_prune = CSH::new(MatchConfig::exact(4), Pruning::start());
     let gcsh_prune = GCSH::new(MatchConfig::exact(4), Pruning::start());
+    let gcsh_prune_inexact = GCSH::new(MatchConfig::inexact(8), Pruning::start());
+    let gcsh_prune_local = GCSH::new(
+        MatchConfig {
+            length: pa_heuristic::LengthConfig::Fixed(4),
+            r: 1,
+            local_pruning: 1,
+        },
+        Pruning::start(),
+    );
 
     {
         let nw = NW {
@@ -65,7 +80,6 @@ fn main() {
         };
         nw.align(a, b);
     }
-
     {
         let aligner = AstarPa {
             dt: false,
@@ -74,7 +88,6 @@ fn main() {
         };
         aligner.align(a, b);
     }
-
     {
         let mut dt = DiagonalTransition::new(
             cm.clone(),
@@ -85,7 +98,6 @@ fn main() {
         );
         dt.align(a, b);
     }
-
     {
         let nw = NW {
             cm: cm.clone(),
@@ -100,7 +112,6 @@ fn main() {
         };
         nw.align(a, b);
     }
-
     {
         let nw = NW {
             cm: cm.clone(),
@@ -115,109 +126,11 @@ fn main() {
         };
         nw.align(a, b);
     }
-
-    // {
-    //     let nw = NW {
-    //         cm: cm.clone(),
-    //         strategy: pa_base_algos::Strategy::band_doubling(),
-    //         domain: Domain::dist_gap(),
-    //         block_width: 1,
-    //         v: vis("nw_gapcost_h"),
-    //         front: AffineFront,
-    //         trace: true,
-    //         sparse_h: false,
-    //         prune: false,
-    //     };
-
-    //     nw.align(a, b);
-    // }
-
-    // {
-    //     let nw = NW {
-    //         cm: cm.clone(),
-    //         strategy: pa_base_algos::Strategy::band_doubling(),
-    //         domain: Domain::astar(sh),
-    //         block_width: 1,
-    //         v: vis("nw_sh"),
-    //         front: AffineFront,
-    //         trace: true,
-    //         sparse_h: false,
-    //         prune: false,
-    //     };
-
-    //     nw.align(a, b);
-    // }
-
-    // {
-    //     let nw = NW {
-    //         cm: cm.clone(),
-    //         strategy: pa_base_algos::Strategy::band_doubling(),
-    //         domain: Domain::astar(csh),
-    //         block_width: 1,
-    //         v: vis("nw_csh"),
-    //         front: AffineFront,
-    //         trace: true,
-    //         sparse_h: false,
-    //         prune: false,
-    //     };
-
-    //     nw.align(a, b);
-    // }
-
-    {
-        let mut dt = DiagonalTransition::new(
-            cm.clone(),
-            GapCostHeuristic::Disable,
-            NoCost,
-            true,
-            vis("dt_dc"),
-        );
-        dt.align(a, b);
-    }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Enable,
-    //         NoCost,
-    //         false,
-    //         vis("dt_gapcost"),
-    //     );
-    //     dt.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Disable,
-    //         GapCost,
-    //         false,
-    //         vis("dt_gapcost_h"),
-    //     );
-    //     dt.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Disable,
-    //         sh,
-    //         false,
-    //         vis("dt_sh"),
-    //     );
-    //     dt.align(a, b);
-    // }
-
-    // {
-    //     let mut dt = DiagonalTransition::new(
-    //         cm.clone(),
-    //         GapCostHeuristic::Disable,
-    //         csh,
-    //         false,
-    //         vis("dt_csh"),
-    //     );
-    //     dt.align(a, b);
-    // }
+    config.style.draw_heuristic = true;
+    let mut vis = |name: &str| {
+        config.filepath = PathBuf::from("imgs/talk/").join(name);
+        config.clone()
+    };
     {
         let aligner = AstarPa {
             dt: false,
@@ -229,16 +142,16 @@ fn main() {
     {
         let aligner = AstarPa {
             dt: false,
-            h: csh,
-            v: vis("07-a*pa-csh"),
+            h: sh_prune,
+            v: vis("07-a*pa-sh-prune"),
         };
         aligner.align(a, b);
     }
     {
         let aligner = AstarPa {
             dt: false,
-            h: gcsh,
-            v: vis("08-a*pa-gcsh"),
+            h: csh_prune,
+            v: vis("08-a*pa-csh-prune"),
         };
         aligner.align(a, b);
     }
@@ -250,6 +163,11 @@ fn main() {
         };
         aligner.align(a, b);
     }
+    config.style.draw_contours = false;
+    let mut vis = |name: &str| {
+        config.filepath = PathBuf::from("imgs/talk/").join(name);
+        config.clone()
+    };
     {
         let aligner = AstarPa {
             dt: true,
@@ -258,20 +176,122 @@ fn main() {
         };
         aligner.align(a, b);
     }
+    {
+        let mut config = Config {
+            draw: When::All,
+            ..config.clone()
+        };
+        let mut vis = |name: &str| {
+            config.filepath = PathBuf::from("imgs/talk/").join(name);
+            config.clone()
+        };
+        let nw = NW {
+            cm: cm.clone(),
+            strategy: pa_base_algos::Strategy::BandDoubling {
+                start: pa_base_algos::DoublingStart::H0,
+                factor: 1.5,
+            },
+            domain: Domain::astar(gcsh_prune),
+            block_width: 1,
+            v: vis("11-nw-gcsh-prune"),
+            front: AffineFront,
+            trace: true,
+            sparse_h: false,
+            prune: true,
+        };
+        nw.align(a, b);
+    }
+    let mut vis = |name: &str| {
+        config.filepath = PathBuf::from("imgs/talk/").join(name);
+        config.clone()
+    };
+    {
+        let nw = NW {
+            cm: cm.clone(),
+            strategy: pa_base_algos::Strategy::band_doubling(),
+            domain: Domain::astar(gcsh_prune),
+            block_width: 16,
+            v: vis("12-nw-gcsh-prune-block"),
+            front: BitFront::default(),
+            trace: true,
+            sparse_h: false,
+            prune: true,
+        };
+        nw.align(a, b);
+    }
+
     // {
-    //     let aligner = AstarPa {
-    //         dt: true,
-    //         h: sh,
-    //         v: vis("a*pa-sh-dt"),
-    //     };
-    //     aligner.align(a, b);
+    //     let mut dt = DiagonalTransition::new(
+    //         cm.clone(),
+    //         GapCostHeuristic::Disable,
+    //         NoCost,
+    //         true,
+    //         vis("20-dt-divide-and-conquer"),
+    //     );
+    //     dt.align(a, b);
     // }
     // {
-    //     let aligner = AstarPa {
-    //         dt: true,
-    //         h: gcsh,
-    //         v: vis("a*pa-gcsh-dt"),
-    //     };
-    //     aligner.align(a, b);
+    //     let mut dt = DiagonalTransition::new(
+    //         cm.clone(),
+    //         GapCostHeuristic::Disable,
+    //         gcsh_prune,
+    //         false,
+    //         vis("21-dt-gcsh-prune"),
+    //     );
+    //     dt.align(a, b);
     // }
+
+    let (ref a, ref b) = uniform_fixed(10 * n, e);
+    config.downscaler = 10;
+    config.style.draw_heuristic = false;
+    config.style.draw_contours = false;
+    let mut vis = |name: &str| {
+        config.filepath = PathBuf::from("imgs/talk/").join(name);
+        config.clone()
+    };
+
+    {
+        let nw = NW {
+            cm: cm.clone(),
+            strategy: pa_base_algos::Strategy::band_doubling(),
+            domain: Domain::astar(gcsh_prune),
+            block_width: 64,
+            v: vis("13-nw-gcsh-prune-block-large"),
+            front: BitFront::default(),
+            trace: true,
+            sparse_h: false,
+            prune: true,
+        };
+        nw.align(a, b);
+    }
+
+    {
+        let nw = NW {
+            cm: cm.clone(),
+            strategy: pa_base_algos::Strategy::band_doubling(),
+            domain: Domain::astar(gcsh_prune_inexact),
+            block_width: 64,
+            v: vis("14-nw-gcsh-prune-block-large-inexact"),
+            front: BitFront::default(),
+            trace: true,
+            sparse_h: false,
+            prune: true,
+        };
+        nw.align(a, b);
+    }
+
+    {
+        let nw = NW {
+            cm: cm.clone(),
+            strategy: pa_base_algos::Strategy::band_doubling(),
+            domain: Domain::astar(gcsh_prune_local),
+            block_width: 64,
+            v: vis("15-nw-gcsh-prune-block-large-local"),
+            front: BitFront::default(),
+            trace: true,
+            sparse_h: false,
+            prune: true,
+        };
+        nw.align(a, b);
+    }
 }
