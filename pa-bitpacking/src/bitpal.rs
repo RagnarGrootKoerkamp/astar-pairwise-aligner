@@ -23,16 +23,15 @@ pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A,
     let (vp, vm) = v.pm();
     let (vm, vmz) = (vm, !(vm | vp));
     let eq = eq | vm;
-    //  // FIXME: IS THIS NEEDED
-    //     let eq = eq | h0.m();
     let ris = !eq;
     let notmi = ris | vmz;
-    let masksum = notmi.wrapping_add(vmz) & ris;
+    let carry = h0.p() | h0.z();
+    let masksum = notmi.wrapping_add(vmz).wrapping_add(carry) & ris;
     let hz = masksum ^ notmi ^ vm;
     let hp = vm | (masksum & vmz);
     let hzw = hz >> (W - 1);
     let hpw = hp >> (W - 1);
-    let hz = (hz << 1) | 0; //h0.z();
+    let hz = (hz << 1) | h0.z();
     let hp = (hp << 1) | h0.p();
     *h0 = H::from(hpw, (hpw | hzw) ^ 1);
     let vm = eq & hp;
@@ -40,52 +39,6 @@ pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A,
     *v = V::from(!(vm | vmz), vm);
 }
 
-#[inline(always)]
-pub fn compute_block_wrapper<P: Profile, H: HEncoding>(
-    h0: &mut H,
-    v: &mut V,
-    ca: &P::A,
-    cb: &P::B,
-) {
-    let eq = P::eq(ca, cb); // this one is not counted as an operation
-    let (vp, vm) = v.pm();
-
-    let vmz = !vp;
-    eprintln!("vm: {:064b}", vm);
-    eprintln!("vmz {:064b}", vmz);
-    let (hz0, hp0) = (1 ^ (h0.p() | h0.m()), h0.p());
-
-    // start of BitPal code.
-    let eq = eq | vm;
-    let ris = !eq;
-    eprintln!("ri: {:064b}", ris);
-    let eq = eq | h0.m(); // Added by me.
-    eprintln!("eq: {:064b}", eq);
-    let notmi = ris | vmz;
-    eprintln!("no: {:064b}", notmi);
-    let risors = notmi ^ vm;
-    eprintln!("rs: {:064b}", risors);
-    let masksum = notmi.wrapping_add(vmz) & ris;
-    eprintln!("su: {:064b}", masksum);
-    let hz = masksum ^ risors;
-    eprintln!("hz: {:064b}", hz);
-    let hp = vm | (masksum & vmz);
-    eprintln!("hp: {:064b}", hp);
-    let hzw = hz >> (W - 1);
-    let hpw = hp >> (W - 1);
-
-    let hz = (hz << 1) | hz0;
-    eprintln!("hz: {:064b}", hz);
-    let hp = (hp << 1) | hp0;
-    eprintln!("hp: {:064b}", hp);
-    let vm = eq & hp;
-    eprintln!("vm: {:064b}", vm);
-    let vmz = hp | (eq & hz);
-    eprintln!("vmz {:064b}", vmz);
-
-    *h0 = H::from(hpw, (hpw | hzw) ^ 1);
-    *v = V::from(!vmz, vm);
-}
 
 /// Simd version of `compute_block`.
 ///
@@ -103,7 +56,8 @@ pub fn compute_block_simd<const L: usize>(
     let eq = eq | *vm;
     let ris = !eq;
     let notmi = ris | *vmz;
-    let masksum = (notmi + *vmz) & ris;
+    let carry = *hp0 | *hz0;
+    let masksum = (notmi + *vmz + carry) & ris;
     let hz = masksum ^ notmi ^ *vm;
     let hp = *vm | (masksum & *vmz);
     let right_shift = S::splat(W as B - 1);
