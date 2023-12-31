@@ -60,3 +60,16 @@ pub const L: usize = 4;
 
 /// The type for a Simd vector of `L` lanes of `B`.
 pub type S<const L: usize> = std::simd::Simd<B, L>;
+
+
+#[cfg(test)]
+#[inline(always)]
+pub fn test_compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A, cb: &P::B) {
+    let h0_copy = &mut h0.clone();
+    let v_copy = &mut v.clone();
+    myers::compute_block::<P, H>(h0, v, ca, cb);
+    bitpal::compute_block::<P, H>(h0_copy, v_copy, ca, cb);
+    assert_eq!(h0.p(), h0_copy.p());
+    assert_eq!(h0.m(), h0_copy.m());
+    assert_eq!(*v, *v_copy);
+}
