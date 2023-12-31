@@ -51,6 +51,7 @@ pub trait HEncoding: Copy {
     fn from(p: B, m: B) -> Self;
     fn value(&self) -> Cost;
     fn p(&self) -> B;
+    fn z(&self) -> B;
     fn m(&self) -> B;
     #[inline(always)]
     fn pm(&self) -> (B, B) {
@@ -76,6 +77,10 @@ impl HEncoding for i8 {
         (*self > 0) as B
     }
     #[inline(always)]
+    fn z(&self) -> B {
+        (*self == 0) as B
+    }
+    #[inline(always)]
     fn m(&self) -> B {
         (*self < 0) as B
     }
@@ -97,6 +102,10 @@ impl HEncoding for (u8, u8) {
     #[inline(always)]
     fn p(&self) -> B {
         self.0 as B
+    }
+    #[inline(always)]
+    fn z(&self) -> B {
+        !(self.0|self.1) as B
     }
     #[inline(always)]
     fn m(&self) -> B {
@@ -121,6 +130,10 @@ impl HEncoding for (B, B) {
     #[inline(always)]
     fn p(&self) -> B {
         self.0
+    }
+    #[inline(always)]
+    fn z(&self) -> B {
+        !(self.0|self.1) as B
     }
     #[inline(always)]
     fn m(&self) -> B {
