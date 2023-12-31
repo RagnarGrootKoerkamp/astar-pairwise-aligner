@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use crate::prelude::*;
 
-use pa_affine_constants::{INDEL_COST, SUB_COST};
+use pa_affine_constants::{INDEL_COST, R};
 
 /// Type for the cost of a single match/mutation.
 pub type MatchCost = u8;
@@ -139,11 +139,11 @@ impl Seeds {
     #[inline]
     pub fn transform(&self, pos @ Pos(i, j): Pos) -> Pos {
         let p = self.potential(pos);
-        INDEL_COST.with(|indel_cost| {
-            SUB_COST.with(|sub_cost| {
+        R.with(|r| {
+            INDEL_COST.with(|indel_cost| {
                 Pos(
-                    min(*indel_cost.borrow(), *sub_cost.borrow()) * (i - j) - p,
-                    min(*indel_cost.borrow(), *sub_cost.borrow()) * (j - i) - p,
+                    (i - j) - (*r.borrow()).div_ceil(*indel_cost.borrow()) * p,
+                    (j - i) - (*r.borrow()).div_ceil(*indel_cost.borrow()) * p,
                 )
             })
         })
@@ -154,11 +154,12 @@ impl Seeds {
         if pos == Pos(I::MAX, I::MAX) {
             return pos;
         }
-        let p = -(x + y) / 2;
-        let i = self.start_of_potential[p as usize];
-        let diff = INDEL_COST.with(|indel_cost| {
-            SUB_COST.with(|sub_cost| (x - y) / (min(*indel_cost.borrow(), *sub_cost.borrow()) * 2))
+        let p = R.with(|r| {
+            INDEL_COST
+                .with(|indel_cost| -(x + y) / (2 * (*r.borrow()).div_ceil(*indel_cost.borrow())))
         });
+        let i = self.start_of_potential[p as usize];
+        let diff = (x - y) / 2;
         let j = i - diff;
         debug_assert_eq!(pos, self.transform(Pos(i, j)));
         Pos(i, j)

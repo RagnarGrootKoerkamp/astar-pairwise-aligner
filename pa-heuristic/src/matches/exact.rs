@@ -11,7 +11,7 @@ use super::*;
 use crate::prelude::*;
 use smallvec::SmallVec;
 
-use pa_affine_constants::{INDEL_COST, SUB_COST};
+use pa_affine_constants::R;
 
 /// Build a hashset of the seeds in a, and query all kmers in b.
 pub fn hash_a<'a>(a: Seq<'a>, b: Seq<'a>, config: MatchConfig, transform_filter: bool) -> Matches {
@@ -62,10 +62,7 @@ fn hash_to_smallvec(
                     start,
                     end: start + Pos(k, k),
                     match_cost: 0,
-                    seed_potential: min(
-                        INDEL_COST.with(|indel_cost| *indel_cost.borrow()),
-                        SUB_COST.with(|sub_cost| *sub_cost.borrow()),
-                    ) as MatchCost,
+                    seed_potential: R.with(|r| *r.borrow()) as MatchCost,
                     pruned: MatchStatus::Active,
                 });
             }

@@ -3,7 +3,7 @@ use itertools::izip;
 use super::*;
 use crate::prelude::*;
 
-use pa_affine_constants::{INDEL_COST, SUB_COST};
+use pa_affine_constants::R;
 
 // NOTE: This assumes an alphabet of 'ACGT'.
 pub struct QGrams<'a> {
@@ -104,16 +104,10 @@ impl<'a> QGrams<'a> {
             .map(|i| Seed {
                 start: i as I,
                 end: i as I + k,
-                seed_potential: min(
-                    INDEL_COST.with(|indel_cost| *indel_cost.borrow()),
-                    SUB_COST.with(|sub_cost| *sub_cost.borrow()),
-                ) as MatchCost
-                    * r,
-                seed_cost: min(
-                    INDEL_COST.with(|indel_cost| *indel_cost.borrow()),
-                    SUB_COST.with(|sub_cost| *sub_cost.borrow()),
-                ) as MatchCost
-                    * r,
+                // TODO: Use the `r` parameter instead and make the required changes in `matches.rs`.
+                // This assumes exact matches only.
+                seed_potential: R.with(|r| *r.borrow()) as MatchCost,
+                seed_cost: R.with(|r| *r.borrow()) as MatchCost,
             })
             .collect()
     }
