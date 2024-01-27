@@ -30,13 +30,12 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
   - Blog: [[https://research.curiouscoding.nl]]
 - Disclaimer ::
-  A*PA can be slow and/or go out of memory when the error rate is high ($\gg
-  10\%$) or when long indels are present. You could try
-  lower/higher $k$, and more/less pruning, but otherwise use Edlib or BiWFA.
+  A*PA can be slow and/or go out of memory when the error rate is high (>10%) or when long indels are present. You could try
+  lower/higher =k=, and more/less pruning, but otherwise use Edlib or BiWFA.
 
 ** Example
 
-Here's an A*PA alignment of two sequences of length $500$ with $30\%$ error rate.
+Here's an A*PA alignment of two sequences of length 500 with 30% error rate.
 
 [[file:imgs/readme/layers.gif]]
 
@@ -88,7 +87,7 @@ To align all consecutive pairs in a file:
 #+begin_src
 cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq}> -o cigars.csv
 #+end_src
-To run on $100$ random sequences of length $10^5$ with error rate $5\%$:
+To run on 100 random sequences of length 10^5 with error rate 5%:
 #+begin_src
 cargo run --release -- --cnt 100 -n 100000 -e 0.05
 #+end_src
