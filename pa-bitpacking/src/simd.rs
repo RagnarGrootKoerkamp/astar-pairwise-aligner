@@ -67,7 +67,7 @@ where
     LaneCount<L>: SupportedLaneCount,
 {
     for k in (0..N).rev() {
-        ph_simd[k] = ph_simd[k].rotate_lanes_left::<1>();
+        ph_simd[k] = ph_simd[k].rotate_elements_left::<1>();
         let new_carry = ph_simd[k].as_array()[L - 1];
         ph_simd[k].as_mut_array()[L - 1] = carry;
         carry = new_carry;

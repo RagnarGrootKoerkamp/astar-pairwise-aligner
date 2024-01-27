@@ -14,7 +14,7 @@
 use std::{
     cmp::{max, min},
     mem::swap,
-    simd::{Simd, SimdPartialEq, ToBitMask},
+    simd::{cmp::SimdPartialEq, Simd},
 };
 
 use super::{CenteredVec, Match};
@@ -43,7 +43,7 @@ fn extend_right_simd(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
     while *i < a.len() as I - 32 && j < b.len() as I - 32 {
         let simd_a: Simd<u8, 32> = Simd::from_array(*a[*i as usize..].split_array_ref().0);
         let simd_b: Simd<u8, 32> = Simd::from_array(*b[j as usize..].split_array_ref().0);
-        let eq = simd_a.simd_eq(simd_b).to_bitmask();
+        let eq = simd_a.simd_eq(simd_b).to_bitmask() as u32;
         let cnt = if cfg!(target_endian = "little") {
             eq.trailing_ones() as I
         } else {
