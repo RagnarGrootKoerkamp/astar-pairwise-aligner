@@ -2,7 +2,6 @@
     let_chains,
     step_trait,
     int_roundings,
-    split_array,
     portable_simd,
     type_changing_struct_update
 )]

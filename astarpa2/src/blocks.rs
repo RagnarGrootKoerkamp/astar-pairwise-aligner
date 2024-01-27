@@ -286,7 +286,9 @@ impl Blocks {
         };
 
         // Some trickery two access two elements at the same time.
-        let [prev_block, next_block] = &mut self.blocks[self.last_block_idx..].split_array_mut().0;
+        let [prev_block, next_block] = &mut self.blocks[self.last_block_idx..]
+            .first_chunk_mut()
+            .unwrap();
         self.last_block_idx += 1;
 
         // Copy settings, but not the vector.
@@ -351,14 +353,21 @@ impl Blocks {
         // Otherwise, do a 2-range split:
         // range 01: everything before the new j_h.    h is output.
         // range  2: from new j_h to end.              h is output.
-        if let Some(old_j_h) = old_block.j_h && old_fixed.0 < old_j_h {
+        if let Some(old_j_h) = old_block.j_h
+            && old_fixed.0 < old_j_h
+        {
             init_v_with_overlap_preserve_fixed(prev_block, &old_block, next_block);
 
             let v_range_0 = JRange(j_range.0, old_fixed.0).assert_rounded().v_range();
             assert!(v_range_0.start <= v_range_0.end);
             // The part between next_fixed.0 and old_j_h is fixed and skipped!
             let v_range_1 = JRange(old_j_h, new_j_h).assert_rounded().v_range();
-            assert!(v_range_1.start <= v_range_1.end, "j_h may only increase! i {i_range:?} old_j_h: {}, new_j_h: {}", old_j_h, new_j_h);
+            assert!(
+                v_range_1.start <= v_range_1.end,
+                "j_h may only increase! i {i_range:?} old_j_h: {}, new_j_h: {}",
+                old_j_h,
+                new_j_h
+            );
             let v_range_2 = JRange(new_j_h, j_range.1).assert_rounded().v_range();
             assert!(v_range_2.start <= v_range_2.end);
 
@@ -387,7 +396,7 @@ impl Blocks {
                 &mut self.h,
                 &mut self.computed_rows,
                 HMode::Update,
-                viz
+                viz,
             );
 
             // Compute the part below new_j_h using the horizontal deltas.
@@ -401,7 +410,7 @@ impl Blocks {
                 &mut self.h,
                 &mut self.computed_rows,
                 HMode::Input,
-                viz
+                viz,
             );
         } else {
             init_v_with_overlap(prev_block, next_block);
@@ -421,7 +430,7 @@ impl Blocks {
                 &mut self.h,
                 &mut self.computed_rows,
                 HMode::Output,
-                viz
+                viz,
             );
 
             next_block.bot_val += compute_block(
@@ -434,7 +443,7 @@ impl Blocks {
                 &mut self.h,
                 &mut self.computed_rows,
                 HMode::Input,
-                viz
+                viz,
             );
         };
 
@@ -471,14 +480,13 @@ impl Blocks {
     // Update the fixed range, and make sure it only grows.
     pub fn set_last_block_fixed_j_range(&mut self, fixed_j_range: Option<JRange>) {
         if let Some(old) = self.blocks[self.last_block_idx].fixed_j_range
-            && let Some(new) = fixed_j_range {
-                self.blocks[self.last_block_idx].fixed_j_range = Some(JRange(
-                    min(old.0, new.0),
-                    max(old.1, new.1),
-                ));
-            } else {
-                self.blocks[self.last_block_idx].fixed_j_range = fixed_j_range;
-            }
+            && let Some(new) = fixed_j_range
+        {
+            self.blocks[self.last_block_idx].fixed_j_range =
+                Some(JRange(min(old.0, new.0), max(old.1, new.1)));
+        } else {
+            self.blocks[self.last_block_idx].fixed_j_range = fixed_j_range;
+        }
     }
 
     /// Store a single block for each column in `i_range`.

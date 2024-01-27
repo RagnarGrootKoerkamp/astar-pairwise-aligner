@@ -26,7 +26,6 @@
     iter_array_chunks,
     let_chains,
     portable_simd,
-    split_array,
     test
 )]
 
