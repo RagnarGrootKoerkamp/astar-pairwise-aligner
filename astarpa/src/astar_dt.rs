@@ -80,7 +80,11 @@ pub fn astar_dt<'a, H: Heuristic>(
 
     let dist = loop {
         let reorder_timer = Timer::new(&mut retry_cnt);
-        let Some(QueueElement {f: queue_f, data: (pos, queue_g),}) = queue.pop() else {
+        let Some(QueueElement {
+            f: queue_f,
+            data: (pos, queue_g),
+        }) = queue.pop()
+        else {
             panic!("priority queue is empty before the end is reached.");
         };
 

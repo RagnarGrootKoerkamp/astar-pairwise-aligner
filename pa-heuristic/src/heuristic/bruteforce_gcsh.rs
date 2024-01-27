@@ -127,7 +127,6 @@ where
     fn h(&self, pos: Pos) -> Cost {
         self.h_at_matches
             .iter()
-            .into_iter()
             .filter(|&(parent, _)| *parent >= pos)
             .map(|(parent, val)| self.distance(pos, *parent).saturating_add(*val))
             .min()
@@ -138,7 +137,6 @@ where
         let rng = &mut rand::thread_rng();
         self.h_at_matches
             .iter()
-            .into_iter()
             .filter(|&(parent, _)| *parent >= pos)
             .map(|(parent, val)| (self.distance(pos, *parent).saturating_add(*val), *parent))
             .min_by_key(|(val, pos)| (*val, 0 * rng.gen_range(0..u64::MAX), Reverse(LexPos(*pos))))
