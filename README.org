@@ -12,11 +12,20 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   ~{cost},{score}~. *You will need Rust nightly!*
 
   If you run into any kind of problem, please (/please/ 🥺) make an issue or
-  reach out on matrix (@curious_coding:matrix.org).
-- Citation ::
-  *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
-  "Exact pairwise alignment using A* with seed heuristic and match pruning".
-  bioRxiv (2022). DOI [[https://doi.org/10.1101/2022.09.19.508631][2022.09.19.508631]]
+  reach out on twitter or matrix (@curious_coding:matrix.org).
+- Citations ::
+  Please cite the Bioinformatics paper. The bioRxiv version includes the
+  supplement and has slightly nicer formatting.
+  - BioRxiv preprint:
+
+    *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
+    "Exact global alignment using A* with chaining seed heuristic and match pruning".
+    bioRxiv (2024). [[https://doi.org/10.1101/2022.09.19.508631][10.1101/2022.09.19.508631]]
+  - OUP Bioinformatics paper:
+
+    *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
+    "Exact global alignment using a* with chaining seed heuristic and match pruning".
+    Bioinformatics (2024). [[https://doi.org/10.1093/bioinformatics/btae032][10.1093/bioinformatics/btae032]]
 - Links ::
   - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
   - Blog: [[https://research.curiouscoding.nl]]
