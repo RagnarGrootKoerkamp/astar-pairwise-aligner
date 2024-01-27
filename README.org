@@ -3,7 +3,7 @@
 
 A global pairwise sequence aligner using A*. Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
 
-An alignment of two sequences of length 500 with 30% error rate.
+An alignment of two sequences of length 500 with 30% error rate:
 
 [[file:imgs/readme/layers.gif]]
 
@@ -40,13 +40,13 @@ An alignment of two sequences of length 500 with 30% error rate.
 ** Installation
 First, [[https://rustup.rs/][install rustup]], and enable ~nightly~ (~rustup install nightly; rustup default nightly~).
 
-To run from the repository directly, clone and ~cargo run --release -- <pa-bin flags>~.
+To run from the repository: clone and ~cargo run --release -- <pa-bin flags>~.
 
-For an independent install,
+To just install a binary:
 #+begin_src shell
 cargo install --git https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner pa-bin
 #+end_src
-installs =pa-bin= to ~~/.local/share/cargo/bin/pa-bin~.
+installs =pa-bin= to =~/.local/share/cargo/bin/pa-bin=.
 
 ** Visualizations
 Visualizations use the =sdl2= library and =ttf= fonts. If this gives errors, either:
