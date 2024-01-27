@@ -7,14 +7,6 @@ An alignment of two sequences of length 500 with 30% error rate:
 
 [[file:imgs/readme/layers.gif]]
 
-- Quick usage ::
-  ~cargo run --release -- -i <input>.{seq,txt,fasta} -o output.csv~
-
-  This globally aligns sequence pairs from the input and writes a csv with lines of
-  ~{cost},{cigar}~.
-
-  If you run into any kind of problem, please (/please/ 🥺) make an issue or
-  reach out on twitter or matrix (@curious_coding:matrix.org).
 - Citations ::
   Please cite the Bioinformatics paper. The bioRxiv version includes the
   supplement and has slightly nicer formatting.
@@ -30,19 +22,22 @@ An alignment of two sequences of length 500 with 30% error rate:
     Bioinformatics (2024). [[https://doi.org/10.1093/bioinformatics/btae032][10.1093/bioinformatics/btae032]]
 - Links ::
   - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
+  - Matrix: =@curious_coding:matrix.org=,
   - Blog: [[https://research.curiouscoding.nl]]
 - Disclaimer ::
   A*PA can be slow and/or go out of memory when the error rate is high (>10%) or when long indels are present. You could try
   lower/higher =k=, and more/less pruning, but otherwise use Edlib or BiWFA.
 
 * Usage
+If you run into any kind of problem, please (/please/ 🥺) make an issue or
+reach out on twitter or matrix.
 
 ** Installation
-First, [[https://rustup.rs/][install rustup]], and enable ~nightly~ (~rustup install nightly; rustup default nightly~).
+First [[https://rustup.rs/][install rustup]]. Then enable ~nightly~: ~rustup install nightly; rustup default nightly~.
 
 To run from the repository: clone and ~cargo run --release -- <pa-bin flags>~.
 
-To just install a binary:
+To just install a binary (no cloning needed):
 #+begin_src shell
 cargo install --git https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner pa-bin
 #+end_src
@@ -88,7 +83,8 @@ Visualizer:
 #+end_example
 
 *** Examples
-Align all consecutive pairs in a file, and write cigar strings to a =csv=.
+Align all consecutive pairs in a file, and write cigar strings to a =csv=
+containing lines of ~<cost>,<cigar>~.
 #+begin_src
 pa-bin -i <path/to/file.{fasta,fa,txt,seq}> -o cigars.csv
 #+end_src
@@ -194,8 +190,6 @@ cargo depgraph --dedup-transitive-deps \
 
 #+RESULTS:
 [[file:imgs/readme/depgraph.svg]]
-
-
 
 * License
 MPL-2.0
