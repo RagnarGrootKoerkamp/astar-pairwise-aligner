@@ -1,15 +1,17 @@
 #+TITLE: A*PA: A* Pairwise Aligner
 #+PROPERTY: header-args :eval no-export :exports results
 
-A global pairwise sequence aligner using A*.
+A global pairwise sequence aligner using A*. Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
 
-Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
+An alignment of two sequences of length 500 with 30% error rate.
 
-- Usage ::
+[[file:imgs/readme/layers.gif]]
+
+- Quick usage ::
   ~cargo run --release -- -i <input>.{seq,txt,fasta} -o output.csv~
 
   This globally aligns sequence pairs from the input and writes a csv with lines of
-  ~{cost},{score}~. *You will need Rust nightly!*
+  ~{cost},{cigar}~.
 
   If you run into any kind of problem, please (/please/ 🥺) make an issue or
   reach out on twitter or matrix (@curious_coding:matrix.org).
@@ -33,22 +35,25 @@ Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://
   A*PA can be slow and/or go out of memory when the error rate is high (>10%) or when long indels are present. You could try
   lower/higher =k=, and more/less pruning, but otherwise use Edlib or BiWFA.
 
-** Example
-
-Here's an A*PA alignment of two sequences of length 500 with 30% error rate.
-
-[[file:imgs/readme/layers.gif]]
-
 * Usage
 
+** Installation
+First, [[https://rustup.rs/][install rustup]], and enable ~nightly~ (~rustup install nightly; rustup default nightly~).
+
+To run from the repository directly, clone and ~cargo run --release -- <pa-bin flags>~.
+
+For an independent install,
+#+begin_src shell
+cargo install --git https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner pa-bin
+#+end_src
+installs =pa-bin= to ~~/.local/share/cargo/bin/pa-bin~.
+
+** Visualizations
+Visualizations use the =sdl2= library and =ttf= fonts. If this gives errors, either:
+- install =sdl2=: e.g. ~apt-get install libsdl2-ttf-dev~;
+- disable visuals by passing =--no-default-features= to =cargo run= or =cargo install=.
+
 ** Command line application
-
-- [[https://rustup.rs/][Install rustup]], enable ~nightly~ (~rustup install nightly~ ~rustup default nightly~), and clone this repo.
-- ~cargo run --release -- -n 100000~ should already work and run on some randomly generated sequences.
-- If you get build errors related to ~sdl2~ and/or missing ~ttf~ files, disable
-  the visualizer by passing ~--no-default-features~ to ~cargo~: ~cargo run
-  --release --no-default-features -- <flags>~. Alternatively, install ~sdl2~ using e.g. ~apt-get install libsdl2-ttf-dev~.
-
 #+begin_src shell :exports both :results verbatim
 cargo run --release -- -h
 #+end_src
@@ -83,21 +88,21 @@ Visualizer:
 #+end_example
 
 *** Examples
-To align all consecutive pairs in a file:
+Align all consecutive pairs in a file, and write cigar strings to a =csv=.
 #+begin_src
-cargo run --release -- -i <path/to/file.{fasta,fa,txt,seq}> -o cigars.csv
+pa-bin -i <path/to/file.{fasta,fa,txt,seq}> -o cigars.csv
 #+end_src
-To run on 100 random sequences of length 10^5 with error rate 5%:
+Run on 100 random sequences of length 10^5 with error rate 5%:
 #+begin_src
-cargo run --release -- --cnt 100 -n 100000 -e 0.05
+pa-bin --cnt 100 -n 100000 -e 0.05
 #+end_src
-Show a video of a small alignment:
+Show a video of a small alignment (requires ~--features vis~):
 #+begin_src sh
-cargo run --release -- -n 100 -e 0.10 -v all --style detailed
+pa-bin -n 100 -e 0.10 -v all --style detailed
 #+end_src
-Save a large alignment to disk:
+Save an image of a large alignment to disk:
 #+begin_src sh
-cargo run --release -- -i <input> --draw Layers --save-last --save-path alignment --style large
+pa-bin -i <input> --draw Layers --save-last --save-path alignment --style large
 #+end_src
 
 *** Unpublished features
@@ -121,26 +126,22 @@ simple usage.
 
 * Visualization
 
-Currently only A*PA can be visualized using the binary. Reimplementations of
+Only A*PA itself can be visualized using the binary. Reimplementations of
 Needleman-Wunsch, band-doubling (Edlib), and diagonal-transition (WFA, BiWFA)
-are available in the ~pa-base-algos~ crate and can be called from rust for now;
+are available in the ~pa-base-algos~ crate and can only be called from code;
 see the [[file:pa-bin/examples/paper-figures/intro.rs][examples]].
 
-Sample videos corresponding to figure 1 of the paper are below. Due to different
-visualization strategies (per layer, per cell) timings are not comparable.
+Sample videos corresponding to figure 1 of the paper are below. Timings are not
+comparable due to differences in visualization strategies (cell vs layer updates).
 
 |----------------------------------------------------------------------+----------------------------------------------------------------------------|
 | Dijkstra [[file:imgs/readme/2_dijkstra.gif]]                             | Ukkonen's exponential search (Edlib) [[file:imgs/readme/1_ukkonen.gif]]        |
 | Diagonal transition (WFA) [[file:imgs/readme/3_diagonal_transition.gif]] | DT + Divide & Conquer (BiWFA) [[file:imgs/readme/4_dt-divide-and-conquer.gif]] |
 | A*PA (GCSH+DT) [[file:imgs/readme/5_astarpa.gif]]                        |                                                                            |
 
-* Paper
-  *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
-  "Exact pairwise alignment using A* with seed heuristic and match pruning".
-  bioRxiv (2022). DOI [[https://doi.org/10.1101/2022.09.19.508631][2022.09.19.508631]]
-
+* Paper artefacts
 - Figures ::
-  Paper figures are generated using the examples at [[file:pa-bin/examples/paper-figures/][pa-bin/examples/paper-figures]].
+  Paper figures are generated using the example binaries at [[file:pa-bin/examples/paper-figures/][pa-bin/examples/paper-figures]].
 
 - Evals ::
   Benchmarking code, evals, and datasets have moved to [[https://github.com/pairwise-alignment/pa-bench][pa-bench]].
@@ -148,7 +149,7 @@ visualization strategies (per layer, per cell) timings are not comparable.
   Dataset downloads are in [[https://github.com/pairwise-alignment/pa-bench/releases/tag/datasets][this release]].
 
 - Tests ::
-  Code is tested for correctness in various tests ([[file:astarpa/src/tests/][astarpa/src/tests]])
+  Code is tested for correctness in various tests ([[file:astarpa/src/tests.rs][astarpa/src/tests.rs]])
   against ~triple-accel~. The benchmark tool [[https://github.com/pairwise-alignment/pa-bench][pa-bench]] also checks correctness automatically.
 
 - Benchmarks ::
