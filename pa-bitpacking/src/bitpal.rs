@@ -16,12 +16,12 @@ use std::simd::{LaneCount, SupportedLaneCount};
 /// h0: input horizontal delta that is shifted in.
 /// hw: output horizontal delta that is shifted out.
 ///
-/// 18 operations, excluding `eq`.
+/// 20 operations, excluding `eq` and encoding conversion.
 #[inline(always)]
 pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A, cb: &P::B) {
     let eq = P::eq(ca, cb); // this one is not counted as an operation
     let (vp, vm) = v.pm();
-    let (vm, vmz) = (vm, !(vm | vp));
+    let (vm, vmz) = (vm, !(vm | vp)); // not counted
     let eq = eq | vm;
     let ris = !eq;
     let notmi = ris | vmz;
@@ -33,10 +33,10 @@ pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A,
     let hpw = hp >> (W - 1);
     let hz = (hz << 1) | h0.z();
     let hp = (hp << 1) | h0.p();
-    *h0 = H::from(hpw, (hpw | hzw) ^ 1);
+    *h0 = H::from(hpw, (hpw | hzw) ^ 1); // not counted
     let vm = eq & hp;
     let vmz = hp | (eq & hz);
-    *v = V::from(!(vm | vmz), vm);
+    *v = V::from(!(vm | vmz), vm); // not counted
 }
 
 /// Simd version of `compute_block`.

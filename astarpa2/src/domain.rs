@@ -116,6 +116,8 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 )
             }
             Astar(h) => {
+                // TODO FIXME Return already-rounded jrange. More precision isn't needed, and this will save some time.
+
                 // Get the range of rows with fixed states `f(u) <= f_max`.
                 let JRange(mut fixed_start, mut fixed_end) = prev
                     .fixed_j_range
@@ -177,6 +179,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                         v.1 -= 1;
                     }
                 } else {
+                    // FIXME: Can we drop this??
                     v += Pos(1, 1);
                     // ALG:
                     // First go down by block width, anticipating that extending diagonally will not increase f.
