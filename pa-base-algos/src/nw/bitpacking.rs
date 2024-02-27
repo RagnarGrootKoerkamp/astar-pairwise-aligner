@@ -29,7 +29,7 @@ type H = (B, B);
 #[non_exhaustive]
 pub struct BitFrontsTag {
     /// When true, `trace` mode only stores one front per block, instead of all columns.
-    /// `cost` most always stores only the last front.
+    /// `cost` mode always stores only the last front.
     pub sparse: bool,
     #[serde(default)]
     pub simd: bool,
