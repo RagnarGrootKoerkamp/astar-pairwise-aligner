@@ -156,7 +156,7 @@ impl Index<usize> for Blocks {
 
 impl Blocks {
     pub fn init(&mut self, mut initial_j_range: JRange) {
-        assert!(initial_j_range.0 == 0);
+        assert_eq!(initial_j_range.0, 0);
         self.last_block_idx = 0;
         self.i_range = IRange(-1, 0);
 

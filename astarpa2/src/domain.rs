@@ -343,7 +343,11 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             },
             blocks.next_block_j_range(),
         );
-        if initial_j_range.is_empty() {
+
+        // If 0 is not included in the initial range, no path can be found.
+        // This can happen for e.g. the GapGap heuristic when the threshold is too small.
+        // Note that the range never shrinks, so even after pruning it should still start at 0.
+        if initial_j_range.is_empty() || initial_j_range.0 > 0 {
             return None;
         }
 
