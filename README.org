@@ -175,16 +175,18 @@ From low to high:
 - ~pa-generate~: Library and binary to generate different types of random sequences.
 - ~pa-bin~: Main command line interface to A*PA. Allows for input from file,
   generated input, visualizing, and customization of the A*PA parameters.
-- ~pa-web~: web-interface to A*PA by compiling to webassembly. Implements the
-  ~Canvas~ trait for ~HTMLCanvas~. (Not maintained.)
+- ~pa-bitpacking~: Implementation of Myers' bitpacking algorithms and SIMD extensions.
+- ~astarpa2~: Work-in-progress code for the next version, A*PA2.
 - ~pa-base-algos~: Re-implementations of Needleman-Wunsch/Edlib and
   Diagonal-transition/WFA/BiWFA for visualizations. Also playground for new A*PA
   variants such as [[https://curiouscoding.nl/posts/local-doubling/][local doubling]].
 - ~astarpa-next~: Some code for other new ideas such as [[https://curiouscoding.nl/posts/speeding-up-astar/][pre-pruning]].
+- ~pa-web~: web-interface to A*PA by compiling to webassembly. Implements the
+  ~Canvas~ trait for ~HTMLCanvas~. (Not maintained.)
 
 #+begin_src shell :results file :file imgs/readme/depgraph.svg :exports results
 cargo depgraph --dedup-transitive-deps \
-    --include pa-generate,pa-bin,pa-vis,astarpa,pa-types,pa-affine-types,sdl2,pa-base-algos,pa-web,web-sys,pa-heuristic,pa-vis-types,astarpa-c,astarpa-next \
+    --include pa-generate,pa-bin,pa-vis,astarpa,pa-types,pa-affine-types,sdl2,pa-base-algos,pa-heuristic,pa-vis-types,astarpa-c,pa-bitpacking,astarpa2,astarpa-next \
     | dot -T svg
 #+end_src
 
