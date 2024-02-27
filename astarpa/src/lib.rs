@@ -37,9 +37,10 @@ mod tests;
 pub mod stats;
 
 mod prelude {
-    pub use crate::config::*;
     pub use pa_types::*;
     pub use rustc_hash::FxHashMap as HashMap;
+
+    pub use crate::config::*;
 }
 
 use pa_heuristic::seeds::MatchCost;
