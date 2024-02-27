@@ -67,7 +67,7 @@ where
     LaneCount<L>: SupportedLaneCount,
 {
     for k in (0..N).rev() {
-        ph_simd[k] = ph_simd[k].rotate_lanes_left::<1>();
+        ph_simd[k] = ph_simd[k].rotate_elements_left::<1>();
         let new_carry = ph_simd[k].as_array()[L - 1];
         ph_simd[k].as_mut_array()[L - 1] = carry;
         carry = new_carry;
@@ -139,23 +139,23 @@ where
         // - if >=2: N=1, L=2 half-simd row
         // - if >=1: scalar row
         while b.len() >= 4 {
-            let (cbs, b_rem) = b.split_array_ref::<4>();
+            let (cbs, b_rem) = b.split_first_chunk::<4>().unwrap();
             b = b_rem;
-            let (v2, v_rem) = v.split_array_mut::<4>();
+            let (v2, v_rem) = v.split_first_chunk_mut::<4>().unwrap();
             v = v_rem;
             compute_block_of_rows::<1, H, 4>(a, &ap0, &ap1, cbs, h, v2);
         }
         if b.len() >= 2 {
-            let (cbs, b_rem) = b.split_array_ref::<2>();
+            let (cbs, b_rem) = b.split_first_chunk::<2>().unwrap();
             b = b_rem;
-            let (v2, v_rem) = v.split_array_mut::<2>();
+            let (v2, v_rem) = v.split_first_chunk_mut::<2>().unwrap();
             v = v_rem;
             compute_block_of_rows::<1, H, 2>(a, &ap0, &ap1, cbs, h, v2);
         }
         if b.len() >= 1 {
-            let (cbs, b_rem) = b.split_array_ref::<1>();
+            let (cbs, b_rem) = b.split_first_chunk::<1>().unwrap();
             b = b_rem;
-            let (v2, v_rem) = v.split_array_mut::<1>();
+            let (v2, v_rem) = v.split_first_chunk_mut::<1>().unwrap();
             v = v_rem;
             for i in 0..a.len() {
                 myers::compute_block::<BitProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);
@@ -183,9 +183,9 @@ where
                     a,
                     &ap0,
                     &ap1,
-                    b.split_array_ref().0,
+                    b.first_chunk().unwrap(),
                     h,
-                    v.split_array_mut().0,
+                    v.first_chunk_mut().unwrap(),
                 );
             }
             l @ (3 | 4) => {
@@ -377,25 +377,25 @@ where
         // - if >=2: N=1, L=2 half-simd row
         // - if >=1: scalar row
         while b.len() >= 4 {
-            let (cbs, b_rem) = b.split_array_ref::<4>();
+            let (cbs, b_rem) = b.split_first_chunk::<4>().unwrap();
             b = b_rem;
-            let (v2, v_rem) = v.split_array_mut::<4>();
+            let (v2, v_rem) = v.split_first_chunk_mut::<4>().unwrap();
             v = v_rem;
             fill_block_of_rows::<1, H, 4>(a, &ap0, &ap1, cbs, h, v2, values, offset);
             offset += 4;
         }
         if b.len() >= 2 {
-            let (cbs, b_rem) = b.split_array_ref::<2>();
+            let (cbs, b_rem) = b.split_first_chunk::<2>().unwrap();
             b = b_rem;
-            let (v2, v_rem) = v.split_array_mut::<2>();
+            let (v2, v_rem) = v.split_first_chunk_mut::<2>().unwrap();
             v = v_rem;
             fill_block_of_rows::<1, H, 2>(a, &ap0, &ap1, cbs, h, v2, values, offset);
             offset += 2;
         }
         if b.len() >= 1 {
-            let (cbs, b_rem) = b.split_array_ref::<1>();
+            let (cbs, b_rem) = b.split_first_chunk::<1>().unwrap();
             b = b_rem;
-            let (v2, v_rem) = v.split_array_mut::<1>();
+            let (v2, v_rem) = v.split_first_chunk_mut::<1>().unwrap();
             v = v_rem;
             for i in 0..a.len() {
                 myers::compute_block::<BitProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);

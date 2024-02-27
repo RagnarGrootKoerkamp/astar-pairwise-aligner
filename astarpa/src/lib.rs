@@ -11,7 +11,6 @@
 //!
 #![feature(
     test,
-    array_methods,
     duration_constants,
     step_trait,
     int_roundings,

@@ -286,7 +286,9 @@ impl Blocks {
         };
 
         // Some trickery two access two elements at the same time.
-        let [prev_block, next_block] = &mut self.blocks[self.last_block_idx..].split_array_mut().0;
+        let [prev_block, next_block] = &mut self.blocks[self.last_block_idx..]
+            .first_chunk_mut()
+            .unwrap();
         self.last_block_idx += 1;
 
         // Copy settings, but not the vector.
