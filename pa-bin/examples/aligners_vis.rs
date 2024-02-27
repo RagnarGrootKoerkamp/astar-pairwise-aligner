@@ -6,7 +6,7 @@ use pa_base_algos::{
     Domain,
 };
 use pa_generate::uniform_fixed;
-use pa_heuristic::{GapCost, MatchConfig, NoCost, Pruning, CSH, GCSH, SH};
+use pa_heuristic::{MatchConfig, NoCost, Pruning, CSH, GCSH, SH};
 use pa_types::seq_to_string;
 use pa_vis::visualizer::{self, Gradient, When};
 use std::{path::PathBuf, time::Duration};

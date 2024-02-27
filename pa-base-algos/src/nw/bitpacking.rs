@@ -496,8 +496,9 @@ impl NwFronts<0usize> for BitFronts {
                 // range 01: everything before the new j_h.    h is output.
                 // range  2: from new j_h to end.              h is output.
                 let bottom_delta = if next_front.fixed_j_range.is_some()
-                        && let Some(old_j_h) = next_front.j_h
-                        && next_fixed.0 < old_j_h {
+                    && let Some(old_j_h) = next_front.j_h
+                    && next_fixed.0 < old_j_h
+                {
                     resize_v_with_fixed(prev_front, next_front, j_range, &mut v);
 
                     assert!(new_range.0 <= next_fixed.0);
@@ -512,10 +513,15 @@ impl NwFronts<0usize> for BitFronts {
                         &mut self.h,
                         &mut self.computed_rows,
                         HMode::None,
-                            viz,
+                        viz,
                     );
 
-                    assert!(old_j_h <= new_j_h, "j_h may only increase! i {i_range:?} old_j_h: {}, new_j_h: {}", old_j_h, new_j_h);
+                    assert!(
+                        old_j_h <= new_j_h,
+                        "j_h may only increase! i {i_range:?} old_j_h: {}, new_j_h: {}",
+                        old_j_h,
+                        new_j_h
+                    );
                     //new_j_h = old_j_h + (new_j_h - old_j_h) / (8*WI) * (8*WI);
                     let v_range_1 = old_j_h as usize / W..new_j_h as usize / W;
                     compute_columns(
@@ -528,7 +534,7 @@ impl NwFronts<0usize> for BitFronts {
                         &mut self.h,
                         &mut self.computed_rows,
                         HMode::Update,
-                        viz
+                        viz,
                     );
 
                     assert!(new_j_h <= new_range.1);
@@ -543,7 +549,7 @@ impl NwFronts<0usize> for BitFronts {
                         &mut self.h,
                         &mut self.computed_rows,
                         HMode::Input,
-                        viz
+                        viz,
                     )
                 } else {
                     initialize_next_v(prev_front, j_range_rounded, &mut v);
@@ -561,7 +567,7 @@ impl NwFronts<0usize> for BitFronts {
                         &mut self.h,
                         &mut self.computed_rows,
                         HMode::Output,
-                        viz
+                        viz,
                     );
 
                     assert!(new_j_h <= new_range.1);
@@ -576,7 +582,7 @@ impl NwFronts<0usize> for BitFronts {
                         &mut self.h,
                         &mut self.computed_rows,
                         HMode::Input,
-                        viz
+                        viz,
                     )
                 };
                 next_front.j_h = Some(new_j_h);
@@ -596,14 +602,14 @@ impl NwFronts<0usize> for BitFronts {
                         &mut self.h,
                         &mut self.computed_rows,
                         HMode::None,
-                        viz
+                        viz,
                     );
                     assert_eq!(bottom_delta, bottom_delta_2);
                     assert_eq!(v.len(), v2.len());
                     if v != v2 {
                         for (i, (a, b)) in izip!(&v, &v2).enumerate() {
                             if a != b {
-                                println!("{}+{}={}: {:?} != {:?}", i, offset, i+offset, a, b);
+                                println!("{}+{}={}: {:?} != {:?}", i, offset, i + offset, a, b);
                             }
                         }
 
@@ -626,7 +632,7 @@ impl NwFronts<0usize> for BitFronts {
                     &mut self.h,
                     &mut self.computed_rows,
                     HMode::None,
-                    viz
+                    viz,
                 );
                 next_front.offset = j_range_rounded.0;
                 bottom_delta
@@ -810,12 +816,11 @@ impl NwFronts<0usize> for BitFronts {
     fn set_last_front_fixed_j_range(&mut self, fixed_j_range: Option<JRange>) {
         assert!(fixed_j_range.is_some());
         if let Some(old) = self.fronts[self.last_front_idx].fixed_j_range
-            && let Some(new) = fixed_j_range {
+            && let Some(new) = fixed_j_range
+        {
             // eprintln!("Update fixed_j_range from {:?}", self.fronts[self.last_front_idx].fixed_j_range);
-            self.fronts[self.last_front_idx].fixed_j_range = Some(JRange(
-                min(old.0, new.0),
-                max(old.1, new.1),
-            ));
+            self.fronts[self.last_front_idx].fixed_j_range =
+                Some(JRange(min(old.0, new.0), max(old.1, new.1)));
             // eprintln!("Update fixed_j_range to {:?}", self.fronts[self.last_front_idx].fixed_j_range);
         } else {
             self.fronts[self.last_front_idx].fixed_j_range = fixed_j_range;

@@ -39,7 +39,6 @@ pub fn compute_block<P: Profile, H: HEncoding>(h0: &mut H, v: &mut V, ca: &P::A,
     *v = V::from(!(vm | vmz), vm);
 }
 
-
 /// Simd version of `compute_block`.
 ///
 /// This assumes HEncoding of `(u64,u64)`.

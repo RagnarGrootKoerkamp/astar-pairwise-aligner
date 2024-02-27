@@ -39,8 +39,6 @@ pub mod stats;
 mod prelude {
     pub use pa_types::*;
     pub use rustc_hash::FxHashMap as HashMap;
-    pub use rustc_hash::FxHashSet as HashSet;
-    pub use std::cmp::{max, min};
 
     pub use crate::config::*;
 }

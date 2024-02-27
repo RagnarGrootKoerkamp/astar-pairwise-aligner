@@ -307,10 +307,12 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         blocks: Option<&mut Blocks>,
     ) -> Option<(Cost, Option<Cigar>)> {
         // Update contours for any pending prunes.
-        if self.params.prune && let Astar(h) = &mut self.domain {
-            h.update_contours(Pos(0,0));
+        if self.params.prune
+            && let Astar(h) = &mut self.domain
+        {
+            h.update_contours(Pos(0, 0));
             if DEBUG {
-                eprintln!("Test dist {} h0 {}", f_max.unwrap_or(0), h.h(Pos(0,0)));
+                eprintln!("Test dist {} h0 {}", f_max.unwrap_or(0), h.h(Pos(0, 0)));
             }
         }
 
@@ -411,7 +413,8 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             if self.params.prune
                 && let Astar(h) = &mut self.domain
             {
-                let intersection = JRange::intersection(prev_fixed_j_range.unwrap(), next_fixed_j_range.unwrap());
+                let intersection =
+                    JRange::intersection(prev_fixed_j_range.unwrap(), next_fixed_j_range.unwrap());
                 if !intersection.is_empty() {
                     h.prune_block(i_range.0..i_range.1, intersection.0..intersection.1);
                 }
