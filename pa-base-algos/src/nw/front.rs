@@ -122,8 +122,10 @@ pub trait NwFronts<const N: usize>: IndexMut<usize, Output = Self::Front> {
         todo!();
     }
 
+    #[allow(unused)]
     fn cm(&self) -> &AffineCost<N>;
     /// The current column in `0 ..= a.len()`.
+    #[allow(unused)]
     fn last_i(&self) -> I;
     /// Get the current front.
     fn last_front(&self) -> &Self::Front;
