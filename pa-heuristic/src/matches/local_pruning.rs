@@ -14,7 +14,7 @@
 use std::{
     cmp::{max, min},
     mem::swap,
-    simd::{cmp::SimdPartialEq, Simd},
+    simd::{prelude::SimdPartialEq, Simd},
 };
 
 use super::{CenteredVec, Match};

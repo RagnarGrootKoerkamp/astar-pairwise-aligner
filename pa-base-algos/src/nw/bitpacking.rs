@@ -458,7 +458,7 @@ impl NwFronts<0usize> for BitFronts {
             };
 
             // Some trickery two access two elements at the same time.
-            let [prev_front, next_front] = &mut self.fronts[self.last_front_idx..]
+            let [prev_front, next_front] = self.fronts[self.last_front_idx..]
                 .first_chunk_mut()
                 .unwrap();
 
