@@ -35,8 +35,14 @@ pub struct BlockParams {
     /// `cost` mode always stores only the last column.
     /// FIXME: REMOVE AND ALWAYS SET TO TRUE?
     pub sparse: bool,
+
     #[serde(default)]
     pub simd: bool,
+
+    /// Disable instruction-level-parallelism and only run a single SIMD vector at a time.
+    #[serde(default)]
+    pub no_ilp: bool,
+
     #[serde(default)]
     pub incremental_doubling: bool,
 
@@ -58,6 +64,7 @@ impl Default for BlockParams {
         Self {
             sparse: true,
             simd: true,
+            no_ilp: false,
             incremental_doubling: true,
             dt_trace: false,
             max_g: 40,
@@ -643,13 +650,23 @@ fn compute_block(
 
     let run = |h, exact_end| {
         if params.simd {
-            pa_bitpacking::simd::compute::<2, H, 4>(
-                &a[i_range.0 as usize..i_range.1 as usize],
-                &b[v_range],
-                h,
-                v,
-                exact_end,
-            ) as I
+            if params.no_ilp {
+                pa_bitpacking::simd::compute::<1, H, 4>(
+                    &a[i_range.0 as usize..i_range.1 as usize],
+                    &b[v_range],
+                    h,
+                    v,
+                    exact_end,
+                ) as I
+            } else {
+                pa_bitpacking::simd::compute::<2, H, 4>(
+                    &a[i_range.0 as usize..i_range.1 as usize],
+                    &b[v_range],
+                    h,
+                    v,
+                    exact_end,
+                ) as I
+            }
         } else {
             pa_bitpacking::scalar::row::<BitProfile, H>(
                 &a[i_range.0 as usize..i_range.1 as usize],
