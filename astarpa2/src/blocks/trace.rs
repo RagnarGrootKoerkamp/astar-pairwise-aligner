@@ -349,7 +349,7 @@ impl Blocks {
                 return None;
             }
 
-            // Shrink diagonals more than 5 behind.
+            // Shrink diagonals more than `x_drop` behind.
             if self.params.x_drop > 0 {
                 while d_range.0 < d_range.1
                     && get(blocks, g, d_range.0).i > min_i + self.params.x_drop
