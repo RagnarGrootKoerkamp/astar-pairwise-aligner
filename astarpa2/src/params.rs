@@ -6,6 +6,7 @@ use Domain::*;
 
 /// Flat, untyped parameters for A*PA2 that can be used for CLI or pa-bench.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
 pub struct AstarPa2Params {
     /// An optional name for the parameter set.
     #[serde(default)]

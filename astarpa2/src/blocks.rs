@@ -29,6 +29,7 @@ type H = (B, B);
 /// Parameters for BitBlock.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[non_exhaustive]
+#[serde(deny_unknown_fields)]
 pub struct BlockParams {
     /// When true, `trace` mode only stores the last column of each block, instead of all columns.
     /// `cost` mode always stores only the last column.
