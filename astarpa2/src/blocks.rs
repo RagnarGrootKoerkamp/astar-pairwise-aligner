@@ -482,8 +482,7 @@ impl Blocks {
         if let Some(old) = self.blocks[self.last_block_idx].fixed_j_range
             && let Some(new) = fixed_j_range
         {
-            self.blocks[self.last_block_idx].fixed_j_range =
-                Some(JRange(min(old.0, new.0), max(old.1, new.1)));
+            self.blocks[self.last_block_idx].fixed_j_range = Some(old.union(new));
         } else {
             self.blocks[self.last_block_idx].fixed_j_range = fixed_j_range;
         }
