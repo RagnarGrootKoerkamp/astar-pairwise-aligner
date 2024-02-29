@@ -301,7 +301,7 @@ impl Blocks {
             v: std::mem::take(&mut next_block.v),
             i_range,
             j_range,
-            fixed_j_range: None,
+            fixed_j_range: next_block.fixed_j_range,
             offset: j_range.0,
             top_val: prev_top_val + i_range.len(),
             // This will be incremented with the horizontal bottom delta later.

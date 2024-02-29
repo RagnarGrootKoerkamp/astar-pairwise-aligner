@@ -295,11 +295,18 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 1
             };
         }
+        let mut fixed_j_range = JRange(start, end);
         if DEBUG {
             eprintln!("initial fixed_j_range for {i} {fixed_j_range:?}");
             eprintln!("prev    fixed_j_range for {i} {:?}", block.fixed_j_range);
         }
-        Some(JRange(start, end))
+        if let Some(old_fixed_j_range) = block.fixed_j_range {
+            fixed_j_range = fixed_j_range.union(old_fixed_j_range);
+        }
+        if DEBUG {
+            eprintln!("updated fixed_j_range for {i} {fixed_j_range:?}");
+        }
+        Some(fixed_j_range)
     }
 
     /// Test whether the cost is at most s.
