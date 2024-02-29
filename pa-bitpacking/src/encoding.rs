@@ -20,7 +20,7 @@ impl V {
     /// NOTE: Requires `j < W`.
     #[inline(always)]
     pub fn value_of_prefix(&self, j: I) -> Cost {
-        assert!(0 <= j && j < W as I);
+        debug_assert!(0 <= j && j < W as I);
         let mask = (1 << j) - 1;
         (self.0 & mask).count_ones() as Cost - (self.1 & mask).count_ones() as Cost
     }
@@ -28,7 +28,7 @@ impl V {
     /// NOTE: Requires `j > 0`.
     #[inline(always)]
     pub fn value_of_suffix(&self, j: I) -> Cost {
-        assert!(0 < j && j <= W as I);
+        debug_assert!(0 < j && j <= W as I);
         let mask = !(((1 as B) << (W as I - j)).wrapping_sub(1));
         (self.0 & mask).count_ones() as Cost - (self.1 & mask).count_ones() as Cost
     }

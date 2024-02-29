@@ -272,13 +272,16 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         // TODO: It may be sufficient to only compute this with rounded-to-64 precision.
         let mut start = block.j_range.0;
         let mut end = block.j_range.1;
+
+        let unit_cost = AffineCost::unit();
+
         while start <= end {
             let f = f(start);
             if f <= f_max {
                 break;
             }
             start += if self.params.sparse_h {
-                (f - f_max).div_ceil(2 * AffineCost::unit().min_ins_extend)
+                (f - f_max).div_ceil(2 * unit_cost.min_ins_extend)
             } else {
                 1
             };
@@ -290,7 +293,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 break;
             }
             end -= if self.params.sparse_h {
-                (f - f_max).div_ceil(2 * AffineCost::unit().min_ins_extend)
+                (f - f_max).div_ceil(2 * unit_cost.min_ins_extend)
             } else {
                 1
             };
