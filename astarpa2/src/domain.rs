@@ -252,6 +252,8 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             self.hint = new_hint;
             h
         };
+
+        // Compute values at the end of each lane.
         let mut f = |j| block.index(j) + h(Pos(i, j));
 
         // Start: increment the start of the range until f<=f_max is satisfied.
@@ -294,7 +296,8 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             };
         }
         if DEBUG {
-            eprintln!("fixed_j_range for {i} {:?}", JRange(start, end));
+            eprintln!("initial fixed_j_range for {i} {fixed_j_range:?}");
+            eprintln!("prev    fixed_j_range for {i} {:?}", block.fixed_j_range);
         }
         Some(JRange(start, end))
     }
@@ -315,7 +318,11 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         {
             h.update_contours(Pos(0, 0));
             if DEBUG {
-                eprintln!("Test dist {} h0 {}", f_max.unwrap_or(0), h.h(Pos(0, 0)));
+                eprintln!("\nTEST DIST {} h0 {}\n", f_max.unwrap_or(0), h.h(Pos(0, 0)));
+            }
+        } else {
+            if DEBUG {
+                eprintln!("\nTEST DIST {}\n", f_max.unwrap_or(0));
             }
         }
 
@@ -409,8 +416,11 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             // Compute the new range of fixed states.
             let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, blocks.last_block());
 
-            // If there are not fixed states, break.
+            // If there are no fixed states, break.
             if next_fixed_j_range.is_some_and(|r| r.is_empty()) {
+                if DEBUG {
+                    eprintln!("fixed_j_range is empty! Increasing f_max!");
+                }
                 self.v.new_layer(self.domain.h());
                 return None;
             }

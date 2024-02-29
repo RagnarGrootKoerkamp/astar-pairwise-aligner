@@ -228,16 +228,16 @@ impl Blocks {
             self.unique_rows -= next_block.j_range.exclusive_len() as usize / W;
         }
 
+        if DEBUG {
+            println!("Compute block {:?} {:?}", i_range, j_range);
+        }
+
         if self.trace && !self.params.sparse {
             // This is extracted to a separate function for reuse during traceback.
             return self.fill_with_blocks(i_range, j_range, viz);
         }
 
         self.i_range.push(i_range);
-
-        if DEBUG {
-            eprintln!("Compute block {:?} {:?}", i_range, j_range);
-        }
 
         let v_range = j_range.v_range();
         self.unique_rows += v_range.len();
