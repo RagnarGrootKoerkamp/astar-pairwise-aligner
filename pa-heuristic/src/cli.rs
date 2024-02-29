@@ -25,9 +25,9 @@ pub enum HeuristicType {
 
     // For testing
     /// Bruteforce GapCost
-    GapCost,
+    BruteForceGapCost,
     /// Affine gap costs
-    Affine,
+    BruteForceAffineGapCost,
 }
 
 fn default_match_cost() -> MatchCost {
@@ -191,12 +191,12 @@ impl HeuristicParams {
             HeuristicType::CSH => f.call(CSH::new(match_config, pruning)),
             HeuristicType::GCSH => f.call(GCSH::new(match_config, pruning)),
             // bruteforce variants
-            HeuristicType::GapCost => f.call(BruteForceGCSH {
+            HeuristicType::BruteForceGapCost => f.call(BruteForceGCSH {
                 match_config,
                 pruning,
                 distance_function: GapCost,
             }),
-            HeuristicType::Affine => f.call(BruteForceGCSH {
+            HeuristicType::BruteForceAffineGapCost => f.call(BruteForceGCSH {
                 match_config,
                 pruning,
                 distance_function: AffineGapCost { k: self.k },
