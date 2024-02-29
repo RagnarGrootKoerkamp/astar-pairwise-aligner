@@ -92,23 +92,23 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         // Inclusive end column of the new block.
         let ie = i_range.1;
 
+        let unit_cost = AffineCost::unit();
+
         let mut range = match &self.domain {
             Full => JRange(0, self.b.len() as I),
             GapStart => {
                 // range: the max number of diagonals we can move up/down from the start with cost f.
                 JRange(
-                    is + 1 + -(AffineCost::unit().max_del_for_cost(f_max) as I),
-                    ie + AffineCost::unit().max_ins_for_cost(f_max) as I,
+                    is + 1 + -(unit_cost.max_del_for_cost(f_max) as I),
+                    ie + unit_cost.max_ins_for_cost(f_max) as I,
                 )
             }
             GapGap => {
                 let d = self.b.len() as I - self.a.len() as I;
                 // We subtract the cost needed to bridge the gap from the start to the end.
-                let s =
-                    f_max - AffineCost::unit().gap_cost(Pos(0, 0), Pos::target(&self.a, &self.b));
+                let s = f_max - unit_cost.gap_cost(Pos(0, 0), Pos::target(&self.a, &self.b));
                 // Each extra diagonal costs one insertion and one deletion.
-                let extra_diagonals =
-                    s / (AffineCost::unit().min_ins_extend + AffineCost::unit().min_del_extend);
+                let extra_diagonals = s / (unit_cost.min_ins_extend + unit_cost.min_del_extend);
                 // NOTE: The range could be reduced slightly further by considering gap open costs.
                 JRange(
                     is + 1 + min(d, 0) - extra_diagonals as I,
@@ -154,7 +154,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 // A lower bound of `f` values estimated from `gu`, valid for states `v` below the diagonal of `u`.
                 let mut f = |v: Pos| {
                     assert!(v.1 - u.1 >= v.0 - u.0);
-                    gu + AffineCost::unit().extend_cost(u, v) + h(v)
+                    gu + unit_cost.extend_cost(u, v) + h(v)
                 };
 
                 // Extend `v` diagonally one column at a time towards `ie`.
@@ -198,7 +198,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                         } else {
                             // By consistency of `f`, it can only change value by at most `2` per step in the unit cost setting.
                             // When `f(v) > f_max`, this means we have to make at least `ceil((fv - f_max)/2)` steps to possibly get at a cell with `f(v) <= f_max`.
-                            v.0 += (fv - f_max).div_ceil(2 * AffineCost::unit().min_del_extend);
+                            v.0 += (fv - f_max).div_ceil(2 * unit_cost.min_del_extend);
                         }
                     }
                     v.0 = ie;
@@ -214,7 +214,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                         if fv <= f_max {
                             break;
                         } else {
-                            v.1 -= (fv - f_max).div_ceil(2 * AffineCost::unit().min_ins_extend);
+                            v.1 -= (fv - f_max).div_ceil(2 * unit_cost.min_ins_extend);
                             // Don't go above the diagonal.
                             // This could happen after pruning we if don't check explicitly.
                             if v.1 < v.0 - u.0 + u.1 {
