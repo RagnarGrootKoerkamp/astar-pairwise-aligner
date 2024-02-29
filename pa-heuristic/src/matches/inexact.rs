@@ -190,7 +190,7 @@ pub fn find_matches_qgramindex<'a>(
 
     let mut matches = MatchBuilder::new_with_seeds(&qgrams, config, transform_filter, seeds);
 
-    for i in 0..matches.seeds.seeds.len() {
+    for i in (0..matches.seeds.seeds.len()).rev() {
         let Seed {
             start,
             end,
@@ -283,7 +283,7 @@ pub fn find_matches_qgram_hash_inexact<'a>(
                 .push(j as Cost);
         }
     }
-    for i in 0..matches.seeds.seeds.len() {
+    for i in (0..matches.seeds.seeds.len()).rev() {
         let Seed { start, end, .. } = matches.seeds.seeds[i];
         let qgram = QGrams::to_qgram(&qgrams.a[start as usize..end as usize]);
         let matches_before_seed = matches.matches.len();

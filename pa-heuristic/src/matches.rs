@@ -241,9 +241,7 @@ impl<'a> MatchBuilder<'a> {
 
     fn finish(mut self) -> Matches {
         // First sort by start, then by end, then by match cost.
-        assert!(self
-            .matches
-            .is_sorted_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost)));
+        self.sort();
         // Dedup to only keep the lowest match cost between each start and end.
         self.matches.dedup_by_key(|m| (m.start, m.end));
 
