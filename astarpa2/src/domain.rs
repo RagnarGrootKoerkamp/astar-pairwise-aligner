@@ -301,10 +301,14 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         let mut fixed_j_range = JRange(start, end);
         if DEBUG {
             eprintln!("initial fixed_j_range for {i} {fixed_j_range:?}");
-            eprintln!("prev    fixed_j_range for {i} {:?}", block.fixed_j_range);
+            eprintln!("old     fixed_j_range for {i} {:?}", block.fixed_j_range);
         }
         if let Some(old_fixed_j_range) = block.fixed_j_range {
-            fixed_j_range = fixed_j_range.union(old_fixed_j_range);
+            if fixed_j_range.is_empty() {
+                fixed_j_range = old_fixed_j_range;
+            } else {
+                fixed_j_range = fixed_j_range.union(old_fixed_j_range);
+            }
         }
         if DEBUG {
             eprintln!("updated fixed_j_range for {i} {fixed_j_range:?}");
