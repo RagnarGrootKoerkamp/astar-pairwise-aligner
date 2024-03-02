@@ -68,6 +68,7 @@ impl Blocks {
                             prev_block.i_range, to.0
                         );
                     }
+                    let prev_j_range = prev_block.j_range;
                     let i_range = IRange(prev_block.i_range.1, to.0);
                     let j_range = JRange(block.j_range.0, to.1);
                     self.pop_last_block();
@@ -78,7 +79,8 @@ impl Blocks {
                     //    The block is high enough once the cost to `to` equals `g`.
                     let mut height = max(j_range.exclusive_len(), i_range.len() * 5 / 4);
                     loop {
-                        let j_range = JRange(max(j_range.1 - height, 0), j_range.1).round_out();
+                        let j_range =
+                            JRange(max(j_range.1 - height, prev_j_range.0), j_range.1).round_out();
                         if DEBUG {
                             eprintln!("Fill block {:?} {:?}", i_range, j_range);
                         }
