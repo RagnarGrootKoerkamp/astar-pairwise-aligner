@@ -234,9 +234,55 @@ impl<'a> MatchBuilder<'a> {
         true
     }
 
+    fn match_key(m: &Match) -> (LexPos, LexPos, MatchCost) {
+        (LexPos(m.start), LexPos(m.end), m.match_cost)
+    }
+
     fn sort(&mut self) {
-        self.matches
-            .sort_by_key(|m| (LexPos(m.start), LexPos(m.end), m.match_cost));
+        self.matches.sort_by_key(|m| Self::match_key(m));
+    }
+
+    // With local pruning, consistency can be lost.
+    // Here we ensure to add those required matches back in.
+    fn make_consistent(&mut self) {
+        if self.config.local_pruning == 0 {
+            return;
+        }
+        if self.config.r == 1 {
+            return;
+        }
+        assert!(self.config.r == 2);
+
+        let mut new_matches = Vec::new();
+        for m in self.matches.iter() {
+            if m.match_cost + 1 >= m.seed_potential {
+                continue;
+            }
+            let deltas = [(0, 1), (0, -1), (1, 0), (-1, 0)];
+            for (dis, die) in deltas {
+                let s = Pos(m.start.0, m.start.1 + dis);
+                let e = Pos(m.end.0, m.end.1 + die);
+                let m = Match {
+                    start: s,
+                    end: e,
+                    match_cost: m.match_cost + 1,
+                    seed_potential: m.seed_potential,
+                    pruned: MatchStatus::Active,
+                };
+                if self
+                    .matches
+                    .binary_search_by_key(&Self::match_key(&m), Self::match_key)
+                    .is_err()
+                {
+                    new_matches.push(m);
+                }
+            }
+        }
+        if PRINT {
+            eprintln!("Added {} matches for consistency", new_matches.len());
+        }
+        self.matches.extend(new_matches);
+        self.sort();
     }
 
     fn finish(mut self) -> Matches {
@@ -244,6 +290,8 @@ impl<'a> MatchBuilder<'a> {
         self.sort();
         // Dedup to only keep the lowest match cost between each start and end.
         self.matches.dedup_by_key(|m| (m.start, m.end));
+
+        self.make_consistent();
 
         if PRINT && self.config.local_pruning > 0 {
             eprintln!(
