@@ -81,10 +81,12 @@ pub(super) fn preserve_for_local_pruning(
     }
 
     let s = m.start;
+    let e = m.end;
     let start_pot = seeds.potential(s);
     let seed_idx = seeds.seed_at[s.0 as usize].unwrap();
+    // Cover a total of p seeds, including the matching seed itself.
     // Near the end, fewer than `p` seeds are considered.
-    let last_seed = &seeds.seeds[min(seed_idx as usize + p, seeds.seeds.len() - 1)];
+    let last_seed = &seeds.seeds[min(seed_idx as usize + p - 1, seeds.seeds.len() - 1)];
     let end_i = last_seed.end;
     let end_pot = seeds.potential[end_i as usize];
 
@@ -98,23 +100,23 @@ pub(super) fn preserve_for_local_pruning(
         stats.resize(pd, 0);
     }
 
-    // d: the diagonal relative to s.
-    // d=1: the diagonal above s.
+    // d: the diagonal relative to e.
+    // d=1: the diagonal above e.
     let mut d_range = pd..pd + 1;
-    // Initialize the first front.
-    fr[pd] = s.0;
+    // Initialize the first front at e.
+    fr[pd] = e.0;
     next_fr[pd] = I::MIN;
 
-    if extend_right_simd(a, b, &mut fr[pd], s.1, end_i) {
+    if extend_right_simd(a, b, &mut fr[pd], e.1, end_i) {
         stats[0] += 1;
         return true;
     }
-    if next_match_per_diag.index(s.0 - s.1) <= fr[pd] {
+    if next_match_per_diag.index(e.0 - e.1) <= fr[pd] {
         stats[0] += 1;
         return true;
     }
 
-    for g in 1..pd as Cost {
+    for g in 1 + m.match_cost as Cost..pd as Cost {
         fr[d_range.start - 1] = I::MIN;
         fr[d_range.end] = I::MIN;
         next_fr[d_range.start - 1] = I::MIN;
@@ -152,7 +154,7 @@ pub(super) fn preserve_for_local_pruning(
         // extend
         for d in d_range.clone() {
             let i = &mut fr[d];
-            let dd = s.0 - s.1 + (d as I - pd as I);
+            let dd = e.0 - e.1 + (d as I - pd as I);
             let j = *i - dd;
             let old_i = *i;
 
