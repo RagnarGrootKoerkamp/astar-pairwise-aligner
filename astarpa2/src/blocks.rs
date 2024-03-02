@@ -372,6 +372,8 @@ impl Blocks {
         // Otherwise, do a 2-range split:
         // range 01: everything before the new j_h.    h is output.
         // range  2: from new j_h to end.              h is output.
+        //
+        // FIXME(new): Only split when j_range >> 256.
         if let Some(old_j_h) = old_block.j_h
             && old_fixed.0 < old_j_h
         {
@@ -715,32 +717,17 @@ fn compute_block(
         computed_rows[v_range.len()] += 1;
     }
 
-    let run = |h, exact_end| {
+    let run = |h: &mut [H], exact_end| {
+        let a = &a[i_range.0 as usize..i_range.1 as usize];
+        let b = &b[v_range];
         if params.simd {
             if params.no_ilp {
-                pa_bitpacking::simd::compute::<1, H, 4>(
-                    &a[i_range.0 as usize..i_range.1 as usize],
-                    &b[v_range],
-                    h,
-                    v,
-                    exact_end,
-                ) as I
+                pa_bitpacking::simd::compute::<1, H, 4>(a, b, h, v, exact_end) as I
             } else {
-                pa_bitpacking::simd::compute::<2, H, 4>(
-                    &a[i_range.0 as usize..i_range.1 as usize],
-                    &b[v_range],
-                    h,
-                    v,
-                    exact_end,
-                ) as I
+                pa_bitpacking::simd::compute::<2, H, 4>(a, b, h, v, exact_end) as I
             }
         } else {
-            pa_bitpacking::scalar::row::<BitProfile, H>(
-                &a[i_range.0 as usize..i_range.1 as usize],
-                &b[v_range],
-                h,
-                v,
-            ) as I
+            pa_bitpacking::scalar::row::<BitProfile, H>(a, b, h, v) as I
         }
     };
     let i_slice = i_range.0 as usize..i_range.1 as usize;
