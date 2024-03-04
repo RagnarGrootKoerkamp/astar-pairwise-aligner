@@ -42,6 +42,66 @@ pub struct AstarPa2Params {
 }
 
 impl AstarPa2Params {
+    pub fn simple() -> Self {
+        Self {
+            name: "simple".into(),
+            domain: Astar(()),
+            heuristic: HeuristicParams {
+                heuristic: pa_heuristic::HeuristicType::Gap,
+                ..Default::default()
+            },
+            doubling: band::DoublingType::BandDoubling {
+                start: DoublingStart::H0,
+                factor: 2.0,
+            },
+            block_width: 256,
+            front: BlockParams {
+                sparse: true,
+                simd: true,
+                no_ilp: false,
+                incremental_doubling: false,
+                dt_trace: true,
+                max_g: 20,
+                x_drop: 10,
+            },
+            sparse_h: true,
+            prune: false,
+            viz: false,
+        }
+    }
+
+    pub fn full() -> Self {
+        Self {
+            name: "full".into(),
+            domain: Astar(()),
+            heuristic: HeuristicParams {
+                heuristic: pa_heuristic::HeuristicType::GCSH,
+                prune: pa_heuristic::Prune::Start,
+                k: 12,
+                r: 1,
+                p: 14,
+                ..Default::default()
+            },
+            doubling: band::DoublingType::BandDoubling {
+                start: DoublingStart::H0,
+                factor: 2.0,
+            },
+            block_width: 256,
+            front: BlockParams {
+                sparse: true,
+                simd: true,
+                no_ilp: false,
+                incremental_doubling: false,
+                dt_trace: true,
+                max_g: 20,
+                x_drop: 10,
+            },
+            sparse_h: true,
+            prune: true,
+            viz: false,
+        }
+    }
+
     /// Convert to a typed `AstarPa2` `Aligner` instance, using a visualizer is
     /// if the `pa-vis` feature is enabled.
     pub fn make_aligner(&self, trace: bool) -> Box<dyn Aligner> {
