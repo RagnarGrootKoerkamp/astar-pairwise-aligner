@@ -17,7 +17,10 @@ lazy_static! {
 }
 
 thread_local! {
-    static SDL_CONTEXT: Sdl = sdl2::init().unwrap();
+    static SDL_CONTEXT: Sdl = {
+        assert!(sdl2::hint::set("SDL_VIDEODRIVER", "wayland,x11"));
+        sdl2::init().unwrap()
+    };
     static FONT: Font<'static, 'static> = 'font: {
         for path in ["/usr/share/fonts/TTF/OpenSans-Regular.ttf", "/usr/share/fonts/ttf/opensans-regular.ttf", "/usr/share/fonts/truetype/open-sans/OpenSans-Regular.ttf"] {
             if let Ok(font) = TTF_CONTEXT.load_font(path, 24) {
