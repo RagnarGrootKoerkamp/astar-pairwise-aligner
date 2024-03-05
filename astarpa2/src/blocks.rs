@@ -5,12 +5,13 @@
 //!       (NOTE though that this doesn't actually seem that bad in practice.)
 //! TODO: Separate strong types for row `I` and 'block-row' `I*64`.
 
-mod trace;
+pub mod trace;
 
 use std::{
     cmp::{max, min},
     ops::{Index, IndexMut},
     ptr::read_unaligned,
+    time::Duration,
 };
 
 use itertools::{izip, Itertools};
@@ -73,6 +74,16 @@ impl Default for BlockParams {
     }
 }
 
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct BlockStats {
+    pub num_blocks: usize,
+    pub num_incremental_blocks: usize,
+    pub computed_lanes: usize,
+    pub unique_lanes: usize,
+
+    pub t_compute: Duration,
+}
+
 /// The main data for bitblocks.
 pub struct Blocks {
     // Input/parameters.
@@ -94,10 +105,7 @@ pub struct Blocks {
     /// This allows for incremental band doubling.
     h: Vec<H>,
 
-    // Additional statistics.
-    /// The distribution of number of rows in `compute` calls.
-    computed_rows: Vec<usize>,
-    unique_rows: usize,
+    pub stats: BlockStats,
 }
 
 impl BlockParams {
@@ -117,34 +125,8 @@ impl BlockParams {
             },
             a,
             b,
-            computed_rows: vec![],
-            unique_rows: 0,
+            stats: BlockStats::default(),
         }
-    }
-}
-
-/// Print some statistics.
-impl Drop for Blocks {
-    fn drop(&mut self) {
-        if !DEBUG {
-            return;
-        }
-        let mut cnt = 0;
-        let mut total = 0;
-        for (i, c) in self.computed_rows.iter().enumerate() {
-            cnt += c;
-            total += i * c;
-            if i % 10 == 0 {
-                eprint!("\n{i:>4}");
-            }
-            eprint!("{c:>7}");
-        }
-        eprintln!();
-        eprintln!("Num blocks: {cnt}");
-        // FIXME: Hardcoded blocksize.
-        let num_blocks = max(self.a.len().div_ceil(256), 1);
-        eprintln!("Total band: {}", total / num_blocks);
-        eprintln!("Uniq. band: {}", self.unique_rows / num_blocks);
     }
 }
 
@@ -226,17 +208,20 @@ impl Blocks {
         j_range: JRange,
         viz: &mut impl VisualizerInstance,
     ) {
+        self.stats.num_blocks += 1;
+        let start = std::time::Instant::now();
+
         let j_range = j_range.round_out();
 
         let v_range = j_range.v_range();
-        self.unique_rows += v_range.len();
+        self.stats.unique_lanes += v_range.len();
 
         if let Some(next_block) = self.blocks.get(self.last_block_idx + 1) {
             assert!(
                 j_range.contains_range(*next_block.j_range),
                 "j_range must grow"
             );
-            self.unique_rows -= next_block.j_range.exclusive_len() as usize / W;
+            self.stats.unique_lanes -= next_block.j_range.exclusive_len() as usize / W;
         }
 
         if DEBUG {
@@ -245,7 +230,9 @@ impl Blocks {
 
         if self.trace && !self.params.sparse {
             // This is extracted to a separate function for reuse during traceback.
-            return self.fill_with_blocks(i_range, j_range, viz);
+            self.fill_with_blocks(i_range, j_range, viz);
+            self.stats.t_compute += start.elapsed();
+            return;
         }
 
         self.i_range.push(i_range);
@@ -269,7 +256,7 @@ impl Blocks {
                     v_range.clone(),
                     &mut self.blocks[self.last_block_idx].v[v_range.clone()],
                     &mut self.h,
-                    &mut self.computed_rows,
+                    &mut self.stats,
                     HMode::None,
                     viz,
                 );
@@ -280,6 +267,7 @@ impl Blocks {
             block.top_val = top_val;
             block.bot_val = bot_val;
             block.check_top_bot_val();
+            self.stats.t_compute += start.elapsed();
             return;
         }
 
@@ -338,11 +326,12 @@ impl Blocks {
                 v_range.clone(),
                 &mut next_block.v,
                 &mut self.h,
-                &mut self.computed_rows,
+                &mut self.stats,
                 HMode::None,
                 viz,
             );
             next_block.check_top_bot_val();
+            self.stats.t_compute += start.elapsed();
             return;
         }
 
@@ -404,7 +393,7 @@ impl Blocks {
                 v_range_0.clone(),
                 &mut next_block.v[v_range_0.start - offset..v_range_0.end - offset],
                 &mut self.h,
-                &mut self.computed_rows,
+                &mut self.stats,
                 HMode::None,
                 viz,
             );
@@ -418,7 +407,7 @@ impl Blocks {
                 v_range_1.clone(),
                 &mut next_block.v[v_range_1.start - offset..v_range_1.end - offset],
                 &mut self.h,
-                &mut self.computed_rows,
+                &mut self.stats,
                 HMode::Update,
                 viz,
             );
@@ -432,7 +421,7 @@ impl Blocks {
                 v_range_2.clone(),
                 &mut next_block.v[v_range_2.start - offset..v_range_2.end - offset],
                 &mut self.h,
-                &mut self.computed_rows,
+                &mut self.stats,
                 HMode::Input,
                 viz,
             );
@@ -452,7 +441,7 @@ impl Blocks {
                 v_range_01.clone(),
                 &mut next_block.v[v_range_01.start - offset..v_range_01.end - offset],
                 &mut self.h,
-                &mut self.computed_rows,
+                &mut self.stats,
                 HMode::Output,
                 viz,
             );
@@ -465,7 +454,7 @@ impl Blocks {
                 v_range_2.clone(),
                 &mut next_block.v[v_range_2.start - offset..v_range_2.end - offset],
                 &mut self.h,
-                &mut self.computed_rows,
+                &mut self.stats,
                 HMode::Input,
                 viz,
             );
@@ -490,7 +479,7 @@ impl Blocks {
                     v_range.clone(),
                     &mut next_block_2.v[v_range.start - offset..v_range.end - offset],
                     &mut self.h,
-                    &mut self.computed_rows,
+                    &mut self.stats,
                     HMode::Output,
                     viz,
                 );
@@ -513,7 +502,7 @@ impl Blocks {
                     v_range.clone(),
                     &mut next_block_2.v[v_range.start - offset..v_range.end - offset],
                     &mut self.h,
-                    &mut self.computed_rows,
+                    &mut self.stats,
                     HMode::Output,
                     viz,
                 );
@@ -531,7 +520,7 @@ impl Blocks {
                 v_range.clone(),
                 &mut next_block_2.v,
                 &mut self.h,
-                &mut self.computed_rows,
+                &mut self.stats,
                 HMode::None,
                 viz,
             );
@@ -544,6 +533,7 @@ impl Blocks {
             next_block_2.check_top_bot_val();
             next_block.check_top_bot_val();
         }
+        self.stats.t_compute += start.elapsed();
     }
 
     pub fn last_block(&self) -> &Block {
@@ -695,7 +685,7 @@ fn compute_block(
     v_range: std::ops::Range<usize>,
     v: &mut [V],
     h: &mut [H],
-    computed_rows: &mut Vec<usize>,
+    stats: &mut BlockStats,
     mode: HMode,
     viz: &mut impl VisualizerInstance,
 ) -> i32 {
@@ -711,10 +701,8 @@ fn compute_block(
             eprintln!("Compute i {i_range:?} x j {v_range:?} in mode {mode:?}");
         }
 
-        if !(v_range.len() < computed_rows.len()) {
-            computed_rows.resize(v_range.len() + 1, 0);
-        }
-        computed_rows[v_range.len()] += 1;
+        stats.computed_lanes += v_range.len();
+        stats.num_incremental_blocks += 1;
     }
 
     let run = |h: &mut [H], exact_end| {

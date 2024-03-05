@@ -227,7 +227,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
 
         // eprintln!("TRACE..");
         let dist = blocks.last_block().get(self.b.len() as I).unwrap();
-        let cigar = blocks.trace(
+        let (cigar, _stats) = blocks.trace(
             self.a,
             self.b,
             Pos(0, 0),

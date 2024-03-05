@@ -16,6 +16,7 @@ mod ranges;
 mod tests;
 
 pub use band::{DoublingStart, DoublingType};
+use domain::AstarPa2Stats;
 use pa_bitpacking::W;
 pub use params::*;
 
@@ -67,28 +68,35 @@ pub struct AstarPa2<V: VisualizerT, H: Heuristic> {
 impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
     pub fn build<'a>(&'a self, a: Seq<'a>, b: Seq<'a>) -> AstarPa2Instance<'a, V, H> {
         use Domain::*;
+        let start = std::time::Instant::now();
+        let domain = match self.domain {
+            Full => Full,
+            GapStart => GapStart,
+            GapGap => GapGap,
+            Astar(h) => {
+                let h = h.build(a, b);
+                if DEBUG {
+                    eprintln!("h0: {}", h.h(Pos(0, 0)));
+                }
+                Astar(h)
+            }
+        };
+
         AstarPa2Instance {
             a,
             b,
             params: self,
-            domain: match self.domain {
-                Full => Full,
-                GapStart => GapStart,
-                GapGap => GapGap,
-                Astar(h) => {
-                    let h = h.build(a, b);
-                    if DEBUG {
-                        eprintln!("h0: {}", h.h(Pos(0, 0)));
-                    }
-                    Astar(h)
-                }
-            },
+            domain,
             hint: Default::default(),
             v: self.v.build(a, b),
+            stats: AstarPa2Stats {
+                t_precomp: start.elapsed(),
+                ..Default::default()
+            },
         }
     }
 
-    fn cost_or_align(&self, a: Seq, b: Seq, trace: bool) -> (Cost, Option<Cigar>) {
+    fn cost_or_align(&self, a: Seq, b: Seq, trace: bool) -> (Cost, Option<Cigar>, AstarPa2Stats) {
         let mut nw = self.build(a, b);
         let h0 = nw.domain.h().map_or(0, |h| h.h(Pos(0, 0)));
         let (cost, cigar) = match self.doubling {
@@ -109,11 +117,13 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
             DoublingType::BandDoubling { start, factor } => {
                 let (start_f, start_increment) = start.initial_values(a, b, h0);
                 let mut blocks = self.block.new(trace, a, b);
-                band::exponential_search(start_f, start_increment, factor, |s| {
+                let r = band::exponential_search(start_f, start_increment, factor, |s| {
                     nw.align_for_bounded_dist(Some(s), trace, Some(&mut blocks))
                         .map(|x @ (c, _)| (c, x))
                 })
-                .1
+                .1;
+                nw.stats.block_stats = blocks.stats;
+                r
             }
             // NOTE: This is not in the paper since it does not yet work much
             // better than (global) band doubling in practice.
@@ -129,7 +139,7 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
             None,
         );
         assert!(h0 <= cost, "Heuristic at start {h0} > final cost {cost}.");
-        (cost, cigar)
+        (cost, cigar, nw.stats)
     }
 
     pub fn cost(&self, a: Seq, b: Seq) -> Cost {
@@ -137,7 +147,8 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
     }
 
     pub fn align(&self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
-        self.cost_or_align(a, b, self.trace)
+        let (cost, cigar, _stats) = self.cost_or_align(a, b, self.trace);
+        (cost, cigar)
     }
 
     pub fn cost_for_bounded_dist(&self, a: Seq, b: Seq, f_max: Cost) -> Option<Cost> {
@@ -150,5 +161,23 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
         self.build(a, b)
             .align_for_bounded_dist(Some(f_max), true, None)
             .map(|(c, cigar)| (c, cigar.unwrap()))
+    }
+}
+
+/// Helper trait to erase the type of the heuristic that additionally returns alignment statistics.
+pub trait AstarPa2StatsAligner: Aligner {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>, AstarPa2Stats);
+}
+
+impl<V: VisualizerT, H: Heuristic> AstarPa2StatsAligner for AstarPa2<V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>, AstarPa2Stats) {
+        self.cost_or_align(a, b, self.trace)
+    }
+}
+
+impl<V: VisualizerT, H: Heuristic> Aligner for AstarPa2<V, H> {
+    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
+        let (cost, cigar, _stats) = self.cost_or_align(a, b, self.trace);
+        (cost, cigar)
     }
 }

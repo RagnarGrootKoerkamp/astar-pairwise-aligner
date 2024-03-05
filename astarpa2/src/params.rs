@@ -104,7 +104,7 @@ impl AstarPa2Params {
 
     /// Convert to a typed `AstarPa2` `Aligner` instance, using a visualizer is
     /// if the `pa-vis` feature is enabled.
-    pub fn make_aligner(&self, trace: bool) -> Box<dyn Aligner> {
+    pub fn make_aligner(&self, trace: bool) -> Box<dyn AstarPa2StatsAligner> {
         #[cfg(feature = "pa-vis")]
         if self.viz {
             use pa_vis::visualizer::{Gradient, When};
@@ -147,15 +147,15 @@ impl AstarPa2Params {
         &self,
         trace: bool,
         v: V,
-    ) -> Box<dyn Aligner> {
+    ) -> Box<dyn AstarPa2StatsAligner> {
         struct Mapper<V: VisualizerT> {
             params: AstarPa2Params,
             trace: bool,
             v: V,
         }
         impl<V: VisualizerT + 'static> HeuristicMapper for Mapper<V> {
-            type R = Box<dyn Aligner>;
-            fn call<H: Heuristic + 'static>(self, h: H) -> Box<dyn Aligner> {
+            type R = Box<dyn AstarPa2StatsAligner>;
+            fn call<H: Heuristic + 'static>(self, h: H) -> Box<dyn AstarPa2StatsAligner> {
                 Box::new(AstarPa2 {
                     domain: Domain::Astar(h),
                     doubling: self.params.doubling,

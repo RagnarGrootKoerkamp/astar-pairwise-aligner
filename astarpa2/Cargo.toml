@@ -20,6 +20,7 @@ pa-bitpacking = { version = "0.1.0", path = "../pa-bitpacking" }
 pa-vis = { workspace = true, optional = true }
 derivative = "2.2.0"
 pa-test = { version = "0.1.0", path = "../pa-test" }
+scopeguard = "1.2.0"
 
 [dev-dependencies]
 pa-generate.workspace = true

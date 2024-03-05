@@ -1,4 +1,19 @@
+use std::time::Duration;
+
 use super::*;
+
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct TraceStats {
+    pub dt_trace_tries: usize,
+    pub dt_trace_success: usize,
+    pub dt_trace_fallback: usize,
+    pub fill_tries: usize,
+    pub fill_success: usize,
+    pub fill_fallback: usize,
+
+    pub t_dt: Duration,
+    pub t_fill: Duration,
+}
 
 impl Blocks {
     /// Traceback the path from `from` to `to`.
@@ -12,20 +27,17 @@ impl Blocks {
         from: Pos,
         mut to: Pos,
         viz: &mut impl VisualizerInstance,
-    ) -> Cigar {
+    ) -> (Cigar, TraceStats) {
         assert!(self.trace);
         assert!(self.blocks.last().unwrap().i_range.1 == to.0);
         let mut cigar = Cigar { ops: vec![] };
         let mut g = self.blocks[self.last_block_idx].index(to.1);
 
+        let mut stats = TraceStats::default();
+
         if DEBUG {
             eprintln!("Trace from distance {g}");
         }
-
-        // Collect some statistics.
-        let mut dt_trace_tries = 0;
-        let mut dt_trace_success = 0;
-        let mut dt_trace_fallback = 0;
 
         // Some allocated memory that can be reused.
         let dt_cache = &mut vec![BlockElem::default(); (self.params.max_g + 1).pow(2) as usize];
@@ -40,15 +52,17 @@ impl Blocks {
             if self.params.dt_trace && to.0 > 0 {
                 let prev_block = &self.blocks[self.last_block_idx - 1];
                 if prev_block.i_range.1 < to.0 - 1 {
-                    dt_trace_tries += 1;
-                    if let Some(new_to) =
-                        self.dt_trace_block(a, b, to, &mut g, prev_block, &mut cigar, dt_cache)
-                    {
-                        dt_trace_success += 1;
+                    stats.dt_trace_tries += 1;
+                    let start = std::time::Instant::now();
+                    let dt_trace_result =
+                        self.dt_trace_block(a, b, to, &mut g, prev_block, &mut cigar, dt_cache);
+                    stats.t_dt += start.elapsed();
+                    if let Some(new_to) = dt_trace_result {
+                        stats.dt_trace_success += 1;
                         to = new_to;
                         continue;
                     }
-                    dt_trace_fallback += 1;
+                    stats.dt_trace_fallback += 1;
                 }
             }
 
@@ -62,6 +76,7 @@ impl Blocks {
                 assert!(prev_block.i_range.1 < to.0 && to.0 <= block.i_range.1);
                 // If the previous block is the correct one, no need for further recomputation.
                 if prev_block.i_range.1 < to.0 - 1 || block.i_range.1 > to.0 {
+                    let start = std::time::Instant::now();
                     if DEBUG {
                         eprintln!(
                             "Expand previous block from {:?} to {}",
@@ -77,20 +92,23 @@ impl Blocks {
                     // 2. It's unlikely we'll need all states starting at the (possibly much smaller) `j_range.0`.
                     //    Instead, we do an exponential search for the start of the `j_range`, starting at `to.1-2*i_range.len()`.
                     //    The block is high enough once the cost to `to` equals `g`.
+                    // TODO: Instead of computing increasingly large blocks in forward
+                    // direction we could also iterate backwards.
                     let mut height = max(j_range.exclusive_len(), i_range.len() * 5 / 4);
                     loop {
                         let j_range =
                             JRange(max(j_range.1 - height, prev_j_range.0), j_range.1).round_out();
-                        if DEBUG {
-                            eprintln!("Fill block {:?} {:?}", i_range, j_range);
-                        }
+                        stats.fill_tries += 1;
                         self.fill_with_blocks(i_range, j_range, viz);
                         if self.blocks[self.last_block_idx].index(to.1) == g {
+                            stats.fill_success += 1;
                             break;
                         }
-                        if j_range.0 == 0 {
-                            panic!("No trace found through block {i_range:?} {j_range:?}");
-                        }
+                        stats.fill_fallback += 1;
+                        assert!(
+                            j_range.0 != 0,
+                            "No trace found through block {i_range:?} {j_range:?}"
+                        );
                         // Pop all the computed blocks.
                         for _i in i_range.0..i_range.1 {
                             self.pop_last_block();
@@ -98,27 +116,18 @@ impl Blocks {
                         // Try again with a larger height.
                         height *= 2;
                     }
+                    stats.t_fill += start.elapsed();
                 }
             }
 
-            if DEBUG && to.0 % 256 == 0 {
-                eprintln!(
-                    "Parent of {to:?} at distance {g} with range {:?}",
-                    self.blocks[self.last_block_idx].j_range
-                );
-            }
             let (parent, cigar_elem) = self.parent(to, &mut g);
             to = parent;
             cigar.push_elem(cigar_elem);
         }
-        if DEBUG {
-            eprintln!("dt_trace_tries:    {:>7}", dt_trace_tries);
-            eprintln!("dt_trace_success:  {:>7}", dt_trace_success);
-            eprintln!("dt_trace_fallback: {:>7}", dt_trace_fallback);
-        }
         assert_eq!(g, 0);
         cigar.reverse();
-        cigar
+
+        (cigar, stats)
     }
 
     /// Find the parent of `st`.

@@ -14,14 +14,32 @@
 // BUG: Figure out why the delta=64 is broken in fixed_j_range.
 mod local_doubling;
 
+use self::blocks::{trace::TraceStats, BlockStats};
+
 use super::*;
 use crate::{block::Block, blocks::Blocks};
 use pa_affine_types::AffineCost;
 use pa_heuristic::*;
 use pa_types::*;
 use pa_vis_types::*;
-use std::cmp::{max, min};
+use std::{
+    cmp::{max, min},
+    time::Duration,
+};
 use Domain::*;
+
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct AstarPa2Stats {
+    pub block_stats: BlockStats,
+    pub trace_stats: TraceStats,
+
+    pub f_max_tries: usize,
+
+    pub t_precomp: Duration,
+    pub t_j_range: Duration,
+    pub t_fixed_j_range: Duration,
+    pub t_pruning: Duration,
+}
 
 pub struct AstarPa2Instance<'a, V: VisualizerT, H: Heuristic> {
     // NOTE: `a` and `b` are padded sequences and hence owned.
@@ -38,22 +56,8 @@ pub struct AstarPa2Instance<'a, V: VisualizerT, H: Heuristic> {
 
     /// The instantiated visualizer to use.
     pub v: V::Instance,
-}
 
-impl<V: VisualizerT, H: Heuristic> Aligner for AstarPa2<V, H> {
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>) {
-        self.cost_or_align(a, b, self.trace)
-    }
-}
-
-impl<'a, V: VisualizerT, H: Heuristic> Drop for AstarPa2Instance<'a, V, H> {
-    fn drop(&mut self) {
-        if DEBUG {
-            if let Astar(h) = &mut self.domain {
-                eprintln!("h0 end: {}", h.h(Pos(0, 0)));
-            }
-        }
-    }
+    pub stats: AstarPa2Stats,
 }
 
 impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
@@ -116,6 +120,11 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 )
             }
             Astar(h) => {
+                let t_start = std::time::Instant::now();
+                let stats = &mut self.stats;
+                scopeguard::defer! {
+                    stats.t_j_range += t_start.elapsed();
+                }
                 // TODO FIXME Return already-rounded jrange. More precision isn't needed, and this will save some time.
 
                 // Get the range of rows with fixed states `f(u) <= f_max`.
@@ -246,6 +255,12 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             return None;
         };
 
+        let t_start = std::time::Instant::now();
+        let stats = &mut self.stats;
+        scopeguard::defer! {
+            stats.t_fixed_j_range += t_start.elapsed();
+        }
+
         // Wrapper to use h with hint.
         let mut h = |pos| {
             let (h, new_hint) = h.h_with_hint(pos, self.hint);
@@ -326,6 +341,8 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         trace: bool,
         blocks: Option<&mut Blocks>,
     ) -> Option<(Cost, Option<Cigar>)> {
+        self.stats.f_max_tries += 1;
+
         // Update contours for any pending prunes.
         if self.params.prune
             && let Astar(h) = &mut self.domain
@@ -444,11 +461,13 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             if self.params.prune
                 && let Astar(h) = &mut self.domain
             {
+                let start = std::time::Instant::now();
                 let intersection =
                     JRange::intersection(prev_fixed_j_range.unwrap(), next_fixed_j_range.unwrap());
                 if !intersection.is_empty() {
                     h.prune_block(i_range.0..i_range.1, intersection.0..intersection.1);
                 }
+                self.stats.t_pruning += start.elapsed();
             }
         }
 
@@ -460,13 +479,14 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
 
         // If dist is at most the assumed bound, do a traceback.
         if trace && dist <= f_max.unwrap_or(I::MAX) {
-            let cigar = blocks.trace(
+            let (cigar, trace_stats) = blocks.trace(
                 self.a,
                 self.b,
                 Pos(0, 0),
                 Pos(self.a.len() as I, self.b.len() as I),
                 &mut self.v,
             );
+            self.stats.trace_stats = trace_stats;
             Some((dist, Some(cigar)))
         } else {
             // NOTE: A distance is always returned, even if it is larger than
