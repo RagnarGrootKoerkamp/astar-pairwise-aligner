@@ -11,6 +11,7 @@ pa-types.workspace = true
 pa-generate.workspace = true
 pa-heuristic.workspace = true
 astarpa.workspace = true
+astarpa2.workspace = true
 itertools.workspace = true
 clap.workspace = true
 pa-vis = {workspace = true, optional=true}
@@ -47,3 +48,14 @@ path = "examples/astarpa-figures/comparison.rs"
 [[example]]
 name = "fig-limitations"
 path = "examples/astarpa-figures/limitations.rs"
+
+# A*PA2 figures
+[[example]]
+name = "fig-intro-2"
+path = "examples/astarpa2-figures/intro.rs"
+[[example]]
+name = "fig-limitations-2"
+path = "examples/astarpa2-figures/limitations.rs"
+[[example]]
+name = "fig-layers-2"
+path = "examples/astarpa2-figures/layers.rs"

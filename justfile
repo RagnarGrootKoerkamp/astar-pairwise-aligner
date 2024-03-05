@@ -8,3 +8,12 @@ codecoverage:
 
 vis:
    cargo run -r --example aligners_vis --features sdl
+
+fig name:
+  cargo run -r --example fig-{{name}}-2 --features sdl
+  mogrify -format png imgs/astarpa2-paper/{{name}}/*bmp
+  rm imgs/astarpa2-paper/{{name}}/*bmp
+
+fig-intro: (fig "intro")
+fig-limitations: (fig "limitations")
+fig-layers: (fig "layers")
