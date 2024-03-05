@@ -166,11 +166,11 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
 
 /// Helper trait to erase the type of the heuristic that additionally returns alignment statistics.
 pub trait AstarPa2StatsAligner: Aligner {
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>, AstarPa2Stats);
+    fn align_with_stats(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>, AstarPa2Stats);
 }
 
 impl<V: VisualizerT, H: Heuristic> AstarPa2StatsAligner for AstarPa2<V, H> {
-    fn align(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>, AstarPa2Stats) {
+    fn align_with_stats(&mut self, a: Seq, b: Seq) -> (Cost, Option<Cigar>, AstarPa2Stats) {
         self.cost_or_align(a, b, self.trace)
     }
 }
