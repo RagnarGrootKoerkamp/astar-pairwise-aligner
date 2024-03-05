@@ -94,7 +94,7 @@ impl Blocks {
                     //    The block is high enough once the cost to `to` equals `g`.
                     // TODO: Instead of computing increasingly large blocks in forward
                     // direction we could also iterate backwards.
-                    let mut height = max(j_range.exclusive_len(), i_range.len() * 5 / 4);
+                    let mut height = min(j_range.exclusive_len(), i_range.len() * 5 / 4);
                     loop {
                         let j_range =
                             JRange(max(j_range.1 - height, prev_j_range.0), j_range.1).round_out();
