@@ -250,14 +250,18 @@ impl MatchPruner {
             .active_range
             .binary_search_by_key(&(i_range.start + 1), |ar| ar.col)
             .unwrap_or_else(|idx| idx);
-        while let Some(ar) = self.active_range.get_mut(seed_idx) && ar.col <= i_range.end {
+        while let Some(ar) = self.active_range.get_mut(seed_idx)
+            && ar.col <= i_range.end
+        {
             // eprintln!("range: {ar:?}");
             let after = if let Some(after) = ar.after.as_mut() {
                 after
             } else {
                 // Split the full range into the part before (and including) the j_range and the rest.
                 let mut after = ar.before.end..ar.before.end;
-                while after.start >= ar.before.start+1 && self.by_start[after.start-1].start.1 > j_range.end {
+                while after.start >= ar.before.start + 1
+                    && self.by_start[after.start - 1].start.1 > j_range.end
+                {
                     ar.before.end -= 1;
                     after.start -= 1;
                     // eprintln!("Index {} is after", after.start);
@@ -268,7 +272,9 @@ impl MatchPruner {
             };
 
             // Prune the matches at the end of `before` and the start of `after` whose start falls in `j_range`.
-            while ar.before.end > ar.before.start && self.by_start[ar.before.end - 1].start.1 >= j_range.start {
+            while ar.before.end > ar.before.start
+                && self.by_start[ar.before.end - 1].start.1 >= j_range.start
+            {
                 let m = &mut self.by_start[ar.before.end - 1];
                 m.prune();
                 f(m);
@@ -307,7 +313,9 @@ impl MatchPruner {
     }
 
     fn max_score_for_match(&self, start: Pos, end: Pos) -> MatchCost {
-        let Some(ms) = self.start_index.get(&start) else { return 0; };
+        let Some(ms) = self.start_index.get(&start) else {
+            return 0;
+        };
         self.by_start[ms.clone()]
             .iter()
             .filter(|m| m.is_active() && m.end == end)
