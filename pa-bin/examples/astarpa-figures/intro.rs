@@ -39,7 +39,7 @@ fn main() {
     config.style.draw_labels = false;
     config.transparent_bmp = true;
     config.draw_old_on_top = true;
-    config.filepath = PathBuf::from("imgs/paper/intro");
+    config.filepath = PathBuf::from("imgs/astarpa-paper/intro");
     config.clear_after_meeting_point = false;
 
     let aligners: &mut [Box<dyn Aligner>] = &mut [

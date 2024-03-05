@@ -36,7 +36,7 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
 
-    config.filepath = PathBuf::from("imgs/paper/layers/");
+    config.filepath = PathBuf::from("imgs/astarpa-paper/layers/");
 
     if !cfg!(feature = "example") {
         eprintln!("WARNING: Without the example feature, pruned matches aren't shown red for SH");

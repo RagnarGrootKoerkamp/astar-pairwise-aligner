@@ -31,7 +31,7 @@ fn main() {
     config.style.draw_labels = false;
     config.transparent_bmp = true;
 
-    config.filepath = "imgs/paper/comparison".into();
+    config.filepath = "imgs/astarpa-paper/comparison".into();
 
     // 200 4%
     let (mut a, mut b) = uniform_seeded(200 * scale, 0.04, 1);

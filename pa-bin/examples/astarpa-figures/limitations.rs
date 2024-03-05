@@ -33,7 +33,7 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
 
-    config.filepath = "imgs/paper/limitations".into();
+    config.filepath = "imgs/astarpa-paper/limitations".into();
 
     let h = BruteForceGCSH {
         match_config: MatchConfig::inexact(10),

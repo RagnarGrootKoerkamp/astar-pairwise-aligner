@@ -33,16 +33,17 @@ example = ["pa-heuristic/example"]
 vis = ["dep:pa-vis"]
 default = ["vis"]
 
+# A*PA figures
 [[example]]
 name = "fig-intro"
-path = "examples/paper-figures/intro.rs"
+path = "examples/astarpa-figures/intro.rs"
 [[example]]
 name = "fig-layers"
-path = "examples/paper-figures/layers.rs"
+path = "examples/astarpa-figures/layers.rs"
 required-features = ["example"]
 [[example]]
 name = "fig-comparison"
-path = "examples/paper-figures/comparison.rs"
+path = "examples/astarpa-figures/comparison.rs"
 [[example]]
 name = "fig-limitations"
-path = "examples/paper-figures/limitations.rs"
+path = "examples/astarpa-figures/limitations.rs"

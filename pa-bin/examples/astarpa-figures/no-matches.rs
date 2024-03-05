@@ -33,7 +33,7 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
 
-    config.filepath = PathBuf::from("imgs/paper/no-matches/");
+    config.filepath = PathBuf::from("imgs/astarpa-paper/no-matches/");
     if !cfg!(feature = "example") {
         eprintln!("WARNING: Without the example feature, pruned matches aren't shown red for SH");
     }
