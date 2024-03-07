@@ -1,7 +1,7 @@
 // Modules are pub for benchmarking.
 pub mod exact;
 pub mod inexact;
-mod local_pruning;
+mod prepruning;
 pub mod qgrams;
 mod suffix_array;
 
@@ -10,7 +10,7 @@ use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,
 };
-use local_pruning::preserve_for_local_pruning;
+use prepruning::preserve_for_local_pruning;
 
 /// Find all matches between `a` and `b` with the given match configuration.
 /// If `transform_filter` is true, then only matches with T(m.start) <= target are kept.
