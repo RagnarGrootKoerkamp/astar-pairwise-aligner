@@ -57,5 +57,5 @@ path = "examples/astarpa2-figures/intro.rs"
 name = "fig-limitations-2"
 path = "examples/astarpa2-figures/limitations.rs"
 [[example]]
-name = "fig-layers-2"
-path = "examples/astarpa2-figures/layers.rs"
+name = "fig-prepruning-2"
+path = "examples/astarpa2-figures/prepruning.rs"

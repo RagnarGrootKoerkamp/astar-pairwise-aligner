@@ -878,7 +878,7 @@ impl Visualizer {
                             self.config
                                 .style
                                 .layer
-                                .color(l as f64 / max(l_max, 1) as f64),
+                                .color((l as f64 / max(l_max, 1) as f64).min(1.0)),
                         );
                     }
                 }
