@@ -10,8 +10,8 @@ vis:
    cargo run -r --example aligners_vis --features sdl
 
 fig name:
-  rm imgs/astarpa2-paper/{{name}}/*png
-  cargo run -r --example fig-{{name}}-2 --features sdl
+  rm -f imgs/astarpa2-paper/{{name}}/*png
+  cargo run -r --example fig-{{name}}-2 --features sdl,example
   mogrify -format png imgs/astarpa2-paper/{{name}}/*bmp
   rm imgs/astarpa2-paper/{{name}}/*bmp
   feh imgs/astarpa2-paper/{{name}}/*png &

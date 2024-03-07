@@ -247,6 +247,7 @@ impl<C: Contours> CSHI<C> {
         let arrows = copied_matches
             .iter()
             .rev()
+            .filter(|m| m.is_active())
             .map(match_to_arrow)
             .filter(|a| a.end <= t_target);
         let contours = if let Some(mut filter) = filter {

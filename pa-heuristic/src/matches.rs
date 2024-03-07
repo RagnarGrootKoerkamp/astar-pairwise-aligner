@@ -45,6 +45,8 @@ pub enum MatchStatus {
     /// Pruned by match pruning because the start or end was expanded.
     Pruned,
     /// Filtered out by PatHeuristic
+    PrePruned,
+    /// Filtered out by PatHeuristic
     Filtered,
 }
 
@@ -66,6 +68,12 @@ impl Match {
     #[inline]
     pub fn is_active(&self) -> bool {
         self.pruned == MatchStatus::Active
+    }
+
+    #[inline]
+    pub fn pre_prune(&mut self) {
+        debug_assert!(self.pruned == MatchStatus::Active);
+        self.pruned = MatchStatus::PrePruned;
     }
 
     #[inline]
@@ -193,10 +201,10 @@ impl<'a> MatchBuilder<'a> {
 
     /// Add a new match. If enabled, filters for m.start <=_T end and/or local pruning.
     /// Returns whether the match was added.
-    fn push(&mut self, m: Match) -> bool {
+    fn push(&mut self, mut m: Match) {
         self.stats.pushed += 1;
         if self.transform_filter && !(self.seeds.transform(m.start) <= self.transform_target) {
-            return false;
+            return;
         }
         self.stats.after_transform += 1;
         if self.config.local_pruning != 0
@@ -210,7 +218,11 @@ impl<'a> MatchBuilder<'a> {
                 &mut self.next_match_per_diag,
             )
         {
-            return false;
+            if cfg!(feature = "example") {
+                m.pre_prune();
+                self.matches.push(m);
+            }
+            return;
         }
         self.stats.after_local_pruning += 1;
 
@@ -230,8 +242,6 @@ impl<'a> MatchBuilder<'a> {
         }
 
         self.matches.push(m);
-
-        true
     }
 
     fn match_key(m: &Match) -> (LexPos, LexPos, MatchCost) {
