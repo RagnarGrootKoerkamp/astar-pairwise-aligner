@@ -54,8 +54,8 @@ impl Blocks {
                 if prev_block.i_range.1 < to.0 - 1 {
                     stats.dt_trace_tries += 1;
                     let start = std::time::Instant::now();
-                    let dt_trace_result =
-                        self.dt_trace_block(a, b, to, &mut g, prev_block, &mut cigar, dt_cache);
+                    let dt_trace_result = self
+                        .dt_trace_block(a, b, to, &mut g, prev_block, &mut cigar, dt_cache, viz);
                     stats.t_dt += start.elapsed();
                     if let Some(new_to) = dt_trace_result {
                         stats.dt_trace_success += 1;
@@ -99,7 +99,14 @@ impl Blocks {
                         let j_range =
                             JRange(max(j_range.1 - height, prev_j_range.0), j_range.1).round_out();
                         stats.fill_tries += 1;
-                        self.fill_with_blocks(i_range, j_range, viz);
+                        self.fill_with_blocks(i_range, j_range);
+                        let tl = Pos(i_range.0 + 1, j_range.0);
+                        let size = Pos(i_range.len(), j_range.exclusive_len());
+                        if DEBUG {
+                            let br = tl + size;
+                            eprintln!("Expand block trace {tl}-{br} with size {size}");
+                        }
+                        viz.expand_block_trace(tl, size);
                         if self.blocks[self.last_block_idx].index(to.1) == g {
                             stats.fill_success += 1;
                             break;
@@ -227,6 +234,7 @@ impl Blocks {
         prev_block: &Block,
         cigar: &mut Cigar,
         blocks: &mut Vec<BlockElem>,
+        viz: &mut impl VisualizerInstance,
     ) -> Option<Pos> {
         // eprintln!(
         //     "DT Trace from {st:?} with g={g_st} back to {}",
@@ -297,11 +305,12 @@ impl Blocks {
         let mut g = 0 as Cost;
 
         // Extend up to the start of the previous block and check if the distance is correct.
-        let extend_left_simd_and_check = |elem: &mut BlockElem, mut j: I, target_g: Cost| -> bool {
-            elem.ext += extend_left_simd(&mut elem.i, prev_block.i_range.1, &mut j, a, b);
-            *(&mut elem.i) == prev_block.i_range.1 && prev_block.get(j) == Some(target_g)
-        };
-
+        let mut extend_left_simd_and_check =
+            |elem: &mut BlockElem, mut j: I, target_g: Cost| -> bool {
+                elem.ext += extend_left_simd(&mut elem.i, prev_block.i_range.1, &mut j, a, b);
+                viz.expand_trace(Pos(elem.i, j));
+                *(&mut elem.i) == prev_block.i_range.1 && prev_block.get(j) == Some(target_g)
+            };
         if extend_left_simd_and_check(&mut blocks[0], st.1, 0) {
             return Some(trace(&blocks, 0, 0, st, g_st, block_start, cigar));
         }

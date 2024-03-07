@@ -33,6 +33,7 @@ fn main() {
     config.cell_size = 1;
     config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
+    config.style.trace = None;
     config.style.path = Some((0, 0, 0, 0));
     config.style.path_width = Some(4);
     config.layer_drawing = false;

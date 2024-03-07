@@ -225,12 +225,16 @@ impl Blocks {
         }
 
         if DEBUG {
-            println!("Compute block {:?} {:?}", i_range, j_range);
+            eprintln!("Compute block {:?} {:?}", i_range, j_range);
         }
 
         if self.trace && !self.params.sparse {
             // This is extracted to a separate function for reuse during traceback.
-            self.fill_with_blocks(i_range, j_range, viz);
+            self.fill_with_blocks(i_range, j_range);
+            viz.expand_block_simple(
+                Pos(i_range.0 + 1, j_range.0),
+                Pos(i_range.len(), j_range.exclusive_len()),
+            );
             self.stats.t_compute += start.elapsed();
             return;
         }
@@ -556,12 +560,7 @@ impl Blocks {
     }
 
     /// Store a single block for each column in `i_range`.
-    fn fill_with_blocks(
-        &mut self,
-        i_range: IRange,
-        j_range: RoundedOutJRange,
-        viz: &mut impl VisualizerInstance,
-    ) {
+    fn fill_with_blocks(&mut self, i_range: IRange, j_range: RoundedOutJRange) {
         self.i_range.push(i_range);
         let v_range = j_range.v_range();
 
@@ -617,10 +616,6 @@ impl Blocks {
         let h = &mut vec![H::one(); i_range.len() as usize];
 
         // 3.
-        viz.expand_block_simple(
-            Pos(i_range.0 + 1, j_range.0),
-            Pos(i_range.len(), j_range.exclusive_len()),
-        );
         if self.params.simd {
             pa_bitpacking::simd::fill::<2, H, 4>(
                 &self.a[i_range.0 as usize..i_range.1 as usize],

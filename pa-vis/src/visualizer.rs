@@ -203,12 +203,16 @@ impl VisualizerInstance for Visualizer {
         f: Cost,
         h: Option<&HI>,
     ) {
+        let maxsize = self.target - pos + Pos(1, 1);
+        let size = Pos(min(size.0, maxsize.0), min(size.1, maxsize.1));
         self.expanded
             .push((Expanded, ExpandPos::Block(pos, size), g, f));
         self.draw(false, None, false, h, None);
     }
 
     fn expand_block_trace(&mut self, pos: Pos, size: Pos) {
+        let maxsize = self.target - pos + Pos(1, 1);
+        let size = Pos(min(size.0, maxsize.0), min(size.1, maxsize.1));
         self.trace.push(ExpandPos::Block(pos, size));
         if self.config.style.trace.is_some() {
             self.draw::<NoCostI>(false, None, false, None, None);
