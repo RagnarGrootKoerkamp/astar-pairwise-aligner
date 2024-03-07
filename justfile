@@ -17,5 +17,5 @@ fig name:
   feh imgs/astarpa2-paper/{{name}}/*png &
 
 fig-intro: (fig "intro")
-fig-limitations: (fig "limitations")
+fig-trace: (fig "trace")
 fig-prepruning: (fig "prepruning")
