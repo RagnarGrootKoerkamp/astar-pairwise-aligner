@@ -353,6 +353,7 @@ impl Blocks {
             d_range.1 += 1;
 
             // Extend.
+            let mut min_fr = I::MAX;
             let mut min_i = I::MAX;
             for d in d_range.0..=d_range.1 {
                 let fr = get_mut(blocks, g, d);
@@ -365,6 +366,7 @@ impl Blocks {
                     return Some(trace(&blocks, g, d, st, g_st, block_start, cigar));
                 }
                 // eprintln!("extend d={d} from {} to {}", Pos(old_i, j), fr.i);
+                min_fr = min(min_fr, 2 * fr.i - d);
                 min_i = min(min_i, fr.i);
             }
 
@@ -375,14 +377,21 @@ impl Blocks {
             // Shrink diagonals more than `x_drop` behind.
             if self.params.x_drop > 0 {
                 while d_range.0 < d_range.1
-                    && get(blocks, g, d_range.0).i > min_i + self.params.x_drop
+                    && (get(blocks, g, d_range.0).i <= block_start
+                        || 2 * get(blocks, g, d_range.0).i - d_range.0
+                            > min_fr + self.params.x_drop)
                 {
                     d_range.0 += 1;
                 }
                 while d_range.0 < d_range.1
-                    && get(blocks, g, d_range.1).i > min_i + self.params.x_drop
+                    && (get(blocks, g, d_range.1).i <= block_start
+                        || 2 * get(blocks, g, d_range.1).i - d_range.1
+                            > min_fr + self.params.x_drop)
                 {
                     d_range.1 -= 1;
+                }
+                if d_range.0 > d_range.1 {
+                    return None;
                 }
             }
         }
