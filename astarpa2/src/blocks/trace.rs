@@ -236,10 +236,12 @@ impl Blocks {
         blocks: &mut Vec<BlockElem>,
         viz: &mut impl VisualizerInstance,
     ) -> Option<Pos> {
-        // eprintln!(
-        //     "DT Trace from {st:?} with g={g_st} back to {}",
-        //     prev_block.i
-        // );
+        if DEBUG {
+            eprintln!(
+                "DT Trace from {st:?} with g={g_st} back to {:?}",
+                prev_block.i_range
+            );
+        }
         let block_start = prev_block.i_range.1;
         // Returns true when `end_i` is reached.
         // The block stores the leftmost reachable column at distance g in diagonal d relative to st.
