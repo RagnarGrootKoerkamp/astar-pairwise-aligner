@@ -898,31 +898,37 @@ impl Visualizer {
                 // Expanded
                 let mut current_layer = self.layer.unwrap_or(0);
                 for (i, (t, pos, _, _)) in self.expanded.iter().enumerate().rev() {
-                    if *t == Type::Explored {
-                        continue;
-                    }
-                    if *t == Type::Extended
-                        && let Some(c) = self.config.style.extended
-                    {
-                        self.draw_pixel(&mut canvas, pos.pos(), c);
-                        continue;
-                    }
-                    let color = self.config.style.expanded.color(
-                        if let Some(layer) = self.layer
-                            && layer != 0
-                        {
-                            if current_layer > 0 && i < self.expanded_layers[current_layer - 1] {
-                                current_layer -= 1;
+                    match *t {
+                        Type::Explored => continue,
+                        Type::Extended => {
+                            if let Some(c) = self.config.style.extended {
+                                self.draw_pixel(&mut canvas, pos.pos(), c);
                             }
-                            current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                        } else {
-                            i as f64 / self.expanded.len() as f64
-                        },
-                    );
-                    match pos {
-                        ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
-                        ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
-                        ExpandPos::Blocks(blocks) => self.draw_boxes(&mut canvas, blocks, color),
+                        }
+                        Type::Expanded => {
+                            let color = self.config.style.expanded.color(
+                                if let Some(layer) = self.layer
+                                    && layer != 0
+                                {
+                                    if current_layer > 0
+                                        && i < self.expanded_layers[current_layer - 1]
+                                    {
+                                        current_layer -= 1;
+                                    }
+                                    current_layer as f64
+                                        / self.config.num_layers.unwrap_or(layer) as f64
+                                } else {
+                                    i as f64 / self.expanded.len() as f64
+                                },
+                            );
+                            match pos {
+                                ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
+                                ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
+                                ExpandPos::Blocks(blocks) => {
+                                    self.draw_boxes(&mut canvas, blocks, color)
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -937,31 +943,37 @@ impl Visualizer {
                 // Expanded
                 let mut current_layer = 0;
                 for (i, (t, pos, _, _)) in self.expanded.iter().enumerate() {
-                    if *t == Type::Explored {
-                        continue;
-                    }
-                    if *t == Type::Extended
-                        && let Some(c) = self.config.style.extended
-                    {
-                        self.draw_pixel(&mut canvas, pos.pos(), c);
-                        continue;
-                    }
-                    let color = self.config.style.expanded.color(
-                        if let Some(layer) = self.layer
-                            && layer != 0
-                        {
-                            if current_layer < layer && i >= self.expanded_layers[current_layer] {
-                                current_layer += 1;
+                    match *t {
+                        Type::Explored => continue,
+                        Type::Extended => {
+                            if let Some(c) = self.config.style.extended {
+                                self.draw_pixel(&mut canvas, pos.pos(), c);
                             }
-                            current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                        } else {
-                            i as f64 / self.expanded.len() as f64
-                        },
-                    );
-                    match pos {
-                        ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
-                        ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
-                        ExpandPos::Blocks(blocks) => self.draw_boxes(&mut canvas, blocks, color),
+                        }
+                        Type::Expanded => {
+                            let color = self.config.style.expanded.color(
+                                if let Some(layer) = self.layer
+                                    && layer != 0
+                                {
+                                    if current_layer < layer
+                                        && i >= self.expanded_layers[current_layer]
+                                    {
+                                        current_layer += 1;
+                                    }
+                                    current_layer as f64
+                                        / self.config.num_layers.unwrap_or(layer) as f64
+                                } else {
+                                    i as f64 / self.expanded.len() as f64
+                                },
+                            );
+                            match pos {
+                                ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
+                                ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
+                                ExpandPos::Blocks(blocks) => {
+                                    self.draw_boxes(&mut canvas, blocks, color)
+                                }
+                            }
+                        }
                     }
                 }
             }
