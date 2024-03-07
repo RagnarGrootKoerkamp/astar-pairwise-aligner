@@ -35,7 +35,7 @@ fn main() {
 
     config.filepath = PathBuf::from("imgs/paper/no-matches/");
     if !cfg!(feature = "example") {
-        eprintln!("WARNING: Without the example feature, pruned matches aren't shown red for SH");
+        panic!("WARNING: Without the example feature, pruned matches aren't shown red for SH");
     }
 
     let n = 50;

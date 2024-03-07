@@ -39,7 +39,7 @@ fn main() {
     config.filepath = PathBuf::from("imgs/astarpa-paper/layers/");
 
     if !cfg!(feature = "example") {
-        eprintln!("WARNING: Without the example feature, pruned matches aren't shown red for SH");
+        panic!("WARNING: Without the example feature, pruned matches aren't shown red for SH");
     }
 
     let k = 3;
