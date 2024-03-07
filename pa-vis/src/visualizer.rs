@@ -12,7 +12,7 @@ use clap::ValueEnum;
 use itertools::Itertools;
 use pa_affine_types::*;
 use pa_heuristic::matches::MatchStatus;
-use pa_heuristic::HeuristicInstance;
+use pa_heuristic::{HeuristicInstance, NoCostI};
 use pa_types::*;
 use pa_vis_types::{canvas::*, *};
 use rand::rngs::StdRng;
@@ -118,6 +118,7 @@ pub struct Visualizer {
 
     // Type, Pos, g, f
     pub expanded: Vec<(Type, ExpandPos, Cost, Cost)>,
+    pub trace: Vec<ExpandPos>,
     // Calls to the heuristic.
     h_calls: Vec<Pos>,
     // The current layer
@@ -154,6 +155,13 @@ impl VisualizerInstance for Visualizer {
         }
         self.expanded.push((Extended, ExpandPos::Single(pos), g, f));
         self.draw(false, None, false, h, None);
+    }
+
+    fn expand_trace(&mut self, pos: Pos) {
+        self.trace.push(ExpandPos::Single(pos));
+        if self.config.style.trace.is_some() {
+            self.draw::<NoCostI>(false, None, false, None, None);
+        }
     }
 
     fn h_call<'a>(&mut self, pos: Pos) {
@@ -198,6 +206,13 @@ impl VisualizerInstance for Visualizer {
         self.expanded
             .push((Expanded, ExpandPos::Block(pos, size), g, f));
         self.draw(false, None, false, h, None);
+    }
+
+    fn expand_block_trace(&mut self, pos: Pos, size: Pos) {
+        self.trace.push(ExpandPos::Block(pos, size));
+        if self.config.style.trace.is_some() {
+            self.draw::<NoCostI>(false, None, false, None, None);
+        }
     }
 
     fn expand_blocks<'a, HI: HeuristicInstance<'a>>(
@@ -254,6 +269,7 @@ pub struct Style {
     pub expanded: Gradient,
     pub explored: Option<Color>,
     pub extended: Option<Color>,
+    pub trace: Option<(Color, Color)>,
     pub bg_color: Color,
     /// None to disable
     pub path: Option<Color>,
@@ -350,6 +366,7 @@ impl Config {
                 expanded: Gradient::TurboGradient(0.2..0.95),
                 explored: None,
                 extended: None,
+                trace: Some((BLUE, (0, 127, 255, 0))),
                 bg_color: WHITE,
                 path: Some(BLACK),
                 path_width: Some(2),
@@ -571,6 +588,7 @@ impl Visualizer {
             },
             config: config.clone(),
             expanded: vec![],
+            trace: vec![],
             h_calls: vec![],
             target: Pos::target(a, b),
             frame_number: 0,
@@ -886,12 +904,18 @@ impl Visualizer {
                 }
             }
 
+            let mut draw_pos = |pos: &ExpandPos, color: Color| match pos {
+                ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
+                ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
+                ExpandPos::Blocks(blocks) => self.draw_boxes(&mut canvas, blocks, color),
+            };
+
             if self.config.draw_old_on_top {
                 // Explored
                 if let Some(color) = self.config.style.explored {
                     for (t, pos, _, _) in &self.expanded {
                         if *t == Type::Explored {
-                            self.draw_pixel(&mut canvas, pos.pos(), color);
+                            draw_pos(pos, color);
                         }
                     }
                 }
@@ -902,7 +926,7 @@ impl Visualizer {
                         Type::Explored => continue,
                         Type::Extended => {
                             if let Some(c) = self.config.style.extended {
-                                self.draw_pixel(&mut canvas, pos.pos(), c);
+                                draw_pos(pos, c);
                             }
                         }
                         Type::Expanded => {
@@ -921,13 +945,7 @@ impl Visualizer {
                                     i as f64 / self.expanded.len() as f64
                                 },
                             );
-                            match pos {
-                                ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
-                                ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
-                                ExpandPos::Blocks(blocks) => {
-                                    self.draw_boxes(&mut canvas, blocks, color)
-                                }
-                            }
+                            draw_pos(pos, color);
                         }
                     }
                 }
@@ -936,7 +954,7 @@ impl Visualizer {
                 if let Some(color) = self.config.style.explored {
                     for (t, pos, _, _) in &self.expanded {
                         if *t == Type::Explored {
-                            self.draw_pixel(&mut canvas, pos.pos(), color);
+                            draw_pos(pos, color);
                         }
                     }
                 }
@@ -946,8 +964,8 @@ impl Visualizer {
                     match *t {
                         Type::Explored => continue,
                         Type::Extended => {
-                            if let Some(c) = self.config.style.extended {
-                                self.draw_pixel(&mut canvas, pos.pos(), c);
+                            if let Some(color) = self.config.style.extended {
+                                draw_pos(pos, color);
                             }
                         }
                         Type::Expanded => {
@@ -966,13 +984,19 @@ impl Visualizer {
                                     i as f64 / self.expanded.len() as f64
                                 },
                             );
-                            match pos {
-                                ExpandPos::Single(pos) => self.draw_pixel(&mut canvas, *pos, color),
-                                ExpandPos::Block(s, t) => self.draw_box(&mut canvas, *s, *t, color),
-                                ExpandPos::Blocks(blocks) => {
-                                    self.draw_boxes(&mut canvas, blocks, color)
-                                }
-                            }
+                            draw_pos(pos, color);
+                        }
+                    }
+                }
+                if let Some((dt_color, box_color)) = self.config.style.trace {
+                    for pos in &self.trace {
+                        if matches!(pos, ExpandPos::Block(_, _)) {
+                            draw_pos(pos, box_color);
+                        }
+                    }
+                    for pos in &self.trace {
+                        if matches!(pos, ExpandPos::Single(_)) {
+                            draw_pos(pos, dt_color);
                         }
                     }
                 }
