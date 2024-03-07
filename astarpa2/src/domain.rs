@@ -39,6 +39,7 @@ pub struct AstarPa2Stats {
     pub t_j_range: Duration,
     pub t_fixed_j_range: Duration,
     pub t_pruning: Duration,
+    pub t_contours_update: Duration,
 }
 
 pub struct AstarPa2Instance<'a, V: VisualizerT, H: Heuristic> {
@@ -347,7 +348,9 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         if self.params.prune
             && let Astar(h) = &mut self.domain
         {
+            let start = std::time::Instant::now();
             h.update_contours(Pos(0, 0));
+            self.stats.t_contours_update += start.elapsed();
             if DEBUG {
                 eprintln!("\nTEST DIST {} h0 {}\n", f_max.unwrap_or(0), h.h(Pos(0, 0)));
             }
