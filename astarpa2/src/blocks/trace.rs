@@ -311,7 +311,8 @@ impl Blocks {
                 viz.expand_trace(Pos(elem.i, j));
                 *(&mut elem.i) == prev_block.i_range.1 && prev_block.get(j) == Some(target_g)
             };
-        if extend_left_simd_and_check(&mut blocks[0], st.1, 0) {
+
+        if extend_left_simd_and_check(&mut blocks[0], st.1, *g_st) {
             return Some(trace(&blocks, 0, 0, st, g_st, block_start, cigar));
         }
         //eprintln!("extend d=0 from {:?} to {}", st, blocks[0][0].i);
