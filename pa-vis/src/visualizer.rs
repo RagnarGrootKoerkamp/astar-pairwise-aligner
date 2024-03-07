@@ -370,7 +370,7 @@ impl Config {
                 expanded: Gradient::TurboGradient(0.2..0.95),
                 explored: None,
                 extended: None,
-                trace: Some((BLUE, (0, 127, 255, 0))),
+                trace: None,
                 bg_color: WHITE,
                 path: Some(BLACK),
                 path_width: Some(2),

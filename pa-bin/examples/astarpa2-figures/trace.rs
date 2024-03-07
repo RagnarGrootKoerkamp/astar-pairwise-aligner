@@ -1,7 +1,7 @@
 use pa_generate::uniform_seeded;
 use pa_types::seq_to_string;
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::canvas::{BLACK, RED};
+use pa_vis_types::canvas::{BLACK, BLUE, RED};
 use std::time::Duration;
 
 fn main() {
@@ -20,6 +20,7 @@ fn main() {
     config.downscaler = 1;
     config.cell_size = 1;
     config.style.path = Some(BLACK);
+    config.style.trace = Some((BLUE, (0, 127, 255, 0)));
     config.style.draw_matches = true;
     config.style.match_width = 4;
     config.style.match_shrink = 0;
@@ -28,7 +29,7 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
 
-    config.filepath = "imgs/astarpa2-paper/trace".into();
+    config.filepath = "imgs/astarpa2-paper/trace/trace".into();
 
     let mut astarpa2 = astarpa2::AstarPa2Params::full();
     astarpa2.heuristic.k = 8;
@@ -48,7 +49,7 @@ fn main() {
         eprintln!("{}\n{}", seq_to_string(&a), seq_to_string(&b));
 
         let cost = astarpa2
-            .make_aligner_with_visualizer(true, config.with_filename("deletion"))
+            .make_aligner_with_visualizer(true, config)
             .align(&a, &b)
             .0;
         println!("cost {cost}");
