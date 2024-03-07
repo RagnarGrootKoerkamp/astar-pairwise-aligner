@@ -370,6 +370,10 @@ impl Blocks {
                 min_i = min(min_i, fr.i);
             }
 
+            if g == self.params.max_g / 2 && min_i > (block_start + st.0) / 2 {
+                return None;
+            }
+
             if g == self.params.max_g {
                 return None;
             }
