@@ -48,6 +48,8 @@ pub trait VisualizerInstance {
         _h: Option<&HI>,
     ) {
     }
+    fn expand_preprune(&mut self, _pos: Pos) {}
+    fn extend_preprune(&mut self, _pos: Pos) {}
     fn expand_trace(&mut self, _pos: Pos) {}
     fn extend_trace(&mut self, _pos: Pos) {}
     fn expand_block<'a, HI: HeuristicInstance<'a>>(

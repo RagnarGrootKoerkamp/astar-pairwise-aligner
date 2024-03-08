@@ -119,6 +119,7 @@ pub struct Visualizer {
     // Type, Pos, g, f
     pub expanded: Vec<(Type, ExpandPos, Cost, Cost)>,
     pub trace: Vec<ExpandPos>,
+    pub preprune: Vec<Pos>,
     // Calls to the heuristic.
     h_calls: Vec<Pos>,
     // The current layer
@@ -291,6 +292,7 @@ pub struct Style {
     pub explored: Option<Color>,
     pub extended: Option<Color>,
     pub trace: Option<(Color, Color)>,
+    pub preprune: Option<Color>,
     pub bg_color: Color,
     /// None to disable
     pub path: Option<Color>,
@@ -388,6 +390,7 @@ impl Config {
                 explored: None,
                 extended: None,
                 trace: None,
+                preprune: None,
                 bg_color: WHITE,
                 path: Some(BLACK),
                 path_width: Some(2),
@@ -446,6 +449,7 @@ impl Config {
                 config.style.bg_color = WHITE;
                 config.style.tree = Some(GRAY);
                 config.style.expanded = Gradient::Fixed((130, 179, 102, 0));
+                config.style.preprune = Some((130, 179, 102, 0));
                 config.style.explored = Some((0, 102, 204, 0));
                 config.style.max_heuristic = Some(10);
                 config.style.pruned_match = RED;
@@ -609,6 +613,7 @@ impl Visualizer {
             },
             config: config.clone(),
             expanded: vec![],
+            preprune: vec![],
             trace: vec![],
             h_calls: vec![],
             target: Pos::target(a, b),
@@ -859,38 +864,6 @@ impl Visualizer {
                 }
             }
 
-            let color_for_pos = |p: &Pos| -> Color {
-                let mut rng = StdRng::seed_from_u64(
-                    (self.target.0.saturating_mul(p.0).saturating_add(p.1)) as _,
-                );
-                let r = rng.gen_range(0..=255);
-                let g = rng.gen_range(0..=255);
-                let b = rng.gen_range(0..=255);
-                (r, g, b, 0)
-            };
-
-            // Draw parents
-            if self.config.style.draw_parents
-                && let Some(h) = h
-            {
-                let mut parent_pos_map = HashMap::<Pos, Vec<Pos>>::default();
-                for i in 0..=self.target.0 {
-                    for j in 0..=self.target.1 {
-                        let pos = Pos(i, j);
-                        let (_h, parent) = h.h_with_parent(pos);
-                        parent_pos_map.entry(parent).or_default().push(pos);
-                    }
-                }
-
-                for (_i, (parent, poss)) in parent_pos_map.iter().enumerate() {
-                    self.draw_pixels(
-                        &mut canvas,
-                        poss,
-                        color_for_pos(parent), //self.config.style.heuristic.color(i as f64 / parent_pos_map.len() as f64),
-                    );
-                }
-            }
-
             // Draw layer values.
             if self.config.style.draw_layers
                 && let Some(h) = h
@@ -922,6 +895,45 @@ impl Visualizer {
                                 .color((l as f64 / max(l_max, 1) as f64).min(1.0)),
                         );
                     }
+                }
+            }
+
+            // Draw prepruning states
+            if let Some(c) = self.config.style.preprune {
+                for pos in &self.preprune {
+                    self.draw_pixel(&mut canvas, *pos, c);
+                }
+            }
+
+            let color_for_pos = |p: &Pos| -> Color {
+                let mut rng = StdRng::seed_from_u64(
+                    (self.target.0.saturating_mul(p.0).saturating_add(p.1)) as _,
+                );
+                let r = rng.gen_range(0..=255);
+                let g = rng.gen_range(0..=255);
+                let b = rng.gen_range(0..=255);
+                (r, g, b, 0)
+            };
+
+            // Draw parents
+            if self.config.style.draw_parents
+                && let Some(h) = h
+            {
+                let mut parent_pos_map = HashMap::<Pos, Vec<Pos>>::default();
+                for i in 0..=self.target.0 {
+                    for j in 0..=self.target.1 {
+                        let pos = Pos(i, j);
+                        let (_h, parent) = h.h_with_parent(pos);
+                        parent_pos_map.entry(parent).or_default().push(pos);
+                    }
+                }
+
+                for (_i, (parent, poss)) in parent_pos_map.iter().enumerate() {
+                    self.draw_pixels(
+                        &mut canvas,
+                        poss,
+                        color_for_pos(parent), //self.config.style.heuristic.color(i as f64 / parent_pos_map.len() as f64),
+                    );
                 }
             }
 
@@ -1009,16 +1021,16 @@ impl Visualizer {
                         }
                     }
                 }
-                if let Some((dt_color, box_color)) = self.config.style.trace {
-                    for pos in &self.trace {
-                        if matches!(pos, ExpandPos::Block(_, _)) {
-                            draw_pos(pos, box_color);
-                        }
+            }
+            if let Some((dt_color, box_color)) = self.config.style.trace {
+                for pos in &self.trace {
+                    if matches!(pos, ExpandPos::Block(_, _)) {
+                        draw_pos(pos, box_color);
                     }
-                    for pos in &self.trace {
-                        if matches!(pos, ExpandPos::Single(_)) {
-                            draw_pos(pos, dt_color);
-                        }
+                }
+                for pos in &self.trace {
+                    if matches!(pos, ExpandPos::Single(_)) {
+                        draw_pos(pos, dt_color);
                     }
                 }
             }

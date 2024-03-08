@@ -19,7 +19,7 @@ use std::{
 
 use super::{CenteredVec, Match};
 use crate::seeds::Seeds;
-use pa_types::{Cost, Seq, I};
+use pa_types::{Cost, Pos, Seq, I};
 
 /// Returns true when `end_i` is reached.
 fn extend_right(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
@@ -61,13 +61,38 @@ fn extend_right_simd(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {
     extend_right(a, b, i, j, end_i)
 }
 
+// #[cfg(feature = "example")]
+fn extend_right_simd_viz(
+    a: Seq,
+    b: Seq,
+    i: &mut I,
+    j: I,
+    end_i: I,
+    expand: &mut impl FnMut(Pos),
+) -> bool {
+    // #[cfg(feature = "example")]
+    {
+        let mut pos = Pos(*i, j);
+        let r = extend_right_simd(a, b, i, j, end_i);
+        let new_pos = pos + Pos(*i - pos.0, *i - pos.0);
+        while pos != new_pos {
+            expand(pos);
+            pos += Pos(1, 1);
+        }
+        expand(pos);
+        r
+    }
+    // #[cfg(not(feature = "example"))]
+    // extend_right_simd(a, b, i, j, end_i)
+}
+
 /// Returns `false` for matches that should be removed by local pruning.
 /// After covering `i <= p` additional seeds, the cost should be less than `(i+1)*r`.
 /// For an optimal path from `s = start(match)` to `t=end of path after covering i seeds`, we should have
 /// g(t) + p(t) <= p(s) to keep the match.
 ///
 /// The last argument is a reusable buffer for the DT fronts that can simply be `&mut Default::default()`.
-pub(super) fn preserve_for_local_pruning(
+pub fn preserve_for_local_pruning(
     a: Seq,
     b: Seq,
     seeds: &Seeds,
@@ -75,6 +100,7 @@ pub(super) fn preserve_for_local_pruning(
     p: usize,
     [fr, next_fr, stats]: &mut [Vec<I>; 3],
     next_match_per_diag: &mut CenteredVec<I>,
+    expand: &mut impl FnMut(Pos),
 ) -> bool {
     if p == 0 {
         return true;
@@ -107,7 +133,7 @@ pub(super) fn preserve_for_local_pruning(
     fr[pd] = e.0;
     next_fr[pd] = I::MIN;
 
-    if extend_right_simd(a, b, &mut fr[pd], e.1, end_i) {
+    if extend_right_simd_viz(a, b, &mut fr[pd], e.1, end_i, expand) {
         stats[0] += 1;
         return true;
     }
@@ -159,7 +185,7 @@ pub(super) fn preserve_for_local_pruning(
             let old_i = *i;
 
             // If reached end of range => KEEP MATCH.
-            if extend_right_simd(a, b, i, j, end_i) {
+            if extend_right_simd_viz(a, b, i, j, end_i, expand) {
                 stats[g as usize] += 1;
                 return true;
             }

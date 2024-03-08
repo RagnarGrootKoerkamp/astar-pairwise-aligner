@@ -68,6 +68,11 @@ pub struct AstarPa2<V: VisualizerT, H: Heuristic> {
 impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
     pub fn build<'a>(&'a self, a: Seq<'a>, b: Seq<'a>) -> AstarPa2Instance<'a, V, H> {
         use Domain::*;
+
+        // init V
+        let v = self.v.build(a, b);
+
+        // build H
         let start = std::time::Instant::now();
         let domain = match self.domain {
             Full => Full,
@@ -88,7 +93,7 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
             params: self,
             domain,
             hint: Default::default(),
-            v: self.v.build(a, b),
+            v,
             stats: AstarPa2Stats {
                 t_precomp: start.elapsed(),
                 ..Default::default()

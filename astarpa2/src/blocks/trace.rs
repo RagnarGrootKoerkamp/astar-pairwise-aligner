@@ -309,17 +309,19 @@ impl Blocks {
         // Extend up to the start of the previous block and check if the distance is correct.
         let mut extend_left_simd_and_check =
             |elem: &mut BlockElem, mut j: I, target_g: Cost| -> bool {
-                let mut pos = Pos(elem.i, j);
+                #[cfg(feature = "example")]
+                let pos = Pos(elem.i, j);
                 elem.ext += extend_left_simd(&mut elem.i, prev_block.i_range.1, &mut j, a, b);
+                let new_pos = Pos(elem.i, j);
                 #[cfg(feature = "example")]
                 {
-                    let new_pos = Pos(elem.i, j);
+                    let mut pos = pos;
                     while pos != new_pos {
                         viz.extend_trace(pos);
                         pos -= Pos(1, 1);
                     }
                 }
-                viz.expand_trace(pos);
+                viz.expand_trace(new_pos);
                 *(&mut elem.i) == prev_block.i_range.1 && prev_block.get(j) == Some(target_g)
             };
 

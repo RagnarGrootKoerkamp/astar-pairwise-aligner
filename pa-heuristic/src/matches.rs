@@ -1,7 +1,7 @@
 // Modules are pub for benchmarking.
 pub mod exact;
 pub mod inexact;
-mod prepruning;
+pub mod prepruning;
 pub mod qgrams;
 mod suffix_array;
 
@@ -90,14 +90,14 @@ impl Match {
 }
 
 /// A vector that is centered around 0.
-struct CenteredVec<T> {
+pub struct CenteredVec<T> {
     vec: Vec<T>,
 
     default: T,
 }
 
 impl<T: Copy> CenteredVec<T> {
-    fn new(center: I, default: T) -> Self {
+    pub fn new(center: I, default: T) -> Self {
         Self {
             vec: vec![default; 2 * center.abs() as usize + 1],
             default,
@@ -216,6 +216,7 @@ impl<'a> MatchBuilder<'a> {
                 self.config.local_pruning,
                 &mut self.local_pruning_cache,
                 &mut self.next_match_per_diag,
+                &mut |_| {},
             )
         {
             if cfg!(feature = "example") {
