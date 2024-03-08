@@ -109,7 +109,8 @@ impl AstarPa2Params {
         if self.viz {
             use pa_vis::visualizer::{Gradient, When};
             use pa_vis_types::canvas::RED;
-            use std::time::Duration;
+            use std::time::{Duration, SystemTime};
+
             let mut config = pa_vis::visualizer::Config::default();
             config.draw = When::StepBy(1);
             config.save = When::None; //When::LayersStepBy(30);
@@ -132,8 +133,16 @@ impl AstarPa2Params {
 
             config.style.pruned_match = RED;
             config.style.match_width = 1;
-            config.style.draw_matches = true;
-            config.filepath = self.name.clone().into();
+            config.style.draw_matches = false;
+            config.filepath = format!(
+                "imgs/vis/{}-{}",
+                self.name,
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()
+            )
+            .into();
             self.make_aligner_with_visualizer(trace, config)
         } else {
             self.make_aligner_with_visualizer(trace, NoVis)
