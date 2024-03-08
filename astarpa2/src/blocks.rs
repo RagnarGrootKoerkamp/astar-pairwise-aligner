@@ -316,10 +316,7 @@ impl Blocks {
         // If no incremental doubling or no fixed_j_range was set, just compute everything.
         // TODO: Also just compute everything if the range is small anyway.
         // Fragmenting into smaller slices breaks SIMD and is slower.
-        if !self.params.incremental_doubling
-            || prev_block.fixed_j_range.is_none()
-            || old_block.fixed_j_range.is_none()
-        {
+        if !self.params.incremental_doubling || prev_block.fixed_j_range.is_none() {
             // Incremental doubling disabled; just compute the entire `j_range`.
             init_v_with_overlap(prev_block, next_block);
             next_block.bot_val += compute_block(
@@ -342,7 +339,7 @@ impl Blocks {
         // Do incremental doubling.
 
         let prev_fixed = prev_block.fixed_j_range.unwrap().round_in();
-        let old_fixed = old_block.fixed_j_range.unwrap().round_in();
+        let old_fixed = old_block.fixed_j_range.map(|r| r.round_in());
 
         // New j_h.
         next_block.j_h = Some(prev_fixed.1);
@@ -368,6 +365,7 @@ impl Blocks {
         //
         // FIXME(new): Only split when j_range >> 256.
         if let Some(old_j_h) = old_block.j_h
+            && let Some(old_fixed) = old_fixed
             && old_fixed.0 < old_j_h
         {
             init_v_with_overlap_preserve_fixed(prev_block, &old_block, next_block);
@@ -403,18 +401,20 @@ impl Blocks {
             );
 
             // Update the horizontal deltas from old_j_h to new_j_h.
-            compute_block(
-                self.params,
-                &self.a,
-                &self.b,
-                i_range,
-                v_range_1.clone(),
-                &mut next_block.v[v_range_1.start - offset..v_range_1.end - offset],
-                &mut self.h,
-                &mut self.stats,
-                HMode::Update,
-                viz,
-            );
+            if !v_range_1.is_empty() {
+                compute_block(
+                    self.params,
+                    &self.a,
+                    &self.b,
+                    i_range,
+                    v_range_1.clone(),
+                    &mut next_block.v[v_range_1.start - offset..v_range_1.end - offset],
+                    &mut self.h,
+                    &mut self.stats,
+                    HMode::Update,
+                    viz,
+                );
+            }
 
             // Compute the part below new_j_h using the horizontal deltas.
             next_block.bot_val += compute_block(
@@ -437,18 +437,20 @@ impl Blocks {
             let v_range_2 = JRange(new_j_h, j_range.1).assert_rounded().v_range();
             assert!(v_range_2.start <= v_range_2.end);
 
-            compute_block(
-                self.params,
-                &self.a,
-                &self.b,
-                i_range,
-                v_range_01.clone(),
-                &mut next_block.v[v_range_01.start - offset..v_range_01.end - offset],
-                &mut self.h,
-                &mut self.stats,
-                HMode::Output,
-                viz,
-            );
+            if !v_range_01.is_empty() {
+                compute_block(
+                    self.params,
+                    &self.a,
+                    &self.b,
+                    i_range,
+                    v_range_01.clone(),
+                    &mut next_block.v[v_range_01.start - offset..v_range_01.end - offset],
+                    &mut self.h,
+                    &mut self.stats,
+                    HMode::Output,
+                    viz,
+                );
+            }
 
             next_block.bot_val += compute_block(
                 self.params,
@@ -466,7 +468,7 @@ impl Blocks {
 
         // Test incremental doubling: Redo the computation without the
         // fixed range and test if they give the same results.
-        if cfg!(test) || DEBUG {
+        if (cfg!(test) || DEBUG) && !cfg!(feature = "example") {
             if let Some(old_j_h) = old_block.j_h {
                 // Check whether the fixed row has correct values.
                 eprintln!("DEBUG MODE: RECOMPUTE OLD FIXED H");

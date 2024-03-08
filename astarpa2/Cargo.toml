@@ -26,3 +26,6 @@ scopeguard = "1.2.0"
 pa-generate.workspace = true
 rand = "0.8"
 triple_accel = "0.4.0"
+
+[features]
+example = []

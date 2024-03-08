@@ -29,7 +29,7 @@ pa-vis-types.workspace = true
 
 [features]
 # Needed to correctly show pruned matches in visualizations.
-example = ["pa-heuristic/example"]
+example = ["pa-heuristic/example", "astarpa2/example"]
 # Visualizer features can be disabled.
 vis = ["dep:pa-vis"]
 default = ["vis"]
