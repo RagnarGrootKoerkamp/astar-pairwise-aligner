@@ -26,6 +26,7 @@ parse_duration0 = "3"
 pa-base-algos.workspace = true
 pa-affine-types.workspace = true
 pa-vis-types.workspace = true
+pa-bitpacking.workspace = true
 
 [features]
 # Needed to correctly show pruned matches in visualizations.
@@ -62,3 +63,7 @@ path = "examples/astarpa2-figures/prepruning.rs"
 [[example]]
 name = "fig-doubling-2"
 path = "examples/astarpa2-figures/doubling.rs"
+[[example]]
+name = "fig-simd-2"
+path = "examples/astarpa2-figures/simd.rs"
+required-features = ["example"]

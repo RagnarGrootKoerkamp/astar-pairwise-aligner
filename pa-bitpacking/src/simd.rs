@@ -29,7 +29,8 @@
 use super::*;
 use crate::bit_profile::Bits;
 use itertools::{izip, Itertools};
-use pa_types::Cost;
+use pa_heuristic::NoCostI;
+use pa_types::{Cost, Pos, I};
 use std::{
     array::from_fn,
     mem::transmute,
@@ -503,6 +504,45 @@ fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
         for i in a.len() - j..a.len() {
             myers::compute_block::<BitProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
             values[i][offset + j] = v[j];
+        }
+    }
+}
+
+#[cfg(feature = "example")]
+#[inline(always)]
+pub fn vis_block_of_rows<const N: usize, const B: usize>(
+    n: usize,
+    m: usize,
+    vis: &mut impl pa_vis_types::VisualizerInstance,
+) where
+    [(); 4 * N]: Sized,
+{
+    let m = m as I;
+    const L: usize = 4;
+    let rev = |k| L * N - 1 - k;
+
+    // Top-left triangle of block of rows.
+    for j in 0..L * N {
+        for i in 0..L * N - j {
+            vis.expand_block_simple(Pos(i as I, m + B as I * j as I), Pos(1, B as I));
+        }
+    }
+    vis.new_layer::<NoCostI>(None);
+
+    for i in 1..=n - L * N {
+        for k in 0..N {
+            let pos = [L * k + 0, L * k + 1, L * k + 2, L * k + 3]
+                .map(|k| Pos(i as I + rev(k) as I, m + B as I * k as I));
+            let sizes = [Pos(1, B as I); L];
+            vis.expand_blocks_simple(pos, sizes);
+            vis.new_layer::<NoCostI>(None);
+        }
+    }
+
+    // Bottom-right triangle of block of rows.
+    for j in 0..L * N {
+        for i in n - j..n {
+            vis.expand_block_simple(Pos(i as I, m + B as I * j as I), Pos(1, B as I));
         }
     }
 }
