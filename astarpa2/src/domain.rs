@@ -74,12 +74,6 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
     ///
     ///
     /// `old_range`: The old j_range at the end of the current interval, to ensure it only grows.
-    ///
-    /// ALG: We must continue from the old_j_range to ensure things work well after pruning:
-    /// Pruning is only allowed if we guarantee that the range never shrinks,
-    /// and it can happen that we 'run out' of `f(u) <= f_max` states inside the
-    /// `old_range`, while extending the `old_range` from the bottom could grow
-    /// more.
     fn j_range(
         &mut self,
         i_range: IRange,
@@ -129,20 +123,15 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 // TODO FIXME Return already-rounded jrange. More precision isn't needed, and this will save some time.
 
                 // Get the range of rows with fixed states `f(u) <= f_max`.
-                let JRange(mut fixed_start, mut fixed_end) = prev
+                let JRange(fixed_start, fixed_end) = prev
                     .fixed_j_range
                     .expect("With A* Domain, fixed_j_range should always be set.");
                 if DEBUG {
-                    eprintln!("j_range for {i_range:?}\t\told {old_range:?}\t\t fixed @ {is}\t {fixed_start}..{fixed_end}");
+                    eprintln!("j_range for   {i_range:?}");
+                    eprintln!("\told j_range {old_range:?}");
+                    eprintln!("\told fixed   {:?} @ {is}", prev.fixed_j_range.unwrap());
                 }
                 assert!(fixed_start <= fixed_end, "Fixed range must not be empty");
-
-                // Make sure we do not leave out states computed in previous iterations.
-                // The domain may never shrink!
-                if let Some(old_range) = old_range {
-                    fixed_start = min(fixed_start, old_range.0);
-                    fixed_end = max(fixed_end, old_range.1);
-                }
 
                 // The start of the j_range we will compute for this block is the `fixed_start` of the previous column.
                 // The end of the j_range is extrapolated from `fixed_end`.
