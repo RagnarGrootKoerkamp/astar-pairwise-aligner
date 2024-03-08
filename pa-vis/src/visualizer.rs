@@ -157,10 +157,27 @@ impl VisualizerInstance for Visualizer {
         self.draw(false, None, false, h, None);
     }
 
-    fn expand_trace(&mut self, pos: Pos) {
-        self.trace.push(ExpandPos::Single(pos));
-        if self.config.style.trace.is_some() {
+    fn expand_preprune(&mut self, pos: Pos) {
+        if self.config.style.preprune.is_some() {
+            self.preprune.push(pos);
             self.draw::<NoCostI>(false, None, false, None, None);
+        }
+    }
+    fn extend_preprune(&mut self, pos: Pos) {
+        if self.config.style.preprune.is_some() {
+            self.preprune.push(pos);
+        }
+    }
+
+    fn expand_trace(&mut self, pos: Pos) {
+        if self.config.style.trace.is_some() {
+            self.trace.push(ExpandPos::Single(pos));
+            self.draw::<NoCostI>(false, None, false, None, None);
+        }
+    }
+    fn extend_trace(&mut self, pos: Pos) {
+        if self.config.style.trace.is_some() {
+            self.trace.push(ExpandPos::Single(pos));
         }
     }
 

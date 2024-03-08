@@ -49,6 +49,7 @@ pub trait VisualizerInstance {
     ) {
     }
     fn expand_trace(&mut self, _pos: Pos) {}
+    fn extend_trace(&mut self, _pos: Pos) {}
     fn expand_block<'a, HI: HeuristicInstance<'a>>(
         &mut self,
         _pos: Pos,
