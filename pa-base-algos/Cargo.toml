@@ -24,3 +24,6 @@ pa-test = { version = "0.1.0", path = "../pa-test" }
 pa-generate.workspace = true
 rand = "0.8"
 triple_accel = "0.4.0"
+
+[features]
+example = ["dep:pa-vis"]

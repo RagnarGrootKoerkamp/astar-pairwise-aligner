@@ -105,7 +105,7 @@ impl AstarPa2Params {
     /// Convert to a typed `AstarPa2` `Aligner` instance, using a visualizer is
     /// if the `pa-vis` feature is enabled.
     pub fn make_aligner(&self, trace: bool) -> Box<dyn AstarPa2StatsAligner> {
-        #[cfg(feature = "pa-vis")]
+        #[cfg(feature = "example")]
         if self.viz {
             use pa_vis::visualizer::{Gradient, When};
             use pa_vis_types::canvas::RED;
@@ -138,7 +138,7 @@ impl AstarPa2Params {
         } else {
             self.make_aligner_with_visualizer(trace, NoVis)
         }
-        #[cfg(not(feature = "pa-vis"))]
+        #[cfg(not(feature = "example"))]
         self.make_aligner_with_visualizer(trace, NoVis)
     }
 

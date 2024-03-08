@@ -84,7 +84,7 @@ pub struct AstarNwParams {
 impl AstarNwParams {
     /// Build an `AstarStatsAligner` instance from
     pub fn make_aligner(&self, trace: bool) -> Box<dyn Aligner> {
-        #[cfg(feature = "pa-vis")]
+        #[cfg(feature = "example")]
         if self.viz {
             use pa_vis::visualizer::{Gradient, When};
             use pa_vis_types::canvas::RED;
