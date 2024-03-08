@@ -59,3 +59,6 @@ path = "examples/astarpa2-figures/trace.rs"
 [[example]]
 name = "fig-prepruning-2"
 path = "examples/astarpa2-figures/prepruning.rs"
+[[example]]
+name = "fig-doubling-2"
+path = "examples/astarpa2-figures/doubling.rs"

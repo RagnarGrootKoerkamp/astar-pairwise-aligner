@@ -19,3 +19,4 @@ fig name:
 fig-intro: (fig "intro")
 fig-trace: (fig "trace")
 fig-prepruning: (fig "prepruning")
+fig-doubling: (fig "doubling")
