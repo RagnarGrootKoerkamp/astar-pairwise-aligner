@@ -42,6 +42,7 @@ pa-vis.path = "pa-vis"
 astarpa.path = "astarpa"
 astarpa2.path = "astarpa2"
 pa-bin.path = "pa-bin"
+pa-bitpacking.path = "pa-bitpacking"
 
 clap = { version = "4", features = ["derive", "wrap_help"] }
 serde = { version = "1", features = ["derive"] }

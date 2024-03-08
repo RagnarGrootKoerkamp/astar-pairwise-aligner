@@ -81,30 +81,6 @@ impl HEncoding for i8 {
     }
 }
 
-impl HEncoding for (u8, u8) {
-    #[inline(always)]
-    fn one() -> Self {
-        (1, 0)
-    }
-    #[inline(always)]
-    fn from(p: B, m: B) -> Self {
-        (p as u8, m as u8)
-    }
-    #[inline(always)]
-    fn value(&self) -> Cost {
-        self.0 as Cost - self.1 as Cost
-    }
-    #[inline(always)]
-    fn p(&self) -> B {
-        self.0 as B
-    }
-    #[inline(always)]
-    fn m(&self) -> B {
-        self.1 as B
-    }
-}
-
-#[cfg(not(feature = "small_blocks"))]
 impl HEncoding for (B, B) {
     #[inline(always)]
     fn one() -> Self {

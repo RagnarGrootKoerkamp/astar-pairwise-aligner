@@ -8,16 +8,16 @@ bio.workspace = true
 itertools.workspace = true
 pa-types.workspace = true
 
+pa-vis-types = { workspace = true, optional=true }
+pa-heuristic = { workspace = true, optional=true }
+
 [dev-dependencies]
-pa-vis.workspace = true
-pa-vis-types.workspace = true
 pa-generate.workspace = true
 criterion = { version = "0.4.0" }
 strum = { version = "0.24.1", features = ["derive"] }
 
 [features]
-small_blocks = []
-experiments = []
+vis = ["dep:pa-vis-types", "dep:pa-heuristic"]
 
 [[bench]]
 name = "nw"

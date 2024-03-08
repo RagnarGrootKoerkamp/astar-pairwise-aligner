@@ -32,7 +32,7 @@ flamegraph bench='' *args='': build
     cargo flamegraph --bench nw -- --bench --profile-time 5 "{{bench}}" {{args}} && open flamegraph.svg
 
 viz:
-    cargo run -r -F small_blocks
+    cargo run -r -F vis
 
 cpufreq:
     sudo cpupower frequency-set --governor performance -d 2.6GHz -u 2.6GHz

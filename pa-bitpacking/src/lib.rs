@@ -38,12 +38,6 @@ pub use encoding::*;
 pub use profile::*;
 
 /// The type used for all bitvectors.
-/// Small blocks are nicer for visualizations.
-#[cfg(feature = "small_blocks")]
-pub type B = u8;
-
-/// The type used for all bitvectors.
-#[cfg(not(feature = "small_blocks"))]
 pub type B = u64;
 
 /// The length of each bitvector.

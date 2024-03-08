@@ -10,13 +10,13 @@ pa-types.workspace = true
 pa-heuristic.workspace = true
 pa-affine-types.workspace = true
 pa-vis-types.workspace = true
+pa-bitpacking.workspace = true
 
 clap.workspace = true
 serde.workspace = true
 itertools.workspace = true
 
 num-traits = "0.2"
-pa-bitpacking = { version = "0.1.0", path = "../pa-bitpacking" }
 pa-vis = { workspace = true, optional = true }
 pa-test = { version = "0.1.0", path = "../pa-test" }
 

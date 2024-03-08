@@ -149,11 +149,9 @@ fn bench(c: &mut Criterion) {
         };
 
         let (ref pa, ref pb) = ScatterProfile::build(a, b);
-        bench_scalar::<ScatterProfile, (u8, u8)>(c, pa, pb, d, "scat/u8");
         bench_scalar::<ScatterProfile, (u64, u64)>(c, pa, pb, d, "scat/u64");
 
         let (ref pa, ref pb) = BitProfile::build(a, b);
-        bench_scalar::<BitProfile, (u8, u8)>(c, pa, pb, d, "bit/u8");
         bench_scalar::<BitProfile, (u64, u64)>(c, pa, pb, d, "bit/u64");
 
         // bench_simd::<(u8, u8)>(c, pa, pb, d, "bit/u8");

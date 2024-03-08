@@ -957,6 +957,7 @@ dependencies = [
  "itertools 0.10.5",
  "pa-affine-types",
  "pa-base-algos",
+ "pa-bitpacking",
  "pa-generate",
  "pa-heuristic",
  "pa-types",
@@ -976,8 +977,8 @@ dependencies = [
  "criterion",
  "itertools 0.10.5",
  "pa-generate",
+ "pa-heuristic",
  "pa-types",
- "pa-vis",
  "pa-vis-types",
  "strum",
 ]
