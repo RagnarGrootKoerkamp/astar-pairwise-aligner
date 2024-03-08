@@ -29,8 +29,7 @@
 use super::*;
 use crate::bit_profile::Bits;
 use itertools::{izip, Itertools};
-use pa_heuristic::NoCostI;
-use pa_types::{Cost, Pos, I};
+use pa_types::Cost;
 use std::{
     array::from_fn,
     mem::transmute,
@@ -517,6 +516,8 @@ pub fn vis_block_of_rows<const N: usize, const B: usize>(
 ) where
     [(); 4 * N]: Sized,
 {
+    use pa_types::{Pos, I};
+
     let m = m as I;
     const L: usize = 4;
     let rev = |k| L * N - 1 - k;
@@ -527,7 +528,7 @@ pub fn vis_block_of_rows<const N: usize, const B: usize>(
             vis.expand_block_simple(Pos(i as I, m + B as I * j as I), Pos(1, B as I));
         }
     }
-    vis.new_layer::<NoCostI>(None);
+    vis.new_layer::<pa_heuristic::NoCostI>(None);
 
     for i in 1..=n - L * N {
         for k in 0..N {
@@ -535,7 +536,7 @@ pub fn vis_block_of_rows<const N: usize, const B: usize>(
                 .map(|k| Pos(i as I + rev(k) as I, m + B as I * k as I));
             let sizes = [Pos(1, B as I); L];
             vis.expand_blocks_simple(pos, sizes);
-            vis.new_layer::<NoCostI>(None);
+            vis.new_layer::<pa_heuristic::NoCostI>(None);
         }
     }
 
