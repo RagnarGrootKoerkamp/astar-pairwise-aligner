@@ -38,14 +38,23 @@ pub fn astar<'a, H: Heuristic>(
     h: &H,
     v: &impl VisualizerT,
 ) -> ((Cost, Cigar), AstarStats) {
+    let mut v = v.build(a, b);
+    astar_with_vis(a, b, h, &mut v)
+}
+
+/// Helper function to modify the visualizer state.
+pub fn astar_with_vis<'a, H: Heuristic>(
+    a: Seq<'a>,
+    b: Seq<'a>,
+    h: &H,
+    v: &mut impl VisualizerInstance,
+) -> ((Cost, Cigar), AstarStats) {
     let mut stats = AstarStats::init(a, b);
 
     let start = instant::Instant::now();
     let ref graph = EditGraph::new(a, b, true);
     let ref mut h = h.build(a, b);
     stats.timing.precomp = start.elapsed().as_secs_f64();
-
-    let ref mut v = v.build(a, b);
 
     // f -> (pos, g)
     let mut queue = ShiftQueue::<(Pos, Cost), <H::Instance<'a> as HeuristicInstance>::Order>::new(

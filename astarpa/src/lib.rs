@@ -51,7 +51,7 @@ use stats::AstarStats;
 
 // ------------ Root alignment interface follows from here ------------
 
-pub use astar::astar;
+pub use astar::{astar, astar_with_vis};
 pub use astar_dt::astar_dt;
 pub use pa_heuristic::HeuristicParams;
 
