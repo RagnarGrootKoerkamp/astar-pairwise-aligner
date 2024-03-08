@@ -1,7 +1,8 @@
 #![feature(trait_upcasting)]
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 
-use astarpa::{astar, AstarPa};
+use astarpa::{astar, AstarPa, HeuristicParams};
+use astarpa2::*;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
@@ -15,7 +16,7 @@ use pa_vis_types::NoVis;
 use std::{path::PathBuf, time::Duration};
 
 fn main() {
-    let n = 8000;
+    let n = 4000;
     let e = 0.20;
     let (ref a, ref b) = uniform_fixed(n, e);
     eprintln!("Length {}", a.len());
@@ -29,7 +30,7 @@ fn main() {
     config.save = When::None;
     config.save_last = true;
     config.delay = Duration::from_secs_f32(0.0001);
-    config.downscaler = 4;
+    config.downscaler = 2;
     config.cell_size = 1;
     config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.90);
@@ -44,6 +45,31 @@ fn main() {
     config.draw_old_on_top = true;
     config.filepath = PathBuf::from("imgs/astarpa2-paper/intro");
     config.clear_after_meeting_point = false;
+
+    let mut block_params = AstarPa2Params {
+        name: "simple".into(),
+        domain: Domain::Astar(()),
+        heuristic: HeuristicParams {
+            heuristic: pa_heuristic::HeuristicType::Gap,
+            ..Default::default()
+        },
+        doubling: DoublingType::BandDoubling {
+            start: DoublingStart::H0,
+            factor: 2.0,
+        },
+        block_width: 1,
+        front: astarpa2::BlockParams {
+            sparse: true,
+            simd: false,
+            no_ilp: true,
+            incremental_doubling: false,
+            dt_trace: false,
+            ..astarpa2::BlockParams::default()
+        },
+        sparse_h: false,
+        prune: false,
+        viz: false,
+    };
 
     let aligners: &mut [Box<dyn Aligner>] = &mut [
         Box::new(NW {
@@ -101,6 +127,12 @@ fn main() {
             sparse_h: false,
             prune: false,
         }),
+        block_params.make_aligner_with_visualizer(true, config.with_filename("0_bitpacking")),
+        {
+            block_params.block_width = 256;
+            block_params
+        }
+        .make_aligner_with_visualizer(true, config.with_filename("0_blocks")),
         Box::new(NW {
             cm,
             strategy: pa_base_algos::Strategy::band_doubling(),
@@ -142,6 +174,7 @@ fn main() {
         }),
         astarpa2::AstarPa2Params::simple()
             .make_aligner_with_visualizer(true, config.with_filename("6_astarpa2_simple")),
+        // FIXME THERE IS SOME BUG HERE FOR LATER!!! for n=8000
         {
             let mut params = astarpa2::AstarPa2Params::full();
             params.heuristic.k = 5;

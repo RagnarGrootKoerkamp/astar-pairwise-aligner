@@ -20,7 +20,7 @@ use domain::AstarPa2Stats;
 use pa_bitpacking::W;
 pub use params::*;
 
-use blocks::BlockParams;
+pub use blocks::BlockParams;
 use pa_affine_types::AffineCigar;
 use pa_heuristic::{Heuristic, HeuristicInstance, NoCostI};
 use pa_types::*;
