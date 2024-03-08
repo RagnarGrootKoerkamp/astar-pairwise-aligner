@@ -118,7 +118,8 @@ Examples of more advanced usages using the ~AstarPa~ aligner object can be found
 ** C API
 The ~astarpa-c~ [[file:astarpa-c/astarpa.h][crate]] contains simple C-bindings for the
 ~astarpa::{astarpa,astarpa_gcsh}~ functions and an [[file:astarpa-c/example.c][example]] with [[file:astarpa-c/makefile][makefile]]. More should not be needed for
-simple usage.
+simple usage. To run the resulting binary, make sure to ~export
+LD_LIBRARY_PATH=/path/to/astarpa/target/release~.
 
 * Visualization
 
@@ -137,7 +138,7 @@ comparable due to differences in visualization strategies (cell vs layer updates
 
 * Paper artefacts
 - Figures ::
-  Paper figures are generated using the example binaries at [[file:pa-bin/examples/paper-figures/][pa-bin/examples/paper-figures]].
+  Paper figures are generated using the example binaries at [[file:pa-bin/examples/astarpa-figures][pa-bin/examples/astarpa-figures]].
 
 - Evals ::
   Benchmarking code, evals, and datasets have moved to [[https://github.com/pairwise-alignment/pa-bench][pa-bench]].
