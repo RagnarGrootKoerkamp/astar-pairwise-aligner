@@ -21,3 +21,6 @@ fig-trace: (fig "trace")
 fig-prepruning: (fig "prepruning")
 fig-doubling: (fig "doubling")
 fig-simd: (fig "simd")
+
+fuzz:
+    cargo run -r --example fuzz --features sdl

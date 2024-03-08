@@ -174,7 +174,6 @@ fn main() {
         }),
         astarpa2::AstarPa2Params::simple()
             .make_aligner_with_visualizer(true, config.with_filename("6_astarpa2_simple")),
-        // FIXME THERE IS SOME BUG HERE FOR LATER!!! for n=8000
         {
             let mut params = astarpa2::AstarPa2Params::full();
             params.heuristic.k = 5;

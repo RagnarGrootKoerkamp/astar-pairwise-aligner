@@ -436,20 +436,19 @@ impl Blocks {
             let v_range_2 = JRange(new_j_h, j_range.1).assert_rounded().v_range();
             assert!(v_range_2.start <= v_range_2.end);
 
-            if !v_range_01.is_empty() {
-                compute_block(
-                    self.params,
-                    &self.a,
-                    &self.b,
-                    i_range,
-                    v_range_01.clone(),
-                    &mut next_block.v[v_range_01.start - offset..v_range_01.end - offset],
-                    &mut self.h,
-                    &mut self.stats,
-                    HMode::Output,
-                    viz,
-                );
-            }
+            // Note: We cannot skip an empty output range, since we still need to set -1 deltas along it.
+            compute_block(
+                self.params,
+                &self.a,
+                &self.b,
+                i_range,
+                v_range_01.clone(),
+                &mut next_block.v[v_range_01.start - offset..v_range_01.end - offset],
+                &mut self.h,
+                &mut self.stats,
+                HMode::Output,
+                viz,
+            );
 
             next_block.bot_val += compute_block(
                 self.params,
