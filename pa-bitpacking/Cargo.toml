@@ -17,6 +17,7 @@ criterion = { version = "0.4.0" }
 strum = { version = "0.24.1", features = ["derive"] }
 
 [features]
+small_blocks = []
 vis = ["dep:pa-vis-types", "dep:pa-heuristic"]
 
 [[bench]]

@@ -85,8 +85,8 @@ pub mod bit_profile {
                 .map(|ca| {
                     let a = CC(r.get(*ca));
                     Bits(
-                        0u64.wrapping_sub(a.0 as B & 1),
-                        0u64.wrapping_sub((a.0 as B >> 1) & 1),
+                        (0 as B).wrapping_sub(a.0 as B & 1),
+                        (0 as B).wrapping_sub((a.0 as B >> 1) & 1),
                     )
                 })
                 .collect_vec();
