@@ -255,6 +255,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         let mut h = |pos| {
             let (h, new_hint) = h.h_with_hint(pos, self.hint);
             self.hint = new_hint;
+            self.v.h_call(pos);
             h
         };
 
