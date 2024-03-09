@@ -278,13 +278,27 @@ pub enum Gradient {
     Gradient(Range<Color>),
     // 0 <= start < end <= 1
     TurboGradient(Range<f64>),
+    BoundedGradient(Range<Color>, usize),
+    // 0 <= start < end <= 1
+    BoundedTurboGradient(Range<f64>, usize),
 }
 
 impl Gradient {
-    fn color(&self, f: f64) -> Color {
+    fn color(&self, i: usize, cnt: usize) -> Color {
         match self {
             Gradient::Fixed(color) => *color,
-            Gradient::Gradient(range) => {
+            Gradient::Gradient(_) | Gradient::TurboGradient(_) => {
+                self.color_f(i as f64 / cnt as f64)
+            }
+            Gradient::BoundedGradient(_, max) | Gradient::BoundedTurboGradient(_, max) => {
+                self.color_f(i as f64 / *max as f64)
+            }
+        }
+    }
+    fn color_f(&self, f: f64) -> Color {
+        match self {
+            Gradient::Fixed(color) => *color,
+            Gradient::Gradient(range) | Gradient::BoundedGradient(range, _) => {
                 let frac =
                     |a: u8, b: u8| -> u8 { (a as f64 + f * (b as f64 - a as f64)).ceil() as u8 };
                 (
@@ -294,7 +308,7 @@ impl Gradient {
                     frac(range.start.3, range.end.3),
                 )
             }
-            Gradient::TurboGradient(range) => {
+            Gradient::TurboGradient(range) | Gradient::BoundedTurboGradient(range, _) => {
                 let f = range.start + f * (range.end - range.start);
                 let c = colorgrad::turbo().at(f).to_rgba8();
                 (c[0], c[1], c[2], c[3])
@@ -884,7 +898,10 @@ impl Visualizer {
                     self.draw_pixels(
                         &mut canvas,
                         &poss,
-                        self.config.style.heuristic.color(h as f64 / h_max as f64),
+                        self.config
+                            .style
+                            .heuristic
+                            .color(h as usize, h_max as usize),
                     );
                 }
             }
@@ -917,7 +934,7 @@ impl Visualizer {
                             self.config
                                 .style
                                 .layer
-                                .color((l as f64 / max(l_max, 1) as f64).min(1.0)),
+                                .color(l as usize, max(l_max as usize, 1)),
                         );
                     }
                 }
@@ -988,21 +1005,20 @@ impl Visualizer {
                             }
                         }
                         Type::Expanded => {
-                            let color = self.config.style.expanded.color(
-                                if let Some(layer) = self.layer
-                                    && layer != 0
+                            let color = if let Some(layer) = self.layer
+                                && layer != 0
+                            {
+                                if current_layer > 0 && i < self.expanded_layers[current_layer - 1]
                                 {
-                                    if current_layer > 0
-                                        && i < self.expanded_layers[current_layer - 1]
-                                    {
-                                        current_layer -= 1;
-                                    }
-                                    current_layer as f64
-                                        / self.config.num_layers.unwrap_or(layer) as f64
-                                } else {
-                                    i as f64 / self.expanded.len() as f64
-                                },
-                            );
+                                    current_layer -= 1;
+                                }
+                                self.config
+                                    .style
+                                    .expanded
+                                    .color(current_layer, self.config.num_layers.unwrap_or(layer))
+                            } else {
+                                self.config.style.expanded.color(i, self.expanded.len())
+                            };
                             draw_pos(pos, color);
                         }
                     }
@@ -1027,21 +1043,20 @@ impl Visualizer {
                             }
                         }
                         Type::Expanded => {
-                            let color = self.config.style.expanded.color(
-                                if let Some(layer) = self.layer
-                                    && layer != 0
+                            let color = if let Some(layer) = self.layer
+                                && layer != 0
+                            {
+                                if current_layer < layer && i >= self.expanded_layers[current_layer]
                                 {
-                                    if current_layer < layer
-                                        && i >= self.expanded_layers[current_layer]
-                                    {
-                                        current_layer += 1;
-                                    }
-                                    current_layer as f64
-                                        / self.config.num_layers.unwrap_or(layer) as f64
-                                } else {
-                                    i as f64 / self.expanded.len() as f64
-                                },
-                            );
+                                    current_layer += 1;
+                                }
+                                self.config
+                                    .style
+                                    .expanded
+                                    .color(current_layer, self.config.num_layers.unwrap_or(layer))
+                            } else {
+                                self.config.style.expanded.color(i, self.expanded.len())
+                            };
                             draw_pos(pos, color);
                         }
                     }
@@ -1612,36 +1627,38 @@ impl Visualizer {
             // Expanded
             let mut current_layer = self.layer.unwrap_or(0);
             for (i, st) in self.expanded.iter().enumerate().rev() {
-                let color = self.config.style.expanded.color(
-                    if let Some(layer) = self.layer
-                        && layer != 0
-                    {
-                        if current_layer > 0 && i < self.expanded_layers[current_layer - 1] {
-                            current_layer -= 1;
-                        }
-                        current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                    } else {
-                        i as f64 / self.expanded.len() as f64
-                    },
-                );
+                let color = if let Some(layer) = self.layer
+                    && layer != 0
+                {
+                    if current_layer > 0 && i < self.expanded_layers[current_layer - 1] {
+                        current_layer -= 1;
+                    }
+                    self.config
+                        .style
+                        .expanded
+                        .color(current_layer, self.config.num_layers.unwrap_or(layer))
+                } else {
+                    self.config.style.expanded.color(i, self.expanded.len())
+                };
                 draw_state(&mut canvas, st, color);
             }
         } else {
             // Expanded
             let mut current_layer = 0;
             for (i, st) in self.expanded.iter().enumerate() {
-                let color = self.config.style.expanded.color(
-                    if let Some(layer) = self.layer
-                        && layer != 0
-                    {
-                        if current_layer < layer && i >= self.expanded_layers[current_layer] {
-                            current_layer += 1;
-                        }
-                        current_layer as f64 / self.config.num_layers.unwrap_or(layer) as f64
-                    } else {
-                        i as f64 / self.expanded.len() as f64
-                    },
-                );
+                let color = if let Some(layer) = self.layer
+                    && layer != 0
+                {
+                    if current_layer < layer && i >= self.expanded_layers[current_layer] {
+                        current_layer += 1;
+                    }
+                    self.config
+                        .style
+                        .expanded
+                        .color(current_layer, self.config.num_layers.unwrap_or(layer))
+                } else {
+                    self.config.style.expanded.color(i, self.expanded.len())
+                };
                 draw_state(&mut canvas, st, color);
             }
         }
@@ -1764,7 +1781,7 @@ impl Visualizer {
                 if rel_f > 1.5 {
                     continue;
                 }
-                let color = Gradient::Gradient(GRAY..WHITE).color(f64::max(0., 2. * rel_f - 2.));
+                let color = Gradient::Gradient(GRAY..WHITE).color_f(2. * rel_f - 2.);
                 let y = f_y(f);
                 canvas.fill_rect(
                     CPos((pos.pos().0 * self.config.cell_size) as i32, y),
@@ -1785,8 +1802,7 @@ impl Visualizer {
             if *t == Explored {
                 continue;
             }
-            let color =
-                Gradient::TurboGradient(0.2..0.95).color(i as f64 / self.expanded.len() as f64);
+            let color = Gradient::TurboGradient(0.2..0.95).color(i, self.expanded.len());
             canvas.fill_rect(
                 CPos((pos.pos().0 * self.config.cell_size) as i32, f_y(*f)),
                 self.config.cell_size,

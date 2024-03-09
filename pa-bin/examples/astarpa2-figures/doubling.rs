@@ -15,7 +15,7 @@ fn main() {
     config.delay = Duration::from_secs_f32(1.0);
     config.paused = true;
     config.style.bg_color = (255, 255, 255, 128);
-    config.style.expanded = Gradient::TurboGradient(0.25..0.9);
+    config.style.expanded = Gradient::BoundedTurboGradient(0.25..0.9, 30);
     config.style.path_width = None;
     config.draw_old_on_top = false;
     config.layer_drawing = false;
