@@ -19,6 +19,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::process::exit;
 use std::{
     cell::{RefCell, RefMut},
     cmp::{max, min},
@@ -122,6 +123,9 @@ pub struct Visualizer {
     pub preprune: Vec<Pos>,
     // Calls to the heuristic.
     h_calls: Vec<Pos>,
+    f_calls: Vec<(Pos, bool, bool)>,
+    j_ranges: Vec<(Pos, Pos)>,
+    fixed_j_ranges: Vec<(Pos, Pos)>,
     // The current layer
     layer: Option<usize>,
     // Index in expanded where each layer stars.
@@ -182,10 +186,23 @@ impl VisualizerInstance for Visualizer {
         }
     }
 
-    fn h_call<'a>(&mut self, pos: Pos) {
+    fn h_call(&mut self, pos: Pos) {
         if pos <= self.target {
             self.h_calls.push(pos);
+            self.draw::<NoCostI>(false, None, false, None, None);
         }
+    }
+    fn f_call(&mut self, pos: Pos, in_bounds: bool, fixed: bool) {
+        self.f_calls.push((pos, in_bounds, fixed));
+        self.draw::<NoCostI>(false, None, false, None, None);
+    }
+    fn j_range(&mut self, start: Pos, end: Pos) {
+        self.j_ranges.push((start, end));
+        self.draw::<NoCostI>(false, None, false, None, None);
+    }
+    fn fixed_j_range(&mut self, start: Pos, end: Pos) {
+        self.fixed_j_ranges.push((start, end));
+        self.draw::<NoCostI>(false, None, false, None, None);
     }
 
     fn new_layer<'a, H: HeuristicInstance<'a>>(&mut self, h: Option<&H>) {
@@ -317,6 +334,7 @@ pub struct Style {
     pub draw_dt: bool,
     pub draw_f: bool,
     pub draw_h_calls: bool,
+    pub draw_f_calls: bool,
     pub h_call: Color,
     pub draw_labels: bool,
     pub heuristic: Gradient,
@@ -409,6 +427,7 @@ impl Config {
                 draw_dt: true,
                 draw_f: false,
                 draw_h_calls: false,
+                draw_f_calls: false,
                 h_call: RED,
                 draw_labels: true,
                 heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
@@ -616,6 +635,9 @@ impl Visualizer {
             preprune: vec![],
             trace: vec![],
             h_calls: vec![],
+            f_calls: vec![],
+            j_ranges: vec![],
+            fixed_j_ranges: vec![],
             target: Pos::target(a, b),
             frame_number: 0,
             layer_number: 0,
@@ -680,8 +702,11 @@ impl Visualizer {
         canvas.fill_rects(&rects, color);
     }
 
-    fn draw_box(&self, canvas: &mut CanvasBox, start: Pos, size: Pos, color: Color) {
-        let end = self.cell_end(start + size - Pos(1, 1));
+    fn draw_box(&self, canvas: &mut CanvasBox, mut start: Pos, mut size: Pos, color: Color) {
+        start += Pos(1, 0);
+        size += Pos(0, 1);
+        let end = start + size;
+        let end = self.cell_begin(Pos(end.0, end.1.min(self.target.1 + 1)));
         let start = self.cell_begin(start);
         canvas.fill_rect(start, end.0 - start.0, end.1 - start.1, color);
     }
@@ -1080,6 +1105,42 @@ impl Visualizer {
                 }
             }
 
+            // Draw h calls.
+            if self.config.style.draw_h_calls {
+                for &p in &self.h_calls {
+                    self.draw_pixel(&mut canvas, p, self.config.style.h_call);
+                }
+            }
+
+            if self.config.style.draw_f_calls {
+                // Draw f calls.
+                for &(p, in_bounds, fixed) in &self.f_calls {
+                    self.draw_pixel(
+                        &mut canvas,
+                        p,
+                        match (in_bounds, fixed) {
+                            (true, true) => GREEN,
+                            (true, false) => BLUE,
+                            (false, _) => RED,
+                        },
+                    );
+                }
+
+                // Draw fixed ranges.
+                for &(start, end) in &self.fixed_j_ranges {
+                    let tl = self.cell_begin(start);
+                    let wh = self.cell_end(end) - tl;
+                    canvas.draw_rect(tl, wh.0, wh.1, BLACK);
+                }
+
+                // Draw j_range.
+                for &(start, end) in &self.j_ranges {
+                    let tl = self.cell_begin(start + Pos(1, 0));
+                    let wh = self.cell_end(end) - tl;
+                    canvas.draw_rect(tl, wh.0, wh.1, BLUE);
+                }
+            }
+
             // Draw path.
             if let Some(cigar) = cigar
                 && let Some(path_color) = self.config.style.path
@@ -1098,13 +1159,6 @@ impl Visualizer {
                     for p in cigar.to_path() {
                         self.draw_pixel(&mut canvas, p, path_color)
                     }
-                }
-            }
-
-            // Draw h calls.
-            if self.config.style.draw_h_calls {
-                for &p in &self.h_calls {
-                    self.draw_pixel(&mut canvas, p, self.config.style.h_call);
                 }
             }
 
@@ -1443,7 +1497,8 @@ impl Visualizer {
                 self.config.draw = When::Last;
             }
             KeyboardAction::Exit => {
-                panic!("Running aborted by user!");
+                eprintln!("Running aborted by user!");
+                exit(1);
             }
             KeyboardAction::None => {}
         }

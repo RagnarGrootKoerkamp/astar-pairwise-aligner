@@ -147,13 +147,14 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 let mut h = |pos| {
                     let (h, new_hint) = h.h_with_hint(pos, self.hint);
                     self.hint = new_hint;
-                    self.v.h_call(pos);
                     h
                 };
                 // A lower bound of `f` values estimated from `gu`, valid for states `v` below the diagonal of `u`.
                 let mut f = |v: Pos| {
                     assert!(v.1 - u.1 >= v.0 - u.0);
-                    gu + unit_cost.extend_cost(u, v) + h(v)
+                    let f = gu + unit_cost.extend_cost(u, v) + h(v);
+                    self.v.f_call(v, f <= f_max, false);
+                    f
                 };
 
                 // Extend `v` diagonally one column at a time towards `ie`.
@@ -231,7 +232,10 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             range = range.union(old_range);
         }
         // crop
-        range.intersection(JRange(0, self.b.len() as I))
+        let j_range = range.intersection(JRange(0, self.b.len() as I));
+
+        self.v.j_range(Pos(is, j_range.0), Pos(ie, j_range.1));
+        j_range
     }
 
     /// Compute the j_range of `block` `i` with `f(u) <= f_max`.
@@ -255,12 +259,15 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         let mut h = |pos| {
             let (h, new_hint) = h.h_with_hint(pos, self.hint);
             self.hint = new_hint;
-            self.v.h_call(pos);
             h
         };
 
         // Compute values at the end of each lane.
-        let mut f = |j| block.index(j) + h(Pos(i, j));
+        let mut f = |j| {
+            let f = block.index(j) + h(Pos(i, j));
+            self.v.f_call(Pos(i, j), f <= f_max, true);
+            f
+        };
 
         // Start: increment the start of the range until f<=f_max is satisfied.
         // End: decrement the end of the range until f<=f_max is satisfied.
@@ -318,6 +325,11 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         }
         if DEBUG {
             eprintln!("updated fixed_j_range for {i} {fixed_j_range:?}");
+        }
+
+        if !fixed_j_range.is_empty() {
+            self.v
+                .fixed_j_range(Pos(i, fixed_j_range.0), Pos(i, fixed_j_range.1));
         }
         Some(fixed_j_range)
     }
