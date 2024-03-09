@@ -454,6 +454,14 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             // Store before appending a new block.
             let prev_fixed_j_range = blocks.last_block().fixed_j_range;
 
+            {
+                if let Some(prev_fixed_j_range) = prev_fixed_j_range {
+                    let j_h = prev_fixed_j_range.round_in().1;
+                    self.v
+                        .next_fixed_h(Pos(i_range.0 + 1, j_h), Pos(i_range.1, j_h));
+                }
+            }
+
             // Reuse or compute the next block.
             if reuse {
                 blocks.reuse_next_block(i_range, j_range);
@@ -477,6 +485,18 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 return None;
             }
             blocks.set_last_block_fixed_j_range(next_fixed_j_range);
+
+            // If the stored h_j is actually fixed, draw it.
+            {
+                if let Some(j_h) = blocks.last_block().j_h
+                    && let Some(next_fixed_j_range) = next_fixed_j_range
+                    && let Some(prev_fixed_j_range) = prev_fixed_j_range
+                {
+                    if j_h >= next_fixed_j_range.0 && j_h >= prev_fixed_j_range.0 {
+                        self.v.fixed_h(Pos(i_range.0 + 1, j_h), Pos(i_range.1, j_h));
+                    }
+                }
+            }
 
             // Prune matches in the intersection of the previous and next fixed range.
             if self.params.prune
