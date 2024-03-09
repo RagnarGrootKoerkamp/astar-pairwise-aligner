@@ -508,7 +508,6 @@ fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
 }
 
 #[cfg(feature = "example")]
-#[inline(always)]
 pub fn vis_block_of_rows<const N: usize, const B: usize>(
     n: usize,
     m: usize,
