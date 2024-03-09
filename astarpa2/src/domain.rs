@@ -191,23 +191,36 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                     // NOTE: We start with a small additional buffer to prevent doing v.1 += 1 in the loop below.
                     v.1 += self.params.block_width;
                     v.1 = min(v.1, self.b.len() as I);
-                    while v.0 <= ie && v.1 < self.b.len() as I {
+                    loop {
+                        // Don't go above the diagonal.
+                        if v.1 < v.0 - u.0 + u.1 {
+                            v.1 = v.0 - u.0 + u.1;
+                            break;
+                        }
                         let fv = f(v);
                         if fv <= f_max {
+                            if v.1 == self.b.len() as I {
+                                break;
+                            }
                             v.1 += 8;
+                            if v.1 >= self.b.len() as I {
+                                v.1 = self.b.len() as I;
+                            }
                         } else {
                             // By consistency of `f`, it can only change value by at most `2` per step in the unit cost setting.
                             // When `f(v) > f_max`, this means we have to make at least `ceil((fv - f_max)/2)` steps to possibly get at a cell with `f(v) <= f_max`.
                             v.0 += (fv - f_max).div_ceil(2 * unit_cost.min_del_extend);
+                            if v.0 > ie {
+                                v.0 = ie;
+                                break;
+                            }
                         }
                     }
                     v.0 = ie;
                     loop {
-                        // Stop in the edge case where `f(v)` would be invalid (`v.1<0`)
-                        // or when the bottom of the grid was reached, in which
-                        // case `v` may not be below the diagonal of `u`, and
-                        // simply computing everything won't loose much anyway.
-                        if v.1 < 0 || v.1 == self.b.len() as I {
+                        // Don't go above the diagonal.
+                        if v.1 < v.0 - u.0 + u.1 {
+                            v.1 = v.0 - u.0 + u.1;
                             break;
                         }
                         let fv = f(v);
@@ -215,12 +228,6 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                             break;
                         } else {
                             v.1 -= (fv - f_max).div_ceil(2 * unit_cost.min_ins_extend);
-                            // Don't go above the diagonal.
-                            // This could happen after pruning we if don't check explicitly.
-                            if v.1 < v.0 - u.0 + u.1 {
-                                v.1 = v.0 - u.0 + u.1;
-                                break;
-                            }
                         }
                     }
                 }
