@@ -189,7 +189,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                     // - Go down until out-of-scope using steps of size 8.
                     // Finally, go up to in-scope.
                     // NOTE: We start with a small additional buffer to prevent doing v.1 += 1 in the loop below.
-                    v.1 += self.params.block_width + 8;
+                    v.1 += self.params.block_width;
                     v.1 = min(v.1, self.b.len() as I);
                     while v.0 <= ie && v.1 < self.b.len() as I {
                         let fv = f(v);
