@@ -23,6 +23,7 @@ fn main() {
     config.cell_size = 1;
     config.style.path = Some(BLACK);
     config.style.draw_matches = false;
+    config.style.draw_matches = false;
     config.style.match_width = 4;
     config.style.match_shrink = 0;
     config.style.pruned_match = RED;

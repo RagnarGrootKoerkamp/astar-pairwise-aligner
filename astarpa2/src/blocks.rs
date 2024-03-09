@@ -233,7 +233,7 @@ impl Blocks {
             // This is extracted to a separate function for reuse during traceback.
             self.fill_with_blocks(i_range, original_j_range);
             viz.expand_block_simple(
-                Pos(i_range.0 + 1, j_range.0),
+                Pos(i_range.0, j_range.0),
                 Pos(i_range.len(), j_range.exclusive_len()),
             );
             self.stats.t_compute += start.elapsed();
@@ -691,7 +691,7 @@ fn compute_block(
     viz: &mut impl VisualizerInstance,
 ) -> i32 {
     viz.expand_block_simple(
-        Pos(i_range.0 + 1, v_range.start as I * WI),
+        Pos(i_range.0, v_range.start as I * WI),
         Pos(i_range.len(), v_range.len() as I * WI),
     );
 

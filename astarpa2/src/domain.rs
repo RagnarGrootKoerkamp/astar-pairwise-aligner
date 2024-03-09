@@ -413,7 +413,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         blocks.set_last_block_fixed_j_range(Some(initial_j_range));
 
         self.v.expand_block(
-            Pos(0, 0),
+            Pos(-1, 0),
             Pos(1, blocks.last_block().j_range.len()),
             0,
             f_max.unwrap_or(0),

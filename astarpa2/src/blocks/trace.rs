@@ -99,7 +99,7 @@ impl Blocks {
                         let j_range = JRange(max(j_range.1 - height, prev_j_range.0), j_range.1);
                         stats.fill_tries += 1;
                         self.fill_with_blocks(i_range, j_range);
-                        let tl = Pos(i_range.0 + 1, j_range.0);
+                        let tl = Pos(i_range.0, j_range.0);
                         let size = Pos(i_range.len(), j_range.exclusive_len());
                         if DEBUG {
                             let br = tl + size;
