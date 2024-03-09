@@ -126,6 +126,8 @@ pub struct Visualizer {
     f_calls: Vec<(Pos, bool, bool)>,
     j_ranges: Vec<(Pos, Pos)>,
     fixed_j_ranges: Vec<(Pos, Pos)>,
+    fixed_h: Vec<(Pos, Pos)>,
+    next_fixed_h: Option<(Pos, Pos)>,
     // The current layer
     layer: Option<usize>,
     // Index in expanded where each layer stars.
@@ -187,22 +189,60 @@ impl VisualizerInstance for Visualizer {
     }
 
     fn h_call(&mut self, pos: Pos) {
-        if pos <= self.target {
+        if pos <= self.target && self.config.style.draw_h_calls {
             self.h_calls.push(pos);
             self.draw::<NoCostI>(false, None, false, None, None);
         }
     }
     fn f_call(&mut self, pos: Pos, in_bounds: bool, fixed: bool) {
-        self.f_calls.push((pos, in_bounds, fixed));
-        self.draw::<NoCostI>(false, None, false, None, None);
+        if self.config.style.draw_f_calls {
+            self.f_calls.push((pos, in_bounds, fixed));
+            self.draw::<NoCostI>(false, None, false, None, None);
+        }
     }
     fn j_range(&mut self, start: Pos, end: Pos) {
-        self.j_ranges.push((start, end));
-        self.draw::<NoCostI>(false, None, false, None, None);
+        if self.config.style.draw_ranges {
+            if let Some(r) = self.j_ranges.iter_mut().find(|(s, _)| s.0 == start.0) {
+                *r = (start, end);
+            } else {
+                self.j_ranges.push((start, end));
+            }
+            self.draw::<NoCostI>(false, None, false, None, None);
+        }
     }
     fn fixed_j_range(&mut self, start: Pos, end: Pos) {
-        self.fixed_j_ranges.push((start, end));
-        self.draw::<NoCostI>(false, None, false, None, None);
+        if self.config.style.draw_ranges {
+            if let Some(r) = self.fixed_j_ranges.iter_mut().find(|(s, _)| s.0 == start.0) {
+                *r = (start, end);
+            } else {
+                self.fixed_j_ranges.push((start, end));
+            }
+            self.draw::<NoCostI>(false, None, false, None, None);
+        }
+    }
+    fn fixed_h(&mut self, start: Pos, end: Pos) {
+        if self.config.style.draw_ranges {
+            self.next_fixed_h = None;
+            self.fixed_h.push((start, end));
+            self.draw::<NoCostI>(false, None, false, None, None);
+            if let Some(r) = self
+                .fixed_h
+                .iter_mut()
+                .rev()
+                .skip(1)
+                .find(|(s, _)| s.0 == start.0)
+            {
+                *r = (start, end);
+                self.draw::<NoCostI>(false, None, false, None, None);
+                self.fixed_h.pop();
+            }
+        }
+    }
+    fn next_fixed_h(&mut self, start: Pos, end: Pos) {
+        if self.config.style.draw_ranges {
+            self.next_fixed_h = Some((start, end));
+            self.draw::<NoCostI>(false, None, false, None, None);
+        }
     }
 
     fn new_layer<'a, H: HeuristicInstance<'a>>(&mut self, h: Option<&H>) {
@@ -211,6 +251,8 @@ impl VisualizerInstance for Visualizer {
             self.expanded_layers.push(self.expanded.len());
         }
         self.draw(false, None, true, h, None);
+        self.f_calls.clear();
+        self.j_ranges.clear();
     }
 
     fn add_meeting_point<'a, HI: HeuristicInstance<'a>>(&mut self, pos: Pos) {
@@ -323,6 +365,7 @@ pub struct Style {
     pub explored: Option<Color>,
     pub extended: Option<Color>,
     pub trace: Option<(Color, Color)>,
+    pub fixed: Option<Color>,
     pub preprune: Option<Color>,
     pub bg_color: Color,
     /// None to disable
@@ -349,6 +392,7 @@ pub struct Style {
     pub draw_f: bool,
     pub draw_h_calls: bool,
     pub draw_f_calls: bool,
+    pub draw_ranges: bool,
     pub h_call: Color,
     pub draw_labels: bool,
     pub heuristic: Gradient,
@@ -422,6 +466,7 @@ impl Config {
                 explored: None,
                 extended: None,
                 trace: None,
+                fixed: None,
                 preprune: None,
                 bg_color: WHITE,
                 path: Some(BLACK),
@@ -442,6 +487,7 @@ impl Config {
                 draw_f: false,
                 draw_h_calls: false,
                 draw_f_calls: false,
+                draw_ranges: false,
                 h_call: RED,
                 draw_labels: true,
                 heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
@@ -652,6 +698,8 @@ impl Visualizer {
             f_calls: vec![],
             j_ranges: vec![],
             fixed_j_ranges: vec![],
+            fixed_h: vec![],
+            next_fixed_h: None,
             target: Pos::target(a, b),
             frame_number: 0,
             layer_number: 0,
@@ -1140,11 +1188,36 @@ impl Visualizer {
                         },
                     );
                 }
+            }
 
+            if self.config.style.draw_ranges {
                 // Draw fixed ranges.
                 for &(start, end) in &self.fixed_j_ranges {
                     let tl = self.cell_begin(start);
                     let wh = self.cell_end(end) - tl;
+                    if let Some(fixed) = self.config.style.fixed {
+                        canvas.fill_rect(tl, wh.0, wh.1, fixed);
+                    }
+                    canvas.draw_rect(tl, wh.0, wh.1, BLACK);
+                }
+
+                // Draw fixed h.
+                for &(start, end) in &self.fixed_h {
+                    let tl = self.cell_begin(start);
+                    let wh = self.cell_end(end) - tl;
+                    if let Some(fixed) = self.config.style.fixed {
+                        canvas.fill_rect(tl, wh.0, wh.1, fixed);
+                    }
+                    canvas.draw_rect(tl, wh.0, wh.1, BLACK);
+                }
+
+                // Draw fixed h.
+                if let Some((start, end)) = self.next_fixed_h {
+                    let tl = self.cell_begin(start);
+                    let wh = self.cell_end(end) - tl;
+                    if let Some(fixed) = self.config.style.fixed {
+                        canvas.fill_rect(tl, wh.0, wh.1, fixed);
+                    }
                     canvas.draw_rect(tl, wh.0, wh.1, BLACK);
                 }
 

@@ -33,6 +33,7 @@ fn main() {
     config.style.draw_labels = false;
     config.style.draw_h_calls = false;
     config.style.draw_f_calls = true;
+    config.style.draw_ranges = true;
 
     config.filepath = "imgs/astarpa2-paper/ranges".into();
 

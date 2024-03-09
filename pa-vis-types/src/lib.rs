@@ -76,6 +76,8 @@ pub trait VisualizerInstance {
     fn f_call(&mut self, _pos: Pos, _in_bounds: bool, _fixed: bool) {}
     fn j_range(&mut self, _start: Pos, _end: Pos) {}
     fn fixed_j_range(&mut self, _start: Pos, _end: Pos) {}
+    fn fixed_h(&mut self, _start: Pos, _end: Pos) {}
+    fn next_fixed_h(&mut self, _start: Pos, _end: Pos) {}
 
     /// This function should be called after completing each layer
     fn new_layer<'a, HI: HeuristicInstance<'a>>(&mut self, _h: Option<&HI>) {}
