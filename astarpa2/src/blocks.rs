@@ -108,7 +108,6 @@ pub struct Blocks {
 }
 
 impl BlockParams {
-    pub const BLOCKSIZE: I = 64;
     pub fn new<'a>(&self, trace: bool, a: Seq<'a>, b: Seq<'a>) -> Blocks {
         let (a, b) = BitProfile::build(a, b);
         Blocks {

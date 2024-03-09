@@ -19,10 +19,7 @@ impl DoublingStart {
             }
             DoublingStart::H0 => (h0, 1),
         };
-        (
-            start_f,
-            std::cmp::max(start_increment, BlockParams::BLOCKSIZE),
-        )
+        (start_f, start_increment)
     }
 }
 

@@ -120,7 +120,8 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
                 .1
             }
             DoublingType::BandDoubling { start, factor } => {
-                let (start_f, start_increment) = start.initial_values(a, b, h0);
+                let (start_f, mut start_increment) = start.initial_values(a, b, h0);
+                start_increment = start_increment.max(self.block_width as i32);
                 let mut blocks = self.block.new(trace, a, b);
                 let r = band::exponential_search(start_f, start_increment, factor, |s| {
                     nw.align_for_bounded_dist(Some(s), trace, Some(&mut blocks))
