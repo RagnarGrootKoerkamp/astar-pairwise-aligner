@@ -113,11 +113,8 @@ impl AstarNwParams {
             config.style.match_width = 1;
             config.style.draw_matches = true;
             config.filepath = self.name.clone().into();
-            self.make_aligner_with_visualizer(trace, config)
-        } else {
-            self.make_aligner_with_visualizer(trace, NoVis)
+            return self.make_aligner_with_visualizer(trace, config);
         }
-        #[cfg(not(feature = "pa-vis"))]
         self.make_aligner_with_visualizer(trace, NoVis)
     }
 
