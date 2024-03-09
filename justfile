@@ -19,7 +19,8 @@ fig name args='':
 
 fig-intro: (fig "intro")
 fig-prepruning: (fig "prepruning")
-fig-doubling: (fig "doubling")
+fig-doubling-large: (fig "doubling-large")
+fig-doubling: (fig "doubling" ",small_blocks")
 fig-simd: (fig "simd")
 fig-trace: (fig "trace" ",small_blocks")
 fig-ranges: (fig "ranges" ",small_blocks")
