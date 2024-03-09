@@ -149,6 +149,7 @@ impl Blocks {
         self.last_block_idx = 0;
         self.i_range = IRange(-1, 0);
 
+        let fixed_j_range = initial_j_range;
         if let Some(block) = self.blocks.get(0) {
             initial_j_range = initial_j_range.union(*block.j_range);
         }
@@ -156,14 +157,15 @@ impl Blocks {
 
         let block = if self.trace {
             // First column block, with more blocks pushed after.
-            Block::first_col(initial_j_range)
+            Block::first_col(fixed_j_range, initial_j_range)
         } else {
             // Block spanning the entire first column.
             Block {
                 v: vec![V::one(); self.b.len()],
                 i_range: IRange(-1, 0),
+                original_j_range: fixed_j_range,
                 j_range: initial_j_range,
-                fixed_j_range: Some(*initial_j_range),
+                fixed_j_range: Some(fixed_j_range),
                 offset: 0,
                 top_val: 0,
                 bot_val: initial_j_range.1,
@@ -210,6 +212,7 @@ impl Blocks {
         self.stats.num_blocks += 1;
         let start = std::time::Instant::now();
 
+        let original_j_range = j_range;
         let j_range = j_range.round_out();
 
         let v_range = j_range.v_range();
@@ -229,7 +232,7 @@ impl Blocks {
 
         if self.trace && !self.params.sparse {
             // This is extracted to a separate function for reuse during traceback.
-            self.fill_with_blocks(i_range, j_range);
+            self.fill_with_blocks(i_range, original_j_range);
             viz.expand_block_simple(
                 Pos(i_range.0 + 1, j_range.0),
                 Pos(i_range.len(), j_range.exclusive_len()),
@@ -266,6 +269,7 @@ impl Blocks {
             // In this case there is only a single reused block. Overwrite its range.
             let block = &mut self.blocks[self.last_block_idx];
             block.i_range = i_range;
+            block.original_j_range = original_j_range;
             block.j_range = j_range;
             block.top_val = top_val;
             block.bot_val = bot_val;
@@ -302,6 +306,7 @@ impl Blocks {
         *next_block = Block {
             v: std::mem::take(&mut next_block.v),
             i_range,
+            original_j_range,
             j_range,
             fixed_j_range: next_block.fixed_j_range,
             offset: j_range.0,
@@ -560,7 +565,8 @@ impl Blocks {
     }
 
     /// Store a single block for each column in `i_range`.
-    fn fill_with_blocks(&mut self, i_range: IRange, j_range: RoundedOutJRange) {
+    fn fill_with_blocks(&mut self, i_range: IRange, original_j_range: JRange) {
+        let j_range = original_j_range.round_out();
         self.i_range.push(i_range);
         let v_range = j_range.v_range();
 
@@ -578,6 +584,7 @@ impl Blocks {
             // Will be resized in fill().
             v: vec![],
             i_range: IRange(i_range.0, i_range.0),
+            original_j_range,
             j_range,
             offset: j_range.0,
             fixed_j_range: None,

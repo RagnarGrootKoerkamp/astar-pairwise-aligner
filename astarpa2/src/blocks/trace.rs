@@ -96,8 +96,7 @@ impl Blocks {
                     // direction we could also iterate backwards.
                     let mut height = min(j_range.exclusive_len(), i_range.len() * 5 / 4);
                     loop {
-                        let j_range =
-                            JRange(max(j_range.1 - height, prev_j_range.0), j_range.1).round_out();
+                        let j_range = JRange(max(j_range.1 - height, prev_j_range.0), j_range.1);
                         stats.fill_tries += 1;
                         self.fill_with_blocks(i_range, j_range);
                         let tl = Pos(i_range.0 + 1, j_range.0);

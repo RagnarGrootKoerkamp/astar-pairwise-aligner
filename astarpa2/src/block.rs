@@ -11,7 +11,8 @@ pub struct Block {
     /// The column of this block.
     pub i_range: IRange,
     /// The range of rows to be computed.
-    /// Always rounded out (we overdo the computation).
+    pub original_j_range: JRange,
+    /// The rounded-out range of rows to be computed.
     pub j_range: RoundedOutJRange,
     /// The range of rows with `f(u) <= f_max`.
     /// Always rounded in (we underestimate fixed cells).
@@ -34,6 +35,7 @@ impl Default for Block {
         Self {
             v: vec![],
             i_range: IRange(-1, 0),
+            original_j_range: JRange(-WI, -WI),
             j_range: JRange(-WI, -WI).round_out(),
             fixed_j_range: None,
             offset: 0,
@@ -46,14 +48,15 @@ impl Default for Block {
 
 impl Block {
     /// The initial block for the first column.
-    pub fn first_col(j_range: RoundedOutJRange) -> Self {
+    pub fn first_col(original_j_range: JRange, j_range: RoundedOutJRange) -> Self {
         assert!(j_range.0 == 0);
         Self {
             v: vec![V::one(); j_range.exclusive_len() as usize / W],
             i_range: IRange(-1, 0),
+            original_j_range,
             j_range,
             // In the first col, all computed values are correct directly.
-            fixed_j_range: Some(*j_range),
+            fixed_j_range: Some(original_j_range),
             offset: 0,
             top_val: 0,
             bot_val: j_range.exclusive_len(),

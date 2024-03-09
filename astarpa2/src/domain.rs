@@ -248,7 +248,13 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
     /// Compute the j_range of `block` `i` with `f(u) <= f_max`.
     /// BUG: This should take into account potential non-consistency of `h`.
     /// In particular, with inexact matches, we can only fix states with `f(u) <= f_max - r`.
-    fn fixed_j_range(&mut self, i: I, f_max: Option<Cost>, block: &Block) -> Option<JRange> {
+    fn fixed_j_range(
+        &mut self,
+        i: I,
+        f_max: Option<Cost>,
+        prev_fixed_j_range: Option<JRange>,
+        block: &Block,
+    ) -> Option<JRange> {
         let Astar(h) = &self.domain else {
             return None;
         };
@@ -290,8 +296,10 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         // j >= start + (f(u) - f_max) / 2
         // Thus, both for increasing `start` and decreasing `end`, we can jump ahead if the difference is too large.
         // TODO: It may be sufficient to only compute this with rounded-to-64 precision.
-        let mut start = block.j_range.0;
-        let mut end = block.j_range.1;
+        let prev_fixed_j_range = prev_fixed_j_range.unwrap();
+        assert!(block.j_range.0 <= prev_fixed_j_range.0);
+        let mut start = prev_fixed_j_range.0;
+        let mut end = block.original_j_range.1.min(self.b.len() as I);
 
         let unit_cost = AffineCost::unit();
 
@@ -457,7 +465,8 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             }
 
             // Compute the new range of fixed states.
-            let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, blocks.last_block());
+            let next_fixed_j_range =
+                self.fixed_j_range(i_range.1, f_max, prev_fixed_j_range, blocks.last_block());
 
             // If there are no fixed states, break.
             if next_fixed_j_range.is_some_and(|r| r.is_empty()) {

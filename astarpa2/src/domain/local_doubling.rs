@@ -192,7 +192,12 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                     blocks.compute_next_block(i_range, j_range, &mut self.v);
                 }
                 // Compute the range of fixed states.
-                let next_fixed_j_range = self.fixed_j_range(i_range.1, f_max, blocks.last_block());
+                let next_fixed_j_range = self.fixed_j_range(
+                    i_range.1,
+                    f_max,
+                    Some(prev_fixed_j_range),
+                    blocks.last_block(),
+                );
                 // eprintln!("{i}: New fixed range {next_fixed_j_range:?}");
                 blocks.set_last_block_fixed_j_range(next_fixed_j_range);
                 let next_fixed_j_range = blocks.last_block().fixed_j_range.unwrap();
