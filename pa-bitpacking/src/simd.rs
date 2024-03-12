@@ -479,6 +479,10 @@ fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
                 eq[k],
             );
         }
+
+        // This instruction is probably HOT during traceback. Could be faster by
+        // first just writing out the diagonal SIMD vectors sequentially and
+        // shuffling in a separate step.
         for (k, (pv, mv)) in izip!(simd_to_slice(&pv_simd), simd_to_slice(&mv_simd)).enumerate() {
             values[i + 1 + k][offset + rev(k)] = V::from(*pv, *mv);
         }
@@ -524,7 +528,7 @@ pub fn vis_block_of_rows<const N: usize, const B: usize>(
     // Top-left triangle of block of rows.
     for j in 0..L * N {
         for i in 0..L * N - j {
-            vis.expand_block_simple(Pos(i as I, m + B as I * j as I), Pos(1, B as I));
+            vis.expand_block_simple(Pos(i as I - 1, m + B as I * j as I), Pos(1, B as I));
         }
     }
     vis.new_layer::<pa_heuristic::NoCostI>(None);
@@ -532,7 +536,7 @@ pub fn vis_block_of_rows<const N: usize, const B: usize>(
     for i in 1..=n - L * N {
         for k in 0..N {
             let pos = [L * k + 0, L * k + 1, L * k + 2, L * k + 3]
-                .map(|k| Pos(i as I + rev(k) as I, m + B as I * k as I));
+                .map(|k| Pos(i as I + rev(k) as I - 1, m + B as I * k as I));
             let sizes = [Pos(1, B as I); L];
             vis.expand_blocks_simple(pos, sizes);
             vis.new_layer::<pa_heuristic::NoCostI>(None);
@@ -542,7 +546,7 @@ pub fn vis_block_of_rows<const N: usize, const B: usize>(
     // Bottom-right triangle of block of rows.
     for j in 0..L * N {
         for i in n - j..n {
-            vis.expand_block_simple(Pos(i as I, m + B as I * j as I), Pos(1, B as I));
+            vis.expand_block_simple(Pos(i as I - 1, m + B as I * j as I), Pos(1, B as I));
         }
     }
 }

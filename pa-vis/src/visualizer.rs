@@ -393,6 +393,7 @@ pub struct Style {
     pub draw_h_calls: bool,
     pub draw_f_calls: bool,
     pub draw_ranges: bool,
+    pub draw_fixed_h: bool,
     pub h_call: Color,
     pub draw_labels: bool,
     pub heuristic: Gradient,
@@ -488,6 +489,7 @@ impl Config {
                 draw_h_calls: false,
                 draw_f_calls: false,
                 draw_ranges: false,
+                draw_fixed_h: false,
                 h_call: RED,
                 draw_labels: true,
                 heuristic: Gradient::Gradient((250, 250, 250, 0)..(180, 180, 180, 0)),
@@ -1191,6 +1193,14 @@ impl Visualizer {
             }
 
             if self.config.style.draw_ranges {
+                // Draw j_range.
+                for &(start, end) in &self.j_ranges {
+                    let tl = self.cell_begin(start + Pos(1, 0));
+                    let wh = self.cell_end(end) - tl;
+                    canvas.draw_rect(tl, wh.0, wh.1, BLUE);
+                    canvas.draw_rect(tl + CPos(1, 1), wh.0 - 2, wh.1 - 2, BLUE);
+                }
+
                 // Draw fixed ranges.
                 for &(start, end) in &self.fixed_j_ranges {
                     let tl = self.cell_begin(start);
@@ -1199,8 +1209,11 @@ impl Visualizer {
                         canvas.fill_rect(tl, wh.0, wh.1, fixed);
                     }
                     canvas.draw_rect(tl, wh.0, wh.1, BLACK);
+                    // canvas.draw_rect(tl - CPos(1, 1), wh.0 + 2, wh.1 + 2, BLACK);
                 }
+            }
 
+            if self.config.style.draw_fixed_h {
                 // Draw fixed h.
                 for &(start, end) in &self.fixed_h {
                     let tl = self.cell_begin(start);
@@ -1209,23 +1222,15 @@ impl Visualizer {
                         canvas.fill_rect(tl, wh.0, wh.1, fixed);
                     }
                     canvas.draw_rect(tl, wh.0, wh.1, BLACK);
+                    // canvas.draw_rect(tl - CPos(1, 1), wh.0 + 2, wh.1 + 2, BLACK);
                 }
 
                 // Draw fixed h.
                 if let Some((start, end)) = self.next_fixed_h {
                     let tl = self.cell_begin(start);
                     let wh = self.cell_end(end) - tl;
-                    if let Some(fixed) = self.config.style.fixed {
-                        canvas.fill_rect(tl, wh.0, wh.1, fixed);
-                    }
                     canvas.draw_rect(tl, wh.0, wh.1, BLACK);
-                }
-
-                // Draw j_range.
-                for &(start, end) in &self.j_ranges {
-                    let tl = self.cell_begin(start + Pos(1, 0));
-                    let wh = self.cell_end(end) - tl;
-                    canvas.draw_rect(tl, wh.0, wh.1, BLUE);
+                    // canvas.draw_rect(tl - CPos(1, 1), wh.0 + 2, wh.1 + 2, BLACK);
                 }
             }
 

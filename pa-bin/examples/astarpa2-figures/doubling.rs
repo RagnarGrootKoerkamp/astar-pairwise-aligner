@@ -17,7 +17,7 @@ fn main() {
     config.delay = Duration::from_secs_f32(1.0);
     config.paused = true;
     config.style.bg_color = (255, 255, 255, 128);
-    config.style.expanded = Gradient::BoundedTurboGradient(0.25..0.9, 30);
+    config.style.expanded = Gradient::BoundedGradient((220, 220, 220, 0)..(120, 120, 120, 0), 30);
     config.style.fixed = Some((0, 255, 0, 0));
     config.style.path_width = None;
     config.draw_old_on_top = false;
@@ -34,15 +34,22 @@ fn main() {
     config.style.draw_labels = false;
     config.style.draw_h_calls = false;
     config.style.draw_ranges = true;
+    config.style.draw_fixed_h = true;
 
     config.filepath = "imgs/astarpa2-paper/doubling".into();
 
     let mut astarpa2 = astarpa2::AstarPa2Params::simple();
+    astarpa2.doubling = astarpa2::DoublingType::BandDoublingStartIncrement {
+        start: astarpa2::DoublingStart::H0,
+        factor: 2.,
+        start_increment: 32,
+    };
     astarpa2.block_width = 8;
     astarpa2.front.incremental_doubling = true;
-    config.cell_size = 8;
+    config.cell_size = 6;
     config.downscaler = 1;
-    config.save = When::Frames(vec![50, 97]);
+    config.save = When::Frames(vec![19, 67]);
+    // config.save = When::All;
 
     let n = 50;
     let m = 50;

@@ -26,9 +26,22 @@ impl DoublingStart {
 #[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum DoublingType {
     None,
-    BandDoubling { start: DoublingStart, factor: f32 },
-    LinearSearch { start: DoublingStart, delta: f32 },
+    BandDoubling {
+        start: DoublingStart,
+        factor: f32,
+    },
+    LinearSearch {
+        start: DoublingStart,
+        delta: f32,
+    },
     LocalDoubling,
+    /// For visualization purposes only.
+    BandDoublingStartIncrement {
+        start: DoublingStart,
+        factor: f32,
+        /// Start growing by this.
+        start_increment: Cost,
+    },
 }
 
 impl DoublingType {

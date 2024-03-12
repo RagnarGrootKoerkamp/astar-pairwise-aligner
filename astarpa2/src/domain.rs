@@ -420,6 +420,9 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
             self.domain.h(),
         );
 
+        self.v
+            .fixed_j_range(Pos(0, initial_j_range.0), Pos(0, initial_j_range.1));
+
         let mut all_blocks_reused = true;
 
         for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {

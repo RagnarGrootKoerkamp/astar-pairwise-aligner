@@ -19,6 +19,7 @@ fn main() {
     config.paused = true;
     config.style.bg_color = (255, 255, 255, 128);
     config.style.expanded = Gradient::TurboGradient(0.25..0.9);
+    config.style.expanded = Gradient::Gradient((220, 220, 220, 0)..(160, 160, 160, 0));
     config.style.path_width = Some(3);
     config.draw_old_on_top = false;
     config.layer_drawing = false;
@@ -36,7 +37,7 @@ fn main() {
     config.style.draw_h_calls = false;
     config.style.draw_f_calls = false;
 
-    config.style.trace = Some((BLUE, (0, 127, 255, 0)));
+    config.style.trace = Some(((130, 179, 102, 0), (0, 127, 255, 0)));
 
     config.filepath = "imgs/astarpa2-paper/trace/trace".into();
     config.cell_size = 8;

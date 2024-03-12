@@ -12,14 +12,13 @@ vis:
 
 fig name args='':
   rm -f imgs/astarpa2-paper/{{name}}/*png
-  cargo run -r --example fig-{{name}}-2 --features sdl,example{{args}}
+  cargo run --example fig-{{name}}-2 --features sdl,example{{args}}
   mogrify -format png imgs/astarpa2-paper/{{name}}/**/*bmp
   rm imgs/astarpa2-paper/{{name}}/**/*bmp
   feh imgs/astarpa2-paper/{{name}}/**/*png &
 
 fig-intro: (fig "intro")
 fig-prepruning: (fig "prepruning")
-fig-doubling-large: (fig "doubling-large")
 fig-doubling: (fig "doubling" ",small_blocks")
 fig-simd: (fig "simd")
 fig-trace: (fig "trace" ",small_blocks")

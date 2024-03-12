@@ -71,10 +71,6 @@ name = "fig-doubling-2"
 path = "examples/astarpa2-figures/doubling.rs"
 required-features = ["example"]
 [[example]]
-name = "fig-doubling-large-2"
-path = "examples/astarpa2-figures/doubling-large.rs"
-required-features = ["example"]
-[[example]]
 name = "fig-ranges-2"
 path = "examples/astarpa2-figures/ranges.rs"
 required-features = ["example"]
