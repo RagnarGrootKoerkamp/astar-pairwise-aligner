@@ -342,7 +342,7 @@ impl Blocks {
         // Do incremental doubling.
 
         let prev_fixed = prev_block.fixed_j_range.unwrap().round_in();
-        let old_fixed = old_block.fixed_j_range.map(|r| r.round_in());
+        let old_fixed = old_block.fixed_j_range;
 
         // New j_h.
         next_block.j_h = Some(prev_fixed.1);
@@ -369,11 +369,11 @@ impl Blocks {
         // FIXME(new): Only split when j_range >> 256.
         if let Some(old_j_h) = old_block.j_h
             && let Some(old_fixed) = old_fixed
-            && old_fixed.0 < old_j_h
+            && (old_fixed.0 - 1).next_multiple_of(WI) < old_j_h
         {
             init_v_with_overlap_preserve_fixed(prev_block, &old_block, next_block);
 
-            let v_range_0 = JRange(j_range.0, old_fixed.0).assert_rounded().v_range();
+            let v_range_0 = JRange(j_range.0, old_fixed.0 - 1).round_out().v_range();
             assert!(v_range_0.start <= v_range_0.end);
             // The part between next_fixed.0 and old_j_h is fixed and skipped!
             let v_range_1 = JRange(old_j_h, new_j_h).assert_rounded().v_range();
@@ -784,9 +784,12 @@ fn init_v_with_overlap_preserve_fixed(
     let v_range = next_block.j_range.v_range();
     assert!(prev_v_range.start <= v_range.start);
     assert!(v_range.start <= old_v_range.start);
-    let preserve = JRange(old_block.fixed_j_range.unwrap().0, old_block.j_h.unwrap())
-        .round_in()
-        .v_range();
+    let preserve = JRange(
+        old_block.fixed_j_range.unwrap().0 - 1,
+        old_block.j_h.unwrap(),
+    )
+    .round_in()
+    .v_range();
     assert!(!preserve.is_empty());
 
     // 1. Resize the v array.
