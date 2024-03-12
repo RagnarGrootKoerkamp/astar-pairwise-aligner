@@ -389,19 +389,19 @@ impl Blocks {
                 return None;
             }
 
-            // Shrink diagonals more than `x_drop` behind.
-            if self.params.x_drop > 0 {
+            // Shrink diagonals more than `fr_drop` behind.
+            if self.params.fr_drop > 0 {
                 while d_range.0 < d_range.1
                     && (get(blocks, g, d_range.0).i <= block_start
                         || 2 * get(blocks, g, d_range.0).i - d_range.0
-                            > min_fr + self.params.x_drop)
+                            > min_fr + self.params.fr_drop)
                 {
                     d_range.0 += 1;
                 }
                 while d_range.0 < d_range.1
                     && (get(blocks, g, d_range.1).i <= block_start
                         || 2 * get(blocks, g, d_range.1).i - d_range.1
-                            > min_fr + self.params.x_drop)
+                            > min_fr + self.params.fr_drop)
                 {
                     d_range.1 -= 1;
                 }

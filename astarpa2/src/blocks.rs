@@ -56,7 +56,7 @@ pub struct BlockParams {
 
     /// X-drop for dt-trace.
     #[serde(default)]
-    pub x_drop: I,
+    pub fr_drop: I,
 }
 
 impl Default for BlockParams {
@@ -68,7 +68,7 @@ impl Default for BlockParams {
             incremental_doubling: true,
             dt_trace: false,
             max_g: 40,
-            x_drop: 20,
+            fr_drop: 20,
         }
     }
 }
