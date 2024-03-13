@@ -1,5 +1,5 @@
 use super::*;
-use pa_bitpacking::{V, W};
+use pa_bitpacking::V;
 
 /// A block stores vertical differences at its right edge `i` for rows in `j_range`.
 ///

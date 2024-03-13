@@ -4,7 +4,7 @@ use pa_bin::cli::Cli;
 use pa_types::*;
 use pa_vis::cli::{VisualizerArgs, VisualizerType};
 use std::ops::ControlFlow;
-use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen::prelude::*;
 
 fn document() -> web_sys::Document {
     let window = web_sys::window().expect("no global `window` exists");

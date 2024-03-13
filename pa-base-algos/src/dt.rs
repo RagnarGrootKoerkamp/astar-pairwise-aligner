@@ -24,7 +24,6 @@
 use crate::edit_graph::{AffineCigarOps, EditGraph, StateT};
 use crate::exponential_search;
 use pa_affine_types::*;
-use pa_heuristic::distances::NoCostI;
 use pa_heuristic::*;
 use pa_types::*;
 use pa_vis_types::*;
@@ -836,9 +835,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
                             best_meet = Some(meet)
                         }
                     }
-                    if let Some(best_meet) = best_meet &&
-                        (forward_fronts.range().end() + backward_fronts.range().end()) as Cost >=
-                        best_meet.0.s + best_meet.1.s + EditGraph::max_edge_cost(&self.params.cm) {
+                    if let Some(best_meet) = best_meet
+                        && (forward_fronts.range().end() + backward_fronts.range().end()) as Cost
+                            >= best_meet.0.s
+                                + best_meet.1.s
+                                + EditGraph::max_edge_cost(&self.params.cm)
+                    {
                         break 'outer;
                     }
                 }
@@ -932,7 +934,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
         let mut s = 0;
         loop {
             s += 1;
-            if let Some(f_max) = f_max && s > f_max {
+            if let Some(f_max) = f_max
+                && s > f_max
+            {
                 return None;
             }
 
@@ -1121,9 +1125,10 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
                         self.h.prune(p, Default::default());
                     }
                     // Try pruning the previous start-of-seed position on this diagonal.
-                    if let Some(seeds) = &self.h.seeds() &&
-                       let Some(&prev_fr) = prev_front.m().get(k) &&
-                       let Some(prev_seed) = seeds.seed_ending_at(p) {
+                    if let Some(seeds) = &self.h.seeds()
+                        && let Some(&prev_fr) = prev_front.m().get(k)
+                        && let Some(prev_seed) = seeds.seed_ending_at(p)
+                    {
                         let prev_p = p - Pos(p.0 - prev_seed.start, p.0 - prev_seed.start);
                         if pos_to_fr(prev_p).1 >= prev_fr {
                             self.h.prune(prev_p, Default::default());
@@ -1205,7 +1210,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
         };
 
         for s in 1.. {
-            if let Some(f_max) = f_max && s > f_max {
+            if let Some(f_max) = f_max
+                && s > f_max
+            {
                 return None;
             }
             let range = self.d_range(s, f_max, &fronts);
@@ -1250,7 +1257,12 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic> DTInstance<'a, N, V, H> {
                     // along matching edges if possible.
                     if st.layer == None {
                         let (i, j) = fr_to_coords(st.d, st.fr);
-                        if i > 0 && j > 0 && let Some(ca) = self.a.get(i as usize-1) && let Some(cb) = self.b.get(j as usize-1) && ca == cb {
+                        if i > 0
+                            && j > 0
+                            && let Some(ca) = self.a.get(i as usize - 1)
+                            && let Some(cb) = self.b.get(j as usize - 1)
+                            && ca == cb
+                        {
                             parent = Some(st);
                             parent.as_mut().unwrap().fr -= 2;
                             cigar_ops = [Some(AffineCigarOp::Match), None];

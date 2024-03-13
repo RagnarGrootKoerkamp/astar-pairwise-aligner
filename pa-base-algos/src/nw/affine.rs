@@ -2,21 +2,12 @@
 //! - sparse memory/traceback
 //! - reuse memory between runs
 //! - incremental doubling
+use super::*;
+use crate::edit_graph::{AffineCigarOps, EditGraph};
 use std::{
     array::from_fn,
-    cmp::min,
     ops::{Index, IndexMut},
 };
-
-use pa_affine_types::{AffineCost, State};
-use pa_types::{Cost, Seq, I};
-
-use crate::{
-    edit_graph::{AffineCigarOps, EditGraph},
-    nw::front::JRange,
-};
-
-use super::*;
 
 // TODO: Instead use saturating add everywhere?
 const INF: Cost = Cost::MAX / 2;

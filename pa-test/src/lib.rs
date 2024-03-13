@@ -3,7 +3,6 @@ use rand::{seq::IteratorRandom, thread_rng, Rng};
 
 use pa_generate::ErrorModel;
 use pa_types::*;
-use pa_types::{Cost, CostModel, Seq};
 
 fn test_sequences() -> Vec<(Seq<'static>, Seq<'static>)> {
     vec![

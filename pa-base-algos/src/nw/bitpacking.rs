@@ -4,18 +4,10 @@
 //!       efficient and doesn't have to use relatively slow `front.index` operations.
 //!       (NOTE though that this doesn't actually seem that bad in practice.)
 //! TODO: Separate strong types for row `I` and 'block-row' `I*64`.
-use std::{
-    cmp::min,
-    ops::{Index, IndexMut},
-};
-
+use super::*;
 use itertools::{izip, Itertools};
 use pa_bitpacking::{BitProfile, HEncoding, Profile, B, V, W};
-use pa_types::{Cost, Seq, I};
-
-use crate::PRINT;
-
-use super::*;
+use std::ops::{Index, IndexMut};
 
 const DEBUG: bool = false;
 

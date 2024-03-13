@@ -4,12 +4,10 @@ use smallvec::SmallVec;
 use super::*;
 use crate::contour::rotate_to_front::RotateToFrontContour;
 use crate::prune::MatchPruner;
-use crate::seeds::Seeds;
 use crate::util::Timer;
 use crate::*;
 use crate::{contour::*, wrappers::EqualHeuristic};
 use std::marker::PhantomData;
-use std::ops::Range;
 
 pub struct CSH<C: Contours> {
     pub match_config: MatchConfig,
