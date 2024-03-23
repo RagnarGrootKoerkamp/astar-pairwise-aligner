@@ -16,8 +16,8 @@ use pa_vis_types::NoVis;
 use std::{path::PathBuf, time::Duration};
 
 fn main() {
-    let n = 4000;
-    let e = 0.20;
+    let n = 3000;
+    let e = 0.25;
     let (ref a, ref b) = uniform_fixed(n, e);
     eprintln!("Length {}", a.len());
     let cost = astar(&a, &b, &NoCost, &NoVis).0 .0;
@@ -46,7 +46,7 @@ fn main() {
     config.filepath = PathBuf::from("imgs/astarpa2-paper/intro");
     config.clear_after_meeting_point = false;
 
-    let mut block_params = AstarPa2Params {
+    let block_params = AstarPa2Params {
         name: "simple".into(),
         domain: Domain::Astar(()),
         heuristic: HeuristicParams {
@@ -129,8 +129,16 @@ fn main() {
         }),
         block_params.make_aligner_with_visualizer(true, config.with_filename("0_bitpacking")),
         {
-            block_params.block_width = 256;
-            block_params
+            let mut ps = block_params.clone();
+            ps.heuristic.heuristic = pa_heuristic::HeuristicType::GCSH;
+            ps.heuristic.k = 5;
+            ps
+        }
+        .make_aligner_with_visualizer(true, config.with_filename("0_gcsh")),
+        {
+            let mut ps = block_params.clone();
+            ps.block_width = 256;
+            ps
         }
         .make_aligner_with_visualizer(true, config.with_filename("0_blocks")),
         Box::new(NW {
@@ -168,9 +176,14 @@ fn main() {
             },
         )),
         Box::new(AstarPa {
-            h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
-            dt: true,
+            h: GCSH::new(MatchConfig::exact(5), Pruning::disabled()),
+            dt: false,
             v: config.with_filename("5_astarpa"),
+        }),
+        Box::new(AstarPa {
+            h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
+            dt: false,
+            v: config.with_filename("5_astarpa-prune"),
         }),
         astarpa2::AstarPa2Params::simple()
             .make_aligner_with_visualizer(true, config.with_filename("6_astarpa2_simple")),
