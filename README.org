@@ -1,9 +1,9 @@
-#+TITLE: A*PA \& A*PA2: A* Pairwise Aligner
+#+TITLE: A*PA & A*PA2: A* Pairwise Aligner
 #+PROPERTY: header-args :eval no-export :exports results
 
-A*PA is a global pairwise sequence aligner for edit distance using A*. Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
+A*PA is a global pairwise sequence aligner for edit distance using A*, co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
 
-A*PA2 is an improvement of A*PA that uses a DP-based approach instead of A*.
+A*PA2 is an improvement of A*PA that uses a DP-based approach instead of plain A*.
 It achieves up to 20x speedup over other exact aligners and is competitive with
 approximate aligners.
 
@@ -36,27 +36,23 @@ An alignment of two sequences of length 500 with 30% error rate using A*PA:
   - Matrix: =@curious_coding:matrix.org=,
   - Blog: [[https://curiouscoding.nl]]
 
-- Disclaimer ::
-  A*PA can be slow and/or go out of memory when the error rate is high (>10%) or when long indels are present. You could try
-  lower/higher =k=, and more/less pruning, but otherwise use Edlib or BiWFA.
-
 * Usage
 If you run into any kind of problem or unclarity, please (/please/ 🥺) make an issue or
 reach out on twitter or matrix.
 
 ** Rust API
-The ~astarpa~ crate is the [[file:astarpa/src/lib.rs][main entrypoint]] for A*PA. See the docs there.
-Use ~astarpa::astarpa(a, b)~ for alignment with default settings or
-~astarpa::astarpa_gcsh(a,b,r,k,end_pruning)~ to use GCSH+DT with custom parameters.
-
 For A*PA2, use ~astarpa2_simple(a, b)~ or ~astarpa2_full(a, b)~ in the
 [[file:astarpa2/src/lib.rs][~astarpa2~ crate]], or customize parameters with e.g.
 #+begin_src rust
-let mut full = astarpa2::AstarPa2Params::full();
-full.front.incremental_doubling = false;
-let mut aligner = full.make_aligner(true);
+let mut params = astarpa2::AstarPa2Params::full();
+params.front.incremental_doubling = false;
+let mut aligner = params.make_aligner(true);
 let (cost, cigar) = aligner.align(a, b);
 #+end_src
+
+The ~astarpa~ crate is the [[file:astarpa/src/lib.rs][main entrypoint]] for A*PA. See the docs there.
+Use ~astarpa::astarpa(a, b)~ for alignment with default settings or
+~astarpa::astarpa_gcsh(a,b,r,k,end_pruning)~ to use GCSH+DT with custom parameters.
 
 More complex usage examples can be found in [[file:pa-bin/examples/][pa-bin/examples]].
 
@@ -67,7 +63,7 @@ simple usage. To run the resulting binary, make sure to ~export
 LD_LIBRARY_PATH=/path/to/astarpa/target/release~.
 
 
-** Installation
+** Installation of binary
 First [[https://rustup.rs/][install rustup]]. Then enable ~nightly~: ~rustup install nightly; rustup default nightly~.
 
 To run from the repository: clone and ~cargo run --release -- <pa-bin flags>~.
