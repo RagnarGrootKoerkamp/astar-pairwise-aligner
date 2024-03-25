@@ -1,35 +1,47 @@
-#+TITLE: A*PA: A* Pairwise Aligner
+#+TITLE: A*PA \& A*PA2: A* Pairwise Aligner
 #+PROPERTY: header-args :eval no-export :exports results
 
-A global pairwise sequence aligner using A*. Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
+A*PA is a global pairwise sequence aligner for edit distance using A*. Co-authored by [[https://github.com/pesho-ivanov][@pesho-ivanov]] and [[https://github.com/RagnarGrootKoerkamp][@RagnarGrootKoerkamp]].
 
-An alignment of two sequences of length 500 with 30% error rate:
+A*PA2 is an improvement of A*PA that uses a DP-based approach instead of A*.
+It achieves up to 20x speedup over other exact aligners and is competitive with
+approximate aligners.
+
+An alignment of two sequences of length 500 with 30% error rate using A*PA:
 
 [[file:imgs/readme/layers.gif]]
 
 - Citations ::
-  Please cite the Bioinformatics paper. The bioRxiv version includes the
-  supplement and has slightly nicer formatting.
-  - BioRxiv preprint:
+  For A*PA, re recommend reading the bioRxiv version which directly includes the
+  supplement and has better formatting. But please cite the Bioinformatics version!
+  - A*PA BioRxiv preprint:
 
     *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
     "Exact global alignment using A* with chaining seed heuristic and match pruning".
     bioRxiv (2024). [[https://doi.org/10.1101/2022.09.19.508631][10.1101/2022.09.19.508631]]
-  - OUP Bioinformatics paper:
+  - A*PA OUP Bioinformatics paper:
 
     *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
-    "Exact global alignment using a* with chaining seed heuristic and match pruning".
+    "Exact global alignment using A* with chaining seed heuristic and match pruning".
     Bioinformatics (2024). [[https://doi.org/10.1093/bioinformatics/btae032][10.1093/bioinformatics/btae032]]
+
+  - A*PA2 BioRxiv preprint:
+
+    *Ragnar Groot Koerkamp*.
+    "A*PA2: up to 20 times faster exact global alignment".
+    bioRxiv (2024). <TO APPEAR>
+
 - Links ::
   - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
   - Matrix: =@curious_coding:matrix.org=,
-  - Blog: [[https://research.curiouscoding.nl]]
+  - Blog: [[https://curiouscoding.nl]]
+
 - Disclaimer ::
   A*PA can be slow and/or go out of memory when the error rate is high (>10%) or when long indels are present. You could try
   lower/higher =k=, and more/less pruning, but otherwise use Edlib or BiWFA.
 
 * Usage
-If you run into any kind of problem, please (/please/ 🥺) make an issue or
+If you run into any kind of problem or unclarity, please (/please/ 🥺) make an issue or
 reach out on twitter or matrix.
 
 ** Installation
@@ -138,16 +150,19 @@ comparable due to differences in visualization strategies (cell vs layer updates
 
 * Paper artefacts
 - Figures ::
-  Paper figures are generated using the example binaries at [[file:pa-bin/examples/astarpa-figures][pa-bin/examples/astarpa-figures]].
+  Paper figures are generated using the example binaries at
+  [[file:pa-bin/examples/astarpa-figures][pa-bin/examples/astarpa-figures]] and [[file:pa-bin/examples/astarpa2-figures][pa-bin/examples/astarpa2-figures]].
 
 - Evals ::
-  Benchmarking code, evals, and datasets have moved to [[https://github.com/pairwise-alignment/pa-bench][pa-bench]].
-  Results can be found in [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/evals.ipynb][this notebook]] and reproduced using [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/makefile][this makefile]].
+  Benchmarking code, evals, and datasets can be found in the [[https://github.com/pairwise-alignment/pa-bench][pa-bench]] repo.
+  For A*PA, results can be found in [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/evals.ipynb][this notebook]] and reproduced using [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa/makefile][this makefile]].
+  For A*PA2, results can be found in [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa2/evals.ipynb][this notebook]] and reproduced using [[https://github.com/pairwise-alignment/pa-bench/blob/main/evals/astarpa2/justfile][this justfile]].
   Dataset downloads are in [[https://github.com/pairwise-alignment/pa-bench/releases/tag/datasets][this release]].
 
 - Tests ::
-  Code is tested for correctness in various tests ([[file:astarpa/src/tests.rs][astarpa/src/tests.rs]])
-  against ~triple-accel~. The benchmark tool [[https://github.com/pairwise-alignment/pa-bench][pa-bench]] also checks correctness automatically.
+  Code is tested for correctness in various tests ([[file:astarpa/src/tests.rs][astarpa/src/tests.rs]]) against
+  ~triple-accel~.
+  The benchmark tool [[https://github.com/pairwise-alignment/pa-bench][pa-bench]] also checks correctness automatically.
 
 - Benchmarks ::
   The code is benchmarked on GitHub Actions CI. Performance history of
