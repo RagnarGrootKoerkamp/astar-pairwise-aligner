@@ -44,12 +44,35 @@ An alignment of two sequences of length 500 with 30% error rate using A*PA:
 If you run into any kind of problem or unclarity, please (/please/ 🥺) make an issue or
 reach out on twitter or matrix.
 
+** Rust API
+The ~astarpa~ crate is the [[file:astarpa/src/lib.rs][main entrypoint]] for A*PA. See the docs there.
+Use ~astarpa::astarpa(a, b)~ for alignment with default settings or
+~astarpa::astarpa_gcsh(a,b,r,k,end_pruning)~ to use GCSH+DT with custom parameters.
+
+For A*PA2, use ~astarpa2_simple(a, b)~ or ~astarpa2_full(a, b)~ in the
+[[file:astarpa2/src/lib.rs][~astarpa2~ crate]], or customize parameters with e.g.
+#+begin_src rust
+let mut full = astarpa2::AstarPa2Params::full();
+full.front.incremental_doubling = false;
+let mut aligner = full.make_aligner(true);
+let (cost, cigar) = aligner.align(a, b);
+#+end_src
+
+More complex usage examples can be found in [[file:pa-bin/examples/][pa-bin/examples]].
+
+** C API
+The ~astarpa-c~ [[file:astarpa-c/astarpa.h][crate]] contains simple C-bindings for the
+~astarpa::{astarpa,astarpa_gcsh}~ functions and an [[file:astarpa-c/example.c][example]] with [[file:astarpa-c/makefile][makefile]]. More should not be needed for
+simple usage. To run the resulting binary, make sure to ~export
+LD_LIBRARY_PATH=/path/to/astarpa/target/release~.
+
+
 ** Installation
 First [[https://rustup.rs/][install rustup]]. Then enable ~nightly~: ~rustup install nightly; rustup default nightly~.
 
 To run from the repository: clone and ~cargo run --release -- <pa-bin flags>~.
 
-To just install a binary (no cloning needed):
+To just install the binary (no cloning needed):
 #+begin_src shell
 cargo install --git https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner pa-bin
 #+end_src
@@ -120,25 +143,12 @@ pa-bin -i <input> --draw Layers --save-last --save-path alignment --style large
 - Pass ~--skip-prune <N>~ to skip pruning every ~N~'th match that would
   otherwise be pruned. This can speed up pruning when there are a lot of matches.
 
-** Rust API
-The ~astarpa~ crate is the [[file:astarpa/src/lib.rs][main entrypoint]]. See the docs there.
-Use ~astarpa::astarpa(a, b)~ for alignment with default settings or
-~astarpa::astarpa_gcsh(a,b,r,k,end_pruning)~ to use GCSH+DT with custom parameters.
-
-Examples of more advanced usages using the ~AstarPa~ aligner object can be found at [[file:pa-bin/examples/][pa-bin/examples]].
-
-** C API
-The ~astarpa-c~ [[file:astarpa-c/astarpa.h][crate]] contains simple C-bindings for the
-~astarpa::{astarpa,astarpa_gcsh}~ functions and an [[file:astarpa-c/example.c][example]] with [[file:astarpa-c/makefile][makefile]]. More should not be needed for
-simple usage. To run the resulting binary, make sure to ~export
-LD_LIBRARY_PATH=/path/to/astarpa/target/release~.
-
 * Visualization
 
 Only A*PA itself can be visualized using the binary. Reimplementations of
 Needleman-Wunsch, band-doubling (Edlib), and diagonal-transition (WFA, BiWFA)
 are available in the ~pa-base-algos~ crate and can only be called from code;
-see the [[file:pa-bin/examples/paper-figures/intro.rs][examples]].
+see the [[file:pa-bin/examples/astarpa-figures/intro.rs][examples]].
 
 Sample videos corresponding to figure 1 of the paper are below. Timings are not
 comparable due to differences in visualization strategies (cell vs layer updates).
@@ -188,11 +198,10 @@ From low to high:
 - ~pa-bin~: Main command line interface to A*PA. Allows for input from file,
   generated input, visualizing, and customization of the A*PA parameters.
 - ~pa-bitpacking~: Implementation of Myers' bitpacking algorithms and SIMD extensions.
-- ~astarpa2~: Work-in-progress code for the next version, A*PA2.
+- ~astarpa2~: A*PA2 entrypoint containing ~astarpa2_simple~ and ~astarpa2_full~ functions.
 - ~pa-base-algos~: Re-implementations of Needleman-Wunsch/Edlib and
-  Diagonal-transition/WFA/BiWFA for visualizations. Also playground for new A*PA
-  variants such as [[https://curiouscoding.nl/posts/local-doubling/][local doubling]].
-- ~astarpa-next~: Some code for other new ideas such as [[https://curiouscoding.nl/posts/speeding-up-astar/][pre-pruning]].
+  Diagonal-transition/WFA/BiWFA for visualizations.
+- ~astarpa-next~: Some code for other new ideas such as [[https://curiouscoding.nl/posts/speeding-up-astar/][path-pruning]].
 - ~pa-web~: web-interface to A*PA by compiling to webassembly. Implements the
   ~Canvas~ trait for ~HTMLCanvas~. (Not maintained.)
 

@@ -34,6 +34,18 @@ const DEBUG: bool = false;
 /// Block height 64.
 pub const WI: I = W as I;
 
+/// Align two sequences using A*PA2-simple.
+pub fn astarpa2_simple(a: Seq, b: Seq) -> (Cost, Cigar) {
+    let (cost, cigar) = AstarPa2Params::simple().make_aligner(true).align(a, b);
+    (cost, cigar.unwrap())
+}
+
+/// Align two sequences using A*PA2-full.
+pub fn astarpa2_full(a: Seq, b: Seq) -> (Cost, Cigar) {
+    let (cost, cigar) = AstarPa2Params::full().make_aligner(true).align(a, b);
+    (cost, cigar.unwrap())
+}
+
 /// Typed parameters for A*PA2 containing heuristic and visualizer.
 #[derive(Debug)]
 pub struct AstarPa2<V: VisualizerT, H: Heuristic> {
