@@ -164,10 +164,6 @@ comparable due to differences in visualization strategies (cell vs layer updates
   ~triple-accel~.
   The benchmark tool [[https://github.com/pairwise-alignment/pa-bench][pa-bench]] also checks correctness automatically.
 
-- Benchmarks ::
-  The code is benchmarked on GitHub Actions CI. Performance history of
-  benchmarks is [[https://ragnargrootkoerkamp.github.io/astar-pairwise-aligner/dev/bench/][here]].
-
 * Crate structure
 
 Code is spread out over multiple crates.
