@@ -116,6 +116,7 @@ name = "astarpa-c"
 version = "0.1.0"
 dependencies = [
  "astarpa",
+ "astarpa2",
  "pa-heuristic",
  "pa-types",
 ]

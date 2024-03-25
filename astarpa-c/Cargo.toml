@@ -10,3 +10,4 @@ crate-type = ["lib", "cdylib", "staticlib"]
 astarpa.workspace = true
 pa-types.workspace = true
 pa-heuristic.workspace = true
+astarpa2.workspace = true

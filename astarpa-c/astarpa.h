@@ -8,6 +8,30 @@ extern "C" {
 #endif // __cplusplus
 
 /**
+ * Align sequences `a` and `b` of length `a_len` and `b_len` using A*PA2-simple.
+ *
+ * The returned cigar must be freed using `astarpa_free_cigar`.
+ */
+uint64_t astarpa2_simple(const uint8_t *a,
+                         uintptr_t a_len,
+                         const uint8_t *b,
+                         uintptr_t b_len,
+                         uint8_t **cigar_ptr,
+                         uintptr_t *cigar_len);
+
+/**
+ * Align sequences `a` and `b` of length `a_len` and `b_len` using A*PA2-full.
+ *
+ * The returned cigar must be freed using `astarpa_free_cigar`.
+ */
+uint64_t astarpa2_full(const uint8_t *a,
+                       uintptr_t a_len,
+                       const uint8_t *b,
+                       uintptr_t b_len,
+                       uint8_t **cigar_ptr,
+                       uintptr_t *cigar_len);
+
+/**
  * Globally align sequences `a` and `b` of length `a_len` and `b_len`.
  * This uses A*PA with GCSH with DT, inexact matches (r=2), seed length k=15, and pruning by start of matches.
  *

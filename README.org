@@ -62,7 +62,7 @@ More complex usage examples can be found in [[file:pa-bin/examples/][pa-bin/exam
 
 ** C API
 The ~astarpa-c~ [[file:astarpa-c/astarpa.h][crate]] contains simple C-bindings for the
-~astarpa::{astarpa,astarpa_gcsh}~ functions and an [[file:astarpa-c/example.c][example]] with [[file:astarpa-c/makefile][makefile]]. More should not be needed for
+~astarpa::{astarpa,astarpa_gcsh}~ and ~astarpa2::astarpa2_{simple,full}~ functions and an [[file:astarpa-c/example.c][example]] with [[file:astarpa-c/makefile][makefile]]. More should not be needed for
 simple usage. To run the resulting binary, make sure to ~export
 LD_LIBRARY_PATH=/path/to/astarpa/target/release~.
 
