@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 fn main() {
-    let (ref a, ref b) = uniform_seeded(100, 0.30, 31415);
+    let (ref a, ref b) = uniform_seeded(60, 0.30, 31420);
     let mut config = visualizer::Config::default();
     config.draw = When::None;
     config.save = When::None;
