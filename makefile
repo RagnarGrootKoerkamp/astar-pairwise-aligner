@@ -40,22 +40,29 @@ fig-no-matches:
 	rm imgs/paper/no-matches.bmp
 
 # ========== README VIDEOS ==========
-readme: readme-layers readme-intro
+readme: readme-layers readme-astarpa2 readme-intro
 readme-layers:
 	cargo run --features example --release --example readme-layers
 	ffmpeg -y -framerate 20 -i imgs/readme/layers/%d.bmp $(FILTER) imgs/readme/layers.gif
 	gifsicle -O3 --batch imgs/readme/layers.gif
 	rm -rf imgs/readme/layers/
 
+readme-astarpa2:
+	cargo run --features example --release --example readme-astarpa2
+	ffmpeg -y -framerate 10 -i imgs/readme/astarpa2/%d.bmp $(FILTER) imgs/readme/astarpa2.gif
+	gifsicle -O3 --batch imgs/readme/astarpa2.gif
+	rm -rf imgs/readme/astarpa2
+
 # https://superuser.com/questions/1049606/reduce-generated-gif-size-using-ffmpeg
 FILTER = -filter_complex "tpad=stop_mode=clone:stop_duration=3[t];[t]split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer"
 readme-videos:
-	cargo run --features example --release --example readme-videos
+	cargo run --features example,small_blocks --release --example readme-videos
 	ffmpeg -y -framerate 1 -i imgs/readme/1_ukkonen/%d.bmp 				$(FILTER) imgs/readme/1_ukkonen.gif
 	ffmpeg -y -framerate 10 -i imgs/readme/2_dijkstra/%d.bmp 				$(FILTER) imgs/readme/2_dijkstra.gif
 	ffmpeg -y -framerate 10 -i imgs/readme/3_diagonal-transition/%d.bmp 	$(FILTER) imgs/readme/3_diagonal_transition.gif
 	ffmpeg -y -framerate 20 -i imgs/readme/4_dt-divide-and-conquer/%d.bmp $(FILTER) imgs/readme/4_dt-divide-and-conquer.gif
 	ffmpeg -y -framerate 2 -i imgs/readme/5_astarpa/%d.bmp 	$(FILTER) imgs/readme/5_astarpa.gif
+	ffmpeg -y -framerate 8 -i imgs/readme/6_astarpa2/%d.bmp 	$(FILTER) imgs/readme/6_astarpa2.gif
 	gifsicle -O3 --batch imgs/readme/*.gif
 	rm -rf imgs/readme/*/
 

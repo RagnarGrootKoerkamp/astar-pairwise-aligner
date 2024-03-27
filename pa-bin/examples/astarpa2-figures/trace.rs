@@ -8,7 +8,7 @@ fn main() {
         panic!("WARNING: Without the example feature, pruned matches aren't shown red for SH");
     }
     if pa_bitpacking::B::BITS != 8 {
-        panic!("Small blocks feature is required for useful scale");
+        panic!("small_blocks feature is required for useful scale");
     }
 
     let mut config = visualizer::Config::default();

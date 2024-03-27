@@ -1,6 +1,8 @@
+#![feature(trait_upcasting)]
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 
 use astarpa::{astar, AstarPa};
+use astarpa2::AstarPa2Params;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
@@ -22,6 +24,13 @@ fn main() {
     let cost = astar(&a, &b, &NoCost, &NoVis).0 .0;
     eprintln!("Distance {cost}");
     eprintln!("Divergence {}", cost as f32 / a.len() as f32);
+
+    if !cfg!(feature = "example") {
+        panic!("WARNING: Without the example feature, pruned matches aren't shown red for SH");
+    }
+    if pa_bitpacking::B::BITS != 8 {
+        panic!("small_blocks feature is required for useful scale");
+    }
 
     let cm = AffineCost::unit();
     let mut config = visualizer::Config::default();
@@ -79,6 +88,14 @@ fn main() {
             dt: true,
             v: config.with_filename("5_astarpa"),
         }),
+        {
+            let mut config = config.with_filename("6_astarpa2");
+            config.save = When::All;
+            config.draw_old_on_top = false;
+            let mut params = AstarPa2Params::full();
+            params.block_width = 32;
+            params.make_aligner_with_visualizer(true, config)
+        },
     ];
     for aligner in aligners {
         aligner.align(a, b);
