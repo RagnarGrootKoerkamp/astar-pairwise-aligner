@@ -45,6 +45,9 @@ If you run into any kind of problem or unclarity, please (/please/ 🥺) make an
 reach out on twitter or matrix.
 
 ** Rust API
+To call A*PA2 from another Rust crate, simply add the =astarpa[2]= crate in this
+repo as a git dependency.
+
 For A*PA2, use ~astarpa2_simple(a, b)~ or ~astarpa2_full(a, b)~ in the
 [[file:astarpa2/src/lib.rs][~astarpa2~ crate]], or customize parameters with e.g.
 #+begin_src rust
@@ -63,27 +66,23 @@ More complex usage examples can be found in [[file:pa-bin/examples/][pa-bin/exam
 ** C API
 The ~astarpa-c~ [[file:astarpa-c/astarpa.h][crate]] contains simple C-bindings for the
 ~astarpa::{astarpa,astarpa_gcsh}~ and ~astarpa2::astarpa2_{simple,full}~ functions and an [[file:astarpa-c/example.c][example]] with [[file:astarpa-c/makefile][makefile]]. More should not be needed for
-simple usage. To run the resulting binary, make sure to ~export
-LD_LIBRARY_PATH=/path/to/astarpa/target/release~.
+simple usage. To run the resulting binary, make sure to ~export LD_LIBRARY_PATH=/path/to/astarpa/target/release~.
 
 
-** Installation of binary
-First [[https://rustup.rs/][install rustup]]. Then enable ~nightly~: ~rustup install nightly; rustup default nightly~.
+** Command line application
+=pa-bin= is a small command line application that takes as input consecutive pairs of
+sequences from a =.fasta=, =.seq=, or =.txt= file (or can generate random input)
+and outputs costs and alignments to a =.csv=.
 
-To run from the repository: clone and ~cargo run --release -- <pa-bin flags>~.
-
-To just install the binary (no cloning needed):
+Install =pa-bin= to =~/.local/share/cargo/bin/pa-bin= using the following (cloning this repo is not needed):
 #+begin_src shell
 cargo install --git https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner pa-bin
 #+end_src
-installs =pa-bin= to =~/.local/share/cargo/bin/pa-bin=.
 
-** Visualizations
-Visualizations use the =sdl2= library and =ttf= fonts. If this gives errors, either:
-- install =sdl2=: e.g. ~apt-get install libsdl2-ttf-dev~;
-- disable visuals by passing =--no-default-features= to =cargo run= or =cargo install=.
+This requires =cargo= Rust =nightly=. To get both, first install [[https://rustup.rs/][rustup]]. Then enable ~nightly~: ~rustup install nightly; rustup default nightly~.
 
-** Command line application
+To run from the repository: clone and ~cargo run --release -- <pa-bin flags>~.
+
 #+begin_src shell :exports both :results verbatim
 cargo run --release -- -h
 #+end_src
@@ -95,63 +94,23 @@ Globally align pairs of sequences using A*PA
 Usage: pa-bin [OPTIONS] <--input <INPUT>|--length <LENGTH>>
 
 Options:
-  -i, --input <INPUT>    A .seq, .txt, or Fasta file with sequence pairs to align
-  -o, --output <OUTPUT>  Write a .csv of `{cost},{cigar}` lines
-      --no-dt            Do not use the diagonal-transition optimization
-  -s, --silent...        Print less stats. Pass twice for summary line only
-  -h, --help             Print help (see more with '--help')
-
-Heuristic:
-  -H, --heuristic <HEURISTIC>  [default: gcsh] [possible values: none, zero, gap, sh, csh, gcsh,
-                               gap-cost, affine]
-  -r <r>                       Seed potential [default: 2]
-  -k <k>                       Seed length [default: 15]
-      --prune <PRUNE>          [default: start] [possible values: none, start, end, both]
+  -i, --input <INPUT>      A .seq, .txt, or Fasta file with sequence pairs to align
+  -o, --output <OUTPUT>    Write a .csv of `{cost},{cigar}` lines
+      --aligner <ALIGNER>  The aligner to use [default: astarpa2-full] [possible values: astarpa,
+                           astarpa2-simple, astarpa2-full]
+  -h, --help               Print help (see more with '--help')
 
 Generated input:
   -n, --length <LENGTH>          Target length of each generated sequence [default: 1000]
   -e, --error-rate <ERROR_RATE>  Error rate between sequences [default: 0.05]
-
-Visualizer:
-  -v, --visualize <WHEN>  Interactive visualizer. See --help for more [default: none] [possible
-                          values: none, first, last, all, layers]
 #+end_example
 
-*** Examples
-Align all consecutive pairs in a file, and write cigar strings to a =csv=
-containing lines of ~<cost>,<cigar>~.
-#+begin_src
-pa-bin -i <path/to/file.{fasta,fa,txt,seq}> -o cigars.csv
-#+end_src
-Run on 100 random sequences of length 10^5 with error rate 5%:
-#+begin_src
-pa-bin --cnt 100 -n 100000 -e 0.05
-#+end_src
-Show a video of a small alignment (requires ~--features vis~):
-#+begin_src sh
-pa-bin -n 100 -e 0.10 -v all --style detailed
-#+end_src
-Save an image of a large alignment to disk:
-#+begin_src sh
-pa-bin -i <input> --draw Layers --save-last --save-path alignment --style large
-#+end_src
-
-*** Unpublished features
-- Pass  ~--max-matches <num>~ to use variable length seeds with at most ~<num>~
-  matches per seed.  ~--kmin <kmin>~, ~--kmax <kmax>~ are sometimes needed to
-  constrain seed lengths.
-- Pass ~--skip-prune <N>~ to skip pruning every ~N~'th match that would
-  otherwise be pruned. This can speed up pruning when there are a lot of matches.
-
 * Visualization
+The Rust API supports generating visualizations using the =sdl2= library and
+=ttf= fonts. If this gives errors, install =sdl2=: e.g. using ~apt-get install libsdl2-ttf-dev~.
 
-Only A*PA itself can be visualized using the binary. Reimplementations of
-Needleman-Wunsch, band-doubling (Edlib), and diagonal-transition (WFA, BiWFA)
-are available in the ~pa-base-algos~ crate and can only be called from code;
-see the [[file:pa-bin/examples/astarpa-figures/intro.rs][examples]].
-
-Sample videos corresponding to figure 1 of the paper are below. Timings are not
-comparable due to differences in visualization strategies (cell vs layer updates).
+Here are some sample videos. The first five correspond to figure 1 of the A*PA paper.
+Timings are not comparable due to differences in visualization strategies (cell vs layer updates).
 
 |----------------------------------------------------------------------+----------------------------------------------------------------------------|
 | Dijkstra [[file:imgs/readme/2_dijkstra.gif]]                             | Ukkonen's exponential search (Edlib) [[file:imgs/readme/1_ukkonen.gif]]        |
