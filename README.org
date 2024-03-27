@@ -33,7 +33,7 @@ An alignment of two sequences of length 10'000 with 15% error rate using A*PA2:
 
     *Ragnar Groot Koerkamp*.
     "A*PA2: up to 20 times faster exact global alignment".
-    bioRxiv (2024). <TO APPEAR>
+    bioRxiv (2024). [[https://doi.org/10.1101/2024.03.24.586481][10.1101/2024.03.24.586481]]
 
 - Links ::
   - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
