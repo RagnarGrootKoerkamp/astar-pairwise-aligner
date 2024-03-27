@@ -131,7 +131,7 @@ impl<V: VisualizerT, H: Heuristic> AstarPa<V, H> {
 }
 
 /// Helper trait to erase the type of the heuristic that additionally returns alignment statistics.
-pub trait AstarStatsAligner {
+pub trait AstarStatsAligner: Aligner {
     fn align(&self, a: Seq, b: Seq) -> ((Cost, Cigar), AstarStats);
 }
 

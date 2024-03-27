@@ -1,72 +1,41 @@
-#![feature(let_chains)]
+#![feature(let_chains, trait_upcasting)]
 
-use astarpa::{make_aligner, stats::AstarStats, AstarStatsAligner};
 use clap::Parser;
-use pa_bin::cli::Cli;
+use pa_bin::Cli;
 use pa_types::*;
 use std::{
     io::{BufWriter, Write},
     ops::ControlFlow,
 };
 
-pub fn astar_aligner(args: &Cli) -> Box<dyn AstarStatsAligner> {
-    #[cfg(not(feature = "vis"))]
-    {
-        make_aligner(args.diagonal_transition, &args.heuristic)
-    }
-
-    #[cfg(feature = "vis")]
-    {
-        use astarpa::make_aligner_with_visualizer;
-        use pa_vis::cli::VisualizerType;
-        match args.vis.make_visualizer() {
-            VisualizerType::NoVisualizer => make_aligner(args.diagonal_transition, &args.heuristic),
-            VisualizerType::Visualizer(vis) => {
-                make_aligner_with_visualizer(args.diagonal_transition, &args.heuristic, vis)
-            }
-        }
-    }
-}
-
 fn main() {
     let args = Cli::parse();
 
-    let mut avg_stats = AstarStats::default();
-
-    let aligner = astar_aligner(&args);
+    let mut aligner = args.aligner.build();
 
     let mut out_file = args
         .output
         .as_ref()
         .map(|o| BufWriter::new(std::fs::File::create(o).unwrap()));
 
+    let mut done = 0;
+
+    eprint!("Done: {done:>3}\r");
+
     // Process the input.
     args.process_input_pairs(|a: Seq, b: Seq| {
         // Run the pair.
-        let ((cost, cigar), stats) = aligner.align(a, b);
+        let (cost, cigar) = aligner.align(a, b);
 
-        // Record and print stats.
-        if args.silent <= 1 {
-            print!("\r");
-            if args.silent == 0 {
-                stats.print();
-            }
-        }
-        avg_stats += stats;
-        if args.silent <= 1 && avg_stats.sample_size > 1 {
-            avg_stats.print_no_newline();
-        }
+        done += 1;
+        eprint!("Done: {done:>3}\r");
 
         if let Some(f) = &mut out_file {
-            writeln!(f, "{cost},{}", cigar.to_string()).unwrap();
+            writeln!(f, "{cost},{}", cigar.unwrap().to_string()).unwrap();
         }
         ControlFlow::Continue(())
     });
-
-    if avg_stats.sample_size > 1 || args.silent > 1 {
-        print!("\r");
-        avg_stats.print();
-    }
+    eprintln!();
 }
 
 #[cfg(test)]

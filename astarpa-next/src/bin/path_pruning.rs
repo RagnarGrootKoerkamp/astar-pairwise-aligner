@@ -2,6 +2,7 @@
 //~ This file is mostly identical to `pa-bin/src/main.rs`, but wraps the given
 // heuristic in the `PathHeuristic`. To achieve this, some more functions are inlined here.
 
+use astarpa::HeuristicParams;
 use astarpa_next::path_pruning::PathHeuristic;
 use clap::Parser;
 use pa_affine_types::{AffineAligner, AffineCost};
@@ -9,7 +10,7 @@ use pa_base_algos::{
     nw::{AffineFront, NW},
     Domain,
 };
-use pa_bin::cli::Cli;
+use pa_bin::Cli;
 use pa_heuristic::{Heuristic, HeuristicMapper};
 use pa_types::*;
 use pa_vis_types::{NoVis, VisualizerT};
@@ -18,31 +19,13 @@ use std::{
     ops::ControlFlow,
 };
 
-pub fn astar_aligner(args: &Cli) -> Box<dyn AffineAligner> {
-    #[cfg(not(feature = "vis"))]
-    {
-        make_path_heuristic_aligner(args, NoVis)
-    }
-
-    #[cfg(feature = "vis")]
-    {
-        use pa_vis::cli::VisualizerType;
-        match args.vis.make_visualizer() {
-            VisualizerType::NoVisualizer => make_path_heuristic_aligner(args, NoVis),
-            VisualizerType::Visualizer(vis) => {
-                eprintln!("vis!");
-                make_path_heuristic_aligner(args, vis)
-            }
-        }
-    }
+pub fn astar_aligner() -> Box<dyn AffineAligner> {
+    make_path_heuristic_aligner(NoVis)
 }
 
-fn make_path_heuristic_aligner(
-    args: &Cli,
-    vis: impl VisualizerT + 'static,
-) -> Box<dyn AffineAligner> {
-    let dt = args.diagonal_transition;
-    let h = &args.heuristic;
+fn make_path_heuristic_aligner(vis: impl VisualizerT + 'static) -> Box<dyn AffineAligner> {
+    let dt = true;
+    let h = &HeuristicParams::default();
     struct Mapper<V: VisualizerT> {
         #[allow(unused)]
         dt: bool,
@@ -71,7 +54,7 @@ fn make_path_heuristic_aligner(
 fn main() {
     let args = Cli::parse();
 
-    let mut aligner = astar_aligner(&args);
+    let mut aligner = astar_aligner();
 
     let mut out_file = args
         .output
