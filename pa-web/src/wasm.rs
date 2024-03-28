@@ -3,7 +3,7 @@ use astarpa::{make_aligner_with_visualizer, HeuristicParams};
 use pa_bin::Cli;
 use pa_types::*;
 use pa_vis::cli::{VisualizerArgs, VisualizerType};
-use std::ops::ControlFlow;
+use std::{cell::Cell, ops::ControlFlow, sync::Mutex};
 use wasm_bindgen::prelude::*;
 
 fn document() -> web_sys::Document {
@@ -33,13 +33,14 @@ pub struct Args {
 }
 
 pub static mut INTERACTION: Interaction = Interaction::default();
-pub static mut ARGS: Option<Args> = None;
+pub static ARGS: Mutex<Cell<Option<Args>>> = Mutex::new(Cell::new(None));
 
 pub fn run() {
     if unsafe { INTERACTION.is_done() } {
         return;
     }
-    if let Some(args) = unsafe { &ARGS } {
+    let mut args = ARGS.lock().unwrap();
+    if let Some(args) = args.get_mut() {
         let before = unsafe { FRAMES_PRESENTED };
 
         let VisualizerType::Visualizer(visualizer) = args.visualizer.make_visualizer() else {

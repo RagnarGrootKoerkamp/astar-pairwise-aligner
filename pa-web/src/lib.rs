@@ -16,15 +16,18 @@ pub fn reset() {
     let args_json = get::<HtmlTextAreaElement>("args").value();
     unsafe {
         INTERACTION.reset(usize::MAX);
-        ARGS = Some(serde_json::from_str(&args_json).unwrap());
-        if let Some(args) = &mut ARGS {
-            // Fix the seed so that reruns for consecutive draws don't change it.
-            args.cli
-                .generate
-                .seed
-                .get_or_insert(ChaCha8Rng::from_entropy().gen_range(0..u64::MAX));
-        }
     }
+
+    let mut args = ARGS.lock().unwrap();
+    let args = args.get_mut();
+    *args = Some(serde_json::from_str(&args_json).unwrap());
+    // Fix the seed so that reruns for consecutive draws don't change it.
+    args.as_mut()
+        .unwrap()
+        .cli
+        .generate
+        .seed
+        .get_or_insert(ChaCha8Rng::from_entropy().gen_range(0..u64::MAX));
 }
 
 #[wasm_bindgen]
