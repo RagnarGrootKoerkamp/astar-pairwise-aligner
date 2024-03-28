@@ -3,7 +3,8 @@
     associated_type_defaults,
     int_roundings,
     let_chains,
-    portable_simd
+    portable_simd,
+    never_type
 )]
 
 mod cli;

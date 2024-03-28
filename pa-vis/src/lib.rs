@@ -1,4 +1,4 @@
-#![feature(let_chains, int_roundings)]
+#![feature(let_chains, int_roundings, never_type)]
 
 pub mod cli;
 #[cfg(feature = "sdl")]

@@ -178,3 +178,11 @@ pub trait HeuristicInstance<'a> {
         "".into()
     }
 }
+
+impl<'a> HeuristicInstance<'a> for ! {
+    type Hint = ();
+    type Order = ();
+    fn h(&self, _pos: Pos) -> Cost {
+        unreachable!()
+    }
+}

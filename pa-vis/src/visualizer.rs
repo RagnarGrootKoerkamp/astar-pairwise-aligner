@@ -12,7 +12,7 @@ use super::{canvas::*, *};
 use clap::ValueEnum;
 use itertools::Itertools;
 use pa_affine_types::*;
-use pa_heuristic::matches::{Match, MatchStatus};
+use pa_heuristic::matches::MatchStatus;
 use pa_types::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -166,7 +166,7 @@ impl VisualizerInstance for Visualizer {
     fn expand_preprune(&mut self, pos: Pos) {
         if self.config.style.preprune.is_some() {
             self.preprune.push(pos);
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
         }
     }
     fn extend_preprune(&mut self, pos: Pos) {
@@ -178,7 +178,7 @@ impl VisualizerInstance for Visualizer {
     fn expand_trace(&mut self, pos: Pos) {
         if self.config.style.trace.is_some() {
             self.trace.push(ExpandPos::Single(pos));
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
         }
     }
     fn extend_trace(&mut self, pos: Pos) {
@@ -190,13 +190,13 @@ impl VisualizerInstance for Visualizer {
     fn h_call(&mut self, pos: Pos) {
         if pos <= self.target && self.config.style.draw_h_calls {
             self.h_calls.push(pos);
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
         }
     }
     fn f_call(&mut self, pos: Pos, in_bounds: bool, fixed: bool) {
         if self.config.style.draw_f_calls {
             self.f_calls.push((pos, in_bounds, fixed));
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
         }
     }
     fn j_range(&mut self, start: Pos, end: Pos) {
@@ -206,7 +206,7 @@ impl VisualizerInstance for Visualizer {
             } else {
                 self.j_ranges.push((start, end));
             }
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
         }
     }
     fn fixed_j_range(&mut self, start: Pos, end: Pos) {
@@ -216,14 +216,14 @@ impl VisualizerInstance for Visualizer {
             } else {
                 self.fixed_j_ranges.push((start, end));
             }
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
         }
     }
     fn fixed_h(&mut self, start: Pos, end: Pos) {
         if self.config.style.draw_ranges {
             self.next_fixed_h = None;
             self.fixed_h.push((start, end));
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
             if let Some(r) = self
                 .fixed_h
                 .iter_mut()
@@ -232,7 +232,7 @@ impl VisualizerInstance for Visualizer {
                 .find(|(s, _)| s.0 == start.0)
             {
                 *r = (start, end);
-                self.draw::<NoCostI>(false, None, false, None, None);
+                self.draw::<!>(false, None, false, None, None);
                 self.fixed_h.pop();
             }
         }
@@ -240,7 +240,7 @@ impl VisualizerInstance for Visualizer {
     fn next_fixed_h(&mut self, start: Pos, end: Pos) {
         if self.config.style.draw_ranges {
             self.next_fixed_h = Some((start, end));
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
         }
     }
 
@@ -291,7 +291,7 @@ impl VisualizerInstance for Visualizer {
         let size = Pos(min(size.0, maxsize.0), min(size.1, maxsize.1));
         self.trace.push(ExpandPos::Block(pos, size));
         if self.config.style.trace.is_some() {
-            self.draw::<NoCostI>(false, None, false, None, None);
+            self.draw::<!>(false, None, false, None, None);
         }
     }
 
