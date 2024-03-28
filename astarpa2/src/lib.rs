@@ -24,7 +24,7 @@ pub use blocks::BlockParams;
 use pa_affine_types::AffineCigar;
 use pa_heuristic::{Heuristic, HeuristicInstance, NoCostI};
 use pa_types::*;
-use pa_vis_types::{VisualizerInstance, VisualizerT};
+use pa_vis::{VisualizerInstance, VisualizerT};
 use ranges::*;
 
 use crate::domain::AstarPa2Instance;

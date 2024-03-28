@@ -10,7 +10,7 @@ use pa_heuristic::{
 };
 
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::canvas::*;
+use pa_vis::canvas::*;
 
 use std::{time::Duration};
 

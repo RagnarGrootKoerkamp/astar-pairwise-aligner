@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use pa_types::I;
-use pa_vis_types::{canvas::*, CanvasFactory};
+use pa_vis::{canvas::*, CanvasFactory};
 use sdl2::{
     event::Event,
     keyboard::Keycode,

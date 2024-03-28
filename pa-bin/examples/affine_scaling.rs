@@ -1,7 +1,7 @@
 use pa_affine_types::AffineCost;
 use pa_base_algos::nw::{AffineFront, NW};
 use pa_generate::{generate_model, ErrorModel};
-use pa_vis_types::NoVis;
+use pa_vis::NoVis;
 use rand::{thread_rng, Rng};
 
 fn main() {

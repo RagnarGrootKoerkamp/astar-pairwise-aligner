@@ -9,7 +9,7 @@ use pa_generate::{uniform_fixed, uniform_seeded};
 use pa_heuristic::{MatchConfig, Pruning, GCSH};
 use pa_types::Sequence;
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::canvas::RED;
+use pa_vis::canvas::RED;
 use std::{path::PathBuf, time::Duration};
 
 fn complex_ab(scale: usize) -> (Sequence, Sequence) {

@@ -24,7 +24,6 @@ parse_duration0 = "3"
 # Dependencies used by the examples.
 pa-base-algos.workspace = true
 pa-affine-types.workspace = true
-pa-vis-types.workspace = true
 pa-bitpacking.workspace = true
 pa-vis.workspace = true
 

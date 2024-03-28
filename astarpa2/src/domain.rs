@@ -21,7 +21,7 @@ use crate::{block::Block, blocks::Blocks};
 use pa_affine_types::AffineCost;
 use pa_heuristic::*;
 use pa_types::*;
-use pa_vis_types::*;
+use pa_vis::*;
 use std::{
     cmp::{max, min},
     time::Duration,

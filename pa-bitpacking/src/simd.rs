@@ -515,7 +515,7 @@ fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
 pub fn vis_block_of_rows<const N: usize, const B: usize>(
     n: usize,
     m: usize,
-    vis: &mut impl pa_vis_types::VisualizerInstance,
+    vis: &mut impl pa_vis::VisualizerInstance,
 ) where
     [(); 4 * N]: Sized,
 {

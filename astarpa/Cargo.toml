@@ -13,7 +13,7 @@ categories = ["science"]
 [dependencies]
 pa-types.workspace = true
 pa-heuristic.workspace = true
-pa-vis-types.workspace = true
+pa-vis.workspace = true
 clap.workspace = true
 serde.workspace = true
 itertools.workspace = true

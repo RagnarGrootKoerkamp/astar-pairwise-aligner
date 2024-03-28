@@ -9,15 +9,8 @@ pa-base-algos.workspace = true
 pa-types.workspace = true
 pa-heuristic.workspace = true
 instant = "0.1.12"
-pa-vis = {workspace = true, optional=true}
-pa-vis-types.workspace = true
+pa-vis.workspace = true
 pa-bin.workspace = true
 clap.workspace = true
 pa-affine-types.workspace = true
 pa-generate.workspace = true
-
-
-[features]
-# Visualizer features can be disabled.
-vis = ["dep:pa-vis"]
-default = ["vis"]

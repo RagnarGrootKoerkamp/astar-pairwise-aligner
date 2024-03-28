@@ -1,7 +1,7 @@
 use super::*;
 use pa_heuristic::*;
 use pa_test::*;
-use pa_vis_types::NoVis;
+use pa_vis::NoVis;
 
 fn nw() -> AstarPa2<NoVis, NoCost> {
     AstarPa2 {

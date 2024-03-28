@@ -6,7 +6,7 @@
 use astarpa::astar;
 use pa_generate::uniform_fixed;
 use pa_heuristic::*;
-use pa_vis_types::*;
+use pa_vis::*;
 
 extern crate test;
 

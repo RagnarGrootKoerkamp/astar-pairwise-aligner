@@ -4,7 +4,7 @@ use astarpa::{astar, AstarPa};
 use pa_generate::uniform_seeded;
 use pa_heuristic::{MatchConfig, NoCost, Prune, Pruning, CSH, GCSH, SH};
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::NoVis;
+use pa_vis::NoVis;
 use std::time::Duration;
 
 fn main() {

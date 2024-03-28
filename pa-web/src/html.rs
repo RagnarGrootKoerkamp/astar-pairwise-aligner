@@ -1,5 +1,5 @@
 use pa_types::I;
-use pa_vis_types::canvas::{self, *};
+use pa_vis::canvas::{self, *};
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 

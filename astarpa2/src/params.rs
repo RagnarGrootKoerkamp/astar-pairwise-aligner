@@ -1,6 +1,6 @@
 use super::*;
 use pa_heuristic::{GapCost, HeuristicMapper, HeuristicParams, NoCost};
-use pa_vis_types::NoVis;
+use pa_vis::NoVis;
 use serde::{Deserialize, Serialize};
 use Domain::*;
 
@@ -108,7 +108,7 @@ impl AstarPa2Params {
         #[cfg(feature = "example")]
         if self.viz {
             use pa_vis::visualizer::{Gradient, When};
-            use pa_vis_types::canvas::RED;
+            use pa_vis::canvas::RED;
             use std::time::{Duration, SystemTime};
 
             let mut config = pa_vis::visualizer::Config::default();

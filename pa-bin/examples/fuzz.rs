@@ -15,7 +15,7 @@ use pa_generate::{generate_model, uniform_fixed, ErrorModel};
 use pa_heuristic::{Heuristic, MatchConfig, Prune, Pruning, CSH, GCSH};
 use pa_types::{seq_to_string, Aligner, Cost, CostModel, Pos, Sequence, I};
 use pa_vis::visualizer::{self, When};
-use pa_vis_types::{NoVis, VisualizerT};
+use pa_vis::{NoVis, VisualizerT};
 use std::{
     cmp::{max, min},
     panic::AssertUnwindSafe,

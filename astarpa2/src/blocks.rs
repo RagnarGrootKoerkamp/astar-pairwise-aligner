@@ -17,7 +17,7 @@ use std::{
 use itertools::{izip, Itertools};
 use pa_bitpacking::{BitProfile, HEncoding, Profile, B, V};
 use pa_types::*;
-use pa_vis_types::VisualizerInstance;
+use pa_vis::VisualizerInstance;
 use serde::{Deserialize, Serialize};
 
 use super::*;

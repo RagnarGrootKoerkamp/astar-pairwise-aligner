@@ -2,7 +2,7 @@ use std::ops::{IndexMut, Range, RangeInclusive};
 
 use pa_affine_types::{AffineCigar, AffineCost, State};
 use pa_types::*;
-use pa_vis_types::VisualizerInstance;
+use pa_vis::VisualizerInstance;
 
 /// Left-exclusive range of columns to compute.
 /// (-1, 0): the first column

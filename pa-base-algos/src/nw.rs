@@ -23,7 +23,7 @@ use crate::{linear_search, Domain};
 use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
-use pa_vis_types::*;
+use pa_vis::*;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
 
@@ -87,7 +87,7 @@ impl AstarNwParams {
         #[cfg(feature = "example")]
         if self.viz {
             use pa_vis::visualizer::{Gradient, When};
-            use pa_vis_types::canvas::RED;
+            use pa_vis::canvas::RED;
             use std::time::Duration;
             let mut config = pa_vis::visualizer::Config::default();
             config.draw = When::StepBy(1);
@@ -1069,7 +1069,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
 mod test {
     use pa_affine_types::AffineCost;
     use pa_heuristic::{MatchConfig, Pruning, GCSH};
-    use pa_vis_types::NoVis;
+    use pa_vis::NoVis;
 
     use crate::{Domain, Strategy};
 

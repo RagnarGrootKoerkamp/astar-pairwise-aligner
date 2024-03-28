@@ -6,7 +6,7 @@ use crate::{
 use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
-use pa_vis_types::NoVis;
+use pa_vis::NoVis;
 
 fn test_aligner_on_input<const N: usize>(
     a: Seq,

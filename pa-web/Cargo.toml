@@ -9,9 +9,8 @@ crate-type = ["cdylib"]
 [dependencies]
 pa-types.workspace = true
 pa-heuristic.workspace = true
-pa-vis-types.workspace = true
-pa-affine-types.workspace = true
 pa-vis.workspace = true
+pa-affine-types.workspace = true
 astarpa.workspace = true
 pa-bin.workspace = true
 serde.workspace = true

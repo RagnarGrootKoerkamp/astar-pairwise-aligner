@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 pa-types.workspace = true
 pa-heuristic.workspace = true
-pa-vis-types.workspace = true
 pa-affine-types.workspace = true
 
 clap.workspace = true

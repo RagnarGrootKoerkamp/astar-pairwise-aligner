@@ -8,13 +8,12 @@
 //! ffmpeg -framerate 20 -i %d.bmp -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" output.mp4
 //! ```
 
+use super::{canvas::*, *};
 use clap::ValueEnum;
 use itertools::Itertools;
 use pa_affine_types::*;
-use pa_heuristic::matches::MatchStatus;
-use pa_heuristic::{HeuristicInstance, NoCostI};
+use pa_heuristic::matches::{Match, MatchStatus};
 use pa_types::*;
-use pa_vis_types::{canvas::*, *};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};

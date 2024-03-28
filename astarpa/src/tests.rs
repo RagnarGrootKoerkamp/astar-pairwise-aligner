@@ -3,7 +3,7 @@ use crate::AstarPa;
 use pa_heuristic::*;
 use pa_test::*;
 use pa_types::*;
-use pa_vis_types::NoVis;
+use pa_vis::NoVis;
 
 macro_rules! make_test {
     // h is a function (exact: bool, pruning: bool) -> Heuristic.

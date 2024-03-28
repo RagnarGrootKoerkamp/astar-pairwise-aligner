@@ -26,7 +26,7 @@ use crate::exponential_search;
 use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
-use pa_vis_types::*;
+use pa_vis::*;
 use std::cell::RefCell;
 use std::cmp::{max, min};
 use std::iter::zip;

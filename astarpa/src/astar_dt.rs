@@ -5,7 +5,7 @@ use crate::{
     stats::AstarStats,
 };
 use pa_heuristic::{util::Timer, *};
-use pa_vis_types::{VisualizerInstance, VisualizerT};
+use pa_vis::{VisualizerInstance, VisualizerT};
 
 const D: bool = false;
 

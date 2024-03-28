@@ -13,7 +13,7 @@ use pa_base_algos::{
 use pa_bin::Cli;
 use pa_heuristic::{Heuristic, HeuristicMapper};
 use pa_types::*;
-use pa_vis_types::{NoVis, VisualizerT};
+use pa_vis::{NoVis, VisualizerT};
 use std::{
     io::{BufWriter, Write},
     ops::ControlFlow,

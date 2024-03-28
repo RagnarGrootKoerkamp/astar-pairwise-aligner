@@ -103,7 +103,7 @@ dependencies = [
  "pa-heuristic",
  "pa-test",
  "pa-types",
- "pa-vis-types",
+ "pa-vis",
  "rand",
  "rustc-hash",
  "serde",
@@ -135,7 +135,6 @@ dependencies = [
  "pa-heuristic",
  "pa-types",
  "pa-vis",
- "pa-vis-types",
 ]
 
 [[package]]
@@ -153,7 +152,6 @@ dependencies = [
  "pa-test",
  "pa-types",
  "pa-vis",
- "pa-vis-types",
  "rand",
  "scopeguard",
  "serde",
@@ -941,7 +939,6 @@ dependencies = [
  "pa-test",
  "pa-types",
  "pa-vis",
- "pa-vis-types",
  "rand",
  "serde",
  "triple_accel",
@@ -963,7 +960,6 @@ dependencies = [
  "pa-heuristic",
  "pa-types",
  "pa-vis",
- "pa-vis-types",
  "parse_duration0",
  "rand",
  "rand_chacha",
@@ -980,7 +976,7 @@ dependencies = [
  "pa-generate",
  "pa-heuristic",
  "pa-types",
- "pa-vis-types",
+ "pa-vis",
  "strum",
 ]
 
@@ -1054,19 +1050,8 @@ dependencies = [
  "pa-affine-types",
  "pa-heuristic",
  "pa-types",
- "pa-vis-types",
  "rand",
  "sdl2",
- "serde",
-]
-
-[[package]]
-name = "pa-vis-types"
-version = "0.1.0"
-dependencies = [
- "pa-affine-types",
- "pa-heuristic",
- "pa-types",
  "serde",
 ]
 
@@ -1082,7 +1067,6 @@ dependencies = [
  "pa-heuristic",
  "pa-types",
  "pa-vis",
- "pa-vis-types",
  "rand",
  "rand_chacha",
  "serde",

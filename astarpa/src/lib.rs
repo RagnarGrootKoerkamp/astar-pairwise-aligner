@@ -46,7 +46,7 @@ use pa_heuristic::seeds::MatchCost;
 use pa_heuristic::{Heuristic, HeuristicMapper, Prune};
 use pa_heuristic::{MatchConfig, Pruning, GCSH};
 use pa_types::{Aligner, Cigar, Cost, Seq, I};
-use pa_vis_types::{NoVis, VisualizerT};
+use pa_vis::{NoVis, VisualizerT};
 use stats::AstarStats;
 
 // ------------ Root alignment interface follows from here ------------

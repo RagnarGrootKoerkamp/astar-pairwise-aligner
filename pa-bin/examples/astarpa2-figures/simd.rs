@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::{
+use pa_vis::{
     canvas::{BLACK, BLUE, RED},
     VisualizerT,
 };

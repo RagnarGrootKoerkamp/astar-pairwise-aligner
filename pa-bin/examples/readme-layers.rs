@@ -4,7 +4,7 @@ use itertools::Itertools;
 use pa_generate::uniform_fixed;
 use pa_heuristic::{MatchConfig, Pruning, CSH};
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::canvas::*;
+use pa_vis::canvas::*;
 use std::time::Duration;
 
 fn main() {

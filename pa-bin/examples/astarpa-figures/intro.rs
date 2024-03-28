@@ -10,7 +10,7 @@ use pa_generate::uniform_fixed;
 use pa_heuristic::{MatchConfig, NoCost, Pruning, GCSH};
 use pa_types::Aligner;
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::NoVis;
+use pa_vis::NoVis;
 use std::{path::PathBuf, time::Duration};
 
 fn main() {

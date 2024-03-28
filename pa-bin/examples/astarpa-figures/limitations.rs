@@ -4,7 +4,7 @@ use astarpa::astar_dt;
 use pa_generate::{uniform_seeded, ErrorModel};
 use pa_heuristic::{BruteForceGCSH, GapCost, MatchConfig, Pruning};
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::canvas::BLACK;
+use pa_vis::canvas::BLACK;
 use rand::SeedableRng;
 use std::time::Duration;
 

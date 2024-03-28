@@ -1,6 +1,6 @@
 use pa_generate::uniform_seeded;
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis_types::canvas::{BLACK, BLUE, RED};
+use pa_vis::canvas::{BLACK, BLUE, RED};
 use std::time::Duration;
 
 fn main() {

@@ -9,7 +9,7 @@ edition = "2021"
 pa-types.workspace = true
 pa-heuristic.workspace = true
 pa-affine-types.workspace = true
-pa-vis-types.workspace = true
+pa-vis.workspace = true
 pa-bitpacking.workspace = true
 
 clap.workspace = true
@@ -17,7 +17,6 @@ serde.workspace = true
 itertools.workspace = true
 
 num-traits = "0.2"
-pa-vis = { workspace = true, optional = true }
 derivative = "2.2.0"
 pa-test = { version = "0.1.0", path = "../pa-test" }
 scopeguard = "1.2.0"
@@ -28,4 +27,4 @@ rand = "0.8"
 triple_accel = "0.4.0"
 
 [features]
-example = ["dep:pa-vis", "pa-vis/sdl", "pa-bitpacking/example"]
+example = ["pa-vis/sdl", "pa-bitpacking/example"]
