@@ -144,11 +144,10 @@ where
     }
 
     fn layer(&self, pos: Pos) -> Option<Cost> {
-        Some(max(self.seeds.potential(pos) - self.h(pos), 0))
-    }
-
-    fn layer_with_hint(&self, pos: Pos, _hint: Self::Hint) -> Option<(Cost, Self::Hint)> {
-        Some((self.layer(pos).unwrap(), ()))
+        let naive_dist = max(self.seeds.potential(pos), self.distance(pos, self.target));
+        let h = self.h(pos);
+        assert!(h <= naive_dist);
+        Some(naive_dist - h)
     }
 
     /// TODO: This is copied from CSH::prune. It would be better to have a single implementation for this.
