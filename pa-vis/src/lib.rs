@@ -103,43 +103,18 @@ pub trait VisualizerInstance {
     }
 
     fn expand_block_simple<'a>(&mut self, pos: Pos, size: Pos) {
-        self.expand_block::<NoCostI>(pos, size, 0, 0, None)
+        self.expand_block::<!>(pos, size, 0, 0, None)
     }
     fn expand_blocks_simple<'a>(&mut self, poss: [Pos; 4], sizes: [Pos; 4]) {
-        self.expand_blocks::<NoCostI>(poss, sizes, 0, 0, None)
+        self.expand_blocks::<!>(poss, sizes, 0, 0, None)
     }
     fn last_frame_simple<'a>(&mut self) {
-        self.last_frame::<NoCostI>(None, None, None)
+        self.last_frame::<!>(None, None, None)
     }
 }
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NoVis;
-
-impl Canvas for NoVis {
-    fn fill_background(&mut self, _color: canvas::Color) {}
-    fn fill_rect(&mut self, _p: canvas::CPos, _w: I, _h: I, _color: canvas::Color) {}
-    fn draw_rect(&mut self, _p: canvas::CPos, _w: I, _h: I, _color: canvas::Color) {}
-    fn draw_line(&mut self, _p: canvas::CPos, _q: canvas::CPos, _color: canvas::Color) {}
-    fn write_text(
-        &mut self,
-        _p: canvas::CPos,
-        _ha: canvas::HAlign,
-        _va: canvas::VAlign,
-        _text: &str,
-        _color: canvas::Color,
-    ) {
-    }
-    fn wait(&mut self, _timeout: std::time::Duration) -> canvas::KeyboardAction {
-        canvas::KeyboardAction::Exit
-    }
-}
-
-impl CanvasFactory for NoVis {
-    fn new(_w: usize, _h: usize, _title: &str) -> Box<dyn Canvas> {
-        Box::new(Self)
-    }
-}
 
 impl VisualizerT for NoVis {
     type Instance = Self;

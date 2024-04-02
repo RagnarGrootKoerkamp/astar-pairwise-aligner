@@ -1164,7 +1164,15 @@ impl Visualizer {
                                 color = GRAY;
                             }
                         }
-                        Self::draw_diag_line(&mut canvas, b, e, color, width);
+                        if self.config.style.draw_parents {
+                            if m.pruned == MatchStatus::Active {
+                                Self::draw_diag_line(&mut canvas, b, e, color, width + 1);
+                                color = color_for_pos(&m.start);
+                                Self::draw_diag_line(&mut canvas, b, e, color, width - 1);
+                            }
+                        } else {
+                            Self::draw_diag_line(&mut canvas, b, e, color, width);
+                        }
                     }
                 }
             }

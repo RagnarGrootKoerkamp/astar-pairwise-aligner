@@ -127,7 +127,7 @@ where
     fn h(&self, pos: Pos) -> Cost {
         self.h_at_matches
             .iter()
-            .filter(|&(parent, _)| *parent >= pos)
+            .filter(|&(parent, _)| pos <= *parent)
             .map(|(parent, val)| self.distance(pos, *parent).saturating_add(*val))
             .min()
             .unwrap()

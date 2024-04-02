@@ -7,7 +7,7 @@ use crate::prelude::*;
 use super::*;
 
 // TODO: Can we get away with only one of these two traits?
-pub trait Distance: Heuristic + Default {
+pub trait Distance: Heuristic {
     // TODO: Provide default implementations for these.
     type DistanceInstance<'a>: DistanceInstance<'a>;
     fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::DistanceInstance<'a>;
@@ -362,20 +362,17 @@ impl HeuristicInstance<'_> for AffineGapCostI {
 }
 impl DistanceInstance<'_> for AffineGapCostI {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
-        let e = (to.1 - to.0) - (from.1 - from.0);
-        let s = to.0.div_floor(self.k) - from.0.div_ceil(self.k);
+        let d = (to.1 - to.0) - (from.1 - from.0);
+        let p = to.0.div_floor(self.k) - from.0.div_ceil(self.k);
         //return max(e.abs(), s);
         // If on same diagonal
-        match e {
+        match d {
             // Diagonal
-            e if e == 0 => s,
+            0 => p,
             // Vertical
-            e if e > 0 => s + e,
+            d if d > 0 => p + d,
             // Horizontal
-            // TODO: Make this more strict for large gaps
-            e if e < 0 => s + e.abs(),
-            // FIXME: Make this consistent
-            //e if e < 0 => s + e.abs(),
+            d if d < 0 => p + d.abs(),
             _ => unreachable!(),
         }
     }
