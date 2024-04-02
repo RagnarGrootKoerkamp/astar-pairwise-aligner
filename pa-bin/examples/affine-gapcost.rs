@@ -1,7 +1,8 @@
-use astarpa::AstarPa;
-use pa_heuristic::{AffineGapCost, BruteForceGCSH, GapCost, MatchConfig, Pruning, ZeroCost};
+use pa_heuristic::{
+    AffineGapSeedCost, BruteForceGCSH, Heuristic, MatchConfig, Pruning, SimpleAffineCost,
+};
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis::canvas::*;
+use pa_vis::{canvas::*, VisualizerInstance, VisualizerT};
 use std::time::Duration;
 
 fn main() {
@@ -23,57 +24,51 @@ fn main() {
     config.style.path = None;
     config.style.match_width = 3;
     config.style.draw_layers = false;
-    config.style.draw_contours = true;
-    config.style.draw_matches = true;
     config.style.contour = BLACK;
     config.layer_drawing = false;
     config.style.draw_dt = false;
     config.style.draw_f = false;
     config.style.draw_labels = false;
+    config.style.draw_matches = true;
 
-    config.style.draw_heuristic = false;
-    config.style.draw_parents = true;
+    // config.style.draw_heuristic = true;
+    // config.style.draw_layers = true;
+    config.style.draw_contours = true;
 
     let k = 3;
-    let n = 70;
-    let (ref a, ref b) = pa_generate::uniform_fixed(n, 0.3);
-
-    let h = BruteForceGCSH {
-        match_config: MatchConfig::new(k, 1),
-        distance_function: ZeroCost,
-        pruning: Pruning::both(),
+    let n = 30;
+    let c = SimpleAffineCost {
+        sub: 1,
+        open: 1,
+        extend: 1,
     };
 
-    AstarPa {
-        dt: false,
-        h,
-        v: config.clone(),
+    for parents in [true, false] {
+        for formula in [false, true] {
+            config.style.draw_parents = parents;
+            config.style.draw_layers = !parents;
+            // let dist = AffineGapCost { k };
+            let dist = AffineGapSeedCost {
+                k,
+                r: 1,
+                c,
+                formula,
+            };
+            let (ref a, ref b) =
+                pa_generate::generate_model(n, 0.3, pa_generate::ErrorModel::NoisyInsert, 12349);
+
+            let h = BruteForceGCSH {
+                match_config: MatchConfig {
+                    length: pa_heuristic::LengthConfig::Fixed(k),
+                    r: 1,
+                    local_pruning: 7,
+                },
+                distance_function: dist,
+                pruning: Pruning::both(),
+            };
+            let h = h.build(a, b);
+            let v = &mut config.build(a, b);
+            v.last_frame(None, None, Some(&h));
+        }
     }
-    .align(a, b);
-
-    let h = BruteForceGCSH {
-        match_config: MatchConfig::new(k, 1),
-        distance_function: GapCost,
-        pruning: Pruning::both(),
-    };
-
-    AstarPa {
-        dt: false,
-        h,
-        v: config.clone(),
-    }
-    .align(a, b);
-
-    let h = BruteForceGCSH {
-        match_config: MatchConfig::new(k, 1),
-        distance_function: AffineGapCost { k },
-        pruning: Pruning::both(),
-    };
-
-    AstarPa {
-        dt: false,
-        h,
-        v: config.clone(),
-    }
-    .align(a, b);
 }

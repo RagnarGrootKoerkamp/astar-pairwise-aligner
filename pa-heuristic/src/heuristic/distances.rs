@@ -377,3 +377,271 @@ impl DistanceInstance<'_> for AffineGapCostI {
         }
     }
 }
+
+// # AFFINE GAP SEED HEURISTIC
+// Returns the distance between two states, taking into account both the gapcost
+// and seedcost.
+// NOTE: This currently assumes (x=1, o=1, e=1) and seedcost r=1.
+#[derive(Debug, Clone, Copy)]
+pub struct SimpleAffineCost {
+    pub sub: I,
+    pub open: I,
+    pub extend: I,
+}
+#[derive(Debug, Clone, Copy)]
+pub struct AffineGapSeedCost {
+    pub k: I,
+    pub r: I,
+    pub c: SimpleAffineCost,
+    pub formula: bool,
+}
+impl Heuristic for AffineGapSeedCost {
+    type Instance<'a> = AffineGapSeedCostI;
+    fn name(&self) -> String {
+        "AffineGap".into()
+    }
+
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
+        AffineGapSeedCostI {
+            params: *self,
+            target: Pos::target(a, b),
+        }
+    }
+}
+impl Distance for AffineGapSeedCost {
+    type DistanceInstance<'a> = AffineGapSeedCostI;
+
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::DistanceInstance<'a> {
+        <AffineGapSeedCost as Heuristic>::build(self, a, b)
+    }
+}
+pub struct AffineGapSeedCostI {
+    params: AffineGapSeedCost,
+    target: Pos,
+}
+
+impl HeuristicInstance<'_> for AffineGapSeedCostI {
+    fn h(&self, from: Pos) -> Cost {
+        self.distance(from, self.target)
+    }
+}
+impl DistanceInstance<'_> for AffineGapSeedCostI {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
+        let AffineGapSeedCost { k, r, c, formula } = self.params;
+        let SimpleAffineCost { open, extend, .. } = c;
+
+        // #diagonals to change
+        let d = (to.1 - to.0) - (from.1 - from.0);
+        // #seed crossed
+        let p = to.0.div_floor(k) - from.0.div_ceil(k);
+        let p = max(p, 0);
+        assert!(p >= 0, "p: {}, from: {:?}, to: {:?}", p, from, to);
+
+        if d == 0 {
+            return p * r;
+        }
+
+        if p == 0 {
+            return c.open + c.extend * d.abs();
+        }
+
+        if true {
+            // import math
+
+            // def cost_make_all_insertions_in_one_seed(p, d, seed_potential, indel_cost, gap_open_cost):
+            //     # Make all insertions in one seed. There must be a seed to make insertions in though.
+            //     # Does not depend on whether indels are horizontal or vertical as all indels are in one seed anyway.
+            //     cost = (p - 1) * seed_potential + max((gap_open_cost if abs(d) else 0) + indel_cost * abs(d), seed_potential) if p else float("inf")
+            //     return cost
+
+            // def distribute_indels_evenly(p, d):
+            //     # Distribute insertions evenly across seeds
+            //     indels_per_seed = [0 for _ in range(p)]
+            //     at_seed, indels_left = 0, abs(d)
+            //     while p and indels_left:
+            //         indels_per_seed[at_seed] += 1
+            //         at_seed = (at_seed + 1) % p
+            //         indels_left -= 1
+            //     return indels_per_seed, indels_left
+
+            // def chain_indels(p, d, seed_length):
+            //     assert (
+            //         0 < abs(d) <= p * seed_length
+            //     ), f"Expected 0 < abs(d) <= p * seed_length, got abs(d)={abs(d)} and p * seed_length={p * seed_length}"
+
+            //     # Chain all insertions together
+            //     indels_per_seed = [0 for _ in range(p)]
+            //     at_seed, indels_left = 0, abs(d)
+            //     while at_seed < p and indels_left:
+            //         indels_per_seed[at_seed] = min(seed_length, indels_left)
+            //         indels_left -= indels_per_seed[at_seed]
+            //         at_seed += 1
+
+            //     # There should be no indels left since 0 < abs(d) <= p * seed_length
+            //     assert indels_left == 0, f"Expected indels_left == 0, got {indels_left}"
+
+            //     return indels_per_seed
+
+            // def distribute_gaps(p, d, seed_length, indels_per_seed):
+            //     seed_is_full = [indels >= seed_length for indels in indels_per_seed]
+            //     n_full_seeds = sum(seed_is_full)
+            //     # Only count full seeds as one and then non-full seeds with indels.
+            //     n_gapped_seeds = sum([1 if not seed_is_full[i] and indels_per_seed[i] else 0 for i in range(p)]) + (1 if n_full_seeds else 0)
+            //     n_gaps_needed = max(1 if d else 0, math.ceil(n_gapped_seeds / 2))
+
+            //     gap_in_seeds = [0 for _ in range(p)]
+            //     n_gaps_to_distribute = n_gaps_needed
+            //     # We need to open a gap in the first seed if there are any gaps to distribute
+            //     if p and n_gaps_to_distribute:
+            //         gap_in_seeds[0] = 1
+            //         n_gaps_to_distribute -= 1
+            //         at_seed = 1
+            //     # Chain as many full seeds together as possible
+            //     while at_seed < p and n_gaps_to_distribute and seed_is_full[at_seed]:
+            //         at_seed += 1
+
+            //     # If there are even number of gapped seeds left then we group them together two by two.
+            //     # If there are odd number of gapped seeds left then it's better to # have the left-most
+            //     #   seed alone and group the rest two by two.
+            //     if at_seed + 1 < p and n_gaps_to_distribute and n_gapped_seeds % 2 == 1:
+            //         gap_in_seeds[at_seed] = 1
+            //         n_gaps_to_distribute -= 1
+            //     for i in range(at_seed + 1, p, 2):
+            //         if n_gaps_to_distribute == 0:
+            //             break
+            //         gap_in_seeds[i] = 1
+            //         n_gaps_to_distribute -= 1
+
+            //     return gap_in_seeds
+
+            // def cost_vertical_insertions(seed_potential, indel_cost, gap_open_cost, indels_per_seed, indels_left):
+            //     # If the insertions are vertical, then we cannot chain insertions across seeds
+            //     cost = (
+            //         (gap_open_cost if indels_left else 0)
+            //         + indels_left * indel_cost
+            //         + sum([max(seed_potential, (gap_open_cost if indels else 0) + indels * indel_cost) for indels in indels_per_seed])
+            //     )
+            //     return cost
+
+            // def cost_horizontal_insertions(p, d, seed_potential, indel_cost, gap_open_cost, seed_length, indels_per_seed, indels_left):
+            //     # If the insertions are horizontal, then we might be able to chain insertions across seeds and open fewer gaps.
+            //     # This kinda assumes that seed_length * p >= d, that is, that we can cross all diagonals with the seeds.
+            //     gap_in_seeds = distribute_gaps(p, d, seed_length, indels_per_seed)
+            //     cost = (
+            //         (gap_open_cost if indels_left else 0)
+            //         + indels_left * indel_cost
+            //         + sum(
+            //             [
+            //                 max(seed_potential, gap_open_cost * gap_in_seed + indels * indel_cost)
+            //                 for indels, gap_in_seed in zip(indels_per_seed, gap_in_seeds)
+            //             ]
+            //         )
+            //     )
+            //     return cost
+
+            // def cost_chain_horizontal_insertions(p, d, seed_potential, indel_cost, gap_open_cost, seed_length):
+            //     # Chain all insertions together
+            //     indels_per_seed = chain_indels(p, d, seed_length)
+
+            //     at_seed = p
+            //     for i in range(p):
+            //         if indels_per_seed[i] != seed_length:
+            //             at_seed = i
+            //             break
+
+            //     # We need to open a gap in the first seed but in the rest of the seeds we chain the insertions.
+            //     cost_b_chained = max(gap_open_cost + indel_cost * indels_per_seed[0], seed_potential)
+            //     for i in range(1, p):
+            //         cost_b_chained += max(indel_cost * indels_per_seed[i], seed_potential)
+
+            //     # Check if the previous seed is fully saturated
+            //     if indels_per_seed[at_seed - 1] != seed_length:
+            //         at_seed -= 1
+            //     # If only the first seed is saturated then we can move insertions to the next seed and still chain them
+            //     if at_seed == 0:
+            //         at_seed += 1
+
+            //     for i in range(indels_per_seed[0]):
+            //         # at_seed == 0 is covered by inserting all insertions in one seed
+            //         # at_seed >= p means we can't move insertions to the next seed
+            //         if at_seed == 0 or at_seed >= p:
+            //             break
+            //         indels_per_seed[0] -= 1
+            //         indels_per_seed[at_seed] += 1
+            //         # print(f"  new {indels_per_seed=}")
+            //         if indels_per_seed[at_seed] == seed_length:
+            //             at_seed += 1
+
+            //         cost_b_chained_new = 0
+            //         gap_opened = False
+            //         for j in range(p):
+            //             extra_cost = 0
+            //             if not gap_opened and indels_per_seed[j] > 0:
+            //                 extra_cost = gap_open_cost
+            //                 gap_opened = True
+            //             cost_b_chained_new += max(extra_cost + indel_cost * indels_per_seed[j], seed_potential)
+
+            //         cost_b_chained = min(cost_b_chained, cost_b_chained_new)
+
+            //     return cost_b_chained
+
+            // def cost_crossing_p_seeds_d_diagonals(p, d, seed_potential, indel_cost, gap_open_cost, seed_length):
+            //     cost_a = cost_make_all_insertions_in_one_seed(p, d, seed_potential, indel_cost, gap_open_cost)
+
+            //     indels_per_seed, indels_left = distribute_indels_evenly(p, d)
+
+            //     cost_b = float("inf")
+            //     # Both vertical and horizontal insertions should give the same cost for d = 0
+            //     if d >= 0:
+            //         cost_b_while_vertical = cost_vertical_insertions(seed_potential, indel_cost, gap_open_cost, indels_per_seed, indels_left)
+            //         cost_b = min(cost_b, cost_b_while_vertical)
+            //     elif d <= 0:
+            //         cost_b_while_horizontal = cost_horizontal_insertions(
+            //             p, d, seed_potential, indel_cost, gap_open_cost, seed_length, indels_per_seed, indels_left
+            //         )
+            //         cost_b = min(cost_b, cost_b_while_horizontal)
+
+            //         # We only need to try chaining all insertions together if there are insertions, seeds to put them in,
+            //         # and the insertions do not over-saturate all the seeds.
+            //         if d and p and 0 < abs(d) <= p * seed_length:
+            //             cost_b_chained = cost_chain_horizontal_insertions(p, d, seed_potential, indel_cost, gap_open_cost, seed_length)
+            //             cost_b = min(cost_b, cost_b_chained)
+
+            //     return cost_a, cost_b
+        }
+
+        // Formula
+        if formula {
+            let c0 = min(max(p * r, open + extend + (p - 1) * r) + extend, open) - extend * d;
+            let c1 = min(max(p * r, open + extend + (p - 1) * r - extend), p * open) + extend * d;
+            let c2 = max(p * r, open + extend + (p - 1) * r);
+            return max(c0, max(c1, c2));
+        }
+
+        // Insertion
+        if d > 0 {
+            // All insertions in 1 seed.
+            let c1 = c.open + c.extend * d + (p - 1) * r;
+            // Evenly distribute insertions.
+            let d0 = d / p;
+            let d1 = d0 + 1;
+            let count_d1 = d % p;
+            let count_d0 = p - count_d1;
+            assert!(d0 * count_d0 + d1 * count_d1 == d);
+            assert!(d1 > 0);
+            let c2 = count_d0 * (if d0 == 0 { 0 } else { c.open } + c.extend * d0)
+                + count_d1 * (c.open + c.extend * d1);
+            return min(c1, c2);
+        }
+
+        // Deletion
+        if d < 0 {
+            let d = -d;
+            return c.open + c.extend * d;
+            // 1 insertion
+            // FIXME
+        }
+
+        unreachable!();
+    }
+}
