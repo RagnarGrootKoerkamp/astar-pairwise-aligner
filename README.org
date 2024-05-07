@@ -73,13 +73,13 @@ simple usage. To run the resulting binary, make sure to ~export LD_LIBRARY_PATH=
 =pa-bin= is a small command line application that takes as input consecutive pairs of
 sequences from a =.fasta=, =.seq=, or =.txt= file (or can generate random input)
 and outputs costs and alignments to a =.csv=.
+#+end_src
+
+This requires =cargo= and Rust =nightly=. To get both, first install [[https://rustup.rs/][rustup]]. Then enable ~nightly~: ~rustup install nightly; rustup default nightly~.
 
 Install =pa-bin= to =~/.local/share/cargo/bin/pa-bin= using the following (cloning this repo is not needed):
 #+begin_src shell
 cargo install --git https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner pa-bin
-#+end_src
-
-This requires =cargo= Rust =nightly=. To get both, first install [[https://rustup.rs/][rustup]]. Then enable ~nightly~: ~rustup install nightly; rustup default nightly~.
 
 To run from the repository: clone and ~cargo run --release -- <pa-bin flags>~.
 
