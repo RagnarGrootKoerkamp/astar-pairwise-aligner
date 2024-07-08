@@ -74,39 +74,6 @@ fn main() {
     let aligners: &mut [Box<dyn Aligner>] = &mut [
         Box::new(NW {
             cm,
-            strategy: pa_base_algos::Strategy::None,
-            domain: pa_base_algos::Domain::full(),
-            block_width: 1,
-            v: config.with_filename("0_full"),
-            front: AffineFront,
-            trace: true,
-            sparse_h: false,
-            prune: false,
-        }),
-        Box::new(NW {
-            cm,
-            strategy: pa_base_algos::Strategy::band_doubling(),
-            domain: pa_base_algos::Domain::dijkstra(),
-            block_width: 1,
-            v: config.with_filename("0_g"),
-            front: AffineFront,
-            trace: true,
-            sparse_h: false,
-            prune: false,
-        }),
-        Box::new(NW {
-            cm,
-            strategy: pa_base_algos::Strategy::band_doubling(),
-            domain: pa_base_algos::Domain::gap_start(),
-            block_width: 1,
-            v: config.with_filename("0_gap-start"),
-            front: AffineFront,
-            trace: true,
-            sparse_h: false,
-            prune: false,
-        }),
-        Box::new(NW {
-            cm,
             strategy: pa_base_algos::Strategy::band_doubling(),
             domain: pa_base_algos::Domain::gap_gap(),
             block_width: 1,
@@ -116,42 +83,7 @@ fn main() {
             sparse_h: false,
             prune: false,
         }),
-        Box::new(NW {
-            cm,
-            strategy: pa_base_algos::Strategy::band_doubling(),
-            domain: pa_base_algos::Domain::dist_gap(),
-            block_width: 1,
-            v: config.with_filename("0_g-gap"),
-            front: AffineFront,
-            trace: true,
-            sparse_h: false,
-            prune: false,
-        }),
         block_params.make_aligner_with_visualizer(true, config.with_filename("0_bitpacking")),
-        {
-            let mut ps = block_params.clone();
-            ps.heuristic.heuristic = pa_heuristic::HeuristicType::GCSH;
-            ps.heuristic.k = 5;
-            ps
-        }
-        .make_aligner_with_visualizer(true, config.with_filename("0_gcsh")),
-        {
-            let mut ps = block_params.clone();
-            ps.block_width = 256;
-            ps
-        }
-        .make_aligner_with_visualizer(true, config.with_filename("0_blocks")),
-        Box::new(NW {
-            cm,
-            strategy: pa_base_algos::Strategy::band_doubling(),
-            domain: pa_base_algos::Domain::dist_gap(),
-            block_width: 1,
-            v: config.with_filename("1_edlib"),
-            front: AffineFront,
-            trace: true,
-            sparse_h: false,
-            prune: false,
-        }),
         Box::new(AstarPa {
             dt: false,
             h: NoCost,
@@ -164,22 +96,6 @@ fn main() {
             false,
             config.with_filename("3_diagonal-transition"),
         )),
-        Box::new(DiagonalTransition::new(
-            cm,
-            GapCostHeuristic::Disable,
-            NoCost,
-            true,
-            {
-                let mut c = config.with_filename("4_dt-divide-and-conquer");
-                c.draw_old_on_top = false;
-                c
-            },
-        )),
-        Box::new(AstarPa {
-            h: GCSH::new(MatchConfig::exact(5), Pruning::disabled()),
-            dt: false,
-            v: config.with_filename("5_astarpa"),
-        }),
         Box::new(AstarPa {
             h: GCSH::new(MatchConfig::exact(5), Pruning::both()),
             dt: false,
