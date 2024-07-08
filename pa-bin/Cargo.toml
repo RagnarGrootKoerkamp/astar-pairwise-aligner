@@ -75,3 +75,7 @@ required-features = ["example"]
 name = "fig-simd-2"
 path = "examples/astarpa2-figures/simd.rs"
 required-features = ["example"]
+[[example]]
+name = "fig-comparison-2"
+path = "examples/astarpa2-figures/comparison.rs"
+required-features = ["example"]
