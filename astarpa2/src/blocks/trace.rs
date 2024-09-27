@@ -186,8 +186,15 @@ impl Blocks {
         let prev_block = &self.blocks[self.last_block_idx - 1];
         assert!(prev_block.i_range.1 == st.0 - 1);
 
+
         // Horizontal delta (delete).
-        let hd = *g - prev_block.index(st.1);
+        // Edge case: if we are above the start of the previous block (because of greedy matching),
+        // always go left, since there must have been a lower path as well.
+        let hd = if st.1 < prev_block.j_range.1 {
+            1
+        } else {
+            *g - prev_block.index(st.1)
+        };
         if hd == 1 {
             *g -= 1;
             return (
