@@ -75,15 +75,14 @@ impl Blocks {
                 // If the previous block is the correct one, no need for further recomputation.
                 if prev_block.i_range.1 < to.0 - 1 || block.i_range.1 > to.0 {
                     let start = std::time::Instant::now();
-                    if DEBUG {
-                        eprintln!(
-                            "Expand previous block from {:?} to {}",
-                            prev_block.i_range, to.0
-                        );
-                    }
                     let prev_j_range = prev_block.j_range;
                     let i_range = IRange(prev_block.i_range.1, to.0);
                     let j_range = JRange(block.j_range.0, to.1);
+                    if DEBUG {
+                        eprintln!(
+                            "Recompute block {i_range:?} x {j_range:?}. Trace is currently at {to}",
+                        );
+                    }
                     self.pop_last_block();
                     // NOTE: It's unlikely the full (large) `j_range` is needed to trace back through the current block.
                     // 1. We don't need states with `j > to.1`, because the path (in reverse direction) can never go down.
