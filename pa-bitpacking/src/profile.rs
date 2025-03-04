@@ -26,11 +26,38 @@ impl Profile for ScatterProfile {
     type B = [B; 4];
 
     fn build(a: Seq, b: Seq) -> (Vec<CC>, Vec<Self::B>) {
-        let r = RankTransform::new(&Alphabet::new(b"ACGT"));
-        let pa = a.iter().map(|ca| CC(r.get(*ca))).collect_vec();
+        fn get_char(c: u8) -> u8 {
+            match c {
+                b'a' | b'A' => 0,
+                b'c' | b'C' => 1,
+                b't' | b'T' => 2,
+                b'g' | b'G' => 3,
+                _ => panic!(),
+            }
+        }
+        fn get_mask(c: u8) -> [u64; 4] {
+            match c {
+                b'a' | b'A' => [1, 0, 0, 0],
+                b'c' | b'C' => [0, 1, 0, 0],
+                b't' | b'T' => [0, 0, 1, 0],
+                b'g' | b'G' => [0, 0, 0, 1],
+                b'n' | b'N' | b'*' => [1, 1, 1, 1],
+                b'y' | b'Y' => [0, 1, 1, 0], // C or T
+                _ => panic!(),
+            }
+        }
+        let pa = a.iter().map(|ca| CC(get_char(*ca))).collect_vec();
         let mut pb = vec![[0; 4]; b.len().div_ceil(W)];
         for (j, cb) in b.iter().enumerate() {
-            pb[j / W][r.get(*cb) as usize] |= 1 << (j % W);
+            let mask = get_mask(*cb);
+            for i in 0..4 {
+                pb[j / W][i] |= mask[i] << (j % W);
+            }
+        }
+        for j in b.len()..b.len().next_multiple_of(W) {
+            for x in &mut pb[j / W] {
+                *x |= 1 << (j % W);
+            }
         }
         (pa, pb)
     }
