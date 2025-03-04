@@ -32,6 +32,7 @@ mod encoding;
 pub mod myers;
 pub mod profile;
 pub mod scalar;
+pub mod search;
 pub mod simd;
 
 pub use encoding::*;
