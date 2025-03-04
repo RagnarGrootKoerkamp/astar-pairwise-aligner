@@ -5,6 +5,10 @@ use pa_types::{Cost, I};
 pub struct V(B, B);
 impl V {
     #[inline(always)]
+    pub fn zero() -> Self {
+        V(0, 0)
+    }
+    #[inline(always)]
     pub fn one() -> Self {
         V(B::MAX, 0)
     }
@@ -47,6 +51,7 @@ impl V {
 }
 
 pub trait HEncoding: Copy {
+    fn zero() -> Self;
     fn one() -> Self;
     fn from(p: B, m: B) -> Self;
     fn value(&self) -> Cost;
@@ -59,6 +64,10 @@ pub trait HEncoding: Copy {
 }
 
 impl HEncoding for i8 {
+    #[inline(always)]
+    fn zero() -> Self {
+        0
+    }
     #[inline(always)]
     fn one() -> Self {
         1
@@ -83,6 +92,10 @@ impl HEncoding for i8 {
 
 impl HEncoding for (u8, u8) {
     #[inline(always)]
+    fn zero() -> Self {
+        (0, 0)
+    }
+    #[inline(always)]
     fn one() -> Self {
         (1, 0)
     }
@@ -106,6 +119,10 @@ impl HEncoding for (u8, u8) {
 
 #[cfg(not(feature = "small_blocks"))]
 impl HEncoding for (B, B) {
+    #[inline(always)]
+    fn zero() -> Self {
+        (0, 0)
+    }
     #[inline(always)]
     fn one() -> Self {
         (1, 0)
