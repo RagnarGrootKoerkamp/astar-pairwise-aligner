@@ -27,7 +27,7 @@ pub fn reset() {
         .cli
         .generate
         .seed
-        .get_or_insert(ChaCha8Rng::from_entropy().gen_range(0..u64::MAX));
+        .get_or_insert(ChaCha8Rng::from_os_rng().gen_range(0..u64::MAX));
 }
 
 #[wasm_bindgen]

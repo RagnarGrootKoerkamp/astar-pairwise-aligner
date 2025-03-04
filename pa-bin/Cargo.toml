@@ -16,8 +16,8 @@ itertools.workspace = true
 clap.workspace = true
 serde.workspace = true
 bio.workspace = true
-rand_chacha = "0.3"
-rand = "0.8"
+rand_chacha.workspace = true
+rand.workspace = true
 parse_duration0 = "3"
 
 [dev-dependencies]
