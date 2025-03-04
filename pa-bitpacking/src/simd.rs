@@ -36,6 +36,9 @@ use std::{
     simd::{LaneCount, SupportedLaneCount},
 };
 
+/// `compute_block` for scatter profile
+pub mod scatter_profile;
+
 /// NOTE: This is simply a cast.
 #[inline(always)]
 fn simd_to_slice<const N: usize, const L: usize>(simd: &[S<L>; N]) -> &[B; L * N]
