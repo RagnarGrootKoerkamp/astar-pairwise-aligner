@@ -48,6 +48,9 @@ impl V {
     pub fn m(&self) -> B {
         self.1
     }
+    pub(crate) fn one_mut(&mut self) -> &mut u64 {
+        &mut self.0
+    }
 }
 
 pub trait HEncoding: Copy {

@@ -37,6 +37,7 @@ pub mod simd;
 
 pub use encoding::*;
 pub use profile::*;
+pub use search::search;
 
 /// The type used for all bitvectors.
 /// Small blocks are nicer for visualizations.
