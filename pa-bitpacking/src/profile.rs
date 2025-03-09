@@ -43,7 +43,8 @@ impl Profile for ScatterProfile {
                 b'g' | b'G' => [0, 0, 0, 1],
                 b'n' | b'N' | b'*' => [1, 1, 1, 1],
                 b'y' | b'Y' => [0, 1, 1, 0], // C or T
-                _ => panic!(),
+                b'r' | b'R' => [1, 0, 0, 1], // A or G
+                x => panic!("Unknown base {}", x as char),
             }
         }
         let pa = a.iter().map(|ca| CC(get_char(*ca))).collect_vec();
