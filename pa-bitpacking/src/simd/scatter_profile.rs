@@ -3,12 +3,13 @@ use super::*;
 // If `exact_end` is false, padding rows may be added at the end to speed things
 // up. This means `h` will have a meaningless value at the end that does not
 // correspond to the bottom row of the input range.
-pub fn compute<const N: usize, H: HEncoding, const L: usize>(
+pub fn compute<const N: usize, H: HEncoding, const L: usize, const FILL: bool>(
     a: &[CC],
     b: &[[B; 4]],
     h: &mut [H],
     v: &mut [V],
     exact_end: bool,
+    values: &mut [Vec<V>],
 ) -> Cost
 where
     LaneCount<L>: SupportedLaneCount,
@@ -17,17 +18,38 @@ where
 {
     assert_eq!(a.len(), h.len());
     assert_eq!(b.len(), v.len());
+
+    if FILL {
+        assert_eq!(values.len(), h.len());
+
+        for vv in values.iter_mut() {
+            // Grow `vv`, but do not initialize its elements since they will be overwritten anyway.
+            if vv.capacity() < v.len() {
+                vv.resize(v.len(), V::default());
+            } else {
+                // SAFETY: We check above that the capacity is at least `v.len()`.
+                // No initialization is needed for (tuples of) ints.
+                unsafe {
+                    vv.set_len(v.len());
+                }
+            }
+        }
+    }
+
     if a.len() < 2 * L * N {
         // TODO: This could be optimized a bit more.
         if N > 1 {
-            return compute::<1, H, L>(a, b, h, v, exact_end);
+            return compute::<1, H, L, FILL>(a, b, h, v, exact_end, values);
         }
         if L > 2 {
-            return compute::<1, H, 2>(a, b, h, v, exact_end);
+            return compute::<1, H, 2, FILL>(a, b, h, v, exact_end, values);
         }
         for i in 0..a.len() {
             for j in 0..b.len() {
                 myers::compute_block::<ScatterProfile, H>(&mut h[i], &mut v[j], &a[i], &b[j]);
+            }
+            if FILL {
+                values[i].copy_from_slice(v);
             }
         }
         return h.iter().map(|h| h.value()).sum::<Cost>();
@@ -37,6 +59,9 @@ where
     if b.len() == 1 {
         for i in 0..a.len() {
             myers::compute_block::<ScatterProfile, H>(&mut h[i], &mut v[0], &a[i], &b[0]);
+            if FILL {
+                values[i].copy_from_slice(v);
+            }
         }
         return h.iter().map(|h| h.value()).sum::<Cost>();
     }
@@ -44,8 +69,10 @@ where
     // Iterate over blocks of L*N rows at a time.
     let b_chunks = b.array_chunks::<{ L * N }>();
     let v_chunks = v.array_chunks_mut::<{ L * N }>();
+    let mut offset = 0;
     for (cbs, v) in izip!(b_chunks, v_chunks) {
-        compute_block_of_rows(a, cbs, h, v);
+        compute_block_of_rows::<N, H, L, FILL>(a, cbs, h, v, values, offset);
+        offset += L * N;
     }
 
     // Handle the remaining rows.
@@ -64,14 +91,16 @@ where
             b = b_rem;
             let (v2, v_rem) = v.split_first_chunk_mut::<4>().unwrap();
             v = v_rem;
-            compute_block_of_rows::<1, H, 4>(a, cbs, h, v2);
+            compute_block_of_rows::<1, H, 4, FILL>(a, cbs, h, v2, values, offset);
+            offset += 4;
         }
         if b.len() >= 2 {
             let (cbs, b_rem) = b.split_first_chunk::<2>().unwrap();
             b = b_rem;
             let (v2, v_rem) = v.split_first_chunk_mut::<2>().unwrap();
             v = v_rem;
-            compute_block_of_rows::<1, H, 2>(a, cbs, h, v2);
+            compute_block_of_rows::<1, H, 2, FILL>(a, cbs, h, v2, values, offset);
+            offset += 2;
         }
         if b.len() >= 1 {
             let (cbs, b_rem) = b.split_first_chunk::<1>().unwrap();
@@ -80,12 +109,20 @@ where
             v = v_rem;
             for i in 0..a.len() {
                 myers::compute_block::<ScatterProfile, H>(&mut h[i], &mut v2[0], &a[i], &cbs[0]);
+                if FILL {
+                    values[i][offset] = v2[0];
+                }
             }
+            // offset += 1;
         }
         assert!(b.len() == 0);
         assert!(v.len() == 0);
         h.iter().map(|h| h.value()).sum()
     } else {
+        if FILL {
+            panic!("Use exact mode for filling.");
+        }
+
         // Do a 1, 2, 4, or 8 row block.
         // If needed, add padding: Add some extra v=0 elements to v and random
         // chars to b and compute a larger block. Then, compute the horizontal
@@ -100,24 +137,26 @@ where
                 }
             }
             2 => {
-                compute_block_of_rows::<1, H, 2>(
+                compute_block_of_rows::<1, H, 2, FILL>(
                     a,
                     b.first_chunk().unwrap(),
                     h,
                     v.first_chunk_mut().unwrap(),
+                    values,
+                    offset,
                 );
             }
             l @ (3 | 4) => {
                 let b_tmp = from_fn(|i| if i < l { b[i] } else { Default::default() });
                 let mut v_tmp = from_fn(|i| if i < l { v[i] } else { V::default() });
-                compute_block_of_rows::<1, H, 4>(a, &b_tmp, h, &mut v_tmp);
+                compute_block_of_rows::<1, H, 4, FILL>(a, &b_tmp, h, &mut v_tmp, values, offset);
                 v[0..l].copy_from_slice(&v_tmp[0..l]);
                 correction = v_tmp[l..].iter().map(|v| v.value()).sum::<Cost>();
             }
             l @ (5 | 6 | 7) => {
                 let b_tmp = from_fn(|i| if i < l { b[i] } else { Default::default() });
                 let mut v_tmp = from_fn(|i| if i < l { v[i] } else { V::default() });
-                compute_block_of_rows::<2, H, 4>(a, &b_tmp, h, &mut v_tmp);
+                compute_block_of_rows::<2, H, 4, FILL>(a, &b_tmp, h, &mut v_tmp, values, offset);
                 v[0..l].copy_from_slice(&v_tmp[0..l]);
                 correction = v_tmp[l..].iter().map(|v| v.value()).sum::<Cost>();
             }
@@ -128,11 +167,13 @@ where
 }
 
 #[inline(always)]
-fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
+fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize, const FILL: bool>(
     a: &[CC],
     cbs: &[[B; 4]; L * N],
     h: &mut [H],
     v: &mut [V; L * N],
+    values: &mut [Vec<V>],
+    offset: usize,
 ) where
     LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
@@ -143,6 +184,9 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     for j in 0..L * N {
         for i in 0..L * N - j {
             myers::compute_block::<ScatterProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+            if FILL {
+                values[i][offset + j] = v[j];
+            }
         }
     }
 
@@ -181,6 +225,16 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
                 eq[k],
             );
         }
+
+        if FILL {
+            // This instruction is probably HOT during traceback. Could be faster by
+            // first just writing out the diagonal SIMD vectors sequentially and
+            // shuffling in a separate step.
+            for (k, (pv, mv)) in izip!(simd_to_slice(&pv_simd), simd_to_slice(&mv_simd)).enumerate()
+            {
+                values[i + 1 + k][offset + rev(k)] = V::from(*pv, *mv);
+            }
+        }
     }
 
     // Write back h to unaligned slice.
@@ -201,6 +255,9 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     for j in 0..L * N {
         for i in a.len() - j..a.len() {
             myers::compute_block::<ScatterProfile, H>(&mut h[i], &mut v[j], &a[i], &cbs[j]);
+            if FILL {
+                values[i][offset + j] = v[j];
+            }
         }
     }
 }

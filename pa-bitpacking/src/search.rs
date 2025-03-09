@@ -1,5 +1,18 @@
 use super::*;
-use pa_types::Cost;
+use pa_types::{Cigar, CigarElem, CigarOp, Cost, Pos, I};
+
+type P = ScatterProfile;
+
+pub struct SearchResult<'s> {
+    pub out: Vec<Cost>,
+    text: &'s [u8],
+    pattern: &'s [u8],
+    // sketches
+    t: Vec<<P as Profile>::A>,
+    p: Vec<<P as Profile>::B>,
+    _padding: usize,
+    v0: Vec<V>,
+}
 
 /// Search a short pattern in a long text.
 /// Text must be `actgACTG` only.
@@ -30,16 +43,15 @@ use pa_types::Cost;
 ///   zeros (start anywhere in pattern)
 /// ```
 /// The bottom row and right column (in reverse) are the output, of total length `|pattern| + |text| + 1`.
-///
-/// TODO: Optionally disallow partial matches of the pattern, and only output the bottom row.
-pub fn search(pattern: &[u8], text: &[u8], unmatched_cost: f32) -> Vec<Cost> {
+pub fn search<'s>(pattern: &'s [u8], text: &'s [u8], unmatched_cost: f32) -> SearchResult<'s> {
     let bot_left;
     let mut h;
     let mut v;
     type P = ScatterProfile;
     let (t, p) = P::build(text, pattern);
     h = vec![<(u8, u8)>::zero(); t.len()];
-    let mut v_unmatched = vec![V::zero(); p.len()];
+    let mut v0 = vec![V::zero(); p.len()];
+    let padding = pattern.len().next_multiple_of(64) - pattern.len();
 
     assert!(unmatched_cost >= 0.0 && unmatched_cost <= 1.0);
     if unmatched_cost > 0.0 {
@@ -48,22 +60,22 @@ pub fn search(pattern: &[u8], text: &[u8], unmatched_cost: f32) -> Vec<Cost> {
             if idx >= pattern.len() {
                 break;
             }
-            *v_unmatched[idx / 64].one_mut() |= 1 << (idx % 64);
+            *v0[idx / 64].one_mut() |= 1 << (idx % 64);
         }
     }
-    v = v_unmatched.clone();
+    v = v0.clone();
 
     bot_left = v.iter().map(|x| x.value()).sum::<i32>();
 
-    crate::simd::scatter_profile::compute::<2, _, 4>(&t, &p, &mut h, &mut v, true);
+    let mut out = vec![];
+    crate::simd::scatter_profile::compute::<2, _, 4, false>(&t, &p, &mut h, &mut v, true, &mut out);
 
     let mut b = bot_left;
     let mut out_vec = vec![b];
-    let extra = pattern.len().next_multiple_of(64) - pattern.len();
     let mut skipped = 0;
     for x in h {
         b += x.value();
-        if skipped < extra {
+        if skipped < padding {
             skipped += 1;
         } else {
             out_vec.push(b);
@@ -71,12 +83,12 @@ pub fn search(pattern: &[u8], text: &[u8], unmatched_cost: f32) -> Vec<Cost> {
     }
 
     // Fix since we round up to multiple of 64 chars.
-    for (v, vu) in std::iter::zip(v, v_unmatched).rev() {
+    for (v, vu) in std::iter::zip(v, &v0).rev() {
         for j in 1..=64 {
             let delta = v.value_of_suffix(j as _);
             let unmatched = vu.value_of_suffix(j as _);
             let val = b - delta + unmatched;
-            if skipped < extra {
+            if skipped < padding {
                 skipped += 1;
             } else {
                 out_vec.push(val);
@@ -86,5 +98,133 @@ pub fn search(pattern: &[u8], text: &[u8], unmatched_cost: f32) -> Vec<Cost> {
         b += vu.value();
     }
     assert_eq!(out_vec.len(), pattern.len() + text.len() + 1);
-    out_vec
+    SearchResult {
+        out: out_vec,
+        text,
+        pattern,
+        t,
+        p,
+        _padding: padding,
+        v0,
+    }
+}
+
+impl<'s> SearchResult<'s> {
+    pub fn idx_to_pos(&self, idx: usize) -> Pos {
+        assert!(idx < self.out.len());
+        if idx <= self.text.len() {
+            Pos(idx as _, self.pattern.len() as _)
+        } else {
+            Pos(
+                self.text.len() as _,
+                (self.pattern.len() - (idx - self.text.len())) as _,
+            )
+        }
+    }
+
+    pub fn trace(&self, idx: usize) -> (Cigar, Vec<Pos>) {
+        let mut pos = self.idx_to_pos(idx);
+        let mut target_cost = self.out[idx];
+        if pos.0 as usize == self.text.len() {
+            target_cost -= V::value_from(&self.v0, pos.1);
+        }
+
+        let mut width = 2 * self.pattern.len();
+
+        let end = pos.0 as usize;
+        let mut start;
+        let mut h;
+        let mut v;
+        let mut fill;
+
+        loop {
+            start = end.saturating_sub(width);
+
+            h = vec![<(u8, u8)>::zero(); end - start + 1];
+            v = if start == 0 {
+                self.v0.clone()
+            } else {
+                vec![V::one(); self.v0.len()]
+            };
+
+            fill = vec![vec![]; h.len()];
+            fill[0] = v.clone();
+            crate::simd::scatter_profile::compute::<2, _, 4, true>(
+                &self.t[start..end],
+                &self.p,
+                &mut h[1..],
+                &mut v,
+                true,
+                &mut fill[1..],
+            );
+
+            debug_assert_eq!(&v, fill.last().unwrap());
+            let cost = V::value_to(&v, pos.1);
+
+            if cost < target_cost {
+                let cost = |Pos(i, j)| -> Cost { V::value_to(&fill[i as usize - start], j) };
+            }
+
+            assert!(
+                cost >= target_cost,
+                "Target cost {target_cost}, but found trace path of cost {cost}"
+            );
+            if cost == target_cost {
+                break;
+            }
+
+            width *= 2;
+        }
+
+        let cost = |Pos(i, j)| -> Cost { V::value_to(&fill[i as usize - start], j) };
+
+        let mut cigar = Cigar { ops: vec![] };
+        let mut poss = vec![pos];
+        let mut g = target_cost;
+
+        while pos.0 > start as I && pos.1 > 0 {
+            let mut cnt = 0;
+            while pos.0 > start as I
+                && pos.1 > 0
+                && P::is_match(&self.t, &self.p, pos.0 - 1, pos.1 - 1)
+            {
+                cnt += 1;
+                pos.0 -= 1;
+                pos.1 -= 1;
+                poss.push(pos);
+            }
+            if cnt > 0 {
+                cigar.push_matches(cnt);
+                continue;
+            }
+            if cost(Pos(pos.0 - 1, pos.1)) == g - 1 {
+                g -= 1;
+                pos.0 -= 1;
+                poss.push(pos);
+                cigar.push(CigarOp::Del);
+                continue;
+            }
+            if cost(Pos(pos.0, pos.1 - 1)) == g - 1 {
+                g -= 1;
+                pos.1 -= 1;
+                poss.push(pos);
+                cigar.push(CigarOp::Ins);
+                continue;
+            }
+            if cost(Pos(pos.0 - 1, pos.1 - 1)) == g - 1 {
+                g -= 1;
+                pos.0 -= 1;
+                pos.1 -= 1;
+                poss.push(pos);
+                cigar.push(CigarOp::Sub);
+                continue;
+            }
+            panic!("Bad trace! Got stuck at {pos:?}.");
+        }
+
+        assert!(pos.0 == 0 || g == 0);
+        cigar.reverse();
+        poss.reverse();
+        (cigar, poss)
+    }
 }

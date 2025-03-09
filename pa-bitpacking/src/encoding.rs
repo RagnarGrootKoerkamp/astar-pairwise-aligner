@@ -21,7 +21,7 @@ impl V {
         self.0.count_ones() as Cost - self.1.count_ones() as Cost
     }
     /// Value of the first `j` bits.
-    /// NOTE: Requires `j < W`.
+    /// NOTE: Requires `0 <= j < W`.
     #[inline(always)]
     pub fn value_of_prefix(&self, j: I) -> Cost {
         debug_assert!(0 <= j && j < W as I);
@@ -50,6 +50,26 @@ impl V {
     }
     pub(crate) fn one_mut(&mut self) -> &mut u64 {
         &mut self.0
+    }
+    pub fn value_to(v: &Vec<V>, j: I) -> Cost {
+        let mut s = 0;
+        for vj in &v[0..j as usize / 64] {
+            s += vj.value();
+        }
+        if j % 64 != 0 {
+            s += v[j as usize / 64].value_of_prefix(j % 64);
+        }
+        s
+    }
+    pub fn value_from(v: &Vec<V>, j: I) -> Cost {
+        let mut s = 0;
+        if j % 64 != 0 {
+            s += v[j as usize / 64].value_of_suffix(64 - j % 64);
+        }
+        for vj in &v[j.div_ceil(64) as usize..] {
+            s += vj.value();
+        }
+        s
     }
 }
 

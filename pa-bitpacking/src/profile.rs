@@ -1,6 +1,6 @@
 use bio::alphabets::{Alphabet, RankTransform};
 use itertools::Itertools;
-use pa_types::Seq;
+use pa_types::{Seq, I};
 
 use crate::{B, W};
 
@@ -12,6 +12,7 @@ pub trait Profile: Clone + Copy + std::fmt::Debug {
     type B;
     fn build(a: Seq, b: Seq) -> (Vec<Self::A>, Vec<Self::B>);
     fn eq(ca: &Self::A, cb: &Self::B) -> B;
+    fn is_match(a: &[Self::A], b: &[Self::B], i: I, j: I) -> bool;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -67,6 +68,10 @@ impl Profile for ScatterProfile {
     fn eq(ca: &Self::A, cb: &Self::B) -> B {
         cb[ca.0 as usize]
     }
+
+    fn is_match(a: &[Self::A], b: &[Self::B], i: I, j: I) -> bool {
+        (Self::eq(&a[i as usize], &b[j as usize / W]) & (1 << (j as usize % W))) != 0
+    }
 }
 
 pub use bit_profile::BitProfile;
@@ -74,8 +79,6 @@ pub use bit_profile::BitProfile;
 // Many public types with private members here, to keep things clean.
 pub mod bit_profile {
     use std::simd::{LaneCount, SupportedLaneCount};
-
-    use pa_types::I;
 
     use crate::S;
 
@@ -139,6 +142,9 @@ pub mod bit_profile {
         fn eq(ca: &Self::A, cb: &Self::B) -> B {
             (ca.0 ^ cb.0) & (ca.1 ^ cb.1)
         }
+        fn is_match(a: &[Bits], b: &[Bits], i: I, j: I) -> bool {
+            (Self::eq(&a[i as usize], &b[j as usize / W]) & (1 << (j as usize % W))) != 0
+        }
     }
     impl BitProfile {
         #[inline(always)]
@@ -147,9 +153,6 @@ pub mod bit_profile {
             LaneCount<L>: SupportedLaneCount,
         {
             (ca.0 ^ cb.0) & (ca.1 ^ cb.1)
-        }
-        pub fn is_match(a: &[Bits], b: &[Bits], i: I, j: I) -> bool {
-            (Self::eq(&a[i as usize], &b[j as usize / W]) & (1 << (j as usize % W))) != 0
         }
     }
 }
