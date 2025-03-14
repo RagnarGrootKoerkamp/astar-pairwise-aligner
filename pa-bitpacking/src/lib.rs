@@ -19,7 +19,6 @@
     array_windows,
     bigint_helper_methods,
     concat_idents,
-    exclusive_range_pattern,
     generic_const_exprs,
     int_roundings,
     iter_array_chunks,

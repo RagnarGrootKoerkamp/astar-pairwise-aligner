@@ -6,7 +6,7 @@ use pa_heuristic::matches::qgrams::QGrams;
 fn bench(c: &mut Criterion) {
     for n in [1000, 10000, 100000] {
         let c = &mut c.benchmark_group(&format!("{}", n));
-        let a = &random_sequence(n, &mut rand::thread_rng());
+        let a = &random_sequence(n, &mut rand::rng());
         let qgrams = QGrams::new(a, a);
         let mut test = |name, f: &dyn Fn() -> usize| {
             c.bench_function(&format!("{name}"), |bb| bb.iter(|| f()));

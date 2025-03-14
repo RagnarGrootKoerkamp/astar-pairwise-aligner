@@ -118,7 +118,7 @@ impl Cli {
         } else {
             // Generate random input.
             let seed = self.generate.seed.unwrap_or_else(|| {
-                let seed = ChaCha8Rng::from_os_rng().gen_range(0..1_000);
+                let seed = ChaCha8Rng::from_os_rng().random_range(0..1_000);
                 eprintln!("Seed: {seed}");
                 seed
             });

@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use rand::{seq::IteratorRandom, thread_rng, Rng};
+use rand::{rng, seq::IteratorRandom, Rng};
 
 use pa_generate::ErrorModel;
 use pa_types::*;
@@ -22,7 +22,7 @@ fn test_sequences() -> Vec<(Seq<'static>, Seq<'static>)> {
 const FIXED: bool = false;
 
 pub fn gen_seqs() -> impl Iterator<Item = ((Sequence, Sequence), (usize, f32, ErrorModel, u64))> {
-    let rng = &mut thread_rng();
+    let rng = &mut rng();
     let mut ns = vec![
         0usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 40, 50,
         60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240,
@@ -50,7 +50,7 @@ pub fn gen_seqs() -> impl Iterator<Item = ((Sequence, Sequence), (usize, f32, Er
     let seeds = if FIXED {
         [31415]
     } else {
-        [rng.gen_range(0..u64::MAX)]
+        [rng.random_range(0..u64::MAX)]
     };
     ns.into_iter()
         .cartesian_product(es)

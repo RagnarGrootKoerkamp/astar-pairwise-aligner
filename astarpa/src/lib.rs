@@ -17,8 +17,6 @@
     iter_intersperse,
     slice_as_chunks,
     let_chains,
-    is_sorted,
-    exclusive_range_pattern,
     associated_type_defaults,
     // If you get compile errors here, make sure to be on at least rust 1.72.
     // Before, this was called `drain_filter`.

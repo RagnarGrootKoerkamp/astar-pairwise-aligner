@@ -134,12 +134,18 @@ where
     }
 
     fn h_with_parent(&self, pos: Pos) -> (Cost, Pos) {
-        let rng = &mut rand::thread_rng();
+        let rng = &mut rand::rng();
         self.h_at_matches
             .iter()
             .filter(|&(parent, _)| *parent >= pos)
             .map(|(parent, val)| (self.distance(pos, *parent).saturating_add(*val), *parent))
-            .min_by_key(|(val, pos)| (*val, 0 * rng.gen_range(0..u64::MAX), Reverse(LexPos(*pos))))
+            .min_by_key(|(val, pos)| {
+                (
+                    *val,
+                    0 * rng.random_range(0..u64::MAX),
+                    Reverse(LexPos(*pos)),
+                )
+            })
             .unwrap()
     }
 

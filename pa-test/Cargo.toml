@@ -9,5 +9,5 @@ edition = "2021"
 itertools.workspace = true
 pa-generate.workspace = true
 pa-types.workspace = true
-rand = "0.8.5"
+rand.workspace = true
 triple_accel = "0.4.0"

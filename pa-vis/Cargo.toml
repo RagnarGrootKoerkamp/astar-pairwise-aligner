@@ -15,7 +15,7 @@ itertools.workspace = true
 colorgrad = "0.6"
 sdl2 = { version = "0.36", features = ["ttf"], optional = true }
 lazy_static = "1.4"
-rand = "0.8"
+rand.workspace = true
 
 [features]
 sdl = ["dep:sdl2"]

@@ -1,5 +1,4 @@
 #![feature(
-    is_sorted,
     associated_type_defaults,
     int_roundings,
     let_chains,

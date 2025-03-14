@@ -29,5 +29,5 @@ pa-test = { version = "0.1.0", path = "../pa-test" }
 [dev-dependencies]
 # For benchmarking only.
 triple_accel = "0.4"
-rand = "0.8"
+rand.workspace = true
 pa-generate.workspace = true

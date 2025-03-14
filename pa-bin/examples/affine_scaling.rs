@@ -2,10 +2,10 @@ use pa_affine_types::AffineCost;
 use pa_base_algos::nw::{AffineFront, NW};
 use pa_generate::{generate_model, ErrorModel};
 use pa_vis::NoVis;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 
 fn main() {
-    let rng = &mut thread_rng();
+    let rng = &mut rng();
     let n = 1000;
     let error_models = [
         ErrorModel::Uniform,
@@ -23,7 +23,7 @@ fn main() {
         AffineCost::affine(4, 6, 4),
     ];
     // Run each test on a new random seed for increased coverage over time.
-    let seed = rng.gen_range(0..u64::MAX);
+    let seed = rng.random_range(0..u64::MAX);
     for m in &error_models {
         eprintln!("\nError model {m:?}");
         for cm in &cost_models {

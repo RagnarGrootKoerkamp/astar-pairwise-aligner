@@ -1000,9 +1000,9 @@ impl Visualizer {
                 let mut rng = StdRng::seed_from_u64(
                     (self.target.0.saturating_mul(p.0).saturating_add(p.1)) as _,
                 );
-                let r = rng.gen_range(0..=255);
-                let g = rng.gen_range(0..=255);
-                let b = rng.gen_range(0..=255);
+                let r = rng.random_range(0..=255);
+                let g = rng.random_range(0..=255);
+                let b = rng.random_range(0..=255);
                 (r, g, b, 0)
             };
 
