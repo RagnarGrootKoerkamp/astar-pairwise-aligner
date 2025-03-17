@@ -16,24 +16,19 @@ An alignment of two sequences of length 10'000 with 15% error rate using A*PA2:
 [[file:imgs/readme/astarpa2.gif]]
 
 - Papers ::
-  For A*PA, we recommend reading the bioRxiv version which directly includes the
-  supplement and has better formatting. But please cite the Bioinformatics version!
-  - A*PA BioRxiv preprint:
+  For A*PA, we recommend reading the  [[https://doi.org/10.1101/2022.09.19.508631][bioRxiv version]] which directly includes the
+  supplement and has better formatting. But please cite the published papers:
+  - A*PA:
 
     *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
-    "Exact global alignment using A* with chaining seed heuristic and match pruning".
-    bioRxiv (2024). [[https://doi.org/10.1101/2022.09.19.508631][10.1101/2022.09.19.508631]]
-  - A*PA OUP Bioinformatics paper:
-
-    *Ragnar Groot Koerkamp*, *Pesho Ivanov*.
-    "Exact global alignment using A* with chaining seed heuristic and match pruning".
+    Exact global alignment using A* with chaining seed heuristic and match pruning.
     Bioinformatics (2024). [[https://doi.org/10.1093/bioinformatics/btae032][10.1093/bioinformatics/btae032]]
 
-  - A*PA2 BioRxiv preprint:
+  - A*PA2:
 
     *Ragnar Groot Koerkamp*.
-    "A*PA2: up to 20 times faster exact global alignment".
-    bioRxiv (2024). [[https://doi.org/10.1101/2024.03.24.586481][10.1101/2024.03.24.586481]]
+    A*PA2: up to 19x faster exact global alignment.
+    WABI 2024. [[https://doi.org/10.4230/LIPIcs.WABI.2024.17][10.4230/LIPIcs.WABI.2024.17]]
 
 - Links ::
   - Twitter: [[https://mobile.twitter.com/curious_coding][@curious_coding]], [[https://mobile.twitter.com/peshotrie][@peshotrie]],
@@ -48,8 +43,8 @@ reach out on twitter or matrix.
 To call A*PA2 from another Rust crate, simply add the =astarpa[2]= crate in this
 repo as a git dependency.
 
-For A*PA2, use ~astarpa2_simple(a, b)~ or ~astarpa2_full(a, b)~ in the
-[[file:astarpa2/src/lib.rs][~astarpa2~ crate]], or customize parameters with e.g.
+We recommend using ~astarpa2_simple(a, b)~ or ~astarpa2_full(a, b)~ in the
+[[file:astarpa2/src/lib.rs][~astarpa2~ crate]]. Parameters can be customized with e.g.
 #+begin_src rust
 let mut params = astarpa2::AstarPa2Params::full();
 params.front.incremental_doubling = false;
@@ -73,13 +68,13 @@ simple usage. To run the resulting binary, make sure to ~export LD_LIBRARY_PATH=
 =pa-bin= is a small command line application that takes as input consecutive pairs of
 sequences from a =.fasta=, =.seq=, or =.txt= file (or can generate random input)
 and outputs costs and alignments to a =.csv=.
-#+end_src
 
 This requires =cargo= and Rust =nightly=. To get both, first install [[https://rustup.rs/][rustup]]. Then enable ~nightly~: ~rustup install nightly; rustup default nightly~.
 
 Install =pa-bin= to =~/.local/share/cargo/bin/pa-bin= using the following (cloning this repo is not needed):
 #+begin_src shell
 cargo install --git https://github.com/RagnarGrootKoerkamp/astar-pairwise-aligner pa-bin
+#+end_src
 
 To run from the repository: clone and ~cargo run --release -- <pa-bin flags>~.
 
