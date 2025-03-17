@@ -17,6 +17,8 @@ members = [
     "pa-bitpacking",
     "pa-base-algos",
     "astarpa-next",
+
+    "pa_python",
 ]
 resolver = "2"
 
@@ -50,3 +52,4 @@ itertools = "0.10"
 bio = "=1.3.0"
 rand_chacha = "0.9"
 rand = "0.9"
+

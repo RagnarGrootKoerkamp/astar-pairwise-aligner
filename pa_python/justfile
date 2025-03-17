@@ -1,0 +1,5 @@
+init_env:
+    python -m venv .env
+
+build:
+    source .env/bin/activate && maturin develop -r

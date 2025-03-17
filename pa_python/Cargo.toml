@@ -1,0 +1,13 @@
+[package]
+name = "pa_python"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pa-bitpacking.workspace = true
+pa-types.workspace = true
+
+pyo3 = { version = "0.22.2", features = ["extension-module"] }
