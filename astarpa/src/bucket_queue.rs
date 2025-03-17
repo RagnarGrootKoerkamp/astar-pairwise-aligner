@@ -165,7 +165,9 @@ where
         } else {
             let tf = self.tip_queue.peek();
             let qf = self.queue.peek();
-            let mut e = if let Some(tf) = tf && qf.map_or(true, |qf| tf <= qf) {
+            let mut e = if let Some(tf) = tf
+                && qf.map_or(true, |qf| tf <= qf)
+            {
                 self.tip_queue.pop()
             } else {
                 self.queue.pop()
@@ -193,13 +195,15 @@ where
         }
 
         // Any elements in the tip not smaller than `below` are shifted down, to correct for the global down_shift offset.
-        let Some(f) = self.tip_queue.peek() else { return shift; };
+        let Some(f) = self.tip_queue.peek() else {
+            return shift;
+        };
 
         for f in f as usize..self.tip_queue.last {
             // Extract draining layer so we can modify it together with the target layer.
             let mut to_drain = std::mem::take(&mut self.tip_queue.layers[f]);
             //for data in to_drain.extract_if(|data| !(O::from_t(data) <= below)) {
-            for data in to_drain.extract_if(|data| !(O::from_t(data) <= below)) {
+            for data in to_drain.extract_if(.., |data| !(O::from_t(data) <= below)) {
                 self.tip_queue.push(QueueElement {
                     f: f as Cost - shift,
                     data,
@@ -213,7 +217,7 @@ where
         for f in self.tip_queue.peek().unwrap() as usize..self.tip_queue.layers.len() {
             //for data in to_drain.extract_if(|data| !(O::from_t(data) <= below)) {
             for data in
-                self.tip_queue.layers[f].extract_if(|data| O::from_t(data) <= self.tip_start)
+                self.tip_queue.layers[f].extract_if(.., |data| O::from_t(data) <= self.tip_start)
             {
                 self.tip_queue.size -= 1;
                 self.queue.push(QueueElement { f: f as Cost, data });
