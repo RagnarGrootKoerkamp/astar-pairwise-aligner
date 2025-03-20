@@ -1,0 +1,9 @@
+
+# https://superuser.com/questions/1049606/reduce-generated-gif-size-using-ffmpeg
+FILTER := "tpad=stop_mode=clone:stop_duration=3[t];[t]split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer"
+
+semi-global:
+	cargo run --features example,sdl --example fig-layers
+	ffmpeg -y -framerate 20 -i imgs/semi-global/layers/gcsh/%d.bmp -filter_complex "{{FILTER}}" imgs/semi-global/gcsh.gif
+	gifsicle -O3 --batch imgs/semi-global/gcsh.gif
+	rm -rf imgs/semi-global/layers
