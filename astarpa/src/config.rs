@@ -4,7 +4,9 @@
 // ========= FLAGS IN THE PAPER (default true) =========
 
 /// Whether to use shifting of the priority queue to reduce reordering.
-pub const REDUCE_REORDERING: bool = true;
+/// TODO: This is broken!
+///       We should compare by GCSH/transformed order, but currently we compare by plain order.
+pub const REDUCE_REORDERING: bool = false;
 
 // ========= FLAGS NOT IN THE PAPER (default false) =========
 
