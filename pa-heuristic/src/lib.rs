@@ -8,7 +8,7 @@
 
 mod cli;
 mod config;
-mod contour;
+pub mod contour;
 // FIXME: MAKE MOST MODULES PRIVATE
 // SEEDS AND MATCHES DO NOT NEED TO BE EXPOSED.
 pub mod heuristic;

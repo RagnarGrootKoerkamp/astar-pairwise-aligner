@@ -1,9 +1,12 @@
+use std::collections::HashSet;
+
 use crate::{
     alignment_graph::*,
     bucket_queue::{QueueElement, ShiftOrderT, ShiftQueue},
     prelude::*,
     stats::AstarStats,
 };
+use num_traits::Signed;
 use pa_heuristic::{util::Timer, *};
 use pa_vis::{VisualizerInstance, VisualizerT};
 
@@ -83,16 +86,56 @@ pub fn astar_with_vis<'a, H: Heuristic>(
         states.insert(start, State { g: 0, hint });
     }
 
+    // Push semi-global states.
+    let t0 = std::time::Instant::now();
+
+    let mut done = HashSet::new();
+    done.insert(0);
+    for m in h.matches().unwrap() {
+        let i = m.start.0.abs_sub(&m.start.1);
+        if done.insert(i) {
+            let start = Pos(i, 0);
+            let (hroot, hint) = h.h_with_hint_timed(start, Default::default()).0;
+            queue.push(QueueElement {
+                f: hroot,
+                data: (start, 0),
+            });
+            stats.explored += 1;
+            // eprintln!("Insert {start} {hroot}");
+            states.insert(start, State { g: 0, hint });
+        }
+    }
+    drop(done);
+
+    // for i in 1..a.len() {
+    //     let start = Pos(i as _, 0);
+    //     let (hroot, hint) = h.h_with_hint_timed(start, Default::default()).0;
+    //     queue.push(QueueElement {
+    //         f: hroot,
+    //         data: (start, 0),
+    //     });
+    //     stats.explored += 1;
+    //     // eprintln!("Insert {start} {hroot}");
+    //     states.insert(start, State { g: 0, hint });
+    // }
+    eprintln!("Pushing states: {:?}", t0.elapsed());
+
     // Computation of h that turned out to be retry is double counted.
     // We track them and in the end subtract it from h time.
     let mut double_timed = 0.0;
     let mut retry_cnt = 0;
 
-    let _dist = loop {
+    let (final_pos, _dist) = loop {
         let reorder_timer = Timer::new(&mut retry_cnt);
-        let Some(QueueElement {f: queue_f, data: (pos, queue_g),}) = queue.pop() else {
-                panic!("priority queue is empty before the end is reached.");
-            };
+        let Some(QueueElement {
+            f: queue_f,
+            data: (pos, queue_g),
+        }) = queue.pop()
+        else {
+            panic!("priority queue is empty before the end is reached.");
+        };
+
+        // eprintln!("POP {pos}");
 
         let state = states.entry(pos).or_default();
 
@@ -150,11 +193,11 @@ pub fn astar_with_vis<'a, H: Heuristic>(
         let state = *state;
 
         // Retrace path to root and return.
-        if pos == graph.target() {
+        if pos.1 == graph.target().1 {
             if D {
                 println!("Reached target {pos} with state {state:?}");
             }
-            break state.g;
+            break (pos, state.g);
         }
 
         // Prune is needed
@@ -166,6 +209,7 @@ pub fn astar_with_vis<'a, H: Heuristic>(
         }
 
         graph.iterate_outgoing_edges(pos, |mut next, edge| {
+            // eprintln!("NEXT {next:?}");
             // Explore next
             let next_g = state.g + edge.cost() as Cost;
 
@@ -226,8 +270,9 @@ pub fn astar_with_vis<'a, H: Heuristic>(
 
     stats.hashmap_capacity = states.capacity();
     let traceback_start = instant::Instant::now();
-    let (d, path) = traceback(&states, graph.target());
-    let cigar = Cigar::from_path(graph.a, graph.b, &path);
+    let (d, path) = traceback(&states, final_pos);
+    // let cigar = Cigar::from_path(graph.a, graph.b, &path);
+    let cigar = Cigar::default();
     let end = instant::Instant::now();
 
     stats.h = h.stats();
@@ -243,11 +288,11 @@ pub fn astar_with_vis<'a, H: Heuristic>(
 
     v.last_frame(Some(&(&cigar).into()), None, Some(h));
     stats.h = h.stats();
-    assert!(
-        stats.h.h0 <= d,
-        "Heuristic at start is {} but the distance is only {d}!",
-        stats.h.h0
-    );
+    // assert!(
+    //     stats.h.h0 <= d,
+    //     "Heuristic at start is {} but the distance is only {d}!",
+    //     stats.h.h0
+    // );
     stats.distance = d;
     ((d, cigar), stats)
 }
@@ -278,10 +323,11 @@ fn traceback<'a, Hint: Default>(
     let mut cost = 0;
     let mut current = target;
     // If the state is not in the map, it was found via a match.
-    while current != Pos(0, 0) {
+    while current.1 != 0 {
         let e = parent(states, current, g - cost);
         cost += e.cost();
         current = e.back(&current).expect("No parent found for position!");
+        // eprintln!("TRACE {current}");
         path.push(current);
     }
     path.reverse();

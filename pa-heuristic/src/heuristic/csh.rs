@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use num_traits::Signed;
 use smallvec::SmallVec;
 
 use super::*;
@@ -14,7 +15,7 @@ pub struct CSH<C: Contours> {
     pub pruning: Pruning,
     // When false, gaps are free and only the max chain of matches is found.
     pub use_gap_cost: bool,
-    c: PhantomData<C>,
+    pub c: PhantomData<C>,
 }
 
 pub type DefaultCSH = CSH<HintContours<RotateToFrontContour>>;
@@ -216,9 +217,9 @@ impl<C: Contours> CSHI<C> {
         // forwarded to the Contours, but the ones with m.start <= target are
         // still needed for consistency.
         let num_matches = matches.len();
-        if params.use_gap_cost {
-            matches.retain(|m| seeds.transform(m.start) <= t_target);
-        }
+        // if params.use_gap_cost {
+        //     matches.retain(|m| seeds.transform(m.start) <= t_target);
+        // }
         let num_filtered_matches = matches.len();
 
         // Transform to Arrows.
@@ -246,8 +247,8 @@ impl<C: Contours> CSHI<C> {
             .iter()
             .rev()
             .filter(|m| m.is_active())
-            .map(match_to_arrow)
-            .filter(|a| a.end <= t_target);
+            .map(match_to_arrow);
+        // .filter(|a| a.end <= t_target);
         let contours = if let Some(mut filter) = filter {
             // NOTE: This `filter` is only used an path-pruning experiment.
             C::new_with_filter(arrows, params.match_config.r as I, |arrow, layer| {
@@ -266,7 +267,7 @@ impl<C: Contours> CSHI<C> {
                     seed_potential: params.match_config.r,
                     pruned: MatchStatus::Active,
                 };
-                let f = filter(&m, seeds.potential(m.start) - layer);
+                let f = filter(&m, seeds.potential(m.start).abs_sub(&layer));
                 if !f {
                     pruner.mut_match_start(&m).unwrap().filter();
                     pruner.mut_match_end(&m).unwrap().filter();
@@ -335,18 +336,24 @@ impl<C: Contours> CSHI<C> {
             pos
         }
     }
+
+    fn potential(&self, pos: Pos) -> Cost {
+        let rem = self.target.1 - pos.1;
+        let k = 3;
+        (rem / (k + 1)).abs_sub(&1)
+    }
 }
 
 impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     fn h(&self, pos: Pos) -> Cost {
-        let p = self.seeds.potential(pos);
+        let p = self.potential(pos);
         let val = self.contours.score(self.transform(pos));
         // FIXME: Why not max(self.distance, p-val)?
-        if val == 0 {
-            self.distance(pos, self.target)
-        } else {
-            p - val
-        }
+        // if val == 0 {
+        //     self.distance(pos, self.target)
+        // } else {
+        p.abs_sub(&val)
+        // }
     }
 
     fn layer(&self, pos: Pos) -> Option<Cost> {
@@ -365,13 +372,15 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
     }
 
     fn h_with_hint(&self, pos: Pos, hint: Self::Hint) -> (Cost, Self::Hint) {
-        let p = self.seeds.potential(pos);
+        let p = self.potential(pos);
         let (val, new_hint) = self.contours.score_with_hint(self.transform(pos), hint);
-        let ans = if val == 0 {
-            (self.distance(pos, self.target), new_hint)
-        } else {
-            (p - val, new_hint)
-        };
+        let ans =
+        //     if val == 0 {
+        //     (self.distance(pos, self.target), new_hint)
+        // } else {
+            (p.abs_sub(&val), new_hint)
+        // }
+    ;
         ans
     }
 
@@ -384,7 +393,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
 
     type Hint = C::Hint;
     fn root_potential(&self) -> Cost {
-        self.seeds.potential(Pos(0, 0))
+        self.potential(Pos(0, 0))
     }
 
     /// `seed_cost` can be used to filter out lookups for states that won't have a match ending there.

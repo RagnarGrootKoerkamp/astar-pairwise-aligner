@@ -204,9 +204,9 @@ impl<'a> MatchBuilder<'a> {
     /// Returns whether the match was added.
     fn push(&mut self, mut m: Match) {
         self.stats.pushed += 1;
-        if self.transform_filter && !(self.seeds.transform(m.start) <= self.transform_target) {
-            return;
-        }
+        // if self.transform_filter && !(self.seeds.transform(m.start) <= self.transform_target) {
+        //     return;
+        // }
         self.stats.after_transform += 1;
         if self.config.local_pruning != 0
             && !preserve_for_local_pruning(

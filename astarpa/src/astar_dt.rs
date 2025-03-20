@@ -1,9 +1,12 @@
+use std::collections::HashSet;
+
 use crate::{
     alignment_graph::*,
     bucket_queue::{QueueElement, ShiftOrderT, ShiftQueue},
     prelude::*,
     stats::AstarStats,
 };
+use num_traits::Signed;
 use pa_heuristic::{util::Timer, *};
 use pa_vis::{VisualizerInstance, VisualizerT};
 
@@ -73,12 +76,47 @@ pub fn astar_dt<'a, H: Heuristic>(
         states.insert(DtPos::from_pos(start, 0), State { fr: 0, hint });
     }
 
+    // Push semi-global states.
+    let t0 = std::time::Instant::now();
+
+    let mut done = HashSet::new();
+    done.insert(0);
+    for m in h.matches().unwrap() {
+        let i = m.start.0.abs_sub(&1);
+        if done.insert(i) {
+            let start = Pos(i, 0);
+            let (hroot, hint) = h.h_with_hint_timed(start, Default::default()).0;
+            queue.push(QueueElement {
+                f: hroot,
+                data: (start, 0),
+            });
+            stats.explored += 1;
+            // eprintln!("Insert {start} {hroot}");
+            // states.insert(start, State { g: 0, hint });
+            states.insert(DtPos::from_pos(start, 0), State { fr: i as _, hint });
+        }
+    }
+    drop(done);
+    // for i in 1..a.len() {
+    //     let start = Pos(i as _, 0);
+    //     let (hroot, hint) = h.h_with_hint_timed(start, Default::default()).0;
+    //     queue.push(QueueElement {
+    //         f: hroot,
+    //         data: (start, 0),
+    //     });
+    //     stats.explored += 1;
+    //     // eprintln!("Insert {start} {hroot}");
+    //     // states.insert(start, State { g: 0, hint });
+    //     states.insert(DtPos::from_pos(start, 0), State { fr: i as _, hint });
+    // }
+    eprintln!("Pushing states: {:?}", t0.elapsed());
+
     // Computation of h that turned out to be retry is double counted.
     // We track them and in the end subtract it from h time.
     let mut double_timed = 0.0;
     let mut retry_cnt = 0;
 
-    let dist = loop {
+    let (final_pos, dist) = loop {
         let reorder_timer = Timer::new(&mut retry_cnt);
         let Some(QueueElement {
             f: queue_f,
@@ -154,11 +192,11 @@ pub fn astar_dt<'a, H: Heuristic>(
         let state = *state;
 
         // Retrace path to root and return.
-        if pos == graph.target() {
+        if pos.1 == graph.target().1 {
             if D {
                 println!("Reached target {pos} with state {state:?}");
             }
-            break queue_g;
+            break (pos, queue_g);
         }
 
         // Prune is needed
@@ -234,8 +272,9 @@ pub fn astar_dt<'a, H: Heuristic>(
 
     stats.hashmap_capacity = states.capacity();
     let traceback_start = instant::Instant::now();
-    let (d, path) = traceback(&states, graph.target(), dist);
-    let cigar = Cigar::from_path(graph.a, graph.b, &path);
+    let (d, path) = traceback(&states, final_pos, dist);
+    // let cigar = Cigar::from_path(graph.a, graph.b, &path);
+    let cigar = Cigar::default();
     let end = instant::Instant::now();
 
     stats.h = h.stats();
@@ -250,11 +289,11 @@ pub fn astar_dt<'a, H: Heuristic>(
         - stats.timing.reordering;
 
     v.last_frame(Some(&(&cigar).into()), None, Some(h));
-    assert!(
-        stats.h.h0 <= d,
-        "Heuristic at start is {} but the distance is only {d}!",
-        stats.h.h0
-    );
+    // assert!(
+    //     stats.h.h0 <= d,
+    //     "Heuristic at start is {} but the distance is only {d}!",
+    //     stats.h.h0
+    // );
     stats.distance = d;
     ((d, cigar), stats)
 }
@@ -286,7 +325,9 @@ fn traceback<'a, Hint: Default>(
     let mut path = vec![cur_pos];
     let mut cur_dt = target_dt;
     // If the state is not in the map, it was found via a match.
-    while cur_dt != (DtPos { diagonal: 0, g: 0 }) {
+    // while cur_dt != (DtPos { diagonal: 0, g: 0 }) {
+    while cur_dt.g != 0 {
+        eprintln!("{cur_pos:?} {cur_dt}");
         let (parent_fr, edge) = dt_parent(states, cur_dt);
         cost += edge.cost();
         let next_dt = edge
@@ -319,7 +360,7 @@ fn traceback<'a, Hint: Default>(
         path.push(cur_pos);
         cur_dt = next_dt;
     }
-    while cur_pos != Pos(0, 0) {
+    while cur_pos.1 != 0 {
         cur_pos = Edge::Match.back(&cur_pos).unwrap();
         path.push(cur_pos);
     }
