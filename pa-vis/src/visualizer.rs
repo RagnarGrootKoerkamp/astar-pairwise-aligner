@@ -497,7 +497,7 @@ impl Config {
                 max_layer: None,
                 active_match: BLACK,
                 pruned_match: RED,
-                pre_pruned_match: PURPLE,
+                pre_pruned_match: (220, 220, 220, 0),
                 filtered_match: RED,
                 match_shrink: 2,
                 match_width: 2,

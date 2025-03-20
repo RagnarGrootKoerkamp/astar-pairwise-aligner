@@ -18,7 +18,7 @@ lazy_static! {
 
 thread_local! {
     static SDL_CONTEXT: Sdl = {
-        assert!(sdl2::hint::set("SDL_VIDEODRIVER", "wayland,x11"));
+        // assert!(sdl2::hint::set("SDL_VIDEODRIVER", "wayland,x11"));
         sdl2::init().unwrap()
     };
     static FONT: Font<'static, 'static> = 'font: {
