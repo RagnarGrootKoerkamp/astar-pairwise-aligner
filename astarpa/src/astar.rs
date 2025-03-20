@@ -208,7 +208,7 @@ pub fn astar_with_vis<'a, H: Heuristic>(
             }
         }
 
-        graph.iterate_outgoing_edges(pos, |mut next, edge| {
+        let mut f = |mut next: Pos, edge: Edge| {
             // eprintln!("NEXT {next:?}");
             // Explore next
             let next_g = state.g + edge.cost() as Cost;
@@ -265,7 +265,18 @@ pub fn astar_with_vis<'a, H: Heuristic>(
             h.explore(next);
             stats.explored += 1;
             v.explore(next, next_g, next_f, Some(h));
-        });
+        };
+        // Semi-global: go left on the top.
+        if pos.1 == 0 && pos.0 > 0 {
+            // artificial edge with cost 0.
+            f(Pos(pos.0 - 1, 0), Edge::Match);
+        }
+        if pos.1 == 0 && pos.0 < graph.target.0 {
+            // artificial edge with cost 0.
+            f(Pos(pos.0 + 1, 0), Edge::Match);
+        }
+
+        graph.iterate_outgoing_edges(pos, f);
     };
 
     stats.hashmap_capacity = states.capacity();
