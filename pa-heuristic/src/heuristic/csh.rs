@@ -457,10 +457,8 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
                     *pt
                 };
                 self.matches.matches_for_start(p).map(|ms| {
-                    ms.iter()
-                        .filter(|m| m.is_active())
-                        .map(match_to_arrow)
-                        .filter(|a| a.end <= self.t_target)
+                    ms.iter().filter(|m| m.is_active()).map(match_to_arrow)
+                    // .filter(|a| a.end <= self.t_target)
                 })
             });
             if p == pos {
