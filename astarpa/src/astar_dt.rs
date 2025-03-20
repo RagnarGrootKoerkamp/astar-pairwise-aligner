@@ -82,34 +82,28 @@ pub fn astar_dt<'a, H: Heuristic>(
     let mut done = HashSet::new();
     done.insert(0);
     for m in h.matches().unwrap() {
-        let i = m.start.0.abs_sub(&1);
-        if done.insert(i) {
-            let start = Pos(i, 0);
-            let (hroot, hint) = h.h_with_hint_timed(start, Default::default()).0;
-            queue.push(QueueElement {
-                f: hroot,
-                data: (start, 0),
-            });
-            stats.explored += 1;
-            // eprintln!("Insert {start} {hroot}");
-            // states.insert(start, State { g: 0, hint });
-            states.insert(DtPos::from_pos(start, 0), State { fr: i as _, hint });
+        let i = m.start.0.abs_sub(&m.start.1);
+
+        for delta in -20..20 {
+            if i + delta >= 0 && i + delta <= graph.target.0 {
+                let i = i + delta;
+                if done.insert(i) {
+                    let start = Pos(i, 0);
+                    let (hroot, hint) = h.h_with_hint_timed(start, Default::default()).0;
+                    queue.push(QueueElement {
+                        f: hroot,
+                        data: (start, 0),
+                    });
+                    stats.explored += 1;
+                    eprintln!("Insert START {start} {hroot}");
+
+                    states.insert(DtPos::from_pos(start, 0), State { fr: i as _, hint });
+                }
+            }
         }
     }
     drop(done);
-    // for i in 1..a.len() {
-    //     let start = Pos(i as _, 0);
-    //     let (hroot, hint) = h.h_with_hint_timed(start, Default::default()).0;
-    //     queue.push(QueueElement {
-    //         f: hroot,
-    //         data: (start, 0),
-    //     });
-    //     stats.explored += 1;
-    //     // eprintln!("Insert {start} {hroot}");
-    //     // states.insert(start, State { g: 0, hint });
-    //     states.insert(DtPos::from_pos(start, 0), State { fr: i as _, hint });
-    // }
-    eprintln!("Pushing states: {:?}", t0.elapsed());
+    // eprintln!("Pushing states: {:?}", t0.elapsed());
 
     // Computation of h that turned out to be retry is double counted.
     // We track them and in the end subtract it from h time.
@@ -207,7 +201,8 @@ pub fn astar_dt<'a, H: Heuristic>(
             }
         }
 
-        graph.iterate_outgoing_edges(pos, |mut next, edge| {
+        let mut f = |mut next, edge: Edge| {
+            let next0 = next;
             // Explore next
             let next_g = queue_g + edge.cost() as Cost;
             let dt_next = DtPos::from_pos(next, next_g);
@@ -220,7 +215,7 @@ pub fn astar_dt<'a, H: Heuristic>(
             };
 
             // Do greedy matching within the current seed.
-            if graph.greedy_matching {
+            if graph.greedy_matching && next.1 > 0 {
                 while let Some(n) = graph.is_match(next) {
                     // Never greedy expand the start of a seed.
                     // Doing so may cause problems when h is not consistent and is
@@ -254,7 +249,7 @@ pub fn astar_dt<'a, H: Heuristic>(
             // Open next
             if D {
                 println!(
-                    "Open   {next_f}: {next} g={next_g} fr={next_fr} cur_fr={} from {pos}",
+                    "Open   {next_f}: {next} g={next_g} h={next_h} fr={next_fr} cur_fr={} from {pos}",
                     cur_next.fr
                 );
             }
@@ -267,8 +262,34 @@ pub fn astar_dt<'a, H: Heuristic>(
             h.explore(next);
             stats.explored += 1;
             v.explore(next, next_g, next_f, Some(h));
-        });
+        };
+        // Semi-global: go left on the top.
+        // let LengthConfig::Fixed(k) = h.length_config();
+        // FIXME: Steps of +-1 and +-k is good enough.
+        for delta in -20..20 {
+            if pos.1 == 0 && pos.0 + delta >= 0 && pos.0 + delta <= graph.target.0 {
+                // artificial edge with cost 0.
+                // eprintln!(
+                //     "Push to left: {pos} -> {} queue g {}",
+                //     Pos(pos.0 - 1, 0),
+                //     queue_g
+                // );
+                f(Pos(pos.0 + delta, 0), Edge::Match);
+            }
+        }
+        // if pos.1 == 0 && pos.0 < graph.target.0 {
+        //     // artificial edge with cost 0.
+        //     // eprintln!(
+        //     //     "Push to right: {pos} -> {} queue g {}",
+        //     //     Pos(pos.0 + 1, 0),
+        //     //     queue_g
+        //     // );
+        //     f(Pos(pos.0 + 1, 0), Edge::Match);
+        // }
+        graph.iterate_outgoing_edges(pos, f);
     };
+
+    eprintln!("FINAL POS {final_pos} DIST {dist}");
 
     stats.hashmap_capacity = states.capacity();
     let traceback_start = instant::Instant::now();
