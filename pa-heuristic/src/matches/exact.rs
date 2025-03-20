@@ -52,6 +52,21 @@ fn hash_to_smallvec(
     for (i, q) in qgrams_hashed {
         h.entry(q as Key).or_default().push(i as I);
     }
+    lookup_matches(qgrams_lookup, matches, k, to_pos, h);
+}
+
+fn lookup_matches(
+    qgrams_lookup: impl Iterator<Item = (i32, usize)>,
+    matches: &mut MatchBuilder<'_>,
+    k: i32,
+    to_pos: impl Fn(i32, i32) -> Pos,
+    h: std::collections::HashMap<
+        u32,
+        SmallVec<[i32; 2]>,
+        std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
+    >,
+) {
+    type Key = u32;
     for (j, q) in qgrams_lookup {
         if let Some(is) = h.get(&(q as Key)) {
             for &i in is {
