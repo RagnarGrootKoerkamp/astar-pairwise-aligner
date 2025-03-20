@@ -33,7 +33,7 @@ impl Profile for ScatterProfile {
                 b'c' | b'C' => 1,
                 b't' | b'T' => 2,
                 b'g' | b'G' => 3,
-                _ => panic!(),
+                _ => panic!("Unknown base {}", c as char),
             }
         }
         fn get_mask(c: u8) -> [u64; 4] {
