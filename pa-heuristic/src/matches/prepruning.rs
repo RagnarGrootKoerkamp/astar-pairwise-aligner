@@ -185,6 +185,8 @@ pub fn preserve_for_local_pruning(
             let old_i = *i;
 
             // If reached end of range => KEEP MATCH.
+            // Adjustment for semi global:
+            let end_i = min(end_i, *i + b.len() as I - j);
             if extend_right_simd_viz(a, b, i, j, end_i, expand) {
                 stats[g as usize] += 1;
                 return true;
