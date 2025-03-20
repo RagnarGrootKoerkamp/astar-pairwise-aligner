@@ -337,10 +337,19 @@ impl<C: Contours> CSHI<C> {
         }
     }
 
-    fn potential(&self, pos: Pos) -> Cost {
+    fn potential(&self, mut pos: Pos) -> Cost {
+        let p0 = pos;
+        // 1. Walk diagonally to start of next seed for free.
+        while pos.0 < self.target.0 && !self.seeds.is_seed_start(pos) {
+            pos = pos + Pos(1, 1);
+        }
+
+        // 2. take k+1 steps down for each seed.
         let rem = self.target.1 - pos.1;
-        let k = 3;
-        (rem / (k + 1)).abs_sub(&1)
+        let LengthConfig::Fixed(k) = self.params.match_config.length else {
+            panic!();
+        };
+        (rem / (k + 1)).abs_sub(&0)
     }
 }
 
