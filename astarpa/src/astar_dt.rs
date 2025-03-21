@@ -12,6 +12,8 @@ use pa_vis::{VisualizerInstance, VisualizerT};
 
 const D: bool = false;
 
+const BUF: I = 0;
+
 #[derive(Clone, Copy, Debug)]
 struct State<Hint> {
     pub fr: I,
@@ -86,7 +88,7 @@ pub fn astar_dt<'a, H: Heuristic>(
     for m in h.matches().unwrap() {
         let i = m.start.0.abs_sub(&m.start.1);
 
-        for delta in -20..20 {
+        for delta in -BUF..=BUF {
             if i + delta >= 0 && i + delta <= graph.target.0 {
                 let i = i + delta;
                 if done.insert(i) {
@@ -268,7 +270,7 @@ pub fn astar_dt<'a, H: Heuristic>(
         // Semi-global: go left on the top.
         // let LengthConfig::Fixed(k) = h.length_config();
         // FIXME: Steps of +-1 and +-k is good enough.
-        for delta in -20..20 {
+        for delta in -BUF..=BUF {
             if pos.1 == 0 && pos.0 + delta >= 0 && pos.0 + delta <= graph.target.0 {
                 // artificial edge with cost 0.
                 // eprintln!(
