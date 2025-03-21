@@ -2,6 +2,7 @@ pub mod bruteforce;
 pub mod hint_contours;
 pub mod rotate_to_front;
 pub mod sh_contours;
+pub mod sorted_contour;
 
 pub use bruteforce::*;
 pub use hint_contours::*;
