@@ -308,7 +308,7 @@ impl<'a> MatchBuilder<'a> {
 
     fn finish(mut self) -> Matches {
         // First sort by start, then by end, then by match cost.
-        self.sort();
+        // self.sort();
         // Dedup to only keep the lowest match cost between each start and end.
         self.matches.dedup_by_key(|m| (m.start, m.end));
 

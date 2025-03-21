@@ -211,10 +211,12 @@ impl<C: Contour> Contours for HintContours<C> {
     // NOTE: Arrows must satisfy the following 'consistency' properties:
     // - If there is an arrow A->B of cost c>1, there is also an arrow A'->B of cost c-1, where A' is an indel away from A.
     fn new_with_filter(
-        arrows: Vec<Arrow>,
+        mut arrows: Vec<Arrow>,
         max_len: Cost,
         mut filter: impl FnMut(&Arrow, Cost) -> bool,
     ) -> Self {
+        arrows.sort_by_key(|a| (a.start.0, -a.start.1));
+
         let mut this = HintContours {
             contours: {
                 let mut c = SplitVec::default();
@@ -226,32 +228,85 @@ impl<C: Contour> Contours for HintContours<C> {
             layers_removed: 0,
         };
         this.contours[0usize].push(Pos(I::MAX, I::MAX));
+
+        let mut front = vec![I::MIN + 1; 8];
+        front[0] = I::MAX;
+
         // Loop over all arrows from a given positions.
-        for (start, pos_arrows) in &arrows.into_iter().group_by(|a| a.start) {
-            let mut v = 0;
-            let mut l = 0;
-            // TODO: The this.score() could also be implemented using a fenwick tree, as done in LCSk++.
-            for a in pos_arrows {
-                let nv = this.score(a.end) + a.score as Cost;
-                // Filter out arrows where filter returns false.
-                if !filter(&a, nv) {
-                    continue;
+        for (start, pos_arrows) in &arrows.into_iter().rev().group_by(|a| a.start) {
+            // let mut v = 0;
+            // let mut l = 0;
+            // // TODO: The this.score() could also be implemented using a fenwick tree, as done in LCSk++.
+            // let mut pi = 0;
+            // for a in pos_arrows {
+            //     assert_eq!(start + Pos(1, 1), a.end);
+            //     pi += 1;
+            //     let nv = this.score(a.end) + a.score as Cost;
+            //     // Filter out arrows where filter returns false.
+            //     if !filter(&a, nv) {
+            //         continue;
+            //     }
+            //     v = max(v, nv as Layer);
+            //     l = max(l, a.score);
+            // }
+
+            // {
+            //     eprintln!("New arrow at {start} in layer {v}");
+            //     // check front value
+            //     let v = v - 1;
+            //     let ej = start.1 + 1;
+            //     eprintln!(
+            //         "ok chain:        {ej} <= front[{v}] = {}",
+            //         front[v as usize]
+            //     );
+            //     assert!(ej <= front[v as usize]);
+            //     eprintln!(
+            //         "no better chain: {ej} >  front[{}] = {}",
+            //         v + 1,
+            //         front.get(v as usize + 1).unwrap_or(&I::MIN)
+            //     );
+            //     assert!(ej > *front.get(v as usize + 1).unwrap_or(&I::MIN));
+            // }
+            let v = {
+                let t = start.1 + 1;
+                // Search the first 8 layers using SIMD.
+                let v3: usize = front[0..8].iter().map(|x| (t <= *x) as usize).sum();
+
+                if v3 >= 8 {
+                    let v2 = front.binary_search_by_key(&-t, |x| -x);
+                    v2.unwrap_or_else(|x| x - 1) + 1
+                } else {
+                    v3
                 }
-                v = max(v, nv as Layer);
-                l = max(l, a.score);
-            }
-            if v == 0 {
-                // All arrows at pos filtered out.
-                continue;
-            }
-            if (this.contours.len() as Layer) <= v {
+
+                // assert_eq!(
+                //     v2i,
+                //     v as usize,
+                //     "Wanted layer {v}, got result {v2:?} into {v2i}. Searched for {}",
+                //     start.1 + 1
+                // );
+            };
+
+            assert!(v > 0);
+
+            // assert_eq!(pi, 1);
+            // if v == 0 {
+            // All arrows at pos filtered out.
+            // continue;
+            // }
+            if this.contours.len() <= v {
                 this.contours
-                    .resize_with(v as usize + 1, || C::with_max_len(max_len));
+                    .resize_with(v + 1, || C::with_max_len(max_len));
+            }
+            if front.len() <= v {
+                front.resize(v + 1, I::MIN);
             }
             this.contours[v].push(start);
+            front[v] = max(front[v], start.1);
+            // eprintln!("{front:?}");
         }
 
-        if false {
+        if true {
             eprintln!("LAYERS {}", this.contours.len());
             let mut i = 0;
             for x in &this.contours {
