@@ -1,0 +1,31 @@
+[package]
+name = "astar-map"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+pa-types.workspace = true
+pa-generate.workspace = true
+pa-heuristic.workspace = true
+astarpa.workspace = true
+astarpa2.workspace = true
+itertools.workspace = true
+clap.workspace = true
+serde.workspace = true
+bio.workspace = true
+rand_chacha.workspace = true
+rand.workspace = true
+pa-bitpacking.workspace = true
+pa-vis.workspace = true
+needletail = "0.6.3"
+smallvec = "1.14.0"
+packed-seq = "1.0.2"
+log = "0.4.26"
+env_logger = "0.11.7"
+
+[features]
+# Needed to correctly show pruned matches in visualizations.
+example = ["pa-heuristic/example", "astarpa2/example"]
+sdl = ["pa-vis/sdl"]
+default = []
