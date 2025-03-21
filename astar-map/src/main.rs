@@ -8,24 +8,16 @@ use std::{
     collections::HashMap,
     fs::File,
     io::BufReader,
-    marker::PhantomData,
     path::PathBuf,
     time::{Duration, Instant},
 };
 
-use astarpa::{stats::AstarStats, AstarPa};
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use itertools::Itertools;
 use log::info;
-use pa_heuristic::{
-    contour::{sorted_contour::SortedContour, HintContours},
-    MatchConfig, Prune, Pruning, CSH,
-};
 use pa_types::{Pos, I};
-use pa_vis::NoVis;
 use packed_seq::{PackedSeqVec, Seq, SeqVec};
-use smallvec::SmallVec;
 
 #[derive(Parser)]
 pub struct Cli {
@@ -66,7 +58,7 @@ fn main() {
 
     let start = Instant::now();
 
-    let mut all_stats = AstarStats::default();
+    // let mut all_stats = AstarStats::default();
 
     for (_i, text) in texts.by_ref().take(1).enumerate() {
         if args.map {
@@ -79,27 +71,28 @@ fn main() {
             let seq = pattern.seq();
 
             if args.astar {
-                let k = args.k as _;
-                let mut match_config = MatchConfig::exact(k);
-                match_config.local_pruning = args.lp;
+                todo!();
+                // let k = args.k as _;
+                // let mut match_config = MatchConfig::exact(k);
+                // match_config.local_pruning = args.lp;
 
-                let pruning1 = Pruning::new(Prune::None);
+                // let pruning1 = Pruning::new(Prune::None);
 
-                let h = CSH {
-                    match_config,
-                    pruning: pruning1,
-                    use_gap_cost: true,
-                    c: PhantomData::<HintContours<SortedContour>>,
-                };
-                let ((cost, _cigar), stats) = AstarPa {
-                    dt: true,
-                    h,
-                    v: NoVis,
-                }
-                .align(text.seq(), seq);
-                eprintln!("Cost {cost}");
-                eprintln!("stats {stats:?}");
-                all_stats += stats;
+                // let h = CSH {
+                //     match_config,
+                //     pruning: pruning1,
+                //     use_gap_cost: true,
+                //     c: PhantomData::<HintContours<SortedContour>>,
+                // };
+                // let ((cost, _cigar), stats) = AstarPa {
+                //     dt: true,
+                //     h,
+                //     v: NoVis,
+                // }
+                // .align(text.seq(), seq);
+                // eprintln!("Cost {cost}");
+                // eprintln!("stats {stats:?}");
+                // all_stats += stats;
             } else {
                 let result = pa_bitpacking::search::search(seq, text.seq(), args.u);
                 // println!("{:?}", result.out);
@@ -127,9 +120,9 @@ fn main() {
             }
         }
     }
-    if !args.map {
-        eprintln!("ALL STATS\n{all_stats:?}");
-    }
+    // if !args.map {
+    //     eprintln!("ALL STATS\n{all_stats:?}");
+    // }
     assert_eq!(
         texts.next(),
         None,
