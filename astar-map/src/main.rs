@@ -151,17 +151,42 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
 
     // 1. Build hashmap of k-mers in the text.
     type Key = u64;
-    let mut text_kmers = HashMap::<Key, SmallVec<[I; 4]>>::default();
-    {
-        let packed_text = PackedSeqVec::from_ascii(text);
+    // let mut text_kmers = HashMap::<Key, SmallVec<[I; 4]>>::default();
+    // {
+    //     let packed_text = PackedSeqVec::from_ascii(text);
 
-        for i in (0..=n - k).step_by(k as _) {
-            let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
-            text_kmers.entry(kmer).or_default().push(i);
-        }
+    //     for i in (0..=n - k).step_by(k as _) {
+    //         let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
+    //         text_kmers.entry(kmer).or_default().push(i);
+    //     }
+    // }
+    // t.done("Indexing text");
+    let mut idx = HashMap::<Key, (u32, u32)>::default();
+    let packed_text = PackedSeqVec::from_ascii(text);
+
+    idx.reserve((n / k) as usize);
+    for i in (0..=n - k).step_by(k as _) {
+        let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
+        idx.entry(kmer).or_default().1 += 1;
     }
+    t.done("Indexing text: count");
 
-    t.done("Indexing text");
+    let mut acc = 0;
+    for cnt in idx.values_mut() {
+        cnt.0 = acc;
+        acc += cnt.1;
+    }
+    t.done("Indexing text: acc");
+
+    let mut pos = vec![0; acc as usize];
+
+    for i in (0..=n - k).step_by(k as _) {
+        let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
+        let (idx, _cnt) = idx.get_mut(&kmer).unwrap();
+        pos[*idx as usize] = i as I;
+        *idx += 1;
+    }
+    t.done("Indexing text: fill");
 
     // 2. Set up helper functions.
 
@@ -197,9 +222,11 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
         let mut t_matches = vec![];
         {
             let packed_pat = PackedSeqVec::from_ascii(pat);
+            t.done("Pack pattern");
             for j in 0..=m - k {
                 let kmer = packed_pat.slice(j as _..(j + k) as _).to_word() as Key;
-                if let Some(is) = text_kmers.get(&kmer) {
+                if let Some(&(end, cnt)) = idx.get(&kmer) {
+                    let is = &pos[(end - cnt) as usize..end as usize];
                     t_matches.extend(is.iter().map(|&i| transform(Pos(i, j))));
                 }
             }
