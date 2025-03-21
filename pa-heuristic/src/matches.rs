@@ -142,7 +142,7 @@ struct MatchBuilder<'a> {
     local_pruning_cache: [Vec<I>; 3],
 
     /// The i of the next (left/topmost) match on each diagonal.
-    next_match_per_diag: CenteredVec<I>,
+    next_match_per_diag: HashMap<I, I>,
 
     stats: MatchStats,
 }
@@ -173,7 +173,7 @@ impl<'a> MatchBuilder<'a> {
             local_pruning_cache: Default::default(),
             stats: MatchStats::default(),
             // Make space for the 0 and target diagonal, and 10 padding on each side.
-            next_match_per_diag: CenteredVec::new(d, I::MAX),
+            next_match_per_diag: HashMap::default(),
         }
     }
 
@@ -196,7 +196,7 @@ impl<'a> MatchBuilder<'a> {
             local_pruning_cache: Default::default(),
             stats: MatchStats::default(),
             // Make space for the 0 and target diagonal, and 10 padding on each side.
-            next_match_per_diag: CenteredVec::new(d, I::MAX),
+            next_match_per_diag: HashMap::default(),
         }
     }
 
@@ -235,7 +235,7 @@ impl<'a> MatchBuilder<'a> {
 
         if self.config.local_pruning != 0 {
             let d = m.start.0 - m.start.1;
-            let old = self.next_match_per_diag.index_mut(d);
+            let old = self.next_match_per_diag.entry(d).or_insert(I::MAX);
             assert!(
                 *old >= m.start.0,
                 "Matches should be added in reverse order (right-to-left or bot-to-top) on each diagonal."

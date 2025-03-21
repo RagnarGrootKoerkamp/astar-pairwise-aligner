@@ -99,7 +99,7 @@ pub fn preserve_for_local_pruning(
     m: &Match,
     p: usize,
     [fr, next_fr, stats]: &mut [Vec<I>; 3],
-    next_match_per_diag: &mut CenteredVec<I>,
+    next_match_per_diag: &mut rustc_hash::FxHashMap<I, I>,
     expand: &mut impl FnMut(Pos),
 ) -> bool {
     if p == 0 {
@@ -137,7 +137,7 @@ pub fn preserve_for_local_pruning(
         stats[0] += 1;
         return true;
     }
-    if next_match_per_diag.index(e.0 - e.1) <= fr[pd] {
+    if *next_match_per_diag.get(&(e.0 - e.1)).unwrap_or(&I::MAX) <= fr[pd] {
         stats[0] += 1;
         return true;
     }
@@ -194,7 +194,8 @@ pub fn preserve_for_local_pruning(
 
             // If reached *the start* of an existing match => KEEP MATCH.
             // We check that the start is covered by the current extend.
-            if old_i <= next_match_per_diag.index(dd) && next_match_per_diag.index(dd) <= *i {
+            let get = *next_match_per_diag.get(&dd).unwrap_or(&I::MAX);
+            if old_i <= get && get <= *i {
                 stats[g as usize] += 1;
                 return true;
             }
