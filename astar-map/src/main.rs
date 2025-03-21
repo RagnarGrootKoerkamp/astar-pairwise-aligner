@@ -297,11 +297,15 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
 
         // for layer in 0..contours.len() {
         //     let ms = &contours[layer];
-        //     eprintln!("Layer {layer} of len {}: {ms:?}", ms.len());
+        //     if ms.len() > 1 {
+        //         eprintln!("Layer {layer} of len {}", ms.len());
+        //     }
         //     if ms.is_empty() {
         //         break;
         //     }
         // }
+    }
+}
 
 #[inline(never)]
 fn index_text(
