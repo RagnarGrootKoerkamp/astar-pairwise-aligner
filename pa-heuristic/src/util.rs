@@ -9,6 +9,10 @@ pub struct Timer(Option<(usize, Instant)>);
 
 impl Timer {
     #[inline]
+    pub fn once() -> Timer {
+        Self::each(1, &mut 0)
+    }
+    #[inline]
     pub fn new(cnt: &mut usize) -> Timer {
         Self::each(TIME_EACH, cnt)
     }

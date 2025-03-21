@@ -46,7 +46,7 @@ pub struct SHI {
 
 impl SHI {
     fn new(a: Seq, b: Seq, params: SH) -> Self {
-        let Matches { seeds, matches } = find_matches(a, b, params.match_config, false);
+        let Matches { seeds, matches, .. } = find_matches(a, b, params.match_config, false);
 
         let contours = ShContours::new(
             &seeds,

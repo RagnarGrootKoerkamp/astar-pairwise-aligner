@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use astarpa::AstarPa;
+use astarpa::{stats::AstarStats, AstarPa};
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use itertools::Itertools;
@@ -67,6 +67,9 @@ fn main() {
         .collect_vec();
 
     let start = Instant::now();
+
+    let mut all_stats = AstarStats::default();
+
     for (_i, text) in texts.by_ref().take(1).enumerate() {
         for (j, pattern) in patterns.iter().enumerate() {
             eprintln!("\n\n PATTERN {j}\n");
@@ -93,6 +96,7 @@ fn main() {
                 .align(text.seq(), seq);
                 eprintln!("Cost {cost}");
                 eprintln!("stats {stats:?}");
+                all_stats += stats;
             } else {
                 let result = pa_bitpacking::search::search(seq, text.seq(), args.u);
                 // println!("{:?}", result.out);
@@ -120,6 +124,7 @@ fn main() {
             }
         }
     }
+    eprintln!("ALL STATS\n{all_stats:?}");
     assert_eq!(
         texts.next(),
         None,

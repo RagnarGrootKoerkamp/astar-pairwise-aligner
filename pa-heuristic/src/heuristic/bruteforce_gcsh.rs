@@ -62,7 +62,9 @@ where
     DH::DistanceInstance<'a>: DistanceInstance<'a>,
 {
     fn new(a: Seq<'a>, b: Seq<'a>, params: BruteForceGCSH<DH>) -> Self {
-        let Matches { seeds, mut matches } = find_matches(a, b, params.match_config, false);
+        let Matches {
+            seeds, mut matches, ..
+        } = find_matches(a, b, params.match_config, false);
         matches.sort_by_key(|m| LexPos(m.start));
         let num_matches = matches.len();
         let num_filtered_matches = matches.len();

@@ -204,21 +204,27 @@ impl<C: Contours> CSHI<C> {
         filter: Option<impl FnMut(&Match, Cost) -> bool>,
         params: CSH<C>,
     ) -> Self {
-        let Matches { seeds, mut matches } =
-            find_matches(a, b, params.match_config, params.use_gap_cost);
+        let timer = Timer::once();
+        let Matches {
+            seeds,
+            matches,
+            all_matches,
+        } = find_matches(a, b, params.match_config, params.use_gap_cost);
         let target = Pos::target(a, b);
         let t_target = if params.use_gap_cost {
             seeds.transform(target)
         } else {
             target
         };
+        let mut find_matches = 0.;
+        timer.end(&mut find_matches);
 
         // Filter matches: only keep matches with m.start <= target.
         // NOTE: Only matches m.end <= target can be used in chains and
         // forwarded to the Contours, but the ones with m.start <= target are
         // still needed for consistency.
-        let num_matches = matches.len();
-        eprintln!("MATCHES: {num_matches}");
+        let num_matches = all_matches;
+        // eprintln!("MATCHES: {num_matches}");
         // if params.use_gap_cost {
         //     matches.retain(|m| seeds.transform(m.start) <= t_target);
         // }
@@ -287,6 +293,8 @@ impl<C: Contours> CSHI<C> {
         } else {
             C::new(arrows, params.match_config.r as I)
         };
+        let mut build_contours = 0.0;
+        timer.end(&mut build_contours);
         eprintln!("CONTOURS DONE");
 
         let mut h = CSHI {
@@ -296,7 +304,11 @@ impl<C: Contours> CSHI<C> {
             t_target,
             seeds,
             matches: pruner,
-            stats: HeuristicStats::default(),
+            stats: HeuristicStats {
+                find_matches,
+                build_contours,
+                ..HeuristicStats::default()
+            },
 
             // For pruning propagation
             max_transformed_pos: Pos(I::MIN, I::MIN),

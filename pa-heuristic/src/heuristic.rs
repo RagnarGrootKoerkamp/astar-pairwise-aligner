@@ -26,6 +26,9 @@ pub struct HeuristicStats {
     pub h0_end: Cost,
 
     // Timers
+    pub find_matches: f64,
+    pub build_contours: f64,
+
     pub prune_duration: f64,
     pub prune_calls: usize,
 

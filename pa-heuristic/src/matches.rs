@@ -337,6 +337,7 @@ impl<'a> MatchBuilder<'a> {
         Matches {
             seeds: self.seeds,
             matches: self.matches,
+            all_matches: self.stats.pushed,
         }
     }
 }
@@ -347,6 +348,9 @@ pub struct Matches {
     /// Sorted by start (i, j).
     /// Empty for unordered matching.
     pub matches: Vec<Match>,
+
+    /// Number of matches before local pruning.
+    pub all_matches: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
