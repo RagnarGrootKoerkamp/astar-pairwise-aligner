@@ -19,6 +19,7 @@ bio.workspace = true
 rand_chacha.workspace = true
 rand.workspace = true
 parse_duration0 = "3"
+needletail = "0.6.3"
 
 [dev-dependencies]
 # Dependencies used by the examples.
