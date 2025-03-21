@@ -205,7 +205,11 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
 
         // 5. Sort matches
         // First left-to-right, then bottom-to-top.
-        t_matches.sort_unstable_by_key(|&TPos(x, y)| (x, -y));
+        // single-threaded radsort.
+        // TODO: Compress the range of y so that fewer rounds are needed for it.
+        // It should be sufficient to sort by j only, which has smaller range.
+        // HOT
+        radsort::sort_by_key(&mut t_matches, |&TPos(x, y)| (x, -y));
         t.done("Sorting matches");
 
         // 6. Do the chaining, via the classic LCP algorithm.
