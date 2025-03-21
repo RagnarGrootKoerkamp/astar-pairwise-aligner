@@ -229,8 +229,10 @@ impl<C: Contour> Contours for HintContours<C> {
         };
         this.contours[0usize].push(Pos(I::MAX, I::MAX));
 
-        let mut front = vec![I::MIN + 1; 8];
+        let mut front = vec![I::MIN + 1; 16];
         front[0] = I::MAX;
+
+        let mut lastv = 1usize;
 
         // Loop over all arrows from a given positions.
         for (start, pos_arrows) in &arrows.into_iter().rev().group_by(|a| a.start) {
@@ -267,17 +269,26 @@ impl<C: Contour> Contours for HintContours<C> {
             //     );
             //     assert!(ej > *front.get(v as usize + 1).unwrap_or(&I::MIN));
             // }
-            let v = {
+            let v = 'v: {
                 let t = start.1 + 1;
-                // Search the first 8 layers using SIMD.
-                let v3: usize = front[0..8].iter().map(|x| (t <= *x) as usize).sum();
-
-                if v3 >= 8 {
-                    let v2 = front.binary_search_by_key(&-t, |x| -x);
-                    v2.unwrap_or_else(|x| x - 1) + 1
-                } else {
-                    v3
+                let offset = lastv.saturating_sub(5);
+                // Search around the previous layer using SIMD.
+                let v_offset: usize = front[offset..offset + 8]
+                    .iter()
+                    .map(|x| (t <= *x) as usize)
+                    .sum();
+                if 0 < v_offset && v_offset < 8 {
+                    break 'v offset + v_offset;
                 }
+
+                // Search the first 8 layers using SIMD.
+                let v_bot: usize = front[0..8].iter().map(|x| (t <= *x) as usize).sum();
+                if v_bot < 8 {
+                    break 'v v_bot;
+                }
+
+                let v_bs = front.binary_search_by_key(&-t, |x| -x);
+                v_bs.unwrap_or_else(|x| x - 1) + 1
 
                 // assert_eq!(
                 //     v2i,
@@ -286,6 +297,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 //     start.1 + 1
                 // );
             };
+            lastv = v;
 
             assert!(v > 0);
 
@@ -298,15 +310,15 @@ impl<C: Contour> Contours for HintContours<C> {
                 this.contours
                     .resize_with(v + 1, || C::with_max_len(max_len));
             }
-            if front.len() <= v {
-                front.resize(v + 1, I::MIN);
+            if front.len() <= v + 16 {
+                front.resize(v + 16, I::MIN);
             }
             this.contours[v].push(start);
             front[v] = max(front[v], start.1);
             // eprintln!("{front:?}");
         }
 
-        if true {
+        if false {
             eprintln!("LAYERS {}", this.contours.len());
             let mut i = 0;
             for x in &this.contours {
