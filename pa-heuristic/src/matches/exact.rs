@@ -22,7 +22,6 @@ pub fn hash_a<'a>(a: Seq<'a>, b: Seq<'a>, config: MatchConfig, transform_filter:
     hash_to_smallvec(q.a_qgrams(k), q.b_qgrams_rev(k), &mut matches, k, |i, j| {
         Pos(i, j)
     });
-    matches.sort();
     matches.finish()
 }
 
@@ -35,7 +34,6 @@ pub fn hash_b<'a>(a: Seq<'a>, b: Seq<'a>, config: MatchConfig, transform_filter:
     hash_to_smallvec(q.b_qgrams(k), q.a_qgrams_rev(k), &mut matches, k, |j, i| {
         Pos(i, j)
     });
-    matches.sort();
     matches.finish()
 }
 
@@ -109,7 +107,6 @@ pub fn hash_a_single<'a>(
     let q = QGrams::new(a, b);
     let mut matches = MatchBuilder::new(&q, config, transform_filter);
     hash_to_single_vec(q.a_qgrams(k), q.b_qgrams_rev(k), &mut matches, k, Pos);
-    matches.sort();
     matches.finish()
 }
 
@@ -127,7 +124,6 @@ pub fn hash_b_single<'a>(
     hash_to_single_vec(q.b_qgrams(k), q.a_qgrams_rev(k), &mut matches, k, |j, i| {
         Pos(i, j)
     });
-    matches.sort();
     matches.finish()
 }
 
@@ -197,7 +193,6 @@ pub fn hash_a_qgram_index<'a>(
     let q = QGrams::new(a, b);
     let mut matches = MatchBuilder::new(&q, config, transform_filter);
     qgram_index(q.a_qgrams(k), q.b_qgrams_rev(k), &mut matches, k, Pos);
-    matches.sort();
     matches.finish()
 }
 
@@ -215,7 +210,6 @@ pub fn hash_b_qgram_index<'a>(
     qgram_index(q.b_qgrams(k), q.a_qgrams_rev(k), &mut matches, k, |j, i| {
         Pos(i, j)
     });
-    matches.sort();
     matches.finish()
 }
 
@@ -500,7 +494,6 @@ pub fn hash_a_sliding_window<'a>(
             }
         }
     }
-    matches.sort();
     matches.finish()
 }
 
