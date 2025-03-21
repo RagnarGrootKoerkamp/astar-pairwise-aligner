@@ -211,7 +211,7 @@ impl<C: Contour> Contours for HintContours<C> {
     // NOTE: Arrows must satisfy the following 'consistency' properties:
     // - If there is an arrow A->B of cost c>1, there is also an arrow A'->B of cost c-1, where A' is an indel away from A.
     fn new_with_filter(
-        arrows: impl IntoIterator<Item = Arrow>,
+        arrows: Vec<Arrow>,
         max_len: Cost,
         mut filter: impl FnMut(&Arrow, Cost) -> bool,
     ) -> Self {

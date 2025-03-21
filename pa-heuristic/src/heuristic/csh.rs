@@ -245,14 +245,20 @@ impl<C: Contours> CSHI<C> {
 
         // Matches are sorted by reversed start (the order needed to construct contours).
         // TODO: Can we get rid of this ugly temporary copy somehow?
-        let copied_matches = pruner.iter().cloned().collect_vec();
-        let arrows = copied_matches
+        let mut arrows = pruner
             .iter()
-            .rev()
             .filter(|m| m.is_active())
-            .map(match_to_arrow);
+            .map(match_to_arrow)
+            .collect_vec();
+        arrows.sort_by_key(|a| LexPos(a.start));
+        // let a0 = arrows.len();
+        // arrows.dedup_by_key(|a| a.start);
+        // let a1 = arrows.len();
+        // assert_eq!(a0, a1, "Duplicate arrows???");
+
         // .filter(|a| a.end <= t_target);
         eprintln!("CONTOURS ...");
+        let timer = Timer::once();
         let contours = if let Some(mut filter) = filter {
             // NOTE: This `filter` is only used an path-pruning experiment.
             C::new_with_filter(arrows, params.match_config.r as I, |arrow, layer| {

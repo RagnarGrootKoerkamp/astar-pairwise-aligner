@@ -85,7 +85,7 @@ pub struct BruteForceContours {
 }
 
 impl Contours for BruteForceContours {
-    fn new(arrows: impl IntoIterator<Item = Arrow>, _max_len: I) -> Self {
+    fn new(arrows: Vec<Arrow>, _max_len: I) -> Self {
         let mut this = BruteForceContours {
             valued_arrows: Vec::default(),
         };
@@ -122,24 +122,22 @@ impl Contours for BruteForceContours {
     ) -> (bool, Cost) {
         let len_before = self.valued_arrows.len();
         let pos_arrows = arrows(&pos).map(|pa| pa.collect_vec()).unwrap_or_default();
-        self.valued_arrows = Self::new(
-            mem::take(&mut self.valued_arrows)
-                .into_iter()
-                .filter_map(|(a, _)| {
-                    if a.start != pos {
+        let filtered_arrows = std::mem::take(&mut self.valued_arrows)
+            .into_iter()
+            .filter_map(|(a, _)| {
+                if a.start != pos {
+                    Some(a)
+                } else {
+                    // Check if a is contained in `arrows`.
+                    if pos_arrows.contains(&a) {
                         Some(a)
                     } else {
-                        // Check if a is contained in `arrows`.
-                        if pos_arrows.contains(&a) {
-                            Some(a)
-                        } else {
-                            None
-                        }
+                        None
                     }
-                }),
-            0,
-        )
-        .valued_arrows;
+                }
+            })
+            .collect_vec();
+        self.valued_arrows = Self::new(filtered_arrows, 0).valued_arrows;
         let len_after = self.valued_arrows.len();
         (len_before != len_after, 0)
     }
