@@ -7,6 +7,8 @@
 //!
 //! We implement the algorithms in terms of two iterators that can be
 //! swapped to reverse the roles of a (sparse chunks) and b (dense windows).
+use std::sync::OnceLock;
+
 use super::*;
 use crate::prelude::*;
 use smallvec::SmallVec;
@@ -37,6 +39,8 @@ pub fn hash_b<'a>(a: Seq<'a>, b: Seq<'a>, config: MatchConfig, transform_filter:
     matches.finish()
 }
 
+static A_KMERS: OnceLock<HashMap<u64, SmallVec<[I; 2]>>> = OnceLock::new();
+
 fn hash_to_smallvec(
     qgrams_hashed: impl Iterator<Item = (i32, usize)>,
     qgrams_lookup: impl Iterator<Item = (i32, usize)>,
@@ -46,13 +50,17 @@ fn hash_to_smallvec(
 ) {
     type Key = u32;
 
-    // TODO: See if we can get rid of the Vec alltogether.
-    let mut h = HashMap::<Key, SmallVec<[I; 2]>>::default();
-    h.reserve(qgrams_hashed.size_hint().0);
-    for (i, q) in qgrams_hashed {
-        h.entry(q as Key).or_default().push(i as I);
-    }
-    lookup_matches(qgrams_lookup, matches, k, to_pos, h);
+    let h = A_KMERS.get_or_init(|| {
+        // TODO: See if we can get rid of the Vec alltogether.
+        let mut h = HashMap::<Key, SmallVec<[I; 2]>>::default();
+        h.reserve(qgrams_hashed.size_hint().0);
+        for (i, q) in qgrams_hashed {
+            h.entry(q as Key).or_default().push(i as I);
+        }
+        h
+    });
+
+    lookup_matches(qgrams_lookup, matches, k, to_pos, &h);
 }
 
 fn lookup_matches(
@@ -60,8 +68,8 @@ fn lookup_matches(
     matches: &mut MatchBuilder<'_>,
     k: i32,
     to_pos: impl Fn(i32, i32) -> Pos,
-    h: std::collections::HashMap<
         u32,
+    h: &std::collections::HashMap<
         SmallVec<[i32; 2]>,
         std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
     >,

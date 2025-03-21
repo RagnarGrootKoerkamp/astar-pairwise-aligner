@@ -5,6 +5,8 @@ pub mod prepruning;
 pub mod qgrams;
 mod suffix_array;
 
+use std::sync::{Mutex, MutexGuard, OnceLock};
+
 use crate::{prelude::*, seeds::*, PRINT};
 use bio::{
     alphabets::{Alphabet, RankTransform},
@@ -133,7 +135,7 @@ impl<T: Copy> CenteredVec<T> {
 struct MatchBuilder<'a> {
     qgrams: &'a QGrams<'a>,
     config: MatchConfig,
-    seeds: Seeds,
+    seeds: MutexGuard<'static, Seeds>,
     matches: Vec<Match>,
 
     transform_filter: bool,
@@ -154,13 +156,18 @@ struct MatchStats {
     after_local_pruning: usize,
 }
 
+static SEEDS: OnceLock<Mutex<Seeds>> = OnceLock::new();
+
 impl<'a> MatchBuilder<'a> {
     /// New MatchBuilder with fixed length seeds.
     fn new(qgrams: &'a QGrams<'a>, config: MatchConfig, transform_filter: bool) -> Self {
-        let seeds = Seeds::new(
-            qgrams.a,
-            qgrams.fixed_length_seeds(config.length.k().unwrap(), config.r),
-        );
+        let seeds = SEEDS.get_or_init(|| {
+            Mutex::new(Seeds::new(
+                qgrams.a,
+                qgrams.fixed_length_seeds(config.length.k().unwrap(), config.r),
+            ))
+        });
+        let seeds = seeds.lock().unwrap();
         let transform_target = seeds.transform(Pos::target(qgrams.a, qgrams.b));
         let d = transform_target.0 - transform_target.1;
         Self {
@@ -189,7 +196,7 @@ impl<'a> MatchBuilder<'a> {
         Self {
             qgrams,
             config,
-            seeds,
+            seeds: todo!(),
             matches: Vec::new(),
             transform_target,
             transform_filter,
@@ -334,7 +341,7 @@ impl<'a> MatchBuilder<'a> {
 
 /// A wrapper to contain all seed and match information.
 pub struct Matches {
-    pub seeds: Seeds,
+    pub seeds: MutexGuard<'static, Seeds>,
     /// Sorted by start (i, j).
     /// Empty for unordered matching.
     pub matches: Vec<Match>,
