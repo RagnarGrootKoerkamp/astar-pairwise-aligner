@@ -48,7 +48,7 @@ fn hash_to_smallvec(
     k: i32,
     to_pos: impl Fn(I, I) -> Pos,
 ) {
-    type Key = u32;
+    type Key = u64;
 
     let h = A_KMERS.get_or_init(|| {
         eprintln!("HASH A KMERS");
@@ -70,14 +70,14 @@ fn lookup_matches(
     matches: &mut MatchBuilder<'_>,
     k: i32,
     to_pos: impl Fn(i32, i32) -> Pos,
-        u32,
     h: &std::collections::HashMap<
+        u64,
         SmallVec<[i32; 2]>,
         std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
     >,
 ) {
-    type Key = u32;
     eprintln!("LOOKUP B KMERS");
+    type Key = u64;
     for (j, q) in qgrams_lookup {
         if let Some(is) = h.get(&(q as Key)) {
             for &i in is {
