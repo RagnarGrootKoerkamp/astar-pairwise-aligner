@@ -223,12 +223,42 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
         front[0] = I::MAX;
         contours[0].push((TPos(I::MAX, I::MAX), true));
 
+        let mut last_layer: usize = 0;
+        let mut hits = 0;
+        let mut lhits = 0;
+        let mut bss = 0;
         for tm in t_matches.iter().rev() {
             // TODO: optimize joining to last or start.
-            let y = tm.1 + 1;
-            let layer = front.binary_search_by_key(&-y, |y| -y);
-            let layer = layer.unwrap_or_else(|layer| layer - 1) + 1;
+            let target_y = tm.1 + 1;
+
+            // Try at top.
+            let cnt = front[0..8].iter().filter(|&&y| y >= target_y).count();
+
+            // HOT
+            let layer = if cnt < 8 {
+                hits += 1;
+                cnt
+            } else {
+                // Try at last layer.
+                let o = last_layer.saturating_sub(5);
+                let cnt = front[o..o + 8].iter().filter(|&&y| y >= target_y).count();
+                if 0 < cnt && cnt < 8 {
+                    lhits += 1;
+                    o + cnt
+                } else {
+                    bss += 1;
+                    // Binary search.
+                    let layer = front.binary_search_by_key(&-target_y, |y| -y);
+                    let new_layer = layer.unwrap_or_else(|layer| layer - 1) + 1;
+                    // eprintln!("{last_layer} -> {new_layer}");
+                    new_layer
+                }
+            };
             assert!(layer > 0);
+
+            if layer >= 7 {
+                last_layer = layer;
+            }
 
             contours[layer].push((*tm, true));
             front[layer] = max(front[layer], tm.1);
@@ -245,6 +275,9 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
             }
             assert!(cnt > 0);
         }
+        s.add("hits", hits);
+        s.add("lhits", lhits);
+        s.add("bss", bss);
         t.done("Building contours");
 
         // 7. Find sufficiently good local minima leading to dominant matches.
@@ -334,7 +367,7 @@ impl Timer {
         let t = Instant::now();
         let elapsed = t - self.t;
         self.t = t;
-        info!("{msg:>20}: {elapsed:>9.3?}");
+        info!("{msg:<30}: {elapsed:>9.3?}");
         *self.acc.entry(msg).or_insert_with(|| {
             self.keys.push(msg);
             Duration::default()
@@ -350,10 +383,10 @@ impl Drop for Timer {
     fn drop(&mut self) {
         let total = Instant::now() - self.t0;
         info!("-------------------------------");
-        info!("{:>20}  {total:>9.3?}", "TOTAL TIMES");
+        info!("{:<30}  {total:>9.3?}", "TOTAL TIMES");
         for msg in &self.keys {
             let elapsed = self.acc[msg];
-            info!("{msg:>20}: {elapsed:>9.3?}");
+            info!("{msg:<30}: {elapsed:>9.3?}");
         }
     }
 }
@@ -376,17 +409,17 @@ impl Stats {
             self.keys.push(msg);
             0
         }) += cnt;
-        info!("{msg:>20}: {cnt:>9}");
+        info!("{msg:<30}: {cnt:>9}");
     }
 }
 
 impl Drop for Stats {
     fn drop(&mut self) {
         info!("-------------------------------");
-        info!("{:>20}", "TOTAL STATS");
+        info!("{:<30}", "TOTAL STATS");
         for msg in &self.keys {
             let cnt = self.acc[msg];
-            info!("{msg:>20}: {cnt:>9}");
+            info!("{msg:<30}: {cnt:>9}");
         }
     }
 }
