@@ -156,9 +156,12 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
 
     // 2. Set up helper functions.
 
+    let divk = FM32::new(k as u32);
+    let nk = n / k;
+
     let potential_h = |Pos(i, _j)| -> I {
         // Number of following seeds.
-        n / k - i / k
+        nk - divk.fastdiv(i as u32) as i32
     };
 
     let transform = |p @ Pos(i, j)| {
@@ -396,5 +399,28 @@ impl RadixKey for T {
 
     fn get_level(&self, level: usize) -> u8 {
         (self.0 >> (level * 8)) as u8
+    }
+}
+
+/// FastMod32, using the low 32 bits of the hash.
+/// Taken from https://github.com/lemire/fastmod/blob/master/include/fastmod.h
+#[derive(Copy, Clone, Debug)]
+struct FM32 {
+    // d: u64,
+    m: u64,
+}
+impl FM32 {
+    fn new(d: u32) -> Self {
+        Self {
+            // d: d as u64,
+            m: u64::MAX / d as u64 + 1,
+        }
+    }
+    // fn fastmod(self, h: u32) -> usize {
+    //     let lowbits = self.m.wrapping_mul(h as u64);
+    //     ((lowbits as u128 * self.d as u128) >> 64) as usize
+    // }
+    fn fastdiv(self, h: u32) -> usize {
+        ((self.m as u128 * h as u128) >> 64) as u32 as usize
     }
 }
