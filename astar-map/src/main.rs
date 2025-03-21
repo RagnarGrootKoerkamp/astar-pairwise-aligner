@@ -14,10 +14,12 @@ use std::{
 
 use bio::io::fasta;
 use clap::{value_parser, Parser};
+use fxhash::FxHashMap;
 use itertools::Itertools;
 use log::info;
 use pa_types::{Pos, I};
 use packed_seq::{PackedSeqVec, Seq, SeqVec};
+use rdst::{RadixKey, RadixSort};
 
 #[derive(Parser)]
 pub struct Cli {
@@ -136,6 +138,8 @@ struct TPos(I, I);
 
 const MIN_MATCH_FRACTION: f32 = 0.25;
 
+type Key = u64;
+
 fn map(text: &[u8], patterns: &[&[u8]], k: I) {
     let n = text.len() as I;
 
@@ -143,43 +147,12 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
     let mut s = Stats::new();
 
     // 1. Build hashmap of k-mers in the text.
-    type Key = u64;
-    // let mut text_kmers = HashMap::<Key, SmallVec<[I; 4]>>::default();
-    // {
-    //     let packed_text = PackedSeqVec::from_ascii(text);
+    // In three steps:
+    // 1a: collect all kmers into a vector.
+    // 1b: sort the vector.
+    // 1c: build a hashmap mapping kmers to slices.
 
-    //     for i in (0..=n - k).step_by(k as _) {
-    //         let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
-    //         text_kmers.entry(kmer).or_default().push(i);
-    //     }
-    // }
-    // t.done("Indexing text");
-    let mut idx = HashMap::<Key, (u32, u32)>::default();
-    let packed_text = PackedSeqVec::from_ascii(text);
-
-    idx.reserve((n / k) as usize);
-    for i in (0..=n - k).step_by(k as _) {
-        let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
-        idx.entry(kmer).or_default().1 += 1;
-    }
-    t.done("Indexing text: count");
-
-    let mut acc = 0;
-    for cnt in idx.values_mut() {
-        cnt.0 = acc;
-        acc += cnt.1;
-    }
-    t.done("Indexing text: acc");
-
-    let mut pos = vec![0; acc as usize];
-
-    for i in (0..=n - k).step_by(k as _) {
-        let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
-        let (idx, _cnt) = idx.get_mut(&kmer).unwrap();
-        pos[*idx as usize] = i as I;
-        *idx += 1;
-    }
-    t.done("Indexing text: fill");
+    let (idx, pos) = index_text(text, k, &mut t);
 
     // 2. Set up helper functions.
 
@@ -218,9 +191,12 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
             t.done("Pack pattern");
             for j in 0..=m - k {
                 let kmer = packed_pat.slice(j as _..(j + k) as _).to_word() as Key;
-                if let Some(&(end, cnt)) = idx.get(&kmer) {
-                    let is = &pos[(end - cnt) as usize..end as usize];
-                    t_matches.extend(is.iter().map(|&i| transform(Pos(i, j))));
+                if let Some(&(start, end)) = idx.get(&kmer) {
+                    let is = &pos[start as usize..end as usize];
+                    t_matches.extend(is.iter().map(
+                        #[inline(always)]
+                        |&i| transform(Pos(i, j)),
+                    ));
                 }
             }
         }
@@ -286,7 +262,47 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
         //         break;
         //     }
         // }
+
+#[inline(never)]
+fn index_text(
+    text: &[u8],
+    k: i32,
+    t: &mut Timer,
+) -> (
+    HashMap<u64, (u32, u32), std::hash::BuildHasherDefault<fxhash::FxHasher>>,
+    Vec<i32>,
+) {
+    let n = text.len() as I;
+
+    let mut text_kmers = vec![];
+    text_kmers.reserve((n / k) as usize);
+    let packed_text = PackedSeqVec::from_ascii(text);
+    t.done("Pack text");
+
+    for i in (0..=n - k).step_by(k as _) {
+        let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
+        text_kmers.push(T(kmer, i));
     }
+    t.done("Indexing text: collect");
+    // Multithreaded building of the index.
+    text_kmers.radix_sort_unstable();
+
+    t.done("Indexing text: sort");
+
+    let mut idx = FxHashMap::<Key, (u32, u32)>::default();
+    idx.reserve((n / k) as usize);
+
+    let mut start = 0;
+    for (key, group) in text_kmers.iter().group_by(|T(kmer, _)| *kmer).into_iter() {
+        let cnt = group.count() as u32;
+        // HOT
+        idx.insert(key, (start, start + cnt));
+        start += cnt;
+    }
+    t.done("Indexing text: idx");
+    let pos = text_kmers.into_iter().map(|T(_kmer, i)| i).collect_vec();
+    t.done("Indexing text: shrink");
+    (idx, pos)
 }
 
 struct Timer {
@@ -365,5 +381,16 @@ impl Drop for Stats {
             let cnt = self.acc[msg];
             info!("{msg:>20}: {cnt:>9}");
         }
+    }
+}
+
+#[derive(Copy, Clone)]
+struct T(u64, i32);
+
+impl RadixKey for T {
+    const LEVELS: usize = 8;
+
+    fn get_level(&self, level: usize) -> u8 {
+        (self.0 >> (level * 8)) as u8
     }
 }

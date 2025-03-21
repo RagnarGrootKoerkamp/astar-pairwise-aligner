@@ -13,3 +13,5 @@ pa-bitpacking.workspace = true
 packed-seq.git = "https://github.com/rust-seq/packed-seq"
 log = "0.4.26"
 env_logger = "0.11.7"
+rdst = "0.20.14"
+fxhash = "0.2.1"
