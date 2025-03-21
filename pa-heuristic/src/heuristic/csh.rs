@@ -218,6 +218,7 @@ impl<C: Contours> CSHI<C> {
         // forwarded to the Contours, but the ones with m.start <= target are
         // still needed for consistency.
         let num_matches = matches.len();
+        eprintln!("MATCHES: {num_matches}");
         // if params.use_gap_cost {
         //     matches.retain(|m| seeds.transform(m.start) <= t_target);
         // }
@@ -239,6 +240,7 @@ impl<C: Contours> CSHI<C> {
             score: m.score(),
         };
 
+        eprintln!("PRUNER...");
         let mut pruner = MatchPruner::new(params.pruning, params.use_gap_cost, matches, &seeds);
 
         // Matches are sorted by reversed start (the order needed to construct contours).
@@ -250,6 +252,7 @@ impl<C: Contours> CSHI<C> {
             .filter(|m| m.is_active())
             .map(match_to_arrow);
         // .filter(|a| a.end <= t_target);
+        eprintln!("CONTOURS ...");
         let contours = if let Some(mut filter) = filter {
             // NOTE: This `filter` is only used an path-pruning experiment.
             C::new_with_filter(arrows, params.match_config.r as I, |arrow, layer| {
@@ -278,6 +281,7 @@ impl<C: Contours> CSHI<C> {
         } else {
             C::new(arrows, params.match_config.r as I)
         };
+        eprintln!("CONTOURS DONE");
 
         let mut h = CSHI {
             params,

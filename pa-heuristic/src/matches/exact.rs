@@ -51,12 +51,14 @@ fn hash_to_smallvec(
     type Key = u32;
 
     let h = A_KMERS.get_or_init(|| {
+        eprintln!("HASH A KMERS");
         // TODO: See if we can get rid of the Vec alltogether.
         let mut h = HashMap::<Key, SmallVec<[I; 2]>>::default();
         h.reserve(qgrams_hashed.size_hint().0);
         for (i, q) in qgrams_hashed {
             h.entry(q as Key).or_default().push(i as I);
         }
+        eprintln!("HASH A KMERS DONE");
         h
     });
 
@@ -75,6 +77,7 @@ fn lookup_matches(
     >,
 ) {
     type Key = u32;
+    eprintln!("LOOKUP B KMERS");
     for (j, q) in qgrams_lookup {
         if let Some(is) = h.get(&(q as Key)) {
             for &i in is {
@@ -89,6 +92,9 @@ fn lookup_matches(
             }
         }
     }
+    eprintln!("LOOKUP B KMERS DONE");
+    eprintln!("MATCHES: pushed {:>9}", matches.stats.pushed);
+    eprintln!("MATCHES: pruned {:>9}", matches.stats.after_local_pruning);
 }
 
 /// Build a hashset of the seeds in a, and query all kmers in b.

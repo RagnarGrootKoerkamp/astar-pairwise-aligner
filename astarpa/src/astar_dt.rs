@@ -47,6 +47,8 @@ pub fn astar_dt<'a, H: Heuristic>(
     let ref mut h = h.build(a, b);
     stats.timing.precomp = start.elapsed().as_secs_f64();
 
+    eprintln!("START A*");
+
     let ref mut v = v.build(a, b);
 
     // f -> (pos, g)
@@ -95,15 +97,15 @@ pub fn astar_dt<'a, H: Heuristic>(
                         data: (start, 0),
                     });
                     stats.explored += 1;
-                    eprintln!("Insert START {start} {hroot}");
+                    // eprintln!("Insert START {start} {hroot}");
 
                     states.insert(DtPos::from_pos(start, 0), State { fr: i as _, hint });
                 }
             }
         }
     }
+    eprintln!("Pushed {} initial states: {:?}", done.len(), t0.elapsed());
     drop(done);
-    // eprintln!("Pushing states: {:?}", t0.elapsed());
 
     // Computation of h that turned out to be retry is double counted.
     // We track them and in the end subtract it from h time.
@@ -348,7 +350,7 @@ fn traceback<'a, Hint: Default>(
     // If the state is not in the map, it was found via a match.
     // while cur_dt != (DtPos { diagonal: 0, g: 0 }) {
     while cur_dt.g != 0 {
-        eprintln!("{cur_pos:?} {cur_dt}");
+        // eprintln!("{cur_pos:?} {cur_dt}");
         let (parent_fr, edge) = dt_parent(states, cur_dt);
         cost += edge.cost();
         let next_dt = edge

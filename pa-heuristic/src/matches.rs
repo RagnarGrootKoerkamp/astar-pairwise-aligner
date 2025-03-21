@@ -258,7 +258,9 @@ impl<'a> MatchBuilder<'a> {
     }
 
     fn sort(&mut self) {
+        // eprintln!("SORTING MATCHES ...");
         self.matches.sort_by_key(|m| Self::match_key(m));
+        // eprintln!("SORTING MATCHES DONE");
     }
 
     // With local pruning, consistency can be lost.
