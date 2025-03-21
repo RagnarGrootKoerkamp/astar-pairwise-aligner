@@ -998,7 +998,7 @@ impl Visualizer {
 
             let color_for_pos = |p: &Pos| -> Color {
                 let mut rng = StdRng::seed_from_u64(
-                    (self.target.0.saturating_mul(p.0).saturating_add(p.1)) as _,
+                    (p.0 as u64).wrapping_sub(p.1 as u64), // (self.target.0.saturating_mul(p.0-p.1).saturating_add(p.1)) as _,
                 );
                 let r = rng.random_range(0..=255);
                 let g = rng.random_range(0..=255);
@@ -1167,7 +1167,7 @@ impl Visualizer {
                         if self.config.style.draw_parents {
                             if m.pruned == MatchStatus::Active {
                                 Self::draw_diag_line(&mut canvas, b, e, color, width + 1);
-                                color = color_for_pos(&m.start);
+                                color = color_for_pos(&m.end);
                                 Self::draw_diag_line(&mut canvas, b, e, color, width - 1);
                             }
                         } else {
