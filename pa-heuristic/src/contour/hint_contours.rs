@@ -251,6 +251,18 @@ impl<C: Contour> Contours for HintContours<C> {
             this.contours[v].push(start);
         }
 
+        if false {
+            eprintln!("LAYERS {}", this.contours.len());
+            let mut i = 0;
+            for x in &this.contours {
+                let x = x.len();
+                if i <= 1 || i >= this.contours.len() - 1 || x > 1 {
+                    eprintln!("layer {i:>3} size {x:>5}");
+                }
+                i += 1;
+            }
+        }
+
         this
     }
 
@@ -588,7 +600,9 @@ impl<C: Contour> Contours for HintContours<C> {
             //     last_change, current_shift, self.contours[v ].len()
             // );
 
-            if let Shift::Layers(shift) = rolling_shift && v >= last_change {
+            if let Shift::Layers(shift) = rolling_shift
+                && v >= last_change
+            {
                 assert!(fully_shifted_layers > 0);
                 // NOTE: this used to be `>= self.max_len`, but that does not work for arrows of length >= 2:
                 // There are some tests that cover this.
