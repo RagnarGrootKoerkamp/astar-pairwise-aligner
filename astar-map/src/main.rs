@@ -16,8 +16,8 @@ use bio::io::fasta;
 use clap::{value_parser, Parser};
 use fxhash::FxHashMap;
 use itertools::Itertools;
-use log::info;
-use pa_types::{Pos, I};
+use log::{info, trace};
+use pa_types::{Cost, Pos, I};
 use packed_seq::{PackedSeqVec, Seq, SeqVec};
 use rdst::{RadixKey, RadixSort};
 
@@ -282,16 +282,28 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
 
         // 7. Find sufficiently good local minima leading to dominant matches.
         let min_chain_length = ((m / k) as f32 * MIN_MATCH_FRACTION) as usize;
-        let mut starts = vec![];
+        s.add("min_chain", min_chain_length);
+        let mut starts: Vec<(TPos, Pos, usize)> = vec![];
         for layer in (min_chain_length..contours.len()).rev() {
-            for (tm, dominant) in &contours[layer] {
+            'tm: for &(tm, dominant) in &contours[layer] {
                 if !dominant {
                     continue;
                 }
-                let m = transform_back(*tm);
-                starts.push((m, layer));
+                let m = transform_back(tm);
+                let si = m.0 - m.1;
+                for (tm2, m2, _) in &starts {
+                    if tm2.0 <= tm.0 && tm2.1 <= tm.1 {
+                        continue 'tm;
+                    }
+                    if m2.0.abs_diff(si) < 100 {
+                        continue 'tm;
+                    }
+                }
+                starts.push((tm, Pos(si, 0), layer));
+                trace!("start layer {layer:>4} at {m} original {tm:?} start idx {si}")
             }
         }
+        // t.done("Starts");
         t.skip();
         s.add("Starts", starts.len());
 
