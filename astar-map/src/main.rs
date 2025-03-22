@@ -19,7 +19,7 @@ use itertools::Itertools;
 use log::{info, trace};
 use pa_types::{Cost, Pos, I};
 use packed_seq::{PackedSeqVec, Seq, SeqVec};
-use rdst::{RadixKey, RadixSort};
+use rdst::RadixKey;
 
 #[derive(Parser)]
 pub struct Cli {
@@ -364,7 +364,9 @@ fn index_text(
     }
     t.done("Indexing text: collect");
     // Multithreaded building of the index.
-    text_kmers.radix_sort_unstable();
+    // RadixSort::radix_sort_unstable(&mut text_kmers);
+    // Single threaded.
+    radsort::sort_by_key(&mut text_kmers, |T(kmer, _)| *kmer);
 
     t.done("Indexing text: sort");
 
