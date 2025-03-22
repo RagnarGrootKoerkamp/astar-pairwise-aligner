@@ -334,6 +334,10 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
                 next_best_score = score;
             }
         }
+        s.avg("Best score", best_score as usize);
+        if next_best_score < Cost::MAX {
+            s.avg("Next best score", next_best_score as usize);
+        }
         t.done("Align");
     }
 }
@@ -429,6 +433,7 @@ impl Drop for Timer {
 struct Stats {
     keys: Vec<&'static str>,
     acc: HashMap<&'static str, usize>,
+    cnts: HashMap<&'static str, usize>,
 }
 
 impl Stats {
@@ -436,6 +441,7 @@ impl Stats {
         Self {
             keys: vec![],
             acc: HashMap::new(),
+            cnts: HashMap::new(),
         }
     }
 
@@ -446,6 +452,15 @@ impl Stats {
         }) += cnt;
         info!("{msg:<30}: {cnt:>9}");
     }
+
+    fn avg(&mut self, msg: &'static str, cnt: usize) {
+        *self.acc.entry(msg).or_insert_with(|| {
+            self.keys.push(msg);
+            0
+        }) += cnt;
+        *self.cnts.entry(msg).or_default() += 1;
+        info!("{msg:<30}: {cnt:>9}");
+    }
 }
 
 impl Drop for Stats {
@@ -453,8 +468,13 @@ impl Drop for Stats {
         info!("-------------------------------");
         info!("{:<30}", "TOTAL STATS");
         for msg in &self.keys {
-            let cnt = self.acc[msg];
-            info!("{msg:<30}: {cnt:>9}");
+            let val = self.acc[msg];
+            if let Some(cnt) = self.cnts.get(msg) {
+                let avg = val / cnt;
+                info!("{msg:<30}: {val:>9} ({avg:>9})");
+            } else {
+                info!("{msg:<30}: {val:>9}");
+            }
         }
     }
 }
