@@ -319,6 +319,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
 
         let mut best_score = Cost::MAX;
         let mut next_best_score = Cost::MAX;
+        let mut best_result = None;
         for (_t_start, start, _layer) in starts {
             // For now, simply fill the square part.
             let result = pa_bitpacking::search::search(
@@ -330,6 +331,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
             if score < best_score {
                 next_best_score = best_score;
                 best_score = score;
+                best_result = Some(result);
             } else if score < next_best_score {
                 next_best_score = score;
             }
@@ -339,6 +341,18 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
             s.avg("Next best score", next_best_score as usize);
         }
         t.done("Align");
+
+        drop(best_result);
+        // if let Some(r) = best_result {
+        //     let idx = r.out.iter().position_min().unwrap();
+        //     let (_cigar, path) = r.trace(idx);
+        //     trace!(
+        //         "Path from {} to {}",
+        //         path.first().unwrap(),
+        //         path.last().unwrap()
+        //     );
+        // }
+        // t.done("Trace");
     }
 }
 
