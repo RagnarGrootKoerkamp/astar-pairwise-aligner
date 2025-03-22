@@ -316,6 +316,25 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
         //         break;
         //     }
         // }
+
+        let mut best_score = Cost::MAX;
+        let mut next_best_score = Cost::MAX;
+        for (_t_start, start, _layer) in starts {
+            // For now, simply fill the square part.
+            let result = pa_bitpacking::search::search(
+                pat,
+                &text[(start.0 as usize).saturating_sub(100)..start.0 as usize + pat.len() + 100],
+                1.0,
+            );
+            let score = *result.out.iter().min().unwrap();
+            if score < best_score {
+                next_best_score = best_score;
+                best_score = score;
+            } else if score < next_best_score {
+                next_best_score = score;
+            }
+        }
+        t.done("Align");
     }
 }
 
