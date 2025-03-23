@@ -204,7 +204,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
             }
         }
         t.done("Finding matches");
-        s.add("Matches", t_matches.len());
+        s.avg("Matches", t_matches.len());
 
         // 5. Sort matches
         // First left-to-right, then bottom-to-top.
@@ -275,14 +275,19 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
             }
             assert!(cnt > 0);
         }
-        s.add("hits", hits);
-        s.add("lhits", lhits);
-        s.add("bss", bss);
+        s.avg("hits", hits);
+        s.avg("lhits", lhits);
+        s.avg("bss", bss);
+
+        let max_layer = contours.iter().rposition(|x| !x.is_empty()).unwrap();
+        s.avg("max_layer", max_layer);
+
         t.done("Building contours");
 
         // 7. Find sufficiently good local minima leading to dominant matches.
         let min_chain_length = ((m / k) as f32 * MIN_MATCH_FRACTION) as usize;
-        s.add("min_chain", min_chain_length);
+        s.once("min_chain", min_chain_length);
+
         let mut starts: Vec<(TPos, Pos, usize)> = vec![];
         for layer in (min_chain_length..contours.len()).rev() {
             'tm: for &(tm, dominant) in &contours[layer] {
@@ -305,7 +310,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
         }
         // t.done("Starts");
         t.skip();
-        s.add("Starts", starts.len());
+        s.avg("Starts", starts.len());
 
         // for layer in 0..contours.len() {
         //     let ms = &contours[layer];
@@ -409,7 +414,11 @@ struct Timer {
 
 impl Timer {
     fn new() -> Self {
-        env_logger::init();
+        env_logger::Builder::from_default_env()
+            .format_timestamp(None)
+            // .format_timestamp_millis()
+            .init();
+
         Self {
             t0: Instant::now(),
             t: Instant::now(),
@@ -437,7 +446,7 @@ impl Timer {
 impl Drop for Timer {
     fn drop(&mut self) {
         let total = Instant::now() - self.t0;
-        info!("-------------------------------");
+        info!("-----------------------------------------");
         info!("{:<30}  {total:>9.3?}", "TOTAL TIMES");
         for msg in &self.keys {
             let elapsed = self.acc[msg];
@@ -461,6 +470,14 @@ impl Stats {
         }
     }
 
+    fn once(&mut self, msg: &'static str, cnt: usize) {
+        self.acc.entry(msg).or_insert_with(|| {
+            self.keys.push(msg);
+            cnt
+        });
+        info!("{msg:<30}: {cnt:>9}");
+    }
+
     fn add(&mut self, msg: &'static str, cnt: usize) {
         *self.acc.entry(msg).or_insert_with(|| {
             self.keys.push(msg);
@@ -481,13 +498,13 @@ impl Stats {
 
 impl Drop for Stats {
     fn drop(&mut self) {
-        info!("-------------------------------");
+        info!("-----------------------------------------");
         info!("{:<30}", "TOTAL STATS");
         for msg in &self.keys {
             let val = self.acc[msg];
             if let Some(cnt) = self.cnts.get(msg) {
-                let avg = val / cnt;
-                info!("{msg:<30}: {val:>9} ({avg:>9})");
+                let avg = val as f32 / *cnt as f32;
+                info!("{msg:<30}: {avg:>11.1} avg");
             } else {
                 info!("{msg:<30}: {val:>9}");
             }
