@@ -19,6 +19,7 @@ use self::blocks::{trace::TraceStats, BlockStats};
 use super::*;
 use crate::{block::Block, blocks::Blocks};
 use pa_affine_types::AffineCost;
+use pa_bitpacking::HEncoding;
 use pa_heuristic::*;
 use pa_types::*;
 use pa_vis::*;
@@ -359,6 +360,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
         trace: bool,
         blocks: Option<&mut Blocks>,
     ) -> Option<(Cost, Option<Cigar>)> {
+        eprintln!("Align for dist {}", f_max.unwrap());
         self.stats.f_max_tries += 1;
 
         // Update contours for any pending prunes.
@@ -425,6 +427,11 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
 
         let mut all_blocks_reused = true;
 
+        let mut best_bot_val = (Cost::MAX, I::MAX);
+
+        let mut sum_rows = 0;
+        let mut num_cols = 0;
+
         for i in (0..self.a.len() as I).step_by(self.params.block_width as _) {
             // The i_range of the new block.
             let i_range = IRange(i, min(i + self.params.block_width, self.a.len() as I));
@@ -470,8 +477,20 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 blocks.reuse_next_block(i_range, j_range);
             } else {
                 blocks.compute_next_block(i_range, j_range, &mut self.v);
+                sum_rows += j_range.len();
+                num_cols += 1;
                 if self.params.doubling == DoublingType::None {
                     self.v.new_layer(self.domain.h());
+                }
+            }
+
+            // TODO SEMI-GLOBAL: Best bottom value.
+            if j_range.1 == self.b.len() as I {
+                let mut bot_val = blocks.last_block().bot_val;
+                best_bot_val = best_bot_val.min((bot_val, i_range.1));
+                for i in (i_range.0..i_range.1).rev() {
+                    bot_val -= blocks.h[i as usize].value();
+                    best_bot_val = best_bot_val.min((bot_val, i));
                 }
             }
 
@@ -481,10 +500,21 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
 
             // If there are no fixed states, break.
             if next_fixed_j_range.is_some_and(|r| r.is_empty()) {
+                // SEMI-GLOBAL: If we found a sufficiently cheap path, we're done.
+                if best_bot_val.0 <= f_max.unwrap() {
+                    break;
+                }
+
                 if DEBUG {
                     eprintln!("fixed_j_range is empty! Increasing f_max!");
                 }
                 self.v.new_layer(self.domain.h());
+
+                eprintln!(
+                    "Avg band: {:4.0} in {} cols",
+                    sum_rows as f64 / num_cols as f64,
+                    num_cols * self.params.block_width
+                );
                 return None;
             }
             blocks.set_last_block_fixed_j_range(next_fixed_j_range);
@@ -517,12 +547,19 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
 
         self.v.new_layer(self.domain.h());
 
-        let Some(dist) = blocks.last_block().get(self.b.len() as I) else {
-            return None;
-        };
+        // let Some(dist) = blocks.last_block().get(self.b.len() as I) else {
+        //     return None;
+        // };
+        let cost = best_bot_val.0;
+
+        eprintln!(
+            "Avg band: {:4.0} in {} cols",
+            sum_rows as f64 / num_cols as f64,
+            num_cols * self.params.block_width
+        );
 
         // If dist is at most the assumed bound, do a traceback.
-        if trace && dist <= f_max.unwrap_or(I::MAX) {
+        if trace && cost <= f_max.unwrap_or(I::MAX) {
             let (cigar, trace_stats) = blocks.trace(
                 self.a,
                 self.b,
@@ -532,12 +569,12 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 &mut self.v,
             );
             self.stats.trace_stats = trace_stats;
-            Some((dist, Some(cigar)))
+            Some((cost, Some(cigar)))
         } else {
             // NOTE: A distance is always returned, even if it is larger than
             // the assumed bound, since this can be used as an upper bound on the
             // distance in further iterations.
-            Some((dist, None))
+            Some((cost, None))
         }
     }
 }
