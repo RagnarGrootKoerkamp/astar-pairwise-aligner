@@ -12,11 +12,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+use astarpa2::AstarPa2Params;
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use fxhash::FxHashMap;
 use itertools::Itertools;
-use log::{info, trace};
+use log::{info, trace, warn};
 use pa_types::{Cost, Pos, I};
 use packed_seq::{PackedSeqVec, Seq, SeqVec};
 use rdst::RadixKey;
@@ -33,6 +34,9 @@ pub struct Cli {
 
     #[clap(long)]
     pub astar: bool,
+
+    #[clap(long)]
+    pub v2: bool,
 
     #[clap(short, long, default_value_t = 1.0)]
     pub u: f32,
@@ -65,7 +69,7 @@ fn main() {
     for (_i, text) in texts.by_ref().take(1).enumerate() {
         if args.map {
             let patterns = patterns.iter().map(|p| p.seq()).collect_vec();
-            map(text.seq(), &patterns, args.k as I);
+            map(text.seq(), &patterns, args.k as I, args.v2);
             continue;
         }
         for (j, pattern) in patterns.iter().enumerate() {
@@ -140,7 +144,7 @@ const MIN_MATCH_FRACTION: f32 = 0.25;
 
 type Key = u64;
 
-fn map(text: &[u8], patterns: &[&[u8]], k: I) {
+fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool) {
     let n = text.len() as I;
 
     let mut t = Timer::new();
@@ -184,6 +188,10 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
 
     // 3. Loop over patterns.
     for pat in patterns {
+        // FIXME Reduce to multiple of 64 for simplicity for now.
+        let pat = &pat[..(pat.len() / 64) * 64];
+        warn!("LEN {}", pat.len());
+
         let m = pat.len() as I;
 
         // 4. Find k-mer matches.
@@ -322,28 +330,42 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I) {
         //     }
         // }
 
-        let mut best_score = Cost::MAX;
-        let mut next_best_score = Cost::MAX;
+        let mut best_cost = Cost::MAX;
+        let mut next_best_cost = Cost::MAX;
         let mut best_result = None;
         for (_t_start, start, _layer) in starts {
-            // For now, simply fill the square part.
-            let result = pa_bitpacking::search::search(
-                pat,
-                &text[(start.0 as usize).saturating_sub(100)..start.0 as usize + pat.len() + 100],
-                1.0,
-            );
-            let score = *result.out.iter().min().unwrap();
-            if score < best_score {
-                next_best_score = best_score;
-                best_score = score;
-                best_result = Some(result);
-            } else if score < next_best_score {
-                next_best_score = score;
+            let sub_ref =
+                &text[(start.0 as usize).saturating_sub(100)..start.0 as usize + pat.len() + 100];
+            let mut result = None;
+            let cost = if !v2 {
+                // N*M BITPACKING
+
+                // For now, simply fill the square part.
+                result = Some(pa_bitpacking::search::search(pat, sub_ref, 1.0));
+                *result.as_ref().unwrap().out.iter().min().unwrap()
+            } else {
+                // A*PA2 semi-global
+                // simple
+                let mut params = AstarPa2Params::simple();
+                params.heuristic.heuristic = pa_heuristic::HeuristicType::SemiGlobalGap;
+
+                // full
+                // let mut params = AstarPa2Params::full();
+
+                params.front.incremental_doubling = false;
+                params.make_aligner(true).align(sub_ref, pat).0
+            };
+            if cost < best_cost {
+                next_best_cost = best_cost;
+                best_cost = cost;
+                best_result = result;
+            } else if cost < next_best_cost {
+                next_best_cost = cost;
             }
         }
-        s.avg("Best score", best_score as usize);
-        if next_best_score < Cost::MAX {
-            s.avg("Next best score", next_best_score as usize);
+        s.avg("Best score", best_cost as usize);
+        if next_best_cost < Cost::MAX {
+            s.avg("Next best score", next_best_cost as usize);
         }
         t.done("Align");
 

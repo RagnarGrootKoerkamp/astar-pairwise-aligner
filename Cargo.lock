@@ -107,6 +107,7 @@ checksum = "2ad8689a486416c401ea15715a4694de30054248ec627edbf31f49cb64ee4086"
 name = "astar-map"
 version = "0.1.0"
 dependencies = [
+ "astarpa2",
  "bio",
  "clap 4.5.31",
  "env_logger",
@@ -114,6 +115,7 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "pa-bitpacking",
+ "pa-heuristic",
  "pa-types",
  "packed-seq",
  "radsort",
