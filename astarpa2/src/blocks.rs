@@ -102,7 +102,7 @@ pub struct Blocks {
 
     /// Store horizontal differences for row `j_h`.
     /// This allows for incremental band doubling.
-    h: Vec<H>,
+    pub h: Vec<H>,
 
     pub stats: BlockStats,
 }
@@ -116,7 +116,8 @@ impl BlockParams {
             trace,
             i_range: IRange(-1, 0),
             last_block_idx: 0,
-            h: if self.incremental_doubling {
+            // Fill for semi-global
+            h: if self.incremental_doubling || true {
                 vec![(0, 0); a.len()]
             } else {
                 vec![]
@@ -251,7 +252,7 @@ impl Blocks {
 
         if !self.trace && !self.params.incremental_doubling {
             // Update the existing `v` vector in the single block.
-            let top_val = prev_top_val + i_range.len();
+            let top_val = prev_top_val + if j_range.0 == 0 { 0 } else { i_range.len() };
             let bot_val = prev_bot_val
                 + compute_block(
                     self.params,
@@ -309,7 +310,7 @@ impl Blocks {
             j_range,
             fixed_j_range: next_block.fixed_j_range,
             offset: j_range.0,
-            top_val: prev_top_val + i_range.len(),
+            top_val: prev_top_val + if j_range.0 == 0 { 0 } else { i_range.len() },
             // This will be incremented with the horizontal bottom delta later.
             bot_val: prev_bot_val,
             // This will be set later based on whether incremental_doubling is enabled.
@@ -603,10 +604,12 @@ impl Blocks {
         init_v_with_overlap(prev_block, &mut next_block);
 
         // 1.
+        // Along the top row, horizontal deltas are 1.
+        // SEMI-GLOBAL: but 0 in row 0.
+        let delta = if j_range.0 == 0 { 0 } else { 1 };
         for i in i_range.0..i_range.1 {
-            // Along the top row, horizontal deltas are 1.
             next_block.i_range = IRange(i, i + 1);
-            next_block.top_val += 1;
+            next_block.top_val += delta;
             self.last_block_idx += 1;
             if self.last_block_idx == self.blocks.len() {
                 self.blocks.push(next_block.clone());
@@ -624,7 +627,9 @@ impl Blocks {
         ) {
             *vv = std::mem::take(&mut block.v);
         }
-        let h = &mut vec![H::one(); i_range.len() as usize];
+        // SEMI-GLOBAL
+        let h =
+            &mut vec![if j_range.0 == 0 { H::zero() } else { H::one() }; i_range.len() as usize];
 
         // 3.
         if self.params.simd {
@@ -692,7 +697,7 @@ fn compute_block(
     v: &mut [V],
     h: &mut [H],
     stats: &mut BlockStats,
-    mode: HMode,
+    mut mode: HMode,
     viz: &mut impl VisualizerInstance,
 ) -> i32 {
     viz.expand_block_simple(
@@ -711,7 +716,24 @@ fn compute_block(
         stats.num_incremental_blocks += 1;
     }
 
+    assert!(
+        !params.incremental_doubling,
+        "Semi-global isn't tested yet with incremental doubling."
+    );
+    // SEMI-GLOBAL: Exact end at the bottom.
+    if v_range.end == b.len() {
+        mode = match mode {
+            HMode::None | HMode::Output => HMode::Output,
+            HMode::Input | HMode::Update => HMode::Update,
+        };
+    }
+
     let run = |h: &mut [H], exact_end| {
+        // SEMI-GLOBAL: Top row has cost 0.
+        if v_range.start == 0 {
+            h.fill(H::zero());
+        }
+
         let a = &a[i_range.0 as usize..i_range.1 as usize];
         let b = &b[v_range];
         if params.simd {
