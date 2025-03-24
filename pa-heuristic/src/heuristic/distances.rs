@@ -1,4 +1,5 @@
 use bio::alphabets::{Alphabet, RankTransform};
+use num_traits::Signed;
 
 /// An O(1) evaluation heuristic that can be used to lower bound the distance between any two positions.
 /// Used to get the distance between matches, instead of only distance to the end.
@@ -164,6 +165,43 @@ impl HeuristicInstance<'_> for GapCostI {
 impl DistanceInstance<'_> for GapCostI {
     fn distance(&self, from: Pos, to: Pos) -> Cost {
         abs_diff(to.0 - from.0, to.1 - from.1) as Cost
+    }
+}
+
+// # SEMI GLOBAL GAP HEURISTIC
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SemiGlobalGapCost;
+impl Heuristic for SemiGlobalGapCost {
+    type Instance<'a> = SemiGlobalGapCostI;
+    fn name(&self) -> String {
+        "Gap".into()
+    }
+
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::Instance<'a> {
+        SemiGlobalGapCostI {
+            target: Pos::target(a, b),
+        }
+    }
+}
+impl Distance for SemiGlobalGapCost {
+    type DistanceInstance<'a> = SemiGlobalGapCostI;
+
+    fn build<'a>(&self, a: Seq<'a>, b: Seq<'a>) -> Self::DistanceInstance<'a> {
+        <SemiGlobalGapCost as Heuristic>::build(self, a, b)
+    }
+}
+pub struct SemiGlobalGapCostI {
+    target: Pos,
+}
+
+impl HeuristicInstance<'_> for SemiGlobalGapCostI {
+    fn h(&self, from: Pos) -> Cost {
+        self.distance(from, self.target)
+    }
+}
+impl DistanceInstance<'_> for SemiGlobalGapCostI {
+    fn distance(&self, from: Pos, to: Pos) -> Cost {
+        (from.0 - from.1).abs_sub(&(to.0 - to.1)) as Cost
     }
 }
 

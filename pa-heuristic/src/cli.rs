@@ -13,6 +13,8 @@ pub enum HeuristicType {
     Zero,
     /// Gap-cost to the target.
     Gap,
+    /// Semi-global gap-cost to the target: penalize only above the end diagonal.
+    SemiGlobalGap,
     /// Char frequencies to the target.
     Frequency,
     /// Seed heuristic.
@@ -186,6 +188,7 @@ impl HeuristicParams {
             HeuristicType::None => f.call(NoCost),
             HeuristicType::Zero => f.call(ZeroCost),
             HeuristicType::Gap => f.call(GapCost),
+            HeuristicType::SemiGlobalGap => f.call(SemiGlobalGapCost),
             HeuristicType::Frequency => f.call(CountCost),
             HeuristicType::SH => f.call(SH::new(match_config, pruning)),
             HeuristicType::CSH => f.call(CSH::new(match_config, pruning)),
