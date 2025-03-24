@@ -114,7 +114,7 @@ pub mod bit_profile {
             let pa = a
                 .iter()
                 .map(|ca| {
-                    let a = CC(r.get(*ca));
+                    let a = CC(r.get(ca.to_ascii_uppercase()));
                     Bits(
                         (0 as B).wrapping_sub(a.0 as B & 1),
                         (0 as B).wrapping_sub((a.0 as B >> 1) & 1),
@@ -123,7 +123,7 @@ pub mod bit_profile {
                 .collect_vec();
             let mut pb = vec![Bits(0, 0); b.len().div_ceil(W)];
             for (j, &cb) in b.iter().enumerate() {
-                let cb = r.get(cb);
+                let cb = r.get(cb.to_ascii_uppercase());
                 // !cb[0]
                 pb[j / W].0 |= ((cb as B & 1) ^ 1) << (j % W);
                 // !cb[1]
