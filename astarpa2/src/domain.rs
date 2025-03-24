@@ -527,7 +527,8 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
                 self.a,
                 self.b,
                 Pos(0, 0),
-                Pos(self.a.len() as I, self.b.len() as I),
+                cost,
+                Pos(best_bot_val.1, self.b.len() as I),
                 &mut self.v,
             );
             self.stats.trace_stats = trace_stats;

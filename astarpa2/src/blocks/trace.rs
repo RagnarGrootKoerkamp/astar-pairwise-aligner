@@ -23,13 +23,14 @@ impl Blocks {
         a: Seq,
         b: Seq,
         from: Pos,
+        mut g: Cost,
         mut to: Pos,
         viz: &mut impl VisualizerInstance,
     ) -> (Cigar, TraceStats) {
         assert!(self.trace);
-        assert!(self.blocks.last().unwrap().i_range.1 == to.0);
+        // assert!(self.blocks[self.last_block_idx].i_range.1 == to.0);
         let mut cigar = Cigar { ops: vec![] };
-        let mut g = self.blocks[self.last_block_idx].index(to.1);
+        // let mut g = self.blocks[self.last_block_idx].index(to.1);
 
         let mut stats = TraceStats::default();
 
@@ -40,7 +41,8 @@ impl Blocks {
         // Some allocated memory that can be reused.
         let dt_cache = &mut vec![BlockElem::default(); (self.params.max_g + 1).pow(2) as usize];
 
-        while to != from {
+        // SEMI-GLOBAL: Only trace to top row.
+        while to.1 != 0 {
             // Remove blocks to the right of `to`.
             while self.last_block_idx > 0 && self.blocks[self.last_block_idx].i_range.0 >= to.0 {
                 self.pop_last_block();
@@ -80,7 +82,7 @@ impl Blocks {
                     let j_range = JRange(block.j_range.0, to.1);
                     if DEBUG {
                         eprintln!(
-                            "Recompute block {i_range:?} x {j_range:?}. Trace is currently at {to}",
+                            "Recompute block {i_range:?} x {j_range:?}. Trace is currently at {to} with cost {g}",
                         );
                     }
                     self.pop_last_block();
@@ -104,7 +106,8 @@ impl Blocks {
                             eprintln!("Expand block trace {tl}-{br} with size {size}");
                         }
                         viz.expand_block_trace(tl, size);
-                        if self.blocks[self.last_block_idx].index(to.1) == g {
+                        let actual_g = self.blocks[self.last_block_idx].index(to.1);
+                        if actual_g == g {
                             stats.fill_success += 1;
                             break;
                         }
@@ -274,8 +277,12 @@ impl Blocks {
             block_start: I,
             cigar: &mut Cigar,
         ) -> Pos {
-            //eprintln!("TRACE");
-            let new_st = Pos(block_start, st.1 - (st.0 - block_start) - d);
+            // SEMI-GLOBAL end
+            let new_st = if g == *g_st {
+                Pos(-(st.1 - (st.0 - block_start) - d), 0)
+            } else {
+                Pos(block_start, st.1 - (st.0 - block_start) - d)
+            };
             *g_st -= g;
             let mut ops = vec![];
             loop {
@@ -325,7 +332,9 @@ impl Blocks {
                     }
                 }
                 viz.expand_trace(new_pos);
-                *(&mut elem.i) == prev_block.i_range.1 && prev_block.get(j) == Some(target_g)
+                (*(&mut elem.i) == prev_block.i_range.1 && prev_block.get(j) == Some(target_g))
+                    // SEMI-GLOBAL
+                    || (j == 0 && target_g == 0)
             };
 
         if extend_left_simd_and_check(&mut blocks[0], st.1, *g_st) {
