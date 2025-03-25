@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use crate::{
     alignment_graph::*,
@@ -57,7 +57,7 @@ pub fn astar_with_vis<'a, H: Heuristic>(
     let start = instant::Instant::now();
     let ref graph = EditGraph::new(a, b, true);
     let ref mut h = h.build(a, b);
-    stats.timing.precomp = start.elapsed().as_secs_f64();
+    stats.timing.precomp = start.elapsed();
 
     // f -> (pos, g)
     let mut queue = ShiftQueue::<(Pos, Cost), <H::Instance<'a> as HeuristicInstance>::Order>::new(
@@ -122,7 +122,7 @@ pub fn astar_with_vis<'a, H: Heuristic>(
 
     // Computation of h that turned out to be retry is double counted.
     // We track them and in the end subtract it from h time.
-    let mut double_timed = 0.0;
+    let mut double_timed = Duration::default();
     let mut retry_cnt = 0;
 
     let (final_pos, _dist) = loop {
@@ -288,9 +288,9 @@ pub fn astar_with_vis<'a, H: Heuristic>(
 
     stats.h = h.stats();
     stats.h.h_duration -= double_timed;
-    stats.timing.total = (end - start).as_secs_f64();
-    stats.timing.traceback = (end - traceback_start).as_secs_f64();
-    stats.timing.astar = (traceback_start - start).as_secs_f64()
+    stats.timing.total = (end - start);
+    stats.timing.traceback = (end - traceback_start);
+    stats.timing.astar = (traceback_start - start)
         - stats.timing.precomp
         - stats.h.h_duration
         - stats.h.prune_duration

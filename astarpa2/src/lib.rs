@@ -16,7 +16,7 @@ mod ranges;
 mod tests;
 
 pub use band::{DoublingStart, DoublingType};
-use domain::AstarPa2Stats;
+pub use domain::AstarPa2Stats;
 use pa_bitpacking::W;
 pub use params::*;
 

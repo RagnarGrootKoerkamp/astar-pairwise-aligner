@@ -105,7 +105,7 @@ impl<'a> HeuristicInstance<'a> for SHI {
         (p - m, h)
     }
 
-    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), f64) {
+    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), Duration) {
         let timer = Timer::new(&mut self.stats.h_calls);
         let ans = self.h_with_hint(pos, hint);
         let t = timer.end(&mut self.stats.h_duration);

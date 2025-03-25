@@ -216,7 +216,7 @@ impl<C: Contours> CSHI<C> {
         } else {
             target
         };
-        let mut find_matches = 0.;
+        let mut find_matches = Duration::default();
         timer.end(&mut find_matches);
 
         // Filter matches: only keep matches with m.start <= target.
@@ -293,7 +293,7 @@ impl<C: Contours> CSHI<C> {
         } else {
             C::new(arrows, params.match_config.r as I)
         };
-        let mut build_contours = 0.0;
+        let mut build_contours = Duration::default();
         timer.end(&mut build_contours);
         eprintln!("CONTOURS DONE");
 
@@ -416,7 +416,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         ans
     }
 
-    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), f64) {
+    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), Duration) {
         let timer = Timer::new(&mut self.stats.h_calls);
         let ans = self.h_with_hint(pos, hint);
         let t = timer.end(&mut self.stats.h_duration);
@@ -528,7 +528,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         self.lowest_modified_contour = lowest_modified_contour;
         self.highest_modified_contour = highest_modified_contour;
 
-        self.stats.prune_duration += start.elapsed().as_secs_f64();
+        self.stats.prune_duration += start.elapsed();
     }
 
     /// Update contours from `lowest_modified_contour` to `highest_modified_contour`.
@@ -589,7 +589,7 @@ impl<'a, C: Contours> HeuristicInstance<'a> for CSHI<C> {
         if PRINT {
             eprintln!("h0 after  update: {}", self.h(Pos(0, 0)));
         }
-        self.stats.contours_duration += start.elapsed().as_secs_f64();
+        self.stats.contours_duration += start.elapsed();
     }
 
     /// Update the max_explored_pos, so we know when the priority queue can be shifted after a prune.

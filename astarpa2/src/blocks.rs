@@ -73,7 +73,7 @@ impl Default for BlockParams {
     }
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, derive_more::AddAssign)]
 pub struct BlockStats {
     pub num_blocks: usize,
     pub num_incremental_blocks: usize,

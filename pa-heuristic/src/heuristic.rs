@@ -5,6 +5,7 @@ pub mod sh;
 pub mod wrappers;
 
 use std::ops::Range;
+use std::time::Duration;
 
 use crate::matches::*;
 use crate::prelude::*;
@@ -26,16 +27,16 @@ pub struct HeuristicStats {
     pub h0_end: Cost,
 
     // Timers
-    pub find_matches: f64,
-    pub build_contours: f64,
+    pub find_matches: Duration,
+    pub build_contours: Duration,
 
-    pub prune_duration: f64,
+    pub prune_duration: Duration,
     pub prune_calls: usize,
 
-    pub contours_duration: f64,
+    pub contours_duration: Duration,
     pub contours_calls: usize,
 
-    pub h_duration: f64,
+    pub h_duration: Duration,
     pub h_calls: usize,
 }
 
@@ -128,8 +129,8 @@ pub trait HeuristicInstance<'a> {
         (self.h(pos), Default::default())
     }
 
-    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), f64) {
-        (self.h_with_hint(pos, hint), 0.)
+    fn h_with_hint_timed(&mut self, pos: Pos, hint: Self::Hint) -> ((Cost, Self::Hint), Duration) {
+        (self.h_with_hint(pos, hint), Duration::default())
     }
 
     fn root_potential(&self) -> Cost {

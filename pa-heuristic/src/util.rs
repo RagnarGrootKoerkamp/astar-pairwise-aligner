@@ -1,3 +1,5 @@
+use std::{ops::Mul, time::Duration};
+
 use instant::Instant;
 
 use crate::config::TIME;
@@ -30,13 +32,13 @@ impl Timer {
         })
     }
     #[inline]
-    pub fn end(self, accumulator: &mut f64) -> f64 {
+    pub fn end(self, accumulator: &mut Duration) -> Duration {
         if let Timer(Some((each, start_time))) = self {
-            let t = each as f64 * start_time.elapsed().as_secs_f64();
+            let t = start_time.elapsed().mul(each as u32);
             *accumulator += t;
             t
         } else {
-            0.
+            Duration::default()
         }
     }
 }
@@ -44,7 +46,7 @@ impl Timer {
 #[test]
 fn test_time_each() {
     use std::thread::sleep;
-    let mut f = 0.;
+    let mut f = Duration::default();
     let mut cnt = 0;
     let mu = 200;
     for _ in 0..1000000 / mu {
@@ -52,19 +54,19 @@ fn test_time_each() {
         sleep(instant::Duration::from_micros(mu));
         t.end(&mut f);
     }
-    eprintln!("total time: {f}");
+    eprintln!("total time: {f:?}");
 }
 
 #[test]
 fn test_time_speed() {
     let s = instant::Instant::now();
     let mut cnt = 0;
-    let mut f = 0.0;
+    let mut f = Duration::default();
     for _ in 0..10000000 {
         let t = Timer::each(1, &mut cnt);
         t.end(&mut f);
     }
     let t = s.elapsed().as_secs_f64();
     eprintln!("elapsed:    {t}");
-    eprintln!("total time: {f}");
+    eprintln!("total time: {f:?}");
 }

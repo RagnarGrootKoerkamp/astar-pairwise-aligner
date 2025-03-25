@@ -117,6 +117,7 @@ dependencies = [
  "pa-bitpacking",
  "pa-heuristic",
  "pa-types",
+ "pa-vis",
  "packed-seq",
  "radsort",
  "rdst",
@@ -128,7 +129,7 @@ version = "0.1.0"
 dependencies = [
  "bio",
  "clap 4.5.31",
- "derive_more",
+ "derive_more 2.0.1",
  "instant",
  "itertools 0.10.5",
  "num-traits",
@@ -176,6 +177,7 @@ version = "0.1.0"
 dependencies = [
  "clap 4.5.31",
  "derivative",
+ "derive_more 2.0.1",
  "itertools 0.10.5",
  "num-traits",
  "pa-affine-types",
@@ -671,6 +673,26 @@ name = "derive_more"
 version = "0.99.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3da29a38df43d6f156149c9b43ded5e018ddff2a855cf2cfd62e8cd7d079c69f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.99",
+]
+
+[[package]]
+name = "derive_more"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1323,7 +1345,7 @@ dependencies = [
  "bio",
  "clap 4.5.31",
  "criterion 0.4.0",
- "derive_more",
+ "derive_more 0.99.19",
  "instant",
  "itertools 0.10.5",
  "lazy_static",
@@ -1354,7 +1376,7 @@ version = "0.1.0"
 source = "git+https://github.com/pairwise-alignment/pa-types#e02484de627cf20400a9435f493a832ea34a259c"
 dependencies = [
  "clap 4.5.31",
- "derive_more",
+ "derive_more 0.99.19",
  "itertools 0.10.5",
  "parse-size",
  "serde",

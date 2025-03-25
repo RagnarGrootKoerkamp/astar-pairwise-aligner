@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize, derive_more::AddAssign)]
 pub struct TraceStats {
     pub dt_trace_tries: usize,
     pub dt_trace_success: usize,

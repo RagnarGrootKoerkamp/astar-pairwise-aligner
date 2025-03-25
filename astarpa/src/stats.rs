@@ -1,6 +1,8 @@
 use std::{
     fmt::Display,
     io::{stdout, Write},
+    ops::Div,
+    time::Duration,
 };
 
 use derive_more::AddAssign;
@@ -11,14 +13,14 @@ use pa_heuristic::HeuristicStats;
 #[derive(Default, Clone, Copy, AddAssign, Debug)]
 pub struct Timing {
     /// precomp + astar
-    pub total: f64,
+    pub total: Duration,
     /// building the heuristic
-    pub precomp: f64,
+    pub precomp: Duration,
     /// running A*
-    pub astar: f64,
+    pub astar: Duration,
 
-    pub traceback: f64,
-    pub reordering: f64,
+    pub traceback: Duration,
+    pub reordering: Duration,
 }
 
 #[derive(Default, Clone, AddAssign, Debug)]
@@ -55,7 +57,7 @@ impl AstarStats {
             ..Default::default()
         }
     }
-    pub fn new(a: Seq, b: Seq, cost: Cost, total_duration: f64) -> Self {
+    pub fn new(a: Seq, b: Seq, cost: Cost, total_duration: Duration) -> Self {
         Self {
             len_a: a.len(),
             len_b: b.len(),
@@ -111,6 +113,21 @@ impl AstarStats {
         }
     }
 
+    fn format_dur(
+        &self,
+        align: char,
+        width: usize,
+        title: &str,
+        val: Duration,
+    ) -> (String, String) {
+        self.format_flt(
+            align,
+            width,
+            title,
+            format!("{:?}", val.div(self.sample_size as u32)),
+        )
+    }
+
     fn format_avg<T: Display + num_traits::AsPrimitive<f32>>(
         &self,
         align: char,
@@ -140,17 +157,17 @@ impl AstarStats {
             self.format_avg('>', 7, "pruned", self.h.num_pruned),
             self.format_avg('>', 7, "shift", self.pq_shifts),
             self.format_flt('>', 8, "band", self.expanded as f32 / self.len_a as f32),
-            self.format_avg('>', 8, "t", 1000. * self.timing.total),
-            self.format_avg('>', 5, "pre", 1000. * self.timing.precomp),
-            self.format_avg('>', 5, "A*", 1000. * self.timing.astar),
-            self.format_avg('>', 5, "h()", 1000. * self.h.h_duration),
-            self.format_avg('>', 5, "prune", 1000. * self.h.prune_duration),
-            self.format_avg('>', 5, "cntrs", 1000. * self.h.contours_duration),
-            self.format_avg('>', 5, "reord", 1000. * self.timing.reordering),
+            self.format_dur('>', 8, "t", self.timing.total),
+            self.format_dur('>', 5, "pre", self.timing.precomp),
+            self.format_dur('>', 5, "A*", self.timing.astar),
+            self.format_dur('>', 5, "h()", self.h.h_duration),
+            self.format_dur('>', 5, "prune", self.h.prune_duration),
+            self.format_dur('>', 5, "cntrs", self.h.contours_duration),
+            self.format_dur('>', 5, "reord", self.timing.reordering),
             self.format_avg('>', 7, "n h()", self.h.h_calls),
             self.format_avg('>', 7, "n prune", self.h.prune_calls),
             self.format_avg('>', 7, "n cntrs", self.h.contours_calls),
-            self.format_avg('>', 8, "trace", 1000. * self.timing.traceback),
+            self.format_dur('>', 8, "trace", self.timing.traceback),
             self.format_avg('>', 7, "ed", self.distance),
             self.format_flt(
                 '>',

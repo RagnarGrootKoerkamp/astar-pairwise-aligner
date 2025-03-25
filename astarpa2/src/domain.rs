@@ -29,7 +29,7 @@ use std::{
 };
 use Domain::*;
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize, derive_more::AddAssign)]
 pub struct AstarPa2Stats {
     pub block_stats: BlockStats,
     pub trace_stats: TraceStats,
