@@ -149,7 +149,7 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
                         .map(|x @ (c, _)| (c, x))
                 })
                 .1;
-                nw.stats.block_stats = blocks.stats;
+                nw.stats.block_stats += blocks.stats;
                 r
             }
             // NOTE: This is not in the paper since it does not yet work much

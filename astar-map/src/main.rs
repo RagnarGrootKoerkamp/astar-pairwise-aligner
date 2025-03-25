@@ -186,6 +186,9 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool) {
         Pos(i, j)
     };
 
+    let mut stats = AstarPa2Stats::default();
+    let mut h_stats = HeuristicStats::default();
+
     // 3. Loop over patterns.
     for pat in patterns {
         // FIXME Reduce to multiple of 64 for simplicity for now.
@@ -381,6 +384,9 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool) {
         // }
         // t.done("Trace");
     }
+
+    info!("A* STATS\n{stats:#?}");
+    info!("H  STATS\n{h_stats:#?}");
 }
 
 #[inline(never)]
@@ -501,11 +507,12 @@ impl Stats {
     }
 
     fn add(&mut self, msg: &'static str, cnt: usize) {
-        *self.acc.entry(msg).or_insert_with(|| {
+        let sum = self.acc.entry(msg).or_insert_with(|| {
             self.keys.push(msg);
             0
-        }) += cnt;
-        info!("{msg:<30}: {cnt:>9}");
+        });
+        *sum += cnt;
+        info!("{msg:<30}: {cnt:>9} ({sum:>9})");
     }
 
     fn avg(&mut self, msg: &'static str, cnt: usize) {
