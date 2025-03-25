@@ -236,7 +236,7 @@ impl<C: Contour> Contours for HintContours<C> {
 
         // Loop over all arrows from a given positions.
         for (start, pos_arrows) in &arrows.into_iter().rev().group_by(|a| a.start) {
-            // let mut v = 0;
+            // let mut v_old = 0;
             // let mut l = 0;
             // // TODO: The this.score() could also be implemented using a fenwick tree, as done in LCSk++.
             // let mut pi = 0;
@@ -248,14 +248,14 @@ impl<C: Contour> Contours for HintContours<C> {
             //     if !filter(&a, nv) {
             //         continue;
             //     }
-            //     v = max(v, nv as Layer);
+            //     v_old = max(v_old, nv as Layer);
             //     l = max(l, a.score);
             // }
 
             // {
-            //     eprintln!("New arrow at {start} in layer {v}");
+            //     eprintln!("New arrow at {start} in layer {v_old}");
             //     // check front value
-            //     let v = v - 1;
+            //     let v = v_old - 1;
             //     let ej = start.1 + 1;
             //     eprintln!(
             //         "ok chain:        {ej} <= front[{v}] = {}",
@@ -297,6 +297,7 @@ impl<C: Contour> Contours for HintContours<C> {
                 //     start.1 + 1
                 // );
             };
+
             lastv = v;
 
             assert!(v > 0);
@@ -311,7 +312,7 @@ impl<C: Contour> Contours for HintContours<C> {
                     .resize_with(v + 1, || C::with_max_len(max_len));
             }
             if front.len() <= v + 16 {
-                front.resize(v + 16, I::MIN);
+                front.resize(v + 16, I::MIN + 1);
             }
             this.contours[v].push(start);
             front[v] = max(front[v], start.1);
