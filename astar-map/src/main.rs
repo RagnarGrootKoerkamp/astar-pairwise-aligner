@@ -363,7 +363,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
                 params.heuristic.p = lp;
 
                 params.front.incremental_doubling = false;
-                params.block_width = 128;
+                params.block_width = 512;
 
                 let match_config = MatchConfig {
                     length: LengthConfig::Fixed(params.heuristic.k),

@@ -114,10 +114,11 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
         }
     }
 
+    #[inline(never)]
     fn cost_or_align(&self, a: Seq, b: Seq, trace: bool) -> (Cost, Option<Cigar>, AstarPa2Stats) {
         let mut nw = self.build(a, b);
         // FIXME: This value doesn't mean anything.
-        let h0 = nw.domain.h().map_or(0, |h| h.h(Pos(0, 0)));
+        let h0 = nw.domain.h().map_or(0, |h| h.h(Pos(100, 0)));
         let (cost, cigar) = match self.doubling {
             DoublingType::None => {
                 // FIXME: Allow single-shot alignment with bounded dist.
