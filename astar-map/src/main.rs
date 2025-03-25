@@ -7,18 +7,21 @@ use std::{
     cmp::max,
     collections::HashMap,
     fs::File,
+    hint::black_box,
     io::BufReader,
     path::PathBuf,
     time::{Duration, Instant},
 };
 
-use astarpa2::AstarPa2Params;
+use astarpa2::{AstarPa2, AstarPa2Params, AstarPa2Stats, Domain};
 use bio::io::fasta;
 use clap::{value_parser, Parser};
 use fxhash::FxHashMap;
 use itertools::Itertools;
 use log::{info, trace, warn};
+use pa_heuristic::{HeuristicInstance, HeuristicStats, LengthConfig, MatchConfig, Pruning, GCSH};
 use pa_types::{Cost, Pos, I};
+use pa_vis::NoVis;
 use packed_seq::{PackedSeqVec, Seq, SeqVec};
 use rdst::RadixKey;
 
@@ -69,7 +72,7 @@ fn main() {
     for (_i, text) in texts.by_ref().take(1).enumerate() {
         if args.map {
             let patterns = patterns.iter().map(|p| p.seq()).collect_vec();
-            map(text.seq(), &patterns, args.k as I, args.v2);
+            map(text.seq(), &patterns, args.k as I, args.v2, args.lp);
             continue;
         }
         for (j, pattern) in patterns.iter().enumerate() {
@@ -144,7 +147,7 @@ const MIN_MATCH_FRACTION: f32 = 0.25;
 
 type Key = u64;
 
-fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool) {
+fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
     let n = text.len() as I;
 
     let mut t = Timer::new();
@@ -191,6 +194,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool) {
 
     // 3. Loop over patterns.
     for pat in patterns {
+        s.add("pattern", 1);
         // FIXME Reduce to multiple of 64 for simplicity for now.
         let pat = &pat[..(pat.len() / 64) * 64];
         warn!("LEN {}", pat.len());
@@ -349,15 +353,57 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool) {
             } else {
                 // A*PA2 semi-global
                 // simple
-                let mut params = AstarPa2Params::simple();
-                params.heuristic.heuristic = pa_heuristic::HeuristicType::SemiGlobalGap;
+                // let mut params = AstarPa2Params::simple();
+                // params.heuristic.heuristic = pa_heuristic::HeuristicType::SemiGlobalGap;
 
                 // full
-                // let mut params = AstarPa2Params::full();
+                let mut params = AstarPa2Params::full();
+                params.heuristic.k = k;
+                params.heuristic.p = lp;
 
                 params.front.incremental_doubling = false;
-                params.make_aligner(true).align(sub_ref, pat).0
+                params.block_width = 128;
+
+                let match_config = MatchConfig {
+                    length: LengthConfig::Fixed(params.heuristic.k),
+                    r: params.heuristic.r,
+                    local_pruning: params.heuristic.p,
+                };
+                let pruning = Pruning {
+                    enabled: params.heuristic.prune,
+                    skip_prune: params.heuristic.skip_prune,
+                };
+
+                let aligner = AstarPa2 {
+                    domain: Domain::Astar(GCSH::new(match_config, pruning)),
+                    doubling: params.doubling,
+                    block_width: params.block_width,
+                    v: NoVis,
+                    block: params.front,
+                    trace: true,
+                    sparse_h: params.sparse_h,
+                    prune: params.prune,
+                };
+
+                if false {
+                    aligner.align(sub_ref, pat).0
+                } else {
+                    let mut nw = aligner.build(sub_ref, pat);
+                    t.done("build h");
+                    let mut blocks = aligner.block.new(true, sub_ref, pat);
+                    let (cost, cigar) = black_box(
+                        nw.align_for_bounded_dist(Some(2300), true, Some(&mut blocks))
+                            .unwrap(),
+                    );
+                    t.done("Align");
+                    black_box(cigar);
+                    nw.stats.block_stats += blocks.stats;
+                    stats += nw.stats;
+                    h_stats += nw.domain.h_mut().unwrap().stats();
+                    cost
+                }
             };
+            trace!("cost {cost}");
             if cost < best_cost {
                 next_best_cost = best_cost;
                 best_cost = cost;
@@ -365,10 +411,12 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool) {
             } else if cost < next_best_cost {
                 next_best_cost = cost;
             }
+            break;
         }
-        s.avg("Best score", best_cost as usize);
+        assert!(best_cost < Cost::MAX);
+        s.avg("Best cost", best_cost as usize);
         if next_best_cost < Cost::MAX {
-            s.avg("Next best score", next_best_cost as usize);
+            s.avg("Next best cost", next_best_cost as usize);
         }
         t.done("Align");
 

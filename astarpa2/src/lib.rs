@@ -78,6 +78,7 @@ pub struct AstarPa2<V: VisualizerT, H: Heuristic> {
 }
 
 impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
+    #[inline(never)]
     pub fn build<'a>(&'a self, a: Seq<'a>, b: Seq<'a>) -> AstarPa2Instance<'a, V, H> {
         use Domain::*;
 
@@ -188,7 +189,7 @@ impl<V: VisualizerT, H: Heuristic> AstarPa2<V, H> {
     pub fn align_for_bounded_dist(&self, a: Seq, b: Seq, f_max: Cost) -> Option<(Cost, Cigar)> {
         self.build(a, b)
             .align_for_bounded_dist(Some(f_max), true, None)
-            .map(|(c, cigar)| (c, cigar.unwrap()))
+            .and_then(|(c, cigar)| Some((c, cigar?)))
     }
 }
 

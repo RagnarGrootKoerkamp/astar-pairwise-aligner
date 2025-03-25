@@ -354,6 +354,7 @@ impl<'a, V: VisualizerT, H: Heuristic> AstarPa2Instance<'a, V, H> {
     /// Returns None if no path was found.
     /// It may happen that a path is found, but the cost is larger than s.
     /// In this case no cigar is returned.
+    #[inline(never)]
     pub fn align_for_bounded_dist(
         &mut self,
         f_max: Option<Cost>,
