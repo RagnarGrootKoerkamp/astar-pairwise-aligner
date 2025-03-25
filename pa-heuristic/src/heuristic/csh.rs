@@ -9,7 +9,6 @@ use crate::util::Timer;
 use crate::*;
 use crate::{contour::*, wrappers::EqualHeuristic};
 use std::marker::PhantomData;
-use std::sync::MutexGuard;
 
 pub struct CSH<C: Contours> {
     pub match_config: MatchConfig,
@@ -157,7 +156,7 @@ pub struct CSHI<C: Contours> {
     target: Pos,
     t_target: Pos,
 
-    seeds: MutexGuard<'static, Seeds>,
+    seeds: Seeds,
     matches: MatchPruner,
 
     /// The max transformed position.
