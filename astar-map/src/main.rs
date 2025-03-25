@@ -206,9 +206,10 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
         let mut t_matches = vec![];
         {
             let packed_pat = PackedSeqVec::from_ascii(pat);
-            t.done("Pack pattern");
+            t.done("Search:: Pack pattern");
             for j in 0..=m - k {
                 let kmer = packed_pat.slice(j as _..(j + k) as _).to_word() as Key;
+                // HOT: Can we interleave lookups better?
                 if let Some(&(start, end)) = idx.get(&kmer) {
                     let is = &pos[start as usize..end as usize];
                     t_matches.extend(is.iter().map(
@@ -218,7 +219,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
                 }
             }
         }
-        t.done("Finding matches");
+        t.done("Search:: Finding matches");
         s.avg("Matches", t_matches.len());
 
         // 5. Sort matches
@@ -228,7 +229,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
         // It should be sufficient to sort by j only, which has smaller range.
         // HOT
         radsort::sort_by_key(&mut t_matches, |&TPos(x, y)| (x, -y));
-        t.done("Sorting matches");
+        t.done("Search:: Sorting matches");
 
         // 6. Do the chaining, via the classic LCP algorithm.
         let max_level = (m / k) as usize + 10;
@@ -297,7 +298,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
         let max_layer = contours.iter().rposition(|x| !x.is_empty()).unwrap();
         s.avg("max_layer", max_layer);
 
-        t.done("Building contours");
+        t.done("Search:: Building contours");
 
         // 7. Find sufficiently good local minima leading to dominant matches.
         let min_chain_length = ((m / k) as f32 * MIN_MATCH_FRACTION) as usize;
@@ -389,13 +390,13 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
                     aligner.align(sub_ref, pat).0
                 } else {
                     let mut nw = aligner.build(sub_ref, pat);
-                    t.done("build h");
+                    t.done("Search:: build h");
                     let mut blocks = aligner.block.new(true, sub_ref, pat);
                     let (cost, cigar) = black_box(
                         nw.align_for_bounded_dist(Some(2300), true, Some(&mut blocks))
                             .unwrap(),
                     );
-                    t.done("Align");
+                    t.done("Search:: Align");
                     black_box(cigar);
                     nw.stats.block_stats += blocks.stats;
                     stats += nw.stats;
@@ -418,7 +419,7 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
         if next_best_cost < Cost::MAX {
             s.avg("Next best cost", next_best_cost as usize);
         }
-        t.done("Align");
+        t.done("Search:: Align");
 
         drop(best_result);
         // if let Some(r) = best_result {
@@ -451,19 +452,19 @@ fn index_text(
     let mut text_kmers = vec![];
     text_kmers.reserve((n / k) as usize);
     let packed_text = PackedSeqVec::from_ascii(text);
-    t.done("Pack text");
+    t.done("Indexing:: Pack text");
 
     for i in (0..=n - k).step_by(k as _) {
         let kmer = packed_text.slice(i as _..(i + k) as _).to_word() as Key;
         text_kmers.push(T(kmer, i));
     }
-    t.done("Indexing text: collect");
+    t.done("Indexing:: collect");
     // Multithreaded building of the index.
     // RadixSort::radix_sort_unstable(&mut text_kmers);
     // Single threaded.
     radsort::sort_by_key(&mut text_kmers, |T(kmer, _)| *kmer);
 
-    t.done("Indexing text: sort");
+    t.done("Indexing:: sort");
 
     let mut idx = FxHashMap::<Key, (u32, u32)>::default();
     idx.reserve((n / k) as usize);
@@ -475,9 +476,9 @@ fn index_text(
         idx.insert(key, (start, start + cnt));
         start += cnt;
     }
-    t.done("Indexing text: idx");
+    t.done("Indexing:: idx");
     let pos = text_kmers.into_iter().map(|T(_kmer, i)| i).collect_vec();
-    t.done("Indexing text: shrink");
+    t.done("Indexing:: shrink");
     (idx, pos)
 }
 
@@ -508,6 +509,13 @@ impl Timer {
         let elapsed = t - self.t;
         self.t = t;
         info!("{msg:<30}: {elapsed:>9.3?}");
+        self._done(msg, elapsed);
+    }
+
+    fn _done(&mut self, msg: &'static str, elapsed: Duration) {
+        if let Some(grp) = Self::split(msg) {
+            self._done(grp, elapsed);
+        }
         *self.acc.entry(msg).or_insert_with(|| {
             self.keys.push(msg);
             Duration::default()
@@ -516,6 +524,10 @@ impl Timer {
 
     fn skip(&mut self) {
         self.t = Instant::now();
+    }
+
+    fn split(msg: &'static str) -> Option<&'static str> {
+        Some(&msg[..msg.rfind("::")?])
     }
 }
 
