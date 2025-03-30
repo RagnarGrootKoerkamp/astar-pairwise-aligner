@@ -19,3 +19,4 @@ rdst = "0.20.14"
 fxhash = "0.2.1"
 astarpa2.workspace = true
 pa-vis.workspace = true
+mimalloc = "0.1.44"
