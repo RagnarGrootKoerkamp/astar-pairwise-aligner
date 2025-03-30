@@ -28,13 +28,27 @@ impl Profile for ScatterProfile {
 
     fn build(a: Seq, b: Seq) -> (Vec<CC>, Vec<Self::B>) {
         fn get_char(c: u8) -> u8 {
-            match c {
-                b'a' | b'A' => 0,
-                b'c' | b'C' => 1,
-                b't' | b'T' => 2,
-                b'g' | b'G' => 3,
-                _ => panic!("Unknown base {}", c as char),
+            // Note that a match statement is too slow, and *doubles* the time
+            // of aligning <=64bp patterns. `(c>>1)&3` is 10% faster for such
+            // short patterns, but the improved error message here is worth the
+            // small overhead.
+            static V: [u8; 256] = {
+                let mut v = [u8::MAX; 256];
+                v[b'a' as usize] = 0;
+                v[b'A' as usize] = 0;
+                v[b'c' as usize] = 1;
+                v[b'C' as usize] = 1;
+                v[b't' as usize] = 2;
+                v[b'T' as usize] = 2;
+                v[b'g' as usize] = 3;
+                v[b'G' as usize] = 3;
+                v
+            };
+            let v = V[c as usize];
+            if v == u8::MAX {
+                panic!("Unknown base {}", c as char);
             }
+            v
         }
         fn get_mask(c: u8) -> [u64; 4] {
             match c {
