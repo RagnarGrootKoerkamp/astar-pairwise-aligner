@@ -47,22 +47,30 @@ pub fn search<'s>(pattern: &'s [u8], text: &'s [u8], unmatched_cost: f32) -> Sea
     let bot_left;
     let mut h;
     let mut v;
-    type P = ScatterProfile;
     let (t, p) = P::build(text, pattern);
     h = vec![<(u8, u8)>::zero(); t.len()];
-    let mut v0 = vec![V::zero(); p.len()];
     let padding = pattern.len().next_multiple_of(64) - pattern.len();
 
     assert!(unmatched_cost >= 0.0 && unmatched_cost <= 1.0);
-    if unmatched_cost > 0.0 {
-        for i in 0.. {
-            let idx = (i as f32 / unmatched_cost).ceil() as usize;
-            if idx >= pattern.len() {
-                break;
+    let v0 = match unmatched_cost {
+        0.0 => vec![V::zero(); p.len()],
+        // TODO: The padding after the first m values *must* be zeros.
+        // 1.0 => vec![V::one(); p.len()],
+        // 0.5 => vec![V::from(0x5555555555555555, 0); p.len()],
+        _ if unmatched_cost <= 1.0 => {
+            let mut v0 = vec![V::zero(); p.len()];
+            let inv = 1.0 / unmatched_cost;
+            for i in 0.. {
+                let idx = (i as f32 * inv).ceil() as usize;
+                if idx >= pattern.len() {
+                    break;
+                }
+                *v0[idx / 64].one_mut() |= 1 << (idx % 64);
             }
-            *v0[idx / 64].one_mut() |= 1 << (idx % 64);
+            v0
         }
-    }
+        _ => panic!(),
+    };
     v = v0.clone();
 
     bot_left = v.iter().map(|x| x.value()).sum::<i32>();
@@ -71,8 +79,15 @@ pub fn search<'s>(pattern: &'s [u8], text: &'s [u8], unmatched_cost: f32) -> Sea
     crate::simd::scatter_profile::compute::<2, _, 4, false>(&t, &p, &mut h, &mut v, true, &mut out);
 
     let mut b = bot_left;
-    let mut out_vec = vec![b];
+    let mut out_vec = vec![];
     let mut skipped = 0;
+
+    if skipped < padding {
+        skipped += 1;
+    } else {
+        out_vec.push(b);
+    }
+
     for x in h {
         b += x.value();
         if skipped < padding {
