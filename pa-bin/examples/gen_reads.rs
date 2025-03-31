@@ -49,7 +49,7 @@ fn main() {
         let end = start + args.len;
         let read = &hg[start..end];
         let read = pa_generate::mutate(read, (args.rate * args.len as f32) as _, &mut rand::rng());
-        let read = std::str::from_utf8(&read).unwrap();
+        let read = std::str::from_utf8(&read).unwrap().to_ascii_uppercase();
         println!(">{} {}", args.len, args.rate);
         println!("{read}");
     }
