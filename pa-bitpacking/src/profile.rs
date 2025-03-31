@@ -80,7 +80,7 @@ impl Profile for ScatterProfile {
 
     #[inline(always)]
     fn eq(ca: &Self::A, cb: &Self::B) -> B {
-        cb[ca.0 as usize]
+        unsafe { *cb.get_unchecked(ca.0 as usize) }
     }
 
     fn is_match(a: &[Self::A], b: &[Self::B], i: I, j: I) -> bool {
