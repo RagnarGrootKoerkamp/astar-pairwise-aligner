@@ -19,10 +19,12 @@ use clap::{value_parser, Parser};
 use fxhash::FxHashMap;
 use itertools::Itertools;
 use log::{info, trace, warn};
-use pa_heuristic::{HeuristicInstance, HeuristicStats, LengthConfig, MatchConfig, Pruning, GCSH};
+use pa_heuristic::{
+    Heuristic, HeuristicInstance, HeuristicStats, LengthConfig, MatchConfig, Pruning, GCSH,
+};
 use pa_types::{Cost, Pos, I};
 use pa_vis::NoVis;
-use packed_seq::{PackedSeqVec, Seq, SeqVec};
+use packed_seq::{complement_char, PackedSeqVec, Seq, SeqVec};
 use rdst::RadixKey;
 
 #[derive(Parser)]
@@ -52,6 +54,20 @@ pub struct Cli {
 
     #[clap(long, default_value_t = 3)]
     pub lp: usize,
+
+    #[clap(short)]
+    pub t: Option<Cost>,
+
+    #[clap(short)]
+    pub h: Option<H>,
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum H {
+    Full,
+    GapGap,
+    GapStart,
+    Astar,
 }
 
 fn main() {
@@ -72,7 +88,7 @@ fn main() {
     for (_i, text) in texts.by_ref().take(1).enumerate() {
         if args.map {
             let patterns = patterns.iter().map(|p| p.seq()).collect_vec();
-            map(text.seq(), &patterns, args.k as I, args.v2, args.lp);
+            map(text.seq(), &patterns, &args);
             continue;
         }
         for (j, pattern) in patterns.iter().enumerate() {
@@ -147,7 +163,8 @@ const MIN_MATCH_FRACTION: f32 = 0.25;
 
 type Key = u64;
 
-fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
+fn map(text: &[u8], patterns: &[&[u8]], args: &Cli) {
+    let k = args.k as I;
     let n = text.len() as I;
 
     let mut t = Timer::new();
@@ -192,246 +209,343 @@ fn map(text: &[u8], patterns: &[&[u8]], k: I, v2: bool, lp: usize) {
     let mut stats = AstarPa2Stats::default();
     let mut h_stats = HeuristicStats::default();
 
+    // Reused.
+    let mut contours = vec![];
+
     // 3. Loop over patterns.
+    let mut rc_pat = vec![];
     for pat in patterns {
-        s.add("pattern", 1);
+        let mut map_fn = |pat: &[u8], t: &mut Timer| {
+            s.add("pattern", 1);
+            warn!("LEN {}", pat.len());
+
+            let m = pat.len() as I;
+
+            // 4. Find k-mer matches.
+            // These are already transformed.
+            // First, we group them by diagonal.
+            let mut t_matches = vec![];
+            {
+                let packed_pat = PackedSeqVec::from_ascii(pat);
+                t.done("Search:: Pack pattern");
+                for j in 0..=m - k {
+                    let kmer = packed_pat.slice(j as _..(j + k) as _).to_word() as Key;
+                    // HOT: Can we interleave lookups better?
+                    if let Some(&(start, end)) = idx.get(&kmer) {
+                        let is = &pos[start as usize..end as usize];
+                        t_matches.extend(is.iter().map(
+                            #[inline(always)]
+                            |&i| transform(Pos(i, j)),
+                        ));
+                    }
+                }
+            }
+            t.done("Search:: Finding matches");
+            s.avg("Matches", t_matches.len());
+
+            // let bucket = |TPos(x, _y)| (x as usize).wrapping_add(pat.len());
+            // let max_diag = text.len() + pat.len();
+            // let mut bucket_sizes = vec![0; max_diag];
+            // for &m in &t_matches {
+            //     bucket_sizes[bucket(m)] += 1;
+            // }
+            // t.done("Search:: count");
+
+            let min_chain_length = ((m / k) as f32 * MIN_MATCH_FRACTION) as usize;
+            s.once("min_chain", min_chain_length);
+
+            // t.done("Search:: filter");
+
+            // 5. Sort matches
+            // First left-to-right, then bottom-to-top.
+            // single-threaded radsort.
+            // TODO: Compress the range of y so that fewer rounds are needed for it.
+            // It should be sufficient to sort by j only, which has smaller range.
+            // HOT
+            radsort::sort_by_key(&mut t_matches, |&TPos(x, y)| (x, -y));
+            t.done("Search:: Sorting matches");
+
+            // 6. Do the chaining, via the classic LCP algorithm.
+            let max_level = (m / k) as usize + 10;
+            let mut front = vec![I::MIN + 1; max_level];
+            contours.resize(max_level, vec![]);
+            for c in &mut contours {
+                c.clear();
+            }
+
+            front[0] = I::MAX;
+            contours[0].push((TPos(I::MAX, I::MAX), true));
+
+            let mut last_layer: usize = 0;
+            let mut hits = 0;
+            let mut lhits = 0;
+            let mut bss = 0;
+            for tm in t_matches.iter().rev() {
+                let target_y = tm.1 + 1;
+
+                // Try at top.
+                let cnt = front[0..8].iter().filter(|&&y| y >= target_y).count();
+
+                // HOT
+                let layer = if cnt < 8 {
+                    hits += 1;
+                    cnt
+                } else {
+                    // Try at last layer.
+                    let o = last_layer.saturating_sub(5);
+                    let cnt = front[o..o + 8].iter().filter(|&&y| y >= target_y).count();
+                    if 0 < cnt && cnt < 8 {
+                        lhits += 1;
+                        o + cnt
+                    } else {
+                        bss += 1;
+                        // Binary search.
+                        let layer = front.binary_search_by_key(&-target_y, |y| -y);
+                        let new_layer = layer.unwrap_or_else(|layer| layer - 1) + 1;
+                        // eprintln!("{last_layer} -> {new_layer}");
+                        new_layer
+                    }
+                };
+                assert!(layer > 0);
+
+                if layer >= 7 {
+                    last_layer = layer;
+                }
+
+                contours[layer].push((*tm, true));
+                front[layer] = max(front[layer], tm.1);
+                // Set matches in layer-1 to non-dominant.
+
+                let mut cnt = 0;
+                for (tm2, dominant) in contours[layer - 1].iter_mut().rev() {
+                    if tm.0 <= tm2.0 && tm.1 <= tm2.1 {
+                        *dominant = false;
+                        cnt += 1;
+                    } else {
+                        break;
+                    }
+                }
+                assert!(cnt != 1000);
+            }
+            s.avg("hits", hits);
+            s.avg("lhits", lhits);
+            s.avg("bss", bss);
+
+            let max_layer = contours.iter().rposition(|x| !x.is_empty()).unwrap();
+            s.avg("max_layer", max_layer);
+
+            t.done("Search:: Building contours");
+
+            // 7. Find sufficiently good local minima leading to dominant matches.
+
+            let mut starts: Vec<(TPos, Pos, usize)> = vec![];
+            for layer in (min_chain_length..contours.len()).rev() {
+                'tm: for &(tm, dominant) in &contours[layer] {
+                    if !dominant {
+                        continue;
+                    }
+                    let m = transform_back(tm);
+                    let si = (m.0 - m.1).max(0);
+                    for (tm2, m2, _) in &starts {
+                        if tm2.0 <= tm.0 && tm2.1 <= tm.1 {
+                            continue 'tm;
+                        }
+                        if m2.0.abs_diff(si) < 100 {
+                            continue 'tm;
+                        }
+                    }
+                    starts.push((tm, Pos(si, 0), layer));
+                    trace!("start layer {layer:>4} at {m} original {tm:?} start idx {si}")
+                }
+            }
+            // t.done("Starts");
+            t.skip();
+            s.avg("Starts", starts.len());
+            if starts.is_empty() {
+                s.add("No starts", 1);
+                return;
+            }
+
+            // for layer in 0..contours.len() {
+            //     let ms = &contours[layer];
+            //     if ms.len() > 1 {
+            //         eprintln!("Layer {layer} of len {}", ms.len());
+            //     }
+            //     if ms.is_empty() {
+            //         break;
+            //     }
+            // }
+
+            let mut best_cost = Cost::MAX;
+            let mut next_best_cost = Cost::MAX;
+            let mut best_result = None;
+            for (_t_start, start, _layer) in starts {
+                const PAD: usize = 50;
+                let sub_ref = &text[(start.0 as usize).saturating_sub(PAD)
+                    ..(start.0 as usize + pat.len() + PAD).min(text.len())];
+                let mut result = None;
+                let cost = if !args.v2 {
+                    // N*M BITPACKING
+
+                    // For now, simply fill the square part.
+                    result = Some(pa_bitpacking::search::search(pat, sub_ref, 1.0));
+                    *result.as_ref().unwrap().out.iter().min().unwrap()
+                } else {
+                    fn align(
+                        params: AstarPa2Params,
+                        domain: Domain<impl Heuristic>,
+                        sub_ref: &[u8],
+                        pat: &[u8],
+                        args: &Cli,
+                        stats: &mut AstarPa2Stats,
+                        h_stats: &mut HeuristicStats,
+                        t: &mut Timer,
+                        best: Cost,
+                    ) -> Cost {
+                        let aligner = AstarPa2 {
+                            // domain: Domain::Astar(GCSH::new(match_config, pruning)),
+                            domain,
+                            doubling: params.doubling,
+                            block_width: params.block_width,
+                            v: NoVis,
+                            block: params.front,
+                            trace: true,
+                            sparse_h: params.sparse_h,
+                            prune: params.prune,
+                        };
+
+                        let t1 = args.t.unwrap_or(Cost::MAX);
+                        let t2 = best;
+                        let thr = t1.min(t2);
+                        if thr < Cost::MAX {
+                            let mut nw = aligner.build(sub_ref, pat);
+                            t.done("Search:: build h");
+                            let mut blocks = aligner.block.new(true, sub_ref, pat);
+                            let (cost, cigar) = black_box(
+                                nw.align_for_bounded_dist(Some(thr as _), true, Some(&mut blocks))
+                                    .unwrap(),
+                            );
+                            t.done("Search:: Align 2");
+                            black_box(cigar);
+                            nw.stats.block_stats += blocks.stats;
+                            *stats += nw.stats;
+                            if let Some(h) = nw.domain.h_mut() {
+                                *h_stats += h.stats();
+                            }
+                            cost
+                        } else {
+                            let r = aligner.align(sub_ref, pat).0;
+                            t.done("Search:: Align 1");
+                            r
+                        }
+                    }
+
+                    // A*PA2 semi-global
+                    // simple
+                    // let mut params = AstarPa2Params::simple();
+                    // params.heuristic.heuristic = pa_heuristic::HeuristicType::SemiGlobalGap;
+                    let mut params = AstarPa2Params::full();
+                    params.heuristic.k = k;
+                    params.heuristic.p = args.lp;
+
+                    params.front.incremental_doubling = false;
+                    params.block_width = 128;
+
+                    let match_config = MatchConfig {
+                        length: LengthConfig::Fixed(params.heuristic.k),
+                        r: params.heuristic.r,
+                        local_pruning: params.heuristic.p,
+                    };
+                    let pruning = Pruning {
+                        enabled: params.heuristic.prune,
+                        skip_prune: params.heuristic.skip_prune,
+                    };
+
+                    // full
+                    match args.h.unwrap() {
+                        H::Full => align(
+                            params,
+                            Domain::full(),
+                            sub_ref,
+                            pat,
+                            args,
+                            &mut stats,
+                            &mut h_stats,
+                            t,
+                            best_cost,
+                        ),
+                        H::GapGap => align(
+                            params,
+                            Domain::gap_gap(),
+                            sub_ref,
+                            pat,
+                            args,
+                            &mut stats,
+                            &mut h_stats,
+                            t,
+                            best_cost,
+                        ),
+                        H::GapStart => align(
+                            params,
+                            Domain::gap_start(),
+                            sub_ref,
+                            pat,
+                            args,
+                            &mut stats,
+                            &mut h_stats,
+                            t,
+                            best_cost,
+                        ),
+                        H::Astar => align(
+                            params,
+                            Domain::Astar(GCSH::new(match_config, pruning)),
+                            sub_ref,
+                            pat,
+                            args,
+                            &mut stats,
+                            &mut h_stats,
+                            t,
+                            best_cost,
+                        ),
+                    }
+                };
+                trace!("cost {cost}");
+                if cost < best_cost {
+                    next_best_cost = best_cost;
+                    best_cost = cost;
+                    best_result = result;
+                } else if cost < next_best_cost {
+                    next_best_cost = cost;
+                }
+            }
+            assert!(best_cost < Cost::MAX);
+            s.avg("Best cost", best_cost as usize);
+            if next_best_cost < Cost::MAX {
+                s.avg("Next best cost", next_best_cost as usize);
+            }
+            t.done("Search:: Align");
+
+            drop(best_result);
+            // if let Some(r) = best_result {
+            //     let idx = r.out.iter().position_min().unwrap();
+            //     let (_cigar, path) = r.trace(idx);
+            //     trace!(
+            //         "Path from {} to {}",
+            //         path.first().unwrap(),
+            //         path.last().unwrap()
+            //     );
+            // }
+            // t.done("Trace");
+        };
         // FIXME Reduce to multiple of 64 for simplicity for now.
         let pat = &pat[..(pat.len() / 64) * 64];
-        warn!("LEN {}", pat.len());
-
-        let m = pat.len() as I;
-
-        // 4. Find k-mer matches.
-        // These are already transformed.
-        let mut t_matches = vec![];
-        {
-            let packed_pat = PackedSeqVec::from_ascii(pat);
-            t.done("Search:: Pack pattern");
-            for j in 0..=m - k {
-                let kmer = packed_pat.slice(j as _..(j + k) as _).to_word() as Key;
-                // HOT: Can we interleave lookups better?
-                if let Some(&(start, end)) = idx.get(&kmer) {
-                    let is = &pos[start as usize..end as usize];
-                    t_matches.extend(is.iter().map(
-                        #[inline(always)]
-                        |&i| transform(Pos(i, j)),
-                    ));
-                }
-            }
+        map_fn(pat, &mut t);
+        if args.rc {
+            rc_pat.clear();
+            rc_pat.extend(pat.iter().rev().copied().map(complement_char));
+            t.done("Search:: RC pat");
+            map_fn(&rc_pat, &mut t);
         }
-        t.done("Search:: Finding matches");
-        s.avg("Matches", t_matches.len());
-
-        // 5. Sort matches
-        // First left-to-right, then bottom-to-top.
-        // single-threaded radsort.
-        // TODO: Compress the range of y so that fewer rounds are needed for it.
-        // It should be sufficient to sort by j only, which has smaller range.
-        // HOT
-        radsort::sort_by_key(&mut t_matches, |&TPos(x, y)| (x, -y));
-        t.done("Search:: Sorting matches");
-
-        // 6. Do the chaining, via the classic LCP algorithm.
-        let max_level = (m / k) as usize + 10;
-        let mut front = vec![I::MIN + 1; max_level];
-        let mut contours = vec![vec![]; max_level];
-
-        front[0] = I::MAX;
-        contours[0].push((TPos(I::MAX, I::MAX), true));
-
-        let mut last_layer: usize = 0;
-        let mut hits = 0;
-        let mut lhits = 0;
-        let mut bss = 0;
-        for tm in t_matches.iter().rev() {
-            // TODO: optimize joining to last or start.
-            let target_y = tm.1 + 1;
-
-            // Try at top.
-            let cnt = front[0..8].iter().filter(|&&y| y >= target_y).count();
-
-            // HOT
-            let layer = if cnt < 8 {
-                hits += 1;
-                cnt
-            } else {
-                // Try at last layer.
-                let o = last_layer.saturating_sub(5);
-                let cnt = front[o..o + 8].iter().filter(|&&y| y >= target_y).count();
-                if 0 < cnt && cnt < 8 {
-                    lhits += 1;
-                    o + cnt
-                } else {
-                    bss += 1;
-                    // Binary search.
-                    let layer = front.binary_search_by_key(&-target_y, |y| -y);
-                    let new_layer = layer.unwrap_or_else(|layer| layer - 1) + 1;
-                    // eprintln!("{last_layer} -> {new_layer}");
-                    new_layer
-                }
-            };
-            assert!(layer > 0);
-
-            if layer >= 7 {
-                last_layer = layer;
-            }
-
-            contours[layer].push((*tm, true));
-            front[layer] = max(front[layer], tm.1);
-            // Set matches in layer-1 to non-dominant.
-
-            let mut cnt = 0;
-            for (tm2, dominant) in contours[layer - 1].iter_mut().rev() {
-                if tm.0 <= tm2.0 && tm.1 <= tm2.1 {
-                    *dominant = false;
-                    cnt += 1;
-                } else {
-                    break;
-                }
-            }
-            assert!(cnt > 0);
-        }
-        s.avg("hits", hits);
-        s.avg("lhits", lhits);
-        s.avg("bss", bss);
-
-        let max_layer = contours.iter().rposition(|x| !x.is_empty()).unwrap();
-        s.avg("max_layer", max_layer);
-
-        t.done("Search:: Building contours");
-
-        // 7. Find sufficiently good local minima leading to dominant matches.
-        let min_chain_length = ((m / k) as f32 * MIN_MATCH_FRACTION) as usize;
-        s.once("min_chain", min_chain_length);
-
-        let mut starts: Vec<(TPos, Pos, usize)> = vec![];
-        for layer in (min_chain_length..contours.len()).rev() {
-            'tm: for &(tm, dominant) in &contours[layer] {
-                if !dominant {
-                    continue;
-                }
-                let m = transform_back(tm);
-                let si = m.0 - m.1;
-                for (tm2, m2, _) in &starts {
-                    if tm2.0 <= tm.0 && tm2.1 <= tm.1 {
-                        continue 'tm;
-                    }
-                    if m2.0.abs_diff(si) < 100 {
-                        continue 'tm;
-                    }
-                }
-                starts.push((tm, Pos(si, 0), layer));
-                trace!("start layer {layer:>4} at {m} original {tm:?} start idx {si}")
-            }
-        }
-        // t.done("Starts");
-        t.skip();
-        s.avg("Starts", starts.len());
-
-        // for layer in 0..contours.len() {
-        //     let ms = &contours[layer];
-        //     if ms.len() > 1 {
-        //         eprintln!("Layer {layer} of len {}", ms.len());
-        //     }
-        //     if ms.is_empty() {
-        //         break;
-        //     }
-        // }
-
-        let mut best_cost = Cost::MAX;
-        let mut next_best_cost = Cost::MAX;
-        let mut best_result = None;
-        for (_t_start, start, _layer) in starts {
-            let sub_ref =
-                &text[(start.0 as usize).saturating_sub(100)..start.0 as usize + pat.len() + 100];
-            let mut result = None;
-            let cost = if !v2 {
-                // N*M BITPACKING
-
-                // For now, simply fill the square part.
-                result = Some(pa_bitpacking::search::search(pat, sub_ref, 1.0));
-                *result.as_ref().unwrap().out.iter().min().unwrap()
-            } else {
-                // A*PA2 semi-global
-                // simple
-                // let mut params = AstarPa2Params::simple();
-                // params.heuristic.heuristic = pa_heuristic::HeuristicType::SemiGlobalGap;
-
-                // full
-                let mut params = AstarPa2Params::full();
-                params.heuristic.k = k;
-                params.heuristic.p = lp;
-
-                params.front.incremental_doubling = false;
-                params.block_width = 512;
-
-                let match_config = MatchConfig {
-                    length: LengthConfig::Fixed(params.heuristic.k),
-                    r: params.heuristic.r,
-                    local_pruning: params.heuristic.p,
-                };
-                let pruning = Pruning {
-                    enabled: params.heuristic.prune,
-                    skip_prune: params.heuristic.skip_prune,
-                };
-
-                let aligner = AstarPa2 {
-                    domain: Domain::Astar(GCSH::new(match_config, pruning)),
-                    doubling: params.doubling,
-                    block_width: params.block_width,
-                    v: NoVis,
-                    block: params.front,
-                    trace: true,
-                    sparse_h: params.sparse_h,
-                    prune: params.prune,
-                };
-
-                if false {
-                    aligner.align(sub_ref, pat).0
-                } else {
-                    let mut nw = aligner.build(sub_ref, pat);
-                    t.done("Search:: build h");
-                    let mut blocks = aligner.block.new(true, sub_ref, pat);
-                    let (cost, cigar) = black_box(
-                        nw.align_for_bounded_dist(Some(2300), true, Some(&mut blocks))
-                            .unwrap(),
-                    );
-                    t.done("Search:: Align");
-                    black_box(cigar);
-                    nw.stats.block_stats += blocks.stats;
-                    stats += nw.stats;
-                    h_stats += nw.domain.h_mut().unwrap().stats();
-                    cost
-                }
-            };
-            trace!("cost {cost}");
-            if cost < best_cost {
-                next_best_cost = best_cost;
-                best_cost = cost;
-                best_result = result;
-            } else if cost < next_best_cost {
-                next_best_cost = cost;
-            }
-            break;
-        }
-        assert!(best_cost < Cost::MAX);
-        s.avg("Best cost", best_cost as usize);
-        if next_best_cost < Cost::MAX {
-            s.avg("Next best cost", next_best_cost as usize);
-        }
-        t.done("Search:: Align");
-
-        drop(best_result);
-        // if let Some(r) = best_result {
-        //     let idx = r.out.iter().position_min().unwrap();
-        //     let (_cigar, path) = r.trace(idx);
-        //     trace!(
-        //         "Path from {} to {}",
-        //         path.first().unwrap(),
-        //         path.last().unwrap()
-        //     );
-        // }
-        // t.done("Trace");
     }
 
     info!("A* STATS\n{stats:#?}");
