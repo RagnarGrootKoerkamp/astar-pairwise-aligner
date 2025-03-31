@@ -22,29 +22,30 @@ pub struct ScatterProfile;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct CC(u8);
 
+// Note that a match statement is too slow, and *doubles* the time
+// of aligning <=64bp patterns. `(c>>1)&3` is 10% faster for such
+// short patterns, but the improved error message here is worth the
+// small overhead.
+static ALPHABET: [u8; 256] = {
+    let mut v = [0; 256];
+    v[b'a' as usize] = 0;
+    v[b'A' as usize] = 0;
+    v[b'c' as usize] = 1;
+    v[b'C' as usize] = 1;
+    v[b't' as usize] = 2;
+    v[b'T' as usize] = 2;
+    v[b'g' as usize] = 3;
+    v[b'G' as usize] = 3;
+    v
+};
+
 impl Profile for ScatterProfile {
     type A = CC;
     type B = [B; 4];
 
     fn build(a: Seq, b: Seq) -> (Vec<CC>, Vec<Self::B>) {
         fn get_char(c: u8) -> u8 {
-            // Note that a match statement is too slow, and *doubles* the time
-            // of aligning <=64bp patterns. `(c>>1)&3` is 10% faster for such
-            // short patterns, but the improved error message here is worth the
-            // small overhead.
-            static V: [u8; 256] = {
-                let mut v = [u8::MAX; 256];
-                v[b'a' as usize] = 0;
-                v[b'A' as usize] = 0;
-                v[b'c' as usize] = 1;
-                v[b'C' as usize] = 1;
-                v[b't' as usize] = 2;
-                v[b'T' as usize] = 2;
-                v[b'g' as usize] = 3;
-                v[b'G' as usize] = 3;
-                v
-            };
-            let v = V[c as usize];
+            let v = ALPHABET[c as usize];
             if v == u8::MAX {
                 panic!("Unknown base {}", c as char);
             }
@@ -128,7 +129,7 @@ pub mod bit_profile {
             let pa = a
                 .iter()
                 .map(|ca| {
-                    let a = CC(r.get(ca.to_ascii_uppercase()));
+                    let a = CC(ALPHABET[*ca as usize]);
                     Bits(
                         (0 as B).wrapping_sub(a.0 as B & 1),
                         (0 as B).wrapping_sub((a.0 as B >> 1) & 1),
@@ -137,7 +138,7 @@ pub mod bit_profile {
                 .collect_vec();
             let mut pb = vec![Bits(0, 0); b.len().div_ceil(W)];
             for (j, &cb) in b.iter().enumerate() {
-                let cb = r.get(cb.to_ascii_uppercase());
+                let cb = ALPHABET[cb as usize];
                 // !cb[0]
                 pb[j / W].0 |= ((cb as B & 1) ^ 1) << (j % W);
                 // !cb[1]
