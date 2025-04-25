@@ -36,7 +36,7 @@ impl Profile for ScatterProfile {
                 _ => panic!(),
             }
         }
-        fn get_mask(c: u8) -> [u64; 4] {
+        fn get_mask(c: u8) -> [B; 4] {
             match c {
                 b'a' | b'A' => [1, 0, 0, 0],
                 b'c' | b'C' => [0, 1, 0, 0],

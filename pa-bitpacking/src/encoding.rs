@@ -48,7 +48,7 @@ impl V {
     pub fn m(&self) -> B {
         self.1
     }
-    pub(crate) fn one_mut(&mut self) -> &mut u64 {
+    pub(crate) fn one_mut(&mut self) -> &mut B {
         &mut self.0
     }
     pub fn value_to(v: &Vec<V>, j: I) -> Cost {
