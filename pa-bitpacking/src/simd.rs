@@ -1,3 +1,8 @@
+//! B: Type for each SIMD lane.
+//! L: Number of SIMD lanes
+//! N: Number of parallel SIMD units; for instruction-level parallelism
+//! H: Encoding of the horizontal differences.
+
 //! TODO:
 //! - col-first instead of row-first
 //! - col-first with local-h
@@ -64,6 +69,7 @@ where
     }
 }
 
+/// Rotate the N*L lanes.
 #[inline(always)]
 fn rotate_left<const N: usize, const L: usize>(ph_simd: &mut [S<L>; N], mut carry: B) -> B
 where
@@ -78,9 +84,15 @@ where
     carry
 }
 
-// If `exact_end` is false, padding rows may be added at the end to speed things
-// up. This means `h` will have a meaningless value at the end that does not
-// correspond to the bottom row of the input range.
+/// Compute bottom and right output differences of a rectangular block of values.
+///
+/// Inputs:
+/// `a`: horizontal sequence
+/// `b`: vertical sequence
+/// `h`: horizontal input (top) & output (bottom) differences
+/// `v`: vertical input (left) & output (right) differences
+/// `exact_end`: when true, do not pad additional lanes at the bottom of the block, to ensure `h` is correct.
+/// `values`: slice of length `h.len()` where the vertical differences in each column will be stored.
 pub fn compute<const N: usize, H: HEncoding, const L: usize>(
     a: &[Bits],
     b: &[Bits],
@@ -300,7 +312,15 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     }
 }
 
-/// Same as `compute`, but returns all computed value.
+/// Compute a rectangular block of values.
+///
+/// Inputs:
+/// `a`: horizontal sequence
+/// `b`: vertical sequence
+/// `h`: horizontal input (top) & output (bottom) differences
+/// `v`: vertical input (left) & output (right) differences
+/// `exact_end`: when true, do not pad additional lanes at the bottom of the block, to ensure `h` is correct.
+/// `values`: slice of length `h.len()` where the vertical differences in each column will be stored.
 pub fn fill<const N: usize, H: HEncoding, const L: usize>(
     a: &[Bits],
     b: &[Bits],
@@ -414,6 +434,16 @@ where
     }
 }
 
+/// Compute a block of L*N lanes and width `h`.
+///
+/// Inputs:
+/// `a`: horizontal sequence
+/// `ap0`, `ap1`: indicators for the first and second bit of `a`.
+/// `cbs`: chunked b characters.
+/// `h`: horizontal input (top) & output (bottom) differences
+/// `v`: vertical input (left) & output (right) differences
+/// `values`: slice of length `h.len()` where the vertical differences in each column will be stored.
+/// `offset`: write into `values` at this lane offset.
 #[inline(always)]
 fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     a: &[Bits],
