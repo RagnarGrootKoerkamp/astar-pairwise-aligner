@@ -1055,7 +1055,7 @@ impl Visualizer {
                         }
                         Type::Expanded => {
                             let color = if let Some(layer) = self.layer
-                                && layer != 0
+                            // && layer != 0
                             {
                                 if current_layer > 0 && i < self.expanded_layers[current_layer - 1]
                                 {
@@ -1093,7 +1093,7 @@ impl Visualizer {
                         }
                         Type::Expanded => {
                             let color = if let Some(layer) = self.layer
-                                && layer != 0
+                            // && layer != 0
                             {
                                 if current_layer < layer && i >= self.expanded_layers[current_layer]
                                 {
@@ -1713,7 +1713,7 @@ impl Visualizer {
             let mut current_layer = self.layer.unwrap_or(0);
             for (i, st) in self.expanded.iter().enumerate().rev() {
                 let color = if let Some(layer) = self.layer
-                    && layer != 0
+                // && layer != 0
                 {
                     if current_layer > 0 && i < self.expanded_layers[current_layer - 1] {
                         current_layer -= 1;
@@ -1732,7 +1732,7 @@ impl Visualizer {
             let mut current_layer = 0;
             for (i, st) in self.expanded.iter().enumerate() {
                 let color = if let Some(layer) = self.layer
-                    && layer != 0
+                // && layer != 0
                 {
                     if current_layer < layer && i >= self.expanded_layers[current_layer] {
                         current_layer += 1;

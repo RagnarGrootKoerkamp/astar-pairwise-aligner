@@ -30,16 +30,17 @@ fn main() {
     config.style.draw_f = false;
     config.style.draw_labels = false;
     config.style.draw_matches = true;
+    config.cell_size = 15;
 
     // config.style.draw_heuristic = true;
     // config.style.draw_layers = true;
     config.style.draw_contours = true;
 
     let k = 3;
-    let n = 30;
+    let n = 70;
     let c = SimpleAffineCost {
         sub: 1,
-        open: 1,
+        open: 3,
         extend: 1,
     };
 

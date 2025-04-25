@@ -62,14 +62,17 @@ readme-astarpa2:
 FILTER = -filter_complex "tpad=stop_mode=clone:stop_duration=3[t];[t]split[s0][s1];[s0]palettegen=max_colors=64[p];[s1][p]paletteuse=dither=bayer"
 readme-videos:
 	cargo run --features example,small_blocks --release --example readme-videos
-	ffmpeg -y -framerate 1 -i imgs/readme/1_ukkonen/%d.bmp 				    $(FILTER) imgs/readme/1_ukkonen.gif
+	ffmpeg -y -framerate 10 -i imgs/readme/0_nw/%d.bmp 				        $(FILTER) imgs/readme/0_nw.gif
+	ffmpeg -y -framerate 20 -i imgs/readme/1_edlib/%d.bmp 				    $(FILTER) imgs/readme/1_edlib.gif
+	ffmpeg -y -framerate 20 -i imgs/readme/1_ukkonen/%d.bmp 				    $(FILTER) imgs/readme/1_ukkonen.gif
 	ffmpeg -y -framerate 10 -i imgs/readme/2_dijkstra/%d.bmp 				$(FILTER) imgs/readme/2_dijkstra.gif
 	ffmpeg -y -framerate 10 -i imgs/readme/3_diagonal-transition/%d.bmp 	$(FILTER) imgs/readme/3_diagonal_transition.gif
 	ffmpeg -y -framerate 20 -i imgs/readme/4_dt-divide-and-conquer/%d.bmp   $(FILTER) imgs/readme/4_dt-divide-and-conquer.gif
 	ffmpeg -y -framerate 2 -i imgs/readme/5_astarpa/%d.bmp 	                $(FILTER) imgs/readme/5_astarpa.gif
-	ffmpeg -y -framerate 8 -i imgs/readme/6_astarpa2/%d.bmp 	            $(FILTER) imgs/readme/6_astarpa2.gif
+	ffmpeg -y -framerate 4 -i imgs/readme/5_astarpa_noisy/%d.bmp 			$(FILTER) imgs/readme/5_astarpa_noisy.gif
+	ffmpeg -y -framerate 3 -i imgs/readme/6_astarpa2/%d.bmp 	            $(FILTER) imgs/readme/6_astarpa2.gif
 	gifsicle -O3 --batch imgs/readme/*.gif
-	rm -rf imgs/readme/*/
+	# rm -rf imgs/readme/*/
 
 slides-videos:
 	cargo run --features example --release --example slides-videos

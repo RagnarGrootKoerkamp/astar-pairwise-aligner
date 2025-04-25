@@ -319,3 +319,11 @@ We want T(u) <= T(v) equivalent to
 a((i'-i)-(j'-j)) + b <= P(u) - P(v)
 a(i-j)-P(u) + b <= a(i'-j')-P(v)
 a(j-i)-P(u) + b <= a(j'-i')-P(v)
+
+* Semi-global
+- use A*PA2 instead of A*PA
+- Drop support for inexact matches
+  - Replace(d) by local pruning.
+  - Think about the exact differences between the two.
+  - /Bottom-up hirschberg/: merge adjacent matches into longer ones
+- Find inexact matches to save first step of local pruning?
