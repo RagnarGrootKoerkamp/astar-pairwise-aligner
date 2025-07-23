@@ -203,7 +203,7 @@ where
             // Extract draining layer so we can modify it together with the target layer.
             let mut to_drain = std::mem::take(&mut self.tip_queue.layers[f]);
             //for data in to_drain.extract_if(|data| !(O::from_t(data) <= below)) {
-            for data in to_drain.extract_if(.., |data| !(O::from_t(data) <= below)) {
+            for data in to_drain.extract_if(|data| !(O::from_t(data) <= below)) {
                 self.tip_queue.push(QueueElement {
                     f: f as Cost - shift,
                     data,
@@ -217,7 +217,7 @@ where
         for f in self.tip_queue.peek().unwrap() as usize..self.tip_queue.layers.len() {
             //for data in to_drain.extract_if(|data| !(O::from_t(data) <= below)) {
             for data in
-                self.tip_queue.layers[f].extract_if(.., |data| O::from_t(data) <= self.tip_start)
+                self.tip_queue.layers[f].extract_if(|data| O::from_t(data) <= self.tip_start)
             {
                 self.tip_queue.size -= 1;
                 self.queue.push(QueueElement { f: f as Cost, data });
