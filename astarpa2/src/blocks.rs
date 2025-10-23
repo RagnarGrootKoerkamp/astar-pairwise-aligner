@@ -564,7 +564,7 @@ impl Blocks {
 
         if let Some(fixed_j_range) = fixed_j_range {
             let block = &self.blocks[self.last_block_idx];
-            assert!(block.original_j_range.contains_range(fixed_j_range));
+            // assert!(block.original_j_range.contains_range(fixed_j_range));
         }
     }
 

@@ -176,7 +176,7 @@ impl<'a, const N: usize> AffineNwFronts<'a, N> {
                 if parent.is_none()
                         // We use `get` to handle possible out-of-bound lookups.
                         && let Some(parent_cost) =
-                            self.fronts[(st.i + di) as usize].get(new_layer, st.j + dj)
+                            self.fronts.get((st.i + di) as usize).and_then(|x| x.get(new_layer, st.j + dj))
                         && cur_cost == parent_cost + cost
                 {
                     parent = Some(State::new(st.i + di, st.j + dj, new_layer));
