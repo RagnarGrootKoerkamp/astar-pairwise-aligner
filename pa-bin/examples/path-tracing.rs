@@ -1,16 +1,12 @@
 //! This generates the visualizations used in the blogpost on linear memory WFA.
 
 use pa_affine_types::AffineCost;
-use pa_base_algos::{
-    dt::{DiagonalTransition, GapCostHeuristic, PathTracingMethod},
-};
+use pa_base_algos::dt::{DiagonalTransition, GapCostHeuristic, PathTracingMethod};
 
-use pa_heuristic::{
-    NoCost,
-};
+use pa_heuristic::NoCost;
 
-use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis::canvas::*;
+use pa_vis::visualizer::{self, Gradient, When};
 
 use std::{path::PathBuf, time::Duration};
 

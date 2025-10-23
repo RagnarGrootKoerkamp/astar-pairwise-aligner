@@ -115,7 +115,11 @@ pub fn astar_dt<'a, H: Heuristic>(
             let current_f = queue_g + current_h;
             assert!(
                 current_f >= queue_f && current_h >= queue_f - queue_g,
-                "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.fr={} queue_fr={} queue_h={} current_h={}", state.fr, queue_fr, queue_f-queue_g, current_h
+                "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.fr={} queue_fr={} queue_h={} current_h={}",
+                state.fr,
+                queue_fr,
+                queue_f - queue_g,
+                current_h
             );
             if current_f > queue_f {
                 stats.reordered += 1;

@@ -85,7 +85,10 @@ fn main() {
                 match (&seq).get(prefix..seq.len() - suffix) {
                     Some(subset) => subset.to_vec(),
                     None => {
-                        println!("could not take subsequence: {prefix}..{length}-{suffix} of seq of len {}.", seq.len());
+                        println!(
+                            "could not take subsequence: {prefix}..{length}-{suffix} of seq of len {}.",
+                            seq.len()
+                        );
                         continue;
                     }
                 }

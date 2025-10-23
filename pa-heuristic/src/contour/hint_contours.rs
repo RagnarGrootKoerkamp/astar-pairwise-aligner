@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use itertools::Itertools;
 
 use super::*;
-use crate::{prelude::*, split_vec::SplitVec, PRINT};
+use crate::{PRINT, prelude::*, split_vec::SplitVec};
 
 const D: bool = false;
 
@@ -588,13 +588,18 @@ impl<C: Contour> Contours for HintContours<C> {
             //     last_change, current_shift, self.contours[v ].len()
             // );
 
-            if let Shift::Layers(shift) = rolling_shift && v >= last_change {
+            if let Shift::Layers(shift) = rolling_shift
+                && v >= last_change
+            {
                 assert!(fully_shifted_layers > 0);
                 // NOTE: this used to be `>= self.max_len`, but that does not work for arrows of length >= 2:
                 // There are some tests that cover this.
                 if fully_shifted_layers >= self.max_len + shift - 1 {
                     if D {
-                        eprintln!("REMOVE {shift} CONTOURS, since {fully_shifted_layers} >= {}+{shift}-1 have shifted by {shift}", self.max_len);
+                        eprintln!(
+                            "REMOVE {shift} CONTOURS, since {fully_shifted_layers} >= {}+{shift}-1 have shifted by {shift}",
+                            self.max_len
+                        );
                     }
                     // Shift all other contours one down.
                     self.stats.borrow_mut().shift_layers += 1;

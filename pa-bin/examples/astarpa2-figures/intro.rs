@@ -1,6 +1,6 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 
-use astarpa::{astar, AstarPa, HeuristicParams};
+use astarpa::{AstarPa, HeuristicParams, astar};
 use astarpa2::*;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
@@ -8,10 +8,10 @@ use pa_base_algos::{
     nw::{AffineFront, NW},
 };
 use pa_generate::uniform_fixed;
-use pa_heuristic::{MatchConfig, NoCost, Pruning, GCSH};
+use pa_heuristic::{GCSH, MatchConfig, NoCost, Pruning};
 use pa_types::Aligner;
-use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis::NoVis;
+use pa_vis::visualizer::{self, Gradient, When};
 use std::{path::PathBuf, time::Duration};
 
 fn main() {
@@ -19,7 +19,7 @@ fn main() {
     let e = 0.25;
     let (ref a, ref b) = uniform_fixed(n, e);
     eprintln!("Length {}", a.len());
-    let cost = astar(&a, &b, &NoCost, &NoVis).0 .0;
+    let cost = astar(&a, &b, &NoCost, &NoVis).0.0;
     eprintln!("Distance {cost}");
     eprintln!("Divergence {}", cost as f32 / a.len() as f32);
 

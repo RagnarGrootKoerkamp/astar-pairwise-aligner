@@ -3,15 +3,15 @@ use std::ops::Range;
 use bio::{
     alphabets::Alphabet,
     data_structures::{
-        bwt::{bwt, less, Less, Occ, BWT},
-        suffix_array::{suffix_array, RawSuffixArray},
+        bwt::{BWT, Less, Occ, bwt, less},
+        suffix_array::{RawSuffixArray, suffix_array},
     },
 };
 use pa_types::{Base, Pos, Seq};
 
 use crate::{
-    matches::{qgrams::QGrams, Match, MatchBuilder, MatchStatus, Matches, MaxMatches, Seed},
     LengthConfig, MatchConfig,
+    matches::{Match, MatchBuilder, MatchStatus, Matches, MaxMatches, Seed, qgrams::QGrams},
 };
 
 type SaRange = Range<usize>;
@@ -69,7 +69,7 @@ pub fn minimal_unique_matches(
     config @ MatchConfig { length, r, .. }: MatchConfig,
 ) -> Matches {
     // TODO: Use `k_min` and `k_max`.
-    let LengthConfig::Max(MaxMatches { max_matches, ..}) = length else {
+    let LengthConfig::Max(MaxMatches { max_matches, .. }) = length else {
         panic!("This function requires a maximum number of matches.")
     };
 

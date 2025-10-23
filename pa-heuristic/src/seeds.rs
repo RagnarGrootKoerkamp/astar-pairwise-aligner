@@ -33,10 +33,12 @@ impl Seeds {
     /// Seeds must be sorted by start.
     pub fn new(a: Seq, seeds: Vec<Seed>) -> Self {
         // Check that seeds are sorted and non-overlapping.
-        assert!(seeds
-            .iter()
-            .tuple_windows()
-            .all(|(seed1, seed2)| seed1.start <= seed1.end && seed1.end <= seed2.start));
+        assert!(
+            seeds
+                .iter()
+                .tuple_windows()
+                .all(|(seed1, seed2)| seed1.start <= seed1.end && seed1.end <= seed2.start)
+        );
 
         let n = a.len();
         let mut potential = vec![0; n + 1];

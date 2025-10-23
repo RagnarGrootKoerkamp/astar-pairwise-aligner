@@ -1,8 +1,8 @@
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 use itertools::Itertools;
 use pa_generate::uniform_fixed;
-use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis::canvas::*;
+use pa_vis::visualizer::{self, Gradient, When};
 use std::time::Duration;
 
 fn main() {

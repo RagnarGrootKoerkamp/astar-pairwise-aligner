@@ -14,8 +14,8 @@ use std::{
     time::Duration,
 };
 
-use itertools::{izip, Itertools};
-use pa_bitpacking::{BitProfile, HEncoding, Profile, B, V};
+use itertools::{Itertools, izip};
+use pa_bitpacking::{B, BitProfile, HEncoding, Profile, V};
 use pa_types::*;
 use pa_vis::VisualizerInstance;
 use serde::{Deserialize, Serialize};

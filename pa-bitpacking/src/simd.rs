@@ -33,7 +33,7 @@
 //!
 use super::*;
 use crate::bit_profile::Bits;
-use itertools::{izip, Itertools};
+use itertools::{Itertools, izip};
 use pa_types::Cost;
 use std::{
     array::from_fn,
@@ -61,7 +61,9 @@ where
 {
     unsafe {
         slice
-            .as_chunks::<L>().0.iter()
+            .as_chunks::<L>()
+            .0
+            .iter()
             .map(|&b| b.into())
             .array_chunks::<N>()
             .next()
@@ -552,7 +554,7 @@ pub fn vis_block_of_rows<const N: usize, const B: usize>(
 ) where
     [(); 4 * N]: Sized,
 {
-    use pa_types::{Pos, I};
+    use pa_types::{I, Pos};
 
     let m = m as I;
     const L: usize = 4;

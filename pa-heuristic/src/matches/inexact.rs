@@ -157,11 +157,7 @@ pub fn find_matches_qgramindex<'a>(
                         {
                             k += 1;
                         }
-                        if k <= k_max {
-                            Some(k)
-                        } else {
-                            None
-                        }
+                        if k <= k_max { Some(k) } else { None }
                     }
                 }
             };
@@ -397,12 +393,14 @@ mod test {
                     let matchconfig = MatchConfig::new(k, r);
                     let mut r = find_matches_qgramindex(&a, &b, matchconfig, false);
                     let mut k = find_matches_qgram_hash_inexact(&a, &b, matchconfig, false);
-                    assert!(r
-                        .matches
-                        .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
-                    assert!(k
-                        .matches
-                        .is_sorted_by_key(|Match { start, .. }| LexPos(*start)));
+                    assert!(
+                        r.matches
+                            .is_sorted_by_key(|Match { start, .. }| LexPos(*start))
+                    );
+                    assert!(
+                        k.matches
+                            .is_sorted_by_key(|Match { start, .. }| LexPos(*start))
+                    );
                     r.matches.sort_by_key(
                         |&Match {
                              start,

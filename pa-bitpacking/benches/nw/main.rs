@@ -1,7 +1,7 @@
 #![feature(portable_simd)]
 use bio::alignment::distance::simd::levenshtein;
 use criterion::{
-    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,
 };
 use pa_generate::{get_rng, random_sequence};
 use pa_types::Cost;

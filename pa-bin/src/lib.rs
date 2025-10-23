@@ -1,8 +1,7 @@
-
-use astarpa::{make_aligner, HeuristicParams};
+use astarpa::{HeuristicParams, make_aligner};
 use astarpa2::AstarPa2Params;
 use bio::io::fasta;
-use clap::{value_parser, Parser};
+use clap::{Parser, value_parser};
 use itertools::Itertools;
 use pa_types::{Aligner, Seq};
 use rand::{Rng, SeedableRng};

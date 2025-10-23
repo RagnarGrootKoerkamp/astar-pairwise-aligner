@@ -14,10 +14,11 @@
 // BUG: Figure out why the delta=64 is broken in fixed_j_range.
 mod local_doubling;
 
-use self::blocks::{trace::TraceStats, BlockStats};
+use self::blocks::{BlockStats, trace::TraceStats};
 
 use super::*;
 use crate::{block::Block, blocks::Blocks};
+use Domain::*;
 use pa_affine_types::AffineCost;
 use pa_heuristic::*;
 use pa_types::*;
@@ -26,7 +27,6 @@ use std::{
     cmp::{max, min},
     time::Duration,
 };
-use Domain::*;
 
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct AstarPa2Stats {

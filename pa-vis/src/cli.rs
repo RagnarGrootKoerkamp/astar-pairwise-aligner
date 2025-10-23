@@ -1,6 +1,6 @@
+use super::{VisualizerT, canvas::*};
 use crate::visualizer::{Config, VisualizerStyle, When};
-use super::{canvas::*, VisualizerT};
-use clap::{value_parser, Parser};
+use clap::{Parser, value_parser};
 use pa_types::I;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

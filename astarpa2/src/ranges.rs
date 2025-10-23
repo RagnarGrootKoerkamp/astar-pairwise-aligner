@@ -92,7 +92,7 @@ impl RoundedOutJRange {
     }
     /// v_range is the vertical exclusive range of height-W blocks to compute.
     pub fn v_range(&self) -> Range<usize> {
-        (self.0 .0 / WI) as usize..(self.0 .1 / WI) as usize
+        (self.0.0 / WI) as usize..(self.0.1 / WI) as usize
     }
 }
 
@@ -105,7 +105,7 @@ impl RoundedInJRange {
     }
     /// v_range is the vertical exclusive range of height-W blocks to compute.
     pub fn v_range(&self) -> Range<usize> {
-        (self.0 .0 / WI) as usize..(self.0 .1 / WI) as usize
+        (self.0.0 / WI) as usize..(self.0.1 / WI) as usize
     }
 }
 

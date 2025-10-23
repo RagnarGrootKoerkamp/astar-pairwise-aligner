@@ -1,13 +1,13 @@
-use super::{canvas::*, CanvasFactory};
+use super::{CanvasFactory, canvas::*};
 use lazy_static::lazy_static;
 use pa_types::I;
 use sdl2::{
+    Sdl,
     event::Event,
     keyboard::Keycode,
     rect::{Point, Rect},
     ttf::{Font, Sdl2TtfContext},
     video::Window,
-    Sdl,
 };
 use std::{path::Path, time::Duration};
 pub struct SdlCanvas(sdl2::render::Canvas<Window>);
@@ -186,10 +186,10 @@ impl Canvas for SdlCanvas {
                             //Keycode::Backspace | Keycode::Left => return KeyboardAction::Prev,
                             Keycode::P | Keycode::Return => return KeyboardAction::PausePlay,
                             Keycode::Plus | Keycode::Up | Keycode::F => {
-                                return KeyboardAction::Faster
+                                return KeyboardAction::Faster;
                             }
                             Keycode::Minus | Keycode::Down | Keycode::S => {
-                                return KeyboardAction::Slower
+                                return KeyboardAction::Slower;
                             }
                             Keycode::Escape | Keycode::Q => return KeyboardAction::ToEnd,
                             _ => {}

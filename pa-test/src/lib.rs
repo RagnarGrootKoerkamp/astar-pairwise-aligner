@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use rand::{rng, seq::IteratorRandom, Rng};
+use rand::{Rng, rng, seq::IteratorRandom};
 
 use pa_generate::ErrorModel;
 use pa_types::*;

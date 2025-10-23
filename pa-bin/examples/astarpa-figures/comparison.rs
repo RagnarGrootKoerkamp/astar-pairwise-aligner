@@ -1,10 +1,10 @@
 //! This generates the visualizations used in the limitations section of the paper.
 
-use astarpa::{astar, AstarPa};
+use astarpa::{AstarPa, astar};
 use pa_generate::uniform_seeded;
-use pa_heuristic::{MatchConfig, NoCost, Prune, Pruning, CSH, GCSH, SH};
-use pa_vis::visualizer::{self, Gradient, When};
+use pa_heuristic::{CSH, GCSH, MatchConfig, NoCost, Prune, Pruning, SH};
 use pa_vis::NoVis;
+use pa_vis::visualizer::{self, Gradient, When};
 use std::time::Duration;
 
 fn main() {
@@ -65,7 +65,7 @@ fn main() {
     let a = &a;
     let b = &b;
 
-    let cost = astar(&a, &b, &NoCost, &NoVis).0 .0;
+    let cost = astar(&a, &b, &NoCost, &NoVis).0.0;
     println!("{} {}", a.len(), b.len());
     println!("cost {cost}");
 

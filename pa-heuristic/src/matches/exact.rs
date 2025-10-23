@@ -298,11 +298,7 @@ pub fn find_matches_qgramindex<'a>(
                         {
                             k += 1;
                         }
-                        if k <= k_max {
-                            Some(k)
-                        } else {
-                            None
-                        }
+                        if k <= k_max { Some(k) } else { None }
                     }
                 }
             };

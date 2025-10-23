@@ -1,8 +1,8 @@
 #![allow(unused)]
 use std::fmt::Debug;
 
-use pa_heuristic::{matches::Match, Heuristic};
-use pa_types::{seq_to_string, Cigar, Cost, CostModel, Seq};
+use pa_heuristic::{Heuristic, matches::Match};
+use pa_types::{Cigar, Cost, CostModel, Seq, seq_to_string};
 
 /// The Path heuristic takes as input a path, and builds a heuristic that
 /// 'simulates' the pruning of the SH/CSH by doing it up-front where possible.

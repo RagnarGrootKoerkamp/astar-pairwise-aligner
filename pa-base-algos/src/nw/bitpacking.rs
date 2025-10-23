@@ -5,8 +5,8 @@
 //!       (NOTE though that this doesn't actually seem that bad in practice.)
 //! TODO: Separate strong types for row `I` and 'block-row' `I*64`.
 use super::*;
-use itertools::{izip, Itertools};
-use pa_bitpacking::{BitProfile, HEncoding, Profile, B, V, W};
+use itertools::{Itertools, izip};
+use pa_bitpacking::{B, BitProfile, HEncoding, Profile, V, W};
 use std::ops::{Index, IndexMut};
 
 const DEBUG: bool = false;

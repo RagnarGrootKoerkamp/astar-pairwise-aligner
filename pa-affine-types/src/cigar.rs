@@ -166,7 +166,9 @@ impl AffineCigar {
 
     /// Append another cigar to this one.
     pub fn append(&mut self, other: &mut Self) {
-        let Some(first) = other.ops.first_mut() else {return;};
+        let Some(first) = other.ops.first_mut() else {
+            return;
+        };
         if let Some(s) = self.ops.last_mut() {
             if s.op == first.op {
                 first.cnt += s.cnt;

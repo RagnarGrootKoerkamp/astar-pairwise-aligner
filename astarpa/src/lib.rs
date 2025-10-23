@@ -41,9 +41,9 @@ mod prelude {
 }
 
 use pa_heuristic::seeds::MatchCost;
+use pa_heuristic::{GCSH, MatchConfig, Pruning};
 use pa_heuristic::{Heuristic, HeuristicMapper, Prune};
-use pa_heuristic::{MatchConfig, Pruning, GCSH};
-use pa_types::{Aligner, Cigar, Cost, Seq, I};
+use pa_types::{Aligner, Cigar, Cost, I, Seq};
 use pa_vis::{NoVis, VisualizerT};
 use stats::AstarStats;
 

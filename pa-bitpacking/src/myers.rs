@@ -1,5 +1,5 @@
 //! The basic bitpacked algorithm from Myers'99.
-use crate::{HEncoding, Profile, B, S, V, W};
+use crate::{B, HEncoding, Profile, S, V, W};
 use std::simd::{LaneCount, SupportedLaneCount};
 
 /// Implements Myers '99 bitpacking based algorithm. Terminology is as in the

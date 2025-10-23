@@ -1,6 +1,6 @@
 //! This generates the visualizations used in the limitations section of the paper.
 
-use astarpa::{astar, AstarPa, HeuristicParams};
+use astarpa::{AstarPa, HeuristicParams, astar};
 use astarpa2::*;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
@@ -8,10 +8,10 @@ use pa_base_algos::{
     nw::{AffineFront, NW},
 };
 use pa_generate::uniform_seeded;
-use pa_heuristic::{MatchConfig, NoCost, Pruning, GCSH};
+use pa_heuristic::{GCSH, MatchConfig, NoCost, Pruning};
 use pa_types::Aligner;
-use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis::NoVis;
+use pa_vis::visualizer::{self, Gradient, When};
 use std::time::Duration;
 
 fn main() {
@@ -94,7 +94,7 @@ fn main() {
     let a = &a;
     let b = &b;
 
-    let cost = astar(&a, &b, &NoCost, &NoVis).0 .0;
+    let cost = astar(&a, &b, &NoCost, &NoVis).0.0;
     println!("{} {}", a.len(), b.len());
     println!("cost {cost}");
 

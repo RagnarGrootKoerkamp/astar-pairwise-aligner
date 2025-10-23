@@ -1,8 +1,8 @@
 use pa_affine_types::AffineCost;
 use pa_base_algos::nw::{AffineFront, NW};
-use pa_generate::{generate_model, ErrorModel};
+use pa_generate::{ErrorModel, generate_model};
 use pa_vis::NoVis;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 
 fn main() {
     let rng = &mut rng();

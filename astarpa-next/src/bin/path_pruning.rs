@@ -7,8 +7,8 @@ use astarpa_next::path_pruning::PathHeuristic;
 use clap::Parser;
 use pa_affine_types::{AffineAligner, AffineCost};
 use pa_base_algos::{
-    nw::{AffineFront, NW},
     Domain,
+    nw::{AffineFront, NW},
 };
 use pa_bin::Cli;
 use pa_heuristic::{Heuristic, HeuristicMapper};

@@ -2,7 +2,7 @@ use pa_heuristic::{
     AffineGapSeedCost, BruteForceGCSH, Heuristic, MatchConfig, Pruning, SimpleAffineCost,
 };
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis::{canvas::*, VisualizerInstance, VisualizerT};
+use pa_vis::{VisualizerInstance, VisualizerT, canvas::*};
 use std::time::Duration;
 
 fn main() {

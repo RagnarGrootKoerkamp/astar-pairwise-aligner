@@ -1,9 +1,9 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use instant::Duration;
 use pa_generate::uniform_fixed;
 use pa_heuristic::{
-    matches::{exact::*, Matches},
     MatchConfig,
+    matches::{Matches, exact::*},
 };
 
 fn bench(c: &mut Criterion) {

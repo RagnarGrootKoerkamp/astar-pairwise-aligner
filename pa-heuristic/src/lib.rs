@@ -1,9 +1,4 @@
-#![feature(
-    associated_type_defaults,
-    int_roundings,
-    portable_simd,
-    never_type
-)]
+#![feature(associated_type_defaults, int_roundings, portable_simd, never_type)]
 
 mod cli;
 mod config;

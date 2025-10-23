@@ -1,5 +1,5 @@
 use crate::{html::FRAMES_PRESENTED, interaction::Interaction};
-use astarpa::{make_aligner_with_visualizer, HeuristicParams};
+use astarpa::{HeuristicParams, make_aligner_with_visualizer};
 use pa_bin::Cli;
 use pa_types::*;
 use pa_vis::cli::{VisualizerArgs, VisualizerType};

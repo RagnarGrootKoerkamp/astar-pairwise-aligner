@@ -2,12 +2,12 @@
 use astarpa::AstarPa;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
+    Domain,
     dt::{DiagonalTransition, GapCostHeuristic},
     nw::{AffineFront, BitFront, NW},
-    Domain,
 };
 use pa_generate::uniform_fixed;
-use pa_heuristic::{MatchConfig, NoCost, Pruning, CSH, GCSH, SH};
+use pa_heuristic::{CSH, GCSH, MatchConfig, NoCost, Pruning, SH};
 use pa_types::seq_to_string;
 use pa_vis::visualizer::{self, Config, Gradient, When};
 use std::{path::PathBuf, time::Duration};

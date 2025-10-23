@@ -4,7 +4,7 @@
 #![feature(test)]
 #![cfg(test)]
 use pa_heuristic::matches::{
-    inexact::{find_matches_qgram_hash_inexact, Mutations},
+    inexact::{Mutations, find_matches_qgram_hash_inexact},
     *,
 };
 use pa_types::*;

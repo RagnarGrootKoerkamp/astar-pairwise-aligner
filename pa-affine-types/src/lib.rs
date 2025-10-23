@@ -1,4 +1,4 @@
-use pa_types::{Cost, Pos, Seq, I};
+use pa_types::{Cost, I, Pos, Seq};
 
 pub mod cigar;
 pub mod cost_model;

@@ -6,12 +6,12 @@ use astarpa::{AstarPa, AstarStatsAligner};
 use bio::alignment::distance::simd::levenshtein;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
-    nw::{BitFront, NW},
     Domain,
+    nw::{BitFront, NW},
 };
-use pa_generate::{generate_model, uniform_fixed, ErrorModel};
-use pa_heuristic::{Heuristic, MatchConfig, Prune, Pruning, CSH, GCSH};
-use pa_types::{seq_to_string, Aligner, Cost, CostModel, Pos, Sequence, I};
+use pa_generate::{ErrorModel, generate_model, uniform_fixed};
+use pa_heuristic::{CSH, GCSH, Heuristic, MatchConfig, Prune, Pruning};
+use pa_types::{Aligner, Cost, CostModel, I, Pos, Sequence, seq_to_string};
 use pa_vis::visualizer::{self, When};
 use pa_vis::{NoVis, VisualizerT};
 use std::{

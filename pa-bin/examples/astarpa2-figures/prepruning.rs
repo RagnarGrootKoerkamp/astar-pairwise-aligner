@@ -1,10 +1,10 @@
 use astarpa::astar_with_vis;
 use pa_generate::uniform_seeded;
-use pa_heuristic::matches::{prepruning, CenteredVec};
-use pa_heuristic::{MatchConfig, Prune, Pruning, CSH, GCSH, SH};
+use pa_heuristic::matches::{CenteredVec, prepruning};
+use pa_heuristic::{CSH, GCSH, MatchConfig, Prune, Pruning, SH};
 use pa_types::I;
 use pa_vis::visualizer::{self, Gradient, When};
-use pa_vis::{canvas::*, VisualizerT};
+use pa_vis::{VisualizerT, canvas::*};
 use std::path::PathBuf;
 use std::time::Duration;
 

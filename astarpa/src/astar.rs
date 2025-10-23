@@ -90,9 +90,13 @@ pub fn astar_with_vis<'a, H: Heuristic>(
 
     let _dist = loop {
         let reorder_timer = Timer::new(&mut retry_cnt);
-        let Some(QueueElement {f: queue_f, data: (pos, queue_g),}) = queue.pop() else {
-                panic!("priority queue is empty before the end is reached.");
-            };
+        let Some(QueueElement {
+            f: queue_f,
+            data: (pos, queue_g),
+        }) = queue.pop()
+        else {
+            panic!("priority queue is empty before the end is reached.");
+        };
 
         let state = states.entry(pos).or_default();
 
@@ -110,9 +114,13 @@ pub fn astar_with_vis<'a, H: Heuristic>(
             state.hint = new_hint;
             let current_f = state.g + current_h;
             assert!(
-                    current_f >= queue_f && current_h >= queue_f - queue_g,
-                    "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.g={} queue_g={} queue_h={} current_h={}", state.g, queue_g, queue_f-queue_g, current_h
-                );
+                current_f >= queue_f && current_h >= queue_f - queue_g,
+                "Retry {pos} Current_f {current_f} smaller than queue_f {queue_f}! state.g={} queue_g={} queue_h={} current_h={}",
+                state.g,
+                queue_g,
+                queue_f - queue_g,
+                current_h
+            );
             if current_f > queue_f {
                 stats.reordered += 1;
                 queue.push(QueueElement {

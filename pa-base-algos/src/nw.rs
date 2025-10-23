@@ -18,8 +18,8 @@ mod bitpacking;
 mod front;
 
 use crate::nw::front::{IRange, JRange, NwFront, NwFronts};
-use crate::{exponential_search, Strategy, PRINT};
-use crate::{linear_search, Domain};
+use crate::{Domain, linear_search};
+use crate::{PRINT, Strategy, exponential_search};
 use pa_affine_types::*;
 use pa_heuristic::*;
 use pa_types::*;
@@ -86,8 +86,8 @@ impl AstarNwParams {
     pub fn make_aligner(&self, trace: bool) -> Box<dyn Aligner> {
         #[cfg(feature = "example")]
         if self.viz {
-            use pa_vis::visualizer::{Gradient, When};
             use pa_vis::canvas::RED;
+            use pa_vis::visualizer::{Gradient, When};
             use std::time::Duration;
             let mut config = pa_vis::visualizer::Config::default();
             config.draw = When::StepBy(1);
@@ -499,7 +499,9 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
                 };
 
                 if PRINT {
-                    eprintln!("j_range for {i_range:?}\t\told {old_range:?}\t\t fixed @ {is}\t {fixed_start}..{fixed_end}");
+                    eprintln!(
+                        "j_range for {i_range:?}\t\told {old_range:?}\t\t fixed @ {is}\t {fixed_start}..{fixed_end}"
+                    );
                 }
 
                 // Early return for empty range.
@@ -1068,7 +1070,7 @@ impl<'a, const N: usize, V: VisualizerT, H: Heuristic, F: NwFrontsTag<N>>
 #[cfg(test)]
 mod test {
     use pa_affine_types::AffineCost;
-    use pa_heuristic::{MatchConfig, Pruning, GCSH};
+    use pa_heuristic::{GCSH, MatchConfig, Pruning};
     use pa_vis::NoVis;
 
     use crate::{Domain, Strategy};

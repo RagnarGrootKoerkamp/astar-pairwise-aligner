@@ -1,11 +1,11 @@
 use astarpa_next::path_pruning::PathHeuristic;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
-    nw::{AffineFront, NW},
     Domain,
+    nw::{AffineFront, NW},
 };
 use pa_generate::uniform_fixed;
-use pa_heuristic::{MatchConfig, Pruning, GCSH};
+use pa_heuristic::{GCSH, MatchConfig, Pruning};
 use pa_vis::visualizer::{self, Gradient, When};
 use std::{path::PathBuf, time::Duration};
 

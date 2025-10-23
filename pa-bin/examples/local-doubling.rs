@@ -2,14 +2,14 @@
 use astarpa::AstarPa;
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
-    nw::{AffineFront, BitFront, NW},
     Domain, Strategy,
+    nw::{AffineFront, BitFront, NW},
 };
 use pa_generate::{uniform_fixed, uniform_seeded};
-use pa_heuristic::{MatchConfig, Pruning, GCSH};
+use pa_heuristic::{GCSH, MatchConfig, Pruning};
 use pa_types::Sequence;
-use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis::canvas::RED;
+use pa_vis::visualizer::{self, Gradient, When};
 use std::{path::PathBuf, time::Duration};
 
 fn complex_ab(scale: usize) -> (Sequence, Sequence) {

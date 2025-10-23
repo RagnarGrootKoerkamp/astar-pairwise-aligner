@@ -14,12 +14,12 @@
 use std::{
     cmp::{max, min},
     mem::swap,
-    simd::{prelude::SimdPartialEq, Simd},
+    simd::{Simd, prelude::SimdPartialEq},
 };
 
 use super::{CenteredVec, Match};
 use crate::seeds::Seeds;
-use pa_types::{Cost, Pos, Seq, I};
+use pa_types::{Cost, I, Pos, Seq};
 
 /// Returns true when `end_i` is reached.
 fn extend_right(a: Seq, b: Seq, i: &mut I, mut j: I, end_i: I) -> bool {

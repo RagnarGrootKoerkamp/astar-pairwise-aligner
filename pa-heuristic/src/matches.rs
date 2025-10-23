@@ -5,7 +5,7 @@ pub mod prepruning;
 pub mod qgrams;
 mod suffix_array;
 
-use crate::{prelude::*, seeds::*, PRINT};
+use crate::{PRINT, prelude::*, seeds::*};
 use bio::{
     alphabets::{Alphabet, RankTransform},
     data_structures::qgram_index::QGramIndex,

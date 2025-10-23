@@ -73,7 +73,10 @@ fn exponential_search<T>(
                 "A solution {maxs} was found for a previous s<={last_s}, but s={s} gives {cost}"
             );
             if cost <= s {
-                assert!(cost > last_s, "Cost {cost} was found at s {s} but should already have been found at last_s {last_s}");
+                assert!(
+                    cost > last_s,
+                    "Cost {cost} was found at s {s} but should already have been found at last_s {last_s}"
+                );
                 return (cost, t);
             } else {
                 // If some value was returned this is an upper bound on the answer.
@@ -112,7 +115,10 @@ fn linear_search<T>(
                 "A solution {maxs} was found for a previous s<={last_s}, but s={s} gives {cost}"
             );
             if cost <= s {
-                assert!(cost > last_s, "Cost {cost} was found at s {s} but should already have been found at last_s {last_s}");
+                assert!(
+                    cost > last_s,
+                    "Cost {cost} was found at s {s} but should already have been found at last_s {last_s}"
+                );
                 return (cost, t);
             } else {
                 // If some value was returned this is an upper bound on the answer.

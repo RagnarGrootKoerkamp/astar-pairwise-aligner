@@ -1,6 +1,6 @@
 use bio::alphabets::{Alphabet, RankTransform};
 use itertools::Itertools;
-use pa_types::{Seq, I};
+use pa_types::{I, Seq};
 
 use crate::{B, W};
 

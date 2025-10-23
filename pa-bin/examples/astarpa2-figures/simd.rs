@@ -1,8 +1,8 @@
 use itertools::Itertools;
 use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis::{
-    canvas::{BLACK, BLUE, RED},
     VisualizerT,
+    canvas::{BLACK, BLUE, RED},
 };
 use std::{iter::repeat, time::Duration};
 

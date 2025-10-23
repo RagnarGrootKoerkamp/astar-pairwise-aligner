@@ -154,7 +154,9 @@ impl<'a> EditGraph<'a> {
     {
         let is_match = self.is_match(p);
         // With greedy matching, skip other edges in case of a match.
-        if self.greedy_matching && let Some(n) = is_match {
+        if self.greedy_matching
+            && let Some(n) = is_match
+        {
             f(n, Edge::Match);
             return;
         }

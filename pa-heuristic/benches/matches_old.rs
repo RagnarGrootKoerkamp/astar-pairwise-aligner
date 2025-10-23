@@ -5,8 +5,8 @@
 use lazy_static::*;
 use pa_generate::uniform_fixed;
 use pa_heuristic::matches::{
-    exact::{find_matches_qgramindex, hash_a},
     MatchConfig,
+    exact::{find_matches_qgramindex, hash_a},
 };
 use pa_types::*;
 use rustc_hash::FxHashMap as HashMap;

@@ -1,10 +1,10 @@
 use pa_affine_types::AffineCost;
 use pa_base_algos::{
-    nw::{BitFront, NW},
     Domain, Strategy,
+    nw::{BitFront, NW},
 };
 use pa_generate::uniform_fixed;
-use pa_heuristic::{GapCost, MatchConfig, Pruning, GCSH};
+use pa_heuristic::{GCSH, GapCost, MatchConfig, Pruning};
 use pa_types::Aligner;
 use pa_vis::visualizer::{self, Gradient, When};
 use std::{path::PathBuf, time::Duration};

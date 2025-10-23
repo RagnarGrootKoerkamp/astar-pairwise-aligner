@@ -1,7 +1,7 @@
 use astarpa::AstarPa;
-use pa_heuristic::{MatchConfig, Prune, Pruning, CSH, GCSH, SH};
-use pa_vis::visualizer::{self, Gradient, When};
+use pa_heuristic::{CSH, GCSH, MatchConfig, Prune, Pruning, SH};
 use pa_vis::canvas::*;
+use pa_vis::visualizer::{self, Gradient, When};
 use std::path::PathBuf;
 use std::time::Duration;
 

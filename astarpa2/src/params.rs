@@ -1,8 +1,8 @@
 use super::*;
+use Domain::*;
 use pa_heuristic::{GapCost, HeuristicMapper, HeuristicParams, NoCost};
 use pa_vis::NoVis;
 use serde::{Deserialize, Serialize};
-use Domain::*;
 
 /// Flat, untyped parameters for A*PA2 that can be used for CLI or pa-bench.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -107,8 +107,8 @@ impl AstarPa2Params {
     pub fn make_aligner(&self, trace: bool) -> Box<dyn AstarPa2StatsAligner> {
         #[cfg(feature = "example")]
         if self.viz {
-            use pa_vis::visualizer::{Gradient, When};
             use pa_vis::canvas::RED;
+            use pa_vis::visualizer::{Gradient, When};
             use std::time::{Duration, SystemTime};
 
             let mut config = pa_vis::visualizer::Config::default();

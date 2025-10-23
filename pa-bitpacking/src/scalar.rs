@@ -3,7 +3,7 @@ use std::cmp::min;
 use itertools::izip;
 use pa_types::Cost;
 
-use crate::{myers, profile::Profile, HEncoding, V};
+use crate::{HEncoding, V, myers, profile::Profile};
 
 /// Compute a rectangle column by column.
 pub fn col<P: Profile, H: HEncoding>(a: &[P::A], b: &[P::B], h: &mut [H], v: &mut [V]) -> Cost {

@@ -1,10 +1,10 @@
 //! This generates the visualizations used in the limitations section of the paper.
 
 use astarpa::astar_dt;
-use pa_generate::{uniform_seeded, ErrorModel};
+use pa_generate::{ErrorModel, uniform_seeded};
 use pa_heuristic::{BruteForceGCSH, GapCost, MatchConfig, Pruning};
-use pa_vis::visualizer::{self, Gradient, When};
 use pa_vis::canvas::BLACK;
+use pa_vis::visualizer::{self, Gradient, When};
 use rand::SeedableRng;
 use std::time::Duration;
 
@@ -53,7 +53,7 @@ fn main() {
 
         let cost = astar(&a, &b, &h, &config.with_filename("high-error-rate"))
             .0
-             .0;
+            .0;
         println!("cost {cost}");
     }
 
@@ -66,7 +66,7 @@ fn main() {
         a.append(&mut a3);
         b.append(&mut b3);
 
-        let cost = astar(&a, &b, &h, &config.with_filename("deletion")).0 .0;
+        let cost = astar(&a, &b, &h, &config.with_filename("deletion")).0.0;
         println!("cost {cost}");
     }
 
@@ -86,7 +86,7 @@ fn main() {
         a.append(&mut a3);
         b.append(&mut b3);
 
-        let cost = astar(&a, &b, &h, &config.with_filename("repeats")).0 .0;
+        let cost = astar(&a, &b, &h, &config.with_filename("repeats")).0.0;
         println!("cost {cost}");
     }
 }
