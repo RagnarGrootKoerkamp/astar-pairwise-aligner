@@ -80,3 +80,8 @@ required-features = ["example"]
 name = "fig-comparison-2"
 path = "examples/astarpa2-figures/comparison.rs"
 required-features = ["example"]
+
+[[example]]
+name = "thesis-cover"
+path = "examples/thesis-cover.rs"
+required-features = ["example"]
