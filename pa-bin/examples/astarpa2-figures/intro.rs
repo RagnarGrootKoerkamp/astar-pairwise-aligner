@@ -1,4 +1,3 @@
-#![feature(trait_upcasting)]
 //! This generates the visualizations used in figure 1 in the paper and in the slides.
 
 use astarpa::{astar, AstarPa, HeuristicParams};

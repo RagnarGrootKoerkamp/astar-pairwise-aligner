@@ -1,4 +1,3 @@
-#![feature(trait_upcasting)]
 
 use astarpa::{make_aligner, HeuristicParams};
 use astarpa2::AstarPa2Params;

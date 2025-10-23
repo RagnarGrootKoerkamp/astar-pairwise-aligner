@@ -15,14 +15,11 @@
 //! 5/6/7/8 => simd4/2 (padded) 3.25  3.19
 #![allow(incomplete_features)]
 #![feature(
-    array_chunks,
     array_windows,
     bigint_helper_methods,
-    concat_idents,
     generic_const_exprs,
     int_roundings,
     iter_array_chunks,
-    let_chains,
     portable_simd,
     test
 )]

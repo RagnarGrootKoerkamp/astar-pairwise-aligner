@@ -67,8 +67,8 @@ where
     }
 
     // Iterate over blocks of L*N rows at a time.
-    let b_chunks = b.array_chunks::<{ L * N }>();
-    let v_chunks = v.array_chunks_mut::<{ L * N }>();
+    let (b_chunks, mut b) = b.as_chunks::<{ L * N }>();
+    let (v_chunks, mut v) = v.as_chunks_mut::<{ L * N }>();
     let mut offset = 0;
     for (cbs, v) in izip!(b_chunks, v_chunks) {
         compute_block_of_rows::<N, H, L, FILL>(a, cbs, h, v, values, offset);
@@ -78,8 +78,8 @@ where
     // Handle the remaining rows.
     // - With exponential decay in exact mode.
     // - With padding an a single extra call otherwise.
-    let mut b = b.array_chunks::<{ L * N }>().remainder();
-    let mut v = v.array_chunks_mut::<{ L * N }>().into_remainder();
+    // let mut b = b.array_chunks::<{ L * N }>().remainder();
+    // let mut v = v.array_chunks_mut::<{ L * N }>().into_remainder();
     assert_eq!(b.len(), v.len());
     if exact_end {
         // b.len() < 8 for N=2, L=4.

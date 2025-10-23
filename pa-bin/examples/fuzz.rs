@@ -2,8 +2,6 @@
 #![allow(dead_code)]
 #![allow(unused_mut)]
 #![allow(unused_variables)]
-#![feature(trait_upcasting)]
-#![feature(let_chains)]
 use astarpa::{AstarPa, AstarStatsAligner};
 use bio::alignment::distance::simd::levenshtein;
 use pa_affine_types::AffineCost;

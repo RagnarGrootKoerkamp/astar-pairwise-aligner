@@ -1,4 +1,3 @@
-#![feature(trait_upcasting)]
 //! This generates the visualizations used in the limitations section of the paper.
 
 use astarpa::{astar, AstarPa, HeuristicParams};

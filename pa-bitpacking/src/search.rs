@@ -1,5 +1,5 @@
 use super::*;
-use pa_types::{Cigar, CigarElem, CigarOp, Cost, Pos, I};
+use pa_types::{Cigar, CigarOp, Cost, Pos, I};
 
 type P = ScatterProfile;
 

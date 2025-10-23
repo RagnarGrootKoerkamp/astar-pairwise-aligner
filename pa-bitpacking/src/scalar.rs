@@ -114,8 +114,8 @@ pub fn cols_ru<const N: usize, P: Profile, H: HEncoding>(
 
     let rev = |k| N - 1 - k;
 
-    let a_chunks = a.array_chunks::<N>();
-    let h_chunks = h.array_chunks_mut::<N>();
+    let a_chunks = a.as_chunks::<N>().0;
+    let h_chunks = h.as_chunks_mut::<N>().0;
     for (cas, hs) in izip!(a_chunks, h_chunks) {
         // Do the top-left triangle.
         for i in 0..N {
@@ -138,9 +138,9 @@ pub fn cols_ru<const N: usize, P: Profile, H: HEncoding>(
     }
 
     // Do simple per-column scan for the remaining cols.
-    let a_chunks = a.array_chunks::<N>();
-    let h_chunks = h.array_chunks_mut::<N>();
-    for (ca, h) in izip!(a_chunks.remainder(), h_chunks.into_remainder()) {
+    let a_chunks = a.as_chunks::<N>().1;
+    let h_chunks = h.as_chunks_mut::<N>().1;
+    for (ca, h) in izip!(a_chunks, h_chunks) {
         for (cb, v) in izip!(b, v.iter_mut()) {
             myers::compute_block::<P, H>(h, v, ca, cb);
         }
@@ -165,8 +165,8 @@ pub fn cols_ld<const N: usize, P: Profile, H: HEncoding>(
 
     let rev = |k| N - 1 - k;
 
-    let a_chunks = a.array_chunks::<N>();
-    let h_chunks = h.array_chunks_mut::<N>();
+    let (a_chunks, a_chunks_remainder) = a.as_chunks::<N>();
+    let (h_chunks, h_chunks_remainder) = h.as_chunks_mut::<N>();
     for (cas, hs) in izip!(a_chunks, h_chunks) {
         // Do the top-left triangle.
         for i in 0..N {
@@ -189,9 +189,7 @@ pub fn cols_ld<const N: usize, P: Profile, H: HEncoding>(
     }
 
     // Do simple per-column scan for the remaining cols.
-    let a_chunks = a.array_chunks::<N>();
-    let h_chunks = h.array_chunks_mut::<N>();
-    for (ca, h) in izip!(a_chunks.remainder(), h_chunks.into_remainder()) {
+    for (ca, h) in izip!(a_chunks_remainder, h_chunks_remainder) {
         for (cb, v) in izip!(b, v.iter_mut()) {
             myers::compute_block::<P, H>(h, v, ca, cb);
         }
@@ -216,7 +214,9 @@ pub fn cols_ru_local_h<const N: usize, P: Profile, H: HEncoding>(
 
     let rev = |k| N - 1 - k;
 
-    for cas in a.array_chunks::<N>() {
+    let (a_chunks, a_chunks_remainder) = a.as_chunks::<N>();
+
+    for cas in a_chunks {
         let hs = &mut [H::one(); N];
         // Do the top-left triangle.
         for i in 0..N {
@@ -240,7 +240,7 @@ pub fn cols_ru_local_h<const N: usize, P: Profile, H: HEncoding>(
     }
 
     // Do simple per-column scan for the remaining cols.
-    for ca in a.array_chunks::<N>().remainder() {
+    for ca in a_chunks_remainder {
         let h = &mut H::one();
         for (cb, v) in izip!(b, v.iter_mut()) {
             myers::compute_block::<P, H>(h, v, ca, cb);
@@ -267,7 +267,9 @@ pub fn cols_ld_local_h<const N: usize, P: Profile, H: HEncoding>(
 
     let rev = |k| N - 1 - k;
 
-    for cas in a.array_chunks::<N>() {
+    let (a_chunks, a_chunks_remainder) = a.as_chunks::<N>();
+
+    for cas in a_chunks {
         let hs = &mut [H::one(); N];
         // Do the top-left triangle.
         for i in 0..N {
@@ -291,7 +293,7 @@ pub fn cols_ld_local_h<const N: usize, P: Profile, H: HEncoding>(
     }
 
     // Do simple per-column scan for the remaining cols.
-    for ca in a.array_chunks::<N>().remainder() {
+    for ca in a_chunks_remainder {
         let h = &mut H::one();
         for (cb, v) in izip!(b, v.iter_mut()) {
             myers::compute_block::<P, H>(h, v, ca, cb);
@@ -317,8 +319,8 @@ pub fn rows_ru<const N: usize, P: Profile, H: HEncoding>(
 
     let rev = |k| N - 1 - k;
 
-    let b_chunks = b.array_chunks::<N>();
-    let v_chunks = v.array_chunks_mut::<N>();
+    let (b_chunks, b_chunks_remainder) = b.as_chunks::<N>();
+    let (v_chunks, v_chunks_remainder) = v.as_chunks_mut::<N>();
     for (cbs, vs) in izip!(b_chunks, v_chunks) {
         // Do the top-left triangle.
         for j in 0..N {
@@ -341,9 +343,7 @@ pub fn rows_ru<const N: usize, P: Profile, H: HEncoding>(
     }
 
     // Do simple per-column scan for the remaining cols.
-    let b_chunks = b.array_chunks::<N>();
-    let v_chunks = v.array_chunks_mut::<N>();
-    for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
+    for (cb, v) in izip!(b_chunks_remainder, v_chunks_remainder) {
         for (ca, h) in izip!(a, h.iter_mut()) {
             myers::compute_block::<P, H>(h, v, ca, cb);
         }
@@ -368,8 +368,8 @@ pub fn rows_ld<const N: usize, P: Profile, H: HEncoding>(
 
     let rev = |k| N - 1 - k;
 
-    let b_chunks = b.array_chunks::<N>();
-    let v_chunks = v.array_chunks_mut::<N>();
+    let (b_chunks, b_chunks_remainder) = b.as_chunks::<N>();
+    let (v_chunks, v_chunks_remainder) = v.as_chunks_mut::<N>();
     for (cbs, vs) in izip!(b_chunks, v_chunks) {
         // Do the top-left triangle.
         for j in 0..N {
@@ -392,9 +392,7 @@ pub fn rows_ld<const N: usize, P: Profile, H: HEncoding>(
     }
 
     // Do simple per-column scan for the remaining cols.
-    let b_chunks = b.array_chunks::<N>();
-    let v_chunks = v.array_chunks_mut::<N>();
-    for (cb, v) in izip!(b_chunks.remainder(), v_chunks.into_remainder()) {
+    for (cb, v) in izip!(b_chunks_remainder, v_chunks_remainder) {
         for (ca, h) in izip!(a, h.iter_mut()) {
             myers::compute_block::<P, H>(h, v, ca, cb);
         }

@@ -61,7 +61,7 @@ where
 {
     unsafe {
         slice
-            .array_chunks::<L>()
+            .as_chunks::<L>().0.iter()
             .map(|&b| b.into())
             .array_chunks::<N>()
             .next()
@@ -136,8 +136,8 @@ where
     let ap1 = a.iter().map(|ca| ca.1).collect_vec();
 
     // Iterate over blocks of L*N rows at a time.
-    let b_chunks = b.array_chunks::<{ L * N }>();
-    let v_chunks = v.array_chunks_mut::<{ L * N }>();
+    let (b_chunks, mut b) = b.as_chunks::<{ L * N }>();
+    let (v_chunks, mut v) = v.as_chunks_mut::<{ L * N }>();
     for (cbs, v) in izip!(b_chunks, v_chunks) {
         compute_block_of_rows(a, &ap0, &ap1, cbs, h, v);
     }
@@ -145,8 +145,8 @@ where
     // Handle the remaining rows.
     // - With exponential decay in exact mode.
     // - With padding an a single extra call otherwise.
-    let mut b = b.array_chunks::<{ L * N }>().remainder();
-    let mut v = v.array_chunks_mut::<{ L * N }>().into_remainder();
+    // let mut b = b.array_chunks::<{ L * N }>().remainder();
+    // let mut v = v.array_chunks_mut::<{ L * N }>().into_remainder();
     assert_eq!(b.len(), v.len());
     if exact_end {
         // b.len() < 8 for N=2, L=4.
@@ -380,8 +380,8 @@ where
     let ap1 = a.iter().map(|ca| ca.1).collect_vec();
 
     // Iterate over blocks of L*N rows at a time.
-    let b_chunks = b.array_chunks::<{ L * N }>();
-    let v_chunks = v.array_chunks_mut::<{ L * N }>();
+    let (b_chunks, mut b) = b.as_chunks::<{ L * N }>();
+    let (v_chunks, mut v) = v.as_chunks_mut::<{ L * N }>();
     let mut offset = 0;
     for (cbs, v) in izip!(b_chunks, v_chunks) {
         fill_block_of_rows(a, &ap0, &ap1, cbs, h, v, values, offset);
@@ -391,8 +391,8 @@ where
     // Handle the remaining rows.
     // - With exponential decay in exact mode.
     // - With padding an a single extra call otherwise.
-    let mut b = b.array_chunks::<{ L * N }>().remainder();
-    let mut v = v.array_chunks_mut::<{ L * N }>().into_remainder();
+    // let mut b = b.array_chunks::<{ L * N }>().remainder();
+    // let mut v = v.array_chunks_mut::<{ L * N }>().into_remainder();
     assert_eq!(b.len(), v.len());
     if exact_end {
         // b.len() < 8 for N=2, L=4.

@@ -1,5 +1,3 @@
-#![feature(let_chains, trait_upcasting)]
-
 use clap::Parser;
 use pa_bin::Cli;
 use pa_types::*;
