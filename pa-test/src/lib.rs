@@ -95,7 +95,7 @@ pub fn test_aligner_on_input(a: Seq, b: Seq, aligner: &mut impl Aligner, params:
         );
     }
     assert_eq!(cost, aligner_cost);
-    cigar.verify(&CostModel::unit(), a, b);
+    cigar.verify(&CostModel::unit(), a, b).unwrap();
 }
 
 /// Test the given aligner on a large set of random sequences:
