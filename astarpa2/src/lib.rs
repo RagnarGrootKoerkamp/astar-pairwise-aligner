@@ -34,6 +34,12 @@ const DEBUG: bool = false;
 /// Block height 64.
 pub const WI: I = W as I;
 
+/// Align two sequences using NW with bitpacking and SIMD.
+pub fn astarpa2_nw(a: Seq, b: Seq) -> (Cost, Cigar) {
+    let (cost, cigar) = AstarPa2Params::nw().make_aligner(true).align(a, b);
+    (cost, cigar.unwrap())
+}
+
 /// Align two sequences using A*PA2-simple.
 pub fn astarpa2_simple(a: Seq, b: Seq) -> (Cost, Cigar) {
     let (cost, cigar) = AstarPa2Params::simple().make_aligner(true).align(a, b);

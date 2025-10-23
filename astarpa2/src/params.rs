@@ -42,6 +42,31 @@ pub struct AstarPa2Params {
 }
 
 impl AstarPa2Params {
+    /// Compute the full n*m alignment.
+    pub fn nw() -> Self {
+        Self {
+            name: "nw".into(),
+            domain: Domain::Full,
+            heuristic: HeuristicParams {
+                heuristic: pa_heuristic::HeuristicType::None,
+                ..Default::default()
+            },
+            doubling: band::DoublingType::None,
+            block_width: 256,
+            front: BlockParams {
+                sparse: false,
+                simd: true,
+                no_ilp: false,
+                incremental_doubling: false,
+                dt_trace: false,
+                ..Default::default()
+            },
+            sparse_h: false,
+            prune: false,
+            viz: false,
+        }
+    }
+
     pub fn simple() -> Self {
         Self {
             name: "simple".into(),
