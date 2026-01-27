@@ -8,7 +8,7 @@ use pa_base_algos::{
     dt::{DiagonalTransition, GapCostHeuristic},
     nw::{AffineFront, NW},
 };
-use pa_generate::{uniform_fixed, uniform_seeded};
+use pa_generate::uniform_seeded;
 use pa_heuristic::{GCSH, MatchConfig, NoCost, Pruning};
 use pa_types::Aligner;
 use pa_vis::NoVis;

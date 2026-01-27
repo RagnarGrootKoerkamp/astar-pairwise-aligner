@@ -19,3 +19,4 @@ rand.workspace = true
 
 [features]
 sdl = ["dep:sdl2"]
+wasm = []

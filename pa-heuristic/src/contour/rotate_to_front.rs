@@ -99,6 +99,7 @@ impl Contour for RotateToFrontContour {
 /// A bruteforce Contours implementation answering queries in O(r), and pruning
 /// in O(r^2) by rebuilding the entire datastructure.
 #[derive(Default, Debug)]
+#[allow(unused)]
 pub struct BruteForceContours {
     valued_arrows: Vec<(Arrow, Cost)>,
 }

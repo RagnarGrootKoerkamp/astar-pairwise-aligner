@@ -7,6 +7,7 @@ use super::*;
 
 /// A contour implementation that does all operations in O(r).
 #[derive(Default, Debug, Clone)]
+#[allow(unused)]
 pub struct BruteForceContour {
     /// In typical cases the average size of contours is 1.5 at the start (before pruning).
     pub points: SmallVec<[Pos; 2]>,

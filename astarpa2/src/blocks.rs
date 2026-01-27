@@ -562,8 +562,9 @@ impl Blocks {
             self.blocks[self.last_block_idx].fixed_j_range = fixed_j_range;
         }
 
-        if let Some(fixed_j_range) = fixed_j_range {
-            let block = &self.blocks[self.last_block_idx];
+        // FIXME
+        if let Some(_fixed_j_range) = fixed_j_range {
+            let _block = &self.blocks[self.last_block_idx];
             // assert!(block.original_j_range.contains_range(fixed_j_range));
         }
     }

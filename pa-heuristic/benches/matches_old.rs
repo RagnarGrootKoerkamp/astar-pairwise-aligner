@@ -17,6 +17,8 @@ use test::Bencher;
 
 mod matches {
 
+    use std::hint::black_box;
+
     use super::*;
     use aho_corasick::AhoCorasickBuilder;
     use bio::{
@@ -114,6 +116,7 @@ mod matches {
                 cnt += 1;
             }
         }
+        black_box(cnt);
     }
 
     pub fn lookup_suffixes_in_qgram_hashmap(a: Seq, b: Seq, k: I) {
@@ -128,6 +131,7 @@ mod matches {
                 cnt += 1;
             }
         }
+        black_box(cnt);
     }
 }
 

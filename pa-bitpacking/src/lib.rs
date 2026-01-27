@@ -15,7 +15,6 @@
 //! 5/6/7/8 => simd4/2 (padded) 3.25  3.19
 #![allow(incomplete_features)]
 #![feature(
-    array_windows,
     bigint_helper_methods,
     generic_const_exprs,
     int_roundings,

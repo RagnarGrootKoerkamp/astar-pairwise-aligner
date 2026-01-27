@@ -161,10 +161,6 @@ impl<'s> SearchResult<'s> {
             debug_assert_eq!(&v, fill.last().unwrap());
             let cost = V::value_to(&v, pos.1);
 
-            if cost < target_cost {
-                let cost = |Pos(i, j)| -> Cost { V::value_to(&fill[i as usize - start], j) };
-            }
-
             assert!(
                 cost >= target_cost,
                 "Target cost {target_cost}, but found trace path of cost {cost}"

@@ -1,10 +1,4 @@
-#![feature(
-    let_chains,
-    step_trait,
-    int_roundings,
-    portable_simd,
-    type_changing_struct_update
-)]
+#![feature(step_trait, int_roundings, portable_simd, type_changing_struct_update)]
 
 mod band;
 mod block;

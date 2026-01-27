@@ -15,12 +15,7 @@
     step_trait,
     int_roundings,
     iter_intersperse,
-    slice_as_chunks,
-    let_chains,
-    associated_type_defaults,
-    // If you get compile errors here, make sure to be on at least rust 1.72.
-    // Before, this was called `drain_filter`.
-    extract_if
+    associated_type_defaults
 )]
 
 mod alignment_graph;
