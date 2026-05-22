@@ -1,4 +1,3 @@
-#![feature(let_chains)]
 //~ This file is mostly identical to `pa-bin/src/main.rs`, but wraps the given
 // heuristic in the `PathHeuristic`. To achieve this, some more functions are inlined here.
 

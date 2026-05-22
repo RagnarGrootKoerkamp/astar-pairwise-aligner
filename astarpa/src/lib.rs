@@ -9,14 +9,6 @@
 //! - `AstarPa{ dt: bool, h: Heuristic, v: VisualizerT}.align(a,b)`
 //! The last 2 methods create an aligner object that can be reused.
 //!
-#![feature(
-    test,
-    duration_constants,
-    step_trait,
-    int_roundings,
-    iter_intersperse,
-    associated_type_defaults
-)]
 
 mod alignment_graph;
 mod astar;

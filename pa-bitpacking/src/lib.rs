@@ -14,14 +14,7 @@
 //! 3/4     => simd4/1 (padded) 2.04  2.07
 //! 5/6/7/8 => simd4/2 (padded) 3.25  3.19
 #![allow(incomplete_features)]
-#![feature(
-    bigint_helper_methods,
-    generic_const_exprs,
-    int_roundings,
-    iter_array_chunks,
-    portable_simd,
-    test
-)]
+#![feature(generic_const_exprs, int_roundings, iter_array_chunks, portable_simd)]
 
 mod encoding;
 pub mod myers;
