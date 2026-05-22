@@ -1,4 +1,3 @@
-#![feature(portable_simd)]
 use bio::alignment::distance::simd::levenshtein;
 use criterion::{
     BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,

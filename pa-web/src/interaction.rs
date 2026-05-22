@@ -88,36 +88,36 @@ impl Interaction {
         self.playing = !self.playing;
     }
 
-    #[cfg(feature = "bin")]
-    pub fn wait(&mut self) {
-        // use crate::canvas::sdl::wait_for_key;
+    // #[cfg(feature = "bin")]
+    // pub fn wait(&mut self) {
+    // use crate::canvas::sdl::wait_for_key;
 
-        // match wait_for_key(if self.playing {
-        //     self.spf
-        // } else {
-        //     Duration::MAX
-        // }) {
-        //     KeyboardAction::Next => {
-        //         self.next();
-        //     }
-        //     KeyboardAction::Prev => {
-        //         self.prev();
-        //     }
-        //     KeyboardAction::PausePlay => self.pauseplay(),
-        //     KeyboardAction::Faster => self.faster(),
-        //     KeyboardAction::Slower => self.slower(),
-        //     KeyboardAction::ToEnd => self.toend(),
-        //     KeyboardAction::Exit => {
-        //         eprintln!("Aborted by user!");
-        //         std::process::exit(1);
-        //     }
-        //     KeyboardAction::None => {
-        //         if self.playing {
-        //             self.step();
-        //         }
-        //     }
-        // }
-    }
-    #[cfg(feature = "wasm")]
-    pub fn wait(&mut self) {}
+    // match wait_for_key(if self.playing {
+    //     self.spf
+    // } else {
+    //     Duration::MAX
+    // }) {
+    //     KeyboardAction::Next => {
+    //         self.next();
+    //     }
+    //     KeyboardAction::Prev => {
+    //         self.prev();
+    //     }
+    //     KeyboardAction::PausePlay => self.pauseplay(),
+    //     KeyboardAction::Faster => self.faster(),
+    //     KeyboardAction::Slower => self.slower(),
+    //     KeyboardAction::ToEnd => self.toend(),
+    //     KeyboardAction::Exit => {
+    //         eprintln!("Aborted by user!");
+    //         std::process::exit(1);
+    //     }
+    //     KeyboardAction::None => {
+    //         if self.playing {
+    //             self.step();
+    //         }
+    //     }
+    // }
+    // }
+    // #[cfg(feature = "wasm")]
+    // pub fn wait(&mut self) {}
 }
