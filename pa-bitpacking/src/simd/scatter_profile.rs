@@ -12,7 +12,6 @@ pub fn compute<const N: usize, H: HEncoding, const L: usize, const FILL: bool>(
     values: &mut [Vec<V>],
 ) -> Cost
 where
-    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
     [(); L * 1]: Sized,
 {
@@ -175,7 +174,6 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize, const FIL
     values: &mut [Vec<V>],
     offset: usize,
 ) where
-    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
 {
     let rev = |k| L * N - 1 - k;

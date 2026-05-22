@@ -35,30 +35,20 @@ use super::*;
 use crate::bit_profile::Bits;
 use itertools::{Itertools, izip};
 use pa_types::Cost;
-use std::{
-    array::from_fn,
-    mem::transmute,
-    simd::{LaneCount, SupportedLaneCount},
-};
+use std::{array::from_fn, mem::transmute};
 
 /// `compute_block` for scatter profile
 pub mod scatter_profile;
 
 /// NOTE: This is simply a cast.
 #[inline(always)]
-fn simd_to_slice<const N: usize, const L: usize>(simd: &[S<L>; N]) -> &[B; L * N]
-where
-    LaneCount<L>: SupportedLaneCount,
-{
+fn simd_to_slice<const N: usize, const L: usize>(simd: &[S<L>; N]) -> &[B; L * N] {
     unsafe { transmute(simd) }
 }
 
 /// NOTE: This creates a new array with the right alignment.
 #[inline(always)]
-fn slice_to_simd<const N: usize, const L: usize>(slice: &[B; L * N]) -> [S<L>; N]
-where
-    LaneCount<L>: SupportedLaneCount,
-{
+fn slice_to_simd<const N: usize, const L: usize>(slice: &[B; L * N]) -> [S<L>; N] {
     unsafe {
         slice
             .as_chunks::<L>()
@@ -73,10 +63,7 @@ where
 
 /// Rotate the N*L lanes.
 #[inline(always)]
-fn rotate_left<const N: usize, const L: usize>(ph_simd: &mut [S<L>; N], mut carry: B) -> B
-where
-    LaneCount<L>: SupportedLaneCount,
-{
+fn rotate_left<const N: usize, const L: usize>(ph_simd: &mut [S<L>; N], mut carry: B) -> B {
     for k in (0..N).rev() {
         ph_simd[k] = ph_simd[k].rotate_elements_left::<1>();
         let new_carry = ph_simd[k].as_array()[L - 1];
@@ -103,7 +90,6 @@ pub fn compute<const N: usize, H: HEncoding, const L: usize>(
     exact_end: bool,
 ) -> Cost
 where
-    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
     [(); L * 1]: Sized,
 {
@@ -234,7 +220,6 @@ fn compute_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     h: &mut [H],
     v: &mut [V; L * N],
 ) where
-    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
 {
     let rev = |k| L * N - 1 - k;
@@ -332,7 +317,6 @@ pub fn fill<const N: usize, H: HEncoding, const L: usize>(
     values: &mut [Vec<V>],
 ) -> Cost
 where
-    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
     [(); L * 1]: Sized,
 {
@@ -457,7 +441,6 @@ fn fill_block_of_rows<const N: usize, H: HEncoding, const L: usize>(
     values: &mut [Vec<V>],
     offset: usize,
 ) where
-    LaneCount<L>: SupportedLaneCount,
     [(); L * N]: Sized,
 {
     let rev = |k| L * N - 1 - k;

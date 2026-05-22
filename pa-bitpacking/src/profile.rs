@@ -78,7 +78,6 @@ pub use bit_profile::BitProfile;
 
 // Many public types with private members here, to keep things clean.
 pub mod bit_profile {
-    use std::simd::{LaneCount, SupportedLaneCount};
 
     use crate::S;
 
@@ -148,10 +147,7 @@ pub mod bit_profile {
     }
     impl BitProfile {
         #[inline(always)]
-        pub fn eq_simd<const L: usize>(ca: (&S<L>, &S<L>), cb: (&S<L>, &S<L>)) -> S<L>
-        where
-            LaneCount<L>: SupportedLaneCount,
-        {
+        pub fn eq_simd<const L: usize>(ca: (&S<L>, &S<L>), cb: (&S<L>, &S<L>)) -> S<L> {
             (ca.0 ^ cb.0) & (ca.1 ^ cb.1)
         }
     }

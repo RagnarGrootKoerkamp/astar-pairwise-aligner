@@ -1,6 +1,5 @@
 //! The basic bitpacked algorithm from Myers'99.
 use crate::{B, HEncoding, Profile, S, V, W};
-use std::simd::{LaneCount, SupportedLaneCount};
 
 /// Implements Myers '99 bitpacking based algorithm. Terminology is as in the
 /// paper. The code is a translation from the implementation in Edlib.
@@ -64,9 +63,7 @@ pub fn compute_block_simd<const L: usize>(
     vp: &mut S<L>,
     vm: &mut S<L>,
     eq: S<L>,
-) where
-    LaneCount<L>: SupportedLaneCount,
-{
+) {
     let vx = eq | *vm;
     let eq = eq | *hm0;
     // The add here contains the 'folding' magic that makes this algorithm
