@@ -1,4 +1,5 @@
 #![feature(duration_constants)]
+#![warn(static_mut_refs)]
 
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
