@@ -10,4 +10,4 @@ crate-type = ["cdylib", "rlib"]
 pa-bitpacking.workspace = true
 pa-types.workspace = true
 
-pyo3 = { version = "0.22.2", features = ["extension-module"] }
+pyo3 = { version = "0.28.3", features = ["extension-module"] }
